@@ -14,10 +14,9 @@ import datetime as dt
 import re
 from pathlib import Path
 
-from orkcraft.realm import ideas
+from orkcraft.realm import idea_target, ideas
 
-LINK_CHARS, LINKS_READ = 6000, 6
-INDEX_CHARS, REPLY_CHARS, MAX_QUESTIONS = 6000, 4000, 3
+REPLY_CHARS, MAX_QUESTIONS = 4000, 3
 
 
 def _kw():
@@ -26,66 +25,43 @@ def _kw():
 
 
 class GoalMixin:
-    def _linked(self, root: Path, links: list[str]) -> str:
-        """The goal's linked documents: a path in the repository or a page of the Wiki is read (cut), a URL is only
-        named — never fetched."""
-        out = []
-        for link in links[:LINKS_READ]:
-            if re.match(r"^[a-z][a-z0-9+.-]*://", link, re.I):
-                out.append(f"- {link} (a web link: not fetched)")
-                continue
-            body = ""
-            for base in (self.repo_root, root):
-                path = (Path(base) / link.split("#")[0].lstrip("/")).resolve()
-                if path.is_file() and Path(base).resolve() in path.parents:
-                    try:
-                        body = path.read_text(encoding="utf-8")[:LINK_CHARS]
-                    except (OSError, UnicodeDecodeError):
-                        body = ""
-                    break
-            out.append(f"- {link}:\n{body}" if body else f"- {link} (not found in the repository or the Wiki)")
-        return "\n".join(out) or "(no links)"
-
-    def goal_prompt(self, root: Path, slug: str, said: str = "") -> str:
+    def goal_prompt(self, root: Path, slug: str, said: str = "", changed: list[str] | None = None, step: str = "goal") -> str:
+        """§0's `goal` context: its description, priority, its links' paths (never their text: it reads them itself,
+        within its bound), the person's answers, the Wiki's index; a refresh adds the paths that changed."""
         g = next(t for t in ideas.tracks(root) if t["slug"] == slug)
         try:
-            index = (root / "index.md").read_text(encoding="utf-8")[:INDEX_CHARS]
+            index = (Path(self.index_root()) / "index.md").read_text(encoding="utf-8")
         except OSError:
             index = "(no index yet)"
-        metrics = "\n".join(f"- {m['name']} → target {m['target'] or 'not set'}" for m in g["metrics"]) or "(none yet)"
-        talk = "\n".join(f"{t['who']}: {t['text']}" for t in ideas.talk(self.state_dir, slug, 6, goal=True))
-        title = (f"Its title, the person's (keep it): {g['title']}" if g["title_by"] == "person"
+        links = [f"- {x} (a web link: not fetched)" if re.match(r"^[a-z][a-z0-9+.-]*://", x, re.I) else f"- {x}" for x in g["links"]]
+        paths = [x for x in g["links"] if "://" not in x]
+        parts = [("Its description", g["about"])]
+        if g["metrics"] and g.get("metrics_by") == "person":
+            parts.append(("The metrics the person set", "\n".join(f"- {m['name']} → target {m['target'] or 'not set'}" for m in g["metrics"])))
+        if changed is not None:
+            parts.append(("The paths that changed since it was read", "\n".join(f"- {c}" for c in changed)))
+            paths = [c for c in changed if c in paths or any(c.startswith(p.rstrip("/") + "/") for p in paths)] + paths
+        parts += [("Its links (paths)", "\n".join(links)), ("The person says", said), ("The project's Wiki, its map (index.md)", index)]
+        context = idea_target.cut([p for p in parts if p[0] != "The person says" or said], idea_target.CONTEXT[step])
+        title = (f"Its title is the person's (keep it): {g['title']}" if g["title_by"] == "person"
                  else f"Its title so far (yours to write): {g['title']}")
-        return f"""You are the keeper of this project's Task board. A person saved a goal: a description and a priority.
-Write the rest: it is the context every idea under this goal starts from. You may read the repository (read only).
-Web links are named, never fetched.
+        return f"""You are the keeper of this project's Task board. A person saved a goal: a description and a priority
+(priority {g['priority']}{', deadline ' + g['deadline'] if g['deadline'] else ''}). Write the rest: it is the context
+every idea under this goal starts from. {title}. You may read the repository (read only); web links are named, never
+fetched. {self.reads(step, list(dict.fromkeys(paths)))}
 
-The project's Wiki, its map (index.md):
-{index}
-
-The goal (priority {g['priority']}{', deadline ' + g['deadline'] if g['deadline'] else ''}). {title}
-{g['about'][:3000]}
-
-Its summary so far:
-{g['summary'][:3000] or "(none yet)"}
-
-Its metrics so far:
-{metrics}
-
-Its linked documents:
-{self._linked(root, g['links'])}
-""" + (f"\nThe talk so far:\n{talk}\n" if talk else "") + (f"\nThe person says:\n{said}\n" if said else "") + """
-Answer with one JSON object and nothing else:
+{context}""" + """Answer with one JSON object and nothing else:
 {"title": "a title of at most 60 characters",
  "summary": "5 to 12 lines: what the goal means for this repository, the modules and files it touches (as repository paths), what exists already, the constraints",
  "metrics": [{"name": "done when …: one to three, each measurable", "target": "the number or state", "how": "how it is counted, and where"}],
  "links": ["at most 8 repository paths or Wiki pages you read and found relevant"],
- "questions": ["zero to three questions the person must answer to make the goal clear"],
+ "questions": ["zero to three questions the person must answer to make the goal clear, all at once"],
  "reply": "one short line to the person (only when they said something)"}
 """
 
-    def read_goal(self, slug: str, said: str = "", step: str = "goal") -> None:
-        """Send a goal to the keeper at once (read-only, on the Target's `goal` step), or its answer to the person's words."""
+    def read_goal(self, slug: str, said: str = "", step: str = "goal", answered: bool = False) -> None:
+        """Send a goal to the keeper at once (read-only, on the Target's `goal` step), or its answer to the person's words;
+        `answered`: the person answered its questions (§0's one round: it asks nothing more)."""
         if not any(t["slug"] == slug for t in ideas.tracks(self.wiki_root())):
             raise _kw().KeeperError("That goal is gone")
         said = str(said or "").strip()[:ideas.SECTION_CHARS]
@@ -99,11 +75,11 @@ Answer with one JSON object and nothing else:
             self._again.add(key)
             return
         ideas.save_goal_state(self.state_dir, slug, state="reading", error="")
-        self._start(slug, "goal", lambda: self._goal_loop(slug, said, step), key)
+        self._start(slug, "goal", lambda: self._goal_loop(slug, said, step, answered), key)
 
-    def _goal_loop(self, slug: str, said: str, step: str = "goal") -> None:
+    def _goal_loop(self, slug: str, said: str, step: str = "goal", answered: bool = False) -> None:
         key = f"goal:{slug}"
-        self.read_goal_one(slug, said, step)
+        self.read_goal_one(slug, said, step, answered=answered)
         while key in self._again:
             self._again.discard(key)
             self.read_goal_one(slug, "", step)
@@ -131,18 +107,17 @@ Answer with one JSON object and nothing else:
             return ""
         return proc.stdout.strip() if proc.returncode == 0 else ""
 
-    def read_goal_one(self, slug: str, said: str = "", step: str = "goal") -> None:
+    def read_goal_one(self, slug: str, said: str = "", step: str = "goal", changed: list[str] | None = None,
+                      answered: bool = False) -> None:
         kw = _kw()
         root = self.wiki_root()
         ideas.save_goal_state(self.state_dir, slug, state="reading", error="")
         self.publish(f"goal:{slug}")
         try:
-            text, _cost, _tokens, _s = self.ask(step, self.goal_prompt(root, slug, said))
-            answer = kw.first_json(text)
-            if answer is None:
-                raise kw.KeeperError("the keeper's answer was not the JSON it was asked for")
+            text, *_rest = self.ask(step, self.goal_prompt(root, slug, said, changed, step))
+            answer = self.parse(text)
         except Exception as e:
-            ideas.save_goal_state(self.state_dir, slug, state="raw", error=kw._why(e))
+            ideas.save_goal_state(self.state_dir, slug, state="raw", error=kw._why(e), measure=self.measure())
             return
         how: dict[str, str] = {}
         metrics = []
@@ -153,7 +128,7 @@ Answer with one JSON object and nothing else:
                 how[kw._words(m.get("name"), 300) or str(i)] = kw._words(m.get("how"), 300)
             if kw._words(m.get("name"), 300):
                 metrics.append({k: kw._words(m.get(k), 300) for k in ("name", "target", "how")})
-        questions = kw._strings(answer.get("questions"), MAX_QUESTIONS)
+        questions = [] if answered else kw._strings(answer.get("questions"), MAX_QUESTIONS)
         links = self._links_found(root, kw._strings(answer.get("links"), 20, 300)) if "links" in answer else None
         ideas.write_goal_reading(root, slug, kw._words(answer.get("summary"), 3000), how, questions,
                                  title=kw._words(answer.get("title"), ideas.TITLE_KEEPER), metrics=metrics, links=links)
@@ -161,4 +136,5 @@ Answer with one JSON object and nothing else:
             ideas.add_turn(self.state_dir, slug, "keeper", reply, goal=True)
         tier, effort = self.picked()
         ideas.save_goal_state(self.state_dir, slug, state="asks" if questions else "ready", error="", read_at=self.head(),
-                              read_time=dt.datetime.now().isoformat(timespec="seconds"), tier=tier, effort=effort)
+                              read_time=dt.datetime.now().isoformat(timespec="seconds"), tier=tier, effort=effort,
+                              measure=self.measure())

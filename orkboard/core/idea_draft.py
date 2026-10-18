@@ -1,8 +1,10 @@
-"""The draft (docs/specs/35-goals-window.md §3, §4): an idea straight to its spec, in one read-only call that starts the
-idea's session; its Stages and its risk written by code. A mixin of `IdeaKeeper`, as `idea_goals.py` is.
+"""The draft (docs/specs/35-goals-window.md §0, §3, §4): an idea straight to its spec, in one read-only call; its
+questions answered at once in one more (`answer`, which asks nothing more); its Stages and its risk written by code. A
+mixin of `IdeaKeeper`, as `idea_goals.py` is.
 
     keeper.draft(slug)              # in the background: Gist · Why · Done when · Out · Risks · Depends on · Open questions
     keeper.draft_one(slug)          # the same, on this thread (the night's way)
+    keeper.answer(slug, answers)    # the person's answers, in the questions' order: the rest of the spec, then the plan
     keeper.write_stages(slug, plan) # Stages from plan.json, in waves by `after`, S / M / L from the planned tier
     keeper.assess(slug)             # the risk: the model's, raised by realm/idea_risk.py's triggers
 
@@ -16,9 +18,8 @@ import json
 import time
 from pathlib import Path
 
-from orkcraft.realm import event_log, idea_risk, ideas
+from orkcraft.realm import event_log, idea_risk, idea_target, ideas
 
-INDEX_CHARS, PAGE_CHARS, GOAL_CHARS = 6000, 20_000, 3000
 OTHERS = 40                        # of the other goals' ideas not done, the most the draft is given
 MAX_DONE, MAX_OUT, MAX_TOUCHES, MAX_DEPENDS = 5, 3, 30, 8
 COMPLEXITY = {"laborer": "S", "warrior": "M", "elder": "L"}
@@ -95,22 +96,11 @@ class DraftMixin:
         return True
 
     def draft_prompt(self, root: Path, slug: str) -> str:
+        """§0's `draft` context: its goal's Summary and Metrics, the goal's links as paths, the titles of the goal's other
+        ideas and of the other goals' open ideas (≤ 40), the person's text."""
         page = ideas.idea_page(root, slug)
         track = page.get("track") or ideas.GENERAL
-        goals = {t["slug"]: t for t in ideas.tracks(root, make=False)}
-        g = goals.get(track)
-        try:
-            index = (root / "index.md").read_text(encoding="utf-8")[:INDEX_CHARS]
-        except OSError:
-            index = "(no index yet)"
-        goal = "(no goal)"
-        if g is not None:
-            metrics = "\n".join(f"- {m['name']}" + (f" → {m['target']}" if m.get("target") else "")
-                                + (f" (counted: {m['how']})" if m.get("how") else "") for m in g["metrics"]) or "(none yet)"
-            links = "\n".join(f"- {x}" for x in g["links"]) or "(none)"
-            goal = (f"{g['title']} (priority {g['priority']})\nDescription:\n{g['about'][:GOAL_CHARS]}\n\n"
-                    f"Summary:\n{g['summary'][:GOAL_CHARS]}\n\nMetrics:\n{metrics}\n\n"
-                    f"Its links (start from these files; search the repository only for what they don't cover):\n{links}")
+        g = next((t for t in ideas.tracks(root, make=False) if t["slug"] == track), None)
         mine, others = [], []
         for i in ideas.ideas(root):
             if i["slug"] == slug:
@@ -120,25 +110,19 @@ class DraftMixin:
                 mine.append(f"- {i['slug']}: {i['title']} ({st})")
             elif st != "done" and len(others) < OTHERS:
                 others.append(f"- {i['slug']}: {i['title']} (goal {i['track']})")
-        return f"""You are the keeper of this project's Task board. A person wrote an idea under a goal: write its spec
-straight away. You may read the repository (read only).
+        metrics = "\n".join(f"- {m['name']}" + (f" → {m['target']}" if m.get("target") else "")
+                            + (f" (counted: {m['how']})" if m.get("how") else "") for m in (g or {}).get("metrics") or [])
+        links = [x for x in (g or {}).get("links") or [] if "://" not in x]
+        context = idea_target.cut([("The idea, in the person's words", page.section("Gist")),
+                                   ("Its goal's summary", (g or {}).get("summary", "")), ("Its goal's metrics", metrics),
+                                   ("Its goal's links (paths)", "\n".join(f"- {x}" for x in links)),
+                                   ("The goal's other ideas", "\n".join(mine)),
+                                   ("The other goals' open ideas", "\n".join(others))], idea_target.CONTEXT["draft"])
+        return f"""You are the keeper of this project's Task board. A person wrote an idea under the goal
+{(g or {}).get('title', track)}: write its spec straight away. You may read the repository (read only).
+{self.reads("draft", links)}
 
-The goal:
-{goal}
-
-The goal's other ideas:
-{chr(10).join(mine) or "(none)"}
-
-The other goals' ideas not done:
-{chr(10).join(others) or "(none)"}
-
-The project's Wiki, its map (index.md):
-{index}
-
-The idea, in the person's words:
-{page.section("Gist")[:PAGE_CHARS]}
-
-Answer with one JSON object and nothing else:
+{context}Answer with one JSON object and nothing else:
 {{"title": "a short title",
  "gist": "the idea rewritten clearly: its first line one sentence, the thesis; then a few lines if needed",
  "why": "which of its goal's metrics it moves, and why it matters",
@@ -151,11 +135,11 @@ Answer with one JSON object and nothing else:
  "depends_on": ["the slugs of listed ideas, of any goal, that must be done first"],
  "size": "S, M or L",
  "before": "the slug of the goal's idea this one should stand before, or empty",
- "questions": ["zero to three questions the person must answer before it can be planned"]}}
+ "questions": ["zero to three questions the person must answer before it can be planned, all at once"]}}
 """
 
     def draft_one(self, slug: str) -> None:
-        """One draft: the spec written, the idea's session kept; then `asks`, or `ready` and its plan at once."""
+        """One draft, one shot: the spec written; then `asks`, or `ready` and its plan at once."""
         kw = _kw()
         root = self.wiki_root()
         if ideas.idea_page(root, slug) is None:
@@ -164,31 +148,98 @@ Answer with one JSON object and nothing else:
         ideas.save_state(self.state_dir, slug, state="reading", error="", held_until="")
         self.publish(slug)
         try:
-            text, _cost, tokens, session = self.ask("draft", self.draft_prompt(root, slug))
-            answer = kw.first_json(text)
-            if answer is None:
-                raise kw.KeeperError("the keeper's answer was not the JSON it was asked for")
+            text, *_rest = self.ask("draft", self.draft_prompt(root, slug))
+            answer = self.parse(text)
         except Exception as e:                      # the idea stays new; stopped by the person: it waits for them
             stopped = isinstance(e, InterruptedError)
             ideas.save_state(self.state_dir, slug, state="raw", error="" if stopped else kw._why(e),
                              **({"queue": "hold"} if stopped else {}))
             return
         questions = self.write_draft(root, slug, answer)
-        risk = idea_risk.level(ideas.idea_page(root, slug).get("risk"))
-        ideas.save_state(self.state_dir, slug, state="asks" if questions else "ready", error="", session=session or "",
-                         session_at=dt.datetime.now().isoformat(timespec="seconds"),
-                         context=self._context(session, tokens) if session else 0,
+        ideas.save_state(self.state_dir, slug, state="asks" if questions else "ready", error="", measure=self.measure(),
                          batch_at=dt.datetime.now().isoformat(timespec="seconds"))
         tier, effort = self.picked()
         page = ideas.idea_page(root, slug)
-        self._ev(event_log.IDEA_DRAFTED, idea=slug, risk=risk, triggers=_json_list(page.get("risk_triggers")),
-                 questions=len(questions), tier=tier, effort=effort, seconds=round(time.monotonic() - began, 1))
+        self._ev(event_log.IDEA_DRAFTED, idea=slug, risk=idea_risk.level(page.get("risk")),
+                 triggers=_json_list(page.get("risk_triggers")), questions=len(questions), tier=tier, effort=effort,
+                 seconds=round(time.monotonic() - began, 1), **self.measure())
         self.publish(slug)
-        if not questions and not self.hold(slug):
-            self._busy[slug] = "planning"
-            ideas.save_state(self.state_dir, slug, state="planning")
-            self.publish(slug)
-            self.plan_one(slug, "ready")
+        if not questions:
+            self.plan_now(slug)
+
+    def plan_now(self, slug: str) -> None:
+        """The plan that follows a spec by itself, on this thread (it waits with `held_until` in a spent window)."""
+        if self.hold(slug):
+            return
+        self._busy[slug] = "planning"
+        ideas.save_state(self.state_dir, slug, state="planning")
+        self.publish(slug)
+        self.plan_one(slug, "ready")
+
+    # -- one round of questions (§0) -------------------------------------------------------------------------
+
+    def answer(self, slug: str, answers: list[str]) -> None:
+        """The person answers the spec's questions together (in their order): one `answer` call, in the background."""
+        kw = _kw()
+        page = ideas.idea_page(self.wiki_root(), slug)
+        if page is None:
+            raise kw.KeeperError("That idea is gone")
+        questions = ideas.items(page.section("Open questions"))
+        if ideas.state(self.state_dir, slug)["state"] != "asks" or not questions:
+            raise kw.KeeperError("This idea asks nothing now")
+        answers = [" ".join(str(a or "").split())[:2000] for a in answers][:len(questions)]
+        if not any(answers):
+            raise kw.KeeperError("Answer at least one question")
+        if why := self._may_run():
+            raise kw.KeeperError(why)
+        if self.busy(slug):
+            raise kw.KeeperError("The keeper is busy with this idea: a moment")
+        self.refuse_spent()
+        pairs = [(q, answers[n] if n < len(answers) else "") for n, q in enumerate(questions)]
+        ideas.add_turn(self.state_dir, slug, "you", "\n".join(f"{q} — {a or '(no answer)'}" for q, a in pairs), "Open questions")
+        self._start(slug, "drafting", lambda: self.answer_one(slug, pairs))
+
+    def answer_prompt(self, root: Path, slug: str, pairs: list[tuple[str, str]]) -> str:
+        """§0's `answer` context: the spec's sections but Decisions and Stages, the questions with the answers."""
+        page = ideas.idea_page(root, slug)
+        names = [n for n in ideas.SECTIONS if n not in ("Decisions", "Stages", "Open questions")]
+        parts = [("The questions and the person's answers", "\n".join(f"- {q}\n  {a or '(no answer: decide)'}" for q, a in pairs))]
+        parts += [(n, page.section(n)) for n in names]
+        context = idea_target.cut(parts, idea_target.CONTEXT["answer"])
+        touches = _json_list(page.get("touches"))
+        return f"""You are the keeper of this project's Task board. The person answered the questions of the spec
+{page.title}. Write the rest of the spec from their answers. Ask nothing more: where you are unsure, decide, and say what
+you assumed. {self.reads("answer", touches)} You may read the repository (read only).
+
+{context}Answer with one JSON object and nothing else:
+{{"sections": {{"<a section's name>": "its whole new text"}},
+ "decisions": ["one line for each thing the answers decided"],
+ "assumed": ["one line for each thing you assumed where you were unsure"]}}
+Section names: {", ".join(names)}."""
+
+    def answer_one(self, slug: str, pairs: list[tuple[str, str]]) -> None:
+        kw = _kw()
+        root = self.wiki_root()
+        ideas.save_state(self.state_dir, slug, state="reading", error="")
+        self.publish(slug)
+        try:
+            text, *_rest = self.ask("answer", self.answer_prompt(root, slug, pairs))
+            answer = self.parse(text)
+        except Exception as e:
+            ideas.save_state(self.state_dir, slug, state="asks", error="" if isinstance(e, InterruptedError) else kw._why(e))
+            return
+        got = answer.get("sections") if isinstance(answer.get("sections"), dict) else {}
+        written = {n: kw._words(v, ideas.SECTION_CHARS) for n, v in got.items()
+                   if n in ideas.SECTIONS and n not in ("Decisions", "Stages", "Open questions") and isinstance(v, str)}
+        written["Open questions"] = ""               # one round: a question in its answer is dropped
+        decisions = [f"{q} — {a}" for q, a in pairs if a] + kw._strings(answer.get("decisions"), 10)
+        decisions += [f"Assumed: {x}" for x in kw._strings(answer.get("assumed"), 10)]
+        ideas.update(root, slug, written, decisions)
+        self.assess(slug)
+        ideas.save_state(self.state_dir, slug, state="ready", error="", measure=self.measure())
+        self._ev(event_log.IDEA_ANSWERED, idea=slug, answers=sum(1 for _q, a in pairs if a), **self.measure())
+        self.publish(slug)
+        self.plan_now(slug)
 
     def write_draft(self, root: Path, slug: str, answer: dict) -> list[str]:
         """The draft's answer into the page, strictly (only known keys); its questions."""

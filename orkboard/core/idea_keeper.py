@@ -4,7 +4,8 @@ idea straight into its spec, talks a spec through with the person, turns a spec 
     keeper = IdeaKeeper(repo_root, state_dir, wiki_root=lambda: root, settings=lambda: machine.ideas,
                         publish=lambda slug: ..., limits=lambda: town.limits, on_plan=autostart)
     keeper.draft(slug)                # an idea → its spec (core/idea_draft.py), then its plan when it asks nothing
-    keeper.say(slug, "Why not a toggle?", "Risks")    # the keeper answers in the background
+    keeper.answer(slug, ["…", "…"])   # the person answers the spec's questions at once: the rest is written, then the plan
+    keeper.say(slug, "Why not a toggle?", "Risks")    # an edit of one section, in the background
     keeper.plan(slug)                 # Re-plan: the page → plan.json, with its estimate
     keeper.read_stop(slug)            # this idea's run stops (its own cancel); its queue is `hold`
     keeper.tick()                     # the host's clock: what the limits held runs again, and the night (core/idea_night.py)
@@ -12,9 +13,11 @@ idea straight into its spec, talks a spec through with the person, turns a spec 
 - **The Target** (realm/idea_target.py) picks each step's tier and effort: goal, draft, talk, plan, refresh, propose. The
   Taskmaster's own model, when it is not its default `elder`, replaces the tier; the Target still gives the effort.
 - **Goal** (read-only, core/idea_goals.py): a goal saved is read at once: its title, Summary, Metrics, links, questions.
-- **Draft** (read-only): it starts the idea's session; the talk and the plan resume it. One Claude session per idea
-  (`--resume`); a new one when the last turn is older than `idle_hours` or its context passed 60 % of the window. The
-  talk is archived in `talk.jsonl` and never read back into a model.
+- **Draft** and **answer** (read-only, core/idea_draft.py): an idea straight to its spec; its questions answered at once.
+- **One call, one job** (spec 35 §0): every call is a fresh `claude -p` (never `--resume`, no session kept), given only
+  what its step needs, cut to `idea_target.CONTEXT`, with its budget (`--max-budget-usd`). The page is the memory; the
+  talk is archived in `talk.jsonl` and never read back into a model. One round of questions: the `answer` call asks
+  nothing more. Each call is measured (`step`, `prompt_chars`, `tokens`, `cost`) on the keeper's events.
 - **Plan**: the page → `plan.json` (at most 8 tasks), its Stages and its risk written by code, the estimate from the
   tiers the tasks will run on; then `on_plan(slug)` (the face decides whether it starts by itself, spec 35 §5).
 - **The window** (spec 35 §6): in a spent window a call is not made; what runs by itself waits with `held_until`, a
@@ -41,8 +44,6 @@ from orkcraft.realm import event_log, idea_target, ideas, plans, roles, status
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
-WINDOW = 200_000                   # Claude's context window, tokens
-COMPACT_SHARE = 0.6                # a talk's session past this share of the window is compacted
 MAX_TASKS, MAX_TODOS, MAX_QUESTIONS = 8, 5, 3
 INDEX_CHARS, PAGE_CHARS, REPLY_CHARS = 6000, 30_000, 4000
 TIERS = ("elder", "warrior", "laborer")
@@ -50,7 +51,8 @@ KINDS = ("secret", "choice", "confirm", "instructions", "file")
 ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
 TICK_S = 20.0                      # how often the clock looks for what the limits held
 
-Call = Callable[[str, str, str, str], tuple[str, Any, Any, str]]   # (tier, prompt, resume, effort) → (text, cost, tokens, session)
+Call = Callable[[str, str, str, Any], tuple[str, Any, Any, str]]   # (tier, prompt, effort, budget) → (text, cost, tokens, session)
+BUDGET_LINE = "the keeper ran out of its budget for this step"
 
 
 class KeeperError(Exception):
@@ -102,6 +104,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
         self.taskmaster = taskmaster or (lambda: (roles.role(self.state_dir, roles.TASKMASTER) or {}).get("model") or "elder")
         self._again: set[str] = set()                # a busy key asked again while it ran
         self.wiki_root, self.settings, self.publish = wiki_root, settings, publish
+        self.index_root = wiki_root                  # where the Wiki's index is read (the person's Wiki, spec 35 §13)
         self.demo, self.budget_ok, self.events = demo, budget_ok, events
         self.limits = limits or (lambda: [])
         self.on_plan = on_plan or (lambda slug: None)
@@ -117,16 +120,19 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
 
     # -- the model call -------------------------------------------------------------------------------------
 
-    def _claude(self, tier: str, prompt: str, resume: str = "", effort: str = "") -> tuple[str, Any, Any, str]:
+    def _claude(self, tier: str, prompt: str, effort: str = "", budget: float | None = None) -> tuple[str, Any, Any, str]:
+        """One shot (spec 35 §0): a fresh read-only run, no session kept; the night's proposals read nothing."""
         from orkcraft.realm import harnesses, jobs
         from orkcraft.sources import telemetry
         h = harnesses.get(HARNESS)
         purpose = {"laborer": "sort", "elder": "plan"}.get(tier, "plan")      # the Taskmaster's own model is a plan
         cancel = getattr(self._tls, "cancel", None) or self.cancel
         with telemetry.tagged(purpose, "board"):
-            return jobs.run_read(HARNESS, prompt, self.repo_root, cancel, h.pick(tier) if h else tier,
-                                 env={"ORKCRAFT_ORC": "board/keeper", "ORKCRAFT_IDEA": getattr(self._tls, "slug", "")},
-                                 resume=resume, effort=effort)
+            got = jobs.run_read(HARNESS, prompt, self.repo_root, cancel, h.pick(tier) if h else tier,
+                                env={"ORKCRAFT_ORC": "board/keeper", "ORKCRAFT_IDEA": getattr(self._tls, "slug", "")},
+                                effort=effort, budget=budget, one_shot=True, tools=getattr(self._tls, "tools", True))
+        self._tls.usage, self._tls.capped = jobs.last_usage(), bool(getattr(jobs.LAST, "capped", False))
+        return got
 
     def target(self) -> str:
         return idea_target.target_of(self.settings())
@@ -135,28 +141,52 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
         """The (model or tier, effort) a keeper step runs on: by the Target, the Taskmaster's own model winning."""
         return idea_target.keeper_pick(step, self.target(), self.taskmaster())
 
-    def ask(self, step: str, prompt: str, resume: str = "") -> tuple[str, Any, Any, str]:
-        """One model call on a step; a run stopped meanwhile (its own cancel or Stop all) raises InterruptedError."""
+    def ask(self, step: str, prompt: str, tools: bool = True) -> tuple[str, Any, Any, str]:
+        """One model call on a step, measured; a run stopped meanwhile (its own cancel or Stop all) raises
+        InterruptedError; one that ran out of its budget with nothing to use raises KeeperError with BUDGET_LINE."""
         got = self.pick(step)
         if got is None:
             raise KeeperError(f"The Target {self.target()} makes no {step} call")
-        self._tls.picked = got
-        out = self.call(got[0], prompt, resume, got[1])
+        self._tls.picked, self._tls.tools, self._tls.usage, self._tls.capped = got, tools, None, False
+        self._tls.measure = {"step": step, "prompt_chars": len(prompt), "tokens": None, "cost": None}
+        try:
+            text, cost, tokens, session = self.call(got[0], prompt, got[1], idea_target.budget(step, self.target()))
+        except Exception as e:
+            if "budget" in str(e).lower() and not isinstance(e, InterruptedError):
+                raise KeeperError(BUDGET_LINE) from None
+            raise
+        finally:
+            self._tls.tools = True
+        usage = getattr(self._tls, "usage", None)
+        self._tls.measure.update(tokens=usage or ({"total": tokens} if isinstance(tokens, int) else None),
+                                 cost=cost if isinstance(cost, (int, float)) and not isinstance(cost, bool) else None)
         cancel = getattr(self._tls, "cancel", None)
         if (cancel is not None and cancel.is_set()) or self.cancel.is_set():
             raise InterruptedError("stopped")
-        return out
+        return text, cost, tokens, session
+
+    def parse(self, text: str) -> dict:
+        """The call's JSON, strictly; a run cut by its budget with no JSON says so."""
+        answer = first_json(text)
+        if answer is None:
+            raise KeeperError(BUDGET_LINE if getattr(self._tls, "capped", False)
+                              else "the keeper's answer was not the JSON it was asked for")
+        return answer
 
     def picked(self) -> tuple[str, str]:
         return getattr(self._tls, "picked", ("", ""))
 
-    def _context(self, session: str, tokens) -> int:
-        from orkcraft.realm import jobs
-        try:
-            read = jobs.context_of(HARNESS, session, self.repo_root)
-        except Exception:                            # a transcript we cannot read: the run's own count
-            read = 0
-        return int(read or tokens or 0)
+    def measure(self) -> dict:
+        """The last call's measure on this thread (spec 35 §0): step, prompt_chars, tokens, cost."""
+        return dict(getattr(self._tls, "measure", None) or {"step": "", "prompt_chars": 0, "tokens": None, "cost": None})
+
+    def reads(self, step: str, files: list[str]) -> str:
+        """Bounded reading (§0): the files to start from and how many it may read."""
+        n = idea_target.READS.get(step, 0)
+        if not n:
+            return "Read no file: answer from what is here."
+        start = ", ".join(files[:n]) if files else "none named"
+        return f"Start from these files: {start}. Read at most {n} files in all; search only for what they don't cover."
 
     def _ev(self, event: str, **fields: Any) -> None:
         if self.events and not self.demo:
@@ -305,9 +335,9 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
             raise KeeperError("The keeper has read this idea already")
         self.draft(slug, person=True)
 
-    # -- the talk: one session per idea, the draft's -----------------------------------------------------
+    # -- the talk: an edit of one section, one shot ------------------------------------------------------
 
-    def say(self, slug: str, text: str, section: str = "") -> None:
+    def say(self, slug: str, text: str, section: str = "", device: str = "desktop") -> None:
         root = self.wiki_root()
         text = str(text or "").strip()[:ideas.SECTION_CHARS]
         if ideas.idea_page(root, slug) is None:
@@ -322,89 +352,56 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
             raise KeeperError("The keeper is busy with this idea: a moment")
         self.refuse_spent()
         ideas.add_turn(self.state_dir, slug, "you", text, section)
-        self._start(slug, "talking", lambda: self.talk_one(slug, text, section))
+        self._start(slug, "talking", lambda: self.talk_one(slug, text, section, device))
 
-    def fresh(self, st: dict, now: dt.datetime | None = None) -> bool:
-        """Whether the talk's next turn needs a new session (compaction): none yet, its last turn older than
-        `idle_hours`, or its context past 60 % of the window."""
-        if not st.get("session"):
-            return True
-        now = now or dt.datetime.now()
-        hours = int((self.settings() or {}).get("idle_hours") or 24)
-        try:
-            at = dt.datetime.fromisoformat(str(st.get("session_at") or ""))
-        except ValueError:
-            return True
-        return now - at > dt.timedelta(hours=hours) or int(st.get("context") or 0) > COMPACT_SHARE * WINDOW
-
-    def talk_prompt(self, root: Path, slug: str, text: str, section: str, fresh: bool) -> str:
+    def talk_prompt(self, root: Path, slug: str, text: str, section: str) -> str:
+        """A talk turn is an edit (§0): the one section pointed at (Gist and Open questions when none), the last 10
+        lines of Decisions, the person's words. No earlier turn."""
         page = ideas.idea_page(root, slug)
-        about = f" (about {section})" if section else ""
-        ask = f"""The person says{about}:
-{text}
+        names = [section] if section else ["Gist", "Open questions"]
+        parts = [(f"The section {n}", page.section(n)) for n in names]
+        parts += [("The last decisions", "\n".join(page.section("Decisions").splitlines()[-10:])), ("The person says", text)]
+        context = idea_target.cut(parts, idea_target.CONTEXT["talk"])
+        return f"""You are the keeper of one idea on this project's Task board: {page.title}. The person says what to change on
+a section of its spec, or asks about it. Rewrite only that section (and name what was decided), and reply in at most
+three lines. {self.reads("talk", [])} You may read the repository (read only).
 
-Answer with one JSON object and nothing else:
-{{"reply": "your answer to the person, short and plain",
- "sections": {{"<a section's name>": "its whole new text"}},
- "decisions": ["one line for each thing decided in this turn, and why"],
- "questions": ["the open questions that remain (all of them; [] when none)"]}}
-Put in `sections` only the sections this turn is about; leave the others out. Section names: {", ".join(n for n in ideas.SECTIONS if n != "Decisions")}."""
-        if not fresh:
-            now = page.section(section) if section else ""
-            return ask + (f"\n\nThe section {section} reads now:\n{now[:PAGE_CHARS]}" if section else "")
-        return f"""You are the keeper of one idea on this project's Task board: you talk its spec through with the
-person, and keep its page. You may read the repository (read only). Edit only the sections a turn is about, never
-rewrite the page; each decision goes to Decisions (you name it, the board writes the line).
+{context}Answer with one JSON object and nothing else:
+{{"reply": "at most three lines to the person",
+ "sections": {{"{names[0]}": "its whole new text, only when it changes"}},
+ "decisions": ["one line for each thing decided in this turn, and why"]}}"""
 
-The idea's page now:
-{page.text()[:PAGE_CHARS]}
-
-{ask}"""
-
-    def talk_one(self, slug: str, text: str, section: str = "") -> None:
+    def talk_one(self, slug: str, text: str, section: str = "", device: str = "desktop") -> None:
         root = self.wiki_root()
-        st = ideas.state(self.state_dir, slug)
-        fresh = self.fresh(st)
-        before = ideas.idea_page(root, slug)
-        asked = bool(before and ideas.items(before.section("Open questions")))
+        allowed = {section} if section else {"Gist", "Open questions"}
         try:
-            out, _cost, tokens, session = self.ask("talk", self.talk_prompt(root, slug, text, section, fresh),
-                                                   "" if fresh else st["session"])
-        except Exception as e:
-            ideas.add_turn(self.state_dir, slug, "keeper", f"I could not answer: {_why(e)}", section)
-            ideas.save_state(self.state_dir, slug, error=_why(e))
-            return
-        answer = first_json(out)
-        if answer is None:                           # plain words: kept as the reply, nothing written
-            answer = {"reply": out}
-        sections = answer.get("sections") if isinstance(answer.get("sections"), dict) else {}
-        written = {n: _words(v, ideas.SECTION_CHARS) for n, v in sections.items()
-                   if n in ideas.SECTIONS and n not in ("Decisions", "Stages") and isinstance(v, str)}
-        if isinstance(answer.get("questions"), list):
-            written["Open questions"] = _bullets(_strings(answer["questions"], 10))
-        decisions = _strings(answer.get("decisions"), 10)
-        if written or decisions:
-            ideas.update(root, slug, written, decisions)
-        reply = _words(answer.get("reply"), REPLY_CHARS) or "(the keeper wrote the page and said nothing)"
-        ideas.add_turn(self.state_dir, slug, "keeper", reply, section)
-        changes: dict[str, Any] = {"session": session or ("" if fresh else st["session"]),
-                                   "session_at": dt.datetime.now().isoformat(timespec="seconds"),
-                                   "context": self._context(session or st["session"], tokens), "error": ""}
-        state = ideas.state(self.state_dir, slug)["state"]
-        page = ideas.idea_page(root, slug)
-        open_now = bool(page and ideas.items(page.section("Open questions")))
-        if state in ("raw", "asks", "ready"):
-            changes["state"] = "asks" if open_now else "ready"
-        ideas.save_state(self.state_dir, slug, **changes)
-        plan = ideas.plan(self.state_dir, slug)
-        if written and plan is not None and not plan.get("passed_at"):
-            was = self.assess(slug)
-            if was is not None:                      # the risk changed: whether it starts is decided again
-                self.on_plan(slug)
-        if asked and not open_now and plan is None and changes.get("state") == "ready" and not self.hold(slug):
-            self._busy[slug] = "planning"            # the person answered the last question: the plan follows at once
-            ideas.save_state(self.state_dir, slug, state="planning", error="")
-            self.plan_one(slug, "ready")
+            try:
+                out, *_rest = self.ask("talk", self.talk_prompt(root, slug, text, section))
+            except Exception as e:
+                ideas.add_turn(self.state_dir, slug, "keeper", f"I could not answer: {_why(e)}", section)
+                ideas.save_state(self.state_dir, slug, error=_why(e))
+                return
+            answer = first_json(out) or {"reply": out}           # plain words: kept as the reply, nothing written
+            sections = answer.get("sections") if isinstance(answer.get("sections"), dict) else {}
+            written = {n: _words(v, ideas.SECTION_CHARS) for n, v in sections.items()
+                       if n in allowed and n not in ("Decisions", "Stages") and isinstance(v, str)}
+            decisions = _strings(answer.get("decisions"), 10)
+            if written or decisions:
+                ideas.update(root, slug, written, decisions)
+            reply = "\n".join((_words(answer.get("reply"), REPLY_CHARS) or "(the keeper wrote the page and said nothing)").splitlines()[:3])
+            ideas.add_turn(self.state_dir, slug, "keeper", reply, section)
+            changes: dict[str, Any] = {"error": "", "measure": self.measure()}
+            state = ideas.state(self.state_dir, slug)["state"]
+            page = ideas.idea_page(root, slug)
+            if state in ("raw", "asks", "ready"):
+                changes["state"] = "asks" if page and ideas.items(page.section("Open questions")) else "ready"
+            ideas.save_state(self.state_dir, slug, **changes)
+            plan = ideas.plan(self.state_dir, slug)
+            if written and plan is not None and not plan.get("passed_at") and self.assess(slug) is not None:
+                self.on_plan(slug)                   # the risk changed: whether it starts is decided again
+        finally:
+            self._ev(event_log.IDEA_SAID, idea=slug, section=section, chars=len(text), text=text, device=device,
+                     **self.measure())
 
     # -- the plan: the spec → plan.json -------------------------------------------------------------------
 
@@ -435,13 +432,18 @@ The idea's page now:
         return True
 
     def plan_prompt(self, root: Path, slug: str) -> str:
+        """§0's `plan` context: Gist, Done when, Out, Risks, Depends on; the goal's Summary."""
         page = ideas.idea_page(root, slug)
+        goal = next((t for t in ideas.tracks(root, make=False) if t["slug"] == page.get("track")), None)
+        parts = [(n, page.section(n)) for n in ("Gist", "Done when", "Out", "Risks", "Depends on")]
+        parts.append(("Its goal's summary", goal["summary"] if goal else ""))
+        context = idea_target.cut(parts, idea_target.CONTEXT["plan"])
+        touches = [t for t in json.loads(page.get("touches") or "[]") if isinstance(t, str)] if page.get("touches", "").startswith("[") else []
         return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
-read the repository (read only) to see what the work touches.
+read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
 
-The spec:
-{page.text()[:PAGE_CHARS]}
-
+The spec: {page.title}
+{context}
 Rules:
 - At most {MAX_TASKS} tasks. Each is a brief another Claude session can do alone, in a worktree of the repository:
   what to change, where, and how it is tested; it names the Done when lines it proves. `after` only where a task
@@ -461,30 +463,26 @@ Answer with one JSON object and nothing else:
 """
 
     def plan_one(self, slug: str, was: str = "ready") -> None:
-        """The plan, resuming the idea's session; its Stages and risk written, its estimate by the tiers the tasks will
-        run on; then whether it starts by itself is the face's (`on_plan`)."""
+        """The plan, one shot; its Stages and risk written, its estimate by the tiers the tasks will run on; then
+        whether it starts by itself is the face's (`on_plan`)."""
         root = self.wiki_root()
         back = was if was in ("raw", "asks", "ready", "plan", "failed") else "ready"
-        st = ideas.state(self.state_dir, slug)
-        fresh = self.fresh(st)
         try:
-            text, _cost, tokens, session = self.ask("plan", self.plan_prompt(root, slug), "" if fresh else st["session"])
-            data = make_plan(slug, first_json(text))
+            text, *_rest = self.ask("plan", self.plan_prompt(root, slug))
+            data = make_plan(slug, self.parse(text))
             target = self.target()
             runs = [idea_target.tier_of(idea_target.task_pick(t["tier"], target, str(roles.role_for(self.state_dir, t["kind"]).get("model") or ""))[0])
                     for t in data["tasks"]]
             data["estimate"] = estimate(data["tasks"], runs)
             ideas.save_plan(self.state_dir, slug, data)
         except Exception as e:
-            ideas.save_state(self.state_dir, slug, state=back, error="" if isinstance(e, InterruptedError) else f"No plan: {_why(e)}",
-                             **({"queue": "hold"} if isinstance(e, InterruptedError) else {}))
+            stopped = isinstance(e, InterruptedError)
+            ideas.save_state(self.state_dir, slug, state=back, error="" if stopped else f"No plan: {_why(e)}",
+                             **({"queue": "hold"} if stopped else {}))
             return
         self.write_stages(slug, data)
         self.assess(slug)
-        if session:
-            ideas.save_state(self.state_dir, slug, session=session, session_at=dt.datetime.now().isoformat(timespec="seconds"),
-                             context=self._context(session, tokens))
-        ideas.save_state(self.state_dir, slug, state="plan", error="", held_until="")
+        ideas.save_state(self.state_dir, slug, state="plan", error="", held_until="", measure=self.measure())
         self.publish(slug)
         self.on_plan(slug)
 

@@ -27,7 +27,7 @@ from orkcraft.realm import event_log, idea_target, ideas
 
 RETRY_S = 600                     # a night the reserve held is tried again after this, inside the window
 DECLINED, NIGHT = "declined.jsonl", "night.json"
-DECLINED_READ, COMMITS_READ, INDEX_CHARS = 30, 50, 6000
+DECLINED_READ, COMMITS_READ = 30, 50
 _PATH = re.compile(r"`?([\w.-]+(?:/[\w.*-]+)+/?|[\w-]+\.(?:py|js|ts|tsx|md|json|toml|yaml|yml|css|html|sql))`?")
 
 
@@ -127,7 +127,8 @@ class NightMixin:
                 "head": self.head() or prev.get("head", ""), "head_before": prev.get("head", "") if prev.get("key") != key
                 else prev.get("head_before", "")}
         ideas._write_json(self._night_file(), data)
-        self._ev(event_log.NIGHT_RUN, **counts, seconds=round(time.monotonic() - began, 1))
+        measure = counts.pop("measure", None) or {"step": "propose", "prompt_chars": 0, "tokens": None, "cost": None}
+        self._ev(event_log.NIGHT_RUN, **counts, seconds=round(time.monotonic() - began, 1), **measure)
         return counts
 
     def _night_queue(self, root: Path, counts: dict) -> None:
@@ -191,7 +192,8 @@ class NightMixin:
             if self._reserved() or self.window_until() is not None:
                 counts["held"] += 1
                 return
-            if self._sync(g["slug"], "goal", lambda s=g["slug"]: self.read_goal_one(s, "", "refresh"), f"goal:{g['slug']}"):
+            hit = [c for c in changed if any(c == p or c.startswith(p + "/") for p in paths)]
+            if self._sync(g["slug"], "goal", lambda s=g["slug"], h=hit: self.read_goal_one(s, "", "refresh", h), f"goal:{g['slug']}"):
                 counts["refreshed"] += 1
 
     # -- proposals (§8) -----------------------------------------------------------------------------------------
@@ -206,37 +208,25 @@ class NightMixin:
         return proc.stdout.strip() if proc.returncode == 0 else ""
 
     def propose_prompt(self, root: Path, n: int) -> str:
+        """§0's `propose` context: each goal's title and its Summary's first line, its ideas' titles and states, the
+        declined titles, at most 50 commit subjects. It reads no file."""
         goals = []
         for g in ideas.tracks(root, make=False):
             if g["slug"] == ideas.GENERAL:
                 continue
             mine = "\n".join(f"  - {i['title']} ({ideas.state(self.state_dir, i['slug'])['state']})" for i in ideas.ideas(root, g["slug"]))
-            metrics = "; ".join(m["name"] for m in g["metrics"])
-            goals.append(f"- {g['slug']}: {g['title']}\n  Description: {g['about'][:1500]}\n  Summary: {g['summary'][:1500]}\n"
-                         f"  Metrics: {metrics or '(none)'}\n  Its ideas:\n{mine or '  (none)'}")
+            goals.append(f"- {g['slug']}: {g['title']} — {ideas.thesis(g['summary']) or ideas.thesis(g['about'])}\n{mine or '  (no idea yet)'}")
         no = "\n".join(f"- {d['title']} (goal {d['goal']})" + (f": {d['reason']}" if d["reason"] else "") for d in declined(self.state_dir))
-        try:
-            index = (root / "index.md").read_text(encoding="utf-8")[:INDEX_CHARS]
-        except OSError:
-            index = "(no index yet)"
         st = self.night_state()
         since = st.get("head") if st.get("key") != self.night_key(time.time()) else st.get("head_before", "")
+        subjects = "\n".join(line.split(" ", 1)[-1] for line in self.commits_since(since or "").splitlines())
+        context = idea_target.cut([("The goals and their ideas", "\n".join(goals)),
+                                   ("Proposals the person turned down (never propose these again)", no),
+                                   ("The commits since the last night", subjects)], idea_target.CONTEXT["propose"])
         return f"""You are the keeper of this project's Task board. It is night: propose up to {n} new ideas the person
-may want to take in the morning, each under one of the goals. You may read the repository (read only).
+may want to take in the morning, each under one of the goals. {self.reads("propose", [])}
 
-The goals:
-{chr(10).join(goals) or "(none)"}
-
-Proposals the person turned down (never propose these again):
-{no or "(none)"}
-
-The commits since the last night:
-{self.commits_since(since or "") or "(none)"}
-
-The project's Wiki, its map (index.md):
-{index}
-
-Answer with one JSON object and nothing else:
+{context}Answer with one JSON object and nothing else:
 {{"proposals": [{{"goal": "a goal's slug", "title": "a short title", "why": "two lines: why it moves the goal"}}]}}
 """
 
@@ -252,9 +242,11 @@ Answer with one JSON object and nothing else:
             return
         try:
             self._tls.slug = "night-proposals"
-            text, *_rest = self.ask("propose", self.propose_prompt(root, n))
+            text, *_rest = self.ask("propose", self.propose_prompt(root, n), tools=False)
         except Exception:                          # a night that cannot propose proposes nothing
+            counts["measure"] = self.measure()
             return
+        counts["measure"] = self.measure()
         answer = kw.first_json(text) or {}
         goals = {g["slug"] for g in ideas.tracks(root, make=False)} - {ideas.GENERAL}
         no = {d["title"].lower() for d in declined(self.state_dir, 1000)}
