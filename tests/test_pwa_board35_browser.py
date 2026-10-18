@@ -26,7 +26,7 @@ async def test_the_target_chip_sets_and_shows_and_the_gear_has_autostart_and_the
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         chip = page.locator(".pane-head .target-chip")
         assert (await chip.inner_text()).replace("\n", " ") == "Target: Balance"
-        assert (await page.locator(".pane-head").bounding_box())["y"] < 200                              # in the Board's header
+        assert (await page.locator(".board-tab-pane .pane-head").bounding_box())["y"] < 200                              # in the Board's header
         await chip.click()
         sheet = page.get_by_role("dialog", name="Target")
         await sheet.wait_for(timeout=WAIT_MS)
@@ -88,7 +88,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         stub.ideas["dep"] = stub.idea("dep", "Needs the sync", "working", 11, track="ship", waits_on=["hi"])
         stub.ideas["fin"] = stub.idea("fin", "Finished one", "done", 12, track="ship")
         stub.bump({})
-        hi = page.locator(".idea-card", has_text="Fast sync")
+        hi = page.locator(".idea-card[data-slug=hi]")
         await hi.wait_for(timeout=WAIT_MS)
         assert await hi.locator(".spin").count() == 1 and "drafting" in await hi.inner_text()
         await _shot(page, "phone-ideas-390x844")
@@ -202,7 +202,7 @@ async def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(fake_re
         stub.bump({})
         await page.get_by_role("tab", name="Agents").click()
         agents = page.locator(".agents")
-        await agents.locator(".chip", has_text="Retry on a lost signal").wait_for(timeout=WAIT_MS)
+        await agents.locator(".chip-why").first.wait_for(timeout=WAIT_MS)
         assert "by itself" in await agents.locator(".chip", has_text="Retry on a lost signal").inner_text()
         assert "tonight" in await agents.locator(".chip", has_text="Add the queue").inner_text()
         assert "keeps your reserve · after 18:00" in await agents.locator(".chip", has_text="Write the notes").inner_text()
