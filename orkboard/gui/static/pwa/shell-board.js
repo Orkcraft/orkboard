@@ -6,6 +6,7 @@ import { steady } from "./shell-util.js";
 import { makeGoalSheet, GOAL_STATE } from "./shell-goal.js";
 import { makeNeeds } from "./shell-needs.js";
 import { makeIdeas, BUSY } from "./shell-ideas.js";
+import { makeOps, OPS_VIEW } from "./shell-ops.js";
 import { PRIORITY_WORDS, TARGETS, targetWord } from "./shell-words.js";
 
 export { BUSY };
@@ -27,7 +28,8 @@ export function makeBoardTab(core, ctx) {
   const goals = () => (st.board?.tracks || []).filter((t) => t.slug !== "general");
 
   const goalSheet = makeGoalSheet(core);
-  const needs = makeNeeds(core, ctx);
+  const ops = makeOps(core, ctx);
+  const needs = makeNeeds(core, ctx, ops);
   const ideas = makeIdeas(core, ctx, goalSheet);
 
   // -- the Target: the Board's one setting (§1), in the header ------------------------------------------------------
@@ -48,11 +50,18 @@ export function makeBoardTab(core, ctx) {
   function goalsBlock() {
     const list = goals();
     const pick = h("select", { class: "ok-input", "aria-label": "Goal" }, h("option", { value: "" }, "All goals"),
-      ...list.map((g) => h("option", { value: g.slug }, [g.title, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · "))));
-    pick.value = st.track;
-    pick.addEventListener("change", () => { st.track = pick.value; core.draw(); });
-    const kids = [h("div", { class: "row goal-pick" }, pick, h("button", { class: "ok-btn", type: "button", onclick: () => goalSheet.open() }, "New goal"))];
-    const g = list.find((x) => x.slug === st.track);
+      ...list.map((g) => h("option", { value: g.slug }, [g.title, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · "))),
+      h("option", { value: "", disabled: true }, "──────────"), h("option", { value: OPS_VIEW }, "Operations"));
+    pick.value = st.view === OPS_VIEW ? OPS_VIEW : st.track;
+    pick.addEventListener("change", () => {
+      st.view = pick.value === OPS_VIEW ? OPS_VIEW : "";
+      st.track = st.view ? "" : pick.value;
+      core.draw();
+    });
+    const kids = [h("div", { class: "row goal-pick" }, pick, st.view === OPS_VIEW
+      ? h("button", { class: "ok-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…")
+      : h("button", { class: "ok-btn", type: "button", onclick: () => goalSheet.open() }, "New goal"))];
+    const g = st.view === OPS_VIEW ? null : list.find((x) => x.slug === st.track);
     if (g) {
       const line = String(g.summary || "").split("\n").find((l) => l.trim()) || (g.state === "reading" ? "The Taskmaster is reading the goal…" : "");
       kids.push(h("div", { class: "card goal-now", "data-goal": g.slug },
@@ -65,18 +74,33 @@ export function makeBoardTab(core, ctx) {
     return h("div", { class: "goals" }, h("h3", {}, "Goals"), ...kids);
   }
 
+  /** The New… and Settings buttons beside Operations' heading, with no project open. */
+  function opsButtons() {
+    return h("div", { class: "row" }, h("button", { class: "ok-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…"),
+      h("button", { class: "ok-btn", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings"));
+  }
+
   return {
     el: pane,
     editGoal: (slug) => goalSheet.open(slug),
-    sheets: [goalSheet.el, ...needs.sheets, ...ideas.sheets, targetSheet.el],
+    ops,
+    sheets: [goalSheet.el, ...ops.sheets, ...needs.sheets, ...ideas.sheets, targetSheet.el],
     draw() {
-      if (!fresh(JSON.stringify([st.board, st.track]))) return;
+      if (!fresh(JSON.stringify([st.board, st.track, st.view, st.ops, st.boardError]))) return;
+      const unpair = h("p", { class: "muted foot-line" }, h("button", { class: "linkish", type: "button", onclick: () => ctx.unpair() }, "Unpair this phone"));
+      if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
+        pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),
+          h("div", { class: "section-head" }, h("h3", {}, "Operations"), opsButtons()), ...ops.section(), unpair);
+        return;
+      }
       if (!st.board) { pane.replaceChildren(h("h2", {}, "Board"), h("p", { class: "muted" }, "Loading…")); return; }
       if (st.track && !goals().some((t) => t.slug === st.track)) st.track = "";
       target.replaceChildren(h("span", { class: "word" }, "Target:"), " ", h("b", {}, targetWord(st.board.target)));
       target.setAttribute("aria-label", `Target: ${targetWord(st.board.target)}`);
-      pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board"), target), goalsBlock(), ...needs.draw(), ...ideas.section(),
-        h("p", { class: "muted foot-line" }, h("button", { class: "linkish", type: "button", onclick: () => ctx.unpair() }, "Unpair this phone")));
+      const inOps = st.view === OPS_VIEW;
+      const gear = h("button", { class: "ok-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
+      pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board"), inOps ? gear : target), goalsBlock(),
+        ...(inOps ? ops.section() : [...needs.draw(), ...ideas.section()]), unpair);
     },
   };
 }

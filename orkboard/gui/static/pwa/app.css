@@ -764,3 +764,24 @@ p { margin: 0 0 8px; }
 .md { overflow-wrap: anywhere; min-width: 0; }
 .md img, .md table, .md pre { max-width: 100%; }
 .md pre, .md table { overflow-x: auto; display: block; }
+
+/* spec 38 C: Operations on the phone — the list in the Board tab, its sheets (New…, the form, the check, the gear, the rules) */
+.ops-menu, .ops-gear, .ops-servers { display: flex; flex-direction: column; gap: 8px; }
+.ops-cant, .ops-form p, .ops-check p { overflow-wrap: anywhere; }
+.ops-found, .ops-lines { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.ops-doubt { margin: 0; padding: 8px 10px; border-left: 4px solid var(--warning); }
+.ops-other summary, .ops-fold summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.ops-other .field { margin-top: 8px; }
+.ops-fold { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ops-fold > .card, .ops-run-row, .ops-failed, .ops-done, .ops-template { margin-top: 8px; }
+.ops-run-row, .ops-done { display: flex; align-items: center; gap: 8px; }
+.ops-failed, .ops-template { display: flex; flex-direction: column; gap: 8px; }
+.ops-run-row .ok-btn, .ops-done .ok-btn, .ops-failed .ok-btn, .ops-template .ok-btn, .ops-proposal .ok-btn, .gear { min-height: 44px; display: inline-flex; align-items: center; }
+.ops-done a.ok-btn { text-decoration: none; color: inherit; }
+.ops-failed .row, .ops-template .row, .ops-proposal .row { margin-top: 0; flex-wrap: wrap; }
+.ops-proposal { display: flex; flex-direction: column; gap: 8px; }
+.ops-proposal .row .ok-input { min-width: 0; flex: 1 1 100%; order: -1; }
+.ops-proposal .row .ok-btn { flex: 1 1 0; }
+.need-op { border-left: 4px solid var(--warning); }
+.need-op_failed { border-left: 4px solid var(--danger); }
+.need-op_rules { border-left: 4px solid var(--action); }

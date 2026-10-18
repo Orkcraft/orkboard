@@ -20,7 +20,7 @@ export { price } from "./shell-preview.js";
 
 /** `ctx`: {send, deliver, flash, unpair}. Returns {el, sheets, content(), render(snapshot), dispose()}. */
 export function makeBoard(ctx) {
-  const st = { board: null, review: null, agents: null, roles: null, snap: null, tab: "board", track: "", preview: null };
+  const st = { board: null, review: null, agents: null, roles: null, snap: null, tab: "board", track: "", view: "", ops: null, boardError: "", preview: null };
   let poll = 0;
   let seenRev;                          // the snapshot's ideas_rev read last
   let seenSnap;                         // the snapshot's rev read last (the project switcher's)
@@ -126,7 +126,7 @@ export function makeBoard(ctx) {
   /** Another project is shown: what was read of the last one is dropped before the new one is read. */
   function reset() {
     st.board = st.review = st.agents = st.roles = null;
-    st.track = "";
+    st.track = st.view = st.boardError = "";
   }
 
   // -- reading the town ------------------------------------------------------------------------------------------
@@ -137,8 +137,8 @@ export function makeBoard(ctx) {
     if (ok(r)) st.review = r.result;
     if (ok(a)) st.agents = a.result;
     if (ok(ro)) st.roles = ro.result;
-    if (!st.board && !ok(b)) boardTab.el.replaceChildren(h("p", { class: "muted" }, b.error || "Loading…"));
-    else drawAll();
+    st.boardError = !st.board && !ok(b) ? b.error || b.result?.error || "Loading…" : "";
+    drawAll();
     if (st.preview) preview.reload();
     schedule();
   }
@@ -161,6 +161,7 @@ export function makeBoard(ctx) {
     render(s) {
       st.snap = s;
       top.render(s, s.rev !== seenSnap ? s.rev : undefined);
+      boardTab.ops.sync(s.ops_rev ?? 0);
       seenSnap = s.rev;
       counts();
       if (loading || (seenRev !== undefined && s.ideas_rev === seenRev)) return;
