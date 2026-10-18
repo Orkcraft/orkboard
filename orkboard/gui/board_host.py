@@ -163,7 +163,7 @@ class Orkboard:
             "halt": self._halt,
             "link.open": open_link,
             "crash.window": lambda a: None,           # the crash reporter is Orkline's (core/crashes.py)
-            "mobile.hello": lambda a: {"name": "orkcraft", "version": __version__, "commands": sorted(self.commands)},
+            "mobile.hello": self._hello,
             "mobile.snapshot": self._mobile_snapshot,
         }
         self.updates = updates.Updates(self)
@@ -211,6 +211,12 @@ class Orkboard:
                "hud": dict(s["hud"])}
         out["rev"] = hashlib.sha256(json.dumps(out, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
         return out
+
+    def _hello(self, args: dict) -> dict[str, Any]:
+        """The phone's handshake, as Orkline's (gui/mobile.py `hello`): what this host speaks, the mobile API's version
+        among it, so a phone built for another version says so."""
+        from orkboard.gui.phones import API          # phones imports this module
+        return {"name": "orkcraft", "version": __version__, "api": API, "commands": sorted(self.commands)}
 
     def _mobile_snapshot(self, args: dict) -> dict[str, Any]:
         snap = self.phone_snapshot()
