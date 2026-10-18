@@ -82,8 +82,8 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             if os.environ.get("ORKCRAFT_SHOTS"):
                 SHOTS.mkdir(parents=True, exist_ok=True)
                 pg.screenshot(path=str(SHOTS / "orkboard-desktop-1440x900.png"))
-            assert any(u.endswith("/static/board.js") for u in urls) and not any(u.endswith("/static/app.js") for u in urls)
             assert not _camp(urls), _camp(urls)
+            assert any(u.endswith("/static/board.js") for u in urls) and not any(u.endswith("/static/app.js") for u in urls)
             assert not errors, errors
         finally:
             browser.close()
@@ -134,9 +134,9 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 await page.wait_for_function("navigator.serviceWorker.controller !== null || !window.isSecureContext",
                                              timeout=WAIT_MS)
                 await page.wait_for_timeout(500)                      # the worker's install fetched its list
+                assert not _camp(urls), _camp(urls)
                 assert any(u.endswith("/app/board-app.js") for u in urls) and not any(u.endswith("/app/app.js") for u in urls)
                 assert any("sw.js?app=board" in u for u in urls)
-                assert not _camp(urls), _camp(urls)
                 assert not errors, errors
             finally:
                 await browser.close()

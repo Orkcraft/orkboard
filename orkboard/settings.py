@@ -15,7 +15,8 @@
     s.look                           # camp | office: how the GUI draws the town for this person (docs/design/portrait.md)
     s.dnd_until                      # Do not disturb: "" off, "on" until turned off, else an ISO time (disturb.py)
     s.focus                          # "board": the window and the phone show only the board (spec 29a §1); "" the town
-    s.ideas                          # the board's keeper and runner: batch_minutes, idle_hours, max_parallel, … (IDEAS)
+    s.ideas                          # the board's keeper and runner: batch_minutes, idle_hours, max_parallel, … (IDEAS;
+                                     # `wiki`, the Board's Wiki folder, only when set: spec 37 §3.5)
     settings.save(s)
 
 The tools the operator leads and how each is paid for, and the quiet hours of their day (design:
