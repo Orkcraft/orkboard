@@ -14,7 +14,7 @@ words: *goal*, *idea*, *Target*, *to-do*, *task*). **Change nothing outside thes
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
-| **A. Backend** | `spec/35-backend` | §0–§10, §12 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/harnesses.py` and `realm/jobs.py` (effort, the budget cap, no session persistence), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
+| **A. Backend** | `spec/35-backend` | §0–§10, §12, §13 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/idea_git.py` (the Board's tree and its commits, §13), `realm/harnesses.py` and `realm/jobs.py` (effort, the budget cap, no session persistence), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
 | **B. Desktop** | `spec/35-desktop` | §11 on the desktop | `gui/static/js/shell/*`, `gui/static/js/board/*` |
 | **C. Phone** | `spec/35-phone` | §11 on the phone | `gui/static/pwa/shell-*.js`, `pwa/app.css`, `pwa/sw.js` (cache version) |
 
@@ -285,6 +285,36 @@ earlier turn and every file the model read into each new call. So, for every cal
   `keeper_stopped` (idea); `night_run` (§7); `proposal_made` (idea, goal); `proposal_answered` (idea, take,
   has_reason); `goal_read` gains `tier, effort`; `task_state` gains `ran_tier, effort`.
 
+## 13. The specs on the work branch, at every change
+The owner (18 October): orks working in parallel must see each other's specs. So the Board's pages are committed, at
+every change, to **the work branch**: `ideas.merge_into`, the branch the results land in. The concept keeps two
+branches: **dev**, where the work lands, and **main**, moved only by the person. (The owner's own repository uses
+`main` as its work branch for now, as its alpha does.)
+- **The Board's own tree.** Its pages (`<wiki>/pages/tracks/`, `<wiki>/pages/ideas/`) live in a worktree of their own,
+  `<state_dir>/board/`, detached at the work branch's tip (`git worktree add --detach`: it locks no branch, so the
+  person can check out any). The Board reads and writes its pages only there, whatever the person's checkout is on.
+  Why not in the person's tree: tried on 18 October, an untracked page in the person's tree and the same page
+  committed on `dev` make `git checkout dev` fail; the detached tree keeps both sides clean.
+- **A change is a commit.** Each write of the Board (a keeper call's sections, the person's edit, a move, a priority, a
+  proposal taken or declined) commits its pages in that tree, the writes within 10 s as one commit:
+  `board: <the idea's or goal's title> — <drafted · answered · edited · planned · moved · proposed · declined>`,
+  author *Orkline board*. The work branch is then fast-forwarded to it under the repository's lock, by
+  `IdeaGit._fast_forward`'s rules: in place when the person's checkout is on that branch; refused, and tried again at
+  the next write, when the person has uncommitted changes in those very files (the board says so: `board_held`). A
+  tree behind its branch (a task landed) moves to the tip before it writes; its own changes are always committed, so
+  it moves clean.
+- **Only the Board's pages** go into these commits; nothing is pushed by itself (`ideas.push`, as today); main is
+  never moved by the Board unless it is the work branch.
+- **The orks see them.** A task's worktree is cut from the work branch, so it holds every spec committed before it
+  started. Its prompt names the path of its own spec (and of the specs its idea `depends_on`): the path only, read if
+  it needs it, never pasted (§0). A result that changes a Board page is refused at the gate: *a task never edits the
+  Board's pages*.
+- **The move.** At the first start after this spec, the Board's pages in the person's Wiki that the work branch does
+  not hold are copied into the Board's tree and committed (`board: the pages move to <branch>`); then, and only then,
+  the person's untracked copies of them are removed (they would block a checkout of the work branch). Tracked copies
+  are left alone. The rest of the Wiki stays where it is, and the keeper reads its index there as today.
+- Events: `board_committed` (commit, pages, what, seconds), `board_held` (why).
+
 ## Not in this spec
 A model's review of results by the Target (the tests stay the review, decisions §40) and checking a done idea against
 its Done when; goal-to-goal dependencies; goals proposed by the keeper (ideas only, the owner, 18 October); a Target on
@@ -323,6 +353,12 @@ calendar meetings as Board screens (they go to General, unseen in v1).
   - to-dos: steps on a secret; a file stored outside the repository, its path in the task's environment, never in
     plan.json or a prompt's text; refused from the phone off the paired link; removed with the idea;
   - Needs you: its kinds, the sort (blocks, priority, age), proposals last, `held` absent;
+  - §13, on a fixture repository: the Board's tree is detached at the work branch; a write is one commit of its pages
+    only and fast-forwards the branch, in place when the root is on it and by `update-ref` when not; the person can
+    then check out the work branch and back with a clean status; uncommitted changes in those files hold it
+    (`board_held`) and the next write lands it; writes within 10 s are one commit; a task's worktree holds the
+    specs committed before it; a result touching a Board page is refused; the move copies, commits, then removes only
+    untracked copies;
   - each event with its fields; `tests/test_architecture.py` (core and realm never import the GUI).
 - **B:** browser tests at 1 440 × 900: New goal with only a description and a priority → *reading*, then its title
   and Summary; the goal select filters Needs you and the ideas; the Target chip sets and shows; New idea needs a goal;
