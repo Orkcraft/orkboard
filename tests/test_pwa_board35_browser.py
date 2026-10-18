@@ -151,7 +151,7 @@ async def test_needs_you_is_one_list_questions_are_one_form_and_a_proposal_is_an
         assert await _called(stub, "ideas.answer", {"slug": "sync", "answers": ["first", "second"]})
         await page.locator(".need-asks").wait_for(state="detached", timeout=WAIT_MS)                    # the list is drawn again before the row is used
         one, two = page.locator(".need-proposal", has_text="A docs page"), page.locator(".need-proposal", has_text="A tour")
-        assert await one.get_by_role("radio", name="Low").is_checked()                                  # the proposal's priority
+        assert await one.get_by_role("radio", name="Normal").is_checked()                                  # the proposal's priority
         await one.get_by_role("radio", name="High").click()
         await one.get_by_role("button", name="Take").click()
         assert await _called(stub, "ideas.proposal", {"slug": "p1", "take": True, "priority": "high"}), [c for c in stub.calls if "proposal" in c[0]]
