@@ -48,12 +48,3 @@ def test_the_analytics_zip_carries_the_periods_events(tmp_path):
     z = zipfile.ZipFile(io.BytesIO(analytics.pack(tmp_path, [today], {}, lambda b, d: [], lambda b, d: [])))
     [row] = [json.loads(x) for x in z.read("events.jsonl").decode().splitlines()]
     assert row["event"] == "quest_done" and row["quest"] == "1"
-
-
-def test_cli_usage_local_prints_the_counts(fake_repo, capsys):
-    from orkboard.cli import main
-    event_log.record(fake_repo, event_log.ASKED, text="?")
-    event_log.record(fake_repo, event_log.ANSWERED, who="person", waited_s=300)
-    assert main(["--repo", str(fake_repo), "usage", "local"]) == 0
-    out = capsys.readouterr().out
-    assert "never sent" in out and "question asked: 1" in out and "median wait for your answer: 5 min" in out

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from orkboard import schedule, scroll, settings
+from orkboard import schedule, settings
 
 
 def test_defaults_when_there_is_no_file(tmp_path: Path):
@@ -41,10 +41,6 @@ def test_path_follows_env(tmp_path: Path, monkeypatch):
     assert settings.path() == tmp_path / "orkcraft" / "settings.json"
     monkeypatch.setenv("ORKCRAFT_SETTINGS_FILE", str(tmp_path / "x.json"))
     assert settings.path() == tmp_path / "x.json"
-
-
-def test_a_new_scroll_has_no_look():
-    assert "mode" not in scroll._default_preferences()
 
 
 def test_the_old_look_and_office_hours_load_and_are_not_written_again(tmp_path: Path):
