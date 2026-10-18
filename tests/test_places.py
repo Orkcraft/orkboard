@@ -1,6 +1,7 @@
-"""📍 Places, stage 1 of docs/design/phone-places.md: a paired phone says it came to a place or left it, the
-Watchtower acts on it as freely as the place allows, the cart never names the place, and the history stays on
-this machine."""
+"""📍 Places, stage 1 of docs/design/phone-places.md: what a paired phone may say of a place (a name and how freely its
+news is acted on), the report checked before anything hears it, the history kept on this machine, and the phone
+listener on the tailnet. What the town does with a report (the External listeners, its roads, Shortcuts' own token)
+is Orkline's."""
 from __future__ import annotations
 
 import asyncio
@@ -12,20 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from orkboard.core import buildings, roads
-from orkboard.gui import mobile, phones, tailnet
-from orkboard.gui.host import CommandError, Host
-from orkboard.realm import checkpoint, places
+from orkboard.gui import phones, tailnet
+from orkboard.gui.board_host import Orkboard
+from orkboard.realm import places
 
-from tests.test_phones import _https, _pair, _serve
-
-
-def _now() -> str:
-    return dt.datetime.now().isoformat(timespec="seconds")
-
-
-def _report(place: str = "home", change: str = "arrived", rid: str = "", at: str = "") -> dict:
-    return {"id": rid or f"r{time.time_ns()}", "place": place, "change": change, "at": at or _now()}
+from tests.test_phones import _https
 
 
 # -- the rules, without a town ------------------------------------------------------------------------
@@ -81,134 +73,6 @@ def test_the_history_lives_beside_the_machine_settings_never_in_the_project(fake
     assert not f.exists()
 
 
-# -- in the town -----------------------------------------------------------------------------------------
-
-def _town(repo: Path, autonomy: str = "chains", road: str = "home-arrived"):
-    checkpoint.ensure(repo)
-    host = Host(repo, auto_commit=False)
-    tower = buildings.raise_spec(host.town, buildings.type_spec(host.town, "watchtower")).id
-    pool = buildings.raise_spec(host.town, buildings.type_spec(host.town, "barracks")).id
-    w = host.town.worker(tower)
-    assert w.save_config({"places": [f"home autonomy={autonomy} say=You may start the evening's work.", "office"]})
-    if road:
-        assert roads.lay(host.town, pool, tower, f"watch.place#{road}", None, quiet=True) is not None
-    carts = []
-    real = host.town.roads.emit
-    host.town.roads.emit = lambda p: (carts.append(p), real(p))[1]
-    return host, w, carts
-
-
-def test_propose_only_asks_in_answers_and_the_cart_never_names_the_place(fake_repo):
-    host, w, carts = _town(fake_repo)
-    r = _report()
-    assert host.command("place.report", {**r, "device": "Ann's phone"}) == {"outcome": "asked"}
-    assert host.command("place.report", r) == {"outcome": "asked"}             # a retry is heard once
-    key, title, context, options = w.orders_alert()
-    assert "Ann's phone" in title and "home" in title and ("send", "Send") in options
-    assert not carts
-    assert w.answer_alert("send") == "sent" and w.orders_alert() is None
-    [cart] = carts
-    assert cart.mode == "watch.place" and cart.route == "home-arrived"
-    assert "home" not in f"{cart.title}\n{cart.value}" and r["at"][11:16] not in f"{cart.title}\n{cart.value}"
-    assert cart.value == "You may start the evening's work."
-    assert [h.outcome for h in w.desk.history.all()] == ["sent"]
-    assert not (w.state_dir / "signals.jsonl").exists()                       # never a signal, never the Lookout
-
-
-def test_skip_sends_nothing(fake_repo):
-    host, w, carts = _town(fake_repo)
-    host.command("place.report", _report())
-    assert w.answer_alert("dismiss") == "refused" and not carts
-
-
-def test_apply_at_once_goes_and_a_place_no_road_takes_goes_nowhere(fake_repo):
-    host, w, carts = _town(fake_repo, autonomy="free")
-    assert host.command("place.report", _report())["outcome"] == "sent" and len(carts) == 1
-    assert host.command("place.report", _report(change="left"))["outcome"] == "no road"
-    assert host.command("place.report", _report(place="office"))["outcome"] == "no road"
-    assert len(carts) == 1
-    ends = {e["route"] for e in w.loose_ends()}
-    assert ends == {"home-left", "office-arrived", "office-left"}           # stubs to pull a road from
-
-
-def test_a_late_report_is_kept_but_is_news_no_longer(fake_repo):
-    host, w, carts = _town(fake_repo, autonomy="free")
-    late = (dt.datetime.now() - dt.timedelta(hours=3)).isoformat(timespec="seconds")
-    assert host.command("place.report", _report(at=late))["outcome"] == "stale" and not carts
-
-
-def test_apply_if_unanswered_goes_by_itself_unless_stop_all_came(fake_repo):
-    host, w, carts = _town(fake_repo, autonomy="clock")
-    assert host.command("place.report", _report())["outcome"] == "waiting"
-    w.desk.tick(time.monotonic() + places.CLOCK_MIN * 60 + 1)
-    assert len(carts) == 1 and w.orders_alert() is None
-    host.command("place.report", _report())
-    assert w.halt() == 1
-    w.desk.tick(time.monotonic() + places.CLOCK_MIN * 60 + 1)
-    assert len(carts) == 1 and w.orders_alert() is not None                 # it waits on the person now
-
-
-def test_an_unknown_place_is_refused_with_what_the_phone_is_told(fake_repo):
-    host, _, _ = _town(fake_repo)
-    with pytest.raises(CommandError, match="No place named 'gym'"):
-        host.command("place.report", _report(place="gym"))
-
-
-def test_the_tower_shows_its_places_and_saves_them(fake_repo):
-    host, w, _ = _town(fake_repo)
-    host.command("place.report", _report())
-    view = w.desk.view()
-    assert view["places"][0]["roads"] == ["arrived"] and view["waiting"] == 1
-    assert view["history"][0]["outcome"] == "asked"
-    assert w.desk.save([{"name": "office"}], 3)                              # home gone: its question too
-    assert w.config["places"] == ["office"]
-    assert w.config["places_keep_days"] == 3 and w.orders_alert() is None
-
-
-def test_a_phone_may_report_a_place_and_the_listener_names_the_phone(fake_repo):
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
-    assert mobile.allowed(host, "place.report", {})
-    args = mobile.guard("place.report", {"place": "home", "device": "forged"}, {"id": "0123456789abcdef", "name": "Ann"})
-    assert args["device"] == "Ann" and args["device_id"] == "0123456789abcdef"
-
-
-# -- over the network --------------------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_shortcuts_reports_a_place_with_its_own_token(fake_repo):
-    server, task = await _serve(fake_repo)
-    try:
-        host = server.host
-        tower = buildings.raise_spec(host.town, buildings.type_spec(host.town, "watchtower")).id
-        assert host.town.worker(tower).save_config({"places": ["home"]})
-        await _pair(server)
-        got = host.command("phones.recipe", {"name": "Shortcuts"})
-        recipe = got["recipe"]
-        assert recipe["url"] == f"{server.phones.address}/api/place" and recipe["token"]
-        assert "token" not in json.dumps(got["phones"])
-        auth = {"Authorization": f"Bearer {recipe['token']}"}
-        status, body, _ = await asyncio.to_thread(_https, server.phones.address, "POST", "/api/place", _report(), auth)
-        assert status == 200 and body == {"outcome": "no road"}, body
-        status, body, _ = await asyncio.to_thread(_https, server.phones.address, "POST", "/api/place",
-                                                  _report(place="gym"), auth)
-        assert status == 400 and "gym" in body["error"]
-        status, _, _ = await asyncio.to_thread(_https, server.phones.address, "POST", "/api/place", _report(),
-                                               {"Authorization": "Bearer nope"})
-        assert status == 403
-        status, _, _ = await asyncio.to_thread(_https, server.phones.address, "POST", "/api/place", None, auth,
-                                               raw=b"x" * 2000)
-        assert status == 413
-        w = host.town.worker(tower)
-        assert [h.device for h in w.desk.history.all()] == ["Shortcuts"]
-        host.command("phones.forget", {"id": recipe["id"]})
-        assert w.desk.history.all() == []                                     # forgotten: what it said goes too
-        assert "places" in host.command("mobile.hello") and host.command("mobile.hello")["places"] == ["home"]
-    finally:
-        server.stop()
-        await task
-
-
 # -- Tailscale ---------------------------------------------------------------------------------------------
 
 def _ran(stdout: str = "", code: int = 0, then=None):
@@ -248,8 +112,7 @@ def test_the_tailnet_certificate_is_asked_once_a_month(tmp_path):
 
 @pytest.mark.asyncio
 async def test_the_listener_listens_on_the_tailnet_too_and_the_qr_code_says_so(fake_repo, monkeypatch):
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
+    host = Orkboard(fake_repo)
     listener = phones.Listener(host)
     monkeypatch.setattr(phones, "lan_ip", lambda: None)                      # no Wi-Fi: the tailnet alone
     listener.tail_find = lambda: tailnet.Tail("127.0.0.1", "")
