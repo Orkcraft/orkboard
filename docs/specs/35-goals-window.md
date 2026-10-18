@@ -12,13 +12,19 @@ it is (33 and 34 merged). **Builds:** Claude (A on the elder tier; B and C on th
 task's run records its `tool` and `model` (§12); §11.5, the Agents chips say what started by itself or waits for the
 night and why a task is held. The testers' week is measured from these; everything else on Agents is spec 36.
 
+**Added 18 October (decisions §49.1), before the build:** §5 *Never on the same files at once*: an idea claims its
+`touches` when its first task starts, and an idea whose paths meet an older working one's holds its tasks until that
+one is done (`realm/claims.py`, now in part A's files); the chip says *waits for <idea> · same files* (§11.5, §12).
+Plans now start without the person, so two of them must not work the same files.
+
 Three parts, one branch each, in this order; **this file is the contract** (names, data, commands); the rest is the
 builder's choice inside its files. Wording: CLAUDE.md (orks by orkish names: the Taskmaster is the keeper; today's
 words: *goal*, *idea*, *Target*, *to-do*, *task*). **Change nothing outside these files.**
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
-| **A. Backend** | `spec/35-backend` | §0–§10, §12, §13 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/idea_git.py` (the Board's tree and its commits, §13), `realm/harnesses.py` and `realm/jobs.py` (effort, the budget cap, no session persistence), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `gui/ideas_roles.py` (the Agents chips' `by` and `night` only, §11.5), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
+| **A. Backend** | `spec/35-backend` | §0–§10, §12, §13 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/idea_git.py` (the Board's tree and its commits, §13), `realm/harnesses.py` and `realm/jobs.py` (effort, the budget cap, no session persistence), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `gui/ideas_roles.py` (the Agents chips' `by` and `night` only, §11.5), `realm/claims.py` (used as it is; a helper
+only if one is missing, §5), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
 | **B. Desktop** | `spec/35-desktop` | §11 on the desktop | `gui/static/js/shell/*` (of the Agents window, only §11.5), `gui/static/js/board/*` |
 | **C. Phone** | `spec/35-phone` | §11 on the phone | `gui/static/pwa/shell-*.js`, `pwa/app.css`, `pwa/sw.js` (cache version) |
 
@@ -179,6 +185,21 @@ earlier turn and every file the model read into each new call. So, for every cal
   *Starts at night*: passed, with `start_at: "night"`: the runner starts its tasks only inside the night window (a task
   running at its end goes on); **Start now** on its row clears it. *Waits for you*: Needs you's *Plan ready*, as today.
 - After the work nothing changes: the results wait at Review, merged into `dev`, nothing pushed (decisions §45.7).
+- **Never on the same files at once** (decisions §49.1; code, no model, no new setting). The runner keeps the ideas'
+  claims in `realm/claims.py`'s `Claims(repo_root)` (`.orkcraft/claims.json`, git-ignored), one per idea:
+  - **claimed** when the idea's first task is launched: key `claims.key_of("board", <slug>)`, title the idea's, paths
+    its `touches` with each glob cut to the folder before its first wildcard (`orkcraft/gui/static/js/board/*` →
+    `orkcraft/gui/static/js/board`), then `claims.narrow` (never the root or a whole top-level folder). An idea with
+    no `touches` left claims nothing and waits for nobody;
+  - **held**: before launching a task of an idea with no claim yet, the runner asks `claims.holds`; when an older
+    idea's claim in `work` meets it, the task is `held` with the note `files · <that idea's slug>` and launched when
+    that claim is released. After `claims.DEFAULT_WAIT_MIN` (60) it goes on anyway, the note
+    `files beside · <slug>` kept on the task, so a stuck idea never blocks the rest for good;
+  - tasks of one idea never wait for each other: their order is the plan's (`after`, `max_parallel`);
+  - **released** when the idea has no task left queued, running or testing (all merged, at Review, failed or
+    dropped), when it is stopped (Stop, Stop all) or deleted; claims older than `claims.DEFAULT_DAYS` are dropped at
+    start (`drop_stale`). A result waiting at Review holds nothing: a conflict there is caught at Merge, as today;
+  - a held idea is not in Needs you (the person cannot act on it, §10); *High first* (§6) orders what waits.
 
 ## 6. The limits: never past the window; a reserve for the person
 - The keeper checks the window as the runner does (`status.reset_of(limits, "claude", now, status.NEARLY)`) before a
@@ -267,8 +288,9 @@ earlier turn and every file the model read into each new call. So, for every cal
    each task's live state beside it from plan.json (*merged · working · held · failed*, in words beside the icon).
 5. **Agents: only the chips' words** (decisions §48.7; the rest of the window is spec 36). A task that started by
    itself says *by itself* beside its state (plan.json `passed_by: "auto"`); a task of a plan that starts at night
-   says *tonight*; a held task says why, in words: *waits for limits · after 18:00* or *keeps your reserve · after
-   18:00* (§6). Its Stop is where it was (the task's preview).
+   says *tonight*; a held task says why, in words: *waits for limits · after 18:00*, *keeps your reserve · after
+   18:00* (§6) or *waits for <idea> · same files* (§5; after the wait, *beside <idea> · same files*). Its Stop is
+   where it was (the task's preview).
 - The Board's gear: *Start plans by themselves* (on) and *Night* (from–to).
 - The phone: the same order in one column, the Target chip in the Board's header, every dialog a sheet (34 §5).
 
@@ -288,7 +310,8 @@ earlier turn and every file the model read into each new call. So, for every cal
 - `ideas.board`: `needs_you` in place of `today`; `target, autostart, night`; ideas gain `queue, held_until, risk,
   risk_triggers, depends_on, waits_on, start_at`; goals gain `title_by`. `ideas.agents`' task chips gain `by`
   (`auto` · `person`, from `passed_by`) and `night` (bool, `start_at: "night"` and not started yet); a held task's
-  `note` names why: `after HH:MM` for the limits, `reserve · after HH:MM` for §6's reserve. All callable from the phone (`gui/mobile.py`);
+  `note` names why: `after HH:MM` for the limits, `reserve · after HH:MM` for §6's reserve, `files · <slug>` (and
+  `files beside · <slug>`) for §5's claims; such a chip also carries `waits_title`, that idea's title, for its words. All callable from the phone (`gui/mobile.py`);
   a file to-do only over the paired link.
 - Each keeper run has **its own cancel** (`read_stop`); Stop all cancels every one, as today.
 - Settings, `IDEAS`: `target: "balance"`, `autostart: True`, `night: "01:00-07:00"`, `reserve_day: 0.3`,
@@ -355,6 +378,10 @@ calendar meetings as Board screens (they go to General, unseen in v1).
   - Stages from plan.json, in waves, with S / M / L;
   - the risk: each trigger row raises it (a case each), whole words in any case, `risk_paths`, the max with the
     model's; the Risks section's first line;
+  - claims (§5), on a fixture repository: two ideas whose `touches` meet (one as a glob): the younger's first task
+    is `held` with `files · <slug>` until the older is done, then launched; tasks of one idea never wait for each
+    other; no `touches` → no claim, no wait; after the wait cap it runs with `files beside · <slug>`; Stop, Stop all,
+    a deleted idea and an idea whose tasks all ended release the claim; a held idea is not in Needs you;
   - autostart: the nine cells of the matrix; off → always waits; Open questions → waits; a stopped plan never starts by
     itself again; *starts at night* starts only in the window and **Start now** clears it; `passed_by`;
   - the limits: a keeper call in a spent window is not made and `held_until` is set, and it runs when the window is
