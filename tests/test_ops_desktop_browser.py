@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 playwright = pytest.importorskip("playwright.sync_api")
+expect = playwright.expect
 
 from orkboard.core.op_commands import OpsError  # noqa: E402
 from orkboard.gui.board_host import Orkboard  # noqa: E402
@@ -390,8 +391,8 @@ def test_by_itself_shows_and_not_right_teaches_and_check_again_resets(world):
         stub.changed()
         pg.get_by_text("Templates (3)").click()
         mail = pg.locator(".board-op--template[data-template=email-reply]")
-        mail.wait_for(timeout=WAIT_MS)
-        assert "goes by itself" in mail.inner_text() and "save as a draft in gmail without asking you" in mail.inner_text()
+        expect(mail).to_contain_text("goes by itself", timeout=WAIT_MS)                # after ops_rev moves, not before
+        assert "save as a draft in gmail without asking you" in mail.inner_text()
         assert "checks with you" in pg.locator(".board-op--template[data-template=jira-task]").inner_text()
         assert pg.locator(".board-op--template[data-template=jira-task]").get_by_role("button", name="Check again").count() == 0
         mail.get_by_role("button", name="Check again").click()
@@ -416,7 +417,7 @@ def test_a_rules_proposal_is_taken_in_its_row_in_needs_you_and_the_rules_are_sav
         pg.get_by_text("Templates (3)").click()
         pg.get_by_role("button", name="Rules: Email reply").click()
         rules = _dialog(pg, "Rules: Email reply")
-        assert rules.get_by_label("Rules").input_value() == "Always name the epic."
+        expect(rules.get_by_label("Rules")).to_have_value("Always name the epic.", timeout=WAIT_MS)   # read by ops.rules
         rules.get_by_label("Rules").fill("Be brief.")
         rules.get_by_role("button", name="Save the rules").click()
         rules.wait_for(state="detached", timeout=WAIT_MS)
@@ -451,7 +452,8 @@ def test_the_gear_sets_the_target_the_checks_and_a_server(world):
         gear.get_by_label("Clean checks before it goes by itself").blur()
         _sent(stub, ("ops.set", {"trust_after": 2}))
         select = gear.get_by_label("Jira server")
-        assert select.locator("option").all_inner_texts() == ["not connected", "claude.ai Jira", "claude.ai Gmail"]
+        expect(select.locator("option")).to_have_text(["not connected", "claude.ai Jira", "claude.ai Gmail"],
+                                                      timeout=WAIT_MS)              # read by ops.servers
         select.select_option("claude.ai Jira")
         _sent(stub, ("ops.set", {"servers": {"jira": "claude.ai Jira"}}))
         select.select_option("")

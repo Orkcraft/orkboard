@@ -61,14 +61,20 @@ export function OpFormDialog({ template }) {
 export function OpSettingsDialog() {
   const o = useOps();
   const [servers, setServers] = useState(null);
+  const [typed, setTyped] = useState({});        // a number as the person types it, kept over a refresh until it is saved
   useEffect(() => { ask("ops.servers").then((got) => setServers(got?.servers || [])); }, []);
   const s = o?.settings || {};
   const set = async (change) => { const got = await run("ops.set", change); if (got && ops.value) ops.value = { ...ops.value, settings: got }; };
   const needed = Object.entries(o?.servers_needed || {});
   const number = (key, lo, hi, label, after) => html`<label class="board-row" data-setting=${key}>
     <span>${label}</span>
-    <input class="ok-input board-num" type="number" min=${lo} max=${hi} value=${s[key]} aria-label=${after}
-      onChange=${(e) => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= lo && n <= hi) set({ [key]: n }); }} />
+    <input class="ok-input board-num" type="number" min=${lo} max=${hi} value=${typed[key] ?? s[key]} aria-label=${after}
+      onInput=${(e) => setTyped({ ...typed, [key]: e.target.value })}
+      onChange=${(e) => {
+        const n = Number(e.target.value);
+        const done = () => setTyped((t) => { const { [key]: _saved, ...rest } = t; return rest; });
+        if (Number.isInteger(n) && n >= lo && n <= hi) set({ [key]: n }).then(done); else done();
+      }} />
     ${key === "trust_after" ? html`<span>clean checks</span>` : html`<span>a day</span>`}</label>`;
   return html`<${Modal} title="Operations settings" onClose=${closeDialog} foot=${html`<button type="button" class="ok-btn primary" onClick=${closeDialog}>Done</button>`}>
     <div class="shell-form">
