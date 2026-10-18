@@ -58,6 +58,8 @@ class Stub:
         self.roles = {"taskmaster": {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "builtin": True},
                       "grunt": {"slug": "grunt", "name": "Grunt", "model": "", "max_parallel": 8, "instruction": "", "builtin": True}}
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
+        self.week: dict[str, dict] = {}                   # spec 36 §2: a role's week by slug
+        self.spend: dict | None = None                    # spec 36 §2: what ideas.spend returns (None: an error)
 
     @staticmethod
     def idea(slug, title, state, order, **more):
@@ -73,7 +75,7 @@ class Stub:
     def commands(self) -> dict:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
-                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer")
+                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -115,22 +117,25 @@ class Stub:
                       "by": "person", "night": False} | self.chip_extra.get(t["id"], {})
                      for t in self.plan["tasks"] if t["state"] in ("running", "review", "held")]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "state": "waiting",
-                       "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": []},
+                       "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": [],
+                       "week": self.week.get("taskmaster")},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
-                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"]}]
+                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt")}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
-                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]]} for r in self.roles.values() if not r["builtin"]]
+                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"])} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
             names = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
-            return {"roles": [r | {"spend_today": 0} for r in self.roles.values()],
+            return {"roles": [{"instruction_long": "", "hand_model": False} | r | {"spend_today": 0} for r in self.roles.values()],
                     "kinds": [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()],
-                    "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
-                               {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}]}
+                    "models": [{"id": "", "label": "By Target"}, {"id": "elder", "label": "Elder · opus"},
+                               {"id": "warrior", "label": "Warrior · sonnet"}, {"id": "laborer", "label": "Laborer · haiku"}]}
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
                                 "instruction": a.get("instruction", ""), "builtin": slug in ("taskmaster", "grunt")}
+            if "kinds" in a:                              # spec 36 §3: a type another agent had moves here, an unticked one goes back to Grunt
+                self.kinds = {k: slug if k in a["kinds"] else ("grunt" if r == slug else r) for k, r in self.kinds.items()}
             return self.bump({"slug": slug})
         if name == "ideas.role_drop":
             self.roles.pop(a["slug"])
@@ -202,6 +207,8 @@ class Stub:
         if name == "ideas.board_set":
             self.target, self.autostart, self.night = a.get("target", self.target), a.get("autostart", self.autostart), a.get("night", self.night)
             return self.bump({"target": self.target, "autostart": self.autostart, "night": self.night})
+        if name == "ideas.spend":
+            return self.spend if self.spend is not None else {"error": "No such idea"}
         if name == "ideas.logs":
             import base64
             return {"name": "orkline-logs.zip", "data": base64.b64encode(b"PK-not-a-real-zip").decode()}
@@ -585,29 +592,19 @@ async def test_agents_add_an_agent_give_it_a_task_type_edit_and_delete_it(fake_r
         await page.get_by_role("tab", name="Agents").click()
         agents = page.locator(".agents")
         await agents.get_by_role("button", name="+ Add agent").wait_for(timeout=WAIT_MS)
-        assert "Task types" in await agents.inner_text()
-        for kind in ("Code", "Tests", "Docs", "Text for people", "Research"):
-            assert await agents.get_by_label(f"Agent for {kind}").input_value() == "grunt"
+        assert "Task types" not in await agents.inner_text()                                            # spec 36 §5: the section is gone
         await agents.get_by_role("button", name="+ Add agent").click()
         sheet = page.get_by_role("dialog", name="Add agent")
         await sheet.get_by_label("Name").fill("Docs scribe")
         await sheet.get_by_label("Model").select_option("laborer")
         await sheet.get_by_label("At most at once").select_option("3")
         await sheet.get_by_label("Instruction").fill("Write plainly.")
+        await sheet.get_by_label("Docs", exact=True).check()                                            # a type given in the dialog (spec 36 §3)
         await sheet.get_by_role("button", name="Save agent").click()
-        assert await _called(stub, "ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly."})
+        assert await _called(stub, "ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.",
+                                                        "kinds": ["docs"]})
         await agents.locator(".role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
-        await agents.get_by_label("Agent for Docs").select_option("docs-scribe")                        # a type assigned
-        assert await _called(stub, "ideas.kind_set", {"kind": "docs", "role": "docs-scribe"})
-        await agents.get_by_label("Agent for Research").select_option("__new__")                        # New agent… from the type
-        sheet = page.get_by_role("dialog", name="Add agent")
-        await sheet.get_by_label("Name").fill("Reader")
-        await sheet.get_by_role("button", name="Save agent").click()
-        assert await _called(stub, "ideas.kind_set", {"kind": "research", "role": "reader"})
-        if os.environ.get("ORKCRAFT_SHOTS"):
-            await page.wait_for_timeout(500)
-            await agents.locator(".kinds").scroll_into_view_if_needed()
-            await _shot(page, "phone-agents-types-390x844")
+        assert "Takes: docs" in await agents.locator(".role[data-slug='docs-scribe']").inner_text()
         await agents.get_by_role("button", name="Edit Docs scribe").click()
         sheet = page.get_by_role("dialog", name="Edit agent")
         assert await sheet.get_by_label("Instruction").input_value() == "Write plainly."
@@ -615,7 +612,7 @@ async def test_agents_add_an_agent_give_it_a_task_type_edit_and_delete_it(fake_r
         assert "back to Grunt" in await sheet.inner_text()
         await sheet.get_by_role("button", name="Delete agent").click()
         await agents.locator(".role[data-slug='docs-scribe']").wait_for(state="detached", timeout=WAIT_MS)
-        assert await agents.get_by_label("Agent for Docs").input_value() == "grunt"
+        assert stub.kinds["docs"] == "grunt"
         assert await page.evaluate(NO_SCROLL)
 
 

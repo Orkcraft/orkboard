@@ -705,9 +705,15 @@ p { margin: 0 0 8px; }
 .role-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
 .role-head h3 { margin: 0; }
 .role-facts { flex: 1 0 100%; }
-.kinds { gap: 6px; }
-.kind-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; }
-.kind-row .ok-input { flex: 0 0 55%; width: auto; min-height: 44px; }
+/* spec 36: the agent's dialog — the Takes boxes, the instruction's counter; the result's idea line */
+.takes { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.take-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.take-row input { flex: 0 0 auto; width: 22px; height: 22px; margin: 0; }
+.take-row span { flex: 1 1 auto; min-width: 0; }
+.take-row small { flex: 0 1 auto; text-align: right; overflow-wrap: anywhere; }
+.counter { align-self: flex-end; margin-top: -8px; }
+.priced { cursor: help; }
+.spend-line { overflow-wrap: anywhere; }
 
 /* spec 35 on the phone: the Target chip, the goal select, Needs you with proposals, the ideas' actions, the to-do sheet */
 .sheet [hidden] { display: none !important; }
