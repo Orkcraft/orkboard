@@ -39,6 +39,9 @@ class Stub:
         self.rev = 1
         self.calls: list[tuple[str, dict]] = []
         self.into, self.push = "dev", False
+        self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
+        self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
+        self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
         self.todos = [{"idea": "sync", "id": "t1", "title": "API_KEY", "kind": "secret", "why": "The sync service needs it", "choices": [],
                        "steps": [], "done": False}]
         self.plan = {"idea": "sync", "estimate": {"tasks": 5, "usd_low": 1.2, "usd_high": 3.5}, "passed_at": "x",
@@ -50,15 +53,17 @@ class Stub:
                                     conflict="conflicts with dev in a.py, b.py"),
                                task("k5", "Write the notes", "waiting", ["k4"])]}
         self.ideas = {"sync": self.idea("sync", "Sync ideas between the phone and the town", "working", 0),
-                      "dark": self.idea("dark", "Dark mode", "plan", 1)}
+                      "dark": self.idea("dark", "Dark mode", "plan", 1, in_needs_you=True)}
         self.goals = {"general": self.goal("general", "General", "normal", "ready")}
         self.roles = {"taskmaster": {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "builtin": True},
                       "grunt": {"slug": "grunt", "name": "Grunt", "model": "", "max_parallel": 8, "instruction": "", "builtin": True}}
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
 
     @staticmethod
-    def idea(slug, title, state, order):
-        return {"slug": slug, "title": title, "track": "general", "order": order, "state": state, "size": "M", "talk": [], "priority": "normal"}
+    def idea(slug, title, state, order, **more):
+        return {"slug": slug, "title": title, "track": "general", "order": order, "state": state, "size": "M", "talk": [], "priority": "normal",
+                "queue": "", "held_until": "", "risk": "", "risk_triggers": [], "depends_on": [], "waits_on": [], "start_at": "",
+                "in_needs_you": False, **more}
 
     @staticmethod
     def goal(slug, title, priority, state, **more):
@@ -68,7 +73,7 @@ class Stub:
     def commands(self) -> dict:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
-                 "kind_set", "doc")
+                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -85,14 +90,19 @@ class Stub:
     def run(self, name, a):
         device = a.get("device")                      # the listener adds it to every board command (mobile.guard)
         assert device == "phone"
-        a = {k: v for k, v in a.items() if k != "device" or name == "ideas.log"}
+        assert a.get("link") == "paired"              # the listener adds it for a paired phone (spec 35 §9): a file to-do needs it
+        a = {k: v for k, v in a.items() if k != "link" and (k != "device" or name == "ideas.log")}
         self.calls.append((name, dict(a)))
         if name == "ideas.board":
             ideas = [i | {"thesis": "Gist in one line", "asks": 0, "updated": "", "progress": {"done": 1, "total": 5} if i["slug"] == "sync" else {"done": 0, "total": 0}}
                      for i in self.ideas.values()]
-            return {"tracks": list(self.goals.values()), "ideas": ideas,
-                    "today": {"todos": self.todos, "needs_you": [{"idea": "dark", "kind": "plan", "title": "Dark mode", "text": "Plan ready"}]},
-                    "batch_next": "", "rev": self.rev}
+            needs = [{"kind": "plan", "idea": "dark", "goal": "general", "title": "Dark mode", "text": "Plan ready · 5 tasks", "priority": "normal", "blocks": False, "at": ""}]
+            for t in self.todos:
+                if not t["done"]:
+                    needs.append({"kind": "todo", "idea": t["idea"], "goal": "general", "title": t["title"], "text": t["title"], "priority": "normal", "blocks": True,
+                                  "at": "", "todo": {k: t.get(k) for k in ("id", "title", "kind", "why", "choices", "steps", "accept", "done")}})
+            return {"tracks": list(self.goals.values()), "ideas": ideas, "needs_you": needs + self.extra_needs,
+                    "target": self.target, "autostart": self.autostart, "night": self.night, "rev": self.rev, "demo": False}
         if name == "ideas.page":
             i = self.ideas[a["slug"]]
             return {"slug": i["slug"], "title": i["title"], "track": "general", "state": i["state"], "size": "M",
@@ -101,8 +111,9 @@ class Stub:
         if name == "ideas.review_list":
             return {"into": self.into, "push": self.push, "branches": ["dev", "main"], "results": self.results()}
         if name == "ideas.agents":
-            chips = [{"idea": "sync", "idea_title": self.ideas["sync"]["title"], "task": t["id"], "title": t["title"], "state": t["state"], "tier": "warrior", "note": ""}
-                     for t in self.plan["tasks"] if t["state"] in ("running", "review")]
+            chips = [{"idea": "sync", "idea_title": self.ideas["sync"]["title"], "task": t["id"], "title": t["title"], "state": t["state"], "tier": "warrior", "note": "",
+                      "by": "person", "night": False} | self.chip_extra.get(t["id"], {})
+                     for t in self.plan["tasks"] if t["state"] in ("running", "review", "held")]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "state": "waiting",
                        "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": []},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
@@ -129,9 +140,11 @@ class Stub:
             self.kinds[a["kind"]] = a["role"]
             return self.bump({"ok": True})
         if name == "ideas.goal_save":
-            slug = a.get("slug") or a["title"].lower().replace(" ", "-")
-            self.goals[slug] = self.goal(slug, a["title"], a["priority"], "reading", about=a.get("about", ""), deadline=a.get("deadline", ""),
-                                         metrics=[m | {"how": ""} for m in a["metrics"]], links=a["links"])
+            about = a["about"]
+            slug = a.get("slug") or "-".join(about.lower().replace(".", "").split()[:3])
+            old = self.goals.get(slug, {})
+            self.goals[slug] = self.goal(slug, a.get("title") or old.get("title") or " ".join(about.split()[:3]), a["priority"], "reading", about=about,
+                                         metrics=old.get("metrics", []), links=old.get("links", []))
             return self.bump({"slug": slug})
         if name == "ideas.goal":
             g = self.goals[a["slug"]]
@@ -166,9 +179,29 @@ class Stub:
             self.todos[0]["done"] = a["done"]
             return self.bump({"ok": True})
         if name == "ideas.add":
+            assert a.get("track") and a["track"] != "general", "An idea needs a goal"
             slug = a["text"].lower().replace(" ", "-")
-            self.ideas[slug] = self.idea(slug, a["text"], "ready" if a.get("now") else "raw", 9) | {"track": a.get("track", "general")}
-            return self.bump({"slug": slug})
+            queue = "night" if a["priority"] == "low" or a.get("night") else "now"
+            self.ideas[slug] = self.idea(slug, a["text"], "raw", 9, queue=queue, priority=a["priority"], track=a["track"])
+            return self.bump({"slug": slug, "queue": queue})
+        if name == "ideas.queue":
+            self.ideas[a["slug"]]["queue"] = a["queue"]
+            return self.bump({"ok": True})
+        if name == "ideas.read_stop":
+            self.ideas[a["slug"]].update(state="raw", queue="hold")
+            return self.bump({"ok": True})
+        if name == "ideas.start_now":
+            self.ideas[a["slug"]].update(state="working", start_at="")
+            return self.bump({"ok": True})
+        if name == "ideas.proposal":
+            self.extra_needs = [n for n in self.extra_needs if n["idea"] != a["slug"]]
+            return self.bump({"ok": True})
+        if name == "ideas.answer":
+            self.extra_needs = [n for n in self.extra_needs if n.get("goal") != a["slug"] and n.get("idea") != a["slug"]]
+            return self.bump({"ok": True})
+        if name == "ideas.board_set":
+            self.target, self.autostart, self.night = a.get("target", self.target), a.get("autostart", self.autostart), a.get("night", self.night)
+            return self.bump({"target": self.target, "autostart": self.autostart, "night": self.night})
         if name == "ideas.logs":
             import base64
             return {"name": "orkline-logs.zip", "data": base64.b64encode(b"PK-not-a-real-zip").decode()}
@@ -184,7 +217,7 @@ async def _phone(repo: Path, monkeypatch):
 
     def snap(host):
         s = real(host)
-        return {**s, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 1, "look": "camp",
+        return {**s, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
                 "review_count": len(stub.results()),
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
                             "rows": [{"window": "5h", "left": 0.62, "reset": "2026-10-17T18:00"}, {"window": "week", "left": 0.8, "reset": "2026-10-20T09:00"}]},
@@ -278,7 +311,7 @@ async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, m
 @pytest.mark.asyncio
 async def test_an_idea_a_todo_a_chip_and_a_result_each_open_on_their_own_screen_with_back(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.locator(".idea-card", has_text="Dark mode").get_by_role("button").click()          # an idea → its spec
+        await page.locator(".need-plan", has_text="Dark mode").click()                                # a plan waiting (Needs you, not Ideas) → its spec
         screen = page.locator(".screen")
         await screen.locator(".sec").first.wait_for(timeout=WAIT_MS)
         box = await screen.bounding_box()
@@ -293,7 +326,8 @@ async def test_an_idea_a_todo_a_chip_and_a_result_each_open_on_their_own_screen_
         await page.locator(".screen").wait_for(state="hidden", timeout=WAIT_MS)
         assert (await page.locator(".board-tab.is-active").inner_text()).startswith("Board")                     # back on the tab it came from
 
-        await page.locator(".todo-open", has_text="API_KEY").click()                                  # a to-do → the plan, scrolled to it
+        await page.locator(".need-todo", has_text="API_KEY").click()                                  # a to-do → its sheet → the plan, scrolled to it
+        await page.get_by_role("dialog", name="To-do").get_by_role("button", name="Open the plan").click()
         target = page.locator(".screen .plan-todo.is-target")
         await target.wait_for(timeout=WAIT_MS)
         assert "tasks k2 and k3 wait for it" in await target.inner_text()
@@ -366,16 +400,25 @@ async def test_review_merge_is_off_on_red_send_back_needs_a_line_and_a_patch_scr
 @pytest.mark.asyncio
 async def test_a_secret_todo_is_entered_over_the_paired_link_on_the_board(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        secret = page.locator(".todo", has_text="API_KEY")
-        assert await secret.locator("input").get_attribute("type") == "password"
-        await secret.locator("input").fill("s3cret")
-        await secret.get_by_role("button", name="Store it").click()
-        await page.locator(".todo.is-done", has_text="API_KEY").wait_for(timeout=WAIT_MS)
+        await page.locator(".need-todo", has_text="API_KEY").click()                                    # a to-do's sheet (spec 35 §9)
+        sheet = page.get_by_role("dialog", name="To-do")
+        await sheet.wait_for(timeout=WAIT_MS)
+        assert "The sync service needs it" in await sheet.inner_text()                                 # its why
+        assert await sheet.locator("input").first.get_attribute("type") == "password"
+        await sheet.locator("input").first.fill("s3cret")
+        await sheet.get_by_role("button", name="Store it").click()
+        await page.locator(".need-todo").wait_for(state="detached", timeout=WAIT_MS)
         assert ("ideas.todo", {"idea": "sync", "id": "t1", "done": True, "value": "s3cret"}) in stub.calls
-        await page.get_by_role("button", name="New idea").click()                                       # New idea: one field in a sheet
-        await page.get_by_label("The idea").fill("Offline mode")
-        await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Later").click()
-        assert await _called(stub, "ideas.add", {"text": "Offline mode", "now": False, "track": "general"})
+        await page.get_by_role("button", name="New idea", exact=True).click()                           # no goal yet: New goal opens first (spec 35 §3)
+        goal = page.get_by_role("dialog", name="New goal")
+        await goal.get_by_label("Description").fill("Offline first")
+        await goal.get_by_role("button", name="Save goal").click()
+        idea = page.get_by_role("dialog", name="New idea")                                              # … then New idea, with that goal
+        await idea.wait_for(timeout=WAIT_MS)
+        assert await idea.get_by_label("Goal").input_value() == "offline-first"
+        await idea.get_by_label("The idea").fill("Offline mode")
+        await idea.get_by_role("button", name="Add").click()
+        assert await _called(stub, "ideas.add", {"text": "Offline mode", "track": "offline-first", "priority": "normal"})
 
 
 @pytest.mark.asyncio
@@ -416,6 +459,10 @@ async def test_the_top_bar_shows_spend_whole_and_no_band_sits_above_it(fake_repo
 @pytest.mark.asyncio
 async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_foot(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")           # New idea needs a goal (spec 35 §3)
+        stub.bump({})
+        await page.get_by_role("button", name="New idea", exact=True).wait_for(timeout=WAIT_MS)
+        await page.locator(".goal-pick option[value=ship]").wait_for(state="attached", timeout=WAIT_MS)
         opens = [("New goal", lambda: page.get_by_role("button", name="New goal", exact=True).click()),
                  ("New idea", lambda: page.get_by_role("button", name="New idea", exact=True).click()),
                  ("Settings", lambda: page.get_by_role("button", name="Settings").click()),
@@ -440,88 +487,96 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
 
 
 @pytest.mark.asyncio
-async def test_new_goal_sheet_metrics_links_priority_then_the_goal_reads_and_shows_its_summary(fake_repo, monkeypatch):
+async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_shows_its_summary(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.get_by_role("button", name="New goal", exact=True).click()
         sheet = page.get_by_role("dialog", name="New goal")
-        assert await sheet.get_by_role("button", name="Save goal").is_disabled()                        # a title is required
-        await sheet.get_by_label("Title").fill("Grow installs")
+        assert await sheet.get_by_role("button", name="Save goal").is_disabled()                        # a description is required
+        assert await sheet.get_by_label("Title").count() == 1 and not await sheet.get_by_label("Title").is_visible()   # no title to type on a new goal
+        assert await sheet.get_by_label("Metric 1: what is measured").count() == 0 and await sheet.get_by_label("Deadline").count() == 0
         await sheet.get_by_label("Description").fill("More people try Orkline.")
-        await sheet.get_by_label("Metric 1: what is measured").fill("weekly installs")
-        await sheet.get_by_label("Metric 1: the target").fill("50")
-        await sheet.get_by_role("button", name="+ Add a metric").click()
-        await sheet.get_by_label("Metric 2: what is measured").fill("signups")
-        await sheet.get_by_role("button", name="Remove metric 2").click()
         await sheet.get_by_role("radio", name="High").click()
-        await sheet.get_by_label("Link 1", exact=True).fill("docs/plan.md")
-        await sheet.get_by_role("button", name="+ Add a link").click()
-        await sheet.get_by_label("Link 2", exact=True).fill("https://example.com/post")
-        await sheet.get_by_label("Deadline").fill("2026-12-01")
         await _shot(page, "phone-new-goal-390x844")
         await sheet.get_by_role("button", name="Save goal").click()
-        assert await _called(stub, "ideas.goal_save", {"title": "Grow installs", "about": "More people try Orkline.", "priority": "high",
-                                                       "deadline": "2026-12-01", "metrics": [{"name": "weekly installs", "target": "50"}],
-                                                       "links": ["docs/plan.md", "https://example.com/post"]})
+        assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "priority": "high"})
         screen = page.locator(".screen")
         await screen.get_by_text("the Taskmaster is reading", exact=False).first.wait_for(timeout=WAIT_MS)      # the goal on its own screen: reading
-        stub.goals["grow-installs"].update(state="asks", summary="Installs are the first step.", questions=["Which channel first?"],
-                                           metrics=[{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}])
+        stub.goals["more-people-try"].update(title="Grow installs", state="asks", summary="Installs are the first step.\nMore lines.", questions=["Which channel first?"],
+                                             links=["docs/plan.md", "https://example.com/post"],
+                                             metrics=[{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}])
         stub.bump({})
-        await screen.get_by_text("Installs are the first step.").wait_for(timeout=WAIT_MS)
+        await screen.get_by_text("Installs are the first step.").first.wait_for(timeout=WAIT_MS)
         text = await screen.inner_text()
         assert "npm downloads, per week" in text and "Which channel first?" in text and "asks you" in text
         await screen.get_by_label("Answer the Taskmaster").fill("npm first")
         await screen.get_by_role("button", name="Send", exact=True).click()
-        assert await _called(stub, "ideas.say", {"slug": "grow-installs", "text": "npm first", "goal": True})
+        assert await _called(stub, "ideas.say", {"slug": "more-people-try", "text": "npm first", "goal": True})
         await screen.get_by_role("button", name="docs/plan.md").click()                                 # a repository path opens on a screen
         await screen.get_by_text("The text of docs/plan.md").wait_for(timeout=WAIT_MS)
         await screen.get_by_role("button", name="← Back to the goal").click()
         assert await screen.get_by_role("link", name="https://example.com/post").get_attribute("target") == "_blank"
-        await screen.get_by_role("button", name="Edit goal", exact=True).click()                        # Edit: the sheet is filled
+        await screen.get_by_role("button", name="Edit goal", exact=True).click()                        # Edit: the sheet is filled, with the title to correct
         sheet = page.get_by_role("dialog", name="Edit goal")
         assert await sheet.get_by_label("Title").input_value() == "Grow installs"
-        assert await sheet.get_by_label("Metric 1: the target").input_value() == "50"
-        await page.keyboard.press("Escape")
+        assert await sheet.get_by_label("Description").input_value() == "More people try Orkline."
+        await sheet.get_by_label("Title").fill("Grow weekly installs")
+        await sheet.get_by_role("button", name="Save goal").click()
+        assert await _called(stub, "ideas.goal_save", {"slug": "more-people-try", "about": "More people try Orkline.", "priority": "high", "title": "Grow weekly installs"})
         await page.get_by_role("button", name="Back", exact=True).click()
-        goal = page.locator(".goal-card", has_text="Grow installs")
-        assert "High" in await goal.inner_text() and "asks you" in await goal.inner_text()
+        option = page.locator(".goal-pick option", has_text="Grow weekly installs")                      # the goal select: title · priority · state in words
+        text = await option.inner_text()
+        assert "High" in text and "reading" in text
         assert await page.evaluate(NO_SCROLL)
 
 
 @pytest.mark.asyncio
-async def test_new_idea_sheet_process_now_later_closed_with_text_and_closed_empty(fake_repo, monkeypatch):
+async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_closed_empty(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready")
+        stub.goals["docs"] = stub.goal("docs", "Docs", "low", "ready")
+        stub.bump({})
+        await page.locator(".goal-pick option[value=docs]").wait_for(state="attached", timeout=WAIT_MS)
         await page.get_by_role("button", name="New idea", exact=True).click()
         sheet = page.get_by_role("dialog", name="New idea")
+        assert await sheet.get_by_label("Goal").input_value() == "ship"                                 # the first by priority; General is not listed
+        assert "General" not in await sheet.get_by_label("Goal").inner_text()
+        assert await sheet.get_by_role("radio", name="High").is_checked()                               # the goal's priority
+        assert await sheet.get_by_role("button", name="Add").is_visible() and await sheet.get_by_role("button", name="Later").count() == 0
+        await sheet.get_by_label("Goal").select_option("docs")
+        assert await sheet.get_by_role("radio", name="Low").is_checked()
         await sheet.get_by_label("The idea", exact=True).fill("Dark mode please")
+        await sheet.get_by_role("radio", name="High").click()
         await _shot(page, "phone-new-idea-390x844")
-        await sheet.get_by_role("button", name="Process now").click()
-        await page.locator(".idea-card", has_text="Dark mode please").wait_for(timeout=WAIT_MS)
-        assert _adds(stub) == [{"text": "Dark mode please", "now": True, "track": "general"}]
-        assert "ready" in await page.locator(".idea-card", has_text="Dark mode please").inner_text()    # read at once: not new
-        await page.get_by_role("button", name="New idea", exact=True).click()                           # Later
-        await page.get_by_label("The idea", exact=True).fill("Later idea")
-        await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Later").click()
-        await page.locator(".idea-card", has_text="Later idea").wait_for(timeout=WAIT_MS)
-        assert _adds(stub)[-1] == {"text": "Later idea", "now": False, "track": "general"}
-        await page.get_by_role("button", name="New idea", exact=True).click()                           # closed with text: saved as Later
+        await sheet.get_by_role("button", name="Add").click()
+        card = page.locator(".idea-card", has_text="Dark mode please")
+        await card.wait_for(timeout=WAIT_MS)
+        assert _adds(stub) == [{"text": "Dark mode please", "track": "docs", "priority": "high"}]
+        await page.get_by_role("button", name="New idea", exact=True).click()                           # Low → the night
+        await page.get_by_role("dialog", name="New idea").get_by_label("Goal").select_option("docs")
+        await page.get_by_label("The idea", exact=True).fill("Low idea")
+        await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Add").click()
+        low = page.locator(".idea-card", has_text="Low idea")
+        await low.wait_for(timeout=WAIT_MS)
+        assert _adds(stub)[-1] == {"text": "Low idea", "track": "docs", "priority": "low"}
+        assert "tonight" in await low.inner_text()
+        assert await low.get_by_role("button", name="Process now: Low idea").is_visible() and await low.get_by_role("button", name="Delete: Low idea").is_visible()
+        await page.get_by_role("button", name="New idea", exact=True).click()                           # closed with text: kept for tonight
         await page.get_by_label("The idea", exact=True).fill("Closed with text")
         await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Close").click()
         await page.locator(".idea-card", has_text="Closed with text").wait_for(timeout=WAIT_MS)
-        assert _adds(stub)[-1] == {"text": "Closed with text", "now": False, "track": "general"}
-        await page.get_by_role("button", name="New idea", exact=True).click()                           # Esc with text: Later too
+        assert _adds(stub)[-1]["night"] is True and _adds(stub)[-1]["text"] == "Closed with text"
+        await page.get_by_role("button", name="New idea", exact=True).click()                           # Esc with text: tonight too
         await page.get_by_label("The idea", exact=True).fill("Saved by Esc")
         await page.keyboard.press("Escape")
         await page.locator(".idea-card", has_text="Saved by Esc").wait_for(timeout=WAIT_MS)
-        assert _adds(stub)[-1] == {"text": "Saved by Esc", "now": False, "track": "general"}
+        assert _adds(stub)[-1]["night"] is True
         before = len(_adds(stub))                                                                       # closed empty: nothing
         await page.get_by_role("button", name="New idea", exact=True).click()
         await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Close").click()
         await page.wait_for_timeout(300)
         assert len(_adds(stub)) == before
-        card = page.locator(".idea-card", has_text="Closed with text")                                  # a new idea's card has Process now
-        await card.get_by_role("button", name="Process now: Closed with text").click()
-        assert await _called(stub, "ideas.read_now", {"slug": "closed-with-text"})
+        await low.get_by_role("button", name="Process now: Low idea").click()                           # Process now → the queue is now
+        assert await _called(stub, "ideas.queue", {"slug": "low-idea", "queue": "now"})
 
 
 @pytest.mark.asyncio
