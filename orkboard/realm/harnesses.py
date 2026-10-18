@@ -655,8 +655,8 @@ register(Harness(
 
 def tier_choices() -> dict:
     """{tool: {tier: model}} chosen on this machine (Settings → AI tools), read when the file changed."""
-    from orkcraft.realm import builders
-    return getattr(builders._machine(), "tier_models", None) or {}
+    from orkcraft import settings              # it imports this module
+    return getattr(settings.cached(), "tier_models", None) or {}
 
 
 def ids() -> tuple[str, ...]:

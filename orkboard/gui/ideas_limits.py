@@ -51,7 +51,7 @@ class LimitsMixin:
     def _read_limits(self) -> None:
         try:
             from orkcraft.sources.limits import fetch_limits
-            self._limits = self._limits_of(fetch_limits(Path(self.town.repo_root)))
+            self._limits = self._limits_of(fetch_limits(Path(self.host.repo_root)))
             self.log_limits()
         except Exception:                       # a quota never breaks the top bar
             pass

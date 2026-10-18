@@ -158,8 +158,9 @@ def manifest(raw: bytes, query: str) -> bytes:
     return json.dumps(data, ensure_ascii=False).encode("utf-8")
 
 
-def serve(method: str, target: str, keep_alive: bool = False) -> bytes:
-    """A whole response to a request for the app (`wants` its path)."""
+def serve(method: str, target: str, keep_alive: bool = False, entry: str = "app.js") -> bytes:
+    """A whole response to a request for the app (`wants` its path). `entry`: the page's script, the listener's host's
+    (Orkboard's phone is `board-app.js`: the shell alone, spec 37 §4)."""
     parts = urlsplit(target)
     if parts.path == PREFIX.rstrip("/"):
         return _head(HTTPStatus.MOVED_PERMANENTLY, "text/plain; charset=utf-8", 0, f"Location: {PREFIX}\r\n",
@@ -184,6 +185,8 @@ def serve(method: str, target: str, keep_alive: bool = False) -> bytes:
     body = path.read_bytes()
     if name == "manifest.webmanifest":
         body = manifest(body, parts.query)
+    if name == "index.html" and entry != "app.js" and entry in files():
+        body = body.replace(b'src="app.js"', f'src="{entry}"'.encode())
     extra = f"Content-Security-Policy: {CSP}\r\n" if path.suffix == ".html" else ""
     if name == "sw.js":
         extra += f"Service-Worker-Allowed: {PREFIX}\r\n"

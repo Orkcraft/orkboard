@@ -28,15 +28,13 @@ other than the page makes first (docs/design/mobile.md): what this server speaks
 
     ← {"name": "orkcraft", "version": "0.1.0", "protocol": 1, "api": 1}
 
-`GET /api/audio/<building>/<episode>` (the same token) is an Audio briefing's episode, to play (`<audio>`) or,
-with `?dl=1`, to download (docs/design/audio-briefing.md §7): only a finished episode of that building,
-named by its id, never a path.
+`GET /api/analytics?days=7` (the same token) is the day logs of the last days, with what each day added up to, as one
+zip (realm/analytics.py, the host's `day_logs`).
 
-`GET /api/logs/<building>?day=YYYY-MM-DD` (the same token) is a building's day log as a zip (gui/day_logs.py): every
-model call it made that day and what it decided; today's when no day is named. `GET /api/bench/<test bench>` is a
-Test bench's latest runs of what it tests, as a zip for an analysis (gui/lab_runs.py `pack`); `GET /api/check/latest`
-the last `orkcraft check`, all of it (gui/check_runs.py). `GET /api/analytics?days=7` every building's day logs of
-the last days, with what each day added up to, as one zip (realm/analytics.py).
+Orkboard's (spec 37 §4): it serves whichever host it is given, Orkboard's own (gui/board_host.py) or Orkline's
+(gui/host.py). A host may name the page's script (`entry`) and hand the server its own part (`serve(server)`):
+Orkline's adds the town's routes (an Audio briefing's episode, a building's day log, a Test bench's runs, the last
+check), its terminals' bytes, its building windows' preview and the phones' news (gui/server_town.py).
 """
 from __future__ import annotations
 
@@ -47,6 +45,7 @@ import secrets
 import threading
 from http import HTTPStatus
 from pathlib import Path
+from typing import Callable
 from urllib.parse import parse_qs, quote, urlsplit
 
 from websockets.asyncio.server import ServerConnection, serve
@@ -55,10 +54,9 @@ from websockets.exceptions import ConnectionClosed
 from websockets.http11 import Request, Response
 
 from orkcraft import __version__
-from orkcraft.core import crashes
 from orkcraft.design import tokens
-from orkcraft.gui import mobile, notify, phones, pwa
-from orkcraft.gui.host import CommandError, Host
+from orkcraft.gui import phones, pwa
+from orkcraft.gui.board_host import CommandError
 
 STATIC = Path(__file__).with_name("static")
 TICK_S = 1.0
@@ -100,7 +98,7 @@ def resolve(path: str, preview: Path | None = None) -> Path | None:
 
 
 class Server:
-    def __init__(self, host: Host, port: int = 0) -> None:
+    def __init__(self, host, port: int = 0) -> None:
         self.host = host
         self.port = port
         self.token = secrets.token_urlsafe(24)
@@ -114,24 +112,33 @@ class Server:
         self._details: set[str] = set()             # buildings whose detail waits to be sent
         self._sent: dict[tuple[int, str], str] = {}  # (page, building) → the detail it has
         self.attached: dict[ServerConnection, set[str]] = {}
+        # What a host adds (gui/server_town.py): routes by path (a prefix ends in "/"), and the page of a fix in preview
+        self.routes: dict[str, Callable[[Request, str], Response]] = {}
+        self.preview: Callable[[], Path | None] = lambda: None
         host.on_change = self._changed
         host.on_detail = self._detail_changed
-        host.sessions.on_output = self._output
         host.on_toast = lambda data: self._send_all({"t": "toast", **data})
         # The listener for phones (gui/phones.py): on the LAN, TLS, a device token; only while one is paired.
         self.phones = phones.Listener(host)
         host.commands.update(self.phones.commands())
         self.tail_watch = pwa.TailWatch(self.phones)   # Tailscale that came after the town (gui/pwa.py)
         host.commands.update(pwa.commands(self.phones))   # the app in a phone's browser: Tailscale's state
-        self.notifier = notify.Notifier(host, self.phones)   # what came, to the phones that are open
+        serve = getattr(host, "serve", None)
+        if serve is not None:
+            serve(self)
 
     def _preview(self) -> Path | None:
-        """The page of the fix shown in preview (gui/fixes.py), or None."""
-        fixes = getattr(self.host, "fixes", None)
+        """The page of the fix shown in preview (gui/fixes.py, through the host's `serve`), or None."""
         try:
-            return fixes.preview_dir() if fixes is not None else None
+            return self.preview()
         except Exception:
             return None
+
+    def capture(self, e: BaseException, where: str, **kw) -> None:
+        """An error the server caught, to the host's crash reports (Orkline's, core/crashes.py), when it keeps them."""
+        capture = getattr(self.host, "capture", None)
+        if capture is not None:
+            capture(e, where, **kw)
 
     @property
     def origin(self) -> str:
@@ -152,7 +159,7 @@ class Server:
         return bool(token) and secrets.compare_digest(token, self.token)
 
     def version(self) -> dict:
-        return {"name": "orkcraft", "version": __version__, "protocol": PROTOCOL, "api": mobile.API}
+        return {"name": "orkcraft", "version": __version__, "protocol": PROTOCOL, "api": phones.API}
 
     def _http(self, connection: ServerConnection, request: Request) -> Response | None:
         parts = urlsplit(request.path)
@@ -166,36 +173,20 @@ class Server:
             if not self._token_ok(request):
                 return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
             return _response(HTTPStatus.OK, json.dumps(self.version()).encode(), "application/json")
-        if parts.path.startswith("/api/logs/"):
-            if not self._token_ok(request):
-                return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
-            day = parse_qs(parts.query).get("day", [""])[0]
-            return self._zip(self.host.day_logs.pack(parts.path.removeprefix("/api/logs/"), day))
         if parts.path == "/api/analytics":
             if not self._token_ok(request):
                 return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
             days = parse_qs(parts.query).get("days", ["7"])[0]
             return self._zip(self.host.day_logs.pack_period(int(days) if days.isdigit() else 7))
-        if parts.path == "/api/check/latest":
-            if not self._token_ok(request):
-                return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
-            return self._zip(self.host.bench.check.pack())
-        if parts.path.startswith("/api/bench/"):
-            if not self._token_ok(request):
-                return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
-            return self._zip(self.host.bench.lab.pack(parts.path.removeprefix("/api/bench/")))
-        if parts.path.startswith("/api/audio/"):
-            if not self._token_ok(request):
-                return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
-            return self._audio(parts.path.removeprefix("/api/audio/"), "dl=1" in parts.query.split("&"))
+        for route, answer in self.routes.items():
+            if parts.path == route or (route.endswith("/") and parts.path.startswith(route)):
+                return answer(request, parts.path.removeprefix(route) if route.endswith("/") else "")
         preview = self._preview()
         if parts.path in ("/", "/index.html"):
             page = preview / "index.html" if preview is not None and (preview / "index.html").is_file() else None
-            return _response(HTTPStatus.OK, (page or STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
+            return _response(HTTPStatus.OK, page.read_bytes() if page else self.page(), "text/html; charset=utf-8")
         if parts.path == "/favicon.ico":                  # the ork mark (design-system/logo)
             return _response(HTTPStatus.OK, (tokens.SYSTEM / "logo" / "favicon.ico").read_bytes(), "image/x-icon")
-        if parts.path == "/ds/sprites/camp/kit.json":        # the new Camp's sprites that are here (js/cover.js)
-            return _response(HTTPStatus.OK, json.dumps({"files": tokens.camp_kit()}).encode(), "application/json")
         if parts.path == "/roles.css":
             return _response(HTTPStatus.OK, tokens.roles_css().encode(), "text/css; charset=utf-8")
         target = resolve(parts.path, preview)
@@ -216,23 +207,15 @@ class Server:
         resp.headers["Content-Disposition"] = f'attachment; filename="{quote(name)}"'
         return resp
 
-    def _audio(self, rest: str, download: bool) -> Response:
-        bid, _, eid = rest.partition("/")
-        bs = self.host.town.scroll.building(bid) if bid else None
-        if bs is None or bs.demolished or self.host.type_of(bid) != "gramophone":
-            return _response(HTTPStatus.NOT_FOUND, b"Not found")
-        worker = self.host.town.worker(bid)
-        path = worker.file_of(eid) if worker is not None else None
-        if path is None:
-            return _response(HTTPStatus.NOT_FOUND, b"Not found")
-        from orkcraft.realm import gramophone
-        resp = _response(HTTPStatus.OK, path.read_bytes(), gramophone.MIME.get(path.suffix, "application/octet-stream"))
-        e = worker.get(eid) or {}
-        name = "".join(c if c.isalnum() or c in " -_" else "_" for c in str(e.get("title") or eid))[:80].strip() or eid
-        plain = name.encode("ascii", "ignore").decode().strip() or eid
-        resp.headers["Content-Disposition"] = (f'{"attachment" if download else "inline"}; filename="{plain}{path.suffix}"; '
-                                               f"filename*=UTF-8''{quote(name + path.suffix)}")
-        return resp
+    def page(self) -> bytes:
+        """The page: `static/index.html`, its script the host's `entry` when it names one (Orkboard's `board.js`, in
+        Office's look from the first paint: no camp file is asked for before the script runs)."""
+        html = (STATIC / "index.html").read_bytes()
+        entry = getattr(self.host, "entry", "")
+        if entry:
+            html = html.replace(b'src="/static/app.js"', f'src="/static/{entry}"'.encode()) \
+                       .replace(b'data-theme="camp" data-look="camp"', b'data-theme="office" data-look="office"')
+        return html
 
     # -- the socket ----------------------------------------------------------------------------
 
@@ -274,7 +257,8 @@ class Server:
     def _replay(self, ws: ServerConnection | None, args: dict) -> bool:
         """A terminal opened on the page: the session as it stands now, then its bytes as they come."""
         key = str(args.get("key") or "")
-        s = self.host.sessions.get(key)
+        sessions = getattr(self.host, "sessions", None)
+        s = sessions.get(key) if sessions is not None else None
         if ws is None or s is None:
             return False
         self.attached.setdefault(ws, set()).add(key)
@@ -336,7 +320,7 @@ class Server:
             return {"t": "reply", "id": cid, "ok": False, "error": str(e)}
         except Exception as e:                            # a broken command never closes the page
             known = str(msg.get("name", ""))
-            crashes.capture(e, "command", command=known if known in self.host.commands else "")
+            self.capture(e, "command", command=known if known in self.host.commands else "")
             return {"t": "reply", "id": cid, "ok": False, "error": f"{type(e).__name__}: {e}"}
 
     def _send_all(self, msg: dict) -> None:
@@ -378,14 +362,16 @@ class Server:
                 self.phones.tick()
                 self.tail_watch.tick()
             except Exception as e:
-                crashes.capture(e, "clock")
+                self.capture(e, "clock")
                 self.host.town.toast(f"{type(e).__name__}: {e}", title="Town clock", severity="error")
 
     async def run(self) -> None:
         self.loop = asyncio.get_running_loop()
         self._stop = asyncio.Event()
         self.host.town.call = lambda fn, *a: self.loop.call_soon_threadsafe(fn, *a)
-        self.loop.set_exception_handler(self.host.crashes.asyncio_handler)   # a task's error nobody awaited
+        reporter = getattr(self.host, "crashes", None)
+        if reporter is not None:
+            self.loop.set_exception_handler(reporter.asyncio_handler)   # a task's error nobody awaited
         async with serve(self._client, "127.0.0.1", self.port, process_request=self._http,
                          max_size=8 * 2**20) as server:
             self.port = server.sockets[0].getsockname()[1]

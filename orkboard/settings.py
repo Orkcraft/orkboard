@@ -15,7 +15,8 @@
     s.look                           # camp | office: how the GUI draws the town for this person (docs/design/portrait.md)
     s.dnd_until                      # Do not disturb: "" off, "on" until turned off, else an ISO time (disturb.py)
     s.focus                          # "board": the window and the phone show only the board (spec 29a §1); "" the town
-    s.ideas                          # the board's keeper and runner: batch_minutes, idle_hours, max_parallel, … (IDEAS)
+    s.ideas                          # the board's keeper and runner: batch_minutes, idle_hours, max_parallel, … (IDEAS;
+                                     # `wiki`, the Board's Wiki folder, only when set: spec 37 §3.5)
     settings.save(s)
 
 The tools the operator leads and how each is paid for, and the quiet hours of their day (design:
@@ -235,6 +236,10 @@ def clean_ideas(raw: object) -> dict:
     paths = raw.get("risk_paths")
     if isinstance(paths, list):
         out["risk_paths"] = [p.strip()[:200] for p in paths if isinstance(p, str) and p.strip()][:50]
+    wiki = raw.get("wiki")              # the Board's Wiki, a folder in the repository (spec 37 §3.5); kept only when set
+    if isinstance(wiki, str) and (wiki := wiki.strip().strip("/")) and re.fullmatch(r"[\w. /-]{1,200}", wiki) \
+            and ".." not in wiki.split("/"):
+        out["wiki"] = wiki
     return out
 
 
@@ -323,6 +328,29 @@ def load(file: Path | None = None) -> MachineSettings:
     except (OSError, ValueError):
         return MachineSettings()
     return MachineSettings.from_dict(data) if isinstance(data, dict) else MachineSettings()
+
+
+_CACHE: dict = {}
+
+
+def cached() -> MachineSettings:
+    """The machine settings on disk, read again only when the file changed (the map, a step's tool and its tiers
+    ask often). Orkboard's and the line's: `realm/builders.py` `_machine()` reads it."""
+    file = path()
+    try:
+        key = (str(file), file.stat().st_mtime_ns)
+    except OSError:
+        key = (str(file), None)
+    if _CACHE.get("key") != key:
+        _CACHE.update(key=key, machine=load(file))
+    return _CACHE["machine"]
+
+
+def main_tool(machine: MachineSettings | None = None) -> str:
+    """The machine's main tool (read from disk when not given: the chosen one if it is on, else the first on);
+    Claude Code when none is on, as before there was a choice."""
+    machine = machine or cached()
+    return harnesses.main([t for t, c in machine.tools.items() if c.enabled], machine.main_tool) or "claude"
 
 
 def preset_role(role_id: str, file: Path | None = None, kin: str = "") -> bool:

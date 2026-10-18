@@ -20,7 +20,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from orkcraft.realm import call_log, halt, harnesses, road_agents, roads
+from orkcraft.realm import call_log, halt, harnesses, tool_run  # noqa: F401  (halt: its runs wait under it, tool_run.wait)
 from orkcraft.realm.gate_config import test_argv
 from orkcraft.sources import telemetry
 
@@ -57,28 +57,8 @@ def now_iso() -> str:
     return dt.datetime.now().isoformat(timespec="seconds")
 
 
-def _wait(proc: subprocess.Popen, cancel: threading.Event, timeout_s: int, who: str = "",
-          agent: bool = False) -> None:
-    """Until it ends, `cancel` is set (InterruptedError) or the time is up; 🛑 Halt All kills it (Halted)."""
-    halt.started(proc, who, agent)
-    try:
-        _wait_for(proc, cancel, timeout_s)
-    finally:
-        halt.ended(proc)
-
-
-def _wait_for(proc: subprocess.Popen, cancel: threading.Event, timeout_s: int) -> None:
-    deadline = time.monotonic() + timeout_s
-    while proc.poll() is None:
-        if cancel.wait(0.2) or time.monotonic() > deadline:
-            proc.terminate()
-            try:
-                proc.wait(5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-            if cancel.is_set():
-                raise InterruptedError("stopped")
-            raise RuntimeError(f"no answer within {timeout_s} s")
+_wait = tool_run.wait               # the Board's gate and the town's jobs wait the same way (realm/tool_run.py)
+_wait_for = tool_run.wait_for
 
 
 def run_script(command: str, stdin: str, repo_root: Path, cancel: threading.Event,
@@ -114,7 +94,7 @@ def work_cmd(harness: str, prompt: str, workdir: Path, model: str = "", resume: 
              dirs: tuple = (), free: bool = False, effort: str = "") -> list[str]:
     """An agent that may change files — only inside `workdir` (a Barracks worktree); `dirs` it may read too;
     `free`: its building is unchained (autonomy.FREE), so it asks nothing."""
-    h = harnesses.get(roads.resolve(harness))
+    h = harnesses.get(tool_run.resolve(harness))
     if h is None:
         raise RuntimeError(f"harness {harness!r} cannot work in a worktree")
     return h.work(prompt, workdir, model, resume if h.resumable else "", dirs, free, effort)
@@ -126,20 +106,20 @@ def run_work(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
              free: bool = False, effort: str = "") -> tuple[str, float | None, int | None, str]:
     """(text, cost, tokens, session) of an agent working in `workdir` (and reading `dirs` too); `effort`: the model's
     reasoning, where the tool takes one (spec 35 §1)."""
-    harness = roads.resolve(harness)
+    harness = tool_run.resolve(harness)
     cmd = work_cmd(harness, prompt, workdir, model, resume, dirs, free, effort)
     tool_env = h.env("work", workdir) if (h := harnesses.get(harness)) else {}
     run_env = {**os.environ, **tool_env, **(env or {})}
-    resumed = roads.codex_thread_usage(resume, run_env) if harness == "codex" and resume else None
+    resumed = tool_run.codex_thread_usage(resume, run_env) if harness == "codex" and resume else None
     before = resumed or 0
     start = time.monotonic()
-    code, out, err = call_log.answer("work", prompt) or road_agents.run_proc(
-        cmd, workdir, run_env, roads.harness_stdin(harness, prompt),
+    code, out, err = call_log.answer("work", prompt) or tool_run.run_proc(
+        cmd, workdir, run_env, tool_run.harness_stdin(harness, prompt),
         lambda proc: _wait(proc, cancel, timeout_s, run_env.get("ORKCRAFT_ORC") or harness, True), harness)
     if code != 0:
         call_log.record(env, "work", harness, model, prompt, out, err, code, time.monotonic() - start, workdir=workdir)
-        raise roads.failure(harness, code, out, err)
-    text, cost, tokens, session = roads.result_of(harness, out, before, model)
+        raise tool_run.failure(harness, code, out, err)
+    text, cost, tokens, session = tool_run.result_of(harness, out, before, model)
     if harness == "codex" and resume and resumed is None:
         cost = None                       # its running total holds earlier runs we cannot tell apart
     call_log.record(env, "work", harness, model, prompt, out, err, code, time.monotonic() - start, cost, tokens,
@@ -182,7 +162,7 @@ def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
     file edits) — an Agent pool's reply (docs/design/barracks-flows.md §7). It starts fresh unless `resume` names a
     session of a tool that can reopen one (the board's keeper: one session per idea, spec 29a §4); `session` is
     the one it ran in, "" when the tool does not say."""
-    harness = roads.resolve(harness)
+    harness = tool_run.resolve(harness)
     h = harnesses.get(harness)
     if h is None:
         raise RuntimeError(f"harness {harness!r} cannot read")
@@ -191,20 +171,20 @@ def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
         cmd = cmd + h.read_session(resume, True)
     run_env = {**os.environ, **h.env("read", workdir), **(env or {})}
     start = time.monotonic()
-    code, out, err = call_log.answer("read", prompt) or road_agents.run_proc(
-        cmd, workdir, run_env, roads.harness_stdin(harness, prompt),
+    code, out, err = call_log.answer("read", prompt) or tool_run.run_proc(
+        cmd, workdir, run_env, tool_run.harness_stdin(harness, prompt),
         lambda proc: _wait(proc, cancel, timeout_s, run_env.get("ORKCRAFT_ORC") or harness, True), harness)
     LAST.usage = harnesses.usage_split(out) if harness == "claude" else None
     LAST.capped = budget is not None and harnesses.capped(out, err)
     if code != 0:
         call_log.record(env, "read", harness, model, prompt, out, err, code, time.monotonic() - start, workdir=workdir)
         if LAST.capped:                   # ended on its budget: its answer is used if it has one (spec 35 §0)
-            text, cost, tokens, session = roads.result_of(harness, out, 0, model)
+            text, cost, tokens, session = tool_run.result_of(harness, out, 0, model)
             if text.strip() and text.strip() != out.strip():
                 return text, cost, tokens, session
             raise BudgetSpent("the keeper ran out of its budget for this step")
-        raise roads.failure(harness, code, out, err)
-    text, cost, tokens, session = roads.result_of(harness, out, 0, model)
+        raise tool_run.failure(harness, code, out, err)
+    text, cost, tokens, session = tool_run.result_of(harness, out, 0, model)
     call_log.record(env, "read", harness, model, prompt, out, err, code, time.monotonic() - start, cost, tokens,
                     session, workdir)
     what = dict(tokens=tokens, building=telemetry.building_of(run_env), model=model)

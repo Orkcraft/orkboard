@@ -4,17 +4,17 @@
 
 `create` checks the branch name with `git check-ref-format`, reuses an existing branch or starts
 a new one from `base`; `remove` refuses while the worktree has uncommitted or untracked work
-unless forced, and keeps the branch. `link` / `unlink` record it in the orkspace's `git` block of
-the Town Scroll. Every git call uses fixed arguments (no shell) and runs in the repository.
+unless forced, and keeps the branch. Every git call uses fixed arguments (no shell) and runs in the
+repository. The Board's tasks and the Agent pool share this part (Orkboard's); recording a worktree in an
+orkspace's `git` block of the Town Scroll is the town's (`realm/orkspace_trees.py`).
 """
 from __future__ import annotations
 
 import re
 import subprocess
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
-
-from orkcraft import scroll as ts
 
 WORKTREES_DIR = Path(".orkcraft") / "worktrees"
 _ID = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
@@ -98,31 +98,12 @@ def remove(repo_root: Path, path: Path, force: bool = False) -> None:
         raise WorktreeError((proc.stderr or proc.stdout).strip() or "git worktree remove failed")
 
 
-def link(scroll: ts.TownScroll, orkspace_id: str, repo_root: Path, path: Path, branch: str) -> None:
-    """Record the worktree in the orkspace's `git` block (path relative to the repository)."""
-    ork = scroll.orkspace(orkspace_id)
-    if ork is None:
-        raise WorktreeError(f"unknown orkspace {orkspace_id!r}")
-    ork.git = ts.GitLink(True, "worktree", "./" + path.resolve().relative_to(repo_root.resolve()).as_posix(), branch)
+# An orkspace's worktree (`link`, `unlink`, `cwd_for`) is the town's: realm/orkspace_trees.py (spec 37 §3.4). Asked
+# here, the three are found there, so an old caller keeps working; Orkboard never asks for them.
+_MOVED = ("link", "unlink", "cwd_for")
 
 
-def unlink(scroll: ts.TownScroll, orkspace_id: str) -> None:
-    ork = scroll.orkspace(orkspace_id)
-    if ork is not None:
-        ork.git = ts.GitLink(False)
-
-
-def cwd_for(scroll: ts.TownScroll, orkspace_id: str, repo_root: Path) -> Path:
-    """Where the orkspace's sessions run: its worktree when linked and present, else its project's folder
-    (realm/projects.py), else the town's repository."""
-    from orkcraft.realm import projects
-    repo_root = projects.root_of(scroll, orkspace_id, repo_root)
-    ork = scroll.orkspace(orkspace_id)
-    if ork is None or not ork.git.enabled or ork.git.mode != "worktree":
-        return repo_root
-    target = (repo_root / ork.git.path).resolve()
-    try:
-        target.relative_to((repo_root / WORKTREES_DIR).resolve())
-    except ValueError:
-        return repo_root
-    return target if target.is_dir() else repo_root
+def __getattr__(name: str):
+    if name in _MOVED:
+        return getattr(import_module(f"{__package__}.orkspace_trees"), name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
