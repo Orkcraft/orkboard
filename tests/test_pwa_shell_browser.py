@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import datetime as dt
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -17,6 +18,9 @@ pw = pytest.importorskip("playwright.async_api")
 from orkcraft.gui import mobile, phone_tls  # noqa: E402
 from tests.test_phones import _listening, _serve  # noqa: E402
 from tests.test_pwa_browser import CHROMIUM, WAIT_MS, _spki  # noqa: E402
+
+_TODAY = dt.date.today().isoformat()                 # a reset today reads "resets at 18:00", whatever the day
+_IN_TWO_DAYS = (dt.date.today() + dt.timedelta(days=2)).isoformat()
 
 SHOTS = Path(__file__).resolve().parent.parent / "docs" / "design" / "img" / "v1"
 SECTIONS = ["Gist", "Why", "In", "Out", "Risks", "Open questions", "Estimate", "Stages", "Decisions"]
@@ -227,7 +231,7 @@ async def _phone(repo: Path, monkeypatch):
         return {**s, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
                 "review_count": len(stub.results()),
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
-                            "rows": [{"window": "5h", "left": 0.62, "reset": "2026-10-17T18:00"}, {"window": "week", "left": 0.8, "reset": "2026-10-20T09:00"}]},
+                            "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
                            {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]}]}
     monkeypatch.setattr(mobile, "phone_snapshot", snap)
     for name in stub.commands():

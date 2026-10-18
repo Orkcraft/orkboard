@@ -4,6 +4,7 @@ terminal. A click on an idea, a to-do, a chip and a result opens the right previ
 back needs its line; no camp. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,9 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.test_gui_browser import WAIT_MS, gui  # noqa: E402,F401  (fixture)
+
+_TODAY = dt.date.today().isoformat()                 # a reset today reads "resets at 18:00", whatever the day
+_IN_TWO_DAYS = (dt.date.today() + dt.timedelta(days=2)).isoformat()
 
 pytestmark = pytest.mark.browser
 
@@ -61,7 +65,7 @@ class StubHost:
                       "grunt": {"slug": "grunt", "name": "Grunt", "model": "", "max_parallel": 8, "instruction": "", "builtin": True}}
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
         self.limits = [{"provider": "claude", "name": "Claude", "left": 0.62,
-                        "rows": [{"window": "5h", "left": 0.62, "reset": "2026-10-17T18:00"}, {"window": "week", "left": 0.8, "reset": "2026-10-20T09:00"}]},
+                        "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
                        {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]}]
         self.ideas = {"sync": self.idea("sync", "Sync ideas between the phone and the town", "working", 0),
                       "dark": self.idea("dark", "Dark mode", "plan", 1, start_at="night"),
