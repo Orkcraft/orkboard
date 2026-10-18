@@ -1,10 +1,10 @@
-"""The GUI face (docs/design/gui-migration.md, stage 4): the town in a window, Office look first.
+"""The face: the Board in a window or the browser, and on a paired phone, always in Office's look.
 
-    host.py     the Town, its clocks and the page's commands, on one thread (no toolkit)
-    state.py    what the page shows, as one JSON snapshot
-    server.py   the page, the design system and one WebSocket on 127.0.0.1
-    launch.py   `orkcraft gui`: a pywebview window (WKWebView on macOS) or the browser
-    static/     the page: Preact + htm + signals as ES modules, no build step
+    board_host.py   Orkboard's host: the Board's commands, Stop all, updates, the first screen; `orkboard`'s main
+    ideas*.py       the Board's commands (goals, ideas, plans, agents, review) on what the host gives them
+    server.py       the page, the design system and one WebSocket on 127.0.0.1
+    phones.py       the listener for a paired phone (pairing.py, phone_http.py, phone_tls.py, tailnet.py, pwa.py)
+    static/         the page: Preact + htm + signals as ES modules, no build step (board.js; the phone's pwa/board-app.js)
 
-Like tui/, this is a face: core/, realm/ and design/ never import it.
+This is a face: core/, realm/ and design/ never import it.
 """
