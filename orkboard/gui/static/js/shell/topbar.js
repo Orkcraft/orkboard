@@ -4,6 +4,7 @@
 import { html, cls } from "../html.js";
 import { town, command, say } from "../link.js";
 import { openDialog } from "./modals.js";
+import { ProjectSwitcher } from "./projects.js";
 
 const MARKS = { claude: "✱", agy: "∩", codex: "◇", hermes: "☿", pi: "π", cursor: "▷" };
 export const WARN = 0.2, DANGER = 0.05;
@@ -43,6 +44,7 @@ export function TopBar() {
   const hud = town.value?.hud || {};
   const spend = hud.show_gold ? hud.gold : hud.lumber;
   return html`<header class="shell-top">
+    <${ProjectSwitcher} />
     <span class="shell-top__brand">Orkline</span>
     <${Limits} />
     <span class="shell-top__spacer"></span>

@@ -4,6 +4,7 @@ import { html } from "../html.js";
 import { review, act } from "./store.js";
 import { board } from "../board/store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
+import { currentProject } from "./projects.js";
 
 /** The analytics zip of the last `days` days (gui/server.py `/api/analytics`): the model calls, the event log, each idea's plan and logs. */
 const logsHref = (days) => `/api/analytics?days=${days}&t=${encodeURIComponent(new URLSearchParams(location.search).get("t") || "")}`;
@@ -17,6 +18,7 @@ export function SettingsDialog() {
   const [from, to] = window_(b?.night);
   return html`<${Modal} title="Settings" onClose=${closeDialog} foot=${html`<button type="button" class="ok-btn primary" onClick=${closeDialog}>Done</button>`}>
     <div class="shell-form">
+      ${currentProject.value && html`<p class="ok-font-status ok-tone-muted" data-settings="project">The Board's settings are for this project: ${currentProject.value.name}.</p>`}
       <label class="ok-check">
         <input type="checkbox" class="gui-onb__hide" checked=${push} onChange=${(e) => act("ideas.into", { push: e.target.checked })} />
         <i>${push ? "✓" : ""}</i><span>Push after merging (sends your code to origin)</span></label>
