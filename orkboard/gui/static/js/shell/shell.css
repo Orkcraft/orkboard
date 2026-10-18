@@ -168,11 +168,8 @@
 .board-card-row { display: flex; flex-direction: column; gap: var(--space-1); }
 .board-card__now { align-self: flex-start; }
 
-/* agents, task types */
+/* agents, a monitor */
 .shell-role__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
-.shell-kinds__list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-2) var(--space-4); }
-.shell-kinds__list label { display: flex; align-items: center; gap: var(--space-2); }
-.shell-kinds__name { min-width: 7em; color: var(--ink-muted); }
 .shell-metrics { border-collapse: collapse; width: 100%; font-size: .92em; }
 .shell-metrics th, .shell-metrics td { text-align: left; padding: 3px var(--space-2); border-bottom: 1px solid var(--frame); vertical-align: top; }
 .shell-links { margin: 0; padding-left: 20px; }
@@ -183,8 +180,9 @@
   .shell-modal, .shell-modal.is-wide { width: 100%; border-radius: var(--ok-radius-lg) var(--ok-radius-lg) 0 0; }
 }
 .shell-field .board-link { align-self: flex-start; }
-.shell-kinds { flex: 1 1 100%; }
-.shell-kinds { align-items: stretch; }
-.shell-kinds__list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .shell-chip__tag { white-space: nowrap; font-size: .8em; color: var(--ink-muted); border: 1px solid var(--frame); padding: 0 4px; }
 .shell-chip.is-held .shell-chip__state { text-transform: none; }
+.shell-spend { margin: 0 0 var(--space-3); }
+.shell-takes { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.shell-takes__row { display: flex; align-items: baseline; gap: var(--space-2); }
+.shell-takes__row small { margin-left: auto; }

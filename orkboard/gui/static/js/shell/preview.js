@@ -61,12 +61,24 @@ function File({ f }) {
   </details>`;
 }
 
+const STAGE_WORDS = [["goal", "goal"], ["spec", "spec"], ["plan", "plan"], ["work", "work"], ["rework", "rework"], ["dropped", "dropped"]];
+
+/** The idea's money so far, by stage (spec 36 §5): stages at 0 left out, — when nothing is priced. */
+export function spendWords(s) {
+  if (!s || !s.stages) return "";
+  if (s.usd == null) return "This idea so far: —";
+  const parts = STAGE_WORDS.map(([k, w]) => [w, s.stages[k]?.usd]).filter(([, v]) => v).map(([w, v]) => `${w} ${v.toFixed(2)}`);
+  const total = `≈$${s.usd < 10 ? s.usd.toFixed(2) : Math.round(s.usd)}`;
+  return `This idea so far: ${total}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
+}
+
 function Result({ d, p }) {
   const r = (review.value?.results || []).find((x) => x.idea === p.slug && x.task === p.task);
   const diff = d?.diff;
   const t = r && testsWords(r);
   return html`<div class="shell-result">
     <div class="shell-result__body">
+      ${d?.spend && html`<p class="shell-spend ok-font-status ok-tone-muted" title="At API prices, not your bill">${spendWords(d.spend)}</p>`}
       ${r ? html`<dl class="shell-facts">
         <dt>Tests</dt><dd class=${`is-${t.tone}`}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</dd>
         <dt>Changes</dt><dd>${changesWords(r.diff)}</dd>${r.round > 1 ? html`<dt>Round</dt><dd>${r.round}</dd>` : ""}</dl>

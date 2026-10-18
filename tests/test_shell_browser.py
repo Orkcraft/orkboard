@@ -158,6 +158,8 @@ class StubHost:
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
                                 "instruction": a.get("instruction", ""), "builtin": slug in ("taskmaster", "grunt")}
+            for k in a.get("kinds", []):                                                              # spec 36 §3: the types this agent takes
+                self.kinds[k] = slug
             return self.bump({"slug": slug})
         if name == "ideas.role_drop":
             self.roles.pop(a["slug"])
@@ -836,9 +838,7 @@ def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(shell):
 def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
     pg, host = shell
     agents = pg.locator(".shell-agents")
-    assert "taskmaster" in agents.inner_text().lower() and "task types" in agents.inner_text().lower()
-    for kind in ("Code", "Tests", "Docs", "Text for people", "Research"):
-        assert agents.get_by_label(f"Agent for {kind}").input_value() == "grunt"
+    assert "taskmaster" in agents.inner_text().lower() and "task types" not in agents.inner_text().lower()      # spec 36 §5: a monitor
     agents.get_by_role("button", name="+ Add agent").click()
     dlg = pg.get_by_role("dialog", name="Add agent")
     dlg.get_by_label("Name").fill("Docs scribe")
@@ -847,17 +847,12 @@ def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
     dlg.get_by_label("Instruction").fill("Write plainly.")
     dlg.get_by_role("button", name="Save agent").click()
     pg.locator(".shell-role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
-    assert ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly."}) in host.log
-    agents.get_by_label("Agent for Docs").select_option("docs-scribe")                              # a type assigned
-    pg.wait_for_function("() => true")
-    assert ("ideas.kind_set", {"kind": "docs", "role": "docs-scribe"}) in host.log
-    assert "Does: docs" in pg.locator(".shell-role[data-slug='docs-scribe']").inner_text()
-    agents.get_by_label("Agent for Research").select_option("__new__")                              # New agent… from the type: made and assigned
-    pg.get_by_role("dialog", name="Add agent").get_by_label("Name").fill("Reader")
-    pg.get_by_role("dialog", name="Add agent").get_by_label("Model").select_option("warrior")
+    assert ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": []}) in host.log
+    pg.get_by_role("button", name="Edit Docs scribe").click()                                       # a type given in its dialog (Takes)
+    pg.get_by_role("dialog", name="Edit agent").get_by_label("Docs").check()
     pg.get_by_role("button", name="Save agent").click()
-    pg.locator(".shell-role[data-slug='reader']").wait_for(timeout=WAIT_MS)
-    assert ("ideas.kind_set", {"kind": "research", "role": "reader"}) in host.log
+    pg.get_by_role("dialog").wait_for(state="detached", timeout=WAIT_MS)
+    assert ("ideas.role_save", {"slug": "docs-scribe", "name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": ["docs"]}) in host.log
     pg.get_by_role("button", name="Edit Docs scribe").click()                                        # Edit, then Delete says what moves back
     dlg = pg.get_by_role("dialog", name="Edit agent")
     assert dlg.get_by_label("Instruction").input_value() == "Write plainly."
@@ -865,7 +860,6 @@ def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
     assert "back to Grunt" in dlg.inner_text() and "docs" in dlg.inner_text().lower()
     dlg.get_by_role("button", name="Delete agent").click()
     pg.locator(".shell-role[data-slug='docs-scribe']").wait_for(state="detached", timeout=WAIT_MS)
-    assert agents.get_by_label("Agent for Docs").input_value() == "grunt"
     pg.get_by_role("button", name="Edit Taskmaster").click()                                         # the built-ins: edit, never delete
     builtin = pg.get_by_role("dialog", name="Edit agent")
     builtin.get_by_label("Name").wait_for(timeout=WAIT_MS)

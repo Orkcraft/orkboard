@@ -8,7 +8,7 @@ import { ask, board, opened, page, BUSY } from "../board/store.js";
 export const preview = signal(null);       // null | {kind: "idea"|"plan"|"task"|"result", slug, task?, todo?}
 export const review = signal(null);        // ideas.review_list
 export const agents = signal(null);        // ideas.agents
-export const detail = signal(null);        // the preview's own data: {task} (ideas.task) · {task, diff} (a result) · {goal} · {doc}
+export const detail = signal(null);        // the preview's own data: {task} (ideas.task) · {task, diff, spend} (a result; spend: ideas.spend of its idea) · {goal} · {doc}
 export const goal = signal(null);          // ideas.goal of the goal in the preview
 export const roles = signal(null);         // ideas.roles: the agents, the task types and their agent, the models
 export const tab = signal("board");        // the narrow layout's tab (below 1 024 px the shell is the phone's layout)
@@ -20,9 +20,10 @@ async function detailFor(p) {
   if (p?.kind === "goal") return { goal: await ask("ideas.goal", { slug: p.slug }) };
   if (p?.kind === "doc") return { doc: await ask("ideas.doc", { path: p.path }) };
   if (!p || (p.kind !== "task" && p.kind !== "result")) return null;
-  const [task, diff] = await Promise.all([ask("ideas.task", { slug: p.slug, task: p.task }),
-    p.kind === "result" ? ask("ideas.diff", { slug: p.slug, task: p.task }) : null]);
-  return { task, diff };
+  const [task, diff, spend] = await Promise.all([ask("ideas.task", { slug: p.slug, task: p.task }),
+    p.kind === "result" ? ask("ideas.diff", { slug: p.slug, task: p.task }) : null,
+    p.kind === "result" ? ask("ideas.spend", { idea: p.slug }) : null]);
+  return { task, diff, spend };
 }
 
 let loading = false;
