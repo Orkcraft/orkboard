@@ -14,11 +14,49 @@ words: *goal*, *idea*, *Target*, *to-do*, *task*). **Change nothing outside thes
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
-| **A. Backend** | `spec/35-backend` | §1–§10, §12 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/harnesses.py` and `realm/jobs.py` (effort only), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
+| **A. Backend** | `spec/35-backend` | §0–§10, §12 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/harnesses.py` and `realm/jobs.py` (effort, the budget cap, no session persistence), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
 | **B. Desktop** | `spec/35-desktop` | §11 on the desktop | `gui/static/js/shell/*`, `gui/static/js/board/*` |
 | **C. Phone** | `spec/35-phone` | §11 on the phone | `gui/static/pwa/shell-*.js`, `pwa/app.css`, `pwa/sw.js` (cache version) |
 
 B and C branch from A once A is pushed (as in 33 and 34); they touch no file of each other's and can be built at once.
+
+## 0. The rule above all: one call, one job; no session, no long talk
+The owner's pain (18 October): long talks on ideas eat the context and the money. A resumed session carries every
+earlier turn and every file the model read into each new call. So, for every call of the keeper (`goal`, `draft`,
+`answer`, `talk`, `plan`, `refresh`, `propose`):
+- **One shot.** A fresh `claude -p`, never `--resume`, with `--no-session-persistence` when the installed CLI lists it
+  (read once, as `--effort`). **The page is the memory**: its sections, its Decisions, its Open questions. The talk
+  (`talk.jsonl`) is the person's archive and never goes to a model. The session per idea (decisions §43.5:
+  `state.session`, `fresh`, the 60 % compaction) goes; `idle_hours` stays in the settings, unused.
+- **Only what its job needs**, built by code and cut to a cap (`realm/idea_target.py` `CONTEXT`, characters of the
+  prompt; the call's own instructions not counted):
+
+| call | gets | cap |
+|---|---|---|
+| `goal` | its description, priority, links' paths, the person's answers (if any), the Wiki's index | 12 000 |
+| `draft` | its goal's Summary and Metrics, the goal's links as paths (not their text), the titles of the goal's other ideas and of the other goals' open ideas (≤ 40), the person's text | 8 000 |
+| `answer` | the spec's sections but Decisions and Stages, the questions with the person's answers | 8 000 |
+| `talk` | the one section the person points at (Gist and Open questions when none), the last 10 lines of Decisions, the person's words | 6 000 |
+| `plan` | Gist, Done when, Out, Risks, Depends on; the goal's Summary | 10 000 |
+| `refresh` | as `goal`, and the names of the paths that changed | 12 000 |
+| `propose` | each goal's title and the first line of its Summary, its ideas' titles and states, the declined titles, at most 50 commit subjects | 10 000 |
+
+  The Wiki's index goes only to a goal's read: under a goal, its Summary is the map.
+- **Bounded reading.** The prompt names the files to start from and how many it may read: `goal` 8, `draft` 6,
+  `plan` 6, `refresh` 6 (the changed ones first), `talk` 2, `answer` 2, `propose` none (it runs with no tools). Every
+  call runs with `--max-budget-usd` when the CLI lists it: `CAPS` per step in balance (goal 1.00 · draft 0.60 · answer
+  0.40 · talk 0.20 · plan 0.60 · refresh 0.50 · propose 0.30), half in thrift, double in quality. A call that ends on
+  its cap: its answer is used if it parses, else the idea stays as it was and says *the keeper ran out of its budget
+  for this step*.
+- **One round of questions.** The draft (and a goal's read) asks at most 3 questions, all at once. The person answers
+  them together, one box each, one **Send** (`ideas.answer`). The `answer` call writes the rest of the spec and **asks
+  nothing more**: where it is unsure it decides, and writes the assumption into Decisions (*Assumed: …*); a question in
+  its answer is dropped by the code. A goal's answers the same way, on the `goal` step.
+- **A talk turn is an edit, not a chat.** The person says what to change on a section, or asks about it; one call
+  rewrites that section (and Decisions, if something was decided) and replies in at most three lines. No turn carries
+  the turns before it.
+- **Measured.** Every keeper event (`goal_read`, `idea_drafted`, `idea_answered`, `idea_said`, `plan_made`,
+  `night_run`) carries `prompt_chars` and `tokens` (in, out, cache read), so the waybill shows what each step costs.
 
 ## 1. The Target: the Board's one setting
 - `ideas.target`: `thrift` · `balance` · `quality` (default `balance`), shown as **Target** (`TERMS` `steward_goal`,
@@ -47,7 +85,7 @@ B and C branch from A once A is pushed (as in 33 and 34); they touch no file of 
 - **Effort** reaches the model through `realm/jobs.py` → `realm/harnesses.py`'s claude commands as `--effort <level>`
   (the CLI's levels: low · medium · high · xhigh · max). It is passed only when the installed CLI lists `--effort` in
   its `--help` (read once, cached) and never on the laborer tier. Other harnesses ignore it (agy's reasoning is in its
-  model's name). The keeper's `Call` gains `effort`.
+  model's name). The keeper's `Call` gains `effort` and `budget`; it loses `resume` (§0).
 
 ## 2. A goal: a description and a priority; the keeper writes the rest
 - **New goal**: **Description** (required, a few lines) and **Priority** (*High · Normal · Low*, default Normal).
@@ -79,28 +117,24 @@ B and C branch from A once A is pushed (as in 33 and 34); they touch no file of 
 - **The queue** (`state.json` `queue`): High and Normal → `now` (drafted at once, in the background); Low → `night`
   (§7); `hold` when the person stopped it (§11). A `raw` idea from before this spec, with no queue, is `night`. The
   30-minute batch goes: `batch_minutes` stays in the settings, unused, so old settings keep loading.
-- **The draft** (`core/idea_draft.py`): one call on the `draft` step, read-only. It **starts the idea's session**: its
-  id goes to `state.session`, and the talk and the plan resume it, the cache warm, under today's compaction rule
-  (`fresh`). It is given: its goal (Description, Summary, Metrics, links, with *start from these files; search the
-  repository only for what they don't cover*), the goal's other ideas (slug, title, state), the ideas of the other
-  goals not done (slug, title, goal; at most 40), the Wiki's index (cut as today) and the person's text. It answers one
-  JSON object:
+- **The draft** (`core/idea_draft.py`): one call on the `draft` step, read-only, one shot, given §0's `draft` context
+  (with *start from these files; search the repository only for what they don't cover*). It answers one JSON object:
   `{title, gist, why, done_when: [1–5], out: [0–3], risks: {product: [..], tech: [..]}, risk: low|medium|high,
   risk_why, touches: [repository paths or globs], depends_on: [idea slugs], size: S|M|L, before, questions: [0–3]}`.
 - Written, strictly as today (only known keys): the sections **Gist · Why · Done when · Out · Risks · Depends on ·
   Open questions**; front matter `size, risk_model, touches, depends_on` and `title` (the person's words stay in the
   talk, as today). `depends_on` keeps only slugs that exist and do not close a cycle. `before` places it as 34 does
   (the person's drag wins).
-- Then: questions → `asks` (Needs you); none → **the plan at once** (§4). When a talk turn empties the Open questions of an
-  idea with no plan yet (the person answered), the plan follows at once too. A plan not passed yet is made again
-  by **Re-plan** (`ideas.plan`, as today).
+- Then: questions → `asks` (Needs you); the person answers them together (`ideas.answer`), the `answer` call writes
+  the rest (§0: one round), and the plan follows. No questions → **the plan at once** (§4). A plan not passed yet is
+  made again by **Re-plan** (`ideas.plan`, as today).
 - `realm/ideas.py` `SECTIONS` becomes **Gist · Why · Done when · Out · Risks · Depends on · Stages · Open questions ·
   Decisions**. *In* and *Estimate* are no longer written; a page that has them keeps them and shows them after the
   known sections (as `page()` does today with any other section). The price stays where it was used: on Take it to work
   and in the plan (`estimate`).
 
 ## 4. The plan, its Stages, its risk
-- The plan as today (`plan_prompt`, `make_plan`), on the `plan` step, resuming the idea's session; each task's brief
+- The plan as today (`plan_prompt`, `make_plan`), on the `plan` step, one shot with §0's `plan` context; each task's brief
   names the Done when lines it proves.
 - **Stages** is written by the board from plan.json (code, no model) whenever a plan is made: the tasks in waves by
   `after`, e.g. `1. k1 The table (S) ∥ k2 The form (M)` · `2. k3 The checks (L), after k1`; the complexity from the
@@ -205,8 +239,8 @@ B and C branch from A once A is pushed (as in 33 and 34); they touch no file of 
    the three with one line each: *Thrift: lighter models, less reasoning, no proposals at night* · *Balance* ·
    *Quality: heavier models, more reasoning, three proposals a night*. A chosen goal shows its Summary's first line,
    **Open** (the goal, as 34) and **Edit**. The choice filters Needs you and the ideas.
-2. **Needs you.** §10's list, an icon per kind, its title and one line. A click opens what it is about: the spec at its
-   Open questions, the plan (Take it to work), the to-do's dialog (§9), the goal. A proposal is answered in the row
+2. **Needs you.** §10's list, an icon per kind, its title and one line. A click opens what it is about: the questions of a spec or a goal as one
+   form (a box per question, one **Send**: §0's one round), the plan (Take it to work), the to-do's dialog (§9), the goal. A proposal is answered in the row
    (Take with a priority · No with a reason).
 3. **Ideas.** One row each, its title only, its priority as a mark, its state in words and its actions:
 
@@ -232,6 +266,7 @@ B and C branch from A once A is pushed (as in 33 and 34); they touch no file of 
 |---|---|---|
 | `ideas.goal_save` | `{"slug"?, "about", "priority", "title"?}` (`title` on Edit; 34's other fields still accepted and kept) | `{"slug"}` |
 | `ideas.add` | `{"text", "track", "priority", "night"?: bool}` (`track` not `general`; `night`: the closed dialog's) | `{"slug", "queue"}` |
+| `ideas.answer` | `{"slug", "answers": ["…"], "goal"?: bool}` (in the questions' order; §0's one round) | `{"ok": true}` |
 | `ideas.queue` | `{"slug", "queue": "now" \| "night"}` (Process now, Tonight; `ideas.read_now` stays as `now`) | `{"ok": true}` |
 | `ideas.read_stop` | `{"slug"}`: the keeper's run on this idea stops (its own cancel, not Stop all's); queue `hold` | `{"ok": true}` |
 | `ideas.start_now` | `{"slug"}`: a plan that starts at night starts now | `{"ok": true}` |
@@ -246,7 +281,7 @@ B and C branch from A once A is pushed (as in 33 and 34); they touch no file of 
 - Settings, `IDEAS`: `target: "balance"`, `autostart: True`, `night: "01:00-07:00"`, `reserve_day: 0.3`,
   `reserve_night: 0.1`, `risk_paths: []`, checked in `settings.py` like the others.
 - Events (spec 33 §9, the same log): `board_set` (target, autostart, night, device); `idea_added` gains `priority, queue`;
-  `idea_drafted` (idea, risk, triggers, questions, tier, effort, seconds); `plan_passed` gains `by, risk, priority`;
+  `idea_drafted` (idea, risk, triggers, questions, tier, effort, seconds); `idea_answered` (idea, answers); `plan_passed` gains `by, risk, priority`;
   `keeper_stopped` (idea); `night_run` (§7); `proposal_made` (idea, goal); `proposal_answered` (idea, take,
   has_reason); `goal_read` gains `tier, effort`; `task_state` gains `ran_tier, effort`.
 
@@ -266,9 +301,13 @@ calendar meetings as Board screens (they go to General, unseen in v1).
     kept;
   - `ideas.add` refuses no goal and General; High and Normal are drafted at once, Low and `night: true` wait for the
     night;
-  - the draft writes its sections and front matter, drops an unknown or cycle-closing dependency, keeps its session,
-    and the talk and the plan resume it (the stubbed call sees `resume`); questions → `asks`; none → the plan at once;
-    a talk turn that empties the questions makes the plan;
+  - §0: no keeper call ever resumes a session; each call's prompt stays within its `CONTEXT` cap (the stub measures
+    it) and holds only its listed parts (a talk's prompt has no earlier turn and no other section); `propose` runs with
+    no tools; `--max-budget-usd` and `--no-session-persistence` are on the command only when the CLI lists them; a
+    call ended on its cap leaves the idea as it was, with its line;
+  - the draft writes its sections and front matter, drops an unknown or cycle-closing dependency; questions → `asks`;
+    `ideas.answer` → one `answer` call, any question in its answer dropped and its assumptions in Decisions, then the
+    plan; no questions → the plan at once;
   - Stages from plan.json, in waves, with S / M / L;
   - the risk: each trigger row raises it (a case each), whole words in any case, `risk_paths`, the max with the
     model's; the Risks section's first line;
