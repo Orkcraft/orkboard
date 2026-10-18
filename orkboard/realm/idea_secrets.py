@@ -10,6 +10,14 @@ variable named in the to-do's title.
     get(state_dir, "dark-mode", "t1") == "sk-…"
     forget(state_dir, "dark-mode")          # the idea was dropped
 
+A `file` to-do's file (spec 35 §9) is kept beside them: `<state_dir>/ideas/<slug>/files/<to-do id>-<name>`, mode 600,
+never in the repository, a page, plan.json (which says only the name) or a prompt's text. The task that waits for it
+gets its path in the environment (`ORKCRAFT_FILE_T2`).
+
+    put_file(state_dir, "dark-mode", "t2", "google-services.json", data)
+    file_env(state_dir, "dark-mode", plan, "k1")    # {"ORKCRAFT_FILE_T2": "/…/files/t2-google-services.json"}
+    forget_files(state_dir, "dark-mode")
+
 No face, no model, no bus.
 """
 from __future__ import annotations
@@ -124,3 +132,73 @@ def forget(state_dir: Path, slug: str, todo_ids: list[str] = ()) -> None:
     kept = {k: v for k, v in data.items() if not k.startswith(f"{slug}/")}
     if kept != data:
         _write(state_dir, kept)
+
+
+# -- a file to-do's file (spec 35 §9) -----------------------------------------------------------------------------
+
+FILE_MAX = 5 * 1024 * 1024             # the most a file to-do takes
+_FILE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def file_name(name: str) -> str:
+    """A file's name as it is kept: its last part, plain characters only, never hidden."""
+    base = str(name or "").replace("\\", "/").rsplit("/", 1)[-1]
+    base = _FILE_NAME.sub("_", base).strip("._")[:120]
+    if not base:
+        raise ValueError("The file needs a name")
+    return base
+
+
+def files_dir(state_dir: Path, slug: str) -> Path:
+    key(slug, "t1")                     # the slug is an idea's
+    return Path(state_dir) / "ideas" / slug / "files"
+
+
+def put_file(state_dir: Path, slug: str, todo_id: str, name: str, data: bytes, accept: list[str] = ()) -> Path:
+    """Keep a to-do's file (mode 600); an earlier file of the same to-do goes. Its path."""
+    key(slug, todo_id)
+    name = file_name(name)
+    if len(data) > FILE_MAX:
+        raise ValueError("The file is larger than 5 MB")
+    exts = [str(e).lower().lstrip(".") for e in accept or () if str(e).strip()]
+    if exts and name.lower().rsplit(".", 1)[-1] not in exts and not any(name.lower().endswith("." + e) for e in exts):
+        raise ValueError("That file is not one it takes: " + ", ".join("." + e for e in exts))
+    folder = files_dir(state_dir, slug)
+    folder.mkdir(parents=True, exist_ok=True)
+    _ignored(Path(state_dir))
+    for old in folder.glob(f"{todo_id}-*"):
+        old.unlink(missing_ok=True)
+    path = folder / f"{todo_id}-{name}"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    os.chmod(path, 0o600)
+    return path
+
+
+def file_path(state_dir: Path, slug: str, todo_id: str) -> Path | None:
+    key(slug, todo_id)
+    folder = files_dir(state_dir, slug)
+    found = sorted(folder.glob(f"{todo_id}-*")) if folder.is_dir() else []
+    return found[0] if found else None
+
+
+def env_of(todo_id: str) -> str:
+    return "ORKCRAFT_FILE_" + re.sub(r"[^A-Z0-9_]", "_", str(todo_id).upper())
+
+
+def file_env(state_dir: Path, slug: str, plan: dict, task_id: str) -> dict[str, str]:
+    """The paths of the file to-dos a task waits for, by their variable."""
+    out = {}
+    for todo in plan.get("todos") or []:
+        if isinstance(todo, dict) and todo.get("kind") == "file" and task_id in (todo.get("for") or []):
+            path = file_path(state_dir, slug, str(todo.get("id") or ""))
+            if path is not None:
+                out[env_of(str(todo["id"]))] = str(path)
+    return out
+
+
+def forget_files(state_dir: Path, slug: str) -> None:
+    """The idea's files go (it was dropped)."""
+    import shutil
+    shutil.rmtree(files_dir(state_dir, slug), ignore_errors=True)
