@@ -351,18 +351,9 @@ def secret_keys(slug: str, todo_id: str) -> tuple[str, ...]:
 
 
 def read_secret(state_dir: Path, slug: str, todo_id: str) -> str | None:
-    """A `secret` to-do's value from where part A stores it: `realm/secrets` if there is one, else the OS
-    keychain (`keyring`, service "orkline"), else `<state_dir>/secrets.json` (flat by key, or {slug: {id: v}})."""
+    """A `secret` to-do's value from where part A stores it: the OS keychain (`keyring`, service "orkline"), else
+    `<state_dir>/secrets.json` (flat by key, or {slug: {id: v}})."""
     keys = secret_keys(slug, todo_id)
-    try:
-        from orkboard.realm import secrets as store          # type: ignore[attr-defined]
-        get = getattr(store, "get", None) or getattr(store, "read", None)
-        for key in keys:
-            value = get(key) if get else None
-            if value:
-                return str(value)
-    except Exception:
-        pass
     try:
         import keyring                                         # type: ignore[import-not-found]
         for key in keys:
