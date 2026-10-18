@@ -19,8 +19,8 @@ Reads the hook payload (`tool_name`, `tool_input`, `cwd`) on stdin and decides:
   files (.env, private keys, .ssh, .aws credentials, .netrc, …);
 - ask  — destructive but legitimate: `git reset --hard`, `git clean -f`, discarding all changes,
   `git branch -D`, dropping stashes, `sudo`, dumping the environment, and edits to Warder itself
-  (`orkcraft/hooks/warder.py`, `scripts/warder_hook.py`, `.claude/settings*.json`, `.codex/hooks.json`,
-  `.codex/config.toml`). Codex cannot ask yet, so for Codex an ask is a deny that says why;
+  (`orkcraft/hooks/warder.py` and `orkboard/hooks/warder.py`, `scripts/warder_hook.py`, `.claude/settings*.json`,
+  `.codex/hooks.json`, `.codex/config.toml`). Codex cannot ask yet, so for Codex an ask is a deny that says why;
 - nothing — everything else goes through the agent's normal permission flow.
 
 Codex edits files with `apply_patch`: the files it touches are read from the patch itself.
@@ -86,8 +86,8 @@ SECRET_NAMES = ("id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", ".netrc", ".pgpass
 SECRET_GLOBS = ("*.pem", "*.key", "*.p12", "*.pfx", "*.keystore", "*.jks")
 SECRET_DIRS = (".ssh", ".gnupg")
 ENV_OK = (".env.example", ".env.sample", ".env.template", ".env.dist")
-SELF = ("orkcraft/hooks/warder.py", "scripts/warder_hook.py", ".claude/settings.json", ".claude/settings.local.json",
-        ".codex/hooks.json", ".codex/config.toml", ".agents/hooks.json", ".cursor/hooks.json",
+SELF = ("orkcraft/hooks/warder.py", "orkboard/hooks/warder.py", "scripts/warder_hook.py", ".claude/settings.json",
+        ".claude/settings.local.json", ".codex/hooks.json", ".codex/config.toml", ".agents/hooks.json", ".cursor/hooks.json",
         ".pi/extensions/orkcraft.ts")
 AGY_GLOBAL = Path.home() / ".gemini" / "config" / "hooks.json"   # agy's hooks for every folder, headless steps' too
 HERMES_GLOBAL = Path(os.environ.get("HERMES_HOME") or Path.home() / ".hermes") / "config.yaml"   # Hermes' hooks
