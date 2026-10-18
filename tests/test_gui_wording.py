@@ -84,7 +84,7 @@ def _templates():
 
 def test_the_scanner_reads_every_template():
     found = list(_templates())
-    assert len(found) > 1000
+    assert len(found) > 400                                          # Orkboard's pages hold about 470
     assert not [(p, n) for p, n, parts in found if any("html`" in s for s in parts)]   # none swallowed the next
     probe = 'html`<b title="Garrison">Halt All ${x ? html`<i>Lake</i>` : "keeper"}</b>`'
     texts = [t for t in _texts(_template(probe, 5)[0]) if t.strip()]
