@@ -106,22 +106,6 @@ def test_levels_and_units():
     assert telemetry.fmt_tokens(131072) == "128k" and telemetry.fmt_tokens(512) == "512"
 
 
-def test_hook_records_run_and_terminal(tmp_path, monkeypatch):
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "session_hook", Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py")
-    hook = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(hook)
-    monkeypatch.setattr(hook, "LOG", tmp_path / "sessions.jsonl")
-    run = "a" * 32
-    e = hook.record("claude", {"session_id": "s"}, env={"ORKCRAFT_RUN": run, "ORKCRAFT_TERMINAL": "new:claude:1"})
-    assert (e["run"], e["terminal"]) == (run, "new:claude:1")
-    e = hook.record("claude", {"session_id": "s"}, env={"ORKCRAFT_RUN": "nope", "ORKCRAFT_TERMINAL": "x"})
-    assert "run" not in e and "terminal" not in e
-    e = hook.record("claude", {"session_id": "s"}, env={"ORKCRAFT_RUN": run, "ORKCRAFT_TERMINAL": "a b;rm"})
-    assert e["run"] == run and "terminal" not in e
-
-
 def test_model_calls_with_no_transcript_count_in_the_run(tmp_path: Path):
     telemetry.reset_charges()
     telemetry.charge(0.5, "before the run")
@@ -136,19 +120,6 @@ def test_model_calls_with_no_transcript_count_in_the_run(tmp_path: Path):
     assert snap.side_usd == pytest.approx(0.35) and snap.spent_usd == pytest.approx(0.35)
     assert snap.side_by_source == {"claude -p haiku": pytest.approx(0.35)} and "agy agent" in snap.unpriced
     assert telemetry.charged({"ORKCRAFT_RUN": "x"}) and not telemetry.charged({}) and not telemetry.charged(None)
-    telemetry.reset_charges()
-
-
-def test_the_light_calls_charge_the_ledger(monkeypatch):
-    import subprocess
-    from orkboard.realm import builders
-    telemetry.reset_charges()
-    since = dt.datetime.now().astimezone()
-    answer = json.dumps({"result": "ok", "total_cost_usd": 0.02})
-    from orkboard.realm import halt
-    monkeypatch.setattr(halt, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, answer, ""))
-    assert builders.ask("claude", "hi", model="haiku") == ("ok", 0.02)
-    assert [(usd, src) for _, usd, src, *_ in telemetry.charges(since)] == [(0.02, "claude -p haiku")]
     telemetry.reset_charges()
 
 
@@ -187,66 +158,13 @@ def test_no_ledger_kept_writes_nothing(tmp_path: Path):
     assert telemetry.calls(tmp_path) == [] and not (tmp_path / telemetry.CALLS).exists()
 
 
-def test_a_transcript_run_counts_by_the_purpose_its_hook_recorded(tmp_path: Path, monkeypatch):
-    from orkboard.hooks import session as hook
-    monkeypatch.setattr(hook, "LOG", tmp_path / "sessions.jsonl")
-    run = "b" * 32
-    e = hook.record("claude", {"session_id": "s"}, env={"ORKCRAFT_RUN": run, "ORKCRAFT_TERMINAL": "t1",
-                                                        "ORKCRAFT_PURPOSE": "review"})
-    assert e["purpose"] == "review"
-    e = hook.record("claude", {"session_id": "s"}, env={"ORKCRAFT_RUN": run, "ORKCRAFT_PURPOSE": "a b;rm"})
-    assert "purpose" not in e
+def test_a_transcript_run_tells_its_hook_the_purpose():
+    """What a run's session hears in its environment (ORKCRAFT_PURPOSE), for the hook to record (Orkline's
+    hooks/session.py, whose own tests stay there)."""
     assert telemetry.purpose_env("look") == {"ORKCRAFT_PURPOSE": "look"}
     with telemetry.tagged("plan"):
         assert telemetry.purpose_env() == {"ORKCRAFT_PURPOSE": "plan"}
     assert telemetry.purpose_env() == {"ORKCRAFT_PURPOSE": "work"}
-
-
-def test_a_steward_task_names_its_purpose():
-    from orkboard.realm import steward
-    assert steward.purpose_of("triage") == "sort" and steward.purpose_of("review") == "review"
-    assert steward.purpose_of("answer", "barracks") == "answer" and steward.purpose_of("answer", "town_hall") == "chat"
-    assert steward.purpose_of("something new") == "work"
-    assert set(steward.PURPOSE.values()) <= set(telemetry.PURPOSES)
-
-
-def test_a_tagged_runner_charges_its_purpose(tmp_path: Path, monkeypatch):
-    from orkboard.realm import builders
-    telemetry.keep_ledger(tmp_path)
-
-    def runner(prompt, m=None):
-        telemetry.charge(0.01, "fake")
-        return "ok", 0.01
-    assert builders.tagged(runner, "retro", "mill")("hi") == ("ok", 0.01)
-    assert [(c["purpose"], c["building"]) for c in telemetry.calls(tmp_path)] == [("retro", "mill")]
-
-
-def test_a_road_agent_charges_its_building_and_tells_its_transcript_the_purpose(tmp_path: Path, monkeypatch):
-    import threading
-    from orkboard.realm import road_agents as roads   # where run_agent finds run_proc
-    telemetry.keep_ledger(tmp_path)
-    envs = []
-    answer = json.dumps({"result": "ok", "total_cost_usd": 0.05})
-    monkeypatch.setattr(roads, "run_proc", lambda cmd, cwd, env, *a, **k: envs.append(env) or (0, answer, ""))
-    with telemetry.tagged("review"):
-        roads.run_agent("claude", "hi", tmp_path, {"ORKCRAFT_ORC": "board/clan"}, threading.Event())
-        roads.run_agent("claude", "hi", tmp_path, {"ORKCRAFT_ORC": "board/clan", "ORKCRAFT_RUN": "r"},
-                        threading.Event())
-    assert "ORKCRAFT_PURPOSE" not in envs[0] and envs[1]["ORKCRAFT_PURPOSE"] == "review"
-    lines = telemetry.calls(tmp_path)
-    assert [(c["purpose"], c["building"], c.get("transcript", False)) for c in lines] == [
-        ("review", "board", False), ("review", "board", True)]
-    assert [c.usd for c in telemetry.charges(dt.datetime.min.replace(tzinfo=dt.timezone.utc))] == [0.05]
-
-
-def test_the_housekeeping_keeps_the_ledger_within_the_log_limit(tmp_path: Path, monkeypatch):
-    from orkboard.realm import housekeeping
-    monkeypatch.setattr(housekeeping, "LOG_LIMIT", 100)
-    telemetry.keep_ledger(tmp_path)
-    for _ in range(5):
-        telemetry.charge(0.01, "claude -p haiku", purpose="build")
-    chores = housekeeping.scan(tmp_path, set())
-    assert any(c.kind == "log" and c.path.endswith("spend/calls.jsonl") for c in chores)
 
 
 def test_by_purpose_sums_the_last_week_and_its_buildings(tmp_path: Path):
