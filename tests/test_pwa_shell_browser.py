@@ -550,7 +550,7 @@ async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_clo
         await card.wait_for(timeout=WAIT_MS)
         assert _adds(stub) == [{"text": "Dark mode please", "track": "docs", "priority": "high"}]
         await page.get_by_role("button", name="New idea", exact=True).click()                           # Low → the night
-        await page.get_by_label("Goal").select_option("docs")
+        await page.get_by_role("dialog", name="New idea").get_by_label("Goal").select_option("docs")
         await page.get_by_label("The idea", exact=True).fill("Low idea")
         await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Add").click()
         low = page.locator(".idea-card", has_text="Low idea")

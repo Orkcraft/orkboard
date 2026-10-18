@@ -680,8 +680,8 @@ p { margin: 0 0 8px; }
 .pill:focus-within { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
 /* a sheet's buttons stay at its foot while the form scrolls */
 .sheet { overflow-y: auto; }
-.sheet-foot { position: sticky; bottom: 0; margin: 4px -16px 0; display: flex; gap: 8px;
-  padding: 10px 16px 10px; background: var(--panel); border-top: 1px solid var(--frame); z-index: 1; }
+.sheet-foot { position: sticky; bottom: 0; margin: 4px -16px calc(-16px - env(safe-area-inset-bottom)); display: flex; gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--frame); z-index: 1; }
 .sheet-foot .ok-btn { flex: 1 1 0; width: auto; }
 .sheet-foot .ok-btn.primary { flex: 2 1 0; }
 .sheet .sure { display: flex; flex-direction: column; gap: 8px; }
