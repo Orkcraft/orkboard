@@ -125,13 +125,13 @@ class BoardPhone:
         if name == "files.read":
             path = (args or {}).get("path")
             return isinstance(path, str) and path.lower().endswith(cls.MARKDOWN)
-        return name in cls.COMMANDS or (name.startswith("ideas.") and name in host.commands)
+        return name in cls.COMMANDS or (name.startswith(("ideas.", "ops.")) and name in host.commands)
 
     @staticmethod
     def guard(name: str, args: dict, device: dict | None = None) -> dict:
         """As Orkline's (gui/mobile.py `guard`): the event log says the phone, and the link is the listener's to say."""
         args = dict(args)
-        if name.startswith(("ideas.", "projects.", "files.")) or name == "halt":
+        if name.startswith(("ideas.", "ops.", "projects.", "files.")) or name == "halt":
             args["device"] = "phone"
             args.pop("link", None)
             if (device or {}).get("id"):
@@ -158,8 +158,9 @@ class Orkboard:
     The page is `static/board.js`, the phone's `pwa/board-app.js`.
 
     What is the host's is built once per host, beside the projects: the AI tools' limits, this run's spend, the
-    phones, updates, the onboarding (and the host-level services to come, spec 38's Operations); what is a project's
-    is its Board. With no project open it is the start screen: `ideas.*` say *Open a folder first*."""
+    phones, updates, the onboarding and Operations (gui/ops.py, spec 38: `ops.*`, its rows in the shown project's
+    Needs you); what is a project's is its Board. With no project open it is the start screen: `ideas.*` say *Open a
+    folder first*, Operations works as with one."""
 
     entry = "board.js"              # the desktop page's script (gui/server.py)
     phone_entry = "board-app.js"    # the phone's (gui/pwa.py)
@@ -167,7 +168,7 @@ class Orkboard:
     def __init__(self, repo_root: Path | None = None, demo: bool = False, restore: bool = False) -> None:
         """`repo_root`: the folder opened and shown (refused in words: `ideas.IdeasError`); `restore`: the projects
         open when Orkboard last closed are opened again too (`orkboard` does it; a test's host has only its own)."""
-        from orkboard.gui import board_files, board_git, board_projects, onboarding, updates
+        from orkboard.gui import board_files, board_git, board_projects, onboarding, ops, updates
         self.demo = demo
         self.machine = settings.load()
         self.bus = b.Bus()
@@ -199,6 +200,10 @@ class Orkboard:
         self.commands.update(self.projects.commands())
         self.commands.update(board_files.Files(self.projects).commands())
         self.commands.update(board_git.Git(self.projects).commands())
+        self.ops = ops.Ops(self)                  # the person's, one per host: showing a project changes nothing of it
+        self.commands.update(self.ops.commands())
+        shown_board = self.commands["ideas.board"]
+        self.commands["ideas.board"] = lambda a: self._with_ops(shown_board(a))
         if restore:
             self.projects.restore()
         if repo_root is not None:
@@ -252,6 +257,11 @@ class Orkboard:
             return
         self.on_change()
 
+    def _with_ops(self, board: dict) -> dict:
+        """The shown project's Board, Operations' rows in its Needs you (spec 38 §8)."""
+        from orkboard.gui.ideas_board import sort_needs
+        return {**board, "needs_you": sort_needs([*board.get("needs_you", []), *self.ops.needs()])}
+
     def budget_ok(self, root: Path | None = None) -> bool:
         """Whether work may start in a project (the shown one when none is named): this run's spend under its cap."""
         root = root or self.repo_root
@@ -272,6 +282,11 @@ class Orkboard:
         board = self.ideas.snapshot() if self.ideas is not None else {
             "focus": "board", "ideas_rev": 0, "needs_you": 0, "idea_states": [], "review_count": 0,
             "review_results": [], "limits": []}
+        try:
+            ops_needs = self.ops.count()
+        except Exception:                      # Operations never breaks the snapshot
+            ops_needs = 0
+        board = {**board, "needs_you": int(board.get("needs_you") or 0) + ops_needs, "ops_rev": self.ops.rev}
         return {**board, "focus": "board", "onboarding": self.onboarding.snapshot(),
                 "hud": {"show_gold": show_gold, "gold": gold, "lumber": lumber},
                 "repo": str(root) if root is not None else "", "projects": self.projects.list(),
@@ -282,7 +297,8 @@ class Orkboard:
         s = self.snapshot()
         root = self.repo_root
         out = {"v": 1, "project": root.name if root is not None else "", "focus": "board", "look": "office",
-               **{k: s[k] for k in ("ideas_rev", "needs_you", "idea_states", "review_count", "review_results", "limits")},
+               **{k: s[k] for k in ("ideas_rev", "ops_rev", "needs_you", "idea_states", "review_count", "review_results",
+                                    "limits")},
                "hud": dict(s["hud"])}
         out["rev"] = hashlib.sha256(json.dumps(out, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
         return out
@@ -316,26 +332,31 @@ class Orkboard:
         self.limits.tick(now)
         self.updates.tick(now)
         self.projects.tick(now)           # every open project's Board: showing another stops nothing
+        self.ops.tick(now)
 
     def close(self) -> None:
+        self.ops.close()
         self.projects.close_all()
         call_log.keep_days(None)
 
     # -- the page's commands ---------------------------------------------------------------------------------
 
     def command(self, name: str, args: dict | None = None) -> Any:
+        from orkboard.core.op_commands import OpsError
         from orkboard.gui import ideas, onboarding, updates
         fn = self.commands.get(name)
         if fn is None:
             raise CommandError(f"Unknown command: {name}")
         try:
             return fn(dict(args or {}))
-        except (ideas.IdeasError, onboarding.OnboardingError, updates.UpdateError) as e:
+        except (ideas.IdeasError, onboarding.OnboardingError, updates.UpdateError, OpsError) as e:
             raise CommandError(str(e)) from None
 
     def _halt(self, args: dict) -> int:
-        """🛑 Stop all: every open project's keeper and runner stop, every agent process is killed."""
+        """🛑 Stop all: every open project's keeper and runner stop, every operation's call, every agent process is
+        killed."""
         self.projects.stop_all(device="phone" if args.get("device") == "phone" else "desktop")
+        self.ops.stop_all()
         stopped = halt.halt_all()
         self.toast(f"Stopped {stopped} run{'s' if stopped != 1 else ''}" if stopped else "Nothing was running",
                    title="Stop all")
