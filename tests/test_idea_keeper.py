@@ -169,3 +169,29 @@ def test_a_plan_with_no_task_goes_back_and_a_passed_plan_is_never_rewritten(keep
 def test_first_json_reads_through_prose():
     assert idea_keeper.first_json('x {bad} y {"a": 1} z') == {"a": 1}
     assert idea_keeper.first_json("[1, 2]") is None and idea_keeper.first_json("") is None
+
+
+# -- spec 36 §1: the ledger line of each keeper call ---------------------------------------------------------
+
+def test_a_keeper_call_writes_its_line_to_its_ideas_ledger(keeper):
+    from orkcraft.realm import idea_spend
+    ux = ideas.add_track(keeper.root, "UX")
+    slug = ideas.add_idea(keeper.root, "dark mode pls", ux, state_dir=keeper.state)
+    keeper.call = Model({"gist": "Dark mode.", "why": "calm", "size": "s", "questions": []})
+    assert keeper._sync(slug, "drafting", lambda: keeper.draft_one(slug))       # as the night runs it
+    (row,) = idea_spend.read(keeper.state / "ideas" / slug / "spend.jsonl")
+    assert row["step"] == "draft" and row["role"] == "taskmaster" and row["tool"] == "claude"
+    assert row["tier"] == "elder" and row["effort"] == "medium" and row["model"] and row["cost"] == 0.01
+    assert set(row["tokens"]) >= {"in", "out", "cache_read", "cache_write"} and row["tokens"]["total"] == 1000
+    assert "task" not in row and "round" not in row
+
+
+def test_an_unpriced_call_writes_null_a_goals_goes_to_the_goal_and_the_nights_to_the_board(keeper):
+    from orkcraft.realm import idea_spend
+    keeper.call = lambda tier, prompt, effort="", budget=None: ("{}", None, None, "")
+    assert keeper._sync("speed", "goal", lambda: keeper.ask("goal", "read it"), "goal:speed")
+    (row,) = idea_spend.read(keeper.state / "goals" / "speed" / "spend.jsonl")
+    assert row["step"] == "goal" and row["cost"] is None and row["tokens"]["in"] is None
+    keeper.ask("propose", "propose", tools=False)
+    (night,) = idea_spend.read(keeper.state / "ideas" / "spend-board.jsonl")
+    assert night["step"] == "propose" and night["role"] == "taskmaster"
