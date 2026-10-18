@@ -1,7 +1,7 @@
-"""Sessions: the hook recorder, the merged session sources, the terminal and the Chat window."""
+"""Sessions: the merged session sources (sources/sessions.py) and the command a session is resumed or deployed
+with. The hook that records them (hooks/session.py) is Orkline's: its log line is written here as it writes it."""
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import stat
@@ -15,32 +15,14 @@ from orkboard.sources import sessions as ss
 REAL_REPO = Path(__file__).resolve().parent.parent.parent
 
 
-def _hook_module(repo: Path):
-    """Load orkcraft/hooks/session.py with its log redirected into `repo`."""
-    spec = importlib.util.spec_from_file_location("session_hook", Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    mod.LOG = repo / ".orkcraft" / "sessions.jsonl"
-    return mod
-
-
-def test_hook_records_claude_and_agy_payloads(tmp_path: Path):
-    hook = _hook_module(tmp_path)
-    e = hook.record("claude", {"session_id": "s1", "hook_event_name": "UserPromptSubmit",
-                               "prompt": "fix [[T1092]] then T1090 and T1092"}, env={"ORKCRAFT_TICKET": "T1089"})
-    assert e["tickets"] == ["T1089", "T1092", "T1090"]
-    e = hook.record("agy", {"conversationId": "c9", "workspacePaths": ["/w"], "transcriptPath": "/t"}, env={})
-    assert e["session"] == "c9" and e["cwd"] == "/w" and e["transcript"] == "/t"
-    assert hook.record("claude", {"no": "id"}, env={}) is None
-    lines = hook.LOG.read_text(encoding="utf-8").splitlines()
-    assert len(lines) == 2
-
-
-def test_hook_script_never_fails_and_prints_only_for_agy(tmp_path: Path):
-    script = Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py"
-    for harness, expected in (("agy", "{}"), ("claude", "")):
-        out = subprocess.run(["python3", str(script), harness], input="not json", capture_output=True, text=True)
-        assert out.returncode == 0 and out.stdout.strip() == expected
+def _logged(repo: Path, harness: str, session: str, tickets: list[str]) -> None:
+    """A line of `<repo>/.orkcraft/sessions.jsonl` as Orkline's session hook (hooks/session.py `record`) writes it."""
+    log = repo / ".orkcraft" / "sessions.jsonl"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    entry = {"ts": "2026-10-18T09:00:00", "harness": harness, "event": "", "session": session, "tickets": tickets,
+             "cwd": "", "transcript": "", "prompt": ""}
+    with log.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
 def _claude_transcript(folder: Path, sid: str, prompt: str) -> None:
@@ -58,8 +40,7 @@ def test_sessions_merge_log_transcripts_agy_and_git(fake_repo: Path, tmp_path: P
     monkeypatch.setenv("ORKCRAFT_AGY_HOME", str(tmp_path / "agy"))
     _claude_transcript(ss.claude_projects_dir(fake_repo), "loc-1", "поработай над [[T1001]]")
     (tmp_path / "agy" / "brain" / "conv-7").mkdir(parents=True)
-    hook = _hook_module(fake_repo)
-    hook.record("agy", {"conversationId": "conv-7"}, env={"ORKCRAFT_TICKET": "T1002"})
+    _logged(fake_repo, "agy", "conv-7", ["T1002"])                  # the hook heard agy's conversation, its ticket
     subprocess.run(["git", "commit", "-q", "--allow-empty", "-m",
                     "task(T1003): x\n\nClaude-Session: https://claude.ai/code/session_ABC123"], cwd=fake_repo, check=True)
 
@@ -96,16 +77,6 @@ async def _wait_for(pilot, predicate, tries: int = 40):
     return predicate()
 
 
-def test_hook_logs_into_the_project_the_session_works_in(tmp_path: Path):
-    hook = _hook_module(tmp_path / "fallback")
-    project = tmp_path / "project"
-    (project / ".git").mkdir(parents=True)
-    hook.record("codex", {"session_id": "th-1", "cwd": str(project)}, env={})
-    lines = (project / ".orkcraft" / "sessions.jsonl").read_text().splitlines()
-    assert json.loads(lines[-1])["session"] == "th-1" and not hook.LOG.exists()
-    assert ss.collect_sessions(project, max_age=0)[0].key == "codex:th-1"
-
-
 def test_deploy_command_passes_orders_as_one_safe_argument(monkeypatch):
     from orkboard.sources.sessions import deploy_command
 
@@ -116,16 +87,3 @@ def test_deploy_command_passes_orders_as_one_safe_argument(monkeypatch):
     assert deploy_command("claude", "--dangerously-skip-permissions") == \
         ["claude", "Orders: --dangerously-skip-permissions"]
     assert deploy_command("agy", "anything") is None
-
-
-def test_hook_records_a_deployed_orc_and_rejects_junk(tmp_path, monkeypatch):
-    import importlib.util, sys
-    spec = importlib.util.spec_from_file_location(
-        "session_hook", Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py")
-    hook = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(hook)
-    monkeypatch.setattr(hook, "LOG", tmp_path / "sessions.jsonl")
-    e = hook.record("claude", {"session_id": "s1"}, env={"ORKCRAFT_ORC": "forge/coder"})
-    assert e["orc"] == "forge/coder"
-    e = hook.record("claude", {"session_id": "s2"}, env={"ORKCRAFT_ORC": "../../x; rm"})
-    assert "orc" not in e
