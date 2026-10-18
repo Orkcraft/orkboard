@@ -155,7 +155,7 @@ class Orkboard:
         self.limits = BoardLimits(self.repo_root, self.call, demo)
         self.day_logs = BoardLogs(self.repo_root)
         self.board = BoardHost(self.repo_root, self, bus=self.bus, toast=self.toast, call=self.call,
-                               budget_ok=self.budget_ok, limits=self.limits, day_logs=self.day_logs, demo=demo)
+                               budget_ok=self.budget_ok, limits=lambda: self.limits(), day_logs=self.day_logs, demo=demo)
         self.town = self.board          # what gui/updates.py and gui/onboarding.py read as `host.town`: the machine,
         self.phone_face = BoardPhone    # demo, call and toast — the Board's own here, there is no town
         self.bus.subscribe(b.ANY, self._event)
