@@ -1,7 +1,6 @@
 """The Test bench's log of model calls (realm/call_log.py): kept only inside a bench run, a line and the call each."""
 from __future__ import annotations
 
-import dataclasses
 import datetime as dt
 import io
 import json
@@ -12,7 +11,7 @@ import zipfile
 
 import pytest
 
-from orkboard.realm import call_log, day_log, jobs, road_agents
+from orkboard.realm import call_log, day_log, jobs, tool_run
 
 ENVELOPE = json.dumps({"result": "done", "total_cost_usd": 0.03, "session_id": "s1",
                        "usage": {"input_tokens": 900, "output_tokens": 100, "cache_read_input_tokens": 4000}})
@@ -26,7 +25,7 @@ def tool(monkeypatch):
         seen["env"] = env
         return seen.get("code", 0), seen.get("out", ENVELOPE), "a warning"
 
-    monkeypatch.setattr(road_agents, "run_proc", run_proc)
+    monkeypatch.setattr(tool_run, "run_proc", run_proc)
     return seen
 
 
@@ -80,7 +79,7 @@ def test_the_usage_is_read_from_an_envelope_or_the_last_event():
     assert call_log.usage_of("plain text") == {}
 
 
-# -- the town's day logs (realm/day_log.py, gui/day_logs.py) --------------------------------------------------
+# -- the day logs (realm/day_log.py; Orkboard's are gui/board_host.py `BoardLogs`) ------------------------------
 
 @pytest.fixture(autouse=True)
 def no_day_log():
@@ -92,11 +91,10 @@ def no_day_log():
 def test_outside_a_bench_run_a_call_goes_to_its_buildings_day(tmp_path, tool):
     call_log.keep_days(tmp_path)
     jobs.run_work("claude", "fix it", tmp_path, threading.Event(), env={"ORKCRAFT_ORC": "pool/Grub"})
-    road_agents.run_agent("claude", "sort it", tmp_path, {"ORKCRAFT_ORC": "pool/steward"}, threading.Event())
     jobs.run_read("claude", "nobody's", tmp_path, threading.Event())
     today = dt.date.today().isoformat()
     lines = call_log.read(call_log.day_folder(tmp_path, today, "pool"))
-    assert [(x["who"], x["side"], x["mode"]) for x in lines] == [("Grub", "", "work"), ("steward", "", "agent")]
+    assert [(x["who"], x["side"], x["mode"]) for x in lines] == [("Grub", "", "work")]
     assert [x["who"] for x in call_log.read(call_log.day_folder(tmp_path, today, call_log.TOWN))] == ["agent"]
 
 
@@ -151,57 +149,6 @@ def test_a_buildings_day_is_one_zip_and_asking_for_it_keeps_it(tmp_path, tool):
     assert (call_log.day_folder(tmp_path, today, "pool") / day_log.ASKED).exists()
 
 
-def test_the_town_serves_a_buildings_day_and_clears_by_its_dislikes(fake_repo, isolated_layout_file, tool):
-    from orkboard.gui.host import Host
-    from orkboard.gui.server import Server
-    from orkboard.realm import checkpoint, feedback
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
-    try:
-        jobs.run_work("claude", "hall work", fake_repo, threading.Event(), env={"ORKCRAFT_ORC": "town_hall/Chief"})
-        server = Server(host)
-        thread = server.start_thread()
-        try:
-            base = f"{server.origin}/api/logs/town_hall"
-            with urllib.request.urlopen(f"{base}?t={server.token}", timeout=5) as r:
-                assert r.headers["Content-Type"] == "application/zip" and "attachment" in r.headers["Content-Disposition"]
-                assert "calls/001-Chief.json" in zipfile.ZipFile(io.BytesIO(r.read())).namelist()
-            for bad in (f"{base}?t=nope", f"{server.origin}/api/logs/nobody?t={server.token}",
-                        f"{base}?t={server.token}&day=../x"):
-                with pytest.raises(urllib.error.HTTPError):
-                    urllib.request.urlopen(bad, timeout=5)
-        finally:
-            server.stop()
-            thread.join(10)                      # it closes the host: not at once with the test
-        today = dt.date.today()
-        yesterday = (today - dt.timedelta(days=1)).isoformat()
-        _day(fake_repo, yesterday, "liked_one")
-        _day(fake_repo, yesterday, "town_hall")
-        from orkboard.realm import fastpath
-        fastpath.save_settings(fake_repo, {"review_nightly": False})       # no night reading to wait for
-        incident = feedback.Incident(f"{yesterday}T12:00:00", "town_hall", "logic", "", "")
-        feedback._append(feedback._dir(fake_repo) / "incidents.jsonl", dataclasses.asdict(incident))
-        host.day_logs.cleared = ""
-        host.day_logs.tick(today)
-        assert call_log.day_folder(fake_repo, yesterday, "town_hall").is_dir()
-        assert not call_log.day_folder(fake_repo, yesterday, "liked_one").exists()
-    finally:
-        host.close()
-
-
-def test_a_one_off_answer_is_kept_with_what_it_was_for(tmp_path, monkeypatch):
-    import subprocess as sp
-    from orkboard.realm import builders
-    from orkboard.sources import telemetry
-    monkeypatch.setattr(builders, "_call", lambda h, prompt, model: sp.CompletedProcess([], 0, ENVELOPE, ""))
-    with call_log.kept(tmp_path / "calls", "building"), telemetry.tagged("sort", "tower"):
-        assert builders.ask("claude", "sort these letters", "haiku")[0] == "done"
-    [line] = call_log.read(tmp_path / "calls")
-    assert (line["who"], line["purpose"], line["mode"], line["model"], line["tokens"]) == \
-        ("claude -p", "sort", "ask", "haiku", 5000)
-    assert call_log.raw(tmp_path / "calls", line)["prompt"] == "sort these letters"
-
-
 # -- the logs kept for analysis, a period as one zip (realm/analytics.py) ------------------------------------------------
 
 def test_kept_for_analysis_every_day_stays_a_month(tmp_path):
@@ -237,16 +184,13 @@ def test_a_period_is_one_zip_with_each_day_added_up(tmp_path, tool):
     assert (call_log.day_folder(tmp_path, today, "pool") / day_log.ASKED).exists()
 
 
-def test_the_town_keeps_its_logs_and_serves_a_period(fake_repo, isolated_layout_file, tool):
-    from orkboard.gui import town_settings
-    from orkboard.gui.host import Host
+def test_orkboard_keeps_its_logs_and_serves_a_period(fake_repo, tool):
+    """Orkboard keeps the day logs always (gui/board_host.py `BoardLogs`) and its server gives a period as one zip;
+    Orkline's switch for them and its clearing by dislikes are the town's (gui/town_settings.py, gui/day_logs.py)."""
+    from orkboard.gui.board_host import Orkboard
     from orkboard.gui.server import Server
-    from orkboard.realm import checkpoint
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
+    host = Orkboard(fake_repo)
     try:
-        assert town_settings.read(host)["logs"] == {"on": False, "days": 0, "keep": day_log.KEEP_ANALYSIS}
-        assert town_settings.change(host, {"logs": True})["logs"]["on"] is True and host.day_logs.keeping()
         server = Server(host)
         thread = server.start_thread()
         try:
@@ -264,10 +208,5 @@ def test_the_town_keeps_its_logs_and_serves_a_period(fake_repo, isolated_layout_
         finally:
             server.stop()
             thread.join(10)                      # it closes the host: not at once with the test
-        yesterday = (dt.date.today() - dt.timedelta(days=1)).isoformat()
-        _day(fake_repo, yesterday, "liked_one")
-        host.day_logs.cleared = ""
-        host.day_logs.tick(dt.date.today())
-        assert call_log.day_folder(fake_repo, yesterday, "liked_one").is_dir()      # kept: the logs are kept
     finally:
         host.close()
