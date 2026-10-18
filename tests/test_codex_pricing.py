@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import sys
 import threading
 from pathlib import Path
 
 import pytest
 
-from orkboard.realm import harnesses, jobs, roads
+from orkboard.realm import harnesses, jobs, tool_run
 from orkboard.sources import pricing, telemetry
 
 FIXTURE = Path(__file__).parent / "fixtures" / "codex_exec.jsonl"
@@ -20,6 +21,27 @@ M = 1_000_000
 # $ / MTok — round numbers to check the arithmetic with
 TEST_PRICE = pricing.OpenAIPrice(input=2, cached_input=0.5, output=10, cache_write=3,
                                  long_input=4, long_cached=1, long_output=20, long_from_tokens=100_000)
+
+
+def fake_codex(tmp_path: Path, monkeypatch, *, exit_code: int = 0, noise: int = 0) -> Path:
+    """A `codex` on ORKCRAFT_CODEX_BIN that answers with where it ran, its argv and its stdin (as Orkline's
+    tests/test_codex.py has it: that file tests the town's Codex workers and stays there)."""
+    script = tmp_path / "codex"
+    script.write_text(f"""#!{sys.executable}
+import json, os, sys
+prompt = sys.stdin.read()
+print(json.dumps({{"type": "thread.started", "thread_id": "th-1"}}))
+print(json.dumps({{"type": "item.completed", "item": {{"type": "command_execution", "aggregated_output": "x" * {noise}}}}}))
+if {exit_code}:
+    print(json.dumps({{"type": "turn.failed", "error": {{"message": "usage limit reached"}}}}))
+    sys.exit({exit_code})
+answer = json.dumps({{"cwd": os.getcwd(), "argv": sys.argv[1:], "prompt": prompt}})
+print(json.dumps({{"type": "item.completed", "item": {{"type": "agent_message", "text": answer}}}}))
+print(json.dumps({{"type": "turn.completed", "usage": {{"input_tokens": 10, "cached_input_tokens": 8, "output_tokens": 2}}}}))
+""", encoding="utf-8")
+    script.chmod(0o755)
+    monkeypatch.setenv("ORKCRAFT_CODEX_BIN", str(script))
+    return script
 
 
 @pytest.fixture
@@ -54,12 +76,12 @@ def test_long_context_prices_one_request_only(priced):
 
 def test_an_exec_run_is_priced_from_the_model_it_was_asked_for(priced):
     out = FIXTURE.read_text(encoding="utf-8")
-    text, cost, tokens, _ = roads.result_of("codex", out, model="gpt-6-luna")
+    text, cost, tokens, _ = tool_run.result_of("codex", out, model="gpt-6-luna")
     assert text == "done" and tokens == 34612 + 121
     assert cost == pytest.approx(((34612 - 30080) * 2 + 30080 * 0.5 + 121 * 10) / M)
-    assert roads.result_of("codex", out, model="laborer")[1] == pytest.approx(cost)   # a tier word: its model
-    assert roads.result_of("codex", out)[1] is None                    # no model anywhere: unpriced
-    assert roads.result_of("codex", out, model="gpt-6-astra")[1] is None
+    assert tool_run.result_of("codex", out, model="laborer")[1] == pytest.approx(cost)   # a tier word: its model
+    assert tool_run.result_of("codex", out)[1] is None                    # no model anywhere: unpriced
+    assert tool_run.result_of("codex", out, model="gpt-6-astra")[1] is None
 
 
 def test_without_a_model_the_one_in_codex_config_counts(priced, tmp_path, monkeypatch):
@@ -68,7 +90,7 @@ def test_without_a_model_the_one_in_codex_config_counts(priced, tmp_path, monkey
     (home / "config.toml").write_text('model = "gpt-6-luna"\n[profiles.x]\nmodel = "gpt-6-astra"\n', encoding="utf-8")
     monkeypatch.setenv("CODEX_HOME", str(home))
     assert harnesses.codex_config_model() == "gpt-6-luna"
-    assert roads.result_of("codex", FIXTURE.read_text(encoding="utf-8"))[1] is not None
+    assert tool_run.result_of("codex", FIXTURE.read_text(encoding="utf-8"))[1] is not None
     (home / "config.toml").write_text("model = [", encoding="utf-8")
     assert harnesses.codex_config_model() == ""
 
@@ -76,15 +98,14 @@ def test_without_a_model_the_one_in_codex_config_counts(priced, tmp_path, monkey
 def test_a_resumed_run_is_priced_for_its_own_usage_only(priced):
     out = RESUMED.read_text(encoding="utf-8")
     before = {"input_tokens": 34612, "cached_input_tokens": 30080, "output_tokens": 121}
-    _, cost, tokens, _ = roads.result_of("codex", out, before, "gpt-6-luna")
+    _, cost, tokens, _ = tool_run.result_of("codex", out, before, "gpt-6-luna")
     assert tokens == 52450 - 34733
     fresh = (52000 - 41000) - (34612 - 30080)
     assert cost == pytest.approx((fresh * 2 + (41000 - 30080) * 0.5 + (450 - 121) * 10) / M)
-    assert roads.result_of("codex", out, 34733, "gpt-6-luna")[1] is None   # only a count before: unpriced
+    assert tool_run.result_of("codex", out, 34733, "gpt-6-luna")[1] is None   # only a count before: unpriced
 
 
 def test_run_work_charges_a_priced_codex_worker(priced, tmp_path, monkeypatch):
-    from tests.test_codex import fake_codex
     fake_codex(tmp_path, monkeypatch)                     # 10 in (8 cached), 2 out
     monkeypatch.setenv("CODEX_HOME", str(tmp_path / "none"))
     telemetry.reset_charges()
@@ -144,7 +165,6 @@ def test_a_codex_session_without_a_rollout_stays_unpriced(tmp_path):
 
 
 def test_a_resumed_worker_whose_thread_is_not_found_stays_unpriced(priced, tmp_path, monkeypatch):
-    from tests.test_codex import fake_codex
     fake_codex(tmp_path, monkeypatch)
     monkeypatch.setenv("CODEX_HOME", str(tmp_path / "none"))         # no rollout: the earlier usage is unknown
     _, cost, tokens, _ = jobs.run_work("codex", "go on", tmp_path, threading.Event(), model="gpt-6-luna",
