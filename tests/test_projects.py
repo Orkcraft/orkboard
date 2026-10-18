@@ -109,7 +109,7 @@ def test_two_projects_each_have_their_own_board_and_runner(two, runners):
     listed = host.command("projects.list")
     assert listed["current"] == str(blog.resolve())
     assert [(p["name"], p["working"]) for p in listed["open"]] == [("shop", 1), ("blog", 1)]
-    assert set(listed["open"][0]) == {"path", "name", "working", "needs_you", "review"}
+    assert set(listed["open"][0]) == {"path", "name", "git", "working", "needs_you", "review"}
 
     host.command("halt")                                                       # Stop all: every project's
     assert all(r.stopped == 1 and not r._runs for r in runners)
@@ -207,11 +207,15 @@ def test_open_folder_refuses_in_words_and_offers_git(tmp_path):
     (plain / "todo.md").write_text("- a\n", encoding="utf-8")
     (plain / ".env").write_text("KEY=1\n", encoding="utf-8")
     assert host.command("projects.open", {"path": str(plain)}) == {"ok": True, "git": False}
+    row = lambda: next(r for r in host.command("projects.list")["open"] if r["path"] == str(plain.resolve()))   # noqa: E731
+    assert row()["git"] is False and next(r for r in host.snapshot()["projects"]["open"]
+                                          if r["path"] == str(plain.resolve()))["git"] is False
     got = host.command("projects.start_git", {"path": str(plain)})
     assert got["ok"] is True and "first commit" in got["said"]
     tracked = subprocess.run(["git", "ls-files"], cwd=plain, capture_output=True, text=True, check=True).stdout.split()
     assert "todo.md" in tracked and ".env" not in tracked                     # a secret left out of the first commit
     assert host.command("projects.start_git", {"path": str(plain)}) == {"ok": True, "said": "Git was already here"}
+    assert row()["git"] is True
     assert "home folder" in host.command("projects.start_git", {"path": str(Path.home())})["error"]
 
 
@@ -283,7 +287,7 @@ def test_the_phone_may_switch_projects_and_read_markdown_only(fake_repo):
     assert may("files.read", {"path": "docs/notes.md"}) and may("files.read", {"path": "README.MD"})
     assert not may("files.read", {"path": "src/app.py"}) and not may("files.read", {})
     for name in ("files.write", "files.tree", "files.reveal", "projects.open", "projects.close", "projects.start_git",
-                 "git.status", "git.diff", "git.commit", "git.switch", "git.pull", "git.push"):
+                 "git.status", "git.diff", "git.branches", "git.commit", "git.switch", "git.pull", "git.push"):
         assert name in host.commands and not may(name, {"path": "README.md"}), name
     assert BoardPhone.guard("projects.use", {"path": "x"}, {"id": "d1"})["device"] == "phone"
     assert host.command("files.read", BoardPhone.guard("files.read", {"path": "README.md"}))["kind"] == "markdown"

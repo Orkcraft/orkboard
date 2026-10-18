@@ -5,7 +5,7 @@ a commit of the files they ticked, a branch switched, a pull (fast-forward only)
     git.status("dev")                    # {"branch", "work_branch", "upstream", "ahead", "behind", "files": [...]}
     git.diff("src/app.py")               # one file in `ideas.diff`'s shape
     git.commit(["src/app.py"], "Fix")    # the new commit's sha
-    git.switch("main"); git.pull(); git.push()
+    git.branches(); git.switch("main"); git.pull(); git.push()
 
 Every call is `git` with fixed arguments (no shell), in the repository's root checkout, under its one lock
 (`idea_git.lock_of`), the lock the runner and the Board's tree take: never in a task's worktree or the Board's tree.
@@ -127,6 +127,16 @@ class RepoGit:
         if b"\0" in data[:8192]:
             return 0
         return data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
+
+    def branches(self) -> list[dict]:
+        """The local branches: {"name", "current", "upstream"} (the upstream as `origin/x`, or "")."""
+        out = self._ok("for-each-ref", "--format=%(refname:short)%09%(HEAD)%09%(upstream:short)", "refs/heads/")
+        rows = []
+        for ln in out.splitlines():
+            name, head, upstream = (ln.split("\t") + ["", ""])[:3]
+            if name:
+                rows.append({"name": name, "current": head.strip() == "*", "upstream": upstream})
+        return rows
 
     def changed(self) -> dict[str, str]:
         """The files that changed and may be offered: path → status."""

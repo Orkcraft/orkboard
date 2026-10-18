@@ -239,3 +239,65 @@ def test_git_section_a_changed_files_diff_and_a_commit(world):
         assert log == "Greet the world"
         assert "sends your code to origin" in git.get_by_role("button", name="Push").get_attribute("title").lower()
     _run(world, body)
+
+
+def test_git_section_push_shows_pushing_then_the_outcome(world, tmp_path):
+    host, shop, blog = world
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
+    subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=shop, check=True)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=shop, check=True)
+
+    def body(pg, host):
+        _files_tab(pg)
+        git = pg.get_by_role("region", name="Git")
+        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
+        git.get_by_role("button", name="Push").click()
+        git.locator("[data-git=last]", has_text="to origin").wait_for(timeout=WAIT_MS)       # the outcome, in words
+        assert "Sent" in git.locator("[data-git=last]").inner_text()
+        assert subprocess.run(["git", "rev-parse", "main"], cwd=origin, capture_output=True, text=True).returncode == 0
+        assert git.get_by_role("button", name="Push").is_enabled()
+    _run(world, body)
+
+
+def test_switch_branch_is_a_list_with_the_work_branch_and_main_first(world):
+    host, shop, blog = world
+    subprocess.run(["git", "branch", "-M", "main"], cwd=shop, check=True)
+    for name in ("zeta", "dev"):
+        subprocess.run(["git", "branch", name], cwd=shop, check=True)
+
+    def body(pg, host):
+        _files_tab(pg)
+        git = pg.get_by_role("region", name="Git")
+        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
+        git.get_by_role("button", name="Switch branch").click()
+        dlg = pg.get_by_role("dialog", name="Switch branch")
+        items = dlg.get_by_role("list", name="Branches").get_by_role("listitem")
+        items.first.wait_for(timeout=WAIT_MS)
+        names = [i.locator("code").inner_text() for i in items.all()]
+        assert names == ["dev", "main", "zeta"], names
+        here = dlg.locator("[aria-current=true]")
+        assert "you are here" in here.inner_text() and here.is_disabled()
+        items.filter(has_text="zeta").click()
+        dlg.wait_for(state="detached", timeout=WAIT_MS)
+        git.locator("[data-git=branch]", has_text="zeta").wait_for(timeout=WAIT_MS)
+    _run(world, body)
+
+
+def test_a_restored_project_without_git_offers_start_git_without_an_error(world, tmp_path):
+    host, shop, blog = world
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    (plain / "notes.txt").write_text("hello\n", encoding="utf-8")
+    host.projects.open(plain, keep=False)                       # as a project restored at startup is: shown, no dialog
+
+    def body(pg, host):
+        _files_tab(pg)
+        git = pg.get_by_role("region", name="Git")
+        git.get_by_role("button", name="Start git here").wait_for(timeout=WAIT_MS)
+        assert "no git" in git.inner_text()
+        assert "not a git repository" not in pg.inner_text("body").lower()          # git.status was never asked
+        git.get_by_role("button", name="Start git here").click()
+        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
+        assert (plain / ".git").is_dir()
+    _run(world, body)

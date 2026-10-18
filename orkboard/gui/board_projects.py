@@ -89,14 +89,15 @@ class Projects:
         return self._open[key]
 
     def list(self, args: dict | None = None) -> dict[str, Any]:
-        """`projects.list`: the shown project, the open ones with their counts, and the recent ones not open."""
+        """`projects.list`: the shown project, the open ones with their counts and `git` (a folder without it is offered Start git here), and the recent ones not
+        open."""
         rows = []
         for p in self._open.values():
             try:
                 counts = p.counts()
             except Exception:                   # a broken Board never breaks the switcher
                 counts = {"working": 0, "needs_you": 0, "review": 0}
-            rows.append({"path": p.path, "name": p.name, **counts})
+            rows.append({"path": p.path, "name": p.name, "git": project_folder.has_git(p.root), **counts})
         recent = [{"path": r, "name": Path(r).name or r} for r in self.host.machine.projects_recent
                   if r not in self._open and Path(r).is_dir()]
         return {"current": self._current or None, "open": rows, "recent": recent}

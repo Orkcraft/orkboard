@@ -3,6 +3,8 @@ read and saved, and what never leaves the project or is never read."""
 from __future__ import annotations
 
 import os
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -124,13 +126,45 @@ def test_a_save_that_passes_writes_the_file_and_records_it_without_its_text(host
 def test_reveal_opens_the_systems_app_from_the_desktop_only(host, fake_repo):
     opened = []
     files = board_files.Files(host.projects, opener=opened.append)
-    assert files.reveal({"path": "README.md"}) == {"ok": True} and opened == [(fake_repo / "README.md").resolve()]
+    assert files.reveal({"path": "README.md"}) == {"started": True}
+    _wait(lambda: opened)
+    assert opened == [(fake_repo / "README.md").resolve()]
     from orkboard.gui.ideas_args import IdeasError
     with pytest.raises(IdeasError, match="phone"):
         files.reveal({"path": "README.md", "device": "phone"})
     with pytest.raises(IdeasError, match="secrets"):
         files.reveal({"path": ".env"})
     assert len(opened) == 1
+
+
+def _wait(done) -> None:
+    deadline = time.monotonic() + 30
+    while not done() and time.monotonic() < deadline:
+        time.sleep(0.02)
+    assert done()
+
+
+def test_reveal_runs_off_the_server_thread_and_tells_when_no_app_opened(host, fake_repo):
+    from orkboard.gui.ideas_args import IdeasError
+    gate, entered, toasts, ran = threading.Event(), threading.Event(), [], []
+    project = host.projects.current()
+    host.bus.subscribe("toast", toasts.append)
+    project.bus.subscribe("background.ran", ran.append)
+
+    def opener(path):
+        entered.set()
+        assert gate.wait(30)
+        raise IdeasError("No app opened it: nothing to open it with")
+
+    files = board_files.Files(host.projects, opener=opener)
+    assert files.reveal({"path": "README.md"}) == {"started": True}
+    assert entered.wait(30)
+    assert host.command("projects.list")["current"]                     # another command answers meanwhile
+    assert "already running" in files.reveal({"path": "README.md"})["error"]
+    gate.set()
+    _wait(lambda: ran)
+    assert ran[0].data["ok"] is False and "No app opened it" in ran[0].data["said"]
+    assert any("No app opened it" in t.data["message"] for t in toasts)
 
 
 def test_no_project_no_files():

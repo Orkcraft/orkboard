@@ -1,8 +1,9 @@
 // The Git section of the Files pane (docs/specs/37-board-and-line.md §8): the branch (the work branch or main), ahead / behind
 // its upstream, the changed files with their + / − (a click shows the file's diff in the preview, in Review's diff view),
 // Commit of the files the person ticks, Switch branch, Pull (fast-forward only) and Push (on the press only). A pull or
-// a push can take a while: it shows as busy and the rest of the page stays usable.
-import { useEffect, useRef, useState } from "preact/hooks";
+// a push runs on the host, off its thread: it shows as busy (git.status says `running`, then the outcome as `last`) and
+// the rest of the page stays usable. A folder with no git (projects.list `git: false`) is offered Start git here.
+import { useEffect, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { html, cls } from "../html.js";
 import { command, toast } from "../link.js";
@@ -33,34 +34,36 @@ function aheadWords(s) {
 }
 
 export function SwitchDialog({ branch, work }) {
-  const [name, setName] = useState("");
+  const [list, setList] = useState(null);
   const [why, setWhy] = useState("");
   const [busy, setBusy] = useState(false);
-  const go = async (e, to = name) => {
-    e?.preventDefault();
-    if (!to.trim() || busy) return;
+  useEffect(() => {
+    command("git.branches").then((got) => setList(got?.branches || []))
+      .catch((err) => { setList([]); setWhy(err.message || ""); });
+  }, []);
+  const go = async (to) => {
+    if (busy) return;
     setBusy(true);
+    setWhy("");
     try {
-      const got = await command("git.switch", { branch: to.trim() });
+      const got = await command("git.switch", { branch: to });
       if (got?.error) { setWhy(got.error); return; }
       await loadStatus();
       closeDialog();
     } catch (err) { setWhy(err.message || ""); } finally { setBusy(false); }
   };
-  const quick = [work, "main"].filter((b, i, a) => b && b !== branch && a.indexOf(b) === i);
   return html`<${Modal} title="Switch branch" onClose=${closeDialog}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Cancel</button>
-      <button type="submit" form="switch-form" class="ok-btn primary" disabled=${!name.trim() || busy}>Switch branch</button>`}>
-    <form id="switch-form" class="shell-form" onSubmit=${go}>
+    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Cancel</button>`}>
+    <div class="shell-form">
       <p>You are on <code>${branch || "no branch"}</code>.</p>
-      ${quick.length > 0 && html`<div class="shell-menu__list">${quick.map((b) => html`<button type="button" key=${b} class="shell-menu__item"
-        onClick=${(e) => go(e, b)}>Switch to <code>${b}</code>${b === work ? html` <span class="ok-tone-muted">the work branch</span>` : ""}</button>`)}</div>`}
-      <label class="shell-field"><span class="ok-font-label">Branch</span>
-        <input class="ok-input" autofocus value=${name} aria-label="Branch" placeholder="The name of a branch that exists"
-          onInput=${(e) => { setName(e.target.value); setWhy(""); }} /></label>
+      ${list === null ? html`<p class="ok-tone-muted">Reading the branches…</p>`
+        : list.length === 0 ? html`<p class="ok-tone-muted">This repository has no branch yet.</p>`
+        : html`<div class="shell-menu__list" role="list" aria-label="Branches">${list.map((b) => html`<button type="button" key=${b.name} role="listitem"
+          class=${cls("shell-menu__item", { "is-on": b.current })} disabled=${b.current || busy} aria-current=${b.current ? "true" : undefined}
+          onClick=${() => go(b.name)}><code>${b.name}</code>${b.name === work ? html` <span class="ok-tone-muted">the work branch</span>` : ""}${b.current ? html` <span class="ok-tone-muted">you are here</span>` : ""}${b.upstream ? html` <span class="ok-tone-muted">· ${b.upstream}</span>` : ""}</button>`)}</div>`}
       ${why && html`<p class="ok-tone-error" role="alert">${why}</p>`}
       <p class="ok-font-status ok-tone-muted">Refused while files have uncommitted changes: commit them first.</p>
-    </form>
+    </div>
   <//>`;
 }
 
@@ -69,14 +72,18 @@ export function GitSection() {
   const [picked, setPicked] = useState(new Set());
   const [message, setMessage] = useState("");
   const [why, setWhy] = useState("");
-  const busy = BUSY.value;
-  const alive = useRef(true);
+  const noGit = currentProject.value?.git === false;     // projects.list says so: git.status is not asked
+  const busy = BUSY.value || s?.running || "";
   useEffect(() => {
-    alive.current = true;
+    if (noGit) { resetGit(); return undefined; }
     loadStatus();
-    const id = setInterval(() => { if (!BUSY.value) loadStatus(); }, 5000);
-    return () => { alive.current = false; clearInterval(id); };
-  }, []);
+    let n = 0;
+    const id = setInterval(() => {       // a pull or a push runs on the host: asked every second until it is done
+      n += 1;
+      if (gitStatus.value?.running || (n % 5 === 0 && !BUSY.value)) loadStatus();
+    }, 1000);
+    return () => clearInterval(id);
+  }, [noGit]);
   const files = s?.files || [];
   const tick = files.filter((f) => picked.has(f.path)).map((f) => f.path);   // only what is still changed
   const run = async (op) => {
@@ -85,7 +92,6 @@ export function GitSection() {
     try {
       const got = await command(`git.${op}`);
       if (got?.error) setWhy(got.error);
-      else if (got?.said) toast(got.said, "information", op === "push" ? "Push" : "Pull");
     } catch (e) { setWhy(e.message || ""); } finally { BUSY.value = ""; }
     await loadStatus();
   };
@@ -101,11 +107,11 @@ export function GitSection() {
     } catch (err) { setWhy(err.message || ""); } finally { BUSY.value = ""; }
     await loadStatus();
   };
-  if (!s) return html`<section class="shell-git" aria-label="Git"><h3 class="board-sub">Git</h3><p class="ok-tone-muted">Reading git…</p></section>`;
-  if (s.nogit) {
+  if (!noGit && !s) return html`<section class="shell-git" aria-label="Git"><h3 class="board-sub">Git</h3><p class="ok-tone-muted">Reading git…</p></section>`;
+  if (noGit || s.nogit) {
     return html`<section class="shell-git" aria-label="Git"><h3 class="board-sub">Git</h3>
       <p class="ok-tone-muted">This folder has no git.</p>
-      <p><button class="ok-btn" onClick=${async () => { if (await startGit(currentProject.value?.path)) loadStatus(); }}>Start git here</button></p>
+      <p><button class="ok-btn" onClick=${async () => { if (await startGit(currentProject.value?.path)) resetGit(); }}>Start git here</button></p>
       <p class="ok-font-status ok-tone-muted">Makes a first commit of the folder's files as they are.</p></section>`;
   }
   const isWork = s.work_branch && s.branch === s.work_branch;
@@ -126,6 +132,7 @@ export function GitSection() {
       <input class="ok-input" aria-label="Commit message" placeholder="What changed" value=${message} onInput=${(e) => setMessage(e.target.value)} />
       <button type="submit" class="ok-btn primary" disabled=${!tick.length || !message.trim() || !!busy}>Commit${tick.length ? ` ${tick.length} file${tick.length === 1 ? "" : "s"}` : ""}</button></form>`}
     ${why && html`<p class="ok-tone-error" role="alert">${why}</p>`}
+    ${s.last && html`<p class=${cls("ok-font-status", s.last.ok ? "ok-tone-muted" : "ok-tone-error")} data-git="last" role=${s.last.ok ? "status" : "alert"}>${s.last.said}</p>`}
     <div class="shell-git__sync">
       <button class="ok-btn" disabled=${!!busy} aria-busy=${busy === "pull"} title="Brings in what origin has, when it fast-forwards" onClick=${() => run("pull")}>${busy === "pull" ? "Pulling…" : "Pull"}</button>
       <button class="ok-btn" disabled=${!!busy} aria-busy=${busy === "push"} title="Sends your code to origin" onClick=${() => run("push")}>${busy === "push" ? "Pushing…" : "Push"}</button>

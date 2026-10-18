@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orkboard.gui import markdown
+from orkboard.gui.board_background import Background
 from orkboard.gui.ideas_args import IdeasError, _str
 from orkboard.gui.ideas_goals import HIDDEN_DIRS, NO_SECRETS
 from orkboard.hooks.warder import is_secret
@@ -44,6 +45,7 @@ def kind_of(name: str) -> str:
 class Files:
     def __init__(self, projects: Any, opener: Callable[[Path], None] | None = None) -> None:
         self.projects = projects
+        self.background = Background()
         self.opener = opener or _open_in_system
 
     # -- paths -----------------------------------------------------------------------------------------------
@@ -189,7 +191,8 @@ class Files:
         return {"ok": True, "mtime": new}
 
     def reveal(self, args: dict) -> dict:
-        """The file in the system's app for it (desktop only: the phone may not send it)."""
+        """The file in the system's app for it, started off the server's thread (desktop only: the phone may not send
+        it). The path is checked at once; an app that did not open is told on the project's bus (`RAN`)."""
         if args.get("device") == "phone":
             raise IdeasError("Not from a phone")
         root, real, rel = self._resolve(_str(args, "path", 1000))
@@ -197,8 +200,16 @@ class Files:
             raise IdeasError("That file is gone")
         if self._secret(rel, root, real):
             raise IdeasError(NO_SECRETS)
-        self.opener(real)
-        return {"ok": True}
+        project = self.projects.current(need=True)
+
+        def work() -> str:
+            try:
+                self.opener(real)
+            except IdeasError as e:                 # nothing else shows it: the press already got its answer
+                project.host.call(lambda: project.toast(str(e), title="Open in the system", severity="warning"))
+                raise
+            return ""
+        return self.background.start(project, "reveal", "open", work)
 
     def commands(self) -> dict[str, Callable[[dict], Any]]:
         return {"files.tree": self.tree, "files.read": self.read, "files.write": self.write,
