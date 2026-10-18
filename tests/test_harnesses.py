@@ -150,7 +150,8 @@ def test_a_tool_that_names_its_cache_its_own_way_counts_what_it_read_from_it():
 def test_a_call_is_held_to_its_tools_and_takes_effort_budget_and_one_shot(monkeypatch, tmp_path):
     """Spec 38 §4: `call` gains effort, budget and one shot as `read` has them; with no tool allowed, no list."""
     h = harnesses.get("claude")
-    monkeypatch.setattr(harnesses, "cli_has", lambda h, flag: True)
+    from orkboard.realm import harness_claude
+    monkeypatch.setattr(harness_claude, "cli_has", lambda h, flag: True)     # where `_claude_run` looks it up
     argv = h.call("do it", tmp_path, ["mcp__a__b"], "warrior", effort="medium", budget=0.3, one_shot=True)
     assert argv[argv.index("--allowedTools") + 1] == "mcp__a__b"
     assert argv[argv.index("--disallowedTools") + 1] == harnesses.CLAUDE_NO_TOOLS
