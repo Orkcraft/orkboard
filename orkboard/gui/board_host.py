@@ -348,7 +348,7 @@ def main(argv: list[str] | None = None) -> int:
     from orkboard.config import NOT_A_PROJECT_HINT, find_project_root
     parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: goals, ideas, agents, review")
     parser.add_argument("command", nargs="?", choices=["board"], help=argparse.SUPPRESS)   # `orkboard board`: the same
-    parser.add_argument("--version", action="version", version=f"Orkline {__version__}")
+    parser.add_argument("--version", action="version", version=f"Orkboard {__version__}")
     parser.add_argument("--repo", type=Path, default=None, help="Path to project root")
     parser.add_argument("--browser", action="store_true", help="Open it in the browser instead of a window")
     parser.add_argument("--port", type=int, default=0, help="Port on 127.0.0.1 (default: any free one)")
