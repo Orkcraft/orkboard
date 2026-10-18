@@ -1,4 +1,4 @@
-"""The board's keeper (spec 29a §4) with the model call stubbed: the batch, the talk and its compaction, the plan."""
+"""The board's keeper (spec 29a §4, spec 35) with the model call stubbed: the draft, the talk and its compaction, the plan."""
 from __future__ import annotations
 
 import datetime as dt
@@ -18,8 +18,8 @@ class Model:
     def __init__(self, *answers) -> None:
         self.answers, self.asked = list(answers), []
 
-    def __call__(self, tier, prompt, resume=""):
-        self.asked.append({"tier": tier, "prompt": prompt, "resume": resume})
+    def __call__(self, tier, prompt, resume="", effort=""):
+        self.asked.append({"tier": tier, "prompt": prompt, "resume": resume, "effort": effort})
         answer = self.answers.pop(0)
         if isinstance(answer, Exception):
             raise answer
@@ -45,18 +45,19 @@ def _wait(k, slug):
     raise AssertionError("the keeper never finished")
 
 
-def test_the_batch_reads_a_raw_idea_with_the_laborer(keeper):
+def test_the_draft_reads_a_raw_idea_on_the_draft_step(keeper):
+    # spec 35 §3: the batch on the laborer tier went; a raw idea is drafted (elder · medium on balance), its goal given
     ux = ideas.add_track(keeper.root, "UX")
-    slug = ideas.add_idea(keeper.root, "dark mode pls", state_dir=keeper.state)
+    slug = ideas.add_idea(keeper.root, "dark mode pls", ux, state_dir=keeper.state)
     keeper.call = model = Model("Sure! ```json\n" + json.dumps(
         {"gist": "Dark mode for the board.\nAt night it glares.", "why": "Moves: calm at night", "size": "m",
-         "track": ux, "questions": ["Every screen or the board only?", "Follow the OS?"], "evil": "x"}) + "\n```")
-    keeper.read_one(slug)
-    assert model.asked[0]["tier"] == "laborer" and "dark mode pls" in model.asked[0]["prompt"]
+         "questions": ["Every screen or the board only?", "Follow the OS?"], "evil": "x"}) + "\n```")
+    keeper.draft_one(slug)
+    assert model.asked[0]["tier"] == "elder" and "dark mode pls" in model.asked[0]["prompt"]
     assert "index.md" in model.asked[0]["prompt"] or "Index" in model.asked[0]["prompt"]
     page = ideas.idea_page(keeper.root, slug)
     assert page.section("Gist").startswith("Dark mode for the board.") and page.section("Why") == "Moves: calm at night"
-    assert page.get("size") == "M" and page.get("proposed_track") == ux and page.get("track") == "general"
+    assert page.get("size") == "M" and page.get("track") == ux
     assert ideas.items(page.section("Open questions")) == ["Every screen or the board only?", "Follow the OS?"]
     st = ideas.state(keeper.state, slug)
     assert st["state"] == "asks" and st["batch_at"]
@@ -65,26 +66,23 @@ def test_the_batch_reads_a_raw_idea_with_the_laborer(keeper):
 def test_a_broken_answer_leaves_the_idea_new(keeper):
     slug = ideas.add_idea(keeper.root, "x", state_dir=keeper.state)
     keeper.call = Model("no json here")
-    keeper.read_one(slug)
+    keeper.draft_one(slug)
     st = ideas.state(keeper.state, slug)
     assert st["state"] == "raw" and "JSON" in st["error"]
     assert ideas.idea_page(keeper.root, slug).section("Gist") == "x"
 
 
-def test_tick_runs_the_batch_when_it_is_due_and_never_in_the_demo(keeper):
+def test_tick_drafts_no_raw_idea_by_day_and_never_in_the_demo(keeper):
+    # spec 35 §3: no 30-minute batch; a raw idea waits for the night (or a draft at once)
     slug = ideas.add_idea(keeper.root, "y", state_dir=keeper.state)
-    keeper.call = Model({"gist": "Y.", "why": "w", "size": "S", "track": "", "questions": []})
-    assert not keeper.tick(time.time())                     # not due yet
-    assert keeper.tick(time.time() + 31 * 60)
-    _wait(keeper, slug)
-    for _ in range(100):
-        if not keeper._batching:
-            break
-        time.sleep(0.01)
-    assert ideas.state(keeper.state, slug)["state"] == "ready" and slug in keeper.published
+    keeper.settings_now["night"] = "00:00-00:01"
+    keeper.call = Model()
+    noon = dt.datetime.now().replace(hour=12, minute=0).timestamp()
+    assert not keeper.tick(noon) and not keeper.tick(noon + 31 * 60)
+    assert ideas.state(keeper.state, slug)["state"] == "raw" and keeper.call.asked == []
     keeper.demo = True
     ideas.add_idea(keeper.root, "z", state_dir=keeper.state)
-    assert not keeper.tick(time.time() + 120 * 60)
+    assert not keeper.tick(noon + 120 * 60)
     with pytest.raises(KeeperError, match="demo"):
         keeper.say(slug, "hi")
 

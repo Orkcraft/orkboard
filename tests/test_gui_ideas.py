@@ -38,6 +38,13 @@ def _wait(host, slug):
     raise AssertionError("the keeper never finished")
 
 
+def _add(host, text, **more):
+    """An idea under a goal (spec 35 §3: no idea without one, never General), waiting for the night unless asked."""
+    root = host.ideas.root()
+    goal = next((t["slug"] for t in ideas.tracks(root, make=False) if t["slug"] != "general"), None) or ideas.add_track(root, "First goal")
+    return host.command("ideas.add", {"text": text, "track": goal, "night": True, **more})
+
+
 def _plan(host, slug, todos=()):
     data = {"idea": slug, "made_at": "2026-10-17T09:00:00", "passed_at": None,
             "estimate": {"tasks": 1, "usd_low": 0.15, "usd_high": 0.45},
@@ -58,17 +65,19 @@ def test_every_board_command_is_the_hosts_and_a_phones(host):
 
 def test_drop_an_idea_and_read_the_board_and_its_page(host):
     rev = host.snapshot()["ideas_rev"]
-    slug = host.command("ideas.add", {"text": "Dark mode\nfor the night"})["slug"]
+    slug = _add(host, "Dark mode\nfor the night")["slug"]
     board = host.command("ideas.board")
     json.dumps(board)
-    assert [t["slug"] for t in board["tracks"]] == ["general"] and board["tracks"][0]["count"] == 1
+    assert [t["slug"] for t in board["tracks"]] == ["first-goal"] and board["tracks"][0]["count"] == 1
     (i,) = board["ideas"]
-    assert i["slug"] == slug and i["state"] == "raw" and i["thesis"] == "Dark mode" and i["track"] == "general"
+    assert i["slug"] == slug and i["state"] == "raw" and i["thesis"] == "Dark mode" and i["track"] == "first-goal"
     assert i["progress"] == {"done": 0, "total": 0} and i["updated"]
     assert set(i) == {"slug", "title", "track", "order", "state", "size", "thesis", "asks", "progress", "updated",
-                      "priority"}                 # spec 34 §4: ideas gain a priority
+                      "priority",                 # spec 34 §4: ideas gain a priority
+                      "queue", "held_until", "risk", "risk_triggers", "depends_on", "waits_on", "start_at",
+                      "in_needs_you"}             # spec 35 §12
     assert i["priority"] == "normal" and board["tracks"][0]["priority"] == "normal" and board["tracks"][0]["state"] == "raw"
-    assert board["today"] == {"todos": [], "needs_you": []} and board["batch_next"] and board["rev"] > rev
+    assert board["needs_you"] == [] and board["rev"] > rev      # spec 35 §10: `today` became `needs_you`, the batch went
     page = host.command("ideas.page", {"slug": slug})
     assert [s["name"] for s in page["sections"]] == list(ideas.SECTIONS)
     assert page["sections"][0] == {"name": "Gist", "thesis": "Dark mode", "text": "Dark mode\nfor the night"}
@@ -77,12 +86,12 @@ def test_drop_an_idea_and_read_the_board_and_its_page(host):
     with pytest.raises(CommandError, match="gone"):
         host.command("ideas.page", {"slug": "nope"})
     with pytest.raises(CommandError, match="text is missing"):
-        host.command("ideas.add", {"text": "  "})
+        _add(host, "  ")
 
 
 def test_tracks_move_edit_and_drop(host):
-    a = host.command("ideas.add", {"text": "alpha"})["slug"]
-    b = host.command("ideas.add", {"text": "beta"})["slug"]
+    a = _add(host, "alpha")["slug"]
+    b = _add(host, "beta")["slug"]
     ux = host.command("ideas.track_add", {"title": "UX"})["slug"]
     assert host.command("ideas.track_set", {"slug": ux, "about": "Calm", "criteria": ["fewer clicks"],
                                             "deadline": "2026-12-01"}) == {"ok": True}
@@ -104,14 +113,15 @@ def test_tracks_move_edit_and_drop(host):
 def test_say_and_plan_run_the_keeper_in_the_background(host, monkeypatch):
     calls = []
 
-    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0):
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, effort=""):
         calls.append({"harness": harness, "model": model, "resume": resume})
         if "turn it into" in prompt:
             return json.dumps({"tasks": [{"id": "a", "title": "T", "brief": "B", "tier": "laborer"}]}), 0.1, 10, "s"
         return json.dumps({"reply": "ok", "sections": {"Why": "because"}, "questions": []}), 0.1, 10, "sess-9"
 
     monkeypatch.setattr(jobs, "run_read", run_read)
-    slug = host.command("ideas.add", {"text": "x"})["slug"]
+    host.command("ideas.board_set", {"autostart": False})          # spec 35 §5: off, the plan waits for the person
+    slug = _add(host, "x")["slug"]
     assert host.command("ideas.say", {"slug": slug, "text": "why?", "section": "Why"}) == {"ok": True}
     _wait(host, slug)
     assert calls[0]["harness"] == "claude" and calls[0]["resume"] == ""
@@ -123,15 +133,16 @@ def test_say_and_plan_run_the_keeper_in_the_background(host, monkeypatch):
     _wait(host, slug)
     page = host.command("ideas.page", {"slug": slug})
     assert page["state"] == "plan" and page["plan"]["tasks"][0]["tier"] == "laborer"
-    needs = host.command("ideas.board")["today"]["needs_you"]
-    assert needs == [{"idea": slug, "kind": "plan", "title": "x", "text": "Plan ready · 1 tasks"}]
+    needs = host.command("ideas.board")["needs_you"]
+    assert [{k: n[k] for k in ("idea", "kind", "title", "text")} for n in needs] == [
+        {"idea": slug, "kind": "plan", "title": "x", "text": "Plan ready · 1 tasks"}]
     assert host.snapshot()["needs_you"] == 1
 
 
 def test_the_demo_runs_no_model(fake_repo):
     checkpoint.ensure(fake_repo)
     host = Host(fake_repo, auto_commit=False, demo=True)
-    slug = host.command("ideas.add", {"text": "x"})["slug"]
+    slug = _add(host, "x")["slug"]
     assert host.command("ideas.board")["demo"] is True
     with pytest.raises(CommandError, match="demo runs no model"):
         host.command("ideas.say", {"slug": slug, "text": "hi"})
@@ -140,7 +151,7 @@ def test_the_demo_runs_no_model(fake_repo):
 
 def test_start_without_a_runner_says_so_and_passes_nothing(host, monkeypatch):
     monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", None)     # this build has no runner
-    slug = host.command("ideas.add", {"text": "x"})["slug"]
+    slug = _add(host, "x")["slug"]
     _plan(host, slug)
     with pytest.raises(CommandError, match="runner is not in this build"):
         host.command("ideas.start", {"slug": slug})
@@ -168,7 +179,7 @@ def test_start_passes_the_plan_to_the_runner_and_stop_all_reaches_it(host, monke
             seen.append(("stop_all",))
 
     monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
-    slug = host.command("ideas.add", {"text": "x"})["slug"]
+    slug = _add(host, "x")["slug"]
     _plan(host, slug)
     host.command("ideas.start", {"slug": slug})
     assert seen[:2] == [("made", "dev"), ("start", slug)]
@@ -182,13 +193,13 @@ def test_start_passes_the_plan_to_the_runner_and_stop_all_reaches_it(host, monke
 
 
 def test_a_secret_todo_is_stored_and_the_plan_says_stored(host):
-    slug = host.command("ideas.add", {"text": "x"})["slug"]
+    slug = _add(host, "x")["slug"]
     _plan(host, slug, [
         {"id": "t1", "title": "API_KEY", "kind": "secret", "why": "w", "choices": [], "steps": [], "for": ["k1"],
          "done": False, "value": None},
         {"id": "t2", "title": "Which", "kind": "choice", "why": "w", "choices": ["a", "b"], "steps": [], "for": [],
          "done": False, "value": None}])
-    today = host.command("ideas.board")["today"]["todos"]
+    today = [n["todo"] for n in host.command("ideas.board")["needs_you"] if n["kind"] == "todo"]   # spec 35 §10
     assert [t["id"] for t in today] == ["t1", "t2"] and "value" not in today[0]
     with pytest.raises(CommandError, match="needs its value"):
         host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True})
@@ -200,7 +211,7 @@ def test_a_secret_todo_is_stored_and_the_plan_says_stored(host):
     with pytest.raises(CommandError, match="choices"):
         host.command("ideas.todo", {"idea": slug, "id": "t2", "done": True, "value": "c"})
     host.command("ideas.todo", {"idea": slug, "id": "t2", "done": True, "value": "b"})
-    assert host.command("ideas.board")["today"]["todos"] == []
+    assert [n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "todo"] == []
     host.command("ideas.drop", {"slug": slug})
     assert idea_secrets.get(host.ideas.state_dir, slug, "t1") is None
 
@@ -211,7 +222,7 @@ def test_the_snapshot_carries_focus_and_the_phone_hears_an_idea(host, monkeypatc
     assert snap["focus"] == "board" and "ideas_rev" in snap and snap["needs_you"] == 0
     before = mobile.phone_snapshot(host)
     assert before["focus"] == "board" and before["needs_you"] == 0
-    slug = host.command("ideas.add", {"text": "phone idea"})["slug"]
+    slug = _add(host, "phone idea")["slug"]
     mid = mobile.phone_snapshot(host)
     assert mid["ideas_rev"] > before["ideas_rev"] and mid["rev"] != before["rev"]
     assert mobile.news(before, mid) == []                   # raw: no push
@@ -239,7 +250,7 @@ def test_the_runner_bus_hops_to_the_hosts_thread(host):
 
 
 def test_a_lost_reading_shows_as_new(host):
-    slug = host.command("ideas.add", {"text": "x"})["slug"]
+    slug = _add(host, "x")["slug"]
     ideas.save_state(host.ideas.state_dir, slug, state="reading")     # the host closed while the keeper read
     assert host.command("ideas.page", {"slug": slug})["state"] == "raw"
 
@@ -315,7 +326,7 @@ def test_agents_shows_the_taskmaster_and_a_chip_per_live_task(host):
     assert first["roles"][1]["name"] == "Grunts" and first["roles"][1]["chips"] == []      # spec 34: a block per role
     slug = _review(host)
     ideas.save_state(host.ideas.state_dir, slug, state="working")
-    other = host.command("ideas.add", {"text": "asking idea"})["slug"]
+    other = _add(host, "asking idea")["slug"]
     ideas.save_state(host.ideas.state_dir, other, state="asks")
     got = host.command("ideas.agents")
     tm, grunts = got["roles"][:2]
@@ -411,9 +422,9 @@ def _events(host, *names):
 
 
 def test_each_action_writes_its_event_with_its_fields_and_the_device(host):
-    slug = host.command("ideas.add", {"text": "Dark mode for the night", "track": "general"})["slug"]
+    slug = _add(host, "Dark mode for the night")["slug"]
     (e,) = _events(host, "idea_added")
-    assert e["idea"] == slug and e["track"] == "general" and e["chars"] == 23 and e["device"] == "desktop"
+    assert e["idea"] == slug and e["track"] == "first-goal" and e["chars"] == 23 and e["device"] == "desktop"
     host.command("ideas.say", {"slug": slug, "text": "Does it follow the system?", "section": "Risks", "device": "phone"})
     _wait(host, slug)
     (e,) = _events(host, "idea_said")
@@ -426,7 +437,7 @@ def test_each_action_writes_its_event_with_its_fields_and_the_device(host):
 
 
 def test_the_keepers_states_and_the_plan_are_logged_and_a_secret_never(host, monkeypatch):
-    slug = host.command("ideas.add", {"text": "x"})["slug"]
+    slug = _add(host, "x")["slug"]
     todos = [{"id": "t1", "title": "API_KEY", "kind": "secret", "why": "", "choices": [], "steps": [], "for": ["k1"], "done": False, "value": None}]
     _plan(host, slug, todos)
     host.ideas.changed(slug)
@@ -468,7 +479,7 @@ def test_opened_goes_through_ideas_log_and_nothing_else_does(host):
 
 
 def test_the_logs_zip_holds_the_events_the_ideas_and_no_secret(host):
-    slug = host.command("ideas.add", {"text": "Logs idea"})["slug"]
+    slug = _add(host, "Logs idea")["slug"]
     _plan(host, slug)
     (host.ideas.state_dir / "ideas" / slug / "k1.log").write_text("== round 1\nthe key was ••••\n")
     host.command("ideas.log", {"event": "opened", "what": "tab", "ref": "review"})
