@@ -5,6 +5,7 @@
 import { h } from "./util.js";
 import { steady } from "./shell-util.js";
 import { makeAgentSheet } from "./shell-agent.js";
+import { heldWords } from "./shell-words.js";
 
 const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: ["at Review", ""], ready: ["queued", ""], held: ["held", "⏳"],
   failed: ["needs you", "⚠"] };
@@ -12,7 +13,7 @@ const NEW = "__new__";
 
 export function gruntWords(c) {
   const [word, mark] = GRUNT[c.state] || [c.state, ""];
-  if (c.state === "held") return c.note || "held";
+  if (c.state === "held") return heldWords(c.note, c.waits_title);
   if (c.state === "ready" && c.note) return "stopped";
   return mark ? `${word} ${mark}` : word;
 }
@@ -52,7 +53,8 @@ export function makeAgents(core) {
       chips.length ? h("ul", { class: "chips" }, ...chips.map((c) => h("li", {},
         h("button", { class: `card chip is-${c.state}`, type: "button", "data-state": c.state,
           onclick: () => core.open({ kind: "task", slug: c.idea, task: c.task }) },
-        h("span", { class: "chip-state" }, gruntWords(c)), h("b", {}, c.title), h("small", { class: "muted" }, c.idea_title)))))
+        h("span", { class: "chip-state" }, gruntWords(c)), h("b", {}, c.title), h("small", { class: "muted" }, c.idea_title),
+          c.by === "auto" || c.night ? h("small", { class: "chip-why" }, [c.by === "auto" ? "by itself" : "", c.night ? "tonight" : ""].filter(Boolean).join(" · ")) : null))))
         : h("p", { class: "muted" }, "No task runs now."),
       mine.length ? h("details", { class: "done-today" }, h("summary", {}, `Done today (${mine.length})`),
         h("ul", { class: "chips" }, ...mine.map((d) => h("li", {}, h("button", { class: "card chip is-done", type: "button",

@@ -1,59 +1,60 @@
-// A goal on the phone (docs/specs/34-v1-round-2.md §1, §7): the New goal / Edit goal sheet — a title, a description, the metrics
-// (what is measured and the target), a priority, the links to documents, a deadline — and the goal's own screen (its
-// Description, the Taskmaster's Summary, the Metrics, the Links, the Open questions with a box to answer). Saving sends the
-// goal to the Taskmaster at once.
+// A goal on the phone (docs/specs/35-goals-window.md §2, §11): the New goal / Edit goal sheet — a description and a priority, and on Edit
+// the title too (to correct the Taskmaster's) — and the goal's own screen (its Description, the Taskmaster's Summary, the Metrics, the
+// Links, the Open questions with a box to answer). Saving sends the goal to the Taskmaster at once; it writes the rest.
 import { h, sheet } from "./util.js";
-import { field, foot, listEditor, prioritySwitch } from "./shell-forms.js";
+import { field, foot, prioritySwitch } from "./shell-forms.js";
+import { PRIORITY_WORDS } from "./shell-words.js";
 
+export { PRIORITY_WORDS };
 export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks you", ready: "ready" };
-export const PRIORITY_WORDS = { high: "High", normal: "Normal", low: "Low" };
 const isUrl = (l) => /^[a-z][a-z0-9+.-]*:\/\//i.test(l);
 
 export function makeGoalSheet(core) {
-  const title = h("input", { class: "ok-input", type: "text", "aria-label": "Title", placeholder: "What you want to reach", maxlength: "120", required: true });
-  const about = h("textarea", { class: "ok-input", rows: "3", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
-  const metrics = listEditor({ label: "Metrics", one: "Metric", add: "+ Add a metric",
-    cols: [{ key: "name", placeholder: "What is measured: weekly installs", aria: "what is measured" }, { key: "target", placeholder: "Target: 50", aria: "the target", grow: false }] });
+  const title = h("input", { class: "ok-input", type: "text", "aria-label": "Title", placeholder: "The Taskmaster writes it; correct it here", maxlength: "120" });
+  const titleField = field("Title", title);
+  const about = h("textarea", { class: "ok-input", rows: "5", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
   const priority = prioritySwitch();
-  const links = listEditor({ label: "Links", one: "Link", add: "+ Add a link", plain: true, cols: [{ key: "link", placeholder: "docs/plan.md · https://…" }] });
-  const deadline = h("input", { class: "ok-input", type: "date", "aria-label": "Deadline" });
+  const hint = h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the title, the summary, what counts as done and the links.");
   const save = h("button", { class: "ok-btn primary big", type: "submit", disabled: true }, "Save goal");
   const cancel = h("button", { class: "ok-btn big", type: "button" }, "Cancel");
-  const form = h("form", { class: "sheet-form" }, field("Title", title), field("Description", about), metrics.el,
-    h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), links.el,
-    field("Deadline (optional)", deadline), foot(cancel, save));
+  const form = h("form", { class: "sheet-form" }, titleField, field("Description", about),
+    h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(cancel, save));
   const sh = sheet("New goal", form);
   let slug = "";
-  title.addEventListener("input", () => { save.disabled = !title.value.trim(); });
+  let then = null;                                   // what to do with the goal's slug instead of opening its screen (New idea with no goal yet)
+  about.addEventListener("input", () => { save.disabled = !about.value.trim(); });
   cancel.addEventListener("click", () => sh.close());
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!title.value.trim()) return;
+    if (!about.value.trim()) return;
     save.disabled = true;
-    const got = await core.call("ideas.goal_save", { ...(slug ? { slug } : {}), title: title.value.trim(), about: about.value, priority: priority.get(),
-      deadline: deadline.value, metrics: metrics.get().filter((m) => m.name), links: links.get() });
-    save.disabled = !title.value.trim();
+    const args = { ...(slug ? { slug } : {}), about: about.value.trim(), priority: priority.get() };
+    if (slug && title.value.trim()) args.title = title.value.trim();
+    const got = await core.call("ideas.goal_save", args);
+    save.disabled = !about.value.trim();
     if (!got?.slug) return;
+    const after = then;
+    then = null;
     sh.close();
     core.st.track = got.slug;
-    core.refresh();
-    core.open({ kind: "goal", slug: got.slug });
+    await core.refresh();
+    if (after) after(got.slug); else core.open({ kind: "goal", slug: got.slug });
   });
+  sh.el.addEventListener("close", () => { then = null; });
   return {
     el: sh.el,
-    open(which = "") {
+    open(which = "", after = null) {
       slug = which;
+      then = after;
       const g = which ? (core.st.board?.tracks || []).find((t) => t.slug === which) : null;
       sh.title(g ? "Edit goal" : "New goal");
+      titleField.hidden = !g;                          // a new goal has no title to type: the Taskmaster writes it
       title.value = g?.title || "";
       about.value = g?.about || "";
-      deadline.value = g?.deadline || "";
       priority.set(g?.priority || "normal");
-      metrics.set((g?.metrics || []).map((m) => ({ name: m.name, target: m.target })));
-      links.set(g?.links || []);
-      save.disabled = !title.value.trim();
+      save.disabled = !about.value.trim();
       sh.open();
-      title.focus();
+      about.focus();
     },
   };
 }
