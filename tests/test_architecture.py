@@ -1,5 +1,6 @@
-"""The core and the domain have no face (docs/design/gui-migration.md §2): they never import the GUI, and
-nothing imports a terminal toolkit — the terminal UI is gone (docs/design/calm-town.md §9).
+"""The core and the domain have no face: they never import the GUI, and nothing imports a terminal toolkit. Orkboard
+stands alone (docs/specs/37-board-and-line.md §9): every import of the package names one of its own modules, and it
+starts with no module of Orkline's (`orkcraft`) present.
 
 Every import counts, a lazy one inside a function too."""
 from __future__ import annotations
@@ -9,8 +10,6 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 import pytest
-
-from orkboard import layers
 
 ROOT = Path(__file__).resolve().parents[1] / "orkboard"
 FACELESS = ["core", "realm", "design"]
@@ -67,10 +66,8 @@ def test_the_terminal_ui_stays_gone():
 # These start only short commands that are not agents, or keep their own list (tech-debt T13).
 STARTS_WITHOUT_HALT = {
     "realm/model_families.py": "asks a tool for its model list; no model runs",
-    "realm/masonry.py": "git log",
     "sources/sessions.py": "git log",
     "tools.py": "a tool's version and login state",
-    "core/sessions.py": "the Terminals' sessions; Stop all interrupts them through Sessions.interrupt_all",
 }
 _STARTS = {("subprocess", "Popen"), ("subprocess", "run"), ("subprocess", "call"), ("subprocess", "check_output"),
            ("pty", "fork"), ("os", "execvpe"), ("os", "execvp")}
@@ -100,54 +97,96 @@ def test_whoever_starts_an_agent_registers_it_in_halt():
     assert all((ROOT / rel).is_file() for rel in STARTS_WITHOUT_HALT), "a listed module is gone: drop it from the list"
 
 
-# Orkboard and Orkline (docs/specs/37-board-and-line.md): the modules of `layers.BOARD` import only each other. Every
-# edge out of it is listed here, `importer → imported`, and the list only shrinks (spec 37 B and C cut them).
-KNOWN: set[tuple[str, str]] = set()
+# Orkboard stands alone (docs/specs/37-board-and-line.md §9): it was cut from Orkline along `layers.BOARD`, so every
+# module is Orkboard's. What is left of that boundary: each import of the package names a module of the package.
+PACKAGE = "orkboard"
 
 
-def _new_edges(found, known):
-    return [f"{layers.short(a)} imports {layers.short(b)} ({path.relative_to(ROOT.parent)}:{line}): cut it, or add "
-            f"the module to BOARD when all its own imports are Orkboard's"
-            for a, b, path, line in found if (layers.short(a), layers.short(b)) not in known]
+def modules(root: Path = ROOT) -> dict[str, Path]:
+    """Every module of the package by dotted name (a package's `__init__` is the package's name)."""
+    out = {}
+    for path in sorted(root.rglob("*.py")):
+        parts = list(path.relative_to(root.parent).with_suffix("").parts)
+        if parts[-1] == "__init__":
+            parts.pop()
+        out[".".join(parts)] = path
+    return out
 
 
-def test_orkboard_imports_only_orkboard():
-    bad = _new_edges(layers.edges(), KNOWN)
+def packages(mods: dict[str, Path]) -> set[str]:
+    """The packages the modules sit in, a namespace package (`orkboard.realm`, no `__init__`) too."""
+    return {name.rsplit(".", n)[0] for name in mods for n in range(1, name.count(".") + 1)}
+
+
+def _defined(path: Path | None) -> set[str]:
+    """The names a package's `__init__` defines itself (`from orkboard import __version__` is one, not a module)."""
+    if path is None:
+        return set()
+    names = set()
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            names |= {t.id for t in targets if isinstance(t, ast.Name)}
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            names |= {(a.asname or a.name).split(".")[0] for a in node.names}
+    return names
+
+
+def missing_imports(mods: dict[str, Path]) -> list[tuple[str, int, str]]:
+    """`(file, line, module)` for every import of the package, a lazy and a relative one too, that names no module
+    or package of it: `from orkboard.realm import catalog` names `orkboard.realm.catalog`, unless the package's
+    `__init__` defines `catalog` itself."""
+    known, folders = set(mods), packages(mods)
+    out = []
+    for name, path in mods.items():
+        package = name if path.name == "__init__.py" else name.rpartition(".")[0]
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                targets = [(a.name, None) for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                base = node.module or ""
+                if node.level:
+                    up = package.split(".")[:len(package.split(".")) - (node.level - 1)]
+                    base = ".".join(up + ([node.module] if node.module else []))
+                targets = [(base, a.name) for a in node.names]
+            else:
+                continue
+            for base, attr in targets:
+                if base.split(".")[0] != PACKAGE:
+                    continue
+                if base not in known and base not in folders:
+                    out.append((str(path), node.lineno, base))
+                elif (attr and attr != "*" and base in folders and f"{base}.{attr}" not in known | folders
+                      and attr not in _defined(mods.get(base))):
+                    out.append((str(path), node.lineno, f"{base}.{attr}"))       # a package's name is a module
+    return out
+
+
+def test_every_import_of_the_package_is_one_of_its_modules():
+    bad = [f"{Path(f).relative_to(ROOT.parent)}:{line} imports {module}, which is not in the package"
+           for f, line, module in missing_imports(modules())]
     assert not bad, "\n".join(bad)
 
 
-def test_orkboard_check_sees_a_line_import(tmp_path):
-    """The check can fail: a Board module importing a line module (absolute, relative or lazy) is an edge."""
+def test_the_check_sees_an_import_of_a_module_that_is_not_here(tmp_path):
+    """The check can fail: a module importing one the package does not have (absolute, relative or lazy)."""
     pkg = tmp_path / "orkboard"
     (pkg / "core").mkdir(parents=True)
     (pkg / "__init__.py").write_text("")
     (pkg / "core" / "__init__.py").write_text("")
     (pkg / "core" / "idea_x.py").write_text(
-        "from orkboard import camp\nfrom .. import camp as c2\n\ndef f():\n    import orkboard.camp\n")
-    (pkg / "camp.py").write_text("")
-    mods = {"orkboard": pkg / "__init__.py", "orkboard.core": pkg / "core" / "__init__.py",
-            "orkboard.core.idea_x": pkg / "core" / "idea_x.py", "orkboard.camp": pkg / "camp.py"}
-    found = layers.edges(root=mods)
-    assert sorted(line for _a, _b, _p, line in found) == [1, 2, 5]
-    assert {(a, b) for a, b, _p, _l in found} == {("orkboard.core.idea_x", "orkboard.camp")}
-
-
-def test_known_edges_still_exist():
-    present = {(layers.short(a), layers.short(b)) for a, b, _p, _l in layers.edges()}
-    gone = sorted(KNOWN - present)
-    assert not gone, "\n".join(f"{a} -> {b} is gone from the code: remove it from KNOWN" for a, b in gone)
-
-
-def test_every_board_pattern_matches():
-    names = set(layers.modules())
-    dead = [p for p in layers.BOARD + layers.SPLIT if not any(fnmatchcase(n, p) for n in names)]
-    assert not dead, f"matches no module: {dead}"
+        "from orkboard import camp\nfrom .. import camp as c2\nfrom orkboard.core import idea_x\n\n"
+        "def f():\n    import orkboard.camp\n")
+    found = missing_imports(modules(pkg))
+    assert sorted(line for _f, line, _m in found) == [1, 2, 6]
+    assert {m for _f, _l, m in found} == {"orkboard.camp"}
 
 
 def test_orkboard_starts_alone(tmp_path):
-    """Spec 37 §4: in a fresh interpreter, Orkboard's host and its server, built on a fixture repository (no port
-    opened), load only `BOARD` modules of the package: none of the town's (a namespace package, `orkboard.realm`,
-    holds no code of its own)."""
+    """Spec 37 §9: in a fresh interpreter, Orkboard's host and its server, built on a fixture repository (no port
+    opened), load the package's own modules, and no module of Orkline's (`orkcraft`) is there to load."""
     import os
     import subprocess
     import sys
@@ -160,12 +199,13 @@ def test_orkboard_starts_alone(tmp_path):
             "server = Server(host)\n"
             "assert host.command('ideas.board')['tracks'] is not None and server.page()\n"
             "print('\\n'.join(sorted(n for n, m in list(sys.modules.items())\n"
-            "                          if (n == 'orkboard' or n.startswith('orkboard.')) and getattr(m, '__file__', None))))")
+            "                          if n.split('.')[0] in ('orkboard', 'orkcraft') and getattr(m, '__file__', None))))")
     env = {**os.environ, "ORKCRAFT_SETTINGS_FILE": str(tmp_path / "settings.json"),
            "XDG_CONFIG_HOME": str(tmp_path / "config"), "ORKCRAFT_NO_UPDATE": "1"}
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, cwd=tmp_path)
     assert out.returncode == 0, out.stderr
     loaded = out.stdout.split()
     assert "orkboard.gui.board_host" in loaded and "orkboard.gui.ideas" in loaded and "orkboard.gui.server" in loaded
-    line = [n for n in loaded if not layers.matches(n)]
-    assert not line, f"Orkboard loaded the line's modules: {line}"
+    mods = modules()
+    line = [n for n in loaded if n not in mods]
+    assert not line, f"Orkboard loaded modules that are not its own: {line}"
