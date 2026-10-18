@@ -16,8 +16,14 @@
     s.dnd_until                      # Do not disturb: "" off, "on" until turned off, else an ISO time (disturb.py)
     s.focus                          # "board": the window and the phone show only the board (spec 29a §1); "" the town
     s.ideas                          # the board's keeper and runner: batch_minutes, idle_hours, max_parallel, … (IDEAS;
-                                     # `wiki`, the Board's Wiki folder, only when set: spec 37 §3.5)
+                                     # `wiki`, the Board's Wiki folder, only when set: spec 37 §3.5); a project's own
+                                     # Board settings start from them (`board_of`)
+    s.projects_open                  # the open projects' folders, in the switcher's order (spec 37 §8)
+    s.projects_recent                # the projects last shown, newest first (at most PROJECTS_RECENT)
     settings.save(s)
+
+    board_of(repo_root, s.ideas)     # a project's Board settings: `<repo>/.orkcraft/board.json` over the machine's
+    save_board(repo_root, values)    # … written there (machine-local, git-ignored)
 
 The tools the operator leads and how each is paid for, and the quiet hours of their day (design:
 docs/design/onboarding.md). There is one look now: `mode`, `office` and `office_days` of older
@@ -83,6 +89,13 @@ IDEA_TARGETS = ("thrift", "balance", "quality")
 NIGHT = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$")
 FOCUSES = ("", "board")
 RECENT_FOLDERS = 8                       # the recent folders a Wiki's picker offers               # the GUI's two looks; camp the default
+PROJECTS_RECENT = 10                     # the projects the switcher's Recent remembers (spec 37 §8)
+PROJECTS_OPEN = 20                       # the most projects open at once
+# The Board's settings that are the project's (spec 37 §8): read from `<repo>/.orkcraft/board.json`, the machine's
+# `ideas` being the defaults a new project starts from; `risk_paths` is the tracked `orkcraft.toml`'s `[board]`.
+BOARD = ("target", "autostart", "night", "merge_into", "push", "review", "wiki", "max_parallel", "reserve_day",
+         "reserve_night")
+BOARD_FILE = Path(".orkcraft") / "board.json"
 
 
 @dataclass
@@ -124,6 +137,8 @@ class MachineSettings:
     tier_models: dict = field(default_factory=dict)
     focus: str = "board"          # FOCUSES: "board" shows only the board (alpha's default), "" the whole town
     ideas: dict = field(default_factory=lambda: dict(IDEAS))   # the board's keeper and runner (IDEAS)
+    projects_open: list = field(default_factory=list)     # the open projects' folders, in the switcher's order
+    projects_recent: list = field(default_factory=list)   # the projects last shown, newest first
 
     def to_dict(self) -> dict:
         return {
@@ -151,6 +166,8 @@ class MachineSettings:
             "tier_models": {t: dict(m) for t, m in self.tier_models.items()},
             "focus": self.focus,
             "ideas": dict(self.ideas),
+            "projects_open": list(self.projects_open),
+            "projects_recent": list(self.projects_recent),
         }
 
     @classmethod
@@ -190,6 +207,8 @@ class MachineSettings:
         s.tier_models = clean_tier_models(data.get("tier_models"))
         s.focus = data["focus"] if data.get("focus") in FOCUSES else "board"
         s.ideas = clean_ideas(data.get("ideas"))
+        s.projects_open = clean_folders(data.get("projects_open"), PROJECTS_OPEN)
+        s.projects_recent = clean_folders(data.get("projects_recent"), PROJECTS_RECENT)
         install_id = usage.get("id")
         if s.usage:                   # a broken id is drawn again: the stats never carry what was in the file
             ok = isinstance(install_id, str) and re.fullmatch(r"[0-9a-f]{32}", install_id)
@@ -241,6 +260,86 @@ def clean_ideas(raw: object) -> dict:
             and ".." not in wiki.split("/"):
         out["wiki"] = wiki
     return out
+
+
+def clean_folders(raw: object, most: int) -> list[str]:
+    """Absolute folders as stored, each once, at most `most`; anything else dropped."""
+    out: list[str] = []
+    for x in raw if isinstance(raw, list) else []:
+        if isinstance(x, str) and x.strip() and len(x) <= 1000 and "\0" not in x and Path(x).is_absolute() \
+                and x not in out:
+            out.append(x)
+    return out[:most]
+
+
+# -- a project's Board settings (spec 37 §8) ---------------------------------------------------------------------
+
+_BOARD_CACHE: dict = {}
+
+
+def _read_cached(file: Path, parse) -> object:
+    """`parse(text)` of a file, read again only when it changed (the runner asks for a setting often); None when
+    there is no file or it is broken."""
+    try:
+        st = file.stat()
+    except OSError:
+        return None
+    stamp = (st.st_mtime_ns, st.st_size)
+    got = _BOARD_CACHE.get(str(file))
+    if got is None or got[0] != stamp:
+        try:
+            value = parse(file.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeDecodeError):
+            value = None
+        got = (stamp, value)
+        _BOARD_CACHE[str(file)] = got
+    return got[1]
+
+
+def risk_paths_of(repo_root: Path) -> list[str] | None:
+    """The repository's own risky paths, `orkcraft.toml` `[board] risk_paths` (tracked: a fact of the repository);
+    None when it names none."""
+    import tomllib
+    table = _read_cached(Path(repo_root) / "orkcraft.toml", tomllib.loads)
+    board = table.get("board") if isinstance(table, dict) else None
+    paths = board.get("risk_paths") if isinstance(board, dict) else None
+    if not isinstance(paths, list):
+        return None
+    return clean_ideas({"risk_paths": paths})["risk_paths"]
+
+
+def board_of(repo_root: Path, defaults: dict | None) -> dict:
+    """A project's Board settings: the machine's `ideas` (`defaults`), the project's `board.json` over them (only
+    the keys of BOARD), `risk_paths` from its `orkcraft.toml` when it names some; every key of IDEAS."""
+    own = _read_cached(Path(repo_root) / BOARD_FILE, json.loads)
+    merged = dict(defaults or IDEAS)
+    if isinstance(own, dict):
+        merged.update({k: own[k] for k in BOARD if k in own})
+    out = clean_ideas(merged)
+    paths = risk_paths_of(repo_root)
+    if paths is not None:
+        out["risk_paths"] = paths
+    return out
+
+
+def save_board(repo_root: Path, values: dict) -> dict:
+    """The project's Board settings, written to `<repo>/.orkcraft/board.json` (git-ignored there): the keys of BOARD
+    as `clean_ideas` keeps them. What was written."""
+    cleaned = clean_ideas(values)
+    data = {k: cleaned[k] for k in BOARD if k in cleaned}
+    if "wiki" not in cleaned:
+        data["wiki"] = ""                   # no Wiki of its own: the machine's is not taken either
+    file = Path(repo_root) / BOARD_FILE
+    _write(file, data)
+    _BOARD_CACHE.pop(str(file), None)
+    ignore = file.parent / ".gitignore"
+    try:
+        have = ignore.read_text(encoding="utf-8").splitlines() if ignore.exists() else []
+        if file.name not in have:
+            ignore.write_text("\n".join([*have, file.name]) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+    return data
 
 
 def awake_mode(raw: object) -> str:
