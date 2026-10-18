@@ -22,8 +22,8 @@ choice inside its files. Wording: CLAUDE.md. **Change nothing outside these file
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
 | **A. The boundary** | `spec/37-boundary` | §1, §2 | new `orkcraft/layers.py`, `tests/test_architecture.py` (new tests only), `CLAUDE.md` ("Where code goes": one bullet, §2) |
-| **C. The gate on any repository** | `spec/37-gate` | §5 | new `realm/gate_config.py`, `realm/idea_git.py`, `core/idea_runner.py` and `core/idea_review.py` (*no tests ran* never lands by itself), `realm/forge.py` and `realm/jobs.py` (`test_argv` imported from `gate_config`, one line each), new `orkcraft.toml` (this repository's), `gui/ideas_goals.py` (`ideas.doc` reads no secret), `orkcraft/layers.py` (`KNOWN` loses `jobs → forge`; `hooks.warder`, `gui.markdown` join `BOARD`) |
-| **B. Orkboard on its own** | `spec/37-alone` | §3, §4 | new `realm/tool_run.py`, `realm/jobs.py`, `realm/road_agents.py`, `realm/roads.py`, `realm/harnesses.py`, `realm/tiers.py`, `realm/looks.py`, `realm/builders.py`, `realm/worktrees.py` and a new line module for its town part, `settings.py` (`ideas.wiki`, `MachineSettings` read cached), new `core/board_limits.py`, `core/treasury.py`, `gui/ideas.py`, `gui/ideas_limits.py`, new `gui/board_host.py`, `gui/host.py`, `gui/state.py`, `gui/onboarding.py`, `gui/static/js/onboarding.js`, `gui/launch.py`, `gui/server.py`, `gui/pwa.py`, `gui/phone_http.py`, `gui/mobile.py`, `gui/phones.py`, `cli.py`, `pyproject.toml` (`[project.scripts]`), new `gui/static/board.js`, `gui/static/index.html` only if the entry needs it, new `gui/static/pwa/board-app.js`, `gui/static/pwa/index.html`, `pwa/sw.js`, `orkcraft/layers.py` (`SPLIT` and `KNOWN` emptied), new `<name>_town.py` modules beside the split ones (§4) |
+| **C. The gate on any repository** | `spec/37-gate` | §5 | new `realm/gate_config.py`, `realm/idea_git.py`, `core/idea_runner.py` and `core/idea_review.py` (*no tests ran* never lands by itself), `realm/forge.py` and `realm/jobs.py` (`test_argv` imported from `gate_config`, one line each), new `orkcraft.toml` (this repository's), `gui/ideas_goals.py` (`ideas.doc` reads no secret), `orkcraft/layers.py` (`hooks.warder`, `gui.markdown` join `BOARD`), `tests/test_architecture.py` (only `KNOWN` loses `jobs → forge`), `gui/static/js/shell/review.js` and `gui/static/pwa/shell-review.js` (the tests' line only), `pwa/sw.js` (cache version) with `tests/test_pwa.py`'s pinned version |
+| **B. Orkboard on its own** | `spec/37-alone` | §3, §4 | new `realm/tool_run.py`, `realm/jobs.py`, `realm/road_agents.py`, `realm/roads.py`, `realm/harnesses.py`, `realm/tiers.py`, `realm/looks.py`, `realm/builders.py`, `realm/worktrees.py` and a new line module for its town part, `settings.py` (`ideas.wiki`, `MachineSettings` read cached), new `core/board_limits.py`, `core/treasury.py`, `gui/ideas.py`, `gui/ideas_limits.py`, new `gui/board_host.py`, `gui/host.py`, `gui/state.py`, `gui/onboarding.py`, `gui/static/js/onboarding.js`, `gui/launch.py`, `gui/server.py`, `gui/pwa.py`, `gui/phone_http.py`, `gui/mobile.py`, `gui/phones.py`, `cli.py`, `pyproject.toml` (`[project.scripts]`), new `gui/static/board.js`, `gui/static/index.html` only if the entry needs it, new `gui/static/pwa/board-app.js`, `gui/static/pwa/index.html`, `pwa/sw.js`, `orkcraft/layers.py` (`SPLIT` emptied), `tests/test_architecture.py` (only `KNOWN` emptied, and §4's new test), new `<name>_town.py` modules beside the split ones (§4) |
 
 ## 0. The words
 - **Orkboard:** the engine and its base modules (goals, ideas and their specs, agents, review; the Wiki under them)
@@ -174,7 +174,9 @@ timeout_min = 20
   ran*; it never lands by itself; its Review card says so (spec 33 §2's words), and **Merge** stays the person's
   press.
 - **What it shows:** a pytest summary line gives the counts as today; any other command: its exit code decides, the
-  counts are `null`, the card says *passed (exit 0)* or *failed (exit 1)* with the output's tail. The run goes
+  counts are `null`, the card says *passed (exit 0)* or *failed (exit 1)* with the output's tail. Today the card's
+  line (`review.js` `testsLine`, `shell-review.js`) adds `passed + failed` and reads `passed === 0` as *no tests ran*:
+  it reads `ran` first (*no tests ran*), then `null` counts (the exit code's words), then the counts as today. The run goes
   through `test_argv` (words, or `sh -c` when it needs a shell), which moves from `realm/forge.py` to
   `realm/gate_config.py`; `forge` and `jobs` import it from there (`KNOWN` loses `jobs → forge`).
 - `plan.json` task `tests` gains `ran` (bool) and `command` (the command as run); old tasks read `ran: true`.
@@ -330,6 +332,8 @@ lost), D2 and D3 on the warrior tier, branched from D1 once it is pushed.
   - `test_argv` from `gate_config`: words, and `sh -c` for `&&`;
   - `ideas.doc` refuses `.env`, `.orkcraft/secrets.json`, `.git/config` and an `id_ed25519`, from the desktop and
     the phone, and still reads a Markdown file and a `.env.example` (the Warder's `ENV_OK`);
+  - browser at 1 440 × 900 and 390 × 844 (a stub host's results): `ran: false` reads *no tests ran*, `null` counts
+    with a green exit *passed (exit 0)*, a red exit *failed (exit 1)* with Fix, pytest counts as today;
   - `test_idea_git.py`, `test_idea_runner.py`, `test_gui_ideas.py`, `test_gui_goals.py`, the critical tests.
 - **B:**
   - `test_orkboard_starts_alone`: in a fresh interpreter, building Orkboard's host and its server on a fixture
