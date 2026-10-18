@@ -7,6 +7,8 @@ thread; the caller passes a `cancel` event and gets (text, cost, tokens) back or
     claude   `claude -p`; read-only in the repository unless `workdir` is given (a worktree)
     agy      `agy --print` in a sandbox limited to `workdir` (a scratch dir when none is given)
     codex    `codex exec` in a read-only sandbox; may write only inside `workdir` when one is given
+
+`run_call` is a call held to the MCP tools it is given, its events read back (an operation's, spec 38 §4).
 """
 from __future__ import annotations
 
@@ -193,6 +195,84 @@ def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
     else:
         telemetry.noted(cost, f"{harness} reader", **what)
     return text, cost, tokens, session
+
+
+CALL_TIMEOUT_S = 600
+
+
+class CallFailed(RuntimeError):
+    """A call that ended with an error: `events` are what it did before (a tool it called still counts)."""
+
+    def __init__(self, why: str, events: list[dict]) -> None:
+        super().__init__(why)
+        self.events = events
+
+
+def call_events(stdout: str) -> tuple[list[dict], dict | None]:
+    """What a call's stream-json says (spec 38 §4): the `init` event's tools, each `tool_use` (name, input) and each
+    `tool_result` (is_error, its text), in order; and its `result` event (None when it gave none)."""
+    out: list[dict] = []
+    result = None
+    for event in harnesses.json_lines(stdout):
+        kind = event.get("type")
+        if kind == "system" and event.get("subtype") == "init":
+            out.append({"type": "init", "tools": [str(t) for t in event.get("tools") or [] if isinstance(t, str)]})
+        elif kind in ("assistant", "user"):
+            msg = event.get("message") if isinstance(event.get("message"), dict) else {}
+            for part in msg.get("content") or [] if isinstance(msg.get("content"), list) else []:
+                if not isinstance(part, dict):
+                    continue
+                if part.get("type") == "tool_use":
+                    out.append({"type": "tool_use", "id": str(part.get("id") or ""), "name": str(part.get("name") or ""),
+                                "input": part.get("input")})
+                elif part.get("type") == "tool_result":
+                    content = part.get("content")
+                    if isinstance(content, list):
+                        content = "\n".join(str(c.get("text") or "") for c in content if isinstance(c, dict))
+                    out.append({"type": "tool_result", "id": str(part.get("tool_use_id") or ""),
+                                "is_error": part.get("is_error") is True, "text": str(content or "")[:2000]})
+        elif kind == "result":
+            result = event
+    return out, result
+
+
+def run_call(harness: str, prompt: str, workdir: Path, cancel: threading.Event, allow: list[str], model: str = "",
+             env: dict | None = None, effort: str = "", budget: float | None = None,
+             timeout_s: int = CALL_TIMEOUT_S) -> tuple[str, float | None, int | None, list[dict]]:
+    """(text, cost, tokens, events) of one call allowed only the MCP tools in `allow` (spec 38 §4): one shot, in
+    `workdir`, no built-in tool, `effort` and `budget` where the tool takes them. `events`: `call_events`. Raises
+    `CallFailed` (with its events) when it ended in an error, InterruptedError when it was stopped."""
+    harness = tool_run.resolve(harness)
+    h = harnesses.get(harness)
+    cmd = h.call(prompt, workdir, allow, model, effort, budget, True) if h is not None else None
+    if cmd is None:
+        raise RuntimeError(f"harness {harness!r} cannot be held to the tools it is given")
+    run_env = {**os.environ, **h.env("read", workdir), **(env or {})}
+    start = time.monotonic()
+    code, out, err = call_log.answer("call", prompt) or tool_run.run_proc(
+        cmd, workdir, run_env, tool_run.harness_stdin(harness, prompt),
+        lambda proc: _wait(proc, cancel, timeout_s, run_env.get("ORKCRAFT_ORC") or harness, True), harness)
+    events, result = call_events(out)
+    LAST.usage = None
+    cost = tokens = None
+    text = ""
+    if result is not None:
+        text = str(result.get("result") or "")
+        cost = float(result["total_cost_usd"]) if isinstance(result.get("total_cost_usd"), (int, float)) else None
+        tokens = harnesses._tokens_of(result.get("usage"))
+        usage = result.get("usage") if isinstance(result.get("usage"), dict) else None
+        if usage is not None:
+            n = lambda k: usage.get(k) if isinstance(usage.get(k), int) and not isinstance(usage.get(k), bool) else 0  # noqa: E731
+            LAST.usage = {"in": n("input_tokens") + n("cache_creation_input_tokens"), "out": n("output_tokens"),
+                          "cache_read": n("cache_read_input_tokens")}
+    call_log.record(env, "call", harness, model, prompt, out, err, code, time.monotonic() - start, cost, tokens,
+                    workdir=workdir)
+    what = dict(tokens=tokens, building=telemetry.building_of(run_env), model=model)
+    telemetry.charge(cost, f"{harness} call", **what)
+    if code != 0 or (result is not None and result.get("is_error") is True):
+        why = str(tool_run.failure(harness, code, out, err)) if code != 0 else (text or "the call ended in an error")
+        raise CallFailed(why, events)
+    return text, cost, tokens, events
 
 
 class Log:

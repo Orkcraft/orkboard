@@ -145,6 +145,13 @@ TERMS: tuple[Term, ...] = (
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)
     _t("proposal", "proposal", "proposals"),                       # an idea the keeper proposes at night, for the morning (spec 35 §8)
     _t("scribble", "note", "notes", "scribble", "scribbles"),       # an idea or a note on the board
+    # Operations (docs/specs/38-operations.md §0): the person's everyday work by templates, across projects
+    _t("operations", "Operations"),                                # the person's list, one for all projects; not a goal
+    _t("operation", "operation", "operations"),                    # one piece of it, from one template
+    _t("op_template", "template", "templates"),                    # a Claude skill with Orkboard's manifest beside it
+    _t("op_check", "check", "checks"),                             # the person's look before its action
+    _t("op_alone", "by itself"),                                   # a template whose operations need no check
+    _t("op_rules", "rules"),                                       # what a template learned from the corrections
     _t("card_context", "context"),                                 # a card's wiki pages, 📜 (realm/cardlore.py)
     _t("todo_plan", "plan", "plans"),                              # a to-do's steps from a light model, 🧭
     _t("personal_card", "personal"),                               # a card that never reaches a model, 🔒
