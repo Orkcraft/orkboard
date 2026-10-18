@@ -274,6 +274,27 @@ class StubHost:
         ws.on_message(on_message)
 
 
+def _sent(pg, host, entry, ms=WAIT_MS) -> bool:
+    """The stub got `entry`. A command goes over the page's socket to the stub, whose handler runs only while Playwright
+    is called (the sync API): the page is given a moment, up to `ms`, until it has (on a busy machine one call was not
+    enough)."""
+    for _ in range(ms // 50):
+        if entry in host.log:
+            return True
+        pg.wait_for_timeout(50)
+    return entry in host.log
+
+
+def _calls(pg, host, name, at_least=1, ms=WAIT_MS) -> list[dict]:
+    """The arguments of every `name` the stub got, once it got at least `at_least` of them (as `_sent`)."""
+    for _ in range(ms // 50):
+        got = [a for n, a in host.log if n == name]
+        if len(got) >= at_least:
+            return got
+        pg.wait_for_timeout(50)
+    return [a for n, a in host.log if n == name]
+
+
 def _open(gui, viewport=None, host=None, ready=".shell-card"):
     server, browser = gui
     host = host or StubHost()
@@ -332,15 +353,13 @@ def test_the_top_bar_limits_spend_stop_all_and_the_push_switch(shell):
     assert pop.is_visible() and "week" in pop.inner_text() and "resets at 18:00" in pop.inner_text()
     assert "$2.40" in top.inner_text()
     top.get_by_role("button", name="Stop all").click()
-    pg.wait_for_function("() => true")
-    assert ("halt", {}) in host.log
+    assert _sent(pg, host, ("halt", {}))
     top.get_by_role("button", name="Settings").click()
     assert pg.get_by_role("dialog", name="Settings").is_visible()
     label = pg.get_by_text("Push after merging (sends your code to origin)")
     assert label.is_visible() and not pg.get_by_role("checkbox", name="Push after merging").is_checked()
     pg.get_by_text("Push after merging (sends your code to origin)").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.into", {"push": True}) in host.log
+    assert _sent(pg, host, ("ideas.into", {"push": True}))
     links = pg.locator(".shell-modal a[download]")                              # the day's logs, today and the last 7 days
     assert links.all_inner_texts() == ["Today", "The last 7 days"]
     assert "/api/analytics?days=1" in links.nth(0).get_attribute("href") and "days=7" in links.nth(1).get_attribute("href")
@@ -368,7 +387,7 @@ def test_agents_resize_hide_and_remember(shell, gui):
 def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(shell):
     pg, host = shell
     pg.locator(".board-card", has_text="Sync ideas").click()                      # an idea → its spec: the nine sections
-    assert ("ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "desktop"}) in host.log
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "desktop"}))
     pg.locator(".shell-preview .board-sec").first.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-preview .board-sec").count() == len(SECTIONS)
     assert "Spec" in pg.locator(".shell-preview > header").inner_text()
@@ -379,26 +398,25 @@ def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(s
     target.wait_for(timeout=WAIT_MS)
     assert "tasks k2 and k3 wait for it" in target.inner_text()
     assert pg.locator(".shell-preview > header").inner_text().startswith("Plan")
-    assert ("ideas.log", {"event": "opened", "what": "todo", "ref": "sync/t1", "device": "desktop"}) in host.log
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "todo", "ref": "sync/t1", "device": "desktop"}))
 
     pg.locator(".shell-chip", has_text="Retry on a lost signal").click()          # a chip → the task: brief, log, Stop
     pg.locator(".shell-task").wait_for(timeout=WAIT_MS)
     text = pg.locator(".shell-task").inner_text()
     assert "Brief of Retry on a lost signal" in text and "reading sync.py" in text and "idea/sync/k3" in text and "working" in text
-    assert ("ideas.log", {"event": "opened", "what": "task", "ref": "sync/k3", "device": "desktop"}) in host.log
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "task", "ref": "sync/k3", "device": "desktop"}))
     pg.get_by_role("button", name="Stop", exact=True).click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.stop_task", {"slug": "sync", "task": "k3"}) in host.log
+    assert _sent(pg, host, ("ideas.stop_task", {"slug": "sync", "task": "k3"}))
 
     pg.locator(".shell-card", has_text="Add the queue").click()                   # a result → its code
     pg.locator(".shell-result .shell-commits").wait_for(timeout=WAIT_MS)
     assert "k2: add the queue" in pg.locator(".shell-commits").inner_text()
-    assert ("ideas.log", {"event": "opened", "what": "result", "ref": "sync/k2", "device": "desktop"}) in host.log
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "result", "ref": "sync/k2", "device": "desktop"}))
     pg.locator(".shell-file", has_text="sync.py").locator("summary").click()
     pg.locator(".shell-patch__line.is-add").first.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-patch__line.is-add").count() == 2 and pg.locator(".shell-patch__line.is-del").count() == 1
     pg.locator(".shell-file", has_text="huge.json").locator("summary").click()
-    pg.get_by_text("Too large to show.").wait_for(timeout=WAIT_MS)
+    pg.get_by_text("Too large to show.", exact=True).wait_for(timeout=WAIT_MS)    # not "Some files are too large…"
     colors = pg.evaluate("""() => { const cs = (q) => getComputedStyle(document.querySelector(q)).color;
       return [cs('.shell-patch__line.is-add'), cs('.shell-patch__line.is-del'), getComputedStyle(document.documentElement).getPropertyValue('--success').trim()]; }""")
     assert colors[0] != colors[1]
@@ -428,14 +446,12 @@ def test_merge_is_off_on_red_with_its_reason_and_send_back_needs_a_line(shell):
     assert red.locator(".shell-actions__line .ok-btn.primary").is_disabled()      # the line is required
     line.fill("Rebase and keep both queues")
     red.locator(".shell-actions__line .ok-btn.primary").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.back", {"slug": "sync", "task": "k4", "why": "Rebase and keep both queues"}) in host.log
+    assert _sent(pg, host, ("ideas.back", {"slug": "sync", "task": "k4", "why": "Rebase and keep both queues"}))
 
     green.get_by_role("button", name="Send back").click()
     assert green.locator(".shell-actions__line .ok-btn.primary").is_disabled()
     green.get_by_role("button", name="Merge into dev").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.merge", {"slug": "sync", "task": "k2"}) in host.log
+    assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k2"}))
     pg.locator(".shell-card").first.wait_for(state="detached", timeout=WAIT_MS) if pg.locator(".shell-card").count() else None
     assert pg.locator(".shell-card", has_text="Add the queue").count() == 0
 
@@ -453,8 +469,7 @@ def test_drop_asks_first_and_merge_into_changes_the_branch(shell):
     pg.get_by_role("menuitem", name="New branch…").click()
     pg.get_by_label("Name of the new branch").fill("next")
     pg.get_by_role("button", name="Make it").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.into", {"branch": "next"}) in host.log
+    assert _sent(pg, host, ("ideas.into", {"branch": "next"}))
     pg.get_by_role("button", name="Merge into next ▾").wait_for(timeout=WAIT_MS)
 
 
@@ -482,7 +497,7 @@ def test_the_board_drops_an_idea_and_lists_it_with_its_state_in_words(shell):
     pg.get_by_label("Your idea").fill("Offline sync")
     pg.get_by_role("button", name="Add", exact=True).click()
     pg.locator(".board-card", has_text="Offline sync").wait_for(timeout=WAIT_MS)
-    assert ("ideas.add", {"text": "Offline sync", "track": "grow", "priority": "high"}) in host.log      # the first goal by priority
+    assert _sent(pg, host, ("ideas.add", {"text": "Offline sync", "track": "grow", "priority": "high"}))      # the first goal by priority
 
 
 def test_below_1024_the_phones_layout_three_tabs_and_the_preview_on_its_own_screen(gui):
@@ -492,8 +507,7 @@ def test_below_1024_the_phones_layout_three_tabs_and_the_preview_on_its_own_scre
         assert tabs.get_by_role("tab", name="Review").inner_text().replace("\n", "") == "Review2"
         assert pg.locator(".shell-review").is_hidden() and pg.locator(".shell-board").is_visible()
         tabs.get_by_role("tab", name="Review").click()
-        pg.wait_for_function("() => true")
-        assert ("ideas.log", {"event": "opened", "what": "tab", "ref": "review", "device": "desktop"}) in host.log
+        assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "tab", "ref": "review", "device": "desktop"}))
         pg.locator(".shell-card", has_text="Add the queue").click()
         pg.locator(".shell-preview.is-open").wait_for(timeout=WAIT_MS)
         box_ = box(pg, ".shell-preview")
@@ -518,7 +532,7 @@ def test_the_first_start_shows_the_first_screen_then_opens_the_shell(gui):
             assert gone not in pg.locator(".gui-onb").inner_text()
         pg.get_by_role("button", name="Open the board", exact=True).click()
         pg.locator(".shell-card").first.wait_for(timeout=WAIT_MS)
-        assert ("onboarding.skip", {}) in host.log and ("onboarding.close", {}) in host.log
+        assert _sent(pg, host, ("onboarding.skip", {})) and _sent(pg, host, ("onboarding.close", {}))
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
@@ -545,7 +559,7 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
         pg.screenshot(path=str(SHOTS / "desktop-new-goal-1440x900.png"))
     dlg.get_by_role("button", name="Save goal").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert next(a for n, a in host.log if n == "ideas.goal_save") == {"about": "More people try Orkline.", "priority": "high"}
+    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "priority": "high"}
     pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)                                             # the goal opens in the preview
     assert "drafting" in pg.locator(".board-state", has_text="reading").first.inner_text() or "reading" in pg.locator(".shell-goal").inner_text()
     assert "reading" in pg.locator(".board-goals__select option:checked").inner_text()
@@ -559,20 +573,19 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
     assert "Grow installs · High · asks you" in pg.locator(".board-goals__select option:checked").inner_text()
     pg.get_by_label("Answer 1: Which channel first?").fill("npm first")                              # §0: one round, one Send
     pg.locator(".shell-goal").get_by_role("button", name="Send").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.answer", {"slug": "more-people", "answers": ["npm first"], "goal": True}) in host.log
+    assert _sent(pg, host, ("ideas.answer", {"slug": "more-people", "answers": ["npm first"], "goal": True}))
     pg.get_by_role("button", name="Edit goal Grow installs").click()                                # Edit: description, priority and Title
     dlg = pg.get_by_role("dialog", name="Edit goal")
     assert dlg.get_by_label("Title").input_value() == "Grow installs" and dlg.get_by_label("Description").input_value() == "More people try Orkline."
     dlg.get_by_label("Description").fill("More people try Orkline, and stay.")
     dlg.get_by_role("button", name="Save goal").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert [a for n, a in host.log if n == "ideas.goal_save"][-1] == {"slug": "more-people", "about": "More people try Orkline, and stay.", "priority": "high"}
+    assert _calls(pg, host, "ideas.goal_save", 2)[-1] == {"slug": "more-people", "about": "More people try Orkline, and stay.", "priority": "high"}
     pg.get_by_role("button", name="Edit goal Grow installs").click()                                # a corrected title is sent, and only then
     pg.get_by_role("dialog", name="Edit goal").get_by_label("Title").fill("Grow weekly installs")
     pg.get_by_role("dialog", name="Edit goal").get_by_role("button", name="Save goal").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert [a for n, a in host.log if n == "ideas.goal_save"][-1]["title"] == "Grow weekly installs"
+    assert _calls(pg, host, "ideas.goal_save", 3)[-1]["title"] == "Grow weekly installs"
 
 
 def test_new_idea_needs_a_goal_a_priority_and_one_button_and_a_closed_dialog_goes_to_the_night(shell):
@@ -637,7 +650,7 @@ def test_the_goal_select_filters_needs_you_and_the_ideas_and_shows_the_summary_o
     assert pg.locator(".board-card", has_text="Dark mode").count() == 1 and pg.locator(".board-proposal").count() == 0
     pg.get_by_role("button", name="Open goal Ship sync").click()
     pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)
-    assert ("ideas.goal", {"slug": "ship-sync"}) in host.log
+    assert _sent(pg, host, ("ideas.goal", {"slug": "ship-sync"}))
     pg.get_by_role("button", name="Edit goal Ship sync").click()
     assert pg.get_by_role("dialog", name="Edit goal").is_visible()
     pg.keyboard.press("Escape")
@@ -655,7 +668,7 @@ def test_the_target_chip_shows_and_sets_the_boards_one_target(shell):
     assert menu.get_by_role("menuitemradio", name="Balance").get_attribute("aria-checked") == "true"
     menu.get_by_role("menuitemradio", name="Thrift").click()
     pg.get_by_role("button", name="Target: Thrift").wait_for(timeout=WAIT_MS)
-    assert ("ideas.board_set", {"target": "thrift"}) in host.log and pg.get_by_role("menu").count() == 0
+    assert _sent(pg, host, ("ideas.board_set", {"target": "thrift"})) and pg.get_by_role("menu").count() == 0
     if os.environ.get("ORKCRAFT_SHOTS"):
         pg.get_by_role("button", name="Target: Thrift").click()
         pg.screenshot(path=str(SHOTS / "desktop-board-target-1440x900.png"))
@@ -673,28 +686,26 @@ def test_a_high_idea_shows_a_spinner_and_stop_leaves_it_stopped_a_low_one_waits_
     row.get_by_role("button", name="Stop: Fast one").click()
     pg.wait_for_function("() => document.querySelector('.board-card-row .board-state')?.innerText.includes('stopped') || true")
     row.get_by_text("stopped").wait_for(timeout=WAIT_MS)
-    assert ("ideas.read_stop", {"slug": "fast-one"}) in host.log and row.locator(".shell-spin").count() == 0
+    assert _sent(pg, host, ("ideas.read_stop", {"slug": "fast-one"})) and row.locator(".shell-spin").count() == 0
     assert row.get_by_role("button", name="Process now: Fast one").is_visible() and row.get_by_role("button", name="Tonight: Fast one").is_visible()
     row.get_by_role("button", name="Tonight: Fast one").click()                                    # Tonight puts a stopped one back
     row.get_by_text("tonight").wait_for(timeout=WAIT_MS)
-    assert ("ideas.queue", {"slug": "fast-one", "queue": "night"}) in host.log
+    assert _sent(pg, host, ("ideas.queue", {"slug": "fast-one", "queue": "night"}))
     low = pg.locator(".board-card-row", has_text="Offline mode")                                    # a Low one: tonight, Process now and Delete
     assert "tonight" in low.inner_text()
     assert [b.inner_text() for b in low.locator(".board-card__acts .ok-btn").all()] == ["Process now", "Delete"]
     low.get_by_role("button", name="Process now: Offline mode").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.queue", {"slug": "offline", "queue": "now"}) in host.log
+    assert _sent(pg, host, ("ideas.queue", {"slug": "offline", "queue": "now"}))
     row.get_by_role("button", name="Delete: Fast one").click()                                      # Delete asks first
     row.get_by_role("button", name="Keep it").click()
     assert ("ideas.drop", {"slug": "fast-one"}) not in host.log
     row.get_by_role("button", name="Delete: Fast one").click()
     row.get_by_role("button", name="Delete it: Fast one").click()
     row.wait_for(state="detached", timeout=WAIT_MS)
-    assert ("ideas.drop", {"slug": "fast-one"}) in host.log
+    assert _sent(pg, host, ("ideas.drop", {"slug": "fast-one"}))
     start = pg.locator(".board-card-row", has_text="Dark mode")                                     # a plan that starts at night: Start now
     start.get_by_role("button", name="Start now: Dark mode").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.start_now", {"slug": "dark"}) in host.log
+    assert _sent(pg, host, ("ideas.start_now", {"slug": "dark"}))
     if os.environ.get("ORKCRAFT_SHOTS"):
         pg.screenshot(path=str(SHOTS / "desktop-board-rows-1440x900.png"))
 
@@ -715,19 +726,19 @@ def test_needs_you_is_one_list_the_questions_one_form_and_a_proposal_is_answered
         pg.screenshot(path=str(SHOTS / "desktop-questions-1440x900.png"))
     dlg.get_by_role("button", name="Send").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert ("ideas.answer", {"slug": "search", "answers": ["title and text", "yes"]}) in host.log
+    assert _sent(pg, host, ("ideas.answer", {"slug": "search", "answers": ["title and text", "yes"]}))
     pg.wait_for_function("() => document.querySelectorAll('.board-need[data-kind=asks]').length === 0", timeout=WAIT_MS)
     pg.locator(".board-need[data-kind=goal]").click()                                              # a goal that asks
     pg.get_by_role("dialog", name="Questions: Grow installs").get_by_label("Answer 1: Which channel first?").fill("npm")
     pg.get_by_role("dialog").get_by_role("button", name="Send").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert ("ideas.answer", {"slug": "grow", "answers": ["npm"], "goal": True}) in host.log
+    assert _sent(pg, host, ("ideas.answer", {"slug": "grow", "answers": ["npm"], "goal": True}))
     prop = pg.locator(".board-proposal")                                                           # a proposal: Take with a priority, or No with a reason
     assert prop.get_by_label("Priority of Tag the notes").input_value() == "high"                    # the goal's
     prop.get_by_label("Priority of Tag the notes").select_option("low")
     prop.get_by_role("button", name="Take: Tag the notes").click()
     pg.wait_for_function("() => document.querySelectorAll('.board-proposal').length === 0", timeout=WAIT_MS)
-    assert ("ideas.proposal", {"slug": "tags", "take": True, "priority": "low"}) in host.log
+    assert _sent(pg, host, ("ideas.proposal", {"slug": "tags", "take": True, "priority": "low"}))
 
 
 def test_a_proposal_declined_with_a_reason_or_without(shell):
@@ -737,7 +748,7 @@ def test_a_proposal_declined_with_a_reason_or_without(shell):
     prop.get_by_label("Why not: Tag the notes").fill("not now")
     prop.get_by_role("button", name="Decline: Tag the notes").click()
     pg.wait_for_function("() => document.querySelectorAll('.board-proposal').length === 0", timeout=WAIT_MS)
-    assert ("ideas.proposal", {"slug": "tags", "take": False, "reason": "not now"}) in host.log
+    assert _sent(pg, host, ("ideas.proposal", {"slug": "tags", "take": False, "reason": "not now"}))
 
 
 def test_the_spec_shows_its_sections_and_stages_with_each_tasks_live_state(shell):
@@ -767,8 +778,7 @@ def test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its
     assert "The sync service needs it" in dlg.inner_text() and dlg.locator("ol li").all_inner_texts() == ["Open the console", "Copy the key"]
     dlg.get_by_label("Value of API_KEY").fill("sk-1")
     dlg.get_by_role("button", name="Keep it").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.todo", {"idea": "sync", "id": "t1", "done": True, "value": "sk-1"}) in host.log
+    assert _sent(pg, host, ("ideas.todo", {"idea": "sync", "id": "t1", "done": True, "value": "sk-1"}))
     host.needs = None
     todo = {"id": "t2", "title": "The Firebase config, google-services.json", "kind": "file", "why": "The app signs in with it",
             "steps": ["Open the Firebase console", "Download google-services.json"], "accept": ["json"], "choices": [], "done": False}
@@ -789,7 +799,7 @@ def test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its
         pg.screenshot(path=str(SHOTS / "desktop-file-todo-1440x900.png"))
     dlg.get_by_role("button", name="Send the file").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    sent = [a for n, a in host.log if n == "ideas.todo"][-1]
+    sent = _calls(pg, host, "ideas.todo", 2)[-1]                                                     # the secret's, then the file's
     import base64
     assert sent["id"] == "t2" and sent["done"] is True and sent["file"]["name"] == "google-services.json"
     assert base64.b64decode(sent["file"]["data"]) == b'{"project": "x"}' and "value" not in sent
@@ -808,12 +818,10 @@ def test_the_gear_holds_start_plans_by_themselves_and_the_night(shell):
     box_ = dlg.get_by_role("checkbox", name="Start plans by themselves")
     assert box_.is_checked() and dlg.get_by_label("Night from").input_value() == "01:00" and dlg.get_by_label("Night to").input_value() == "07:00"
     dlg.get_by_text("Start plans by themselves").click()
-    pg.wait_for_function("() => true")
-    assert ("ideas.board_set", {"autostart": False}) in host.log
+    assert _sent(pg, host, ("ideas.board_set", {"autostart": False}))
     dlg.get_by_label("Night from").fill("23:30")
     dlg.get_by_label("Night from").blur()
-    pg.wait_for_function("() => true")
-    assert ("ideas.board_set", {"night": "23:30-07:00"}) in host.log
+    assert _sent(pg, host, ("ideas.board_set", {"night": "23:30-07:00"}))
 
 
 def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(shell):
@@ -851,12 +859,12 @@ def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
     dlg.get_by_label("Instruction").fill("Write plainly.")
     dlg.get_by_role("button", name="Save agent").click()
     pg.locator(".shell-role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
-    assert ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": []}) in host.log
+    assert _sent(pg, host, ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": []}))
     pg.get_by_role("button", name="Edit Docs scribe").click()                                       # a type given in its dialog (Takes)
     pg.get_by_role("dialog", name="Edit agent").get_by_label("Docs").check()
     pg.get_by_role("button", name="Save agent").click()
     pg.get_by_role("dialog").wait_for(state="detached", timeout=WAIT_MS)
-    assert ("ideas.role_save", {"slug": "docs-scribe", "name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": ["docs"]}) in host.log
+    assert _sent(pg, host, ("ideas.role_save", {"slug": "docs-scribe", "name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": ["docs"]}))
     pg.get_by_role("button", name="Edit Docs scribe").click()                                        # Edit, then Delete says what moves back
     dlg = pg.get_by_role("dialog", name="Edit agent")
     assert dlg.get_by_label("Instruction").input_value() == "Write plainly."
@@ -913,13 +921,13 @@ def test_pair_a_phone_from_the_gear_shows_the_qr_the_time_left_how_it_reaches_an
     pg.get_by_role("button", name="Pair a phone").click()
     dlg = pg.get_by_role("dialog", name="Pair a phone")
     dlg.locator("img.gui-phones__qr").wait_for(timeout=WAIT_MS)
-    assert dlg.locator("img.gui-phones__qr").is_visible() and ("phones.pair", {}) in host.log
+    assert dlg.locator("img.gui-phones__qr").is_visible() and _sent(pg, host, ("phones.pair", {}))
     text = dlg.inner_text()
     assert "good for" in text and "On this Wi-Fi" in text and "Anywhere on your tailnet: studio.tail1234.ts.net" in text
     assert "Pixel 8" in text                                                                          # the paired phones, with Forget
     dlg.get_by_role("button", name="Forget").click()
     dlg.get_by_text("No phone is paired yet.").wait_for(timeout=WAIT_MS)
-    assert ("phones.forget", {"id": "p1"}) in host.log
+    assert _sent(pg, host, ("phones.forget", {"id": "p1"}))
     if os.environ.get("ORKCRAFT_SHOTS"):
         pg.screenshot(path=str(SHOTS / "desktop-pair-1440x900.png"))
     pg.keyboard.press("Escape")
@@ -927,5 +935,5 @@ def test_pair_a_phone_from_the_gear_shows_the_qr_the_time_left_how_it_reaches_an
         if ("phones.pair_stop", {}) in host.log:
             break
         pg.wait_for_timeout(100)
-    assert ("phones.pair_stop", {}) in host.log                                                       # closing voids a code not used
+    assert _sent(pg, host, ("phones.pair_stop", {}))                                                       # closing voids a code not used
     assert pg.get_by_role("button", name="Settings").evaluate("e => e === document.activeElement")    # the focus is back on the gear

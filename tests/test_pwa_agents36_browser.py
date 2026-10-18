@@ -41,6 +41,8 @@ async def test_agents_is_a_monitor_a_role_says_its_week_after_three_merged_and_t
         assert await facts.locator(".priced").first.get_attribute("title") == "At API prices, not your bill"
         assert "Takes: code, tests, docs, text for people, research" in await agents.locator(".role[data-role='grunt']").inner_text()
         # needs you first, then working, then the rest; spec 35's held words stay
+        await expect(agents.locator(".role[data-role='grunt'] .chip[data-state] .chip-state").first).to_contain_text(
+            "needs you", timeout=WAIT_MS)                                                               # the bump drawn
         states = await agents.locator(".role[data-role='grunt'] .chip[data-state]").evaluate_all("els => els.map((e) => e.querySelector('.chip-state').textContent)")
         assert states[0].startswith("needs you") and states[1].startswith("working")
         assert [s.split(" ")[0] for s in states] == ["needs", "working", "waits"]
