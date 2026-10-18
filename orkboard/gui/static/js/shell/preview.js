@@ -13,7 +13,7 @@ const TASK_STATE = { waiting: "waiting", ready: "queued", running: "working", te
   failed: "needs you", held: "held" };
 
 function Empty() {
-  const need = board.value?.today.needs_you[0];
+  const need = board.value?.needs_you?.[0];
   return html`<div class="shell-empty"><p>Open an idea, a task or a result.</p>
     ${need && html`<p class="ok-tone-muted">First on your list: <button class="board-link" onClick=${() => (need.goal ? showGoal(need.goal) : showIdea(need.idea))}>${need.title}</button> — ${need.text}</p>`}</div>`;
 }

@@ -184,3 +184,36 @@
 [data-look="camp"] .board .ok-btn.danger { color: var(--kit-ink); }
 [data-look="camp"] .board .ok-btn.danger::before { content: ""; width: 8px; height: 8px; flex: none; background: var(--signal-fire);
   box-shadow: 0 0 0 2px var(--art-outline); }
+
+/* -- Spec 35: the goal select and the Target, Needs you as one list, the ideas' rows, the questions form, Stages -------- */
+.board-goals { position: relative; display: flex; flex-direction: column; gap: var(--space-2); }
+.board-goals__bar { flex-wrap: wrap; }
+.board-goals__select { flex: 1 1 100%; min-width: 0; }
+.board-goals__line { margin: 0; color: var(--ink-muted); }
+.board-goals__one { display: flex; flex-direction: column; gap: var(--space-1); }
+.board-target__menu { position: absolute; z-index: 5; top: 100%; left: 0; right: 0; display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-2); background: var(--panel); border: 1px solid var(--frame); }
+.board-target__one { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: var(--space-1) var(--space-2);
+  background: none; border: 1px solid transparent; color: var(--ink); font: inherit; cursor: pointer; }
+.board-target__one:hover, .board-target__one[aria-checked="true"] { border-color: var(--frame-focus); }
+.board-inline { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+.board-need { flex-direction: row; align-items: flex-start; gap: var(--space-2); }
+.board-need__icon { flex: none; width: 1.4em; text-align: center; font-weight: 700; }
+.board-need[data-kind="asks"] .board-need__icon, .board-need[data-kind="goal"] .board-need__icon { color: var(--alert); }
+.board-need[data-kind="failed"] .board-need__icon { color: var(--danger); }
+.board-need__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.board-need__kind { font-size: .8em; }
+.board-proposal { box-sizing: border-box; width: 100%; min-width: 0; overflow-wrap: anywhere; display: flex; gap: var(--space-2); list-style: none; padding: var(--space-2) var(--space-3); border: 1px solid var(--frame); background: var(--panel); }
+
+.board-card-row { display: flex; flex-direction: column; gap: var(--space-1); }
+.board-card__acts { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.board-card__acts:empty { display: none; }
+.board-ideas__new { margin-left: auto; }
+.board-sub .board-ideas__new + .board-count, .board-sub .board-count + .board-ideas__new { margin-left: var(--space-2); }
+.board-done > summary { cursor: pointer; color: var(--ink-muted); padding: var(--space-1) 0; }
+.board-questions { display: flex; flex-direction: column; gap: var(--space-2); }
+.board-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.board-stages__wave { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+.board-stages__task { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); align-items: baseline; }
+.board-stages__state { min-width: 0; text-transform: none; }

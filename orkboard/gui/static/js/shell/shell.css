@@ -186,3 +186,5 @@
 .shell-kinds { flex: 1 1 100%; }
 .shell-kinds { align-items: stretch; }
 .shell-kinds__list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.shell-chip__tag { white-space: nowrap; font-size: .8em; color: var(--ink-muted); border: 1px solid var(--frame); padding: 0 4px; }
+.shell-chip.is-held .shell-chip__state { text-transform: none; }
