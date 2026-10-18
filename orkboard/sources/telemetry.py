@@ -20,8 +20,9 @@ snapshot adds them to the same 🪙, so every limit and gate sees the whole spen
 
     telemetry.charge(0.004, "claude -p haiku", purpose="build")    # from any thread
 
-Each call is also a line of `.orkcraft/spend/calls.jsonl` (`keep_ledger`): when, building, purpose, model,
-tokens, $ — the numbers the Spend window's *By purpose* reads (docs/design/simplify.md §2).
+Each call is also a line of `.orkcraft/spend/calls.jsonl`: when, building, purpose, model, tokens, $ — the numbers
+the Spend window's *By purpose* reads (docs/design/simplify.md §2). The ledger is the call's own: the one its caller
+named on its thread (`ledger_at`: a project's Board, Operations'), else the shown project's (`keep_ledger`).
 """
 from __future__ import annotations
 
@@ -69,11 +70,38 @@ _LEDGER_LOCK = threading.Lock()
 LEDGER_KEEP = 10_000
 _TAG: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("orkcraft_charge_tag", default=("", ""))
 _KEPT: dict[str, Path | None] = {"root": None}
+_PLACE: contextvars.ContextVar[tuple[Path | None] | None] = contextvars.ContextVar("orkcraft_ledger", default=None)
 
 
 def keep_ledger(repo_root: Path | None) -> None:
-    """Write every call to `repo_root/.orkcraft/spend/calls.jsonl` from now on (None: memory only)."""
+    """Write every call no caller placed (`ledger_at`) to `repo_root/.orkcraft/spend/calls.jsonl` from now on (None:
+    memory only)."""
     _KEPT["root"] = repo_root
+
+
+def ledger_of(repo_root: Path) -> Path:
+    """A repository's ledger file."""
+    return Path(repo_root) / CALLS
+
+
+@contextlib.contextmanager
+def ledger_at(path: Path | None):
+    """The model calls made in this block, on this thread, write their line to `path` (a ledger file; None: no line),
+    whichever project is shown: concurrent calls of two projects and of Operations each go to their own."""
+    token = _PLACE.set((path,))
+    try:
+        yield
+    finally:
+        _PLACE.reset(token)
+
+
+def ledger_now() -> Path | None:
+    """Where a call made now on this thread writes its line: its caller's (`ledger_at`), else the shown project's."""
+    place = _PLACE.get()
+    if place is not None:
+        return place[0]
+    root = _KEPT["root"]
+    return ledger_of(root) if root is not None else None
 
 
 @contextlib.contextmanager
@@ -114,14 +142,13 @@ def _entry(usd: float | None, source: str, purpose: str, building: str, model: s
 
 
 def _write(c: Charge, counted: bool = False) -> None:
-    root = _KEPT["root"]
-    if root is None:
+    path = ledger_now()
+    if path is None:
         return
     line = {"at": c.when.isoformat(timespec="seconds"), "building": c.building, "purpose": c.purpose,
             "model": c.model, "tokens": c.tokens, "usd": c.usd, "source": c.source}
     if counted:
         line["transcript"] = True                 # its transcript counts it in 🪙; the line is for the purposes
-    path = root / CALLS
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as f:
@@ -174,12 +201,17 @@ def reset_charges() -> None:
 
 
 def calls(repo_root: Path, since: dt.datetime | None = None) -> list[dict]:
-    """The ledger's lines on disk (oldest first), from `since` on (a time with no zone is local); malformed lines
-    are skipped."""
+    """The repository's ledger lines on disk (oldest first), from `since` on (a time with no zone is local); malformed
+    lines are skipped."""
+    return ledger_lines(ledger_of(repo_root), since)
+
+
+def ledger_lines(path: Path, since: dt.datetime | None = None) -> list[dict]:
+    """A ledger file's lines (oldest first), from `since` on; malformed lines are skipped."""
     if since is not None and since.tzinfo is None:
         since = since.astimezone()
     try:
-        lines = (repo_root / CALLS).read_text(encoding="utf-8").splitlines()
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
     except OSError:
         return []
     out = []

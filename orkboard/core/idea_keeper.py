@@ -123,12 +123,12 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
 
     def _claude(self, tier: str, prompt: str, effort: str = "", budget: float | None = None) -> tuple[str, Any, Any, str]:
         """One shot (spec 35 §0): a fresh read-only run, no session kept; the night's proposals read nothing."""
-        from orkboard.realm import harnesses, jobs
+        from orkboard.realm import call_log, harnesses, jobs
         from orkboard.sources import telemetry
         h = harnesses.get(HARNESS)
         purpose = {"laborer": "sort", "elder": "plan"}.get(tier, "plan")      # the Taskmaster's own model is a plan
         cancel = getattr(self._tls, "cancel", None) or self.cancel
-        with telemetry.tagged(purpose, "board"):
+        with telemetry.tagged(purpose, "board"), call_log.of_project(self.repo_root):     # its log and spend: ours
             got = jobs.run_read(HARNESS, prompt, self.repo_root, cancel, h.pick(tier) if h else tier,
                                 env={"ORKCRAFT_ORC": "board/keeper", "ORKCRAFT_IDEA": getattr(self._tls, "slug", "")},
                                 effort=effort, budget=budget, one_shot=True, tools=getattr(self._tls, "tools", True))

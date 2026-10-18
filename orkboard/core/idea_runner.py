@@ -34,7 +34,7 @@ from typing import Any, Callable
 
 from orkboard.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
 from orkboard.core.idea_task import TaskMixin
-from orkboard.realm import event_log, halt, harnesses, idea_spend, idea_target, jobs, roles, status, tool_errors
+from orkboard.realm import call_log, event_log, halt, harnesses, idea_spend, idea_target, jobs, roles, status, tool_errors
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths  # noqa: F401
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
@@ -522,8 +522,9 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         """One turn of the task's Claude session (work mode); its cost and tokens add up on the task, and its line
         goes to the idea's ledger (spec 36 §1: `task`, or `fix` for the gate's retry)."""
         try:
-            _text, cost, tokens, session = jobs.run_work(HARNESS, prompt, path, cancel, model=model, env=env,
-                                                         resume=resume, effort=effort)
+            with call_log.of_project(self.repo_root):        # its log and spend are this project's, shown or not
+                _text, cost, tokens, session = jobs.run_work(HARNESS, prompt, path, cancel, model=model, env=env,
+                                                             resume=resume, effort=effort)
         except tool_errors.ToolError as e:
             if e.kind != tool_errors.LIMIT:
                 raise

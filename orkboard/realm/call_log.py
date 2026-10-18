@@ -2,6 +2,8 @@
 
     with call_log.kept(folder / "calls", "building"):   the calls in this block are kept there, as this side's
         …
+    with call_log.of_project(root):                      this thread's calls: the project's day log and ledger
+    with call_log.apart(folder, "ops", ledger):          … kept in `folder`, charged in `ledger` (Operations')
     call_log.keep_days(root)                             from now on, every other call goes to the day's log
     call_log.record(env, "work", harness, model, prompt, stdout, stderr, code, seconds, cost, tokens, …)
     call_log.read(folder)                                the lines, oldest first
@@ -13,8 +15,11 @@ goes gzipped beside it (`<n>-<who>.json.gz`): the prompt, the tool's whole outpu
 when the tool keeps one (`trail`: Claude Code's transcript of the session, with its thinking and tool calls; agy's
 brain folder). The environment is never written.
 
-A bench run's calls go to its `calls/` (`kept`). Outside one, once the town said where (`keep_days`), a call goes to
-`.orkcraft/logs/<day>/<building>/` (realm/day_log.py keeps and clears those days); else it is not kept.
+A bench run's calls go to its `calls/` (`kept`, process-wide: it wins). Outside one, a call goes where its caller
+placed it on its thread: a project's Board to that project's `.orkcraft/logs/<day>/<building>/` (`of_project`), whichever
+project is shown, Operations' to the person's folder (`apart`); a call placed nowhere goes to the day log the host
+named (`keep_days`: the shown project's; realm/day_log.py keeps and clears those days), else it is not kept. The place
+also names the call's ledger (sources/telemetry.py `ledger_at`).
 
 The calls come from every seam that starts an AI tool: an ork's work and a reader (realm/jobs.py), a road's agent
 (realm/road_agents.py), a one-off answer (realm/builders.py `ask`: a steward's, the retros', the Council's) and a
@@ -23,6 +28,7 @@ connector's look (realm/feeds_agent.py).
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import datetime as dt
 import gzip
 import json
@@ -40,6 +46,8 @@ TRAIL_MAX = 8 * 1024 * 1024       # characters of a session's trail kept with a 
 _LOCK = threading.Lock()
 _KEPT: dict = {"folder": None, "side": "", "days": None}
 _COUNT: dict[Path, int] = {}
+_HERE: contextvars.ContextVar[tuple[Path | None, Path | None, str] | None] = contextvars.ContextVar(
+    "orkcraft_call_place", default=None)                     # this thread's (days root, folder, side)
 _SAFE = re.compile(r"[^A-Za-z0-9_-]+")
 
 
@@ -57,8 +65,35 @@ def kept(folder: Path, side: str = ""):
             _KEPT.update(outer)
 
 
+@contextlib.contextmanager
+def _placed(place: tuple[Path | None, Path | None, str], ledger: Path | None):
+    token = _HERE.set(place)
+    try:
+        with telemetry.ledger_at(ledger):
+            yield
+    finally:
+        _HERE.reset(token)
+
+
+@contextlib.contextmanager
+def of_project(root: Path):
+    """The calls made in this block, on this thread, are kept in `root`'s day log and charged in its ledger, whichever
+    project is shown (spec 37 §8): a keeper's or runner's call of a project open but not shown stays its own."""
+    with _placed((Path(root), None, ""), telemetry.ledger_of(root)):
+        yield
+
+
+@contextlib.contextmanager
+def apart(folder: Path, side: str, ledger: Path | None):
+    """The calls made in this block, on this thread, are kept in `folder` as `side`'s and charged in `ledger`, never in
+    a project's (Operations', spec 38 §9); a project's call made meanwhile on another thread stays the project's."""
+    with _placed((None, Path(folder), side), ledger):
+        yield
+
+
 def keep_days(root: Path | None) -> None:
-    """Every call outside a bench run goes to `root`'s day log from now on (None: none is kept)."""
+    """Every call outside a bench run that no caller placed (`of_project`, `apart`) goes to `root`'s day log from now
+    on (None: none is kept)."""
     with _LOCK:
         _KEPT["days"] = root
 
@@ -120,8 +155,11 @@ def record(env: dict | None, mode: str, harness: str, model: str, prompt: str, s
     a call that carries no ork (`ORKCRAFT_ORC`) or was not tagged (a one-off `-p`, a connector's look)."""
     orc = str((env or {}).get("ORKCRAFT_ORC") or "")
     building, _, ork = orc.partition("/")
+    here = _HERE.get()
     with _LOCK:
         folder, side, days = _KEPT["folder"], _KEPT["side"], _KEPT["days"]
+        if folder is None and here is not None:              # a bench run's block wins; else the call's own place
+            days, folder, side = here
         if folder is None and days is None:
             return
         if folder is None:
