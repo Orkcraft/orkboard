@@ -3,9 +3,28 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+
+
+def _playwright_browsers() -> None:
+    """Playwright looks for its browsers under the cache; every test moves HOME and XDG_CACHE_HOME to its own folder,
+    so the machine's own place is pinned first, while the real environment is still there."""
+    if os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+        return
+    if sys.platform == "darwin":
+        base = Path.home() / "Library" / "Caches"
+    elif os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    else:
+        base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    if (base / "ms-playwright").is_dir():
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(base / "ms-playwright")
+
+
+_playwright_browsers()
 
 
 @pytest.fixture

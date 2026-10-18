@@ -2,7 +2,7 @@
 // Edit goal, New idea, Add / Edit agent, the gear's menu, Pair a phone, Merge into, Drop's confirm — opens on a dimmed
 // backdrop, in an opaque panel with a title, Close (×) and Esc; the focus stays inside while it is open and goes back to
 // what opened it. `dialog` says which one is open; `shell/dialogs.js` draws it.
-import { useEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { html } from "../html.js";
 
@@ -28,7 +28,8 @@ export function Modal({ title, onClose, children, foot, wide = false }) {
   const panel = useRef();
   const close = useRef(onClose);
   close.current = onClose;                       // Esc runs the latest close: a dialog saves what is typed in it
-  useEffect(() => {
+  // Listening from the moment it is drawn (as js/dialog.js): an effect after the paint missed an Escape pressed at once.
+  useLayoutEffect(() => {
     const el = panel.current;
     (el.querySelector("[autofocus]") || el.querySelector(FOCUSABLE) || el).focus();
     const key = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close.current(); } };
