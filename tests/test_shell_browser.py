@@ -13,7 +13,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 
-from tests.test_gui_browser import WAIT_MS, gui  # noqa: E402,F401  (fixture)
+from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
 
 _TODAY = dt.date.today().isoformat()                 # a reset today reads "resets at 18:00", whatever the day
 _IN_TWO_DAYS = (dt.date.today() + dt.timedelta(days=2)).isoformat()

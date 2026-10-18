@@ -11,7 +11,7 @@ pw = pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
 from tests.test_gate_browser import LINES, tasks  # noqa: E402
-from tests.test_pwa_browser import WAIT_MS  # noqa: E402
+from tests.browser_kit import WAIT_MS  # noqa: E402
 from tests.test_pwa_shell_browser import _phone  # noqa: E402
 
 @pytest.mark.asyncio

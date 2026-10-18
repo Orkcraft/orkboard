@@ -14,10 +14,12 @@ from pathlib import Path
 import pytest
 
 pw = pytest.importorskip("playwright.async_api")
+pytestmark = pytest.mark.browser
 
-from orkboard.gui import mobile, phone_tls  # noqa: E402
+from orkboard.gui import pairing, phone_tls  # noqa: E402
+from orkboard.gui.board_host import BoardPhone  # noqa: E402
 from tests.test_phones import _listening, _serve  # noqa: E402
-from tests.test_pwa_browser import CHROMIUM, WAIT_MS, _spki  # noqa: E402
+from tests.browser_kit import CHROMIUM, WAIT_MS, spki  # noqa: E402
 
 _TODAY = dt.date.today().isoformat()                 # a reset today reads "resets at 18:00", whatever the day
 _IN_TWO_DAYS = (dt.date.today() + dt.timedelta(days=2)).isoformat()
@@ -94,7 +96,7 @@ class Stub:
         return result
 
     def run(self, name, a):
-        device = a.get("device")                      # the listener adds it to every board command (mobile.guard)
+        device = a.get("device")                      # the listener adds it to every board command (BoardPhone.guard)
         assert device == "phone"
         assert a.get("link") == "paired"              # the listener adds it for a paired phone (spec 35 §9): a file to-do needs it
         a = {k: v for k, v in a.items() if k != "link" and (k != "device" or name == "ideas.log")}
@@ -224,7 +226,7 @@ class Stub:
 @asynccontextmanager
 async def _phone(repo: Path, monkeypatch):
     stub = Stub()
-    real = mobile.phone_snapshot
+    real = BoardPhone.phone_snapshot
 
     def snap(host):
         s = real(host)
@@ -233,16 +235,17 @@ async def _phone(repo: Path, monkeypatch):
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
                             "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
                            {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]}]}
-    monkeypatch.setattr(mobile, "phone_snapshot", snap)
-    for name in stub.commands():
-        monkeypatch.setitem(mobile.COMMANDS, name, None)
+    monkeypatch.setattr(BoardPhone, "phone_snapshot", staticmethod(snap))   # the stub's commands are the Board's: a phone's
+    # A script taps faster than a person, and each change of the Board costs the phone four commands to draw again: the
+    # limit of a few a second (gui/pairing.py, tests/test_phones.py) is not what these tests check.
+    monkeypatch.setattr(pairing.Bucket, "take", lambda self, now=None: True)
     server, task_ = await _serve(repo)
     server.host.commands.update(stub.commands())
     try:
         offer = server.host.command("phones.pair")
         await _listening(server)
         async with pw.async_playwright() as p:
-            flags = [f"--ignore-certificate-errors-spki-list={_spki(phone_tls.paths(server.phones.cert_folder)[0])}"]
+            flags = [f"--ignore-certificate-errors-spki-list={spki(phone_tls.paths(server.phones.cert_folder)[0])}"]
             try:
                 browser = await (p.chromium.launch(executable_path=CHROMIUM, args=flags) if CHROMIUM else p.chromium.launch(args=flags))
             except Exception as e:                         # noqa: BLE001 — no browser here
@@ -405,6 +408,7 @@ async def test_review_merge_is_off_on_red_send_back_needs_a_line_and_a_patch_scr
         await bar.get_by_role("button", name="Merge into main").click()
         await screen.wait_for(state="hidden", timeout=WAIT_MS)
         assert ("ideas.merge", {"slug": "sync", "task": "k2"}) in stub.calls
+        await page.locator(".result").first.wait_for(state="detached", timeout=WAIT_MS)                 # the list drawn again
         assert await page.get_by_role("tab", name="Review").locator(".count").count() == 1 and await page.locator(".result").count() == 0
 
 

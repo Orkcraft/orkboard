@@ -9,6 +9,7 @@ import pytest
 from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _called, _phone, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
+pytestmark = pytest.mark.browser
 from playwright.async_api import expect  # noqa: E402
 
 WEEK = {"spent": 4.2, "merged": 8, "first_time": 8, "finished": 10, "usd_per_merged": 0.9}

@@ -1,4 +1,4 @@
-"""`orkcraft board` in a real browser (docs/specs/37-board-and-line.md §4, Tests → B): Orkboard's own host and server on a
+"""`orkboard` in a real browser (docs/specs/37-board-and-line.md §4, Tests → B): Orkboard's own host and server on a
 fixture repository, its keeper stubbed. On the desktop (1 440 × 900) the four panes, a goal saved, its question in Needs you;
 on a paired phone (390 × 844) the phone shell, the same, with no horizontal scroll. Neither asks for a camp file: nothing
 under js/camp/, js/buildings/, sprites/ or v3/ (the network log). Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS
@@ -20,9 +20,8 @@ from orkboard.gui import phone_tls  # noqa: E402
 from orkboard.gui.board_host import Orkboard  # noqa: E402
 from orkboard.gui.server import Server  # noqa: E402
 from orkboard.realm import jobs  # noqa: E402
-from tests.test_gui_browser import _launch  # noqa: E402
 from tests.test_phones import _listening  # noqa: E402
-from tests.test_pwa_browser import CHROMIUM, WAIT_MS, _spki  # noqa: E402
+from tests.browser_kit import CHROMIUM, WAIT_MS, launch, spki  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -57,7 +56,7 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
     server = Server(board)
     thread = server.start_thread()
     with playwright.sync_playwright() as p:
-        browser = _launch(p)
+        browser = launch(p)
         try:
             ctx = browser.new_context(viewport={"width": 1440, "height": 900})
             pg = ctx.new_page()
@@ -105,7 +104,7 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
         offer = server.host.command("phones.pair")
         await _listening(server)
         async with pw.async_playwright() as p:
-            flags = [f"--ignore-certificate-errors-spki-list={_spki(phone_tls.paths(server.phones.cert_folder)[0])}"]
+            flags = [f"--ignore-certificate-errors-spki-list={spki(phone_tls.paths(server.phones.cert_folder)[0])}"]
             try:
                 browser = await (p.chromium.launch(executable_path=CHROMIUM, args=flags) if CHROMIUM
                                  else p.chromium.launch(args=flags))
