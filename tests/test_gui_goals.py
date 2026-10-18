@@ -37,7 +37,7 @@ def model(monkeypatch):
                "idea": {"gist": "Dark mode.\nIt glares at night.", "why": "Moves weekly installs.", "size": "S",
                         "priority": "high", "priority_why": "Helps night users stay.", "before": "", "questions": []}}
 
-    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, effort=""):
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
         kind = "goal" if "saved a goal" in prompt else "idea"
         seen.append({"kind": kind, "model": model, "prompt": prompt, "env": env})
         return json.dumps(answers[kind]), 0.01, 10, "s-1"
@@ -86,7 +86,7 @@ def test_a_goal_saved_is_read_by_the_keeper_at_once_and_written(host, model):
     assert g["summary"].startswith("Installs are the first step.") and g["questions"] == ["Which channel first?"]
     assert g["metrics"] == [{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}]
     assert g["links"] == ["docs/specs/34-v1-round-2.md", "https://example.com/post"] and g["description"] == "More people try Orkline."
-    text = (Path(host.town.repo_root) / "llm-wiki/general/pages/tracks/grow-installs.md").read_text()
+    text = (host.ideas.root() / "pages/tracks/grow-installs.md").read_text()      # spec 35 §13: the Board's tree
     assert "priority: high" in text and "## Summary" in text and "## Metrics" in text and "## Open questions" in text
     board = host.command("ideas.board")
     row = next(t for t in board["tracks"] if t["slug"] == slug)

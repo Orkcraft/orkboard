@@ -82,7 +82,7 @@ def test_drop_an_idea_and_read_the_board_and_its_page(host):
     assert [s["name"] for s in page["sections"]] == list(ideas.SECTIONS)
     assert page["sections"][0] == {"name": "Gist", "thesis": "Dark mode", "text": "Dark mode\nfor the night"}
     assert page["talk"][0]["who"] == "you" and page["plan"] is None and page["busy"] is False
-    assert (Path(host.town.repo_root) / "llm-wiki/general/pages/ideas" / f"{slug}.md").exists()
+    assert (host.ideas.root() / "pages/ideas" / f"{slug}.md").exists()   # spec 35 §13: in the Board's own tree
     with pytest.raises(CommandError, match="gone"):
         host.command("ideas.page", {"slug": "nope"})
     with pytest.raises(CommandError, match="text is missing"):
@@ -113,7 +113,7 @@ def test_tracks_move_edit_and_drop(host):
 def test_say_and_plan_run_the_keeper_in_the_background(host, monkeypatch):
     calls = []
 
-    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, effort=""):
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):   # spec 35 §0's effort, budget
         calls.append({"harness": harness, "model": model, "resume": resume})
         if "turn it into" in prompt:
             return json.dumps({"tasks": [{"id": "a", "title": "T", "brief": "B", "tier": "laborer"}]}), 0.1, 10, "s"
@@ -125,10 +125,10 @@ def test_say_and_plan_run_the_keeper_in_the_background(host, monkeypatch):
     assert host.command("ideas.say", {"slug": slug, "text": "why?", "section": "Why"}) == {"ok": True}
     _wait(host, slug)
     assert calls[0]["harness"] == "claude" and calls[0]["resume"] == ""
-    assert ideas.state(host.ideas.state_dir, slug)["session"] == "sess-9"
+    assert ideas.state(host.ideas.state_dir, slug)["session"] == ""      # spec 35 §0: no session kept …
     host.command("ideas.say", {"slug": slug, "text": "and?"})
     _wait(host, slug)
-    assert calls[1]["resume"] == "sess-9"
+    assert calls[1]["resume"] == ""                                     # … and none resumed
     host.command("ideas.plan", {"slug": slug})
     _wait(host, slug)
     page = host.command("ideas.page", {"slug": slug})

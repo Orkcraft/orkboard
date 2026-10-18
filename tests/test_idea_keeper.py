@@ -1,4 +1,4 @@
-"""The board's keeper (spec 29a §4, spec 35) with the model call stubbed: the draft, the talk and its compaction, the plan."""
+"""The board's keeper (spec 29a §4, spec 35) with the model call stubbed: the draft, the talk (an edit, no session), the plan."""
 from __future__ import annotations
 
 import datetime as dt
@@ -18,8 +18,8 @@ class Model:
     def __init__(self, *answers) -> None:
         self.answers, self.asked = list(answers), []
 
-    def __call__(self, tier, prompt, resume="", effort=""):
-        self.asked.append({"tier": tier, "prompt": prompt, "resume": resume, "effort": effort})
+    def __call__(self, tier, prompt, effort="", budget=None):       # spec 35 §0: no resume; effort and budget
+        self.asked.append({"tier": tier, "prompt": prompt, "effort": effort, "budget": budget})
         answer = self.answers.pop(0)
         if isinstance(answer, Exception):
             raise answer
@@ -54,7 +54,7 @@ def test_the_draft_reads_a_raw_idea_on_the_draft_step(keeper):
          "questions": ["Every screen or the board only?", "Follow the OS?"], "evil": "x"}) + "\n```")
     keeper.draft_one(slug)
     assert model.asked[0]["tier"] == "elder" and "dark mode pls" in model.asked[0]["prompt"]
-    assert "index.md" in model.asked[0]["prompt"] or "Index" in model.asked[0]["prompt"]
+    assert "index.md" not in model.asked[0]["prompt"]          # spec 35 §0: under a goal, its Summary is the map
     page = ideas.idea_page(keeper.root, slug)
     assert page.section("Gist").startswith("Dark mode for the board.") and page.section("Why") == "Moves: calm at night"
     assert page.get("size") == "M" and page.get("track") == ux
@@ -88,24 +88,23 @@ def test_tick_drafts_no_raw_idea_by_day_and_never_in_the_demo(keeper):
 
 
 def test_the_talk_keeps_one_session_and_writes_only_known_sections(keeper):
+    # spec 35 §0: a talk turn is an edit of the one section pointed at, one shot: no session, no earlier turn
     slug = ideas.add_idea(keeper.root, "export csv", state_dir=keeper.state)
     keeper.call = model = Model(
         {"reply": "Big files stream.", "sections": {"Risks": "Big files.\n## not a heading", "Hacked": "no",
-                                                   "Decisions": "no"},
-         "decisions": ["Stream rows, never load the file"], "questions": ["Which delimiter?"]},
-        {"reply": "Comma it is.", "sections": {}, "decisions": ["Comma"], "questions": []})
+                                                   "Decisions": "no", "Gist": "not this section"},
+         "decisions": ["Stream rows, never load the file"]},
+        {"reply": "Comma it is.", "sections": {}, "decisions": ["Comma"]})
     keeper.say(slug, "What about big files?", "Risks")
     _wait(keeper, slug)
     first = model.asked[0]
-    assert first["tier"] == "elder" and first["resume"] == "" and "The idea's page now" in first["prompt"]
+    assert first["tier"] == "elder" and "resume" not in first and "What about big files?" in first["prompt"]
     page = ideas.idea_page(keeper.root, slug)
     assert page.section("Risks") == "Big files.\n### not a heading" and page.section("Hacked") == ""
-    assert "Stream rows" in page.section("Decisions")
-    st = ideas.state(keeper.state, slug)
-    assert st["session"] == "sess-1" and st["state"] == "asks"
+    assert page.section("Gist") == "export csv" and "Stream rows" in page.section("Decisions")
     keeper.say(slug, "Comma.", "Open questions")
     _wait(keeper, slug)
-    assert model.asked[1]["resume"] == "sess-1" and "The idea's page now" not in model.asked[1]["prompt"]
+    assert "What about big files?" not in model.asked[1]["prompt"] and "Big files stream." not in model.asked[1]["prompt"]
     assert ideas.state(keeper.state, slug)["state"] == "ready"
     talk = ideas.talk(keeper.state, slug)
     assert [(t["who"], t["text"]) for t in talk] == [("you", "What about big files?"), ("keeper", "Big files stream."),
@@ -114,14 +113,8 @@ def test_the_talk_keeps_one_session_and_writes_only_known_sections(keeper):
 
 
 def test_compaction_after_a_day_or_past_60_percent(keeper):
-    now = dt.datetime(2026, 10, 17, 12, 0)
-    fresh_at = (now - dt.timedelta(hours=2)).isoformat()
-    assert keeper.fresh({"session": ""}, now)
-    assert not keeper.fresh({"session": "s", "session_at": fresh_at, "context": 1000}, now)
-    assert keeper.fresh({"session": "s", "session_at": (now - dt.timedelta(hours=25)).isoformat(), "context": 0}, now)
-    assert keeper.fresh({"session": "s", "session_at": fresh_at, "context": int(0.61 * idea_keeper.WINDOW)}, now)
-    keeper.settings_now["idle_hours"] = 1
-    assert keeper.fresh({"session": "s", "session_at": fresh_at, "context": 0}, now)
+    # spec 35 §0: the session per idea and its compaction went: there is nothing to compact
+    assert not hasattr(keeper, "fresh") and not hasattr(idea_keeper, "WINDOW")
 
 
 def test_a_failed_turn_is_said_in_the_talk(keeper):

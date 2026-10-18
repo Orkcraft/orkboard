@@ -1,5 +1,5 @@
 """The whole loop of the board in focus (docs/specs/29a-board-focus.md, 33 §2–§4, 35 §2–§5): a goal from a description,
-an idea under it drafted at once, its question answered, the plan made at once and started by itself (low risk, Normal),
+an idea under it drafted at once, its question answered (one round), the plan made at once and started by itself (low risk, Normal),
 its task a Claude session whose commit waits at Review; the person merges it into `dev`, which is made, and nothing is
 pushed. A real Host on a temp repository with a bare origin; `claude` is a stub on PATH that answers each kind of call."""
 from __future__ import annotations
@@ -91,9 +91,9 @@ def test_an_idea_goes_from_the_phone_through_review_to_a_commit_on_dev(town):
     page = host.command("ideas.page", {"slug": slug})
     assert any(s["name"] == "Open questions" and "file name" in s["text"] for s in page["sections"])
 
-    host.command("ideas.say", {"slug": slug, "text": "Call it feature.txt"})
+    host.command("ideas.answer", {"slug": slug, "answers": ["Call it feature.txt"]})     # §0: one round of answers
     _until(host, lambda: (ideas.plan(host.ideas.state_dir, slug) or {}).get("passed_by") == "auto",
-           "the talk leaves no question: the plan follows and starts by itself")
+           "the answer writes the rest: the plan follows and starts by itself")
     page = host.command("ideas.page", {"slug": slug})
     assert "feature.txt" in next(s["text"] for s in page["sections"] if s["name"] == "Decisions")
     assert page["plan"]["estimate"]["tasks"] == 1
