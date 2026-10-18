@@ -263,3 +263,31 @@ nothing of the other. So:
     a Board page is edited only through the Board. Spec 37 §8, after Orkboard runs on its own.
 Architecture and order, and for Orkboard the owner's named exception to §27 (item 10, as §45.8's roles); no new
 mechanic in Orkline before the testers. Spec 37.
+
+## 51. Operations: the person's everyday work by templates, across projects; a template checks with you until it may go by itself (18 October, the owner)
+
+Why: the owner wants Orkboard every day at work (§50), and most of a working day is small, frequent work that is no
+code and belongs to no repository: a Jira task to file with its priority and epic, an email to answer. The Board's loop
+(goal → spec → plan → orks in a worktree → the gate → Review) does not fit it: three or four calls where one is enough,
+and the gate refuses a task that changes no file. Done by hand or in a chat with a skill, it has no queue, no check
+before it goes and no memory of how the person wants it. So:
+1. **Operations is the person's, one for all projects**, not a project's goal: its state in the person's folder
+   (`~/.config/orkcraft/ops/`), never in a repository. The project's General is not renamed or touched: it stays the
+   system's own place (spec 35 §2), and External listeners still go to the goals they serve (§50.4).
+2. **A template is a Claude skill and a short form:** the skill's `SKILL.md` stays the person's and works in Claude
+   Code as before; Orkboard's manifest beside it (`orkboard.toml`) names the fields asked at creation (a Jira task's
+   priority and epic), the tools it may read with and the one tool that does its action. The person's own templates
+   now (`~/.claude/skills/`); shared with a team later. Two built in: a Jira task, a reply to an email (saved as a
+   draft).
+3. **One job per call, as the keeper's (spec 35 §0):** a prepare that reads and changes nothing, the person's check,
+   then an action allowed only its one tool, checked by code to have done exactly what was checked. Nothing outward is
+   done twice by Orkboard.
+4. **The way to by itself (the owner):** a template checks with you first; a check passed with no correction sends it
+   by itself (after one, a setting); a correction makes it propose rules made general from it, and when the person
+   takes them it goes by itself. A doubt of its prepare, a `high` risk or the day's cap still stops it at the check;
+   **Not right** on what it did, a changed skill or **Check again** sends it back.
+5. **What it reads stays the person's:** a mail's words and an issue's live only in the person's folder, its calls are
+   kept there and not in a project's logs, and its texts go after 14 days.
+6. **The template is the contract of a source:** when External listeners come (§50.4), a mail that came in fills the
+   same form; what a source starts keeps the reserve (spec 35 §6).
+A new mechanic before the testers' numbers: the owner's named exception to §27 (as §45.8 and §50.10). Spec 38.
