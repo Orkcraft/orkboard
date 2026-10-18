@@ -1,5 +1,6 @@
-"""The town in a phone's browser (gui/pwa.py): the app's files from the phone listener, a browser's socket that
-names its token as a subprotocol, the pairing link on the tailnet, and Tailscale's state for the desktop."""
+"""The Board in a phone's browser (gui/pwa.py): the app's files from the phone listener (Orkboard's shell alone, no
+camp file), a browser's socket that names its token as a subprotocol, the pairing link on the tailnet, and Tailscale's
+state for the desktop."""
 from __future__ import annotations
 
 import asyncio
@@ -16,8 +17,7 @@ from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus
 
 from orkboard.gui import phone_tls, phones, pwa, tailnet
-from orkboard.gui.host import Host
-from orkboard.realm import checkpoint
+from orkboard.gui.board_host import Orkboard
 from tests.test_phones import _pair, _pinned, _serve, _ws_url
 
 
@@ -41,15 +41,15 @@ def _split(raw: bytes) -> tuple[str, bytes]:
 
 def test_the_app_is_its_own_files_and_nothing_else():
     names = set(pwa.files())
-    assert {"index.html", "app.js", "app.css", "manifest.webmanifest", "sw.js", "icon-192.png", "icon-512.png",
+    assert {"index.html", "board-app.js", "app.css", "manifest.webmanifest", "sw.js", "icon-192.png", "icon-512.png",
             "apple-touch-icon.png"} <= names
     head, body = _split(pwa.serve("GET", "/app/"))
-    assert head.startswith("HTTP/1.1 200") and b'src="app.js"' in body
+    assert head.startswith("HTTP/1.1 200") and b'src="board-app.js"' in body
     assert "Content-Security-Policy: default-src 'self'; script-src 'self';" in head
-    head, _ = _split(pwa.serve("GET", "/app/app.js"))
+    head, _ = _split(pwa.serve("GET", "/app/board-app.js"))
     assert "text/javascript" in head and "Content-Security-Policy" not in head
     assert "Service-Worker-Allowed: /app/" in _split(pwa.serve("GET", "/app/sw.js"))[0]
-    for path in ("/app/../phones.py", "/app/..%2Fphones.py", "/app/nothing.js", "/app/js/app.js"):
+    for path in ("/app/../phones.py", "/app/..%2Fphones.py", "/app/nothing.js", "/app/js/app.js", "/app/app.js"):
         assert _split(pwa.serve("GET", path))[0].startswith("HTTP/1.1 404"), path
     assert _split(pwa.serve("POST", "/app/"))[0].startswith("HTTP/1.1 405")
     assert "Location: /app/" in _split(pwa.serve("GET", "/app"))[0]
@@ -134,8 +134,7 @@ async def test_the_listener_serves_the_app_and_a_browsers_socket(fake_repo):
 
 @pytest.mark.asyncio
 async def test_the_apps_link_is_offered_only_on_a_tailnet_with_its_certificate(fake_repo, monkeypatch, tmp_path):
-    checkpoint.ensure(fake_repo)
-    listener = phones.Listener(Host(fake_repo, auto_commit=False), cert_folder=tmp_path)
+    listener = phones.Listener(Orkboard(fake_repo), cert_folder=tmp_path)
     monkeypatch.setattr(phones, "lan_ip", lambda: None)
     listener.tail_find = lambda: tailnet.Tail("127.0.0.1", "")
     try:
@@ -156,8 +155,7 @@ async def test_the_apps_link_is_offered_only_on_a_tailnet_with_its_certificate(f
 
 @pytest.mark.asyncio
 async def test_a_new_pairing_finds_a_tailnet_that_came_after_the_listener(fake_repo, tmp_path, monkeypatch):
-    checkpoint.ensure(fake_repo)
-    listener = phones.Listener(Host(fake_repo, auto_commit=False), cert_folder=tmp_path)
+    listener = phones.Listener(Orkboard(fake_repo), cert_folder=tmp_path)
     monkeypatch.setattr(phones, "lan_ip", lambda: "127.0.0.1")               # the LAN, and no Tailscale yet
     listener.bind, listener.tail_find = None, lambda: None
     try:
@@ -217,8 +215,7 @@ def test_the_desktop_reads_tailscale_at_most_every_few_seconds():
 @pytest.mark.asyncio
 async def test_tailscale_that_comes_after_the_town_is_taken_within_a_minute_on_the_same_port(
         fake_repo, tmp_path, monkeypatch):
-    checkpoint.ensure(fake_repo)
-    listener = phones.Listener(Host(fake_repo, auto_commit=False), cert_folder=tmp_path)
+    listener = phones.Listener(Orkboard(fake_repo), cert_folder=tmp_path)
     monkeypatch.setattr(phones, "lan_ip", lambda: "127.0.0.1")
     listener.bind, listener.tail_find = None, lambda: None
     watch = pwa.TailWatch(listener, every=60.0)
@@ -246,30 +243,19 @@ async def test_tailscale_that_comes_after_the_town_is_taken_within_a_minute_on_t
 
 
 
-def test_the_phone_draws_the_desktops_marks():
-    """A building's mark on the phone is the desktop's: its line icon in Office (pwa/icons.js keeps js/icons.js's
-    PATHS), its header sprite in Camp (served as sprites/<type>.png, for every type the app names)."""
-    import re
-    from pathlib import Path
-
-    static = Path(pwa.__file__).parent / "static"
-    paths = lambda t: dict(re.findall(r'^\s+(\w+): "([^"]+)"', t[t.index("PATHS = {"):t.index("};", t.index("PATHS = {"))], re.M))  # noqa: E731
-    desk, phone = (static / "js" / "icons.js").read_text(), (static / "pwa" / "icons.js").read_text()
-    assert paths(desk) and paths(phone) == paths(desk)
-    named = set(re.findall(r'"(\w+)"', phone[phone.index("new Set(["):phone.index("]);", phone.index("new Set(["))]))
-    assert named == {d.name for d in pwa.SPRITES.iterdir() if d.is_dir()}
-    for name in named:
-        for scale in ("", "@2x"):
-            head, body = _split(pwa.serve("GET", f"/app/sprites/{name}{scale}.png"))
-            assert head.startswith("HTTP/1.1 200") and "image/png" in head and body[:4] == b"\x89PNG", name
-    assert _split(pwa.serve("GET", "/app/sprites/../tokens.css"))[0].startswith("HTTP/1.1 404")
+CAMP = re.compile(r':root\[data-(?:look|theme)="camp"\]')
 
 
-def test_the_phone_wears_the_design_system_its_fence_and_its_resources():
-    """The app's page loads the desktop's design system (tokens.css, components.css, the same files) and the
-    sprites its windows and HUD draw: the fence round a window, the resources before the town's name."""
-    import re
+def _rules(css: str) -> list[tuple[str, str]]:
+    """`(selector, body)` of each rule of a stylesheet, an @media's own too."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    return [(m.group(1).strip(), m.group(2)) for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", css)]
 
+
+def test_the_phone_wears_the_design_system_and_no_camp_file():
+    """The app's page loads the desktop's design system (tokens.css, components.css, the same files); every picture
+    a rule of app.css draws in Office, the phone's only look in Orkboard, is served, and Camp's (the fence round a
+    window, v4's kit, the HUD's resources: Orkline's) never is."""
     from orkboard.design import tokens
 
     head, body = _split(pwa.serve("GET", "/app/"))
@@ -277,26 +263,15 @@ def test_the_phone_wears_the_design_system_its_fence_and_its_resources():
     for name in pwa.STYLES:
         head, body = _split(pwa.serve("GET", f"/app/{name}"))
         assert "text/css" in head and body == (tokens.SYSTEM / name).read_bytes(), name
-    css = (pwa.ROOT / "app.css").read_text()
-    for url in sorted(set(re.findall(r'url\("([^"]+)"\)', css))):
+    rules = _rules((pwa.ROOT / "app.css").read_text())
+    office = [body for sel, body in rules if not all(CAMP.match(part.strip()) for part in sel.split(","))]
+    for url in sorted({u for body in office for u in re.findall(r'url\("([^"]+)"\)', body)}):
         assert _split(pwa.serve("GET", f"/app/{url}"))[0].startswith("HTTP/1.1 200"), url
-    for res in ("quota", "gold", "meat"):
-        for scale in ("", "@2x"):
-            assert _split(pwa.serve("GET", f"/app/icons/res-{res}{scale}.png"))[0].startswith("HTTP/1.1 200"), res
-    assert _split(pwa.serve("GET", "/app/icons/settings.png"))[0].startswith("HTTP/1.1 404")   # its resources only
-
-
-def test_the_phone_stands_on_the_desktops_ground():
-    """A biome's ground on the phone is the desktop's: the colour (js/icons.js BIOMES) and the glyphs (js/terrain.js)."""
-    import re
-    from pathlib import Path
-
-    static = Path(pwa.__file__).parent / "static"
-    desk_biomes = dict(re.findall(r'^\s+(\w+): \{ ground: "(#\w+)"', (static / "js" / "icons.js").read_text(), re.M))
-    phone = (static / "pwa" / "ground.js").read_text()
-    assert desk_biomes and dict(re.findall(r'(\w+): "(#\w+)"', phone[:phone.index("};")])) == desk_biomes
-    glyphs = lambda t: re.findall(r'^\s+(\w+): \{ glyphs: (\[[^\]]*\]), ink: "([^"]*)" \}', t, re.M)  # noqa: E731
-    assert glyphs(phone) and glyphs(phone) == glyphs((static / "js" / "terrain.js").read_text())
+    camp = {u for sel, body in rules if all(CAMP.match(part.strip()) for part in sel.split(","))
+            for u in re.findall(r'url\("([^"]+)"\)', body)}
+    assert camp, "the scan reads Camp's rules"
+    for url in sorted(camp) + ["icons/res-gold.png", "camp/ork-walk.png", "sprites/forge.png", "v3/manifest.json"]:
+        assert _split(pwa.serve("GET", f"/app/{url}"))[0].startswith("HTTP/1.1 404"), url
 
 
 def test_assets_json_lists_every_cache_first_file_with_a_hash(monkeypatch):
@@ -382,15 +357,15 @@ def test_the_workers_install_fills_its_cache_past_the_http_cache():
 
 def test_service_worker_names_cache_version_and_cache_first_prefixes():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert "orkcraft-app-v19" in sw
-    for prefix in ("v3/", "sprites/", "icons/", "fence/", "fonts/", "ui/"):
-        assert prefix in sw
+    assert "orkcraft-app-v20" in sw
+    prefixes = sw[sw.index("CACHE_PREFIXES = ["):sw.index("];", sw.index("CACHE_PREFIXES = ["))]
+    assert set(re.findall(r'"([^"]+)"', prefixes)) == set(pwa.CACHE_PREFIXES) == {"fonts/"}
 
 
 def test_cache_control_headers_for_cache_first_and_shell():
-    head_cf, _ = _split(pwa.serve("GET", "/app/camp/ork-walk.png"))
+    head_cf, _ = _split(pwa.serve("GET", "/app/fonts/titillium-web-latin-400-normal.woff2"))
     assert "Cache-Control: public, max-age=31536000, immutable" in head_cf
-    head_shell, _ = _split(pwa.serve("GET", "/app/app.js"))
+    head_shell, _ = _split(pwa.serve("GET", "/app/board-app.js"))
     assert "Cache-Control: no-cache" in head_shell
     head_html, _ = _split(pwa.serve("GET", "/app/"))
     assert "Cache-Control: no-cache" in head_html
