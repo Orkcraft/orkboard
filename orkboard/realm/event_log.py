@@ -73,15 +73,21 @@ KIND_SET = "kind_set"             # kind, role, device
 # Spec 35 §12: the Board writes, starts what is safe, and works at night.
 BOARD_SET = "board_set"           # target, autostart, night, device
 IDEA_DRAFTED = "idea_drafted"     # idea, risk, triggers, questions, tier, effort, seconds
+IDEA_ANSWERED = "idea_answered"   # idea, answers (how many)
+# … and every keeper event (goal_read, idea_drafted, idea_answered, idea_said, plan_made, night_run) carries §0's
+# step, prompt_chars, tokens ({"in", "out", "cache_read"}) and cost (null when unpriced, never 0)
 KEEPER_STOPPED = "keeper_stopped"  # idea (the person stopped the keeper's run on it)
 NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, seconds
 PROPOSAL_MADE = "proposal_made"   # idea, goal
 PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
+BOARD_COMMITTED = "board_committed"   # commit, pages, what, seconds (spec 35 §13: the Board's pages on the work branch)
+BOARD_HELD = "board_held"         # why (the work branch could not move to the Board's commit)
 
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
           TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, TASK_STOPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, ROLE_SAVED,
-          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED)
+          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
+          IDEA_ANSWERED, BOARD_COMMITTED, BOARD_HELD)
 
 _LOCK = threading.Lock()
 
@@ -100,6 +106,9 @@ def _plain(value: Any) -> Any:
         return value[:TEXT_MAX]
     if isinstance(value, (list, tuple)) and all(isinstance(v, str) for v in value):
         return [v[:TEXT_MAX] for v in value][:50]
+    if isinstance(value, dict) and len(value) <= 8 and all(isinstance(k, str) and (v is None or (
+            isinstance(v, (int, float)) and not isinstance(v, bool))) for k, v in value.items()):
+        return dict(value)                     # a small count of numbers: a call's tokens (spec 35 §0)
     return None
 
 

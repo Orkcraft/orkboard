@@ -162,9 +162,21 @@ def context_of(harness: str, session: str, workdir: Path) -> int:
     return transcripts.read_run(path).context_tokens if path.is_file() else 0
 
 
+class BudgetSpent(RuntimeError):
+    """A read that ended on its `--max-budget-usd` cap with no answer to use."""
+
+
+LAST = threading.local()          # the last read on this thread: `usage` ({"in", "out", "cache_read"}), `capped`
+
+
+def last_usage() -> dict | None:
+    return getattr(LAST, "usage", None)
+
+
 def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, model: str = "",
              env: dict | None = None, resume: str = "",
-             timeout_s: int = WORK_TIMEOUT_S, effort: str = "") -> tuple[str, float | None, int | None, str]:
+             timeout_s: int = WORK_TIMEOUT_S, effort: str = "", budget: float | None = None, one_shot: bool = False,
+             tools: bool = True) -> tuple[str, float | None, int | None, str]:
     """(text, cost, tokens, session) of an agent that only reads, in `workdir` (harness mode `read`: no terminal, no
     file edits) — an Agent pool's reply (docs/design/barracks-flows.md §7). It starts fresh unless `resume` names a
     session of a tool that can reopen one (the board's keeper: one session per idea, spec 29a §4); `session` is
@@ -173,7 +185,7 @@ def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
     h = harnesses.get(harness)
     if h is None:
         raise RuntimeError(f"harness {harness!r} cannot read")
-    cmd = h.read(prompt, workdir, model, False, effort)
+    cmd = h.read(prompt, workdir, model, False, effort, budget, one_shot, tools)
     if resume and h.read_session:
         cmd = cmd + h.read_session(resume, True)
     run_env = {**os.environ, **h.env("read", workdir), **(env or {})}
@@ -181,8 +193,15 @@ def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
     code, out, err = call_log.answer("read", prompt) or road_agents.run_proc(
         cmd, workdir, run_env, roads.harness_stdin(harness, prompt),
         lambda proc: _wait(proc, cancel, timeout_s, run_env.get("ORKCRAFT_ORC") or harness, True), harness)
+    LAST.usage = harnesses.usage_split(out) if harness == "claude" else None
+    LAST.capped = budget is not None and harnesses.capped(out, err)
     if code != 0:
         call_log.record(env, "read", harness, model, prompt, out, err, code, time.monotonic() - start, workdir=workdir)
+        if LAST.capped:                   # ended on its budget: its answer is used if it has one (spec 35 §0)
+            text, cost, tokens, session = roads.result_of(harness, out, 0, model)
+            if text.strip() and text.strip() != out.strip():
+                return text, cost, tokens, session
+            raise BudgetSpent("the keeper ran out of its budget for this step")
         raise roads.failure(harness, code, out, err)
     text, cost, tokens, session = roads.result_of(harness, out, 0, model)
     call_log.record(env, "read", harness, model, prompt, out, err, code, time.monotonic() - start, cost, tokens,

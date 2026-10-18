@@ -259,10 +259,16 @@ def _links(page: Page) -> list[str]:
     return list(dict.fromkeys(both))[:MAX_LINKS + KEEPER_LINKS]
 
 
+def _metrics_by(page: Page) -> str:
+    """Who wrote a goal's metrics: the person (spec 34's dialog; a goal from before 35 with metrics), else the keeper."""
+    return page.get("metrics_by") or ("person" if _metrics(page) and not page.get("title_by") else "")
+
+
 def _track(slug: str, page: Page, count: int = 0) -> dict:
     about = page.section("Description") or page.section("About")
     return {"slug": slug, "title": page.title or page.get("title") or slug, "about": about,
             "title_by": page.get("title_by") if page.get("title_by") in ("keeper", "person") else "person",
+            "metrics_by": _metrics_by(page),
             "criteria": items(page.section("Success criteria")), "deadline": page.get("deadline"),
             "order": _int(page.get("order")), "count": count, "priority": _priority(page.get("priority")),
             "metrics": _metrics(page), "summary": page.section("Summary"),
@@ -418,7 +424,7 @@ def write_goal_reading(root: Path, slug: str, summary: str, how: dict, questions
         if links is not None:
             page.set("keeper_links", json.dumps(list(dict.fromkeys(links))[:KEEPER_LINKS], ensure_ascii=False))
         written = [m for m in metrics or [] if isinstance(m, dict) and str(m.get("name") or "").strip()]
-        if written and page.get("metrics_by") != "person":
+        if written and _metrics_by(page) != "person":
             metrics = [{k: " ".join(str(m.get(k) or "").split())[:300] for k in ("name", "target", "how")}
                        for m in written[:KEEPER_METRICS]]
         else:
@@ -583,7 +589,7 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
 # -- what runs on an idea: <state_dir>/ideas/<slug>/ ------------------------------------------------
 
 STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": "",
-                 "queue": "", "held_until": ""}
+                 "queue": "", "held_until": "", "measure": None}
 
 
 def queue_of(st: dict) -> str:
@@ -638,7 +644,8 @@ def goal_state(state_dir: Path, slug: str) -> dict:
     data = _json(goal_folder(state_dir, slug) / "state.json") or {}
     return {"state": data.get("state") if data.get("state") in GOAL_STATES else "raw", "error": str(data.get("error") or ""),
             "read_at": str(data.get("read_at") or ""), "read_time": str(data.get("read_time") or ""),
-            "tier": str(data.get("tier") or ""), "effort": str(data.get("effort") or "")}
+            "tier": str(data.get("tier") or ""), "effort": str(data.get("effort") or ""),
+            "measure": data.get("measure") if isinstance(data.get("measure"), dict) else None}
 
 
 def save_goal_state(state_dir: Path, slug: str, **changes: object) -> dict:

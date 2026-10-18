@@ -21,7 +21,7 @@ from orkcraft.realm import plans
 TARGETS = ("thrift", "balance", "quality")
 DEFAULT = "balance"
 EFFORTS = ("low", "medium", "high", "xhigh", "max")      # the Claude CLI's `--effort` levels
-STEPS = ("goal", "draft", "talk", "plan", "refresh", "propose", "task")
+STEPS = ("goal", "draft", "answer", "talk", "plan", "refresh", "propose", "task")
 PROPOSALS = {"thrift": 0, "balance": 2, "quality": 3}  # the night's proposals by the Target (§8)
 MAX_WAITING = 3                                          # never more proposals than this waiting in all
 TIER_ROLE = "elder"                                      # the Taskmaster's default: its model is not the person's pick
@@ -30,12 +30,47 @@ TIER_ROLE = "elder"                                      # the Taskmaster's defa
 MATRIX: dict[str, dict[str, tuple[Any, str] | None]] = {
     "goal": {"thrift": ("elder", "medium"), "balance": ("elder", "high"), "quality": ("elder", "xhigh")},
     "draft": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
+    # the answer to a spec's questions (§0) is not in the spec's table: it finishes the draft, so it runs as the draft
+    "answer": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "talk": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "plan": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "refresh": {"thrift": None, "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "propose": {"thrift": None, "balance": ("elder", "low"), "quality": ("elder", "medium")},
     "task": {"thrift": (-1, "low"), "balance": (0, "medium"), "quality": (1, "high")},
 }
+
+
+# §0: one call, one job. What a keeper call is given is built by code and cut to a cap (characters of the prompt, the
+# call's own instructions not counted); how many files it may read; its budget in USD (`--max-budget-usd`) in balance,
+# half in thrift, double in quality.
+CONTEXT = {"goal": 12_000, "draft": 8_000, "answer": 8_000, "talk": 6_000, "plan": 10_000, "refresh": 12_000,
+           "propose": 10_000}
+READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0}
+CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30}
+BUDGET_SHARE = {"thrift": 0.5, "balance": 1.0, "quality": 2.0}
+
+
+def budget(step: str, target: str) -> float | None:
+    """A keeper call's budget in USD under the Target; None for a step with no cap."""
+    if step not in CAPS:
+        return None
+    return round(CAPS[step] * BUDGET_SHARE.get(target if target in TARGETS else DEFAULT, 1.0), 2)
+
+
+def cut(parts: list[tuple[str, str]], cap: int) -> str:
+    """A call's context from its parts ((heading, text), in the order they matter), cut so the whole stays within
+    `cap` characters: a part that does not fit is cut, the ones after it are left out."""
+    out, left = [], cap
+    for head, text in parts:
+        block = f"{head}:\n{(text or '').strip() or '(none)'}\n\n"
+        if len(block) <= left:
+            out.append(block)
+            left -= len(block)
+            continue
+        if left > len(head) + 40:
+            out.append(block[:left - 2].rstrip() + "…\n")
+        break
+    return "".join(out)
 
 
 def target_of(settings: dict | None) -> str:
