@@ -8,6 +8,12 @@ takes the settings out of the window, and makes the task prompts cheaper. **Buil
 Claude (A on the elder tier; B and C on the warrior tier) · **Review:** full · P1, after the testers' first days
 (decisions §48.7: before them only spec 35's two lines).
 
+**Changed 18 October (decisions §49), before the build:** (1) §6: a task's prompt lists only the tasks it comes
+`after`, not every task before it (§49.9). (2) §5's **Review card** (the cost against the plan, *2× over*, the rework,
+the *Cost too much for this* checkbox) is **not built here**: it becomes a line of the dev → main card in gate-kinds
+(§49.5), which follows part A. Part A builds §4 as written (`work`, `rework`, `estimate`, `over`; `dear` on
+`ideas.merge`), so gate-kinds reads it; B and C build Agents, the agent's dialog and the result's preview line.
+
 Three parts, one branch each, in this order; **this file is the contract** (names, data, commands); the rest is the
 builder's choice inside its files. Wording: CLAUDE.md (orks by orkish names: the Taskmaster, a Grunt; today's words:
 *agent*, *task type*, *Target*, *goal*, *idea*). **Change nothing outside these files.**
@@ -15,8 +21,8 @@ builder's choice inside its files. Wording: CLAUDE.md (orks by orkish names: the
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
 | **A. Backend** | `spec/36-backend` | §1–§4, §6, §7 | new `realm/idea_spend.py`, `realm/roles.py`, `realm/ideas.py` (`drop` keeps the ledger's lines, §1), `realm/analytics.py` (the ledger in the zip), `realm/event_log.py`, `core/idea_keeper.py` (the ledger line in its one call wrapper; `core/idea_draft.py`, `core/idea_goals.py`, `core/idea_night.py` only if spec 35 left a model call there), `core/idea_runner.py`, `gui/ideas.py` (commands, `results()`), `gui/ideas_roles.py`, `gui/mobile.py` (allowlist) |
-| **B. Desktop** | `spec/36-desktop` | §5 on the desktop | `gui/static/js/shell/agents.js`, `agentdialog.js`, `review.js`, `preview.js`, `store.js`, `shell.css` |
-| **C. Phone** | `spec/36-phone` | §5 on the phone | `gui/static/pwa/shell-agents.js`, `shell-agent.js`, `shell-review.js`, `shell-preview.js`, `pwa/app.css`, `pwa/sw.js` (cache version) |
+| **B. Desktop** | `spec/36-desktop` | §5 on the desktop, but its Review card (§49.5) | `gui/static/js/shell/agents.js`, `agentdialog.js`, `preview.js`, `store.js`, `shell.css` |
+| **C. Phone** | `spec/36-phone` | §5 on the phone, but its Review card (§49.5) | `gui/static/pwa/shell-agents.js`, `shell-agent.js`, `shell-preview.js`, `pwa/app.css`, `pwa/sw.js` (cache version) |
 
 B and C branch from A once A is pushed; they touch no file of each other's.
 
@@ -106,14 +112,15 @@ Target*) · At most at once · **Instruction** with a counter *412 / 600* · **T
 each with whose it is now, small (*now Grunt*). On Grunt the boxes are shown, not editable, with *Grunt takes what no
 other agent takes*; the Taskmaster's dialog has no Takes. Deleting an agent says which types go back to Grunt, as today.
 
-**Review card:** *Cost ≈$1.80 · planned $0.30–0.90*, and *2× over* in the warning role when `over` is set; in round 2
+**Review card** (built in gate-kinds as a line of the dev → main card, decisions §49.5; kept here as its contract):
+*Cost ≈$1.80 · planned $0.30–0.90*, and *2× over* in the warning role when `over` is set; in round 2
 and later, *(rework $0.50)*. Beside **Merge into dev**, a checkbox **Cost too much for this**, never ticked by itself;
 it goes with the press. Send back and Drop do not change.
 
 **The result's preview:** one line under its title: *This idea so far: ≈$3.10 — goal 0.40 · spec 0.50 · plan 0.20 ·
 work 1.50 · rework 0.50* (stages at 0 left out; *—* when all are unpriced).
 
-**The phone** (C): the same; the checkbox sits in the pinned bar, above Merge; the dialog is a sheet (34 §5).
+**The phone** (C): the same; the checkbox (in gate-kinds) sits in the pinned bar, above the press; the dialog is a sheet (34 §5).
 
 ## 6. Cheaper task prompts and an estimate that learns (A)
 - **CLAUDE.md once.** The builder checks the installed `claude` once: in a scratch git repository whose `CLAUDE.md` holds
@@ -124,7 +131,8 @@ work 1.50 · rework 0.50* (stages at 0 left out; *—* when all are unpriced).
   choice.
 - **Stable first** (spec 28 §1's rule, now for the runner): the role's instruction, then the finishing rules without
   the secrets' names; then what is the task's own: where it works (idea, branch), the path of its spec (spec 35 §13:
-  the path, never the page), the task, the tasks before it, the secrets' names. The same words; only the order
+  the path, never the page), the task, the tasks it comes `after` (plan.json `after`, each with its merged commits'
+  subjects; not every task before it in the plan, decisions §49.9), the secrets' names. The same words; only the order
   changes.
 - **The estimate learns** (`idea_keeper.estimate`): a tier's cost is the mean cost of the board's last 20 finished tasks
   that ran on it (`ran_tier`, from the ideas' `plan.json`), else `plans.DEFAULT_COST`; ±50 % as today. Take it to work
@@ -163,12 +171,13 @@ send back (the line stays free text); a share of the window per task.
     Grunt's and the Taskmaster's kinds refused;
   - Review: `estimate` and `over`; `ideas.merge` with `dear` writes it on `result_decided`;
   - the prompt: the stable part is byte-identical for two tasks of one role and comes first; CLAUDE.md is not pasted
-    (or is at the front, as the check chose); the estimate learns from the last 20 tasks of a tier;
+    (or is at the front, as the check chose); a task lists only the tasks of its `after`, never another task of
+    the plan; the estimate learns from the last 20 tasks of a tier;
   - `tests/test_architecture.py`.
 - **B:** browser tests at 1 440 × 900 (stub host): no Task types section; a role's head with its week from the stub and
   without it under three merged; *needs you* chips first; the dialog's model list, its counter, Takes moving a type
-  from Grunt (Grunt's block no longer says it); a Review card with *planned* and *2× over*; the checkbox unticked by
-  default and sent with Merge; the result preview's idea line.
+  from Grunt (Grunt's block no longer says it); the result preview's idea line. (The Review card's *planned*, *2× over*
+  and checkbox are tested in gate-kinds, §49.5.)
 - **C:** the same at 390 × 844 as sheets; no horizontal scroll.
 - Each part: the critical tests (CLAUDE.md "Alpha"), the touched modules' tests (`test_roles.py`,
   `test_idea_runner.py`, `test_idea_keeper.py`, `test_ideas.py`, `test_gui_ideas.py`, `test_shell_browser.py`,
