@@ -43,31 +43,6 @@ from orkboard.gui import tailnet
 
 ROOT = Path(__file__).resolve().parent / "static" / "pwa"
 FONTS = tokens.SYSTEM / "fonts"     # the desktop's faces (design/system/fonts), served as fonts/<file>
-SPRITES = tokens.SYSTEM / "sprites" / "buildings"   # each type's header sprite, served as sprites/<type>.png
-FENCE = tokens.SYSTEM / "sprites" / "fence"         # the fence a building's window stands in, served as fence/<file>
-ICONS = tokens.SYSTEM / "sprites" / "icons"         # the HUD's resources, served as icons/res-<name>.png
-# the living camp's ork, walking (six frames of 32×48), served as camp/ork-walk.png
-ORK_WALK = tokens.SYSTEM / "sprites" / "camp" / "orks" / "body" / "walk-side.png"
-V3 = tokens.SYSTEM / "sprites" / "v3"               # the v3 camp's sprites and manifest, served as v3/<path>
-UI = tokens.SYSTEM / "sprites" / "v4" / "ui"        # v4's kit pieces and icons (tools/ui_kit.py), served as ui/<path> (the board)
-# the v3 camp's layout, the desktop's own module (pure: no page, no Preact), served under camp/ with the modules it
-# imports (track.js, services.js, ground.js…), each by its own name, so its relative imports resolve there and never to
-# one of the app's own files (pwa/ground.js is the phone's)
-LAYOUT = Path(__file__).resolve().parent / "static" / "js" / "camp" / "layout.js"
-IMPORT = re.compile(r'^\s*import\s[^;]*?from\s+"\./([\w-]+\.js)"', re.M)
-
-
-def _camp_modules(first: Path = LAYOUT) -> dict[str, Path]:
-    """The layout and every module it imports, by the name it is served at: camp/<file>."""
-    out: dict[str, Path] = {}
-    todo = [first] if first.is_file() else []
-    while todo:
-        p = todo.pop()
-        if f"camp/{p.name}" in out:
-            continue
-        out[f"camp/{p.name}"] = p
-        todo += [p.parent / name for name in IMPORT.findall(p.read_text(encoding="utf-8")) if (p.parent / name).is_file()]
-    return out
 STYLES = ("tokens.css", "components.css")           # the design system itself: its colours, buttons, inputs, HUD
 PREFIX = "/app/"
 SUBPROTOCOL = "orkcraft.v1"
@@ -83,29 +58,20 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
 
 
 def files() -> dict[str, Path]:
-    """The app's files by the name they are served at (under PREFIX), the design system's styles beside them, the
-    desktop's fonts under fonts/, its buildings' header sprites under sprites/, its fence under fence/ and its
-    resources under icons/, the camp's walking ork under camp/, the v3 camp's sprites under v3/, v4's kit pieces under ui/ and its layout with its modules under camp/: the same faces, components and marks in both, from one place."""
+    """The app's files by the name they are served at (under PREFIX), the design system's styles beside them and the
+    desktop's fonts under fonts/: the same faces and components in both, from one place. Orkboard's phone is the
+    shell alone (spec 37 §4): no camp file, no sprite."""
     own = {p.name: p for p in sorted(ROOT.iterdir()) if p.is_file() and p.suffix in TYPES}
     styles = {name: tokens.SYSTEM / name for name in STYLES}
     faces = {f"fonts/{p.name}": p for p in sorted(FONTS.iterdir()) if p.suffix in (".woff2", ".css")}
-    marks = {f"sprites/{d.name}{scale}.png": d / f"header{scale}.png" for d in sorted(SPRITES.iterdir())
-             for scale in ("", "@2x") if (d / f"header{scale}.png").is_file()}
-    fence = {f"fence/{p.name}": p for p in sorted(FENCE.iterdir()) if p.suffix == ".png"}
-    res = {f"icons/{p.name}": p for p in sorted(ICONS.iterdir()) if p.name.startswith("res-") and p.suffix == ".png"}
-    camp = {"camp/ork-walk.png": ORK_WALK} if ORK_WALK.is_file() else {}
-    v3 = {f"v3/{p.relative_to(V3).as_posix()}": p for p in sorted(V3.rglob("*"))
-          if p.is_file() and p.suffix in (".png", ".webp", ".json")} if V3.is_dir() else {}
-    ui = {f"ui/{p.relative_to(UI).as_posix()}": p for p in sorted(UI.rglob("*.png"))} if UI.is_dir() else {}
-    layout = _camp_modules()
-    return {**own, **styles, **faces, **marks, **fence, **res, **camp, **v3, **ui, **layout}
+    return {**own, **styles, **faces}
 
 
 def wants(path: str) -> bool:
     return path == PREFIX.rstrip("/") or path.startswith(PREFIX)
 
 
-CACHE_PREFIXES = ("v3/", "sprites/", "icons/", "fence/", "fonts/", "ui/")
+CACHE_PREFIXES = ("fonts/",)
 
 
 def is_cache_first(name: str) -> bool:
@@ -158,7 +124,7 @@ def manifest(raw: bytes, query: str) -> bytes:
     return json.dumps(data, ensure_ascii=False).encode("utf-8")
 
 
-def serve(method: str, target: str, keep_alive: bool = False, entry: str = "app.js") -> bytes:
+def serve(method: str, target: str, keep_alive: bool = False, entry: str = "board-app.js") -> bytes:
     """A whole response to a request for the app (`wants` its path). `entry`: the page's script, the listener's host's
     (Orkboard's phone is `board-app.js`: the shell alone, spec 37 §4)."""
     parts = urlsplit(target)
@@ -185,8 +151,8 @@ def serve(method: str, target: str, keep_alive: bool = False, entry: str = "app.
     body = path.read_bytes()
     if name == "manifest.webmanifest":
         body = manifest(body, parts.query)
-    if name == "index.html" and entry != "app.js" and entry in files():
-        body = body.replace(b'src="app.js"', f'src="{entry}"'.encode())
+    if name == "index.html" and entry != "board-app.js" and entry in files():
+        body = body.replace(b'src="board-app.js"', f'src="{entry}"'.encode())
     extra = f"Content-Security-Policy: {CSP}\r\n" if path.suffix == ".html" else ""
     if name == "sw.js":
         extra += f"Service-Worker-Allowed: {PREFIX}\r\n"
