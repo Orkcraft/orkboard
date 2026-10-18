@@ -11,10 +11,18 @@ from typing import Any
 
 from orkcraft.core import idea_keeper
 from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _text
+from orkcraft.hooks.warder import is_secret
 from orkcraft.realm import event_log, ideas
 
 
 DOC_CHARS = 100_000
+NO_SECRETS = "That file may hold secrets: open it in your own editor"
+HIDDEN_DIRS = (".git", ".orkcraft")           # git's own and the machine's own: never shown
+
+
+def _kept_back(rel: Path) -> bool:
+    """A path `ideas.doc` does not read: what the Warder keeps from the orks (`is_secret`), or under .git/ or .orkcraft/."""
+    return is_secret(rel.as_posix()) or any(part in HIDDEN_DIRS for part in rel.parts)
 
 
 class GoalsMixin:
@@ -89,6 +97,9 @@ class GoalsMixin:
         for base in (Path(self.town.repo_root), self.root()):
             path = (base / link.lstrip("/")).resolve()
             if path.is_file() and base.resolve() in path.parents:
+                # the name asked for and the file it resolves to (a link to a `.env` is a `.env`)
+                if _kept_back(Path(link.lstrip("/"))) or _kept_back(path.relative_to(base.resolve())):
+                    raise IdeasError(NO_SECRETS)
                 try:
                     text = path.read_text(encoding="utf-8")
                 except (OSError, UnicodeDecodeError):

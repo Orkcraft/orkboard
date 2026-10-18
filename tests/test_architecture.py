@@ -109,7 +109,6 @@ KNOWN = {
     ("realm.tiers", "realm.builders"),
     ("realm.jobs", "realm.roads"),
     ("realm.jobs", "realm.road_agents"),
-    ("realm.jobs", "realm.forge"),
     ("realm.worktrees", "scroll"),
     ("realm.worktrees", "realm.projects"),
 }

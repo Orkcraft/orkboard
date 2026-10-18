@@ -8,9 +8,14 @@ import { foot } from "./shell-forms.js";
 const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
 export const isRed = (r) => r.tests.failed > 0 || r.tests.green === false;
 
-/** The tests, in the person's words: "20 / 20 passed" ✓, "10 / 20 failed" ✗ with the first failing names, or no tests ran. */
+/** The tests, in the person's words: "20 / 20 passed" ✓, "10 / 20 failed" ✗ with the first failing names, or no tests ran; a command that is not pytest: passed (exit 0) / failed (exit 1). */
 export function testsWords(r) {
   const t = r.tests, all = t.passed + t.failed;
+  if (t.ran === false) return { mark: "", text: "no tests ran", names: [], tone: "muted" };
+  if (t.passed == null && t.failed == null) {          // a command that is not pytest: its exit code speaks
+    const failed = isRed(r), code = t.exit ?? (failed ? 1 : 0);
+    return failed ? { mark: "✗", text: `failed (exit ${code})`, names: [], tone: "danger" } : { mark: "✓", text: `passed (exit ${code})`, names: [], tone: "success" };
+  }
   if (isRed(r)) return { mark: "✗", text: t.failed ? `${t.failed} / ${all} failed` : "the tests failed", names: (t.failing || []).slice(0, 2), tone: "danger" };
   if (t.passed === 0) return { mark: "", text: "no tests ran", names: [], tone: "muted" };
   return { mark: "✓", text: `${t.passed} / ${all} passed`, names: [], tone: "success" };
