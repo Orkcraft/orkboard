@@ -459,7 +459,7 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")           # New idea needs a goal (spec 35 §3)
         stub.bump({})
         await page.get_by_role("button", name="New idea", exact=True).wait_for(timeout=WAIT_MS)
-        await page.wait_for_function("document.querySelector('.goal-pick option[value=ship]')")
+        await page.locator(".goal-pick option[value=ship]").wait_for(state="attached", timeout=WAIT_MS)
         opens = [("New goal", lambda: page.get_by_role("button", name="New goal", exact=True).click()),
                  ("New idea", lambda: page.get_by_role("button", name="New idea", exact=True).click()),
                  ("Settings", lambda: page.get_by_role("button", name="Settings").click()),
@@ -532,7 +532,7 @@ async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_clo
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready")
         stub.goals["docs"] = stub.goal("docs", "Docs", "low", "ready")
         stub.bump({})
-        await page.wait_for_function("document.querySelector('.goal-pick option[value=docs]')")
+        await page.locator(".goal-pick option[value=docs]").wait_for(state="attached", timeout=WAIT_MS)
         await page.get_by_role("button", name="New idea", exact=True).click()
         sheet = page.get_by_role("dialog", name="New idea")
         assert await sheet.get_by_label("Goal").input_value() == "ship"                                 # the first by priority; General is not listed
