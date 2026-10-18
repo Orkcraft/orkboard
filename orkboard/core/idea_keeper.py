@@ -1,20 +1,24 @@
-"""The board's keeper (spec 29a §4, decisions §43.3–6): it reads the new ideas in a batch, talks a spec through with
-the person, and turns a spec into a plan.
+"""The board's keeper (spec 29a §4, decisions §43, §47; docs/specs/35-goals-window.md): it reads goals, drafts each
+idea straight into its spec, talks a spec through with the person, turns a spec into a plan, and works at night.
 
     keeper = IdeaKeeper(repo_root, state_dir, wiki_root=lambda: root, settings=lambda: machine.ideas,
-                        publish=lambda slug: ...)
-    keeper.tick()                     # the host's clock: the batch when it is due
+                        publish=lambda slug: ..., limits=lambda: town.limits, on_plan=autostart)
+    keeper.draft(slug)                # an idea → its spec (core/idea_draft.py), then its plan when it asks nothing
     keeper.say(slug, "Why not a toggle?", "Risks")    # the keeper answers in the background
-    keeper.plan(slug)                 # once: the page → plan.json, with its estimate
+    keeper.plan(slug)                 # Re-plan: the page → plan.json, with its estimate
+    keeper.read_stop(slug)            # this idea's run stops (its own cancel); its queue is `hold`
+    keeper.tick()                     # the host's clock: what the limits held runs again, and the night (core/idea_night.py)
 
-- **Batch** (laborer): each `raw` idea, read-only in the repository, given the Wiki's `index.md` and the tracks: it
-  fills Gist and Why, the size, proposes a track (only for an idea in General) and writes 1–3 Open questions.
-- **Goal** (warrior, read-only): a goal saved (or answered) is read at once: its Summary, how each metric is counted,
-  0–3 questions; the goal is `reading`, then `asks` or `ready`. `read_now` reads one idea at once, as the batch would.
-- **Talk** (elder): one Claude session per idea (`--resume` its session). A new session when the last turn is older
-  than `idle_hours` or its context passed 60 % of the window; the new one starts from the page only (its Decisions
-  and Open questions with it). The talk is archived in `talk.jsonl` and never read back into a model.
-- **Plan** (elder): the page → `plan.json` (at most 8 tasks), the estimate from `realm/plans.py` `DEFAULT_COST`.
+- **The Target** (realm/idea_target.py) picks each step's tier and effort: goal, draft, talk, plan, refresh, propose. The
+  Taskmaster's own model, when it is not its default `elder`, replaces the tier; the Target still gives the effort.
+- **Goal** (read-only, core/idea_goals.py): a goal saved is read at once: its title, Summary, Metrics, links, questions.
+- **Draft** (read-only): it starts the idea's session; the talk and the plan resume it. One Claude session per idea
+  (`--resume`); a new one when the last turn is older than `idle_hours` or its context passed 60 % of the window. The
+  talk is archived in `talk.jsonl` and never read back into a model.
+- **Plan**: the page → `plan.json` (at most 8 tasks), its Stages and its risk written by code, the estimate from the
+  tiers the tasks will run on; then `on_plan(slug)` (the face decides whether it starts by itself, spec 35 §5).
+- **The window** (spec 35 §6): in a spent window a call is not made; what runs by itself waits with `held_until`, a
+  call the person asks for is refused in plain words.
 
 Every model call goes through `realm/jobs.py` on the `claude` harness; its answer is untrusted: it is parsed
 strictly and only known sections are written. Each change is published (`publish(slug)`: the face puts
@@ -30,8 +34,10 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from orkcraft.core.idea_draft import DraftMixin
 from orkcraft.core.idea_goals import GoalMixin
-from orkcraft.realm import ideas, plans, roles
+from orkcraft.core.idea_night import NightMixin
+from orkcraft.realm import event_log, idea_target, ideas, plans, roles, status
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -40,10 +46,11 @@ COMPACT_SHARE = 0.6                # a talk's session past this share of the win
 MAX_TASKS, MAX_TODOS, MAX_QUESTIONS = 8, 5, 3
 INDEX_CHARS, PAGE_CHARS, REPLY_CHARS = 6000, 30_000, 4000
 TIERS = ("elder", "warrior", "laborer")
-KINDS = ("secret", "choice", "confirm", "instructions")
+KINDS = ("secret", "choice", "confirm", "instructions", "file")
 ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{1,63}$")
+TICK_S = 20.0                      # how often the clock looks for what the limits held
 
-Call = Callable[[str, str, str], tuple[str, Any, Any, str]]   # (tier, prompt, resume) → (text, cost, tokens, session)
+Call = Callable[[str, str, str, str], tuple[str, Any, Any, str]]   # (tier, prompt, resume, effort) → (text, cost, tokens, session)
 
 
 class KeeperError(Exception):
@@ -77,34 +84,71 @@ def _bullets(lines: list[str]) -> str:
     return "\n".join(f"- {' '.join(q.split())}" for q in lines)
 
 
-class IdeaKeeper(GoalMixin):
+def _iso(at: float) -> str:
+    return dt.datetime.fromtimestamp(at).isoformat(timespec="seconds")
+
+
+class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
     def __init__(self, repo_root: Path, state_dir: Path, wiki_root: Callable[[], Path],
                  settings: Callable[[], dict], publish: Callable[[str], None] = lambda slug: None,
                  demo: bool = False, budget_ok: Callable[[], bool] = lambda: True,
-                 taskmaster: Callable[[], str] | None = None) -> None:
+                 taskmaster: Callable[[], str] | None = None, limits: Callable[[], list] | None = None,
+                 on_plan: Callable[[str], None] | None = None, start_night: Callable[[str], bool] | None = None,
+                 events: bool = True) -> None:
+        """`limits`: the quota readers' last read (spent windows hold the keeper); `on_plan(slug)`: a plan was made
+        or its risk changed (the face's autostart); `start_night(slug)`: a plan passed to start at night is started
+        (the night's step 2); `events`: the keeper's own events go to the local event log (spec 35 §12)."""
         self.repo_root, self.state_dir = Path(repo_root), Path(state_dir)
         self.taskmaster = taskmaster or (lambda: (roles.role(self.state_dir, roles.TASKMASTER) or {}).get("model") or "elder")
         self._again: set[str] = set()                # a busy key asked again while it ran
         self.wiki_root, self.settings, self.publish = wiki_root, settings, publish
-        self.demo, self.budget_ok = demo, budget_ok
+        self.demo, self.budget_ok, self.events = demo, budget_ok, events
+        self.limits = limits or (lambda: [])
+        self.on_plan = on_plan or (lambda slug: None)
+        self.start_night = start_night or (lambda slug: False)
         self.call: Call = self._claude                # tests swap the model call here
         self.cancel = threading.Event()
         self._tls = threading.local()               # the idea a model call is for (its record in realm/call_log.py names it)
         self._lock = threading.Lock()
-        self._busy: dict[str, str] = {}             # slug → reading | talking | planning
-        self._batching = False
-        self._batch_next = time.time() + self._minutes() * 60
+        self._busy: dict[str, str] = {}             # key → drafting | talking | planning | goal
+        self._cancels: dict[str, threading.Event] = {}   # key → its run's own cancel (read_stop)
+        self._tick_at = float("-inf")
+        self._night_busy, self._night_tried = False, float("-inf")
 
     # -- the model call -------------------------------------------------------------------------------------
 
-    def _claude(self, tier: str, prompt: str, resume: str = "") -> tuple[str, Any, Any, str]:
+    def _claude(self, tier: str, prompt: str, resume: str = "", effort: str = "") -> tuple[str, Any, Any, str]:
         from orkcraft.realm import harnesses, jobs
         from orkcraft.sources import telemetry
         h = harnesses.get(HARNESS)
         purpose = {"laborer": "sort", "elder": "plan"}.get(tier, "plan")      # the Taskmaster's own model is a plan
+        cancel = getattr(self._tls, "cancel", None) or self.cancel
         with telemetry.tagged(purpose, "board"):
-            return jobs.run_read(HARNESS, prompt, self.repo_root, self.cancel, h.pick(tier) if h else tier,
-                                 env={"ORKCRAFT_ORC": "board/keeper", "ORKCRAFT_IDEA": getattr(self._tls, "slug", "")}, resume=resume)
+            return jobs.run_read(HARNESS, prompt, self.repo_root, cancel, h.pick(tier) if h else tier,
+                                 env={"ORKCRAFT_ORC": "board/keeper", "ORKCRAFT_IDEA": getattr(self._tls, "slug", "")},
+                                 resume=resume, effort=effort)
+
+    def target(self) -> str:
+        return idea_target.target_of(self.settings())
+
+    def pick(self, step: str) -> tuple[str, str] | None:
+        """The (model or tier, effort) a keeper step runs on: by the Target, the Taskmaster's own model winning."""
+        return idea_target.keeper_pick(step, self.target(), self.taskmaster())
+
+    def ask(self, step: str, prompt: str, resume: str = "") -> tuple[str, Any, Any, str]:
+        """One model call on a step; a run stopped meanwhile (its own cancel or Stop all) raises InterruptedError."""
+        got = self.pick(step)
+        if got is None:
+            raise KeeperError(f"The Target {self.target()} makes no {step} call")
+        self._tls.picked = got
+        out = self.call(got[0], prompt, resume, got[1])
+        cancel = getattr(self._tls, "cancel", None)
+        if (cancel is not None and cancel.is_set()) or self.cancel.is_set():
+            raise InterruptedError("stopped")
+        return out
+
+    def picked(self) -> tuple[str, str]:
+        return getattr(self._tls, "picked", ("", ""))
 
     def _context(self, session: str, tokens) -> int:
         from orkcraft.realm import jobs
@@ -114,13 +158,11 @@ class IdeaKeeper(GoalMixin):
             read = 0
         return int(read or tokens or 0)
 
+    def _ev(self, event: str, **fields: Any) -> None:
+        if self.events and not self.demo:
+            event_log.record(self.repo_root, event, **fields)
+
     # -- what the host asks ------------------------------------------------------------------------------
-
-    def _minutes(self) -> int:
-        return int((self.settings() or {}).get("batch_minutes") or 30)
-
-    def batch_next(self) -> str:
-        return dt.datetime.fromtimestamp(self._batch_next).isoformat(timespec="seconds")
 
     def busy(self, slug: str) -> str:
         """What the keeper does on this idea now ("" nothing)."""
@@ -130,9 +172,25 @@ class IdeaKeeper(GoalMixin):
         return self._busy.get(f"goal:{slug}", "")
 
     def stop_all(self) -> None:
-        """Stop all: what runs is stopped (its call raises), the next calls run again."""
+        """Stop all: every run is stopped (its call raises), the next calls run again."""
         stopping, self.cancel = self.cancel, threading.Event()
         stopping.set()
+        with self._lock:
+            runs = list(self._cancels.values())
+        for ev in runs:
+            ev.set()
+
+    def read_stop(self, slug: str) -> bool:
+        """The person stops the keeper's run on this idea (its own cancel, not Stop all's); its queue is `hold`, so
+        nothing drafts it by itself again. True when a run was going."""
+        with self._lock:
+            ev = self._cancels.get(slug)
+        if ev is not None:
+            ev.set()
+        ideas.save_state(self.state_dir, slug, queue="hold", held_until="")
+        self._ev(event_log.KEEPER_STOPPED, idea=slug)
+        self.publish(slug)
+        return ev is not None
 
     def _may_run(self) -> str:
         if self.demo:
@@ -141,151 +199,93 @@ class IdeaKeeper(GoalMixin):
             return "Today's spend limit is reached: the keeper waits"
         return ""
 
-    def tick(self, now: float | None = None) -> bool:
-        """The host's clock: the batch when it is due; True when one started."""
-        now = time.time() if now is None else now
-        if now < self._batch_next or self._batching:
+    def window_until(self) -> float | None:
+        """When the Claude window comes back, while it is (nearly) spent: as the runner reads it."""
+        try:
+            limits = list(self.limits() or [])
+        except Exception:                            # a quota never stops the board
+            limits = []
+        return status.reset_of(limits, HARNESS, time.time(), status.NEARLY)
+
+    def refuse_spent(self) -> None:
+        """A call the person asks for (a talk, Process now, Re-plan) in a spent window: refused in plain words."""
+        until = self.window_until()
+        if until is not None:
+            raise KeeperError(f"Claude's window is spent: try again after {dt.datetime.fromtimestamp(until):%H:%M}")
+
+    def hold(self, slug: str) -> bool:
+        """What runs by itself, in a spent window: not made; the idea waits with `held_until` (the reset)."""
+        until = self.window_until()
+        if until is None:
             return False
-        self._batch_next = now + self._minutes() * 60
-        if self._may_run():
-            return False
-        raw = [i["slug"] for i in ideas.ideas(self.wiki_root())
-               if ideas.state(self.state_dir, i["slug"])["state"] == "raw" and not self.busy(i["slug"])]
-        if not raw:
-            return False
-        self._batching = True
-        threading.Thread(target=self._batch, args=(raw,), daemon=True, name="idea-batch").start()
+        ideas.save_state(self.state_dir, slug, held_until=_iso(until))
+        self.publish(slug)
         return True
 
-    def _start(self, slug: str, what: str, fn: Callable[[], None], key: str = "") -> None:
-        """`key`: the busy key (a goal's is `goal:<slug>`); what is published is the key, or the idea's slug."""
-        key = key or slug
+    def tick(self, now: float | None = None) -> bool:
+        """The host's clock: an idea the limits held (or whose run the host lost) runs again once the window is
+        back, and the night runs at its start. True when something started."""
+        now = time.time() if now is None else now
+        if now - self._tick_at < TICK_S or self._may_run():
+            return False
+        self._tick_at = now
+        started = False
+        if self.window_until() is None:
+            for i in ideas.ideas(self.wiki_root()):
+                slug = i["slug"]
+                st = ideas.state(self.state_dir, slug)
+                if self.busy(slug) or (not st["held_until"] and (st["error"] or st["state"] != "raw")):
+                    continue
+                if st["state"] == "raw" and ideas.queue_of(st) == "now":
+                    started |= self._quiet(lambda: self.draft(slug))
+                elif st["state"] == "ready" and st["held_until"] and ideas.plan(self.state_dir, slug) is None:
+                    started |= self._quiet(lambda: self.plan(slug, auto=True))
+        return self.night_tick(now) or started
+
+    def _quiet(self, fn: Callable[[], Any]) -> bool:
+        try:
+            return fn() is not False
+        except KeeperError:
+            return False
+
+    def _run(self, key: str, what: str, fn: Callable[[], None], slug: str = "") -> None:
+        """Run `fn` as the keeper's run on `key` (a goal's is `goal:<slug>`), with its own cancel, on this thread."""
+        cancel = threading.Event()
+        with self._lock:
+            self._cancels[key] = cancel
+        self._tls.cancel, self._tls.slug = cancel, slug or key
+        try:
+            fn()
+        finally:
+            with self._lock:
+                self._busy.pop(key, None)
+                if self._cancels.get(key) is cancel:
+                    self._cancels.pop(key)
+            self._tls.cancel = None
+            self.publish(key)
+
+    def _claim(self, key: str, what: str) -> None:
         with self._lock:
             if self._busy.get(key):
                 raise KeeperError("The keeper is busy with this idea: a moment")
             self._busy[key] = what
 
-        def run() -> None:
-            try:
-                fn()
-            finally:
-                with self._lock:
-                    self._busy.pop(key, None)
-                self.publish(key)
+    def _start(self, slug: str, what: str, fn: Callable[[], None], key: str = "") -> None:
+        """`key`: the busy key (a goal's is `goal:<slug>`); what is published is the key, or the idea's slug."""
+        key = key or slug
+        self._claim(key, what)
+        threading.Thread(target=self._run, args=(key, what, fn, slug if key == slug else f"goal-{slug}"),
+                         daemon=True, name=f"idea-{what}").start()
 
-        threading.Thread(target=run, daemon=True, name=f"idea-{what}").start()
-
-    # -- the batch: a light model reads the new ideas ----------------------------------------------------
-
-    def _batch(self, slugs: list[str]) -> None:
+    def _sync(self, slug: str, what: str, fn: Callable[[], None], key: str = "") -> bool:
+        """The night's way: the same run, on this thread; False when the key is busy."""
+        key = key or slug
         try:
-            for slug in slugs:
-                if self._may_run() or self.cancel.is_set():
-                    return
-                with self._lock:
-                    if self._busy.get(slug):
-                        continue
-                    self._busy[slug] = "reading"
-                try:
-                    self.read_one(slug)
-                finally:
-                    with self._lock:
-                        self._busy.pop(slug, None)
-                    self.publish(slug)
-        finally:
-            self._batching = False
-
-    def batch_prompt(self, root: Path, slug: str) -> str:
-        page = ideas.idea_page(root, slug)
-        tracks = ideas.tracks(root)
-        try:
-            index = (root / "index.md").read_text(encoding="utf-8")[:INDEX_CHARS]
-        except OSError:
-            index = "(no index yet)"
-        lines = "\n".join(f"- {t['slug']}: {t['title']} (priority {t['priority']})" + (f" — {ideas.thesis(t['about'])}" if t["about"] else "")
-                          + (f" (success: {'; '.join(t['criteria'])})" if t["criteria"] else "")
-                          + (f" (metrics: {'; '.join(m['name'] + ' → ' + m['target'] for m in t['metrics'])})" if t["metrics"] else "")
-                          for t in tracks)
-        track = page.get("track") or ideas.GENERAL
-        mine = next((t for t in tracks if t["slug"] == track), None)
-        goal = ""
-        if mine is not None:
-            goal = (f"\nIts goal, {mine['title']} (priority {mine['priority']}):\n{mine['about'][:2000]}\n"
-                    f"Summary: {mine['summary'][:1500]}\n"
-                    + "".join(f"Metric: {m['name']} → {m['target']}" + (f" (counted: {m['how']})" if m.get("how") else "") + "\n"
-                              for m in mine["metrics"])
-                    + "The goal's ideas, in order:\n"
-                    + "\n".join(f"- {i['slug']}: {i['title']} (priority {i['priority']})"
-                                for i in ideas.ideas(root, track) if i["slug"] != slug) + "\n")
-        return f"""You are the keeper of this project's Task board. A person dropped a new idea; read it and get it
-ready to be talked through as a spec. You may read the repository (read only) to understand what it touches.
-
-The project's Wiki, its map (index.md):
-{index}
-
-The goals:
-{lines}
-{goal}
-The idea (goal: {track}):
-{page.section("Gist")[:PAGE_CHARS]}
-
-Answer with one JSON object and nothing else:
-{{"gist": "the idea rewritten clearly: its first line one sentence, the thesis; then a few lines if needed",
- "why": "which of its goal's metrics it moves, and why it matters",
- "size": "S, M or L",
- "priority": "high, normal or low: from its goal's priority and how much the idea moves the goal's metrics",
- "priority_why": "one line: why that priority",
- "before": "the slug of the goal's idea this one should stand before, or empty to leave its place",
- "track": "the slug of the listed goal it belongs to{'' if track == ideas.GENERAL else ' (leave empty)'}",
- "questions": ["one to three questions the person must answer before it can be planned"]}}
-"""
-
-    def read_one(self, slug: str) -> None:
-        """One raw idea read by the laborer: Gist, Why, size, priority, its place, a proposed goal, its questions;
-        then asks or ready."""
-        root = self.wiki_root()
-        page = ideas.idea_page(root, slug)
-        if page is None:
-            return
-        ideas.save_state(self.state_dir, slug, state="reading", error="")
-        self.publish(slug)
-        try:
-            self._tls.slug = slug
-            text, _cost, _tokens, _session = self.call("laborer", self.batch_prompt(root, slug), "")
-            answer = first_json(text)
-            if answer is None:
-                raise KeeperError("the keeper's answer was not the JSON it was asked for")
-        except Exception as e:                      # the idea stays new: the next batch tries again
-            ideas.save_state(self.state_dir, slug, state="raw", error=_why(e))
-            return
-        sections = {}
-        if gist := _words(answer.get("gist"), ideas.SECTION_CHARS):
-            sections["Gist"] = gist
-        priority = _words(answer.get("priority"), 10).lower()
-        why = _words(answer.get("why"), ideas.SECTION_CHARS)
-        if priority in ideas.PRIORITIES and (line := _words(answer.get("priority_why"), 300)):
-            why = (why + "\n\n" if why else "") + f"Priority: {priority.capitalize()} — {line}"
-        if why:
-            sections["Why"] = why
-        questions = _strings(answer.get("questions"), MAX_QUESTIONS)
-        if questions:
-            sections["Open questions"] = _bullets(questions)
-        ideas.update(root, slug, sections)
-        meta: dict[str, str] = {}
-        size = _words(answer.get("size"), 2).upper()
-        if size in ideas.SIZES:
-            meta["size"] = size
-        if priority in ideas.PRIORITIES:
-            meta["priority"] = priority
-        track = _words(answer.get("track"), 60)
-        if (page.get("track") or ideas.GENERAL) == ideas.GENERAL and track and track != ideas.GENERAL \
-                and track in {t["slug"] for t in ideas.tracks(root)}:
-            meta["proposed_track"] = track
-        if meta:
-            ideas.set_meta(root, slug, **meta)
-        self._place(root, slug, _words(answer.get("before"), 60))
-        ideas.save_state(self.state_dir, slug, state="asks" if questions else "ready", error="",
-                         batch_at=dt.datetime.now().isoformat(timespec="seconds"))
+            self._claim(key, what)
+        except KeeperError:
+            return False
+        self._run(key, what, fn, slug if key == slug else f"goal-{slug}")
+        return True
 
     def _place(self, root: Path, slug: str, before: str) -> None:
         """The keeper's proposal of an idea's place among its goal's ideas; the person's own drag is never undone."""
@@ -298,16 +298,14 @@ Answer with one JSON object and nothing else:
         ideas.move(root, slug, before=before)
 
     def read_now(self, slug: str) -> None:
-        """Read a `raw` idea at once (the card's Process now, or New idea's), in the background."""
+        """Process now: a `raw` idea drafted at once, in the background (`ideas.read_now`, `ideas.queue` now)."""
         if ideas.idea_page(self.wiki_root(), slug) is None:
             raise KeeperError("That idea is gone")
         if ideas.state(self.state_dir, slug)["state"] != "raw":
             raise KeeperError("The keeper has read this idea already")
-        if why := self._may_run():
-            raise KeeperError(why)
-        self._start(slug, "reading", lambda: self.read_one(slug))
+        self.draft(slug, person=True)
 
-    # -- the talk: one session per idea, on the elder tier -----------------------------------------------
+    # -- the talk: one session per idea, the draft's -----------------------------------------------------
 
     def say(self, slug: str, text: str, section: str = "") -> None:
         root = self.wiki_root()
@@ -322,6 +320,7 @@ Answer with one JSON object and nothing else:
             raise KeeperError(why)
         if self.busy(slug):
             raise KeeperError("The keeper is busy with this idea: a moment")
+        self.refuse_spent()
         ideas.add_turn(self.state_dir, slug, "you", text, section)
         self._start(slug, "talking", lambda: self.talk_one(slug, text, section))
 
@@ -366,10 +365,11 @@ The idea's page now:
         root = self.wiki_root()
         st = ideas.state(self.state_dir, slug)
         fresh = self.fresh(st)
+        before = ideas.idea_page(root, slug)
+        asked = bool(before and ideas.items(before.section("Open questions")))
         try:
-            self._tls.slug = slug
-            out, _cost, tokens, session = self.call(self.taskmaster(), self.talk_prompt(root, slug, text, section, fresh),
-                                                    "" if fresh else st["session"])
+            out, _cost, tokens, session = self.ask("talk", self.talk_prompt(root, slug, text, section, fresh),
+                                                   "" if fresh else st["session"])
         except Exception as e:
             ideas.add_turn(self.state_dir, slug, "keeper", f"I could not answer: {_why(e)}", section)
             ideas.save_state(self.state_dir, slug, error=_why(e))
@@ -379,7 +379,7 @@ The idea's page now:
             answer = {"reply": out}
         sections = answer.get("sections") if isinstance(answer.get("sections"), dict) else {}
         written = {n: _words(v, ideas.SECTION_CHARS) for n, v in sections.items()
-                   if n in ideas.SECTIONS and n != "Decisions" and isinstance(v, str)}
+                   if n in ideas.SECTIONS and n not in ("Decisions", "Stages") and isinstance(v, str)}
         if isinstance(answer.get("questions"), list):
             written["Open questions"] = _bullets(_strings(answer["questions"], 10))
         decisions = _strings(answer.get("decisions"), 10)
@@ -391,14 +391,26 @@ The idea's page now:
                                    "session_at": dt.datetime.now().isoformat(timespec="seconds"),
                                    "context": self._context(session or st["session"], tokens), "error": ""}
         state = ideas.state(self.state_dir, slug)["state"]
+        page = ideas.idea_page(root, slug)
+        open_now = bool(page and ideas.items(page.section("Open questions")))
         if state in ("raw", "asks", "ready"):
-            page = ideas.idea_page(root, slug)
-            changes["state"] = "asks" if page and ideas.items(page.section("Open questions")) else "ready"
+            changes["state"] = "asks" if open_now else "ready"
         ideas.save_state(self.state_dir, slug, **changes)
+        plan = ideas.plan(self.state_dir, slug)
+        if written and plan is not None and not plan.get("passed_at"):
+            was = self.assess(slug)
+            if was is not None:                      # the risk changed: whether it starts is decided again
+                self.on_plan(slug)
+        if asked and not open_now and plan is None and changes.get("state") == "ready" and not self.hold(slug):
+            self._busy[slug] = "planning"            # the person answered the last question: the plan follows at once
+            ideas.save_state(self.state_dir, slug, state="planning", error="")
+            self.plan_one(slug, "ready")
 
     # -- the plan: the spec → plan.json -------------------------------------------------------------------
 
-    def plan(self, slug: str) -> None:
+    def plan(self, slug: str, auto: bool = False) -> bool:
+        """Re-plan (the person's: refused in a spent window), or a plan that follows by itself (`auto`: it waits
+        with `held_until`). False when it was held."""
         root = self.wiki_root()
         if ideas.idea_page(root, slug) is None:
             raise KeeperError("That idea is gone")
@@ -409,48 +421,72 @@ The idea's page now:
             raise KeeperError(why)
         if self.busy(slug):
             raise KeeperError("The keeper is busy with this idea: a moment")
+        if not auto:
+            self.refuse_spent()
+        elif self.hold(slug):
+            return False
         was = ideas.state(self.state_dir, slug)["state"]
-        ideas.save_state(self.state_dir, slug, state="planning", error="")
+        ideas.save_state(self.state_dir, slug, state="planning", error="", held_until="")
         try:
             self._start(slug, "planning", lambda: self.plan_one(slug, was))
         except KeeperError:
             ideas.save_state(self.state_dir, slug, state=was)
             raise
+        return True
 
     def plan_prompt(self, root: Path, slug: str) -> str:
         page = ideas.idea_page(root, slug)
-        return f"""You are the keeper of this project's Task board. The person passes this spec to work: turn it into
-a plan. You may read the repository (read only) to see what the work touches.
+        return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
+read the repository (read only) to see what the work touches.
 
 The spec:
 {page.text()[:PAGE_CHARS]}
 
 Rules:
 - At most {MAX_TASKS} tasks. Each is a brief another Claude session can do alone, in a worktree of the repository:
-  what to change, where, and how it is tested. `after` only where a task needs another's result.
+  what to change, where, and how it is tested; it names the Done when lines it proves. `after` only where a task
+  needs another's result.
 - Each task's type (`kind`): "code", "tests", "docs", "text" (text for people), or "research"; ordinary work is "code".
-- Each task's tier: "elder" (hard design or a wide change), "warrior" (ordinary code), "laborer" (small, mechanical).
+- Each task's tier, its complexity: "elder" (hard design or a wide change), "warrior" (ordinary code), "laborer"
+  (small, mechanical).
 - To-dos only for what a task cannot start without: a key ("secret": its title is the environment variable's name,
-  e.g. API_KEY), a decision ("choice", with its choices), a yes ("confirm"), steps a person does ("instructions").
-  Most plans need none. `for`: the tasks that wait for it.
+  e.g. API_KEY), a decision ("choice", with its choices), a yes ("confirm"), steps a person does ("instructions"), a
+  file the person gives ("file": its title says what the file is, e.g. the Firebase config, google-services.json;
+  `accept` the extensions it may have). Any kind may carry `steps` when the person has to do something first. Most
+  plans need none. `for`: the tasks that wait for it.
 
 Answer with one JSON object and nothing else:
 {{"tasks": [{{"id": "k1", "title": "…", "brief": "…", "kind": "code", "tier": "warrior", "after": []}}],
- "todos": [{{"id": "t1", "title": "…", "kind": "confirm", "why": "…", "choices": [], "steps": [], "for": ["k1"]}}]}}
+ "todos": [{{"id": "t1", "title": "…", "kind": "confirm", "why": "…", "choices": [], "steps": [], "accept": [], "for": ["k1"]}}]}}
 """
 
     def plan_one(self, slug: str, was: str = "ready") -> None:
+        """The plan, resuming the idea's session; its Stages and risk written, its estimate by the tiers the tasks will
+        run on; then whether it starts by itself is the face's (`on_plan`)."""
         root = self.wiki_root()
         back = was if was in ("raw", "asks", "ready", "plan", "failed") else "ready"
+        st = ideas.state(self.state_dir, slug)
+        fresh = self.fresh(st)
         try:
-            self._tls.slug = slug
-            text, _cost, _tokens, _session = self.call(self.taskmaster(), self.plan_prompt(root, slug), "")
+            text, _cost, tokens, session = self.ask("plan", self.plan_prompt(root, slug), "" if fresh else st["session"])
             data = make_plan(slug, first_json(text))
+            target = self.target()
+            runs = [idea_target.tier_of(idea_target.task_pick(t["tier"], target, str(roles.role_for(self.state_dir, t["kind"]).get("model") or ""))[0])
+                    for t in data["tasks"]]
+            data["estimate"] = estimate(data["tasks"], runs)
             ideas.save_plan(self.state_dir, slug, data)
         except Exception as e:
-            ideas.save_state(self.state_dir, slug, state=back, error=f"No plan: {_why(e)}")
+            ideas.save_state(self.state_dir, slug, state=back, error="" if isinstance(e, InterruptedError) else f"No plan: {_why(e)}",
+                             **({"queue": "hold"} if isinstance(e, InterruptedError) else {}))
             return
-        ideas.save_state(self.state_dir, slug, state="plan", error="")
+        self.write_stages(slug, data)
+        self.assess(slug)
+        if session:
+            ideas.save_state(self.state_dir, slug, session=session, session_at=dt.datetime.now().isoformat(timespec="seconds"),
+                             context=self._context(session, tokens))
+        ideas.save_state(self.state_dir, slug, state="plan", error="", held_until="")
+        self.publish(slug)
+        self.on_plan(slug)
 
 
 def make_plan(slug: str, answer: dict | None, made_at: str = "") -> dict:
@@ -488,19 +524,25 @@ def make_plan(slug: str, answer: dict | None, made_at: str = "") -> dict:
         if not title:
             continue
         for_ = [names[f] for f in _strings(raw.get("for"), MAX_TASKS, 20) if f in names]
-        todos.append({"id": f"t{len(todos) + 1}", "title": title, "kind": raw["kind"],
-                      "why": _words(raw.get("why"), 500),
-                      "choices": _strings(raw.get("choices"), 8, 200) if raw["kind"] == "choice" else [],
-                      "steps": _strings(raw.get("steps"), 12, 500) if raw["kind"] == "instructions" else [],
-                      "for": list(dict.fromkeys(for_)), "done": False, "value": None})
+        todo = {"id": f"t{len(todos) + 1}", "title": title, "kind": raw["kind"],
+                "why": _words(raw.get("why"), 500),
+                "choices": _strings(raw.get("choices"), 8, 200) if raw["kind"] == "choice" else [],
+                "steps": _strings(raw.get("steps"), 12, 500),         # steps on any kind (spec 35 §9)
+                "for": list(dict.fromkeys(for_)), "done": False, "value": None}
+        if raw["kind"] == "file":
+            todo["accept"] = [re.sub(r"[^a-z0-9]", "", a.lower())[:10] for a in _strings(raw.get("accept"), 8, 20)
+                              if re.sub(r"[^a-z0-9]", "", a.lower())]
+        todos.append(todo)
     data = {"idea": slug, "made_at": made_at or dt.datetime.now().isoformat(timespec="seconds"), "passed_at": None,
             "estimate": estimate(tasks), "todos": todos, "tasks": tasks}
     readiness(data)
     return data
 
 
-def estimate(tasks: list[dict]) -> dict:
-    base = sum(plans.DEFAULT_COST.get(t.get("tier", "warrior"), plans.DEFAULT_COST["warrior"]) for t in tasks)
+def estimate(tasks: list[dict], tiers: list[str] | None = None) -> dict:
+    """The price range of the tasks, counted on the tiers they will run on (`tiers`, else their planned ones)."""
+    tiers = tiers if tiers is not None else [t.get("tier", "warrior") for t in tasks]
+    base = sum(plans.DEFAULT_COST.get(tier, plans.DEFAULT_COST["warrior"]) for tier in tiers)
     return {"tasks": len(tasks), "usd_low": round(base * 0.5, 2), "usd_high": round(base * 1.5, 2)}
 
 
