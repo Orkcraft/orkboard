@@ -12,12 +12,15 @@ import { IntoDialog, DropDialog } from "./review.js";
 import { OpenFolderDialog, CloseProjectDialog } from "./projects.js";
 import { LeaveDialog } from "./editor.js";
 import { SwitchDialog } from "./gitpane.js";
+import { OpFormDialog, OpSettingsDialog, OpRulesDialog } from "./opdialog.js";
+import { OpCheckDialog } from "./opcheck.js";
 
 const KINDS = { goal: GoalDialog, idea: IdeaDialog, ask: AskDialog, todo: TodoDialog, agent: AgentDialog, settings: SettingsDialog, pair: PairDialog, into: IntoDialog, drop: DropDialog,
-  "open-folder": OpenFolderDialog, "close-project": CloseProjectDialog, leave: LeaveDialog, "switch-branch": SwitchDialog };
+  "open-folder": OpenFolderDialog, "close-project": CloseProjectDialog, leave: LeaveDialog, "switch-branch": SwitchDialog,
+  opform: OpFormDialog, opcheck: OpCheckDialog, opsettings: OpSettingsDialog, oprules: OpRulesDialog };
 
 export function Dialogs() {
   const d = dialog.value;
   const View = d && KINDS[d.kind];
-  return View ? html`<${View} key=${d.kind + (d.props.slug || d.props.assign || d.props.todo?.id || "")} ...${d.props} />` : null;
+  return View ? html`<${View} key=${d.kind + (d.props.slug || d.props.op || d.props.template || d.props.assign || d.props.todo?.id || "")} ...${d.props} />` : null;
 }

@@ -1,13 +1,17 @@
 // The board's state (docs/specs/29a-board-focus.md §6–7): what the host last said of the goals and ideas, the page of
 // the open idea, and the one way to ask the host. The v1 shell (js/shell/store.js) refreshes it with Review and Agents.
 import { signal, batch } from "@preact/signals";
-import { command, toast, say } from "../link.js";
+import { useEffect } from "preact/hooks";
+import { command, toast, say, town } from "../link.js";
 
 export const board = signal(null);          // ideas.board
 export const opened = signal("");           // slug of the idea in the preview (the shell sets it)
 export const page = signal(null);           // ideas.page of the open idea
 export const track = signal("");            // the track shown ("" = all)
 export const adding = signal(false);        // the Drop it field is up
+
+export const ops = signal(null);            // ops.list: Operations of the person (docs/specs/38-operations.md §11)
+export const OPS = "@operations";           // the goal select's last choice: Operations in place of Needs you and the ideas
 
 export const BUSY = ["reading", "planning", "working"];
 
@@ -62,3 +66,20 @@ export function holdWords(note, title = "") {
   if ((m = /^files · (.+)$/.exec(n))) return `waits for ${title || m[1]} · same files`;
   return n;
 }
+
+let opsLoading = null;
+/** Operations again (`ops.list`): the person's, the same in every project and with none open. */
+export function refreshOps() {
+  if (!opsLoading) opsLoading = ask("ops.list").then((got) => { if (got) ops.value = got; }).finally(() => { opsLoading = null; });
+  return opsLoading;
+}
+
+/** Operations is read now and again whenever the host's `ops_rev` moves. */
+export function useOps() {
+  const rev = town.value?.ops_rev;
+  useEffect(() => { if (rev !== undefined) refreshOps(); }, [rev]);   // Orkline's page has no Operations
+  return ops.value;
+}
+
+export const runOf = (id) => (ops.value?.runs || []).find((r) => r.id === id) || null;
+export const templateOf = (name) => (ops.value?.templates || []).find((t) => t.name === name) || null;

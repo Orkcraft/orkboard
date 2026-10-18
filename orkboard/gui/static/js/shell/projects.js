@@ -8,6 +8,7 @@ import { html, cls } from "../html.js";
 import { town, command, toast } from "../link.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { leaving } from "./store.js";
+import { Operations } from "../board/ops.js";
 
 export const projectList = computed(() => town.value?.projects || { current: null, open: [], recent: [] });
 /** Orkboard's host sends `projects`; Orkline's page (same shell) has one fixed project and none of this. */
@@ -142,5 +143,6 @@ export function StartScreen() {
     ${recent.length > 0 && html`<section class="shell-start__recent" aria-label="Recent"><h2 class="ok-font-label">Recent</h2>
       <ul>${recent.map((r) => html`<li key=${r.path}><button class="board-link" title=${r.path} onClick=${() => openFolder(r.path)}>${r.name}</button>
         <span class="ok-font-status ok-tone-muted">${r.path}</span></li>`)}</ul></section>`}
+    <section class="shell-start__ops" aria-label="Operations"><${Operations} withNew=${true} /></section>
   </main>`;
 }

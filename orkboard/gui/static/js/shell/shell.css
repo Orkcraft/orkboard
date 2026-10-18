@@ -243,3 +243,6 @@
 .shell-edit__text { flex: 1; min-height: 240px; width: 100%; box-sizing: border-box; resize: none; padding: var(--space-2); background: var(--panel-inset); color: var(--ink);
   border: 1px solid var(--frame); font: 13px/1.5 var(--font-mono, ui-monospace, monospace); tab-size: 4; }
 .shell-edit__text:focus { outline: 2px solid var(--frame-focus); outline-offset: -1px; }
+
+/* Operations on the start screen (spec 38 §10): the person's, with no project open */
+.shell-start__ops { width: min(100%, 560px); text-align: left; }

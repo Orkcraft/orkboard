@@ -3,11 +3,12 @@
 // title, priority mark, state in words, actions; they drag to reorder, and a click opens the idea's spec in the preview.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { say } from "../link.js";
-import { board, track, stateWords, goalList, hhmm, PRIORITY_WORDS } from "./store.js";
+import { say, town } from "../link.js";
+import { board, track, stateWords, goalList, hhmm, PRIORITY_WORDS, OPS } from "./store.js";
 import { act as run, preview, showIdea, showGoal } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { TargetChip } from "./target.js";
+import { NewMenu } from "./ops.js";
 
 const DRAG = "text/x-board-slug";
 const drag = (slug) => (e) => { e.dataTransfer.setData(DRAG, slug); e.dataTransfer.effectAllowed = "move"; };
@@ -19,13 +20,15 @@ const firstLine = (text) => String(text || "").split("\n").map((l) => l.trim()).
 export function Goals() {
   const goals = goalList();
   const g = goals.find((x) => x.slug === track.value);
+  const inOps = track.value === OPS;
   return html`<div class="board-goals" aria-label="Goals">
     <div class="board-row board-goals__bar">
       <select class="ok-input board-goals__select" aria-label="Goal" value=${track.value} onChange=${(e) => { track.value = e.target.value; }}>
         <option value="">All goals</option>
-        ${goals.map((x) => html`<option key=${x.slug} value=${x.slug}>${x.title} · ${PRIORITY_WORDS[x.priority] || "Normal"}${GOAL_WORDS[x.state] ? ` · ${say(GOAL_WORDS[x.state])}` : ""}</option>`)}</select>
+        ${goals.map((x) => html`<option key=${x.slug} value=${x.slug}>${x.title} · ${PRIORITY_WORDS[x.priority] || "Normal"}${GOAL_WORDS[x.state] ? ` · ${say(GOAL_WORDS[x.state])}` : ""}</option>`)}
+        ${town.value?.ops_rev !== undefined && html`<option disabled>──────────</option><option value=${OPS}>Operations</option>`}</select>
       <button class="ok-btn" onClick=${() => openDialog("goal")}>New goal</button>
-      <${TargetChip} /></div>
+      ${inOps ? html`<${NewMenu} />` : html`<${TargetChip} />`}</div>
     ${g && html`<div class="board-goals__one" data-state=${g.state}>
       <p class="board-goals__line">${firstLine(g.summary) || html`<span class="ok-tone-muted">${g.state === "reading" ? "Reading the goal…" : "No summary yet."}</span>`}</p>
       <div class="board-row"><button class="ok-btn" aria-label=${`Open goal ${g.title}`} onClick=${() => showGoal(g.slug)}>Open</button>
