@@ -1,14 +1,16 @@
-"""Test fixtures: a plain git project, isolated layout and caches."""
+"""Test fixtures: a plain git project, a home and settings of the test's own, and no real AI tool ever run."""
 from __future__ import annotations
 
 import os
 import subprocess
 from pathlib import Path
+
 import pytest
+
 
 @pytest.fixture
 def fake_repo(tmp_path: Path) -> Path:
-    """A plain git project, as orkcraft finds it anywhere: a README, some code, docs, loot."""
+    """A plain git project, as Orkboard finds it anywhere: a README, some code, docs, loot."""
     repo = tmp_path / "project"
     (repo / "src").mkdir(parents=True)
     (repo / "docs").mkdir()
@@ -23,14 +25,6 @@ def fake_repo(tmp_path: Path) -> Path:
     subprocess.run(["git", "add", "."], cwd=str(repo), check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "Initial test commit"], cwd=str(repo), check=True, capture_output=True)
     return repo
-
-
-@pytest.fixture
-def night_on(fake_repo: Path) -> Path:
-    """`fake_repo` as a town that kept the night's work on (a new town has it off: cut-list.md §2)."""
-    from orkboard.realm import fastpath
-    fastpath.save_settings(fake_repo, {})
-    return fake_repo
 
 
 _quiet_path: list[str] = []
@@ -58,46 +52,33 @@ def _path_without_real_tools(factory: pytest.TempPathFactory) -> str:
 @pytest.fixture(autouse=True)
 def isolated_layout_file(tmp_path: Path, tmp_path_factory: pytest.TempPathFactory,
                          monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Keep window layouts written by the TUI out of the real ~/.config."""
+    """Every test on a home, a config and a cache of its own: the machine's settings, logins, keychain, update list
+    and AI tools' folders are never read or written. Returns the layout file's path (the name is Orkline's)."""
     path = tmp_path / "orkcraft-layout.json"
-    monkeypatch.setenv("ORKCRAFT_LAYOUT_FILE", str(path))
-    monkeypatch.setenv("ORKCRAFT_ONBOARDING", "0")      # test_onboarding.py opts in
-    monkeypatch.setenv("ORKCRAFT_SETTINGS_FILE", str(tmp_path / "orkcraft-settings.json"))
-    monkeypatch.setenv("ORKCRAFT_FOCUS", "")             # the whole town: the board-in-focus tests set their own
-    monkeypatch.setenv("ORKCRAFT_LOOK", "camp")          # never by the shift: a test runs at any hour
-    monkeypatch.setenv("ORKCRAFT_LOGINS_FILE", str(tmp_path / "orkcraft-logins.json"))   # never the keychain
-    monkeypatch.setenv("ORKCRAFT_ASSETS_DIR", str(tmp_path / "orkcraft-assets"))   # a UX bench's pictures: never ~/.config
-    # No real claude/agy calls and no personal calendars in tests.
-    monkeypatch.setenv("ORKCRAFT_LIMITS", "0")
-    monkeypatch.setenv("ORKCRAFT_COUNCIL_LLM", "0")      # the Council's Fast Path: rules only
-    monkeypatch.setenv("ORKCRAFT_WIKI_AUTO", "0")        # no librarian starts by itself (test_wiki.py opts in)
-    monkeypatch.setenv("ORKCRAFT_NIGHT_ROUND", "0")      # no Night round by its clock (test_night_round.py asks it)
-    monkeypatch.setenv("ORKCRAFT_CALENDARS_FILE", str(tmp_path / "calendars.json"))
+    path_without_tools = _path_without_real_tools(tmp_path_factory)    # before HOME moves: it reads the real PATH
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / ".config"))
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-    monkeypatch.setenv("ORKCRAFT_NO_USAGE", "1")         # no usage stats leave a test (test_usage.py opts in)
-    monkeypatch.setenv("ORKCRAFT_CRASH_DIR", str(tmp_path / "crashes"))   # crash files stay the test's own
-    monkeypatch.setenv("ORKCRAFT_STATE_DIR", str(tmp_path / "orkcraft-state"))   # running.json, fixes: never ~/.orkcraft
-    monkeypatch.setenv("ORKCRAFT_NO_UPDATE", "1")        # no test reads the list of updates (test_updates.py opts in)
-    monkeypatch.setenv("ORKCRAFT_MODEL_LIST", "0")       # no tool is asked its models (test_model_families.py fakes one)
+    monkeypatch.setenv("ORKCRAFT_LAYOUT_FILE", str(path))
+    monkeypatch.setenv("ORKCRAFT_SETTINGS_FILE", str(tmp_path / "orkcraft-settings.json"))
+    monkeypatch.setenv("ORKCRAFT_ONBOARDING", "0")      # the first screen's tests opt in
+    monkeypatch.setenv("ORKCRAFT_LOGINS_FILE", str(tmp_path / "orkcraft-logins.json"))   # never the keychain
+    monkeypatch.setenv("ORKCRAFT_ASSETS_DIR", str(tmp_path / "orkcraft-assets"))
+    monkeypatch.setenv("ORKCRAFT_STATE_DIR", str(tmp_path / "orkcraft-state"))
+    monkeypatch.delenv("ORKCRAFT_FOCUS", raising=False)
+    monkeypatch.setenv("ORKCRAFT_LOOK", "camp")         # never by the shift: a test runs at any hour
+    # No real model is asked anything: no limits read, no model list, no update list (test_updates.py opts in).
+    monkeypatch.setenv("ORKCRAFT_LIMITS", "0")
+    monkeypatch.setenv("ORKCRAFT_MODEL_LIST", "0")
+    monkeypatch.setenv("ORKCRAFT_NO_UPDATE", "1")
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-home"))   # never this machine's Claude Code plugins
-    # No real agent CLI and no real gh, even on a machine that has them: a run a test does not fake finds
-    # no tool, as on CI. Before, a Mine test's research ran a real `claude -p` on the web.
-    monkeypatch.setenv("PATH", _path_without_real_tools(tmp_path_factory))
+    # No real agent CLI and no real gh, even on a machine that has them: a run a test does not fake finds no tool,
+    # as on CI (tests/test_no_real_tools.py).
+    monkeypatch.setenv("PATH", path_without_tools)
     from orkboard.realm import model_families
     model_families.forget()
-    # agy's global hooks file stays the test's own: `hooks install` / `uninstall` never touch ~/.gemini.
-    from orkboard.hooks import install as hooks_install
-    monkeypatch.setattr(hooks_install, "agy_global_file", lambda: tmp_path / "gemini" / "config" / "hooks.json")
-    # The window-manager tests predate the town view (T1102): they run in tiles; test_town.py opts in.
-    from orkboard import scroll
-    monkeypatch.setattr(scroll, "DEFAULT_VIEW", "tiles")
-    # They also predate the camp that starts with the Town Hall alone (T1107): every preset stands.
-    monkeypatch.setattr(scroll, "STARTING", None)
-    # The Watchtower's picker asks `claude mcp list`: never the machine's own servers (tests put theirs).
-    import subprocess
-    from orkboard.core.workers.watchtower import WatchtowerWorker
-    monkeypatch.setattr(WatchtowerWorker, "mcp_runner",
-                        staticmethod(lambda argv: subprocess.CompletedProcess(argv, 0, "No MCP servers configured.\n", "")))
     return path
 
 
@@ -114,7 +95,7 @@ def fresh_spend_ledger():
 
 @pytest.fixture(autouse=True)
 def fresh_halt_registry():
-    """🛑 Halt All's registry is process-wide: every test starts with nothing running and no halt."""
+    """🛑 Stop all's registry is process-wide: every test starts with nothing running and no halt."""
     from orkboard.realm import halt
     halt.reset()
     yield
