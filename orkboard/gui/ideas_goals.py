@@ -94,7 +94,7 @@ class GoalsMixin:
         link = _text(args, "path", 300).split("#")[0]
         if "://" in link:
             raise IdeasError("A web link opens in the browser")
-        for base in (Path(self.town.repo_root), self.root()):
+        for base in (Path(self.host.repo_root), self.root()):
             path = (base / link.lstrip("/")).resolve()
             if path.is_file() and base.resolve() in path.parents:
                 # the name asked for and the file it resolves to (a link to a `.env` is a `.env`)

@@ -102,16 +102,7 @@ def test_whoever_starts_an_agent_registers_it_in_halt():
 
 # Orkboard and Orkline (docs/specs/37-board-and-line.md): the modules of `layers.BOARD` import only each other. Every
 # edge out of it is listed here, `importer → imported`, and the list only shrinks (spec 37 B and C cut them).
-KNOWN = {
-    ("gui.ideas", "realm.catalog"),
-    ("gui.phone_http", "gui.pwa"),
-    ("realm.harnesses", "realm.builders"),
-    ("realm.tiers", "realm.builders"),
-    ("realm.jobs", "realm.roads"),
-    ("realm.jobs", "realm.road_agents"),
-    ("realm.worktrees", "scroll"),
-    ("realm.worktrees", "realm.projects"),
-}
+KNOWN: set[tuple[str, str]] = set()
 
 
 def _new_edges(found, known):
@@ -151,3 +142,30 @@ def test_every_board_pattern_matches():
     names = set(layers.modules())
     dead = [p for p in layers.BOARD + layers.SPLIT if not any(fnmatchcase(n, p) for n in names)]
     assert not dead, f"matches no module: {dead}"
+
+
+def test_orkboard_starts_alone(tmp_path):
+    """Spec 37 §4: in a fresh interpreter, Orkboard's host and its server, built on a fixture repository (no port
+    opened), load only `BOARD` modules of the package: none of the town's (a namespace package, `orkcraft.realm`,
+    holds no code of its own)."""
+    import os
+    import subprocess
+    import sys
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    code = ("import sys\n"
+            "from orkcraft.gui.board_host import Orkboard\n"
+            "from orkcraft.gui.server import Server\n"
+            f"host = Orkboard({str(repo)!r})\n"
+            "server = Server(host)\n"
+            "assert host.command('ideas.board')['tracks'] is not None and server.page()\n"
+            "print('\\n'.join(sorted(n for n, m in list(sys.modules.items())\n"
+            "                          if (n == 'orkcraft' or n.startswith('orkcraft.')) and getattr(m, '__file__', None))))")
+    env = {**os.environ, "ORKCRAFT_SETTINGS_FILE": str(tmp_path / "settings.json"),
+           "XDG_CONFIG_HOME": str(tmp_path / "config"), "ORKCRAFT_NO_UPDATE": "1"}
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, cwd=tmp_path)
+    assert out.returncode == 0, out.stderr
+    loaded = out.stdout.split()
+    assert "orkcraft.gui.board_host" in loaded and "orkcraft.gui.ideas" in loaded and "orkcraft.gui.server" in loaded
+    line = [n for n in loaded if not layers.matches(n)]
+    assert not line, f"Orkboard loaded the line's modules: {line}"

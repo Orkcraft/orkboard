@@ -18,7 +18,8 @@ is paired or a pairing code is shown: a machine with no phone opens no port on t
          ← {"t": "reply", "id": 7, "ok": true, "result": true}
          ← {"t": "news", "news": [...]}       what came, while the app is open (gui/notify.py)
 
-A command reaches `host.command` only when `mobile.allowed` says so, at most a few a second per device
+A command reaches `host.command` only when the host's `phone_face` allows it (Orkline's is gui/mobile.py, Orkboard's
+gui/board_host.py `BoardPhone`; spec 37 §4), at most a few a second per device
 (`pairing.Bucket`); it never sends the page's `state`, `detail` or a terminal's frames and takes no
 `watch`, `term.attach` or `term.replay`. Forget (Settings → Phones) closes the device's socket at once.
 
@@ -46,9 +47,8 @@ from websockets.http11 import Request
 from websockets.server import ServerProtocol
 
 from orkcraft import env
-from orkcraft.gui import mobile, phone_http, phone_tls, pwa, tailnet
-from orkcraft.gui import places as places_http
-from orkcraft.gui.host import CommandError
+from orkcraft.gui import phone_http, phone_tls, pwa, tailnet
+from orkcraft.gui.board_host import CommandError
 from orkcraft.gui.pairing import Bucket, PairError, Pairing, clean_name
 from orkcraft.gui.phone_http import (
     BODY_LIMIT,
@@ -60,6 +60,7 @@ from orkcraft.gui.phone_http import (
 )
 from orkcraft.realm import places
 
+API = 1                  # the mobile API's version: a change that breaks a client raises it
 PUSH_S = 2.0             # a phone gets the compact snapshot at most this often, and only when its rev changed
 MAX_FRAME = 8 * 2**20    # as the page's socket: a dropped file comes base64 in one frame
 HOST_ENV = "PHONE_HOST"  # ORKCRAFT_PHONE_HOST: the address to listen on, when the LAN's own is not the one
@@ -85,7 +86,7 @@ def lan_ip() -> str | None:
 def pair_link(address: str, fingerprint: str, code: str, tail: str = "") -> str:
     """What the QR code says: where the town is, the certificate to pin and the one-time code; `ts`, the
     address on the tailnet too, when Tailscale runs here (a phone on the road tries it)."""
-    return (f"orkcraft://pair?v={mobile.API}&addr={quote(address, safe='')}"
+    return (f"orkcraft://pair?v={API}&addr={quote(address, safe='')}"
             f"&fp={fingerprint.replace(':', '')}&code={quote(code, safe='')}"
             + (f"&ts={quote(tail, safe='')}" if tail else ""))
 
@@ -142,6 +143,7 @@ class Listener:
     def __init__(self, host, pairing: Pairing | None = None, bind: str | None = None,
                  cert_folder: Path | None = None) -> None:
         self.host = host
+        self.entry = getattr(host, "phone_entry", "app.js")     # the app's page's script (gui/pwa.py `serve`)
         self.pairing = pairing or Pairing()
         self.bind = bind or env.getenv(HOST_ENV) or None   # None: the LAN's address (lan_ip)
         self.cert_folder = cert_folder
@@ -291,7 +293,7 @@ class Listener:
             self.on_push(None)
 
     def compact(self) -> dict:
-        return mobile.phone_snapshot(self.host)
+        return self.host.phone_face.phone_snapshot(self.host)
 
     def push(self, snap: dict | None = None) -> dict:
         snap = snap or self.compact()
@@ -327,7 +329,7 @@ class Listener:
         from orkcraft import __version__
         from orkcraft.gui.server import PROTOCOL
         return _json(HTTPStatus.OK, {"name": "orkcraft", "version": __version__, "protocol": PROTOCOL,
-                                     "api": mobile.API}, keep_alive=keep_alive)
+                                     "api": API}, keep_alive=keep_alive)
 
     async def _pair(self, method: str, headers: dict[str, str], reader: asyncio.StreamReader) -> bytes:
         if method != "POST":
@@ -358,7 +360,8 @@ class Listener:
         return _json(HTTPStatus.OK, {"id": device_id, "token": token, "name": name})
 
     async def _place(self, method: str, headers: dict[str, str], reader: asyncio.StreamReader) -> bytes:
-        return await places_http.post(self, method, headers, reader)
+        post = getattr(self.host, "place_post", None)            # Orkline's places (gui/places.py); none in Orkboard
+        return await post(self, method, headers, reader) if post is not None else _response(HTTPStatus.NOT_FOUND)
 
     def _locked(self) -> None:
         if not self._said_locked:
@@ -442,11 +445,12 @@ class Listener:
             return {"t": "reply", "id": cid, "ok": False, "error": "Too many commands: wait a moment"}
         if not isinstance(args, dict):
             return {"t": "reply", "id": cid, "ok": False, "error": "Arguments are an object"}
-        if not mobile.allowed(self.host, name, args):
+        face = self.host.phone_face
+        if not face.allowed(self.host, name, args):
             return {"t": "reply", "id": cid, "ok": False, "error": f"Not from a phone: {name}"}
         self.pairing.seen(phone.id)
         try:
-            result = self.host.command(name, mobile.guard(name, args, {"id": phone.id, "name": phone.name}))
+            result = self.host.command(name, face.guard(name, args, {"id": phone.id, "name": phone.name}))
         except CommandError as e:
             return {"t": "reply", "id": cid, "ok": False, "error": str(e)}
         except Exception as e:                       # a broken command never closes the phone

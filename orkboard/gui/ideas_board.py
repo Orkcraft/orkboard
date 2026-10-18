@@ -34,9 +34,9 @@ class BoardMixin:
     def _tree(self, wiki: Path):
         """The Board's tree for this Wiki and work branch; None where it cannot be (the demo, a Wiki outside the
         repository, a folder with no git history): the pages stay in the Wiki then, as before spec 35."""
-        if self.town.demo or getattr(self, "_tree_off", False):
+        if self.host.demo or getattr(self, "_tree_off", False):
             return None
-        repo = Path(self.town.repo_root).resolve()
+        repo = Path(self.host.repo_root).resolve()
         try:
             rel = Path(wiki).resolve().relative_to(repo).as_posix()
         except ValueError:
@@ -52,7 +52,7 @@ class BoardMixin:
             return wiki
         if tree.exists():
             return tree.root()
-        if not make or not (Path(self.town.repo_root) / ".git").exists():
+        if not make or not (Path(self.host.repo_root) / ".git").exists():
             return wiki
         try:
             tree.ensure()
@@ -61,7 +61,7 @@ class BoardMixin:
                 self._ev(event_log.BOARD_COMMITTED, commit=got["commit"], pages=got["pages"], what="moved", seconds=None)
         except Exception as e:                  # a repository the tree cannot live in: the Wiki, as before
             self._tree_off = True
-            self.town.toast(f"The Board keeps its pages in the Wiki: {' '.join(str(e).split())[:200]}", title="The Board",
+            self.host.toast(f"The Board keeps its pages in the Wiki: {' '.join(str(e).split())[:200]}", title="The Board",
                             severity="warning")
             return wiki
         return tree.root()
@@ -96,12 +96,12 @@ class BoardMixin:
     # -- the Board's settings (§1, §5, §7) ---------------------------------------------------------------------
 
     def board_settings(self) -> dict:
-        s = self.town.machine.ideas or settings.IDEAS
+        s = self.host.machine.ideas or settings.IDEAS
         return {"target": s.get("target", settings.IDEAS["target"]), "autostart": bool(s.get("autostart", True)),
                 "night": s.get("night", settings.IDEAS["night"])}
 
     def board_set(self, args: dict) -> dict:
-        mine = dict(self.town.machine.ideas or settings.IDEAS)
+        mine = dict(self.host.machine.ideas or settings.IDEAS)
         for key in ("target", "autostart", "night"):
             if key not in args:
                 continue
@@ -111,8 +111,8 @@ class BoardMixin:
                                   "autostart": "Start plans by themselves is on or off",
                                   "night": "The night is HH:MM-HH:MM"}[key])
             mine[key] = got
-        self.town.machine.ideas = settings.clean_ideas(mine)
-        settings.save(self.town.machine)
+        self.host.machine.ideas = settings.clean_ideas(mine)
+        settings.save(self.host.machine)
         out = self.board_settings()
         self._ev(event_log.BOARD_SET, args, **out)
         self.changed("")
@@ -148,7 +148,7 @@ class BoardMixin:
                          "start_at": str((plan or {}).get("start_at") or ""),
                          "in_needs_you": any(n["kind"] in ("asks", "plan", "proposal") for n in mine)})
         return {"tracks": goals, "ideas": rows, "needs_you": sort_needs(needs), **self.board_settings(),
-                "rev": self.rev, "demo": bool(self.town.demo)}
+                "rev": self.rev, "demo": bool(self.host.demo)}
 
     def _idea_needs(self, i: dict, st: dict, plan: dict | None, asks: list[str], root) -> list[dict]:
         """What of one idea needs the person (§10): its questions, its plan waiting, its to-dos, a failure, a proposal."""
@@ -199,7 +199,7 @@ class BoardMixin:
     def autostart(self, slug: str) -> str:
         """A plan made, or its idea's priority or risk changed: the board decides (code, no model) whether it starts,
         starts at night, or waits for the person. What it did ("" nothing to decide)."""
-        if not bool((self.town.machine.ideas or {}).get("autostart", True)):
+        if not bool((self.host.machine.ideas or {}).get("autostart", True)):
             return "wait"
         plan, page = ideas.plan(self.state_dir, slug), ideas.idea_page(self.root(), slug)
         if plan is None or page is None or plan.get("passed_at") or plan.get("stopped") \

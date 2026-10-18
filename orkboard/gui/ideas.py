@@ -29,7 +29,7 @@ from typing import Any, Callable
 
 from orkcraft import settings
 from orkcraft.core import idea_keeper
-from orkcraft.realm import catalog, event_log, idea_secrets, idea_spend, ideas, wiki
+from orkcraft.realm import event_log, idea_secrets, idea_spend, ideas, wiki
 from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _str, _text
 from orkcraft.gui.ideas_board import BoardMixin
 from orkcraft.gui.ideas_goals import GoalsMixin
@@ -51,20 +51,21 @@ def focus_of(machine) -> str:
 
 
 class _Hop:
-    """The bus as the runner gets it: a publish from its thread is made on the host's (town.call)."""
+    """The bus as the runner gets it: a publish from its thread is made on the host's (`BoardHost.call`)."""
 
-    def __init__(self, town) -> None:
-        self.town = town
+    def __init__(self, host) -> None:
+        self.host = host
 
     def publish(self, topic: str, **data: Any) -> None:
-        self.town.call(lambda: self.town.publish(topic, **data))
+        self.host.call(lambda: self.host.publish(topic, **data))
 
 
 class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
     def __init__(self, host) -> None:
+        """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
+        host makes one from its town, Orkboard its own."""
         self.host = host
-        self.town = host.town
-        self.state_dir = Path(self.town.repo_root) / ".orkcraft"
+        self.state_dir = Path(self.host.repo_root) / ".orkcraft"
         self.rev = 0
         self._cache: tuple[int, float, dict] | None = None
         self._runner: Any = None
@@ -77,11 +78,11 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         self._what: dict[str, str] = {}                   # slug → what its next Board commit says (spec 35 §13)
         self._limits_logged = float("-inf")
         self.keeper = idea_keeper.IdeaKeeper(
-            self.town.repo_root, self.state_dir, self.keeper_root, lambda: self.town.machine.ideas, self._publish,
-            demo=bool(self.town.demo), budget_ok=lambda: self.town.budget_ok(), limits=lambda: list(self.host.limits() or []),
-            on_plan=self._on_plan, start_night=self.start_night, events=not self.town.demo)
+            self.host.repo_root, self.state_dir, self.keeper_root, lambda: self.host.machine.ideas, self._publish,
+            demo=bool(self.host.demo), budget_ok=lambda: self.host.budget_ok(), limits=lambda: list(self.host.limits() or []),
+            on_plan=self._on_plan, start_night=self.start_night, events=not self.host.demo)
         self.keeper.index_root = self.wiki
-        self.town.bus.subscribe(idea_keeper.CHANGED, self._changed)
+        self.host.bus.subscribe(idea_keeper.CHANGED, self._changed)
 
     # -- where the pages are --------------------------------------------------------------------------------
 
@@ -97,31 +98,21 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         return self.tree_root(wiki, make=used)
 
     def wiki(self) -> Path:
-        """The Wiki joined to the board: the board's `wiki` (a Wiki's id), else the camp's first Wiki (team or
-        general first), else `llm-wiki/general/` in the town's folder. The keeper reads its index here."""
-        repo = Path(self.town.repo_root)
-        found, named = [], ""
-        for bid, spec in self.town.custom_specs.items():
-            spec = catalog.migrate(spec)
-            if spec.get("type") == "fields" and not named:
-                named = str((spec.get("config") or {}).get("wiki") or "")
-            elif spec.get("type") == "scrolls":
-                bs = self.town.scroll.building(bid)
-                if bs is not None and not bs.demolished:
-                    topic = str((spec.get("config") or {}).get("topic") or "general")
-                    found.append((topic not in ("team", "general"), bid))
-        for _rank, bid in sorted(found, key=lambda f: (f[1] != named, *f)):
-            w = self.town.worker(bid)
-            root = getattr(w, "wiki_root", None)
-            if root is not None:
-                return Path(root)
-        return wiki.root_of(repo, None, "general")
+        """The Wiki joined to the board: `ideas.wiki` (a folder in the repository) when it is set, else the one the
+        host finds (Orkline's: the Task board's `wiki`, else the camp's first Wiki, `BoardHost.wiki_of`), else
+        `llm-wiki/general/` in the repository (spec 37 §3.5). The keeper reads its index here."""
+        repo = Path(self.host.repo_root)
+        own = str((self.host.machine.ideas or {}).get("wiki") or "")
+        if own:
+            return repo / own
+        found = self.host.wiki_of() if self.host.wiki_of is not None else None
+        return Path(found) if found is not None else wiki.root_of(repo, None, "general")
 
     # -- the bus, the clock, the snapshot ------------------------------------------------------------------
 
     def _publish(self, slug: str) -> None:
         """From the keeper's thread: `ideas.changed` on the host's."""
-        self.town.call(lambda: self.town.publish(idea_keeper.CHANGED, slug=slug))
+        self.host.call(lambda: self.host.publish(idea_keeper.CHANGED, slug=slug))
 
     def _changed(self, event) -> None:
         self.rev += 1
@@ -140,10 +131,10 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
 
     def _ev(self, event: str, args: dict | None = None, **fields: Any) -> None:
         """One line of `.orkcraft/usage/events.jsonl`; none in the demo. `device`: "phone" (put there by the listener) or "desktop"."""
-        if not self.town.demo:
+        if not self.host.demo:
             if args is not None:
                 fields["device"] = _device(args)
-            event_log.record(Path(self.town.repo_root), event, **fields)
+            event_log.record(Path(self.host.repo_root), event, **fields)
 
     def _state_event(self, slug: str) -> None:
         """`keeper_state` when an idea's state changed, and `plan_made` when it reaches `plan`."""
@@ -173,15 +164,15 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
             return None
 
     def changed(self, slug: str) -> None:
-        self.town.publish(idea_keeper.CHANGED, slug=slug)
+        self.host.publish(idea_keeper.CHANGED, slug=slug)
 
     def runner(self, need: bool = False):
         """The runner (spec 29a part B), made once; None while this build has none (`need`: say so instead)."""
         if self._runner is None and not self._runner_error:
             try:
                 from orkcraft.core.idea_runner import IdeaRunner
-                self._runner = IdeaRunner(self.town.repo_root, self.state_dir, self.town.machine, _Hop(self.town),
-                                          events=not self.town.demo, on_held=lambda: self.log_limits(force=True),
+                self._runner = IdeaRunner(self.host.repo_root, self.state_dir, self.host.machine, _Hop(self.host),
+                                          events=not self.host.demo, on_held=lambda: self.log_limits(force=True),
                                           rank=self.rank)
             except ImportError:
                 self._runner_error = "The runner is not in this build yet: plans cannot start"
@@ -197,7 +188,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         try:
             self.keeper.tick()
         except Exception as e:                  # the keeper's batch never stops the clock
-            self.town.toast(f"{type(e).__name__}: {e}", title="The keeper", severity="error")
+            self.host.toast(f"{type(e).__name__}: {e}", title="The keeper", severity="error")
         if now - self._runner_at >= RUNNER_TICK_S:
             self._runner_at = now
             runner = self.runner() if self._ever_passed() else self._runner
@@ -205,7 +196,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
                 try:
                     runner.tick()
                 except Exception as e:
-                    self.town.toast(f"{type(e).__name__}: {e}", title="The runner", severity="error")
+                    self.host.toast(f"{type(e).__name__}: {e}", title="The runner", severity="error")
 
     def _ever_passed(self) -> bool:
         folder = self.state_dir / "ideas"
@@ -235,7 +226,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
             except Exception:                   # a broken page never breaks the town's snapshot
                 data = {"needs_you": 0, "idea_states": [], "review_count": 0, "review_results": []}
             self._cache = (self.rev, now, data)
-        return {"focus": focus_of(self.town.machine), "ideas_rev": self.rev, **self._cache[2],
+        return {"focus": focus_of(self.host.machine), "ideas_rev": self.rev, **self._cache[2],
                 "limits": self.limits()}
 
     # -- reading -------------------------------------------------------------------------------------------
@@ -427,7 +418,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
     # -- Review, Agents, one task (spec 33 §5) -------------------------------------------------------------
 
     def _into(self) -> str:
-        return str((self.town.machine.ideas or {}).get("merge_into") or settings.IDEAS["merge_into"])
+        return str((self.host.machine.ideas or {}).get("merge_into") or settings.IDEAS["merge_into"])
 
     def _plans(self) -> list[tuple[str, str, dict]]:
         """(slug, title, plan) of every idea that has a plan, in the board's order."""
@@ -459,9 +450,9 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         return sorted(out, key=lambda r: r["finished"])
 
     def review_list(self, args: dict) -> dict:
-        m = self.town.machine.ideas or {}
+        m = self.host.machine.ideas or {}
         try:
-            branches = IdeaGit(Path(self.town.repo_root)).branches()
+            branches = IdeaGit(Path(self.host.repo_root)).branches()
         except Exception:                       # not a git folder yet: the picker offers only the current branch
             branches = []
         into = self._into()
@@ -481,7 +472,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         branch = str(task.get("branch") or "")
         if not branch:
             raise IdeasError("That task has no code yet")
-        git = IdeaGit(Path(self.town.repo_root))
+        git = IdeaGit(Path(self.host.repo_root))
         try:
             got = git.diff(branch, str(task.get("base") or self._into()))
         except Exception as e:
@@ -528,21 +519,21 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         branch, push = args.get("branch"), args.get("push")
         if branch is None and not isinstance(push, bool):
             raise IdeasError("branch is missing")
-        mine = dict(self.town.machine.ideas or settings.IDEAS)
+        mine = dict(self.host.machine.ideas or settings.IDEAS)
         if branch is not None:
             name = _text(args, "branch", 100)
             if settings.clean_ideas({"merge_into": name})["merge_into"] != name:
                 raise IdeasError(f"{name!r} is not a branch name")
             try:
-                IdeaGit(Path(self.town.repo_root)).ensure_branch(name)
+                IdeaGit(Path(self.host.repo_root)).ensure_branch(name)
             except RuntimeError as e:
                 raise IdeasError(str(e)) from None
             mine["merge_into"] = name
         if isinstance(push, bool):
             mine["push"] = push
-        self.town.machine.ideas = settings.clean_ideas(mine)
-        settings.save(self.town.machine)
-        self._ev(event_log.INTO_CHANGED, args, branch=self.town.machine.ideas["merge_into"], push=self.town.machine.ideas["push"])
+        self.host.machine.ideas = settings.clean_ideas(mine)
+        settings.save(self.host.machine)
+        self._ev(event_log.INTO_CHANGED, args, branch=self.host.machine.ideas["merge_into"], push=self.host.machine.ideas["push"])
         self.changed("")
         return {"ok": True}
 
