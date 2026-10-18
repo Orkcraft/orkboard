@@ -89,7 +89,8 @@ class Stub:
     def run(self, name, a):
         device = a.get("device")                      # the listener adds it to every board command (mobile.guard)
         assert device == "phone"
-        a = {k: v for k, v in a.items() if k != "device" or name == "ideas.log"}
+        assert a.get("link") == "paired"              # the listener adds it for a paired phone (spec 35 §9): a file to-do needs it
+        a = {k: v for k, v in a.items() if k != "link" and (k != "device" or name == "ideas.log")}
         self.calls.append((name, dict(a)))
         if name == "ideas.board":
             ideas = [i | {"thesis": "Gist in one line", "asks": 0, "updated": "", "progress": {"done": 1, "total": 5} if i["slug"] == "sync" else {"done": 0, "total": 0}}
