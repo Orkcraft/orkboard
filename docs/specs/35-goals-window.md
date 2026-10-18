@@ -8,14 +8,18 @@ priority), lets the keeper write the rest, starts what is safe by itself, moves 
 the Board one **Target** (thrift · balance · quality) that picks every step's tier and reasoning. Build on `main` as
 it is (33 and 34 merged). **Builds:** Claude (A on the elder tier; B and C on the warrior tier) · **Review:** full · P0.
 
+**Added 18 October (decisions §48.7), before the build:** §0 *Measured* now carries each call's `step` and `cost`; a
+task's run records its `tool` and `model` (§12); §11.5, the Agents chips say what started by itself or waits for the
+night and why a task is held. The testers' week is measured from these; everything else on Agents is spec 36.
+
 Three parts, one branch each, in this order; **this file is the contract** (names, data, commands); the rest is the
 builder's choice inside its files. Wording: CLAUDE.md (orks by orkish names: the Taskmaster is the keeper; today's
 words: *goal*, *idea*, *Target*, *to-do*, *task*). **Change nothing outside these files.**
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
-| **A. Backend** | `spec/35-backend` | §0–§10, §12, §13 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/idea_git.py` (the Board's tree and its commits, §13), `realm/harnesses.py` and `realm/jobs.py` (effort, the budget cap, no session persistence), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
-| **B. Desktop** | `spec/35-desktop` | §11 on the desktop | `gui/static/js/shell/*`, `gui/static/js/board/*` |
+| **A. Backend** | `spec/35-backend` | §0–§10, §12, §13 | new `realm/idea_target.py`, new `realm/idea_risk.py`, `realm/ideas.py`, `realm/idea_secrets.py` (the files beside the secrets), `realm/idea_git.py` (the Board's tree and its commits, §13), `realm/harnesses.py` and `realm/jobs.py` (effort, the budget cap, no session persistence), `core/idea_keeper.py`, `core/idea_goals.py`, new `core/idea_draft.py` (the draft, a mixin like `idea_goals.py`), new `core/idea_night.py`, `core/idea_runner.py`, `gui/ideas.py`, `gui/ideas_goals.py`, new `gui/ideas_board.py` (`board()` and Needs you move here: `gui/ideas.py` is at 571 lines), `gui/mobile.py` (allowlist), `gui/ideas_roles.py` (the Agents chips' `by` and `night` only, §11.5), `realm/event_log.py`, `realm/lexicon.py`, `settings.py` |
+| **B. Desktop** | `spec/35-desktop` | §11 on the desktop | `gui/static/js/shell/*` (of the Agents window, only §11.5), `gui/static/js/board/*` |
 | **C. Phone** | `spec/35-phone` | §11 on the phone | `gui/static/pwa/shell-*.js`, `pwa/app.css`, `pwa/sw.js` (cache version) |
 
 B and C branch from A once A is pushed (as in 33 and 34); they touch no file of each other's and can be built at once.
@@ -56,7 +60,10 @@ earlier turn and every file the model read into each new call. So, for every cal
   rewrites that section (and Decisions, if something was decided) and replies in at most three lines. No turn carries
   the turns before it.
 - **Measured.** Every keeper event (`goal_read`, `idea_drafted`, `idea_answered`, `idea_said`, `plan_made`,
-  `night_run`) carries `prompt_chars` and `tokens` (in, out, cache read), so the waybill shows what each step costs.
+  `night_run`) carries `step` (§1's name; a night's refresh writes `goal_read` with `step: "refresh"`, the proposals'
+  call is counted on `night_run`), `prompt_chars`, `tokens` (in, out, cache read) and `cost` (the call's $ as the tool
+  reports it, `null` when unpriced, never 0), so the waybill shows what each step costs and spec 36 adds it up by
+  stage (decisions §48.4).
 
 ## 1. The Target: the Board's one setting
 - `ideas.target`: `thrift` · `balance` · `quality` (default `balance`), shown as **Target** (`TERMS` `steward_goal`,
@@ -258,6 +265,10 @@ earlier turn and every file the model read into each new call. So, for every cal
    section.
 4. **The spec** (the preview on the desktop, its own screen on the phone): its sections in §3's order; Stages shows
    each task's live state beside it from plan.json (*merged · working · held · failed*, in words beside the icon).
+5. **Agents: only the chips' words** (decisions §48.7; the rest of the window is spec 36). A task that started by
+   itself says *by itself* beside its state (plan.json `passed_by: "auto"`); a task of a plan that starts at night
+   says *tonight*; a held task says why, in words: *waits for limits · after 18:00* or *keeps your reserve · after
+   18:00* (§6). Its Stop is where it was (the task's preview).
 - The Board's gear: *Start plans by themselves* (on) and *Night* (from–to).
 - The phone: the same order in one column, the Target chip in the Board's header, every dialog a sheet (34 §5).
 
@@ -275,7 +286,9 @@ earlier turn and every file the model read into each new call. So, for every cal
 | `ideas.todo` | as today, and `file: {"name", "data"}` for a file to-do | `{"ok": true}` |
 
 - `ideas.board`: `needs_you` in place of `today`; `target, autostart, night`; ideas gain `queue, held_until, risk,
-  risk_triggers, depends_on, waits_on, start_at`; goals gain `title_by`. All callable from the phone (`gui/mobile.py`);
+  risk_triggers, depends_on, waits_on, start_at`; goals gain `title_by`. `ideas.agents`' task chips gain `by`
+  (`auto` · `person`, from `passed_by`) and `night` (bool, `start_at: "night"` and not started yet); a held task's
+  `note` names why: `after HH:MM` for the limits, `reserve · after HH:MM` for §6's reserve. All callable from the phone (`gui/mobile.py`);
   a file to-do only over the paired link.
 - Each keeper run has **its own cancel** (`read_stop`); Stop all cancels every one, as today.
 - Settings, `IDEAS`: `target: "balance"`, `autostart: True`, `night: "01:00-07:00"`, `reserve_day: 0.3`,
@@ -283,7 +296,8 @@ earlier turn and every file the model read into each new call. So, for every cal
 - Events (spec 33 §9, the same log): `board_set` (target, autostart, night, device); `idea_added` gains `priority, queue`;
   `idea_drafted` (idea, risk, triggers, questions, tier, effort, seconds); `idea_answered` (idea, answers); `plan_passed` gains `by, risk, priority`;
   `keeper_stopped` (idea); `night_run` (§7); `proposal_made` (idea, goal); `proposal_answered` (idea, take,
-  has_reason); `goal_read` gains `tier, effort`; `task_state` gains `ran_tier, effort`.
+  has_reason); `goal_read` gains `tier, effort`; `task_state` gains `ran_tier, effort, tool, model` (the model the run
+  named, as `h.pick` resolved it); the keeper events gain §0's `step, prompt_chars, tokens, cost`.
 
 ## 13. The specs on the work branch, at every change
 The owner (18 October): orks working in parallel must see each other's specs. So the Board's pages are committed, at
@@ -359,12 +373,16 @@ calendar meetings as Board screens (they go to General, unseen in v1).
     (`board_held`) and the next write lands it; writes within 10 s are one commit; a task's worktree holds the
     specs committed before it; a result touching a Board page is refused; the move copies, commits, then removes only
     untracked copies;
-  - each event with its fields; `tests/test_architecture.py` (core and realm never import the GUI).
+  - each event with its fields: every keeper event with `step`, `tokens` and `cost` (`null` from an unpriced stub,
+    never 0), `task_state` with `tool` and `model`; `ideas.agents`' chips with `by` and `night`, a held chip's `note`
+    telling the limits from the reserve;
+  - `tests/test_architecture.py` (core and realm never import the GUI).
 - **B:** browser tests at 1 440 × 900: New goal with only a description and a priority → *reading*, then its title
   and Summary; the goal select filters Needs you and the ideas; the Target chip sets and shows; New idea needs a goal;
   a High idea shows a spinner, its **Stop** leaves it *stopped*; a Low one shows *tonight* with Process now and
   Delete; Needs you is one list, a proposal answered in its row; the spec's Stages with live task states; a file
-  to-do's dialog with its steps and an upload.
+  to-do's dialog with its steps and an upload; in Agents a chip *by itself*, one *tonight*, and a held one *keeps
+  your reserve · after 18:00*.
 - **C:** the same at 390 × 844 as sheets; no horizontal scroll.
 - Each part: the critical tests (CLAUDE.md "Alpha"), the touched modules' tests (`test_idea_keeper.py`,
   `test_idea_runner.py`, `test_ideas.py`, `test_gui_ideas.py`, `test_roles.py`, `test_board_loop.py`, and the new
