@@ -1,5 +1,5 @@
-"""Updates (core/updates.py, gui/updates.py, docs/updates.md): the list of releases, what is offered,
-what installs by itself when the town opens, and how each kind of install upgrades."""
+"""Updates (core/updates.py, gui/updates.py, docs/updates.md in Orkline): the list of releases, what is offered,
+what installs by itself at a launch, and how each kind of install upgrades Orkboard."""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from orkboard import __version__, cli, settings
+from orkboard import __version__, settings
 from orkboard.core import updates
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,7 +85,16 @@ def test_what_installs_by_itself_follows_the_policy():
     assert not updates.due(None, "auto")
 
 
+def test_orkboard_reads_its_own_list_never_orklines():
+    assert updates.MANIFEST_URL == "https://raw.githubusercontent.com/Orkcraft/orkboard/main/updates.json"
+    assert updates.SOURCE == "git+https://github.com/Orkcraft/orkboard"
+    assert updates.state_path().name == "orkboard-updates.json"            # Orkline's cache is updates.json
+
+
 def test_the_repositorys_list_names_this_version_last():
+    """Orkboard's first version has no list (spec 37 §9); once a release adds updates.json, this holds."""
+    if not (ROOT / "updates.json").is_file():
+        pytest.skip("no updates.json in this repository yet")
     data = json.loads((ROOT / "updates.json").read_text(encoding="utf-8"))
     rels = updates.releases(data)
     assert rels and len(rels) == len(data["releases"]), "every release in updates.json is well formed"
@@ -138,72 +147,72 @@ def test_nothing_is_read_when_turned_off(tmp_path, monkeypatch):
 # -- how this copy upgrades ---------------------------------------------------------------------
 
 def checkout(tmp_path: Path) -> Path:
-    root = tmp_path / "orkcraft-src"
+    root = tmp_path / "orkboard-src"
     (root / ".git").mkdir(parents=True)
-    (root / "orkcraft").mkdir()
-    (root / "pyproject.toml").write_text('[project]\nname = "orkcraft"\n', encoding="utf-8")
+    (root / "orkboard").mkdir()
+    (root / "pyproject.toml").write_text('[project]\nname = "orkboard"\n', encoding="utf-8")
     return root
 
 
 def test_a_git_checkout_pulls(tmp_path):
     root = checkout(tmp_path)
-    way = updates.method(root / "orkcraft", prefix=str(root / ".venv"), which=lambda name: "/bin/" + name)
+    way = updates.method(root / "orkboard", prefix=str(root / ".venv"), which=lambda name: "/bin/" + name)
     assert way.kind == "git" and way.steps[0] == ("git", "-C", str(root), "pull", "--ff-only")
     assert way.steps[1][:3] == ("uv", "pip", "install")
-    assert updates.method(root / "orkcraft", prefix="/x", which=lambda name: None).steps == way.steps[:1]
+    assert updates.method(root / "orkboard", prefix="/x", which=lambda name: None).steps == way.steps[:1]
 
 
 def test_pipx_and_uv_upgrade_with_their_own_tool(tmp_path):
-    pkg = tmp_path / "site" / "orkcraft"
+    pkg = tmp_path / "site" / "orkboard"
     has = lambda name: "/bin/" + name   # noqa: E731
-    pipx = updates.method(pkg, prefix="/home/a/.local/share/pipx/venvs/orkcraft", which=has)
-    assert pipx.kind == "pipx" and pipx.steps == (("pipx", "upgrade", "orkcraft"),)
-    uv = updates.method(pkg, prefix="/home/a/.local/share/uv/tools/orkcraft", which=has)
-    assert uv.kind == "uv" and uv.steps == (("uv", "tool", "upgrade", "orkcraft"),)
-    missing = updates.method(pkg, prefix="/home/a/.local/share/pipx/venvs/orkcraft", which=lambda n: None)
-    assert not missing.can and "pipx install --force" in missing.why
+    pipx = updates.method(pkg, prefix="/home/a/.local/share/pipx/venvs/orkboard", which=has)
+    assert pipx.kind == "pipx" and pipx.steps == (("pipx", "upgrade", "orkboard"),)
+    uv = updates.method(pkg, prefix="/home/a/.local/share/uv/tools/orkboard", which=has)
+    assert uv.kind == "uv" and uv.steps == (("uv", "tool", "upgrade", "orkboard"),)
+    missing = updates.method(pkg, prefix="/home/a/.local/share/pipx/venvs/orkboard", which=lambda n: None)
+    assert not missing.can and "uv tool install --force" in missing.why
 
 
 def test_homebrew_upgrades_with_brew_and_restarts_under_opt(tmp_path, monkeypatch):
-    pkg = tmp_path / "site" / "orkcraft"
+    pkg = tmp_path / "site" / "orkboard"
     monkeypatch.delenv("HOMEBREW_PREFIX", raising=False)
     has = lambda name: "/opt/homebrew/bin/" + name   # noqa: E731
-    brew = updates.method(pkg, prefix="/opt/homebrew/Cellar/orkcraft/0.2.1/libexec", which=has)
+    brew = updates.method(pkg, prefix="/opt/homebrew/Cellar/orkboard/0.2.1/libexec", which=has)
     assert brew.kind == "brew" and brew.steps == (("/opt/homebrew/bin/brew", "update", "--quiet"),
-                                                  ("/opt/homebrew/bin/brew", "upgrade", "orkcraft/orkcraft/orkcraft"))
-    assert brew.python == "/opt/homebrew/opt/orkcraft/libexec/bin/python"
+                                                  ("/opt/homebrew/bin/brew", "upgrade", "orkcraft/orkcraft/orkboard"))
+    assert brew.python == "/opt/homebrew/opt/orkboard/libexec/bin/python"
     monkeypatch.setenv("HOMEBREW_PREFIX", "/home/linuxbrew/.linuxbrew")
-    opt = updates.method(pkg, prefix="/home/linuxbrew/.linuxbrew/opt/orkcraft/libexec", which=has)
-    assert opt.kind == "brew" and opt.python == "/home/linuxbrew/.linuxbrew/opt/orkcraft/libexec/bin/python"
+    opt = updates.method(pkg, prefix="/home/linuxbrew/.linuxbrew/opt/orkboard/libexec", which=has)
+    assert opt.kind == "brew" and opt.python == "/home/linuxbrew/.linuxbrew/opt/orkboard/libexec/bin/python"
     nowhere = tmp_path / "brew"                         # a Homebrew with no brew in it, whatever this machine has
-    missing = updates.method(pkg, prefix=str(nowhere / "Cellar/orkcraft/0.2.1/libexec"), which=lambda n: None)
-    assert not missing.can and "brew upgrade orkcraft/orkcraft/orkcraft" in missing.why
+    missing = updates.method(pkg, prefix=str(nowhere / "Cellar/orkboard/0.2.1/libexec"), which=lambda n: None)
+    assert not missing.can and "brew upgrade orkcraft/orkcraft/orkboard" in missing.why
     runs = Runs(version="9.0.0")
     assert updates.install(brew, runs).ok and runs.calls[-1][0] == brew.python   # the new version, read under opt/
     seen = []
     monkeypatch.delenv(updates.UPDATED_ENV, raising=False)
-    updates.restart(["gui"], "9.0.0", execv=lambda exe, args: seen.append(exe), python=brew.python)
+    updates.restart(["--browser"], "9.0.0", execv=lambda exe, args: seen.append(exe), python=brew.python)
     assert seen == [brew.python]
 
 
 def test_a_copy_from_elsewhere_says_what_to_run(tmp_path, monkeypatch):
     monkeypatch.setattr(updates, "_direct_url", lambda: "")
-    way = updates.method(tmp_path / "site" / "orkcraft", prefix="/usr", which=lambda n: None)
+    way = updates.method(tmp_path / "site" / "orkboard", prefix="/usr", which=lambda n: None)
     assert not way.can and updates.SOURCE in way.why
-    monkeypatch.setattr(updates, "_direct_url", lambda: "https://github.com/Orkcraft/orkcraft")
-    pip = updates.method(tmp_path / "site" / "orkcraft", prefix="/usr", which=lambda n: None)
-    assert pip.kind == "pip" and pip.steps[0][-1] == "orkcraft @ git+https://github.com/Orkcraft/orkcraft"
+    monkeypatch.setattr(updates, "_direct_url", lambda: "https://github.com/Orkcraft/orkboard")
+    pip = updates.method(tmp_path / "site" / "orkboard", prefix="/usr", which=lambda n: None)
+    assert pip.kind == "pip" and pip.steps[0][-1] == "orkboard @ git+https://github.com/Orkcraft/orkboard"
 
 
 def test_an_install_runs_each_step_and_reads_the_new_version():
-    way = updates.Method("pipx", (("pipx", "upgrade", "orkcraft"),))
+    way = updates.Method("pipx", (("pipx", "upgrade", "orkboard"),))
     runs = Runs(version="9.0.0")
     result = updates.install(way, runs)
-    assert result.ok and result.version == "9.0.0" and runs.calls[0] == ["pipx", "upgrade", "orkcraft"]
+    assert result.ok and result.version == "9.0.0" and runs.calls[0] == ["pipx", "upgrade", "orkboard"]
 
 
 def test_an_install_that_fails_or_changes_nothing_is_not_ok():
-    way = updates.Method("pipx", (("pipx", "upgrade", "orkcraft"),))
+    way = updates.Method("pipx", (("pipx", "upgrade", "orkboard"),))
     failed = updates.install(way, Runs(fail="pipx"))
     assert not failed.ok and "no network" in failed.output
     same = updates.install(way, Runs(version=__version__))
@@ -212,7 +221,7 @@ def test_an_install_that_fails_or_changes_nothing_is_not_ok():
 
 def test_a_checkout_with_changes_or_off_main_is_left_alone(tmp_path):
     way = updates.Method("git", (("git", "pull", "--ff-only"),), cwd=str(tmp_path))
-    dirty = Runs(status=" M orkcraft/cli.py\n")
+    dirty = Runs(status=" M orkboard/gui/board_host.py\n")
     assert not updates.install(way, dirty).ok and ["git", "pull", "--ff-only"] not in dirty.calls
     branch = Runs(branch="my-feature")
     result = updates.install(way, branch)
@@ -220,13 +229,13 @@ def test_a_checkout_with_changes_or_off_main_is_left_alone(tmp_path):
     assert updates.install(way, Runs()).ok
 
 
-# -- when the town opens ------------------------------------------------------------------------
+# -- at a launch --------------------------------------------------------------------------------
 
 def launch(tmp_path, policy, rels, runs=None, monkeypatch=None, can=True):
     said, execs = [], []
-    way = updates.Method("pipx", (("pipx", "upgrade", "orkcraft"),)) if can else updates.Method("none", why="no way")
+    way = updates.Method("pipx", (("pipx", "upgrade", "orkboard"),)) if can else updates.Method("none", why="no way")
     monkeypatch.setattr(updates, "method", lambda: way)
-    found = updates.at_launch(["gui"], policy, say=said.append, now=10.0, file=tmp_path / "s.json",
+    found = updates.at_launch(["--browser"], policy, say=said.append, now=10.0, file=tmp_path / "s.json",
                               read=lambda: manifest(*rels), run=runs or Runs(), execv=lambda *a: execs.append(a))
     return found, said, execs
 
@@ -234,8 +243,8 @@ def launch(tmp_path, policy, rels, runs=None, monkeypatch=None, can=True):
 def test_a_critical_update_installs_and_restarts_before_the_town_loads(on, tmp_path, monkeypatch):
     runs = Runs(version="9.0.0")
     found, said, execs = launch(tmp_path, "critical", [("9.0.0", True)], runs, monkeypatch)
-    assert found is None and ["pipx", "upgrade", "orkcraft"] in runs.calls
-    assert execs and execs[0][1][-1] == "gui" and execs[0][1][1:3] == ["-m", "orkboard.cli"]
+    assert found is None and ["pipx", "upgrade", "orkboard"] in runs.calls
+    assert execs and execs[0][1][-1] == "--browser" and execs[0][1][1:3] == ["-m", "orkboard.gui.board_host"]
     assert any("critical update 9.0.0" in line for line in said)
     import os
     assert os.environ.get(updates.UPDATED_ENV) == "9.0.0"
@@ -258,7 +267,7 @@ def test_a_failed_install_lets_the_town_open_and_waits_a_day(on, tmp_path, monke
     assert found.version == "9.0.0" and not execs and any("did not install" in line for line in said)
     assert updates.load_state(tmp_path / "s.json").failed_version == "9.0.0"
     runs = Runs()
-    again = updates.at_launch(["gui"], "critical", say=said.append, now=20.0, file=tmp_path / "s.json",
+    again = updates.at_launch(["--browser"], "critical", say=said.append, now=20.0, file=tmp_path / "s.json",
                               read=lambda: manifest(("9.0.0", True)), run=runs, execv=lambda *a: None)
     assert again.version == "9.0.0" and runs.calls == []
 
@@ -274,22 +283,7 @@ def test_the_restarted_process_never_installs_again(on, tmp_path, monkeypatch):
     assert found is None and not execs and not said
 
 
-# -- the command line ---------------------------------------------------------------------------
-
-def test_update_check_says_what_is_out(on, tmp_path, monkeypatch, capsys):
-    where = tmp_path / "updates.json"
-    where.write_text(json.dumps(manifest(("9.0.0", True))), encoding="utf-8")
-    monkeypatch.setenv("ORKCRAFT_UPDATE_URL", where.as_uri())
-    assert cli.main(["update", "check"]) == 0
-    out = capsys.readouterr().out
-    assert "9.0.0 is out — a critical update" in out and "notes of 9.0.0" in out
-
-
-def test_update_sets_the_policy(capsys):
-    assert cli.main(["update", "ask"]) == 0
-    assert settings.load().updates == "ask" and "nothing installs by itself" in capsys.readouterr().out
-    assert cli.main(["update", "critical"]) == 0 and settings.load().updates == "critical"
-
+# -- the policy ---------------------------------------------------------------------------------
 
 def test_the_policy_is_kept_and_a_broken_one_is_the_default():
     s = settings.MachineSettings.from_dict({"updates": "auto"})
@@ -302,13 +296,13 @@ def test_the_policy_is_kept_and_a_broken_one_is_the_default():
 
 def test_the_window_installs_on_a_click_and_restarts(fake_repo, monkeypatch):
     from orkboard.gui import updates as gui_updates
-    from orkboard.gui.host import CommandError, Host
-    host = Host(fake_repo, auto_commit=False)
+    from orkboard.gui.board_host import CommandError, Orkboard
+    host = Orkboard(fake_repo)
     up = host.updates
     assert host.snapshot()["update"] is None
     with pytest.raises(CommandError):
         host.command("update.install")
-    up._method = lambda: updates.Method("pipx", (("pipx", "upgrade", "orkcraft"),))
+    up._method = lambda: updates.Method("pipx", (("pipx", "upgrade", "orkboard"),))
     up._read(updates.State(manifest=manifest(("9.0.0", True))))
     snap = host.snapshot()["update"]
     assert snap["version"] == "9.0.0" and snap["critical"] and snap["can"] and snap["state"] == "idle"
@@ -326,10 +320,10 @@ def test_the_window_installs_on_a_click_and_restarts(fake_repo, monkeypatch):
 
 def test_the_window_says_a_failed_install_and_keeps_running(fake_repo, monkeypatch):
     from orkboard.gui import updates as gui_updates
-    from orkboard.gui.host import Host
-    host = Host(fake_repo, auto_commit=False)
+    from orkboard.gui.board_host import Orkboard
+    host = Orkboard(fake_repo)
     up = host.updates
-    up._method = lambda: updates.Method("pipx", (("pipx", "upgrade", "orkcraft"),))
+    up._method = lambda: updates.Method("pipx", (("pipx", "upgrade", "orkboard"),))
     up._read(updates.State(manifest=manifest(("9.0.0", False))))
     monkeypatch.setattr(gui_updates.threading, "Thread",
                         lambda target, **kw: SimpleNamespace(start=target))
@@ -345,8 +339,8 @@ def test_the_window_says_a_failed_install_and_keeps_running(fake_repo, monkeypat
 
 
 def test_the_window_never_reads_the_list_in_the_demo_or_when_off(fake_repo, monkeypatch):
-    from orkboard.gui.host import Host
-    host = Host(fake_repo, auto_commit=False)
+    from orkboard.gui.board_host import Orkboard
+    host = Orkboard(fake_repo)
     monkeypatch.setattr(updates, "check_later", lambda on_done=None: pytest.fail("read while off"))
     host.updates.tick(0.0)                     # conftest: ORKCRAFT_NO_UPDATE
     host.close()
@@ -355,5 +349,5 @@ def test_the_window_never_reads_the_list_in_the_demo_or_when_off(fake_repo, monk
 def test_the_restart_runs_the_same_command(monkeypatch):
     seen = []
     monkeypatch.delenv(updates.UPDATED_ENV, raising=False)
-    updates.restart(["gui", "--browser"], "9.0.0", execv=lambda exe, args: seen.append((exe, args)))
-    assert seen == [(sys.executable, [sys.executable, "-m", "orkboard.cli", "gui", "--browser"])]
+    updates.restart(["--repo", "/p", "--browser"], "9.0.0", execv=lambda exe, args: seen.append((exe, args)))
+    assert seen == [(sys.executable, [sys.executable, "-m", "orkboard.gui.board_host", "--repo", "/p", "--browser"])]
