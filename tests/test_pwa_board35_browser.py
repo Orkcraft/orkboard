@@ -139,6 +139,7 @@ async def test_needs_you_is_one_list_questions_are_one_form_and_a_proposal_is_an
         await sheet.get_by_label("Answer 1: Which store first?").fill("The App Store")
         await sheet.get_by_role("button", name="Send").click()
         assert await _called(stub, "ideas.answer", {"slug": "ship", "answers": ["The App Store"], "goal": True})
+        await page.locator(".need-goal").wait_for(state="detached", timeout=WAIT_MS)
         await page.locator(".need-asks").click()                                                        # a spec's questions: its Open questions section
         await sheet.wait_for(timeout=WAIT_MS)
         boxes = sheet.locator("textarea")
@@ -148,6 +149,7 @@ async def test_needs_you_is_one_list_questions_are_one_form_and_a_proposal_is_an
         await _shot(page, "phone-questions-390x844")
         await sheet.get_by_role("button", name="Send").click()
         assert await _called(stub, "ideas.answer", {"slug": "sync", "answers": ["first", "second"]})
+        await page.locator(".need-asks").wait_for(state="detached", timeout=WAIT_MS)                    # the list is drawn again before the row is used
         one, two = page.locator(".need-proposal", has_text="A docs page"), page.locator(".need-proposal", has_text="A tour")
         assert await one.get_by_role("radio", name="Low").is_checked()                                  # the proposal's priority
         await one.get_by_role("radio", name="High").click()
@@ -198,7 +200,8 @@ async def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(fake_re
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.plan["tasks"][4].update(state="held", note="reserve · after 18:00")
         stub.plan["tasks"][3].update(state="held", note="files · dark")
-        stub.chip_extra = {"k3": {"by": "auto"}, "k2": {"night": True}, "k4": {"waits_title": "Dark mode"}}
+        stub.chip_extra = {"k3": {"by": "auto"}, "k2": {"night": True}, "k4": {"waits_title": "Dark mode", "note": "files · dark"},
+                           "k5": {"note": "reserve · after 18:00"}}
         stub.bump({})
         await page.get_by_role("tab", name="Agents").click()
         agents = page.locator(".agents")
