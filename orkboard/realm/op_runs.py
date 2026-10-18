@@ -9,6 +9,8 @@
     op_runs.rules(root, name) · take_rules · decline · proposal   # what a template learned (§7)
     op_runs.event(root, event_log.OP_ADDED, op=…)                 # ops/events.jsonl, by event_log's rules
     op_runs.spend(root, line)             # ops/spend.jsonl, idea_spend's line
+    op_runs.ledger(root)                  # ops/ledger.jsonl: its calls' telemetry lines, never a project's
+    op_runs.save_learn(root, name, given) # templates/<name>/learn.json: a learn call waiting for the window (§7)
     op_runs.forget_old(root, keep_days)   # a finished operation's texts and calls go after `keep_days`
 
 Every file under `ops/` is mode 600 and its folders 700: a mail's words and an issue's live here only. No face.
@@ -360,6 +362,45 @@ def event(base: Path, name: str, **fields: Any) -> bool:
 
 def spend(base: Path, row: dict) -> None:
     append(base / "spend.jsonl", row)
+
+
+def ledger(base: Path) -> Path:
+    """Operations' telemetry ledger (sources/telemetry.py's lines: when, model, cost, no text), made mode 600: its
+    calls are charged here, never in a project's ledger (§9)."""
+    path = base / "ledger.jsonl"
+    if not path.exists():
+        with _LOCK:
+            _private_dir(path.parent)
+            try:
+                os.close(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600))
+            except OSError:
+                pass
+    return path
+
+
+# -- a learn call waiting for the window (§7) --------------------------------------------------------------------
+
+def save_learn(base: Path, name: str, given: dict) -> None:
+    """What a template's learn call is given, kept until it runs: Orkboard closing with the window spent loses none."""
+    write(_folder(base, name) / "learn.json", json.dumps(given, ensure_ascii=False))
+
+
+def drop_learn(base: Path, name: str) -> None:
+    try:
+        (_folder(base, name) / "learn.json").unlink(missing_ok=True)
+    except (OSError, KeyError):
+        pass
+
+
+def pending_learns(base: Path) -> dict[str, dict]:
+    """template → what its waiting learn call is given."""
+    out = {}
+    for path in sorted((base / "templates").glob("*/learn.json")):
+        got = _json(path)
+        if isinstance(got.get("op"), str):
+            out[path.parent.name] = {"op": got["op"], "not_right": got.get("not_right"),
+                                     "changes": [c for c in got.get("changes") or [] if isinstance(c, dict)]}
+    return out
 
 
 # -- what stays private (§9) ------------------------------------------------------------------------------------

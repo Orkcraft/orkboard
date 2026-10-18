@@ -4,9 +4,13 @@ draws it and tells it which session is in front (`active`) and what the last quo
 
 Orkboard's (spec 37 §4): the check of the spend against its cap (`over`) and the HUD's words (`words`) take no town,
 and `budget(repo_root)` reads the cap where the town keeps it; `Treasury` keeps them for the line, on its `Town`.
+
+The person's cap (spec 38 §1): Operations belong to no project, so their calls are held by `persons_cap` — the day's
+spend across the open projects' ledgers and Operations' against the smallest cap among the open projects.
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 from pathlib import Path
 
@@ -26,6 +30,28 @@ def budget(repo_root: Path) -> tuple[float, int]:
     gold, lumber = raw.get("gold_session_limit_usd"), raw.get("lumber_context_limit_tokens")
     ok = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0   # noqa: E731
     return (float(gold) if ok(gold) else GOLD_LIMIT_USD), (int(lumber) if ok(lumber) else LUMBER_LIMIT_TOKENS)
+
+
+def day_spent(ledgers: list[Path], now: dt.datetime | None = None) -> float:
+    """The day's priced spend in these ledger files (sources/telemetry.py's lines since local midnight)."""
+    now = (now or dt.datetime.now()).astimezone()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    total = 0.0
+    for path in dict.fromkeys(Path(p) for p in ledgers):
+        for line in telemetry.ledger_lines(path, midnight):
+            usd = line.get("usd")
+            if isinstance(usd, (int, float)) and not isinstance(usd, bool) and usd > 0:
+                total += float(usd)
+    return total
+
+
+def persons_cap(roots: list[Path], ledger: Path, now: dt.datetime | None = None) -> tuple[float, float]:
+    """(the day's spend, the cap) Operations' calls are held by: across the open projects (`roots`) and Operations'
+    own `ledger`, against the smallest cap among the open projects (a cap of 0 is none), GOLD_LIMIT_USD with none
+    open. `over(*persons_cap(...))` says whether an operation's call may start."""
+    caps = [budget(r)[0] for r in roots]
+    cap = min((c for c in caps if c > 0), default=0.0) if caps else GOLD_LIMIT_USD
+    return day_spent([telemetry.ledger_of(r) for r in roots] + [ledger], now), cap
 
 
 def over(spent: float, limit: float) -> bool:

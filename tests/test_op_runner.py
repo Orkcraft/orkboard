@@ -15,7 +15,7 @@ from orkboard.core.op_commands import OpsError
 from orkboard.core.op_runner import MAX_PARALLEL, OpRunner
 from orkboard.realm import harnesses, idea_target, op_runs, op_templates
 from orkboard.sources.limits import Limit
-from tests.ops_stub import ARGS, Stub, stream
+from tests.ops_stub import ARGS, Stub, mode, stream
 
 PREP = [f"mcp__Atlassian__{n}" for n in ("getAccessibleAtlassianResources", "getVisibleJiraProjects",
                                           "searchJiraIssuesUsingJql", "getJiraIssue")]
@@ -406,3 +406,77 @@ def test_each_call_has_its_ledger_line_and_its_events_hold_no_text(runner, stub)
     assert [json.loads(x)["event"] for x in events.splitlines()] == [
         "op_added", "op_prepared", "op_checked", "op_done", "op_trust"]
     assert "Safari" not in events and "Checkout" not in events
+
+
+# -- the person's cap (§1) and a learn call held across a restart (§7) ----------------------------------------------
+
+CAP_WORDS = "The day's spend cap is reached"
+
+
+def test_the_days_spend_cap_holds_the_call_and_refuses_the_persons_press(runner, stub):
+    reads = []
+    runner.cap = lambda: reads.append(1) or ((0.0, 10.0) if len(reads) == 1 else runner.box["spent"])
+    runner.box["spent"] = (10.5, 10.0)
+    op_id = runner.add("jira-task", WHAT)                         # the press passed; the call waits at its start
+    held = wait(runner, op_id, "held")
+    assert held["why"] == "waits: the day's spend cap is reached" and held["held"] == "prepare" and not stub.calls()
+    assert held["held_until"].endswith("T00:00:00")                # the day's spend starts again at midnight
+    with pytest.raises(OpsError, match=CAP_WORDS) as refused:
+        runner.add("jira-task", WHAT)
+    assert "$10.50 of $10.00" in str(refused.value)
+    runner.tick(0)
+    assert op_runs.load(runner.base, op_id)["state"] == "held" and not stub.calls()
+    runner.box["spent"] = (3.0, 10.0)                             # the cap raised (or a new day)
+    prepared(stub)
+    runner.tick(100)
+    run = wait(runner, op_id, "check")
+    assert run["state"] == "check" and run["why"] == ""
+    runner.box["spent"] = (10.0, 10.0)
+    for press in (lambda: runner.act(op_id, {}, {}), lambda: runner.prepare_again(op_id, {}, {})):
+        with pytest.raises(OpsError, match=CAP_WORDS):
+            press()
+    assert op_runs.load(runner.base, op_id)["state"] == "check"
+
+
+def test_no_cap_is_none_and_the_default_cap_is_operations_own_spend(tmp_path, stub):
+    from orkboard.core import treasury
+    r = OpRunner(tmp_path / "ops", settings=lambda: {"servers": {"jira": "Atlassian"}})
+    assert r.cap() == (0.0, treasury.GOLD_LIMIT_USD) and not r.capped()
+    today = dt.datetime.now().astimezone().isoformat(timespec="seconds")
+    op_runs.ledger(r.base).write_text(json.dumps({"at": today, "usd": treasury.GOLD_LIMIT_USD}) + "\n")
+    assert r.capped()
+    r.cap = lambda: (99.0, 0.0)                                   # a cap of 0 is none
+    assert not r.capped()
+
+
+def test_a_learn_call_held_by_a_spent_window_runs_after_a_restart(tmp_path, stub):
+    soon = dt.datetime.now() + dt.timedelta(hours=1)
+    base = tmp_path / "ops"
+    first = OpRunner(base, settings=lambda: {"servers": {"jira": "Atlassian"}},
+                     limits=lambda: [Limit("claude", "", "session", 0.02, soon)])
+    first.learn("jira-task", "op-1", changes=[{"label": "Summary", "before": "Fix it", "after": "[Checkout] Fix it"}])
+    first.wait_idle()
+    kept = base / "templates" / "jira-task" / "learn.json"
+    assert kept.is_file() and mode(kept) == 0o600 and not stub.calls()        # held: nothing called, nothing lost
+    assert json.loads(kept.read_text())["changes"][0]["after"] == "[Checkout] Fix it"
+    stub.answer(stream([], text=json.dumps({"rules": ["A title starts with the component in brackets"], "why": "w"})))
+    again = OpRunner(base, settings=lambda: {"servers": {"jira": "Atlassian"}})                  # Orkboard opened again
+    again.start()
+    assert again.wait_idle()
+    assert "'Fix it' → '[Checkout] Fix it'" in flag(stub.calls()[-1]["argv"], "-p")
+    assert op_runs.proposal(base, "jira-task")["lines"] == ["A title starts with the component in brackets"]
+    assert not kept.exists()
+
+
+def test_a_learn_call_waits_for_the_cap_and_its_template_gone_drops_it(tmp_path, stub):
+    base = tmp_path / "ops"
+    r = OpRunner(base, settings=lambda: {"servers": {"jira": "Atlassian"}}, cap=lambda: (11.0, 10.0))
+    r.learn("jira-task", "op-1", not_right="the epic")
+    r.wait_idle()
+    assert (base / "templates" / "jira-task" / "learn.json").is_file() and not stub.calls()
+    op_runs.save_learn(base, "gone-one", {"op": "op-2", "changes": [], "not_right": ""})
+    r.cap = lambda: (1.0, 10.0)
+    stub.answer(stream([], text=json.dumps({"rules": [], "why": ""})))
+    r.start()
+    assert r.wait_idle()
+    assert len(stub.calls()) == 1 and not list((base / "templates").glob("*/learn.json"))

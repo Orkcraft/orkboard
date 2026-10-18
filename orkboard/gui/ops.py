@@ -59,9 +59,14 @@ class Ops:
         self._servers: tuple[float, list[str]] = (float("-inf"), [])
         self.runner = op_runner.OpRunner(self.base, settings=lambda: self.host.machine.ops,
                                          limits=lambda: self.host.limits(), publish=self._published,
-                                         demo=bool(getattr(host, "demo", False)))
+                                         demo=bool(getattr(host, "demo", False)), cap=self._cap(host))
         if not self.runner.demo:
             self.runner.start()
+
+    def _cap(self, host: Any) -> Callable[[], tuple[float, float]] | None:
+        """The person's cap across the host's open projects (spec 38 §1); a host with none gives the runner's own."""
+        persons_cap = getattr(host, "persons_cap", None)
+        return (lambda: persons_cap(op_runs.ledger(self.base))) if callable(persons_cap) else None
 
     # -- the bus -------------------------------------------------------------------------------------------------
 
