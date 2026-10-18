@@ -14,6 +14,9 @@ look again.
 Spec 33 adds Review: the results waiting for the person (`ideas.review_list`, `ideas.diff`), their three answers
 (`ideas.merge`, `ideas.back`, `ideas.drop_task`), `ideas.stop_task`, the Agents window (`ideas.agents`), one task
 with its log (`ideas.task`) and the branch results merge into (`ideas.into`).
+
+Spec 35: an idea needs a goal and is drafted at once (High, Normal) or at night (Low); the board, Needs you, autostart
+and the Board's own commands are in gui/ideas_board.py; a file to-do's file is kept beside the secrets.
 """
 from __future__ import annotations
 
@@ -28,6 +31,7 @@ from orkcraft import settings
 from orkcraft.core import idea_keeper
 from orkcraft.realm import catalog, event_log, idea_secrets, ideas, wiki
 from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _str, _text
+from orkcraft.gui.ideas_board import BoardMixin
 from orkcraft.gui.ideas_goals import GoalsMixin
 from orkcraft.gui.ideas_limits import LimitsMixin
 from orkcraft.gui.ideas_roles import RolesMixin
@@ -37,7 +41,6 @@ RUNNER_TICK_S = 3.0               # how often the runner looks at its tasks
 SNAPSHOT_S = 10.0                 # the most a cached Needs you count is kept without a change
 PHONE_ZIP_MAX = 8 * 1024 * 1024   # a zip the phone is handed in a message: larger waits for the computer
 OPENED = ("idea", "plan", "todo", "task", "result", "tab")
-NEEDS_KIND = {"asks": "asks", "plan": "plan", "failed": "failed"}
 
 
 def focus_of(machine) -> str:
@@ -57,7 +60,7 @@ class _Hop:
         self.town.call(lambda: self.town.publish(topic, **data))
 
 
-class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
+class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
     def __init__(self, host) -> None:
         self.host = host
         self.town = host.town
@@ -74,7 +77,8 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
         self._limits_logged = float("-inf")
         self.keeper = idea_keeper.IdeaKeeper(
             self.town.repo_root, self.state_dir, self.root, lambda: self.town.machine.ideas, self._publish,
-            demo=bool(self.town.demo), budget_ok=lambda: self.town.budget_ok())
+            demo=bool(self.town.demo), budget_ok=lambda: self.town.budget_ok(), limits=lambda: list(self.host.limits() or []),
+            on_plan=self._on_plan, start_night=self.start_night, events=not self.town.demo)
         self.town.bus.subscribe(idea_keeper.CHANGED, self._changed)
 
     # -- where the pages are --------------------------------------------------------------------------------
@@ -157,7 +161,8 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
             try:
                 from orkcraft.core.idea_runner import IdeaRunner
                 self._runner = IdeaRunner(self.town.repo_root, self.state_dir, self.town.machine, _Hop(self.town),
-                                          events=not self.town.demo, on_held=lambda: self.log_limits(force=True))
+                                          events=not self.town.demo, on_held=lambda: self.log_limits(force=True),
+                                          rank=self.rank)
             except ImportError:
                 self._runner_error = "The runner is not in this build yet: plans cannot start"
             except Exception as e:              # a runner that cannot start never stops the board
@@ -202,7 +207,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
             try:
                 b = self.board(make=False)
                 waiting = self.results()
-                data = {"needs_you": len(b["today"]["needs_you"]),
+                data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] != "proposal"),
                         "idea_states": [{"slug": i["slug"], "title": i["title"], "state": i["state"]} for i in b["ideas"]],
                         "review_count": len(waiting),
                         "review_results": [{k: r[k] for k in ("idea", "task", "title")} for r in waiting]}
@@ -219,37 +224,6 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
         if st["state"] in ("reading", "planning") and not self.keeper.busy(slug):
             st["state"] = "raw" if st["state"] == "reading" else "ready"     # a run the host lost (it closed)
         return st
-
-    def board(self, make: bool = True) -> dict[str, Any]:
-        """`make`: General (and the Wiki) written when missing; the snapshot only reads."""
-        root = self.root()
-        tracks = [self._goal_row(g) for g in ideas.tracks(root, make=make)]
-        out, todos, needs = [], [], self.goal_needs(tracks)
-        for i in ideas.ideas(root):
-            slug = i["slug"]
-            st, plan, page = self._state(slug), ideas.plan(self.state_dir, slug), ideas.idea_page(root, slug)
-            tasks = (plan or {}).get("tasks") or []
-            asks = ideas.items(page.section("Open questions")) if page else []
-            out.append({"slug": slug, "title": i["title"], "track": i["track"], "order": i["order"],
-                        "state": st["state"], "size": i["size"], "thesis": i["thesis"], "asks": len(asks), "priority": i["priority"],
-                        "progress": {"done": sum(1 for t in tasks if t.get("state") == "merged"), "total": len(tasks)},
-                        "updated": ideas.touched_at(root, self.state_dir, slug)})
-            kind = NEEDS_KIND.get(st["state"])
-            if kind:
-                text = {"asks": asks[0] if asks else "The keeper asks you",
-                        "plan": "Plan ready" + (f" · {len(tasks)} tasks" if tasks else ""),
-                        "failed": st.get("error") or "Something failed"}[kind]
-                needs.append({"idea": slug, "kind": kind, "title": i["title"], "text": text})
-            for t in tasks:
-                if t.get("state") == "held":
-                    needs.append({"idea": slug, "kind": "held", "title": i["title"],
-                                  "text": f"{t.get('title', '')}: {t.get('note') or 'held'}"})
-            if plan and st["state"] in ("plan", "working", "failed"):
-                todos += [{"idea": slug, **{k: td.get(k) for k in ("id", "title", "kind", "why", "choices", "steps",
-                                                                    "done")}}
-                          for td in plan.get("todos") or [] if not td.get("done")]
-        return {"tracks": tracks, "ideas": out, "today": {"todos": todos, "needs_you": needs},
-                "batch_next": self.keeper.batch_next(), "rev": self.rev, "demo": bool(self.town.demo)}
 
     def page(self, slug: str) -> dict[str, Any]:
         root = self.root()
@@ -269,15 +243,27 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
     # -- writing -------------------------------------------------------------------------------------------
 
     def add(self, args: dict) -> dict:
+        """An idea: a text, its goal (never General: that is the system's) and a priority (default the goal's). High
+        and Normal are drafted at once, Low and a closed dialog's (`night`) wait for the night (spec 35 §3)."""
         text = _text(args, "text", ideas.SECTION_CHARS)
-        slug = ideas.add_idea(self.root(), text, _opt(args, "track") or ideas.GENERAL, self.state_dir)
+        track = _opt(args, "track")
+        goals = {t["slug"]: t for t in ideas.tracks(self.root(), make=False)}
+        if not track or track == ideas.GENERAL:
+            raise IdeasError("An idea needs a goal")
+        if track not in goals:
+            raise IdeasError("That goal is gone")
+        priority = _opt(args, "priority").lower() or goals[track]["priority"]
+        if priority not in ideas.PRIORITIES:
+            raise IdeasError("Priority is High, Normal or Low")
+        queue = "night" if priority == "low" or args.get("night") is True else "now"
+        slug = ideas.add_idea(self.root(), text, track, self.state_dir, priority, queue)
         ideas.add_turn(self.state_dir, slug, "you", text, "Gist")     # the person's own words, kept
-        now = args.get("now") is True
-        self._ev(event_log.IDEA_ADDED, args, idea=slug, track=_opt(args, "track") or ideas.GENERAL, chars=len(text), now=now)
-        out = {"slug": slug}
-        if now:                                 # Process now: the keeper reads it at once (else the batch does)
+        self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
+                 priority=priority, queue=queue)
+        out = {"slug": slug, "queue": queue}
+        if queue == "now":                      # drafted at once, in the background (held in a spent window)
             try:
-                self.keeper.read_now(slug)
+                self.keeper.draft(slug)
             except idea_keeper.KeeperError as e:
                 ideas.save_state(self.state_dir, slug, error=str(e))
                 out["error"] = str(e)
@@ -304,27 +290,23 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
         return {"ok": True}
 
     def start(self, args: dict) -> dict:
-        """The person passes the plan: it is the runner's from now on, and it starts."""
+        """The person passes the plan (`passed_by: "person"`): it is the runner's from now on, and it starts."""
         slug = _text(args, "slug", 100)
-        plan = ideas.plan(self.state_dir, slug)
-        if plan is None:
+        if ideas.plan(self.state_dir, slug) is None:
             raise IdeasError("This idea has no plan yet: Take it to work first")
         st = self._state(slug)["state"]
         if st not in ("plan", "failed", "working"):
             raise IdeasError("Its plan is not ready")
-        runner = self.runner(need=True)
-        if not plan.get("passed_at"):
-            ideas.edit_plan(self.state_dir, slug, lambda p: p.update(
-                passed_at=time.strftime("%Y-%m-%dT%H:%M:%S")))
-            self._ev(event_log.PLAN_PASSED, args, idea=slug, tasks=len(plan.get("tasks") or []), seconds=self._since(plan.get("made_at")))
-        ideas.save_state(self.state_dir, slug, state="working", error="")
-        runner.start(slug)
+        self.pass_plan(slug, "person", args=args)
         self.changed(slug)
         return {"ok": True}
 
     def stop(self, args: dict) -> dict:
+        """The person stops a plan's work: from then on it waits for them (autostart never starts it again)."""
         slug = _text(args, "slug", 100)
         self.runner(need=True).stop(slug)
+        if ideas.plan(self.state_dir, slug) is not None:
+            ideas.edit_plan(self.state_dir, slug, lambda p: p.update(stopped=True))
         self.changed(slug)
         return {"ok": True}
 
@@ -335,7 +317,17 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
         return {"ok": True}
 
     def edit(self, args: dict) -> dict:
+        """A section written by hand, or (`priority` without a section) the idea's priority: a plan waiting is then
+        decided again (spec 35 §5)."""
         slug = _text(args, "slug", 100)
+        if "priority" in args and "section" not in args:
+            priority = _opt(args, "priority").lower()
+            if priority not in ideas.PRIORITIES or ideas.idea_page(self.root(), slug) is None:
+                raise IdeasError("Priority is High, Normal or Low")
+            ideas.set_meta(self.root(), slug, priority=priority)
+            self.autostart(slug)
+            self.changed(slug)
+            return {"ok": True}
         if self.keeper.busy(slug):
             raise IdeasError("The keeper is writing this idea: a moment")
         ideas.set_section(self.root(), slug, _text(args, "section", 60), _str(args, "text", ideas.SECTION_CHARS))
@@ -368,7 +360,9 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
             raise IdeasError("That to-do is gone")
         done, value = bool(args.get("done")), args.get("value")
         kept: Any = todo.get("value")
-        if done and todo.get("kind") == "secret":
+        if done and todo.get("kind") == "file":
+            kept = self._todo_file(args, slug, todo)
+        elif done and todo.get("kind") == "secret":
             if not isinstance(value, str) or not value.strip():
                 if todo.get("value") != "stored":
                     raise IdeasError("A secret needs its value")
@@ -390,7 +384,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
                 idea_keeper.readiness(p)
 
         ideas.edit_plan(self.state_dir, slug, tick)
-        if done:                                # a secret's value is never logged: only that it was done
+        if done:                                # a secret's value (or a file) is never logged: only that it was done
             self._ev(event_log.TODO_DONE, args, idea=slug, todo=tid, kind=todo.get("kind"), seconds=self._since(plan.get("made_at")))
         self.changed(slug)
         return {"ok": True}
@@ -405,8 +399,30 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
         secrets = [t["id"] for t in plan.get("todos") or [] if t.get("kind") == "secret" and t.get("id")]
         ideas.drop(self.root(), slug, self.state_dir)
         idea_secrets.forget(self.state_dir, slug, secrets)
+        idea_secrets.forget_files(self.state_dir, slug)
         self.changed(slug)
         return {"ok": True}
+
+    def _todo_file(self, args: dict, slug: str, todo: dict) -> str:
+        """A file to-do's file (spec 35 §9): base64, at most 5 MB, kept beside the secrets (mode 600); plan.json says
+        only its name. From a phone only over the paired link, as a secret."""
+        got = args.get("file")
+        if _device(args) == "phone" and args.get("link") != "paired":
+            raise IdeasError("A file is given at the computer, or over the paired link")
+        if not isinstance(got, dict):
+            if todo.get("value"):
+                return todo["value"]
+            raise IdeasError("A file to-do needs its file")
+        data = got.get("data")
+        if not isinstance(data, str) or len(data) > idea_secrets.FILE_MAX * 4 // 3 + 8:
+            raise IdeasError("The file is larger than 5 MB")
+        try:
+            raw = base64.b64decode(data, validate=True)
+        except ValueError:
+            raise IdeasError("The file did not arrive whole") from None
+        path = idea_secrets.put_file(self.state_dir, slug, str(todo.get("id")), str(got.get("name") or ""), raw,
+                                     todo.get("accept") or [])
+        return path.name.split("-", 1)[1]
 
     # -- Review, Agents, one task (spec 33 §5) -------------------------------------------------------------
 
@@ -564,7 +580,9 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin):
                  "ideas.stop_task": self.stop_task, "ideas.agents": self.agents, "ideas.task": self.task,
                  "ideas.into": self.into, "ideas.log": self.log, "ideas.logs": self.logs, "ideas.goal_save": self.goal_save,
                  "ideas.goal": self.goal, "ideas.read_now": self.read_now, "ideas.doc": self.doc, "ideas.roles": self.roles,
-                 "ideas.role_save": self.role_save, "ideas.role_drop": self.role_drop, "ideas.kind_set": self.kind_set}
+                 "ideas.role_save": self.role_save, "ideas.role_drop": self.role_drop, "ideas.kind_set": self.kind_set,
+                 "ideas.queue": self.queue, "ideas.read_stop": self.read_stop, "ideas.start_now": self.start_now,
+                 "ideas.proposal": self.proposal, "ideas.board_set": self.board_set}
         return {name: guarded(fn) for name, fn in table.items()}
 
 
