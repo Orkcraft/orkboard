@@ -187,7 +187,7 @@ def test_roles_are_made_edited_dropped_and_the_built_ins_refused(host):
     assert [(k["kind"], k["label"], k["role"]) for k in got["kinds"]] == [
         ("code", "Code", "grunt"), ("tests", "Tests", "grunt"), ("docs", "Docs", "grunt"),
         ("text", "Text for people", "grunt"), ("research", "Research", "grunt")]
-    assert {"opus", "sonnet", "haiku"} <= {m["id"] for m in got["models"]}
+    assert [m["id"] for m in got["models"]] == ["", "elder", "warrior", "laborer"]      # spec 36 §3: By Target, the tiers
     slug = host.command("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 2,
                                             "instruction": "Write plainly."})["slug"]
     assert host.command("ideas.kind_set", {"kind": "docs", "role": slug}) == {"ok": True}
@@ -240,7 +240,7 @@ def test_the_keepers_talk_and_plans_run_on_the_taskmasters_model(host, model):
     host.command("ideas.say", {"slug": slug, "text": "hello"})
     _wait(host, slug)
     assert "opus" in model.seen[-1]["model"]                                         # the Taskmaster's default: the elder tier
-    host.command("ideas.role_save", {"slug": "taskmaster", "name": "Taskmaster", "model": "haiku", "max_parallel": 1})
+    host.command("ideas.role_save", {"slug": "taskmaster", "name": "Taskmaster", "model": "laborer", "max_parallel": 1})   # a tier only (spec 36 §3)
     host.command("ideas.say", {"slug": slug, "text": "again"})
     _wait(host, slug)
     assert "haiku" in model.seen[-1]["model"]
