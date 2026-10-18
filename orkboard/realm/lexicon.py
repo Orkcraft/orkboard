@@ -143,6 +143,7 @@ TERMS: tuple[Term, ...] = (
     _t("agent", "agent", "agents"),                                # a role: a model, an instruction, a limit (realm/roles.py, spec 34)
     _t("task_kind", "task type", "task types"),                    # code · tests · docs · text for people · research
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)
+    _t("proposal", "proposal", "proposals"),                       # an idea the keeper proposes at night, for the morning (spec 35 §8)
     _t("scribble", "note", "notes", "scribble", "scribbles"),       # an idea or a note on the board
     _t("card_context", "context"),                                 # a card's wiki pages, 📜 (realm/cardlore.py)
     _t("todo_plan", "plan", "plans"),                              # a to-do's steps from a light model, 🧭

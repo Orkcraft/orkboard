@@ -72,7 +72,14 @@ def shift(s: "MachineSettings") -> Span:
 # The board's keeper and runner (spec 29a): how often the batch reads new ideas, when a talk's session is
 # compacted, how many tasks run at once, which branch they merge into (`dev`: the testers' default, spec 33 §4),
 # whether it is pushed (off), and whether a result waits for the person at Review (on; off merges by itself).
-IDEAS = {"batch_minutes": 30, "idle_hours": 24, "max_parallel": 1, "merge_into": "dev", "push": False, "review": True}
+# Spec 35: the Board's Target (thrift · balance · quality), whether a safe plan starts by itself, the night's window
+# (local time), the share of the window kept for the person by day and at night, and the repository's own risky paths.
+# `batch_minutes` is kept, unused (the batch went in spec 35), so older settings keep loading.
+IDEAS = {"batch_minutes": 30, "idle_hours": 24, "max_parallel": 1, "merge_into": "dev", "push": False, "review": True,
+         "target": "balance", "autostart": True, "night": "01:00-07:00", "reserve_day": 0.3, "reserve_night": 0.1,
+         "risk_paths": []}
+IDEA_TARGETS = ("thrift", "balance", "quality")
+NIGHT = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$")
 FOCUSES = ("", "board")
 RECENT_FOLDERS = 8                       # the recent folders a Wiki's picker offers               # the GUI's two looks; camp the default
 
@@ -205,7 +212,7 @@ def clean_tier_models(raw: object) -> dict[str, dict[str, str]]:
 def clean_ideas(raw: object) -> dict:
     """The board's keeper and runner settings: every key of IDEAS, a broken value as its default."""
     raw = raw if isinstance(raw, dict) else {}
-    out = dict(IDEAS)
+    out = {**IDEAS, "risk_paths": []}
     for k, lo, hi in (("batch_minutes", 1, 24 * 60), ("idle_hours", 1, 24 * 14), ("max_parallel", 1, 8)):
         v = raw.get(k)
         if isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi:
@@ -213,9 +220,21 @@ def clean_ideas(raw: object) -> dict:
     branch = raw.get("merge_into")
     if isinstance(branch, str) and re.fullmatch(r"[\w./-]{1,100}", branch) and ".." not in branch:
         out["merge_into"] = branch
-    for k in ("push", "review"):
+    for k in ("push", "review", "autostart"):
         if isinstance(raw.get(k), bool):
             out[k] = raw[k]
+    if raw.get("target") in IDEA_TARGETS:
+        out["target"] = raw["target"]
+    night = raw.get("night")
+    if isinstance(night, str) and NIGHT.match(night.strip()) and night.strip()[:5] != night.strip()[6:]:
+        out["night"] = night.strip()
+    for k in ("reserve_day", "reserve_night"):
+        v = raw.get(k)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 0.9:
+            out[k] = round(float(v), 3)
+    paths = raw.get("risk_paths")
+    if isinstance(paths, list):
+        out["risk_paths"] = [p.strip()[:200] for p in paths if isinstance(p, str) and p.strip()][:50]
     return out
 
 
