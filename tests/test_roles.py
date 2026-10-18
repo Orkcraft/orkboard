@@ -30,7 +30,7 @@ def test_a_role_is_a_small_file_the_person_can_read(tmp_path):
 
 
 def test_a_role_is_checked(tmp_path):
-    for bad in (dict(name="  ", model="warrior", n=1), dict(name="X", model="", n=1), dict(name="X", model="warrior", n=0),
+    for bad in (dict(name="  ", model="warrior", n=1), dict(name="X", model="opus", n=1), dict(name="X", model="warrior", n=0),
                 dict(name="X", model="warrior", n=9), dict(name="X", model="warrior", n="many")):
         with pytest.raises(ValueError):
             roles.save(tmp_path, bad["name"], bad["model"], bad["n"])
@@ -60,4 +60,66 @@ def test_each_task_type_has_a_role_grunt_by_default_and_a_dropped_role_sends_the
 
 def test_the_models_are_the_tiers_and_the_claude_harness_s(tmp_path):
     ids = [m["id"] for m in roles.models()]
-    assert ids[:4] == ["", "elder", "warrior", "laborer"] and {"opus", "sonnet", "haiku"} <= set(ids)
+    assert ids == ["", "elder", "warrior", "laborer"]       # spec 36 §3: By Target and the three tiers, nothing else
+
+
+# -- spec 36 §3: a role is who; the Target is how much thinking; an agent takes its task types --------------------
+
+def test_the_model_list_is_by_target_and_the_three_tiers_and_a_hand_set_model_only_for_its_role(tmp_path):
+    got = roles.models()
+    assert got[0] == {"id": "", "label": "By Target"}
+    assert [m["label"].split(" · ")[0] for m in got[1:]] == ["Elder", "Warrior", "Laborer"]
+    assert " · " in got[1]["label"]                                    # the harness's model, small: Elder · opus
+    (tmp_path / "roles").mkdir()
+    (tmp_path / "roles" / "old-hand.md").write_text("---\nname: Old hand\nmodel: opus\nmax_parallel: 1\n---\n")
+    r = roles.role(tmp_path, "old-hand")
+    assert r["model"] == "opus" and roles.hand_set(r) and not roles.hand_set(roles.role(tmp_path, "grunt"))
+    mine = roles.models(r["model"])
+    assert mine[-1] == {"id": "opus", "label": "opus (set by hand)"} and len(mine) == 5
+    assert roles.save(tmp_path, "Old hand", "opus", 2, "", "old-hand") == "old-hand"      # kept, never changed silently
+    assert roles.role(tmp_path, "old-hand")["model"] == "opus"
+    with pytest.raises(ValueError, match="from the list"):
+        roles.save(tmp_path, "Old hand", "sonnet", 2, "", "old-hand")                  # a new raw model: not on the list
+
+
+def test_by_target_is_a_new_agents_default_and_never_the_taskmasters(tmp_path):
+    slug = roles.save(tmp_path, "Scribe", "", 1)
+    assert roles.role(tmp_path, slug)["model"] == ""
+    roles.save(tmp_path, "Taskmaster", "warrior", 1, "", "taskmaster")
+    assert roles.role(tmp_path, "taskmaster")["model"] == "warrior"
+    for bad in ("", "opus"):
+        with pytest.raises(ValueError):
+            roles.save(tmp_path, "Taskmaster", bad, 1, "", "taskmaster")
+
+
+def test_an_instruction_is_at_most_600_characters(tmp_path):
+    with pytest.raises(ValueError, match="at most 600 characters"):
+        roles.save(tmp_path, "Scribe", "", 1, "x" * 601)
+    slug = roles.save(tmp_path, "Scribe", "", 1, "x" * 600)
+    assert len(roles.role(tmp_path, slug)["instruction"]) == 600
+    long = ("Write plainly. " * 30 + "Never use jargon! " * 10).strip()
+    path = tmp_path / "roles" / "old.md"
+    path.write_text(f"---\nname: Old\nmodel: warrior\nmax_parallel: 1\n---\n{long}\n")
+    before = path.read_text()
+    r = roles.role(tmp_path, "old")
+    assert len(r["instruction"]) <= 600 and r["instruction"].endswith(("plainly.", "jargon!"))
+    assert long.startswith(r["instruction"]) and r["instruction_long"] == long
+    assert path.read_text() == before                                  # not rewritten until the person saves
+    assert roles.role(tmp_path, slug)["instruction_long"] == ""
+
+
+def test_an_agent_takes_its_task_types(tmp_path):
+    a = roles.save(tmp_path, "Scribe", "", 1, "", None, ["docs", "text"])
+    assert {k for k, v in roles.kinds(tmp_path).items() if v == a} == {"docs", "text"}
+    b = roles.save(tmp_path, "Tester", "", 1, "", None, ["tests", "docs"])            # docs moves from Scribe
+    kinds = roles.kinds(tmp_path)
+    assert kinds["docs"] == b and kinds["tests"] == b and kinds["text"] == a and kinds["code"] == "grunt"
+    roles.save(tmp_path, "Scribe", "", 1, "", a, [])                                  # unticked: back to Grunt
+    assert roles.kinds(tmp_path)["text"] == "grunt" and roles.kinds(tmp_path)["docs"] == b
+    roles.save(tmp_path, "Tester", "", 1, "", b)                                      # no kinds: as they were
+    assert roles.kinds(tmp_path)["tests"] == b
+    for slug in ("grunt", "taskmaster"):
+        with pytest.raises(ValueError):
+            roles.save(tmp_path, slug.capitalize(), "elder", 1, "", slug, ["code"])
+    with pytest.raises(ValueError, match="No task type"):
+        roles.save(tmp_path, "Tester", "", 1, "", b, ["poetry"])

@@ -1,5 +1,6 @@
 """Agents: the roles and the task type of each (spec 34 §3, §4), as `gui/ideas.py`'s `Ideas` has them:
-`ideas.agents`, `ideas.roles`, `ideas.role_save`, `ideas.role_drop`, `ideas.kind_set`.
+`ideas.agents`, `ideas.roles`, `ideas.role_save`, `ideas.role_drop`, `ideas.kind_set`; what each costs and how often it
+gets it right (spec 36 §2: each role's `week`), and `ideas.spend`, an idea's or a goal's money by stage.
 
 A role is a small file in the repository's `.orkcraft/roles/` (realm/roles.py); the runner runs a task as its type's
 role (core/idea_runner.py). Split from ideas.py to keep it under ~600 lines.
@@ -9,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 
 from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkcraft.realm import event_log, ideas, roles
+from orkcraft.realm import event_log, idea_spend, ideas, roles
 
 
 class RolesMixin:
@@ -19,9 +20,10 @@ class RolesMixin:
         return roles.spend_today(pairs)
 
     def roles(self, args: dict) -> dict:
-        spent = self._role_spend()
-        mine = [{**r, "spend_today": spent.get(r["slug"], 0.0)} for r in roles.roles(self.state_dir)]
-        kinds = roles.kinds(self.state_dir)
+        spent, week, kinds = self._role_spend(), idea_spend.by_role(self.state_dir), roles.kinds(self.state_dir)
+        mine = [{**r, "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]),
+                 "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r)}
+                for r in roles.roles(self.state_dir)]
         return {"roles": mine, "kinds": [{"kind": k, "label": roles.KIND_LABELS[k], "role": kinds[k]} for k in roles.TASK_KINDS],
                 "models": roles.models()}
 
@@ -30,10 +32,15 @@ class RolesMixin:
         instruction = args.get("instruction", "")
         if not isinstance(instruction, str):
             raise IdeasError("instruction is not text")
+        kinds = args.get("kinds")
+        if kinds is not None and (not isinstance(kinds, list) or not all(isinstance(k, str) for k in kinds)):
+            raise IdeasError("kinds is a list of task types")
         got = roles.save(self.state_dir, _text(args, "name", roles.NAME_CHARS), args.get("model", ""),
-                         args.get("max_parallel"), instruction, slug)
+                         args.get("max_parallel"), instruction, slug, kinds)
         r = roles.role(self.state_dir, got)
-        self._ev(event_log.ROLE_SAVED, args, role=got, model=r["model"], max_parallel=r["max_parallel"], new=slug is None)
+        idea_spend.forget()
+        self._ev(event_log.ROLE_SAVED, args, role=got, model=r["model"], max_parallel=r["max_parallel"], new=slug is None,
+                 kinds=[k for k, v in roles.kinds(self.state_dir).items() if v == got], instruction_chars=len(instruction.strip()))
         self.changed("")
         return {"slug": got}
 
@@ -50,6 +57,17 @@ class RolesMixin:
         self._ev(event_log.KIND_SET, args, kind=kind, role=role)
         self.changed("")
         return {"ok": True}
+
+    def spend(self, args: dict) -> dict:
+        """`ideas.spend` (spec 36 §4): an idea's money by stage (`{"idea"}`), or a goal's with its ideas' (`{"goal"}`)."""
+        if idea := _opt(args, "idea"):
+            if ideas.idea_page(self.root(), idea) is None and not (self.state_dir / "ideas" / idea).is_dir():
+                raise IdeasError("That idea is gone")
+            return idea_spend.of_idea(self.state_dir, idea)
+        goal = _text(args, "goal", 100)
+        if ideas.track_page(self.root(), goal) is None:
+            raise IdeasError("That goal is gone")
+        return idea_spend.of_goal(self.state_dir, goal, [i["slug"] for i in ideas.ideas(self.root(), goal)])
 
     def agents(self, args: dict) -> dict:
         """The Agents window: a block per role — the Taskmaster (the keeper, with what it does now), the Grunt and the
@@ -88,11 +106,11 @@ class RolesMixin:
                          # spec 35 §11.5: who started it, and whether it waits for the night
                          "by": "auto" if plan.get("passed_by") == "auto" else "person",
                          "night": plan.get("start_at") == "night" and not t.get("started")})
-        spent, out = self._role_spend(), []
+        spent, week, out = self._role_spend(), idea_spend.by_role(self.state_dir), []
         for r in roles.roles(self.state_dir):
             block = {"role": r["slug"], "name": "Grunts" if r["slug"] == roles.GRUNT and r["name"] == "Grunt" else r["name"],
                      "model": r["model"], "max_parallel": r["max_parallel"], "builtin": r["builtin"],
-                     "spend_today": spent.get(r["slug"], 0.0)}
+                     "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"])}
             if r["slug"] == roles.TASKMASTER:
                 out.append({**block, "state": mode, "waits_on": waits, "chips": chips})
             else:

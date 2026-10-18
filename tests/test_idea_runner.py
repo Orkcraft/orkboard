@@ -174,7 +174,7 @@ def test_tasks_run_in_order_of_after_and_land_on_main_and_origin(town):
 
 
 def test_the_prompt_holds_the_page_the_brief_the_tasks_before_and_the_rules(town):
-    plan_of(town, [{"id": "k1", "brief": "first brief"}, {"id": "k2", "brief": "second brief"}])
+    plan_of(town, [{"id": "k1", "brief": "first brief"}, {"id": "k2", "brief": "second brief", "after": ["k1"]}])
     runner, _ = runner_of(town)
     plan = runner.plan("demo")
     plan["tasks"][0].update(state="merged", subjects=["k1: add k1.txt"])
@@ -182,7 +182,8 @@ def test_the_prompt_holds_the_page_the_brief_the_tasks_before_and_the_rules(town
     # spec 35 §0, §13: the spec is named by its path, never pasted
     assert "llm-wiki/general/pages/ideas/demo.md" in prompt and "A demo idea." not in prompt
     assert "second brief" in prompt and "first brief" in prompt
-    assert "k1: add k1.txt" in prompt and "write ork, never orc" in prompt
+    assert "k1: add k1.txt" in prompt
+    assert "write ork, never orc" not in prompt      # spec 36 §6: Claude Code reads CLAUDE.md itself in the worktree
 
 
 def test_max_parallel_runs_that_many_at_once(town, monkeypatch):
@@ -635,3 +636,77 @@ def test_the_events_carry_the_role(town):
     from orkcraft.realm import event_log
     rows = [r for r in event_log.read(town.repo) if r["event"] in ("task_state", "result_ready")]
     assert rows and all(r.get("role") == "grunt" for r in rows if r["event"] == "result_ready" or r["state"] in ("testing", "review"))
+
+
+# -- spec 36: the ledger, Merge's `dear`, the prompt stable first ------------------------------------------------
+
+def test_a_tasks_two_rounds_and_a_gate_retry_write_their_lines(town, monkeypatch):
+    from orkcraft.realm import idea_spend
+    monkeypatch.setenv("STUB_MODE", "k1=fail_once,k2=fix_conflict")
+    plan_of(town, [{"id": "k1"}, {"id": "k2"}])
+    runner, _ = reviewing(town)
+    runner.start("demo")
+    wait_task(runner, "k1", "review")
+    wait_task(runner, "k2", "review")
+    runner.back("demo", "k2", "name it better")
+    wait_task(runner, "k2", "review")
+    rows = idea_spend.read(town.state / "ideas" / "demo" / "spend.jsonl")
+    assert [(r["step"], r["task"], r["round"]) for r in rows] == [("task", "k1", 1), ("fix", "k1", 1), ("task", "k2", 1),
+                                                                  ("task", "k2", 2)]
+    tasks = tasks_of(town)
+    for r in rows:
+        assert r["role"] == "grunt" and r["tool"] == "claude" and r["model"] == tasks[r["task"]]["model"]
+        assert r["tier"] == tasks[r["task"]]["ran_tier"] and r["effort"] == tasks[r["task"]]["effort"]
+        assert r["cost"] == 0.01 and r["tokens"]["total"] == 15 and set(r["tokens"]) >= {"in", "out", "cache_read", "cache_write"}
+    got = idea_spend.of_idea(town.state, "demo")
+    assert got["tasks"]["k1"] == {"usd": 0.02, "work": 0.01, "rework": 0.01}
+    assert got["tasks"]["k2"] == {"usd": 0.02, "work": 0.01, "rework": 0.01}
+
+
+def test_merge_with_dear_writes_it_on_result_decided(town):
+    from orkcraft.realm import event_log
+    plan_of(town, [{"id": "k1"}, {"id": "k2"}])
+    runner, _ = reviewing(town)
+    runner.events = True
+    runner.start("demo")
+    wait_task(runner, "k1", "review")
+    runner.merge("demo", "k1", dear=True)
+    wait_task(runner, "k2", "review")
+    runner.merge("demo", "k2")
+    decided = [r for r in event_log.read(town.repo) if r["event"] == "result_decided"]
+    assert [(r["task"], r["dear"]) for r in decided] == [("k1", True), ("k2", False)]
+
+
+def test_the_prompt_is_stable_first_and_lists_only_its_after_tasks(town):
+    from orkcraft.realm import roles
+    roles.save(town.state, "Grunt", "", 8, "Keep it small. Name things plainly.", "grunt")
+    (town.state).mkdir(parents=True, exist_ok=True)
+    (town.state / "secrets.json").write_text(json.dumps({"ideas/demo/t1": "s3cret"}))
+    todos = [{"id": "t1", "title": "API_KEY", "kind": "secret", "why": "", "choices": [], "steps": [],
+              "for": ["k3"], "done": True, "value": "stored"}]
+    plan_of(town, [{"id": "k1", "brief": "first brief"}, {"id": "k2", "brief": "second brief"},
+                   {"id": "k3", "brief": "third brief", "after": ["k2"]}], todos)
+    runner, _ = runner_of(town)
+    plan = runner.plan("demo")
+    plan["tasks"][1].update(state="merged", subjects=["k2: add k2.txt"])
+    one, three = (runner._prompt("demo", plan, plan["tasks"][i]) for i in (0, 2))
+    stable = one[:one.index("You do one task")]
+    assert stable.startswith("# Your role: Grunt\n\nKeep it small. Name things plainly.") and "# When you are done" in stable
+    assert three.startswith(stable) and "demo" not in stable and "API_KEY" not in stable
+    assert "k2: add k2.txt" in three and "second brief" in three
+    assert "first brief" not in three                       # not of its `after`: never listed (decisions §49.9)
+    assert "# The tasks before yours" not in one
+    assert three.rstrip().endswith("never print them, write them to a file or commit them.") and "API_KEY" in three
+    assert "write ork, never orc" not in one + three        # CLAUDE.md is not pasted: Claude Code reads it itself
+
+
+def test_a_long_instruction_from_before_goes_to_the_ork_cut_at_a_sentence_end(town):
+    long = "Be careful. " * 60 + "And the tail."
+    (town.state / "roles").mkdir(parents=True, exist_ok=True)
+    (town.state / "roles" / "grunt.md").write_text(f"---\nname: Grunt\nmodel: \nmax_parallel: 8\n---\n{long}\n")
+    plan_of(town, [{"id": "k1"}])
+    runner, _ = runner_of(town)
+    plan = runner.plan("demo")
+    prompt = runner._prompt("demo", plan, plan["tasks"][0])
+    head = prompt.split("\n\n# When you are done")[0].removeprefix("# Your role: Grunt\n\n")
+    assert len(head) <= 600 and head.endswith("Be careful.") and "And the tail." not in prompt

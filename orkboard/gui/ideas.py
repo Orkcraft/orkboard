@@ -29,7 +29,7 @@ from typing import Any, Callable
 
 from orkcraft import settings
 from orkcraft.core import idea_keeper
-from orkcraft.realm import catalog, event_log, idea_secrets, ideas, wiki
+from orkcraft.realm import catalog, event_log, idea_secrets, idea_spend, ideas, wiki
 from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _str, _text
 from orkcraft.gui.ideas_board import BoardMixin
 from orkcraft.gui.ideas_goals import GoalsMixin
@@ -439,16 +439,23 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         return out
 
     def results(self) -> list[dict]:
-        """The results waiting at Review, oldest first."""
-        out = []
+        """The results waiting at Review, oldest first; each with its cost split (work, rework) and against its
+        planned share (`estimate`, `over`: spec 36 §4)."""
+        out, costs = [], idea_spend.tier_costs(self.state_dir)
         for slug, title, plan in self._plans():
+            split = None
             for t in plan.get("tasks") or []:
                 if t.get("state") == "review":
+                    split = split or idea_spend.of_idea(self.state_dir, slug)["tasks"]
+                    est = idea_spend.estimate_of(t, costs)
                     out.append({"idea": slug, "idea_title": title, "task": t.get("id"), "title": t.get("title", ""),
                                 "round": int(t.get("round") or 1), "tests": t.get("tests") or _NO_TESTS,
                                 "diff": t.get("diff") or {"files": 0, "added": 0, "removed": 0},
                                 "cost": t.get("cost"), "conflict": t.get("conflict") or "",
-                                "finished": t.get("finished") or ""})
+                                "finished": t.get("finished") or "",
+                                "work": (split.get(t.get("id")) or {}).get("work"),
+                                "rework": (split.get(t.get("id")) or {}).get("rework"),
+                                "estimate": est, "over": idea_spend.over(t.get("cost"), est)})
         return sorted(out, key=lambda r: r["finished"])
 
     def review_list(self, args: dict) -> dict:
@@ -483,7 +490,10 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
 
     def merge(self, args: dict) -> dict:
         slug, tid, _task, _plan = self._task(args)
-        commit = self.runner(need=True).merge(slug, tid, device=_device(args))
+        dear = args.get("dear", False)
+        if not isinstance(dear, bool):
+            raise IdeasError("dear is true or false")
+        commit = self.runner(need=True).merge(slug, tid, device=_device(args), **({"dear": True} if dear else {}))
         self.changed(slug)
         return {"ok": True, "commit": commit}
 
@@ -582,7 +592,8 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
                  "ideas.goal": self.goal, "ideas.read_now": self.read_now, "ideas.doc": self.doc, "ideas.roles": self.roles,
                  "ideas.role_save": self.role_save, "ideas.role_drop": self.role_drop, "ideas.kind_set": self.kind_set,
                  "ideas.queue": self.queue, "ideas.read_stop": self.read_stop, "ideas.start_now": self.start_now,
-                 "ideas.proposal": self.proposal, "ideas.board_set": self.board_set, "ideas.answer": self.answer}
+                 "ideas.proposal": self.proposal, "ideas.board_set": self.board_set, "ideas.answer": self.answer,
+                 "ideas.spend": self.spend}
         return {name: guarded(fn) for name, fn in table.items()}
 
 

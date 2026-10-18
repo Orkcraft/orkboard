@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orkcraft.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
-from orkcraft.realm import event_log, halt, harnesses, idea_secrets, idea_target, jobs, roles, status, tool_errors
+from orkcraft.realm import event_log, halt, harnesses, idea_secrets, idea_spend, idea_target, jobs, roles, status, tool_errors
 from orkcraft.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, parse_tests, read_secret, spec_paths
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
@@ -43,7 +43,6 @@ DEFAULTS = {"max_parallel": 1, "merge_into": "dev", "push": False, "review": Tru
 STOPPED = "stopped"
 LIVE = ("running", "testing")
 PAGE_KEEP = 20000
-CLAUDE_KEEP = 12000
 
 FIX = """The gate after your work said no:
 
@@ -117,6 +116,7 @@ class IdeaRunner(ReviewMixin):
         self._until: dict[tuple[str, str], float] = {}
         self.events, self.on_held, self.rank = events, on_held, rank
         self._since: dict[tuple[str, str], float] = {}     # when a task entered the state it is in (the event log)
+        self._tls = threading.local()                       # Merge's `dear`, on the thread that merges
         self._resume_working()
 
     # -- files -----------------------------------------------------------------------------------
@@ -310,6 +310,19 @@ class IdeaRunner(ReviewMixin):
                     self._save_tasks(slug, tasks)
                     self._changed(slug)
 
+    def merge(self, slug: str, tid: str, device: str = "desktop", dear: bool = False) -> str:
+        """Review's Merge; `dear` (spec 36 §4: it cost too much for this) only goes on its `result_decided`."""
+        self._tls.dear = bool(dear)
+        try:
+            return super().merge(slug, tid, device)
+        finally:
+            self._tls.dear = False
+
+    def _decided(self, slug: str, task: dict, decision: str, device: str, **more: Any) -> None:
+        if decision == "merge":
+            more["dear"] = bool(getattr(self._tls, "dear", False))
+        super()._decided(slug, task, decision, device, **more)
+
     def _role(self, task: dict) -> dict:
         return roles.role_for(self.state_dir, str(task.get("kind") or ""))
 
@@ -463,7 +476,7 @@ class IdeaRunner(ReviewMixin):
                     raise RuntimeError(f"the gate is still red after one fix: {problem[-600:]}")
                 self._set_task(slug, tid, state="running")
                 session = self._session(slug, tid, path, cancel, model, env, FIX.format(problem=problem), session,
-                                        spent, effort)
+                                        spent, effort, "fix")
             tests = parse_tests(out)
             tests["green"] = problem is None
             diff = self.git.stats(path, start_sha)
@@ -504,8 +517,9 @@ class IdeaRunner(ReviewMixin):
                 pass
 
     def _session(self, slug: str, tid: str, path: Path, cancel: threading.Event, model: str, env: dict,
-                 prompt: str, resume: str, spent: dict, effort: str = "") -> str:
-        """One turn of the task's Claude session (work mode); its cost and tokens add up on the task."""
+                 prompt: str, resume: str, spent: dict, effort: str = "", step: str = "task") -> str:
+        """One turn of the task's Claude session (work mode); its cost and tokens add up on the task, and its line
+        goes to the idea's ledger (spec 36 §1: `task`, or `fix` for the gate's retry)."""
         try:
             _text, cost, tokens, session = jobs.run_work(HARNESS, prompt, path, cancel, model=model, env=env,
                                                          resume=resume, effort=effort)
@@ -519,6 +533,8 @@ class IdeaRunner(ReviewMixin):
             if value is not None:
                 spent[key] = (spent[key] or 0) + value
         session = session or resume
+        task = next((t for t in (self.plan(slug) or {}).get("tasks") or [] if t.get("id") == tid), {"id": tid})
+        idea_spend.task_line(self.state_dir, slug, task, step, HARNESS, model, cost, tokens)
         self._log(slug, tid, f"== the session answered\n{_text}\n", env)
         self._set_task(slug, tid, session=session, cost=spent["cost"], tokens=spent["tokens"])
         return session
@@ -554,24 +570,23 @@ class IdeaRunner(ReviewMixin):
     # -- the prompt ------------------------------------------------------------------------------
 
     def _prompt(self, slug: str, plan: dict, task: dict) -> str:
+        """Stable first (spec 36 §6): the role's instruction and the finishing rules; then the task's own: where, its
+        spec's path, the task, its `after` tasks, the secrets' names. No CLAUDE.md: Claude Code reads it itself."""
         spec, deps = spec_paths(self.repo_root, self.state_dir, slug)
-        tasks = plan.get("tasks") or []
-        before = tasks[:tasks.index(task)] if task in tasks else []
-        done = []
-        for t in before:
-            merged = "; ".join(t.get("subjects") or []) if t.get("state") == "merged" else ""
-            done.append(f"- {t.get('id')} · {t.get('title', '')} ({t.get('state')})"
-                        + (f" — merged: {merged}" if merged else "") + f"\n  {t.get('brief', '')}")
-        try:
-            rules = (self.repo_root / "CLAUDE.md").read_text(encoding="utf-8")[:CLAUDE_KEEP]
-        except OSError:
-            rules = ""
+        after = set(task.get("after") or [])
+        done = [f"- {t.get('id')} · {t.get('title', '')} ({t.get('state')})"
+                + (f" — merged: {'; '.join(t.get('subjects') or [])}" if t.get("state") == "merged" and t.get("subjects") else "")
+                + f"\n  {t.get('brief', '')}" for t in plan.get("tasks") or [] if t.get("id") in after]
         env = self._env(slug, task.get("id"), plan)
         files = [n for n in env if n.startswith("ORKCRAFT_FILE_")]
         secrets = [n for n in env if n not in ("ORKCRAFT_ORC", "ORKCRAFT_IDEA", "ORKCRAFT_TASK", *files)]
-        parts = []
-        if (instruction := str(self._role(task).get("instruction") or "").strip()):
-            parts.append(f"# Your role: {self._role(task)['name']}\n\n{instruction}")
+        parts, role = [], self._role(task)
+        if (instruction := str(role.get("instruction") or "").strip()):
+            parts.append(f"# Your role: {role['name']}\n\n{instruction}")
+        parts.append("# When you are done\n\nCommit your work with git if you can, with clear messages; what you "
+                     "leave changed is committed for you under the task's title. Then the gate runs "
+                     f"`python -m pytest -q {' '.join(CRITICAL_TESTS)}` and the test files of the modules you touch, "
+                     "and a red gate comes back to you once, in this session.")
         parts += [
             f"You do one task of the idea `{slug}` in this repository: a git worktree on branch "
             f"`idea/{slug}/{task.get('id')}`, cut from `{setting(self.settings, 'merge_into') or 'main'}`. "
@@ -582,16 +597,8 @@ class IdeaRunner(ReviewMixin):
         ]
         if done:
             parts.append("# The tasks before yours\n\n" + "\n".join(done))
-        if rules:
-            parts.append("# The repository's rules (CLAUDE.md)\n\n" + rules)
-        finish = ("# When you are done\n\nCommit your work with git if you can, with clear messages; what you leave "
-                  "changed is committed for you under the task's title. Then the gate runs "
-                  f"`python -m pytest -q {' '.join(CRITICAL_TESTS)}` and the test files of the modules you touch, and "
-                  "a red gate comes back to you once, in this session.")
         if secrets:
-            finish += (" The environment holds " + ", ".join(secrets) + ": use them from the environment, never "
-                       "print them, write them to a file or commit them.")
-        for name in files:
-            finish += f"\n\nThe file is at ${name}; copy it into the repository only if the task says so."
-        parts.append(finish)
+            parts.append("The environment holds " + ", ".join(secrets) + ": use them from the environment, never "
+                         "print them, write them to a file or commit them.")
+        parts += [f"The file is at ${name}; copy it into the repository only if the task says so." for name in files]
         return "\n\n".join(parts)

@@ -286,7 +286,8 @@ def test_review_list_has_the_spec_shape_and_the_phones_may_call_it(host):
     got = host.command("ideas.review_list")
     json.dumps(got)
     (r,) = got["results"]
-    assert set(r) == {"idea", "idea_title", "task", "title", "round", "tests", "diff", "cost", "conflict", "finished"}
+    assert set(r) == {"idea", "idea_title", "task", "title", "round", "tests", "diff", "cost", "conflict", "finished",
+                      "work", "rework", "estimate", "over"}       # spec 36 §4
     assert r["idea"] == slug and r["task"] == "k1" and r["round"] == 2 and r["diff"]["files"] == 14
     assert mobile.allowed(host, "ideas.merge", {"slug": slug, "task": "k1"})
 
@@ -503,3 +504,78 @@ def test_a_keeper_calls_record_names_its_idea_so_the_two_logs_join(tmp_path):
     finally:
         call_log.keep_days(None)
     assert {(x.get("idea"), x.get("task")) for x in lines} == {("dark-mode", None), ("dark-mode", "k1")}
+
+
+# -- spec 36 §4, §7: Review's cost against the plan, `dear`, `ideas.spend`, the roles' week and types ----------------
+
+def test_a_result_has_its_cost_split_and_against_its_planned_share(host):
+    from orkcraft.realm import idea_spend
+    slug = _review(host, ran_tier="warrior")
+    state = host.ideas.state_dir
+    for step, rnd, cost in (("task", 1, 0.3), ("task", 2, 0.1), ("fix", 2, 0.02)):
+        idea_spend.append(state, idea_spend.line(step, "grunt", "claude", "sonnet", "warrior", "low", None, cost, "k1", rnd), idea=slug)
+    (r,) = host.command("ideas.review_list")["results"]
+    assert r["work"] == 0.3 and r["rework"] == 0.12
+    assert r["estimate"] == {"low": 0.15, "high": 0.45} and r["over"] is None       # 0.42 a result, warrior's default
+    ideas.edit_plan(state, slug, lambda p: p["tasks"][0].update(cost=0.9))
+    assert host.command("ideas.review_list")["results"][0]["over"] == 2.0           # 0.9 / 0.45
+
+
+def test_merge_sends_dear_only_when_it_is_ticked(host, monkeypatch):
+    seen = []
+
+    class FakeRunner:
+        def __init__(self, *a, **k):
+            pass
+
+        def merge(self, slug, tid, device="", **more):
+            seen.append(more)
+            return "abc"
+
+    monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
+    slug = _review(host)
+    host.command("ideas.merge", {"slug": slug, "task": "k1"})
+    host.command("ideas.merge", {"slug": slug, "task": "k1", "dear": True})
+    assert seen == [{}, {"dear": True}]
+    with pytest.raises(CommandError, match="true or false"):
+        host.command("ideas.merge", {"slug": slug, "task": "k1", "dear": "yes"})
+
+
+def test_ideas_spend_gives_an_ideas_and_a_goals_money_and_the_phone_may_call_it(host):
+    from orkcraft.realm import idea_spend
+    slug = _add(host, "an idea that costs")["slug"]
+    goal = ideas.idea_page(host.ideas.root(), slug).get("track")
+    state = host.ideas.state_dir
+    idea_spend.append(state, idea_spend.line("draft", "taskmaster", "claude", "opus", "elder", "medium", None, 0.5), idea=slug)
+    idea_spend.append(state, idea_spend.line("goal", "taskmaster", "claude", "opus", "elder", "medium", None, 0.25), goal=goal)
+    got = host.command("ideas.spend", {"idea": slug})
+    assert got["usd"] == 0.5 and got["stages"]["spec"]["usd"] == 0.5 and set(got) == {"usd", "unpriced", "stages", "tasks"}
+    g = host.command("ideas.spend", {"goal": goal})
+    assert g["usd"] == 0.75 and g["stages"]["goal"]["usd"] == 0.25 and g["merged"] == 0 and g["usd_per_merged"] is None
+    for bad in ({"idea": "ghost"}, {"goal": "ghost"}, {}):
+        with pytest.raises(CommandError):
+            host.command("ideas.spend", bad)
+    assert "ideas.spend" in mobile.COMMANDS and mobile.allowed(host, "ideas.spend", {"idea": slug})
+
+
+def test_roles_gain_their_types_week_and_hand_model_and_role_save_takes_types(host):
+    from orkcraft.realm import idea_spend
+    idea_spend.forget()
+    slug = host.command("ideas.role_save", {"name": "Scribe", "model": "", "max_parallel": 1,
+                                            "instruction": "Write plainly.", "kinds": ["docs", "text"]})["slug"]
+    got = {r["slug"]: r for r in host.command("ideas.roles")["roles"]}
+    assert got[slug]["kinds"] == ["docs", "text"] and got[slug]["model"] == "" and got[slug]["hand_model"] is False
+    assert got["grunt"]["kinds"] == ["code", "tests", "research"] and got["taskmaster"]["kinds"] == []
+    assert got["taskmaster"]["week"] == {"spent": 0, "plans": 0, "first_time": 0, "finished": 0, "merged": 0}
+    assert got[slug]["week"] is None                                                # no task of its finished yet
+    assert next(k for k in host.command("ideas.roles")["kinds"] if k["kind"] == "docs")["role"] == slug
+    host.command("ideas.role_save", {"slug": slug, "name": "Scribe", "model": "", "max_parallel": 1, "kinds": ["docs"]})
+    assert next(k for k in host.command("ideas.roles")["kinds"] if k["kind"] == "text")["role"] == "grunt"
+    with pytest.raises(CommandError, match="600"):
+        host.command("ideas.role_save", {"slug": slug, "name": "Scribe", "model": "", "max_parallel": 1, "instruction": "x" * 601})
+    with pytest.raises(CommandError):
+        host.command("ideas.role_save", {"slug": "grunt", "name": "Grunt", "model": "", "max_parallel": 8, "kinds": ["code"]})
+    saved = _events(host, "role_saved")
+    assert [(e["kinds"], e["instruction_chars"]) for e in saved] == [(["docs", "text"], 14), (["docs"], 0)]
+    blocks = {b["role"]: b for b in host.command("ideas.agents")["roles"]}
+    assert all("week" in b for b in blocks.values()) and blocks["taskmaster"]["week"]["plans"] == 0
