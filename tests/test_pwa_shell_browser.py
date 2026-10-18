@@ -40,6 +40,7 @@ class Stub:
         self.calls: list[tuple[str, dict]] = []
         self.into, self.push = "dev", False
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
+        self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
         self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
         self.todos = [{"idea": "sync", "id": "t1", "title": "API_KEY", "kind": "secret", "why": "The sync service needs it", "choices": [],
                        "steps": [], "done": False}]
@@ -110,8 +111,9 @@ class Stub:
         if name == "ideas.review_list":
             return {"into": self.into, "push": self.push, "branches": ["dev", "main"], "results": self.results()}
         if name == "ideas.agents":
-            chips = [{"idea": "sync", "idea_title": self.ideas["sync"]["title"], "task": t["id"], "title": t["title"], "state": t["state"], "tier": "warrior", "note": ""}
-                     for t in self.plan["tasks"] if t["state"] in ("running", "review")]
+            chips = [{"idea": "sync", "idea_title": self.ideas["sync"]["title"], "task": t["id"], "title": t["title"], "state": t["state"], "tier": "warrior", "note": "",
+                      "by": "person", "night": False} | self.chip_extra.get(t["id"], {})
+                     for t in self.plan["tasks"] if t["state"] in ("running", "review", "held")]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "state": "waiting",
                        "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": []},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
