@@ -11,19 +11,19 @@ Orkboard on its own, lets the gate test another repository, and opens a project 
 to another repository here (stage 2, §7). **Builds:** Claude (A, C, D2, D3 on the warrior tier; B and D1 on the
 elder tier) · **Review:** full · P1.
 
-**When.** A now: it touches no file of specs 35 or 36. C after 35 and 36 are merged: it is what Orkboard needs
-first at work. B after C (both change `realm/jobs.py`). gate-kinds (decisions §49.4–7) comes after C and puts its
-`[[check]]` rows into C's file; B and gate-kinds are not built at the same time (both change `gui/ideas.py`). D
-(§8, its own three branches) after B.
+**When** (the order changed by the owner, 18 October): A and C are merged. B now. **The move** (§9) right after B,
+not after the testers: Orkboard goes to its own repository, `Orkcraft/orkboard`. D (§8, its own three branches) is
+built there, after the move. gate-kinds (decisions §49.4–7) puts its `[[check]]` rows into C's file; B and gate-kinds
+are not built at the same time (both change `gui/ideas.py`).
 
-Four parts, one branch each (D in three, in §8); **this file is the contract** (names, data, commands); the rest is the builder's
+Four parts, one branch each (D in three, in §8), and the move (§9); **this file is the contract** (names, data, commands); the rest is the builder's
 choice inside its files. Wording: CLAUDE.md. **Change nothing outside these files.**
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
 | **A. The boundary** | `spec/37-boundary` | §1, §2 | new `orkcraft/layers.py`, `tests/test_architecture.py` (new tests only), `CLAUDE.md` ("Where code goes": one bullet, §2) |
 | **C. The gate on any repository** | `spec/37-gate` | §5 | new `realm/gate_config.py`, `realm/idea_git.py`, `core/idea_runner.py` and `core/idea_review.py` (*no tests ran* never lands by itself), `realm/forge.py` and `realm/jobs.py` (`test_argv` imported from `gate_config`, one line each), new `orkcraft.toml` (this repository's), `gui/ideas_goals.py` (`ideas.doc` reads no secret), `orkcraft/layers.py` (`hooks.warder`, `gui.markdown` join `BOARD`), `tests/test_architecture.py` (only `KNOWN` loses `jobs → forge`), `gui/static/js/shell/review.js` and `gui/static/pwa/shell-review.js` (the tests' line only), `pwa/sw.js` (cache version) with `tests/test_pwa.py`'s pinned version |
-| **B. Orkboard on its own** | `spec/37-alone` | §3, §4 | new `realm/tool_run.py`, `realm/jobs.py`, `realm/road_agents.py`, `realm/roads.py`, `realm/harnesses.py`, `realm/tiers.py`, `realm/looks.py`, `realm/builders.py`, `realm/worktrees.py` and a new line module for its town part, `settings.py` (`ideas.wiki`, `MachineSettings` read cached), new `core/board_limits.py`, `core/treasury.py`, `gui/ideas.py`, `gui/ideas_limits.py`, new `gui/board_host.py`, `gui/host.py`, `gui/state.py`, `gui/onboarding.py`, `gui/static/js/onboarding.js`, `gui/launch.py`, `gui/server.py`, `gui/pwa.py`, `gui/phone_http.py`, `gui/mobile.py`, `gui/phones.py`, `cli.py`, `pyproject.toml` (`[project.scripts]`), new `gui/static/board.js`, `gui/static/index.html` only if the entry needs it, new `gui/static/pwa/board-app.js`, `gui/static/pwa/index.html`, `pwa/sw.js`, `orkcraft/layers.py` (`SPLIT` emptied), `tests/test_architecture.py` (only `KNOWN` emptied, and §4's new test), new `<name>_town.py` modules beside the split ones (§4) |
+| **B. Orkboard on its own** | `spec/37-alone` | §3, §4 | new `realm/tool_run.py`, `realm/jobs.py`, `realm/road_agents.py`, `realm/roads.py`, `realm/harnesses.py`, `realm/tiers.py`, `realm/looks.py`, `realm/builders.py`, `realm/worktrees.py` and a new line module for its town part, `settings.py` (`ideas.wiki`, `MachineSettings` read cached), new `core/board_limits.py`, `core/treasury.py`, `gui/ideas.py` and its mixins (`ideas_goals.py`, `ideas_roles.py`, `ideas_board.py`, `ideas_limits.py`), new `gui/board_host.py`, `gui/host.py`, `gui/state.py`, `gui/onboarding.py`, `gui/static/js/onboarding.js`, `gui/launch.py`, `gui/server.py`, `gui/pwa.py`, `gui/phone_http.py`, `gui/mobile.py`, `gui/phones.py`, `cli.py`, `pyproject.toml` (`[project.scripts]`), new `gui/static/board.js`, `gui/static/index.html` only if the entry needs it, new `gui/static/pwa/board-app.js`, `gui/static/pwa/index.html`, `pwa/sw.js` with `tests/test_pwa.py`'s pinned version, the line modules that call what moved out of `worktrees` (their imports only), `orkcraft/layers.py` (`SPLIT` emptied), `tests/test_architecture.py` (only `KNOWN` emptied, and §4's new test), new `<name>_town.py` modules beside the split ones (§4) |
 
 ## 0. The words
 - **Orkboard:** the engine and its base modules (goals, ideas and their specs, agents, review; the Wiki under them)
@@ -205,10 +205,7 @@ modules by these hand-offs and no others; a new module speaks them. A setting th
 | review → rework | sent back with one line why; or dropped | `plan.json` `round`, `why`; `failed` | the person | the runner | `result_decided`, `task_state` |
 
 ## 7. Not in this spec
-- **Stage 2, the move** (decisions §50.9), after the testers' numbers and when: `SPLIT` and `KNOWN` are empty;
-  `orkcraft board` has run the owner's work on another repository for two weeks; the testers' numbers are in. Then
-  Orkboard's files and their tests leave with their history (`git filter-repo` on `BOARD`'s paths) for a repository
-  of their own, and Orkline depends on it as a package. A spec of its own.
+- Orkline built on the `orkboard` package (its own copy deleted): after the testers' week (§9).
 - Orkline's graph of loops, sources on goals, the panes as the buildings' windows, the town's pipeline retired
   (decisions §50.2–6): after the testers.
 - Mission 1 on the person's commands, the score counting the Board's results (§50.5): when Camp comes back.
@@ -311,8 +308,40 @@ document). No edit and no git from the phone: `gui/mobile.py` allows `projects.l
 | **D2. Desktop** | `spec/37-project-desktop` | §8's screens on the desktop | `gui/static/js/shell/*` (new `files.js`, `gitpane.js`, `projects.js`, `editor.js`; `shell.js`, `preview.js`, `topbar.js`, `settings.js`, `shell.css`), `gui/static/board.js` |
 | **D3. Phone** | `spec/37-project-phone` | the switcher and a Markdown file read-only | `gui/static/pwa/shell-*.js` (new `shell-projects.js`), `pwa/board-app.js`, `pwa/app.css`, `pwa/sw.js` (cache version, and `tests/test_pwa.py`'s pinned version with it) |
 
-D comes after B (it needs `BoardHost`); D1 on the elder tier (paths, secrets, git: security and data that can be
-lost), D2 and D3 on the warrior tier, branched from D1 once it is pushed.
+D comes after the move (§9) and is built in `Orkcraft/orkboard`: its paths are the same under the package
+`orkboard/` in place of `orkcraft/`. D1 on the elder tier (paths, secrets, git: security and data that can be lost),
+D2 and D3 on the warrior tier, branched from D1 once it is pushed.
+
+## 9. The move: Orkboard's own repository (right after B)
+The owner (18 October): Orkboard leaves this repository as soon as it runs on its own, not after the testers'
+numbers. Orkboard is the owner's lab; the testers stay on Orkline, whose installs do not change during their week.
+Done by the PM session (it creates the repository), on a fresh `main` with B merged.
+- **When:** `SPLIT` and `KNOWN` are empty and `test_orkboard_starts_alone` passes on `main`.
+- **The repository:** `Orkcraft/orkboard`, with the history of what moves (`git filter-repo` on the paths below).
+- **What moves:** every module of `layers.BOARD` (`gui/board_host.py` and B's other new Orkboard modules with them);
+  the shell's pages and scripts (`static/board.js`, `js/shell/*`, `js/board/*`, `pwa/board-app.js`, `pwa/board.js`,
+  `pwa/shell-*.js`, `pwa/util.js`, `pwa/sw.js`, `pwa/index.html`, `pwa/manifest.webmanifest`, the icons) and what
+  they load (the design system's office theme, `static/vendor/`); `orkcraft.toml`; the tests that import only
+  Orkboard's modules and the shell's browser tests; this spec and decisions §50, copied. The town's modules, the
+  camp's scripts and art, Mission 1 and the line's tests stay.
+- **The package is `orkboard`** (two repositories cannot both ship `orkcraft`): the moved modules are renamed
+  `orkcraft.*` → `orkboard.*` by a script; the command is `orkboard` (and `orkboard board` for the old habit). The
+  state keeps its names (CLAUDE.md: config values stay): `~/.config/orkcraft/`, `<repo>/.orkcraft/`, `orkcraft.toml`,
+  so Orkboard and Orkline read the same settings and the same Board of a project, and switching loses nothing.
+- **Orkboard's own files:** `pyproject.toml` (its dependencies only), `CLAUDE.md` (this repository's rules that
+  apply: Wording, Where code goes, Alpha; no Art, no Camp), a README of five lines, its CI on its tests.
+  Installed by the owner from git (`uv tool install git+https://github.com/Orkcraft/orkboard`); no `updates.json` in
+  its first version.
+- **Orkline, during the testers' week:** its copy of Orkboard's modules is **frozen**. A change to them is made in
+  `Orkcraft/orkboard` first; a fix the testers need in Orkline is made in both on the same day, the orkboard commit
+  named in Orkline's. `layers.py` stays in Orkline and its test keeps the boundary meanwhile.
+- **Orkline, after the testers' week:** it depends on `orkboard` (`pyproject.toml`, `install.sh`, `Formula/`, a
+  release in `updates.json`), its copies are deleted, its imports rewritten by the same script (`orkcraft.realm.ideas`
+  → `orkboard.realm.ideas`), and `tests/test_architecture.py` checks that nothing of Orkline is imported by
+  `orkboard`. A spec of its own then.
+- **Done when:** in `Orkcraft/orkboard`, `orkboard` starts on a fixture repository with no module of the line
+  present; its tests and the shell's browser tests pass; the owner runs it on another project; Orkline's `main` is
+  unchanged and green.
 
 ## Tests
 - **A:**
