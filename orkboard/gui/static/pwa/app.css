@@ -733,8 +733,9 @@ p { margin: 0 0 8px; }
 .section-head h3 { margin: 0; }
 .need-proposal { align-items: flex-start; cursor: default; }
 .need-proposal .need-text { gap: 8px; }
-.need-proposal .row { margin-top: 0; flex-wrap: nowrap; }
-.need-proposal .row .ok-input { min-width: 0; }
+.need-proposal .row { margin-top: 0; flex-wrap: wrap; }
+.need-proposal .row .ok-input { min-width: 0; flex: 1 1 100%; order: -1; }
+.need-proposal .row .ok-btn { flex: 1 1 0; white-space: nowrap; min-height: 44px; }
 .need-proposal .field { display: flex; flex-direction: column; gap: 4px; }
 .idea-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 12px 10px; }
 .idea-actions .ok-btn { min-height: 44px; }

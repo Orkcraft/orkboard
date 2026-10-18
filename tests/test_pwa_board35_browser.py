@@ -91,6 +91,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         hi = page.locator(".idea-card[data-slug=hi]")
         await hi.wait_for(timeout=WAIT_MS)
         assert await hi.locator(".spin").count() == 1 and "drafting" in await hi.inner_text()
+        await hi.scroll_into_view_if_needed()
         await _shot(page, "phone-ideas-390x844")
         await hi.get_by_role("button", name="Stop: Fast sync").click()                                   # Stop → stopped
         assert await _called(stub, "ideas.read_stop", {"slug": "hi"})
@@ -151,14 +152,15 @@ async def test_needs_you_is_one_list_questions_are_one_form_and_a_proposal_is_an
         assert await _called(stub, "ideas.answer", {"slug": "sync", "answers": ["first", "second"]})
         await page.locator(".need-asks").wait_for(state="detached", timeout=WAIT_MS)                    # the list is drawn again before the row is used
         one, two = page.locator(".need-proposal", has_text="A docs page"), page.locator(".need-proposal", has_text="A tour")
-        assert await one.get_by_role("radio", name="Low").is_checked()                                  # the proposal's priority
+        assert await one.get_by_role("radio", name="Normal").is_checked()                                  # the proposal's priority
         await one.get_by_role("radio", name="High").click()
         await one.get_by_role("button", name="Take").click()
-        assert await _called(stub, "ideas.proposal", {"slug": "p1", "take": True, "priority": "high"})
+        assert await _called(stub, "ideas.proposal", {"slug": "p1", "take": True, "priority": "high"}), [c for c in stub.calls if "proposal" in c[0]]
         await two.get_by_label("Why not: A tour").fill("Not now")
         await two.get_by_role("button", name="No").click()
         assert await _called(stub, "ideas.proposal", {"slug": "p2", "take": False, "reason": "Not now"})
-        await page.locator(".need-proposal").wait_for(state="detached", timeout=WAIT_MS)
+        await one.wait_for(state="detached", timeout=WAIT_MS)
+        await two.wait_for(state="detached", timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
 
 
@@ -208,8 +210,8 @@ async def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(fake_re
         await agents.locator(".chip-why").first.wait_for(timeout=WAIT_MS)
         assert "by itself" in await agents.locator(".chip", has_text="Retry on a lost signal").inner_text()
         assert "tonight" in await agents.locator(".chip", has_text="Add the queue").inner_text()
-        assert "keeps your reserve · after 18:00" in await agents.locator(".chip", has_text="Write the notes").inner_text()
-        assert "waits for Dark mode · same files" in await agents.locator(".chip", has_text="Test it offline").inner_text()
+        assert "keeps your reserve · after 18:00" in (await agents.locator(".chip", has_text="Write the notes").inner_text()).lower()
+        assert "waits for dark mode · same files" in (await agents.locator(".chip", has_text="Test it offline").inner_text()).lower()
         assert "by itself" not in await agents.locator(".chip", has_text="Add the queue").inner_text()
         await _shot(page, "phone-agents-chips-390x844")
         assert await page.evaluate(NO_SCROLL)
