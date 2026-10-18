@@ -680,8 +680,8 @@ p { margin: 0 0 8px; }
 .pill:focus-within { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
 /* a sheet's buttons stay at its foot while the form scrolls */
 .sheet { overflow-y: auto; }
-.sheet-foot { position: sticky; bottom: 0; margin: 4px -16px 0; display: flex; gap: 8px;
-  padding: 10px 16px 10px; background: var(--panel); border-top: 1px solid var(--frame); z-index: 1; }
+.sheet-foot { position: sticky; bottom: 0; margin: 4px -16px calc(-16px - env(safe-area-inset-bottom)); display: flex; gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--frame); z-index: 1; }
 .sheet-foot .ok-btn { flex: 1 1 0; width: auto; }
 .sheet-foot .ok-btn.primary { flex: 2 1 0; }
 .sheet .sure { display: flex; flex-direction: column; gap: 8px; }
@@ -708,3 +708,38 @@ p { margin: 0 0 8px; }
 .kinds { gap: 6px; }
 .kind-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; }
 .kind-row .ok-input { flex: 0 0 55%; width: auto; min-height: 44px; }
+
+/* spec 35 on the phone: the Target chip, the goal select, Needs you with proposals, the ideas' actions, the to-do sheet */
+.sheet [hidden] { display: none !important; }
+.target-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--frame-strong); border-radius: 999px; font-size: 0.875rem; }
+.target-chip:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
+.target-pick { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 4px; cursor: pointer; border-bottom: 1px solid var(--frame); }
+.target-pick input { width: 1.5rem; height: 1.5rem; flex: none; }
+.target-pick small { color: var(--muted); }
+.goal-pick { margin-top: 0; flex-wrap: nowrap; }
+.goal-pick .ok-input { min-width: 0; min-height: 44px; }
+.goal-pick .ok-btn { flex: none; }
+.goal-now { display: flex; flex-direction: column; gap: 6px; }
+.goal-line { margin: 0; overflow-wrap: anywhere; }
+.goal-now .row { margin-top: 0; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.section-head h3 { margin: 0; }
+.need-proposal { align-items: flex-start; cursor: default; }
+.need-proposal .need-text { gap: 8px; }
+.need-proposal .row { margin-top: 0; flex-wrap: nowrap; }
+.need-proposal .row .ok-input { min-width: 0; }
+.need-proposal .field { display: flex; flex-direction: column; gap: 4px; }
+.idea-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 12px 10px; }
+.idea-actions .ok-btn { min-height: 44px; }
+.idea-card .idea-actions .now { margin: 0; }
+.done-ideas { margin-top: 8px; }
+.done-ideas summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.state-word.held, .state-word.raw { color: var(--muted); }
+.chip-why { color: var(--muted); }
+.night-row { flex-wrap: nowrap; }
+.night-row .ok-input { min-width: 0; }
+.todo-sheet { display: flex; flex-direction: column; gap: 10px; }
+.todo-sheet h3 { margin: 0; overflow-wrap: anywhere; }
+.todo-sheet .answers { display: flex; flex-direction: column; gap: 8px; }
+.q-form textarea { resize: vertical; }

@@ -70,15 +70,33 @@ export function makeTop(core, ctx) {
       h("li", {}, "Away from home? Install Tailscale on the computer and the phone.")),
     foot(h("button", { class: "ok-btn primary big", type: "button", onclick: () => pairSheet.close() }, "Done")));
   const pushBox = h("input", { type: "checkbox", id: "push-after" });
+  // The Board's two settings (spec 35 §5, §7, §11): plans start by themselves (on), and the night's hours.
+  const autoBox = h("input", { type: "checkbox", id: "autostart" });
+  const nightFrom = h("input", { class: "ok-input", type: "time", "aria-label": "Night from" });
+  const nightTo = h("input", { class: "ok-input", type: "time", "aria-label": "Night to" });
   const gearSheet = sheet("Settings",
     h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
+    h("label", { class: "check-line", for: "autostart" }, autoBox, h("span", {}, "Start plans by themselves")),
+    h("div", { class: "field" }, h("span", { class: "field-label" }, "Night"), h("div", { class: "row night-row" }, nightFrom, h("span", {}, "to"), nightTo)),
     h("h3", {}, "Your phone"),
     h("div", { class: "row" }, h("button", { class: "ok-btn", type: "button", onclick: () => pairSheet.open() }, "Pair a phone")),
     h("h3", {}, "Download today's logs"),
     h("div", { class: "row" }, h("button", { class: "ok-btn", type: "button", onclick: () => download(1) }, "Today"),
       h("button", { class: "ok-btn", type: "button", onclick: () => download(7) }, "The last 7 days")),
     h("p", { class: "muted" }, "What you did and what the orks did, kept on the computer. Off by default. The colours follow your phone's light or dark setting."));
-  gear.addEventListener("click", () => { pushBox.checked = Boolean(core.st.review?.push); gearSheet.open(); });
+  gear.addEventListener("click", () => {
+    pushBox.checked = Boolean(core.st.review?.push);
+    autoBox.checked = core.st.board?.autostart !== false;
+    [nightFrom.value, nightTo.value] = String(core.st.board?.night || "01:00-07:00").split("-");
+    gearSheet.open();
+  });
+  autoBox.addEventListener("change", async () => { await core.call("ideas.board_set", { autostart: autoBox.checked }); core.refresh(); });
+  const setNight = async () => {
+    if (!nightFrom.value || !nightTo.value) return;
+    if (await core.call("ideas.board_set", { night: `${nightFrom.value}-${nightTo.value}` })) core.refresh();
+  };
+  nightFrom.addEventListener("change", setNight);
+  nightTo.addEventListener("change", setNight);
   pushBox.addEventListener("change", async () => { await core.call("ideas.into", { push: pushBox.checked }); core.refresh(); });
 
   return {

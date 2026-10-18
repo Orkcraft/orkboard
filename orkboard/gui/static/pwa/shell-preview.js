@@ -8,6 +8,7 @@ import { stateWords } from "./shell-board.js";
 import { resultActions, factsOf, mergeReason } from "./shell-review.js";
 import { gruntWords } from "./shell-agents.js";
 import { goalBody } from "./shell-goal.js";
+import { heldWords } from "./shell-words.js";
 
 const TALK_SHOWN = 6;
 const LOG_MS = 5000;
@@ -114,7 +115,7 @@ export function makePreview(core, ctx) {
     const kids = [h("ul", { class: "tasks" }, ...(plan.tasks || []).map((t) => h("li", { class: `task t-${t.state}` },
       h("button", { class: "linkish task-title", type: "button", onclick: () => core.open({ kind: "task", slug: p.slug, task: t.id }) }, t.title),
       h("small", { class: "muted" }, [t.tier, (t.after || []).length ? `after ${t.after.map((a) => byId.get(a)?.title || a).join(", ")}` : "",
-        TASK_WORDS[t.state] && p.state !== "plan" ? TASK_WORDS[t.state] : "", t.state === "held" && t.note ? t.note : "",
+        TASK_WORDS[t.state] && p.state !== "plan" ? TASK_WORDS[t.state] : "", t.state === "held" && t.note ? heldWords(t.note, t.waits_title) : "",
         t.commit ? `commit ${t.commit.slice(0, 7)}` : "", t.state === "failed" && t.error ? t.error : ""].filter(Boolean).join(" · ")))))];
     if ((plan.todos || []).length) {
       kids.push(h("h3", {}, "To-dos before it starts"), h("ul", { class: "todos" }, ...plan.todos.map((t) => h("li", { class: `plan-todo${t.id === todo ? " is-target" : ""}`, "data-todo": t.id },
@@ -142,7 +143,8 @@ export function makePreview(core, ctx) {
     const slug = p.slug;
     switch (p.state) {
       case "ready": case "asks": return [btn("Take it to work", () => act("ideas.plan", { slug }, "The Taskmaster is planning.").then(() => read(cur)))];
-      case "plan": return [btn(`Start · ${n} tasks · ${price(p.plan?.estimate)}`, () => act("ideas.start", { slug }, "Started.").then(() => read(cur)))];
+      case "plan": if (p.plan?.start_at === "night") return [btn("Start now", () => act("ideas.start_now", { slug }, "Started.").then(() => read(cur)))];
+        return [btn(`Start · ${n} tasks · ${price(p.plan?.estimate)}`, () => act("ideas.start", { slug }, "Started.").then(() => read(cur)))];
       case "working": return [btn("Stop", () => act("ideas.stop", { slug }, "Stopped.").then(() => read(cur)), "danger")];
       case "failed": {
         const why = p.error || (p.plan?.tasks || []).find((t) => t.state === "failed")?.error || "";
@@ -189,7 +191,7 @@ export function makePreview(core, ctx) {
     const log = h("pre", { class: "log", "aria-label": "Log" }, t.log || "Nothing logged yet.");
     body.replaceChildren(...[
       h("dl", { class: "facts" },
-        h("dt", {}, "State"), h("dd", { "data-state": t.state }, TASK_WORDS[t.state] || t.state, t.note ? h("small", { class: "muted" }, ` ${t.note}`) : null),
+        h("dt", {}, "State"), h("dd", { "data-state": t.state }, TASK_WORDS[t.state] || t.state, t.note ? h("small", { class: "muted" }, ` ${t.state === "held" ? heldWords(t.note, t.waits_title) : t.note}`) : null),
         h("dt", {}, "Idea"), h("dd", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "idea", slug: t.idea }) }, t.idea_title)),
         h("dt", {}, "Tier"), h("dd", {}, t.tier), h("dt", {}, "Branch"), h("dd", {}, h("code", {}, t.branch || "—")),
         h("dt", {}, "Round"), h("dd", {}, String(t.round || 1)), h("dt", {}, "Spend"), h("dd", {}, t.cost != null ? `$${Number(t.cost).toFixed(2)}` : "—")),
