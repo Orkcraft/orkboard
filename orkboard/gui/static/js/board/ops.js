@@ -78,7 +78,7 @@ function RunningRow({ r }) {
   return html`<li class="board-op" data-op=${r.id} data-state=${r.state}>
     <span class="board-op__title"><b>${r.title}</b>
       <span class="board-state" data-state="working">${!held && html`<span class="shell-spin" aria-hidden="true">↻</span> `}${held
-        ? `waits for limits · after ${hhmm(r.held_until)}` : BUSY_WORDS[r.state]}</span></span>
+        ? r.why || `waits for limits · after ${hhmm(r.held_until)}` : BUSY_WORDS[r.state]}</span></span>
     <span class="board-card__acts"><button class="ok-btn danger" aria-label=${`Stop: ${r.title}`} onClick=${() => run("ops.stop", { id: r.id })}>Stop</button></span></li>`;
 }
 

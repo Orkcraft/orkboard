@@ -260,6 +260,18 @@ def _dialog(pg, name):
     return dlg
 
 
+def test_a_held_run_says_why_the_limits_or_the_days_spend_cap(world):
+    def body(pg, stub):
+        _operations(pg)
+        limits = stub.seed("jira-task", "held", held_until="2026-10-18T18:00:00")
+        cap = stub.seed("email-reply", "held", held_until="2026-10-19T00:00:00", why="waits: the day's spend cap is reached")
+        row = pg.locator(f".board-op[data-op={limits}]")
+        row.wait_for(timeout=WAIT_MS)
+        assert "waits for limits · after 18:00" in row.inner_text()
+        assert "waits: the day's spend cap is reached" in pg.locator(f".board-op[data-op={cap}]").inner_text()
+    _run(world[0], body)
+
+
 def test_operations_is_in_the_goal_select_and_new_lists_the_templates(world):
     def body(pg, stub):
         select = pg.get_by_label("Goal", exact=True)

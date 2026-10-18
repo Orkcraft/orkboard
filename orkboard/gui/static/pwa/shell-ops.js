@@ -289,7 +289,7 @@ export function makeOps(core, ctx) {
       h("span", { class: "chev", "aria-hidden": "true" }, "›"));
   }
   function runningRow(r) {
-    const held = r.held_until ? `waits for limits · after ${hhmm(r.held_until)}` : "";
+    const held = r.held_until ? r.why || `waits for limits · after ${hhmm(r.held_until)}` : "";   // why: the day's spend cap
     return h("div", { class: "card ops-run-row", "data-op": r.id },
       h("span", { class: "need-text" }, h("b", {}, r.title),
         h("small", { class: "state-word work" }, held ? null : SPIN(), held ? "" : " ", held || (r.state === "acting" ? "doing it" : "preparing"))),

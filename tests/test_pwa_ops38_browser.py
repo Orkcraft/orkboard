@@ -359,6 +359,23 @@ async def test_the_gear_sets_the_target_the_limits_and_a_server(fake_repo, monke
 
 
 @pytest.mark.asyncio
+async def test_a_held_run_says_why_the_limits_or_the_days_spend_cap(fake_repo, monkeypatch, _ops):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        limits = _ops["ops"].add_run(state="held", held_until="2026-10-18T18:00:00")
+        cap = _ops["ops"].add_run(template="email-reply", state="held", held_until="2026-10-19T00:00:00",
+                                  why="waits: the day's spend cap is reached")
+        _ops["ops"].changed()
+        select = page.locator(".goal-pick select")
+        await select.wait_for(timeout=WAIT_MS)
+        await select.select_option("ops")
+        row = page.locator(f".ops-run-row[data-op={limits['id']}]")
+        await row.wait_for(timeout=WAIT_MS)
+        assert "waits for limits · after 18:00" in await row.inner_text()
+        assert "waits: the day's spend cap is reached" in await page.locator(f".ops-run-row[data-op={cap['id']}]").inner_text()
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
 async def test_with_no_project_open_operations_is_still_offered(fake_repo, monkeypatch, _ops):
     real = Stub.run
 
