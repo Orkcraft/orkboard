@@ -1,0 +1,3 @@
+# How Orkline checks a task's result before it reaches Review (docs/specs/37-board-and-line.md §5).
+[gate]
+always = ["tests/test_architecture.py", "tests/test_cli.py", "tests/test_updates.py"]

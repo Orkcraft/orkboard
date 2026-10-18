@@ -20,7 +20,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from orkcraft.realm import call_log, forge, halt, harnesses, road_agents, roads
+from orkcraft.realm import call_log, halt, harnesses, road_agents, roads
+from orkcraft.realm.gate_config import test_argv
 from orkcraft.sources import telemetry
 
 SCRIPT_TIMEOUT_S = 300
@@ -439,7 +440,7 @@ class TaskGit:
 
     def test(self, workdir: Path, command: str, cancel: threading.Event) -> tuple[bool, str]:
         """(passed, the output's tail) of the operator's test command, run in the worktree."""
-        argv = forge.test_argv(command.strip()) if command.strip() else []
+        argv = test_argv(command.strip()) if command.strip() else []
         if not argv:
             return True, ""
         try:

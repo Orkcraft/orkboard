@@ -15,7 +15,7 @@ re-reads the file before each write, so the keeper's to-dos stay as the keeper w
 and its tool's window is not nearly spent (else `held`, "after HH:MM"), works as its task type's role (that role's
 model and instruction; its `max_parallel` is held besides `ideas.max_parallel`, spec 34 §3), passes the gate (once more on the
 same session when red) and waits at `review`, green or red, holding its worktree and branch (`ideas.review` false:
-green lands by itself, as before). Every task change publishes `ideas.changed`. All git: realm/idea_git.py.
+green lands by itself, as before; a result for which no test ran waits at `review` all the same). Every task change publishes `ideas.changed`. All git: realm/idea_git.py.
 
 Spec 35: a task runs on the Target's tier and effort (`ran_tier`, `effort`; a role's own model wins); `start_at: "night"`
 starts only inside the night window; `passed_by: "auto"` leaves the person the reserve (realm/idea_target.py `gate`);
@@ -34,7 +34,7 @@ from typing import Any, Callable
 
 from orkcraft.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
 from orkcraft.realm import event_log, halt, harnesses, idea_secrets, idea_spend, idea_target, jobs, roles, status, tool_errors
-from orkcraft.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, parse_tests, read_secret, spec_paths
+from orkcraft.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
 HARNESS = "claude"
@@ -112,6 +112,7 @@ class IdeaRunner(ReviewMixin):
         self._limits_at = 0.0
         self._lock = threading.RLock()
         self._runs: dict[tuple[str, str], Run] = {}
+        self._gate_runs: dict[str, object] = {}              # a worktree's last gate run, until the task reads it
         self._active: list[str] = []
         self._until: dict[tuple[str, str], float] = {}
         self.events, self.on_held, self.rank = events, on_held, rank
@@ -477,10 +478,9 @@ class IdeaRunner(ReviewMixin):
                 self._set_task(slug, tid, state="running")
                 session = self._session(slug, tid, path, cancel, model, env, FIX.format(problem=problem), session,
                                         spent, effort, "fix")
-            tests = parse_tests(out)
-            tests["green"] = problem is None
+            tests = self._tests_of(path, out, problem)
             diff = self.git.stats(path, start_sha)
-            if setting(self.settings, "review"):
+            if setting(self.settings, "review") or not tests["ran"]:     # nothing ran: never lands by itself
                 self._set_task(slug, tid, state="review", tests=tests, diff=diff, conflict="", finished=now_iso(),
                                error="" if problem is None else "the tests are red", note="")
                 self._log(slug, tid, f"== at Review · {now_iso()}\n", env)
@@ -539,6 +539,20 @@ class IdeaRunner(ReviewMixin):
         self._set_task(slug, tid, session=session, cost=spent["cost"], tokens=spent["tokens"])
         return session
 
+    def _tests_of(self, path: Path, out: str, problem: str | None) -> dict:
+        """The result's `tests` (spec 37 §5): pytest's counts when its summary line is there, else `null` counts and the
+        exit code; `ran` False when the gate found nothing to run; `command` as run."""
+        run = self._gate_runs.pop(str(path), None)
+        tests = parse_tests(out)
+        tests["green"] = problem is None
+        tests["ran"] = run.ran if run else True
+        tests["command"] = run.command if run else ""
+        if run and run.ran:
+            tests["exit"] = run.code
+            if not has_summary(out):
+                tests["passed"] = tests["failed"] = None
+        return tests
+
     def _check(self, path: Path, start_sha: str, cancel: threading.Event, title: str = "") -> tuple[str | None, str]:
         """(None, the gate's run) when the task's work passes; else (what is wrong, in words the session can act on,
         the gate's run: "" when the gate did not run). What the session left uncommitted is committed first, under
@@ -552,8 +566,9 @@ class IdeaRunner(ReviewMixin):
         if self.git.dirty(path):
             return ("You left uncommitted changes: `git status` shows them. Commit them (or remove what is not "
                     "work)."), ""
-        ok, out = self.git.gate_run(path, start_sha, cancel)
-        return (None if ok else f"The tests failed:\n{out[-3000:]}"), out
+        run = self.git.gate_run(path, start_sha, cancel)
+        self._gate_runs[str(path)] = run
+        return (None if run.ok else f"The tests failed:\n{run.out[-3000:]}"), run.out
 
     def _env(self, slug: str, tid: str, plan: dict) -> dict[str, str]:
         """The task's environment: who runs (for the town's counts) and the values of its `secret` to-dos."""

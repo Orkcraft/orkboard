@@ -26,12 +26,13 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from typing import NamedTuple
 
-from orkcraft.realm import jobs, worktrees
+from orkcraft.realm import gate_config, jobs, worktrees
 
 GIT_TIMEOUT_S = 60
 PUSH_TIMEOUT_S = 120
-CRITICAL_TESTS = ("tests/test_architecture.py", "tests/test_cli.py", "tests/test_updates.py")
+CRITICAL_TESTS = gate_config.CRITICAL_TESTS     # only the default `always`; a repository's orkcraft.toml names its own
 TEST_TAIL = 3000
 GATE_KEEP = 60000
 PATCH_FILE = 60 * 1024               # a file's patch shown up to this, else "too large to show"
@@ -77,20 +78,16 @@ def _worktree_id(slug: str, task_id: str) -> str:
 def test_files(touched: list[str], root: Path) -> list[str]:
     """The critical tests, and the test files named after the modules the diff touches (CLAUDE.md "Alpha"):
     `orkcraft/realm/ideas.py` → `tests/test_ideas.py`, a touched test file itself; only those that exist."""
-    out = list(CRITICAL_TESTS)
-    for name in touched:
-        p = Path(name)
-        if p.suffix != ".py":
-            continue
-        if p.parts[:1] == ("tests",) and p.name.startswith("test_"):
-            cand = p.as_posix()
-        elif p.stem != "__init__":
-            cand = f"tests/test_{p.stem}.py"
-        else:
-            continue
-        if cand not in out and (root / cand).is_file():
-            out.append(cand)
-    return [t for t in out if (root / t).is_file()]
+    return gate_config.gate_files(gate_config.Gate(), touched, root)
+
+
+class GateRun(NamedTuple):
+    """What the gate did: `ran` is False when it found nothing to run (never green), `code` the command's exit code."""
+    ok: bool
+    out: str
+    ran: bool = True
+    command: str = ""
+    code: int | None = None
 
 
 class IdeaGit:
@@ -152,20 +149,35 @@ class IdeaGit:
 
     def gate(self, path: Path, base: str, cancel: threading.Event,
              timeout_s: int = jobs.TEST_TIMEOUT_S) -> tuple[bool, str]:
-        """(passed, the output's tail) of `python -m pytest -q` on the critical tests and the touched modules'."""
-        ok, out = self.gate_run(path, base, cancel, timeout_s)
-        return ok, out[-TEST_TAIL - 200:] if len(out) > TEST_TAIL + 200 else out
+        """(passed, the output's tail) of the gate; a run that found nothing to run is not passed."""
+        run = self.gate_run(path, base, cancel, timeout_s)
+        out = run.out
+        return run.ok and run.ran, out[-TEST_TAIL - 200:] if len(out) > TEST_TAIL + 200 else out
 
     def gate_run(self, path: Path, base: str, cancel: threading.Event,
-                 timeout_s: int = jobs.TEST_TIMEOUT_S) -> tuple[bool, str]:
-        """(passed, the whole run: the command, then pytest's output up to GATE_KEEP) of the gate."""
-        files = test_files(self.touched(path, base), path)
-        if not files:
-            return True, "no test files to run"
-        # No cache, no bytecode: the gate leaves the worktree as the session left it (land checks it is clean).
-        argv = [self.python(), "-m", "pytest", "-q", "-p", "no:cacheprovider", *files]
-        proc = subprocess.Popen(argv, cwd=path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                start_new_session=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+                 timeout_s: int = jobs.TEST_TIMEOUT_S) -> GateRun:
+        """The gate (spec 37 §5): the repository's `[gate]` in orkcraft.toml, else pytest on the critical tests and the
+        touched modules'. Nothing to run is `ran=False`, never a pass; the whole run is `out` (the command, then its
+        output up to GATE_KEEP)."""
+        gate = gate_config.read(self.root)
+        note = f"\n! {gate.error}" if gate.error else ""
+        files = gate_config.gate_files(gate, self.touched(path, base), path)
+        if gate.custom:
+            line = gate_config.command(gate, files)
+            argv = gate_config.test_argv(line) if line else []
+        else:
+            line = f"python -m pytest -q {' '.join(files)}"
+            # No cache, no bytecode: the gate leaves the worktree as the session left it (land checks it is clean).
+            argv = [self.python(), "-m", "pytest", "-q", "-p", "no:cacheprovider", *files] if files else []
+        if not argv:
+            return GateRun(True, f"no tests ran: no test file maps to what the task touched{note}", False, line or gate.run)
+        if gate.timeout_min:
+            timeout_s = int(gate.timeout_min * 60)
+        try:
+            proc = subprocess.Popen(argv, cwd=path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    start_new_session=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+        except OSError as e:
+            return GateRun(False, f"$ {line}\n{argv[0]} could not start: {e}{note}", True, line, 127)
         out_box: list[str] = []
         reader = threading.Thread(target=lambda: out_box.append(proc.stdout.read() if proc.stdout else ""),
                                   daemon=True)
@@ -173,7 +185,7 @@ class IdeaGit:
         jobs._wait(proc, cancel, timeout_s, "ideas/gate")
         reader.join(5)
         out = out_box[0] if out_box else ""
-        return proc.returncode == 0, f"$ python -m pytest -q {' '.join(files)}\n{out[-GATE_KEEP:]}"
+        return GateRun(proc.returncode == 0, f"$ {line}\n{out[-GATE_KEEP:]}{note}", True, line, proc.returncode)
 
     def python(self) -> str:
         """The repository's own Python when it has one (`.venv`, where its test tools are), else Orkline's."""
@@ -384,6 +396,11 @@ def env_name(title: str) -> str:
 
 _SUMMARY = re.compile(r"(\d+) (passed|failed|error|errors)\b")
 _FAILED_LINE = re.compile(r"^(?:FAILED|ERROR) (\S+)")
+
+
+def has_summary(output: str) -> bool:
+    """pytest's summary line is in the output (a run of another command has none: only its exit code speaks)."""
+    return any(_SUMMARY.search(ln) and (" in " in ln or ln.strip().startswith("=")) for ln in (output or "").splitlines())
 
 
 def parse_tests(output: str, keep_lines: int = 40) -> dict:
