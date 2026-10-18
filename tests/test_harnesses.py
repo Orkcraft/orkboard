@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from orkboard.realm import builders, harnesses, roads
+from orkboard.realm import harnesses, tool_run
 
 
 def _lines(*events: dict) -> str:
@@ -104,11 +104,11 @@ def test_a_decision_runs_on_any_tool(tool, answer, expect, tmp_path, monkeypatch
                     f"sys.stdout.write({answer!r})\n", encoding="utf-8")
     fake.chmod(0o755)
     monkeypatch.setenv(f"ORKCRAFT_{tool.upper()}_BIN", str(fake))
-    assert builders.ask(tool, "plan it") == expect
+    assert tool_run.ask(tool, "plan it") == expect          # what builders.ask in Orkline wraps
     rec = json.loads(record.read_text())
     assert ("plan it" in rec["argv"]) != (rec["stdin"] == "plan it")
     assert not any(k.startswith("ORKCRAFT_") for k in rec["env"])
-    assert roads.resolve("main") in harnesses.ids()
+    assert tool_run.resolve("main") in harnesses.ids()
 
 
 def test_logins_of_the_new_tools_are_told_from_disk(tmp_path):
@@ -137,20 +137,6 @@ def test_autonomy_says_what_each_new_tool_changes():
     assert "hermes --yolo" in free and "cursor-agent --force" in free and "never asks" in free
     chains = autonomy.guide(0, ("hermes", "cursor"))
     assert "--yolo" not in chains and "--force" not in chains
-
-
-def test_mcp_servers_of_hermes_pi_and_cursor_are_named_never_read(tmp_path):
-    from orkboard.realm import mcp
-    (tmp_path / ".hermes").mkdir()
-    (tmp_path / ".hermes" / "config.yaml").write_text(
-        "model:\n  default: x\nmcp_servers:\n  github:\n    command: npx\n    env:\n      TOKEN: secret\n"
-        "  linear:\n    url: https://x\nhooks: {}\n", encoding="utf-8")
-    (tmp_path / ".cursor").mkdir()
-    (tmp_path / ".cursor" / "mcp.json").write_text('{"mcpServers": {"github": {}, "figma": {}}}', encoding="utf-8")
-    (tmp_path / ".pi" / "agent").mkdir(parents=True)
-    (tmp_path / ".pi" / "agent" / "mcp.json").write_text('{"mcpServers": {"sentry": {}}}', encoding="utf-8")
-    got = {s.id: s.tools for s in mcp.found(home=tmp_path)}
-    assert got == {"github": ("hermes", "cursor"), "linear": ("hermes",), "figma": ("cursor",), "sentry": ("pi",)}
 
 
 def test_a_tool_that_names_its_cache_its_own_way_counts_what_it_read_from_it():

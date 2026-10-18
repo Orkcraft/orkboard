@@ -149,6 +149,18 @@ def test_a_buildings_day_is_one_zip_and_asking_for_it_keeps_it(tmp_path, tool):
     assert (call_log.day_folder(tmp_path, today, "pool") / day_log.ASKED).exists()
 
 
+def test_a_one_off_answer_is_kept_with_what_it_was_for(tmp_path, monkeypatch):
+    import subprocess as sp
+    from orkboard.sources import telemetry
+    call = lambda h, prompt, model: sp.CompletedProcess([], 0, ENVELOPE, "")      # noqa: E731
+    with call_log.kept(tmp_path / "calls", "building"), telemetry.tagged("sort", "tower"):
+        assert tool_run.ask("claude", "sort these letters", "haiku", call=call)[0] == "done"
+    [line] = call_log.read(tmp_path / "calls")
+    assert (line["who"], line["purpose"], line["mode"], line["model"], line["tokens"]) == \
+        ("claude -p", "sort", "ask", "haiku", 5000)
+    assert call_log.raw(tmp_path / "calls", line)["prompt"] == "sort these letters"
+
+
 # -- the logs kept for analysis, a period as one zip (realm/analytics.py) ------------------------------------------------
 
 def test_kept_for_analysis_every_day_stays_a_month(tmp_path):

@@ -123,6 +123,19 @@ def test_model_calls_with_no_transcript_count_in_the_run(tmp_path: Path):
     telemetry.reset_charges()
 
 
+def test_the_light_calls_charge_the_ledger(monkeypatch):
+    import subprocess
+    from orkboard.realm import tool_run
+    telemetry.reset_charges()
+    since = dt.datetime.now().astimezone()
+    answer = json.dumps({"result": "ok", "total_cost_usd": 0.02})
+    from orkboard.realm import halt
+    monkeypatch.setattr(halt, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, answer, ""))
+    assert tool_run.ask("claude", "hi", model="haiku") == ("ok", 0.02)      # what builders.ask in Orkline wraps
+    assert [(usd, src) for _, usd, src, *_ in telemetry.charges(since)] == [(0.02, "claude -p haiku")]
+    telemetry.reset_charges()
+
+
 # -- the ledger by purpose (docs/design/simplify.md §2) --------------------------------------------
 
 def test_every_call_says_what_it_was_for_and_is_kept_on_disk(tmp_path: Path):
