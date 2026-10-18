@@ -1,8 +1,8 @@
-"""Orkboard on its own (docs/specs/37-board-and-line.md §3, §4, Tests → B): the line cut, the Board's commands on
-Orkboard's host answering as on Orkline's, its Wiki, its snapshot, its phone, its first screen and its command.
+"""Orkboard on its own (docs/specs/37-board-and-line.md §3, §4, §9, Tests → B): a tool's run, the machine's tools and
+tiers read without the town, its Wiki, its snapshot, its phone, its first screen and its command.
 
-The Board's own suites (tests/test_gui_ideas.py, tests/test_gui_goals.py) run here a second time, on Orkboard's host
-(`gui/board_host.py` `Orkboard`) in place of Orkline's (`gui/host.py` `Host`): the same commands, the same answers."""
+The Board's own suites (tests/test_gui_ideas.py, tests/test_gui_goals.py) run on Orkboard's host (`gui/board_host.py`
+`Orkboard`); in Orkline they ran on its town's host too."""
 from __future__ import annotations
 
 import json
@@ -12,68 +12,51 @@ from pathlib import Path
 
 import pytest
 
-from orkboard import cli, layers, settings
+from orkboard import settings
 from orkboard.core import treasury
 from orkboard.core.board_limits import BoardLimits
 from orkboard.gui import pwa
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.gui.host import Host
 from orkboard.gui.server import Server
-from orkboard.realm import checkpoint, ideas, wiki
+from orkboard.realm import wiki
 from orkboard.sources.limits import Limit
-from tests import test_architecture as architecture
-from tests import test_gui_goals as goals_suite
-from tests import test_gui_ideas as ideas_suite
+from tests.test_gui_ideas import BOARD_COMMANDS
 
 
 @pytest.fixture
 def host(fake_repo) -> Orkboard:
-    checkpoint.ensure(fake_repo)
     h = Orkboard(fake_repo)
     yield h
     sys.modules.pop("orkboard.core.idea_runner", None)
 
 
-model = goals_suite.model
-TOWN_ONLY = {"test_the_focus_is_a_machine_setting"}     # Orkline's focus "" is the town; Orkboard's is always the Board
-for _suite, _tag in ((ideas_suite, "ideas"), (goals_suite, "goals")):
-    for _name, _test in vars(_suite).items():
-        if _name.startswith("test_") and callable(_test) and _name not in TOWN_ONLY:
-            globals()[f"test_orkboard_{_tag}__{_name[5:]}"] = _test
-
-
 # -- the line cut (§3, §4) ------------------------------------------------------------------------------------
 
-def test_no_module_holds_both_and_no_edge_is_known():
-    assert layers.SPLIT == () and architecture.KNOWN == set()
-    assert layers.edges() == []
-
-
-def test_a_run_faked_where_the_town_fakes_it_is_the_boards_too(monkeypatch):
-    """`road_agents.run_proc = fake` reaches the Board's runs (realm/jobs.py reads realm/tool_run.py)."""
-    from orkboard.realm import jobs, road_agents, tool_run
+def test_a_run_faked_where_tool_run_starts_it_is_the_boards(monkeypatch):
+    """`tool_run.run_proc = fake` reaches the Board's runs (realm/jobs.py reads realm/tool_run.py)."""
+    from orkboard.realm import jobs, tool_run
     seen = []
-    monkeypatch.setattr(road_agents, "run_proc", lambda cmd, *a, **k: seen.append(cmd) or (0, '{"result": "ok"}', ""))
-    assert tool_run.run_proc is road_agents.run_proc
+    monkeypatch.setattr(tool_run, "run_proc", lambda cmd, *a, **k: seen.append(cmd) or (0, '{"result": "ok"}', ""))
     assert jobs.run_read("claude", "read it", Path.cwd(), threading.Event())[0] == "ok" and seen
 
 
 def test_the_machines_main_tool_and_tiers_are_read_cached_from_settings(tmp_path, monkeypatch):
-    from orkboard.realm import builders, harnesses, tiers
+    from orkboard.realm import harnesses, tiers
     file = tmp_path / "machine.json"
     monkeypatch.setenv("ORKCRAFT_SETTINGS_FILE", str(file))
     m = settings.MachineSettings()
     m.tools = {"claude": settings.ToolChoice(enabled=False), "codex": settings.ToolChoice(enabled=True)}
     m.tier_models = {"codex": {"elder": "gpt-6-astra"}}
     settings.save(m, file)
-    assert settings.main_tool() == "codex" == builders.main_tool() == tiers.tool_of({})
+    assert settings.main_tool() == "codex" == tiers.tool_of({})
     assert harnesses.tier_choices() == {"codex": {"elder": "gpt-6-astra"}}
-    assert settings.cached() is builders._machine()                  # one read, kept until the file changes
+    assert settings.cached() is settings.cached()                     # one read, kept until the file changes
 
 
-def test_an_orkspaces_worktree_is_the_towns_and_its_old_names_still_answer():
-    from orkboard.realm import orkspace_trees, worktrees
-    assert worktrees.cwd_for is orkspace_trees.cwd_for and worktrees.link is orkspace_trees.link
+def test_an_orkspaces_worktree_is_orklines():
+    """`link`, `unlink` and `cwd_for` (an orkspace's worktree) stay in Orkline: Orkboard's worktrees has none."""
+    from orkboard.realm import worktrees
+    assert not any(hasattr(worktrees, name) for name in ("link", "unlink", "cwd_for"))
     with pytest.raises(AttributeError):
         worktrees.nothing_here
 
@@ -87,18 +70,6 @@ def test_orkboards_wiki_is_the_setting_else_the_general_one(fake_repo):
     assert board.machine.ideas["wiki"] == "docs/board"
     assert board.ideas.wiki() == fake_repo.resolve() / "docs" / "board"
     assert "wiki" not in settings.clean_ideas({"wiki": "../out"}) and "wiki" not in settings.clean_ideas({"wiki": ""})
-
-
-def test_orklines_board_finds_the_towns_wiki_as_before(fake_repo):
-    from orkboard.core import buildings
-    town_host = Host(fake_repo, auto_commit=False)
-    assert town_host.ideas.wiki() == wiki.root_of(fake_repo, None, "general")     # no Wiki in the camp: the default
-    spec = buildings.type_spec(town_host.town, "scrolls")
-    spec["config"] = {**(spec.get("config") or {}), "topic": "team"}
-    bid = buildings.raise_spec(town_host.town, spec).id
-    found = town_host.town.worker(bid).wiki_root
-    assert town_host.wiki_of() == Path(found) and town_host.ideas.wiki() == Path(found)
-    town_host.close()
 
 
 # -- Orkboard's host (§4) ----------------------------------------------------------------------------------------
@@ -145,7 +116,7 @@ def test_the_limits_are_read_on_their_clock_and_handed_to_the_board(tmp_path):
 
 
 def test_a_phone_may_send_the_boards_commands_and_stop_all_only(host):
-    assert all(BoardPhone.allowed(host, c, {}) for c in ideas_suite.BOARD_COMMANDS)
+    assert all(BoardPhone.allowed(host, c, {}) for c in BOARD_COMMANDS)
     assert BoardPhone.allowed(host, "halt", {}) and not BoardPhone.allowed(host, "act", {"id": "pit"})
     assert not BoardPhone.allowed(host, "ideas.nothing", {})
     assert BoardPhone.guard("ideas.add", {"text": "x", "link": "lan"}, {"id": "d1"}) == {
@@ -181,20 +152,27 @@ def test_the_page_is_board_js_in_offices_look_and_the_phones_board_app_js(host):
     page = server.page().decode()
     assert 'src="/static/board.js"' in page and "app.js" not in page and 'data-look="office"' in page
     assert server.phones.entry == "board-app.js"
-    phone = pwa.serve("GET", "/app/").decode("utf-8", "replace")
-    assert 'src="app.js"' in phone                                      # Orkline's phone, as before
-    board = pwa.serve("GET", "/app/", entry="board-app.js").decode("utf-8", "replace")
-    assert 'src="board-app.js"' in board and 'src="app.js"' not in board
-    town = Server(Host(host.repo_root, auto_commit=False))
-    assert 'src="/static/app.js"' in town.page().decode() and town.phones.entry == "app.js"
+    for phone in (pwa.serve("GET", "/app/"), pwa.serve("GET", "/app/", entry="board-app.js")):
+        page = phone.decode("utf-8", "replace")
+        assert 'src="board-app.js"' in page and 'src="app.js"' not in page
 
 
-def test_orkcraft_board_starts_orkboard_on_the_project(fake_repo, monkeypatch):
+def test_orkboard_starts_on_the_project_and_board_is_the_old_habit(fake_repo, monkeypatch):
     from orkboard.gui import board_host
     started = []
     monkeypatch.setattr(board_host, "run", lambda root, browser=False, port=0: started.append((root, browser, port)) or 0)
     monkeypatch.setenv("ORKCRAFT_NO_UPDATE", "1")
-    assert cli.main(["--repo", str(fake_repo), "board", "--browser", "--port", "8765"]) == 0
+    assert board_host.main(["--repo", str(fake_repo), "board", "--browser", "--port", "8765"]) == 0   # `orkboard board`
     assert started == [(fake_repo.resolve(), True, 8765)]
     assert board_host.main(["--repo", str(fake_repo), "--browser"]) == 0
     assert started[-1] == (fake_repo.resolve(), True, 0)
+    monkeypatch.chdir(fake_repo / "src")                                  # the folder it was started in, as Orkline's
+    assert board_host.main([]) == 0 and started[-1] == (fake_repo.resolve(), False, 0)
+
+
+def test_a_folder_that_is_no_project_is_said(tmp_path, monkeypatch, capsys):
+    from orkboard.gui import board_host
+    monkeypatch.setattr(board_host, "run", lambda *a, **k: pytest.fail("Orkboard started outside a project"))
+    monkeypatch.chdir(tmp_path)
+    assert board_host.main([]) == 1
+    assert "not found" in capsys.readouterr().err
