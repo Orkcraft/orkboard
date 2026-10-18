@@ -188,10 +188,17 @@ export function makePreview(core, ctx) {
     body.replaceChildren(...goalBody(g, core, act, asked, (v) => { asked = v; }));
     return [h("button", { class: "ok-btn big", type: "button", onclick: () => core.editGoal(g.slug) }, "Edit goal")];
   }
+  // A Markdown file is read as the page renders it (the host's `html`, raw HTML already off); the rest as plain text.
+  function docText(d, cur) {
+    if (typeof d.html !== "string") return h("pre", { class: "log doc", "aria-label": cur.path }, d.text);
+    const md = h("div", { class: "md doc", "aria-label": cur.path });
+    md.innerHTML = d.html;
+    return md;
+  }
   function docScreen(d, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Document "), cur.path);
     body.replaceChildren(h("p", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "goal", slug: cur.slug }) }, "← Back to the goal")),
-      d ? h("pre", { class: "log doc", "aria-label": cur.path }, d.text) : h("p", { class: "muted" }, "That document cannot be shown."),
+      d ? docText(d, cur) : h("p", { class: "muted" }, "That document cannot be shown."),
       d?.truncated ? h("p", { class: "muted" }, "Cut here: the document is longer.") : null);
     return [];
   }

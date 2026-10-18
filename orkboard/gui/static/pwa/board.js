@@ -23,6 +23,7 @@ export function makeBoard(ctx) {
   const st = { board: null, review: null, agents: null, roles: null, snap: null, tab: "board", track: "", preview: null };
   let poll = 0;
   let seenRev;                          // the snapshot's ideas_rev read last
+  let seenSnap;                         // the snapshot's rev read last (the project switcher's)
   let loading = false;
   let pushed = false;                   // the preview put a step in the history: the system back gesture closes it
 
@@ -34,7 +35,7 @@ export function makeBoard(ctx) {
       if (!r.ok || r.result?.error) { ctx.flash(r.error || r.result?.error); return null; }
       return r.result ?? {};
     },
-    refresh, open, close, back,
+    refresh, open, close, back, reset,
     editGoal(slug) { boardTab.editGoal(slug); },
     draw() { drawAll(); },
   };
@@ -122,6 +123,12 @@ export function makeBoard(ctx) {
   function back() { close(); }
   window.addEventListener("popstate", () => { pushed = false; if (st.preview) hideNow(); });
 
+  /** Another project is shown: what was read of the last one is dropped before the new one is read. */
+  function reset() {
+    st.board = st.review = st.agents = st.roles = null;
+    st.track = "";
+  }
+
   // -- reading the town ------------------------------------------------------------------------------------------
   async function refresh() {
     const [b, r, a, ro] = await Promise.all([ctx.send("ideas.board"), ctx.send("ideas.review_list"), ctx.send("ideas.agents"), ctx.send("ideas.roles")]);
@@ -153,7 +160,8 @@ export function makeBoard(ctx) {
     content: () => [panes.board, panes.agents, panes.review, preview.el],
     render(s) {
       st.snap = s;
-      top.render(s);
+      top.render(s, s.rev !== seenSnap ? s.rev : undefined);
+      seenSnap = s.rev;
       counts();
       if (loading || (seenRev !== undefined && s.ideas_rev === seenRev)) return;
       loading = true;

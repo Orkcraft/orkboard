@@ -3,6 +3,7 @@
 // merging). Roles only: warning at 20 % or less left, danger at 5 % or less.
 import { h, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
+import { makeProjects } from "./shell-projects.js";
 
 const MARKS = { claude: "✱", agy: "∩", codex: "◇", hermes: "☿", pi: "π", cursor: "▷" };
 export const WARN = 0.2, DANGER = 0.05;
@@ -22,9 +23,10 @@ export function makeTop(core, ctx) {
   const title = h("h1", {}, "Orkline");
   const chip = h("button", { class: "limit-chip", type: "button", hidden: true, "aria-haspopup": "dialog" });
   const spend = h("p", { class: "board-spend muted" });
+  const projects = makeProjects(core, ctx);
   const stop = h("button", { class: "ok-btn danger board-stop", type: "button" }, "Stop all");
   const gear = h("button", { class: "ok-btn gear", type: "button", "aria-label": "Settings" }, "⚙");
-  const el = h("header", { class: "board-bar" }, h("div", { class: "board-name" }, title), chip, stop, gear, spend);
+  const el = h("header", { class: "board-bar" }, h("div", { class: "board-name" }, title, projects.chip), chip, stop, gear, spend);
 
   // Stop all: a tap asks first (the confirm is a sheet whose button sits away from this one), as the town's does.
   const really = h("button", { class: "ok-btn danger", type: "button" }, "Stop every ork");
@@ -101,8 +103,9 @@ export function makeTop(core, ctx) {
 
   return {
     el,
-    sheets: [stopSheet.el, limitsSheet.el, gearSheet.el, pairSheet.el],
-    render(s) {
+    sheets: [...projects.sheets, stopSheet.el, limitsSheet.el, gearSheet.el, pairSheet.el],
+    render(s, rev) {
+      projects.render(s, rev);
       const gold = s.hud?.show_gold ? s.hud.gold : "";
       spend.replaceChildren(...(gold ? [h("span", { class: "word" }, "Spend today"), " ", h("b", {}, gold)] : []));
       spend.hidden = !gold;

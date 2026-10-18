@@ -750,3 +750,17 @@ p { margin: 0 0 8px; }
 .todo-sheet h3 { margin: 0; overflow-wrap: anywhere; }
 .todo-sheet .answers { display: flex; flex-direction: column; gap: 8px; }
 .q-form textarea { resize: vertical; }
+
+/* spec 37 D3: the project switcher's chip under the name, its sheet, and a Markdown file read on the phone */
+.project-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; max-width: 100%; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.875rem; color: var(--muted); }
+.project-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.project-chip:focus-visible, .project-row:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
+.project-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.project-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; min-height: 56px; padding: 8px 4px; display: flex; flex-direction: column;
+  justify-content: center; gap: 2px; border-bottom: 1px solid var(--frame); overflow-wrap: anywhere; }
+.project-row[aria-current="true"] { border-left: 3px solid var(--frame-strong); padding-left: 10px; }
+.project-recent { min-height: 44px; display: flex; align-items: center; padding: 4px; border-bottom: 1px solid var(--frame); overflow-wrap: anywhere; }
+.md { overflow-wrap: anywhere; min-width: 0; }
+.md img, .md table, .md pre { max-width: 100%; }
+.md pre, .md table { overflow-x: auto; display: block; }
