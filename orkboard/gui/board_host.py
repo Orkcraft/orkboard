@@ -90,11 +90,12 @@ class BoardHost:
 
 class BoardLogs:
     """The Board's day logs (`/api/analytics`, `ideas.logs`): every model call of the last days and the Board's events
-    and ideas, as one zip (realm/analytics.py). Orkline's are the town's (gui/day_logs.py), with its buildings."""
+    and ideas, as one zip (realm/analytics.py). Orkline's are the town's (gui/day_logs.py), with its buildings. The
+    project's keeper and runner keep their calls here themselves (`call_log.of_project`); a call no one placed goes to
+    the shown project's (`Orkboard.shown`)."""
 
     def __init__(self, root: Path) -> None:
         self.root = Path(root)
-        call_log.keep_days(self.root)
 
     def pack_period(self, days: int = 7, today: dt.date | None = None) -> tuple[str, bytes] | None:
         today = today or dt.date.today()
@@ -109,7 +110,7 @@ class BoardLogs:
         return f"orkcraft-analytics-{kept[-1]}-to-{kept[0]}.zip", data
 
     def close(self) -> None:
-        call_log.keep_days(None)
+        return None
 
 
 class BoardPhone:
@@ -236,8 +237,9 @@ class Orkboard:
         return p.logs if p is not None else _NoLogs()
 
     def shown(self, project: Any) -> None:
-        """Another project is shown (gui/board_projects.py): this run's spend, its call log and the limits' reader
-        follow it."""
+        """Another project is shown (gui/board_projects.py): this run's spend, the limits' reader, and the log and
+        ledger of a call no one placed follow it (a Board's own calls and Operations' keep their own: realm/call_log.py
+        `of_project`, `apart`)."""
         root = project.root if project is not None else None
         telemetry.keep_ledger(root)
         call_log.keep_days(root)
@@ -268,6 +270,11 @@ class Orkboard:
         if self.demo or root is None:
             return False
         return not treasury.over(self.spend.spent_usd, treasury.budget(root)[0])
+
+    def persons_cap(self, ops_ledger: Path) -> tuple[float, float]:
+        """(the day's spend, the cap) Operations' calls are held by (spec 38 §1): across the open projects and
+        Operations' own ledger, against the smallest cap among the open projects (the default with none open)."""
+        return treasury.persons_cap([p.root for p in self.projects.open_ones], ops_ledger)
 
     # -- what the page sees ----------------------------------------------------------------------------------
 

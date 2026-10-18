@@ -54,7 +54,9 @@ ops/
   templates/<name>/rules.md      what the template learned (§7)
   templates/<name>/trust.json    its way to *by itself* (§6)
   templates/<name>/declined.jsonl  the rules the person turned down (§7)
+  templates/<name>/learn.json    a learn call held by a spent window or the cap, run after a restart too (§7)
   spend.jsonl                    the calls' ledger lines (idea_spend's `line`, §8)
+  ledger.jsonl                   the calls' telemetry lines (when, `ops`, the model, the cost, no text, §9)
   events.jsonl                   the events (event_log's rules, §11)
   work/                          the empty folder every call starts in
 ```
@@ -76,8 +78,13 @@ OPS = {"target": "balance",      # thrift · balance · quality: the tier and ef
   window the call is not made, the operation waits (`held_until`, *waits for limits · after 18:00*) and runs when the
   window is back. Every operation in this spec is the person's own (they pressed **Add**), so only the `NEARLY` floor
   applies, never the reserve; an operation a source starts later (§12) will keep the reserve.
-- **Its spend is the day's spend:** each call is charged as any run (`telemetry`, the top bar), and its ledger line
-  goes to `ops/spend.jsonl`.
+- **Its spend is the day's spend:** each call is charged as any run (`telemetry`, the top bar), its telemetry line in
+  `ops/ledger.jsonl`, its ledger line in `ops/spend.jsonl`.
+- **The person's cap:** Operations belong to no project, so a call of theirs is not started while the day's spend
+  across the open projects' ledgers and `ops/ledger.jsonl` reached the smallest cap among the open projects
+  (`budget.gold_session_limit_usd`; `GOLD_LIMIT_USD` with none open; core/treasury.py `persons_cap`). The operation
+  waits as for the limits (`why`: *waits: the day's spend cap is reached*) and the person's own press (add, the
+  action, Prepare again, Try again) is refused in the same words.
 - At most **2** operations run their calls at once (`core/op_runner.py` `MAX_PARALLEL`); the rest wait in order.
 - In v1 operations run on **Claude** only: `h.call` (an agent allowed only the MCP tools it is given) exists only for
   the claude harness. On a machine without it, Operations says so in plain words and adds nothing.
@@ -240,7 +247,8 @@ are pure functions in `realm/op_runs.py`, so they are tested apart:
 - **The learn call** (`op_learn`, no tools) runs after a corrected check is done, or after **Not right**. It answers
   `{"rules": ["…"], "why": "…"}`: at most 3 lines, each ≤ 200 characters, each a rule for every operation of this
   template (*A title starts with the component in brackets: [Checkout] …*), never a fact of this one operation. Code
-  drops a line that repeats one in the rules or one declined.
+  drops a line that repeats one in the rules or one declined. Held by a spent window or the cap, it waits in
+  `ops/templates/<name>/learn.json` (mode 600) and runs when they allow, after a restart too.
 - **The proposal:** in Operations and in Needs you (last, as spec 35's proposals: it blocks nothing), kind `op_rules`:
   the lines, the operation it came from, **Take** and **No** (with an optional one-line reason).
   - **Take** appends the lines to `ops/templates/<name>/rules.md` and sends the template by itself (§6).
@@ -263,10 +271,10 @@ are pure functions in `realm/op_runs.py`, so they are tested apart:
 - **What an operation reads and writes stays in the person's folder:** its fields, its draft, what its prepare found
   (a mail's words, an issue's) and its arguments live only in `ops/runs/` (mode 600). Never in a repository, a Board
   page, the Board's commits (spec 35 §13), a project's event log or `.orkcraft/logs/`.
-- **Its calls are kept apart:** `call_log` keeps every call's prompt and output (`.orkcraft/logs/<day>/` of the project
-  once `keep_days` is set); an operation's calls run under `call_log.kept(ops/calls, "ops")`, so they are kept in the
-  person's folder only. The project's `telemetry` ledger gets what it gets of any run: when, `ops`, the model, the cost,
-  no text.
+- **Its calls are kept apart:** `call_log` keeps every call's prompt and output where its caller placed it, on its
+  own thread (a project's Board in that project's `.orkcraft/logs/<day>/`, `call_log.of_project`); an operation's calls
+  run under `call_log.apart(ops/calls, "ops", ops/ledger.jsonl)`, so they are kept in the person's folder only, and
+  charged there: no project's ledger gets a line of theirs. A project's call made meanwhile stays the project's.
 - **After `ops.keep_days` (14)** a finished operation (done, failed, dropped) keeps only `id, template, state, link,
   alone, cost, at, done_at`: its fields, found, draft, args and doubts are removed, and its calls from `ops/calls/`
   (`op_runs.forget_old`, at start and once a day).

@@ -22,7 +22,7 @@ from orkboard import settings
 from orkboard.core import bus as b
 from orkboard.gui.board_host import BoardHost, BoardLogs
 from orkboard.gui.ideas_args import IdeasError, _device, _str
-from orkboard.realm import call_log, event_log, project_folder
+from orkboard.realm import event_log, project_folder
 
 NO_PROJECT = "Open a folder first"
 
@@ -120,8 +120,6 @@ class Projects:
                                  device=device)
         if show or not self._current:
             self._show(got)
-        else:                                   # its day logs took the call log: it stays the shown one's
-            call_log.keep_days(self.current().root)
         if keep:
             self._remember()
         self.host.on_change()

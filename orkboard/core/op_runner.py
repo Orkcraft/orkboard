@@ -12,19 +12,23 @@ call, checked by the person, and done by one more call allowed only the one tool
 - **One job per call** (§4): `op_prepare` reads with its template's tools and changes nothing; `op_act` is allowed
   only the action's tool, and code reads its events to tell what it did; `op_learn` has no tools. Each is a fresh
   `claude -p` in `ops/work/`, its tier, effort and budget from Operations' Target (realm/idea_target.py), its prompt
-  and output kept under `ops/calls/` only (`call_log.kept`), its ledger line in `ops/spend.jsonl`.
+  and output kept under `ops/calls/` only, its telemetry line in `ops/ledger.jsonl` (`call_log.apart`, on its own
+  thread: a project's call made meanwhile stays the project's), its ledger line in `ops/spend.jsonl`.
 - **Nothing is done twice by Orkboard** (§3): an action that may have run (`acted` true or null) is never tried again.
 - **By itself** (§6): a clean check sends the template by itself; a correction, Not right, a new version or Check
   again sends it back; a doubt, a `high` risk or the day's cap stop it at the check (realm/op_runs.py).
 - **The limits** (§1): in a spent window (`status.NEARLY`) a call is not made, the operation waits with
-  `held_until`; the person's own operations keep no reserve.
+  `held_until`; the person's own operations keep no reserve. **The person's cap**: while the day's spend across the
+  open projects and Operations reached the smallest of their caps (core/treasury.py `persons_cap`), no call is made
+  either: the operation waits (*waits: the day's spend cap is reached*) and the person's press is refused.
+- **A learn call held** by a spent window or the cap waits in `ops/templates/<name>/learn.json` and runs after a
+  restart too.
 - At most MAX_PARALLEL calls at once; the rest wait in order. No face: what changed is published.
 
 The person's commands (add, the check's action, Prepare again, Stop, Drop, …) are core/op_commands.py's.
 """
 from __future__ import annotations
 
-import contextlib
 import datetime as dt
 import json
 import shutil
@@ -33,8 +37,9 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
+from orkboard.core import treasury
 from orkboard.core.idea_keeper import first_json
-from orkboard.core.op_commands import CommandsMixin, OpsError
+from orkboard.core.op_commands import CAP_WAITS, CommandsMixin, OpsError
 from orkboard.realm import call_log, event_log, harnesses, idea_spend, idea_target, jobs, op_runs, op_templates, status
 from orkboard.realm.op_templates import Template
 
@@ -56,33 +61,14 @@ SHAPE = ('{"args": {"…": "the action tool\'s arguments"}, "draft": {"<part>": 
          '"found": [{"label": "…", "value": "…"}], "doubts": ["…"]}')
 
 
-_KEEP: dict[str, Any] = {"n": 0, "ctx": None}
-_KEEP_LOCK = threading.Lock()
-
-
-@contextlib.contextmanager
-def kept(folder: Path):
-    """Operations' calls kept in `ops/calls/` (spec 38 §9): `call_log.kept` is process-wide, so it is entered once
-    for every call running at once and left when the last one ends, never while one still runs. (A project's call
-    made meanwhile is kept there too: the person's folder, never the other way round.)"""
-    with _KEEP_LOCK:
-        if _KEEP["n"] == 0:
-            ctx = call_log.kept(folder, "ops")
-            ctx.__enter__()
-            _KEEP["ctx"] = ctx
-        _KEEP["n"] += 1
-    try:
-        yield folder
-    finally:
-        with _KEEP_LOCK:
-            _KEEP["n"] -= 1
-            if _KEEP["n"] == 0 and _KEEP["ctx"] is not None:
-                _KEEP["ctx"].__exit__(None, None, None)
-                _KEEP["ctx"] = None
-
-
 def _iso(at: float) -> str:
     return dt.datetime.fromtimestamp(at).isoformat(timespec="seconds")
+
+
+def _midnight() -> str:
+    """The next local midnight: when the day's spend starts again from nothing."""
+    today = dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return (today + dt.timedelta(days=1)).isoformat(timespec="seconds")
 
 
 def _same(a: object, b: object) -> bool:
@@ -103,9 +89,13 @@ class OpRunner(CommandsMixin):
     def __init__(self, base: Path, settings: Callable[[], dict], limits: Callable[[], list] | None = None,
                  publish: Callable[..., None] = lambda op="", template="": None, demo: bool = False,
                  templates: Callable[[], dict[str, Template]] = op_templates.find,
-                 claude: Callable[[], bool] = claude_here) -> None:
+                 claude: Callable[[], bool] = claude_here,
+                 cap: Callable[[], tuple[float, float]] | None = None) -> None:
+        """`cap`: (the day's spend, the person's cap) its calls are held by (the host's, across the open projects:
+        core/treasury.py `persons_cap`); without it, Operations' own spend against the default cap."""
         self.base = Path(base)
         self.settings, self.limits, self.publish = settings, limits or (lambda: []), publish
+        self.cap = cap or (lambda: treasury.persons_cap([], op_runs.ledger(self.base)))
         self.demo, self.templates, self.claude = demo, templates, claude
         self._lock = threading.Lock()
         self._queue: list[tuple[str, str]] = []           # (op id or `learn:<template>`, step), in order
@@ -224,11 +214,21 @@ class OpRunner(CommandsMixin):
             limits = []
         return status.reset_of(limits, HARNESS, time.time(), status.NEARLY)
 
+    def capped(self) -> bool:
+        """Whether the day's spend reached the person's cap: no call of Operations starts (§1)."""
+        try:
+            return treasury.over(*self.cap())
+        except Exception:                      # a cap that cannot be read holds nothing
+            return False
+
     def _held(self, run: dict, step: str) -> bool:
         until = self.window_until()
-        if until is None:
+        if until is not None:
+            run.update(state="held", held_until=_iso(until), held=step, why="")
+        elif self.capped():
+            run.update(state="held", held_until=_midnight(), held=step, why=CAP_WAITS)
+        else:
             return False
-        run.update(state="held", held_until=_iso(until), held=step)
         self._save(run)
         return True
 
@@ -248,7 +248,7 @@ class OpRunner(CommandsMixin):
         cost: Any = None
         tokens: Any = None
         try:
-            with kept(self.base / "calls"), telemetry.tagged("plan", "ops"):
+            with call_log.apart(self.base / "calls", "ops", op_runs.ledger(self.base)), telemetry.tagged("plan", "ops"):
                 text, cost, tokens, events = jobs.run_call(HARNESS, prompt, work, cancel, allow, model, env=env,
                                                            effort=effort, budget=idea_target.budget(step, target))
         finally:
@@ -419,6 +419,8 @@ class OpRunner(CommandsMixin):
 
     def learn(self, template: str, op_id: str, changes: list[dict] | None = None, not_right: str | None = None) -> None:
         self._learn[template] = {"op": op_id, "changes": list(changes or []), "not_right": not_right}
+        if not self.demo:
+            op_runs.save_learn(self.base, template, self._learn[template])      # a restart loses none
         self._enqueue(f"learn:{template}", "learn")
 
     def learn_prompt(self, t: Template, op: dict, given: dict) -> str:
@@ -442,10 +444,12 @@ class OpRunner(CommandsMixin):
             t = self.template(template)
         except OpsError:
             self._learn.pop(template, None)
+            op_runs.drop_learn(self.base, template)
             return
-        if given is None or self.window_until() is not None:
+        if given is None or self.window_until() is not None or self.capped():
             return                              # held: the clock tries it again when the window is back
         self._learn.pop(template, None)
+        op_runs.drop_learn(self.base, template)
         op = op_runs.load(self.base, given["op"]) or {}
         try:
             text, _cost, _events, measure = self._call("op_learn", self.learn_prompt(t, op, given), [], cancel,
@@ -465,7 +469,7 @@ class OpRunner(CommandsMixin):
 
     def start(self) -> None:
         """What the host lost when it closed: a prepare runs again (it changes nothing); an action may have run, so
-        it fails with `acted: null`; the old texts go."""
+        it fails with `acted: null`; a learn call held waits again for the window; the old texts go."""
         for run in op_runs.runs(self.base):
             if run.get("state") == "preparing":
                 self._enqueue(run["id"], "prepare")
@@ -477,6 +481,9 @@ class OpRunner(CommandsMixin):
                 except OpsError:
                     pass
                 self._fail(run, "act", f"Orkboard closed while doing it: look in {what} before you add it again", None)
+        for template, given in op_runs.pending_learns(self.base).items():
+            self._learn.setdefault(template, given)
+            self._enqueue(f"learn:{template}", "learn")
         self.forget()
 
     def forget(self) -> None:
@@ -494,11 +501,13 @@ class OpRunner(CommandsMixin):
         self.forget()
         if self.window_until() is not None:
             return
-        for run in op_runs.runs(self.base):
-            if run.get("state") == "held":
-                step = "act" if run.get("held") == "act" else "prepare"
-                run.update(state="acting" if step == "act" else "preparing", held="", held_until="")
-                self._save(run)
-                self._enqueue(run["id"], step)
+        held = [run for run in op_runs.runs(self.base) if run.get("state") == "held"]
+        if (held or self._learn) and self.capped():        # the ledgers are read only when something waits
+            return
+        for run in held:
+            step = "act" if run.get("held") == "act" else "prepare"
+            run.update(state="acting" if step == "act" else "preparing", held="", held_until="", why="")
+            self._save(run)
+            self._enqueue(run["id"], step)
         for template in list(self._learn):
             self._enqueue(f"learn:{template}", "learn")

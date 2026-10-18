@@ -1,14 +1,17 @@
 """The person's commands on Operations (docs/specs/38-operations.md §3, §4, §6, §7, §11), `OpRunner`'s
 (core/op_runner.py): add from a template, Prepare again and the action on the check, Stop, Drop, Try again, Add again,
 Not right, the rules' answer and Check again. Each refuses in words (`OpsError`); none calls a model itself: it
-queues the call on the runner.
+queues the call on the runner. A press that would start a call is refused while the day's spend is over the person's
+cap (spec 38 §1), as the runner holds the calls already queued.
 """
 from __future__ import annotations
 
+from orkboard.core import treasury
 from orkboard.realm import event_log, op_runs, op_templates
 from orkboard.realm.op_templates import Template
 
 CHANGE_CHARS = 2000
+CAP_WAITS = "waits: the day's spend cap is reached"      # a held operation's row (`why`)
 
 
 class OpsError(Exception):
@@ -16,7 +19,19 @@ class OpsError(Exception):
 
 
 class CommandsMixin:
-    """Needs the runner's `template`, `trust`, `_run`, `_save`, `_ev`, `_enqueue`, `_fail`, `learn` and its queue."""
+    """Needs the runner's `template`, `trust`, `_run`, `_save`, `_ev`, `_enqueue`, `_fail`, `learn`, `cap` and its
+    queue."""
+
+    def _may_spend(self) -> None:
+        """Refused in words while the day's spend reached the person's cap: no new call starts."""
+        try:
+            spent, cap = self.cap()
+        except Exception:
+            return
+        if treasury.over(spent, cap):
+            raise OpsError(f"The day's spend cap is reached (${spent:.2f} of ${cap:.2f} today): no operation starts "
+                           "until tomorrow, or until the cap is raised (budget.gold_session_limit_usd in the open "
+                           "projects' .orkcraft.json)")
 
     def _may_add(self, t: Template) -> None:
         if self.demo:
@@ -28,6 +43,7 @@ class CommandsMixin:
     def add(self, template: object, fields: object, device: str = "desktop") -> str:
         t = self.template(template)
         self._may_add(t)
+        self._may_spend()
         try:
             values = op_templates.clean_fields(t, fields, op_runs.last_values(self.base, t.name))
         except ValueError as e:
@@ -67,6 +83,7 @@ class CommandsMixin:
     def prepare_again(self, op_id: object, fields: object = None, draft: object = None, device: str = "desktop") -> None:
         """Prepare again (§4): with the fields as the person changed them; the draft parts they corrected stay theirs."""
         run, t = self._at_check(op_id)
+        self._may_spend()
         values, parts = self._form(t, run, fields, draft)
         changes = self._changes(t, run, values, parts)
         keep = {c["name"]: c["after"] for c in changes if c.get("draft")}
@@ -79,6 +96,7 @@ class CommandsMixin:
     def act(self, op_id: object, fields: object = None, draft: object = None, device: str = "desktop") -> None:
         """The check passed, as corrected: a changed field without `at` needs Prepare again first."""
         run, t = self._at_check(op_id)
+        self._may_spend()
         values, parts = self._form(t, run, fields, draft)
         changes = self._changes(t, run, values, parts)
         needs = next((c for c in changes if not c["at"]), None)
@@ -137,6 +155,7 @@ class CommandsMixin:
         run = self._run(op_id)
         if run["state"] != "failed" or run.get("acted") is not False:
             raise OpsError("Only an operation that failed before doing anything can be tried again: add it again")
+        self._may_spend()
         step = "act" if run.get("step") == "act" else "prepare"
         run.update(state="acting" if step == "act" else "preparing", why="", step="")
         self._save(run)
