@@ -8,8 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from orkboard.gui import mobile
-from orkboard.gui.host import CommandError
+from orkboard.gui.board_host import BoardPhone, CommandError
 from orkboard.realm import gate_config, idea_git
 from orkboard.realm.idea_git import IdeaGit
 
@@ -41,9 +40,12 @@ def test_without_a_file_or_a_gate_table_the_gate_is_todays(tmp_path):
     assert gate_config.Gate().always == idea_git.CRITICAL_TESTS == gate_config.CRITICAL_TESTS
 
 
-def test_this_repository_keeps_todays_three_critical_tests_in_always():
+def test_this_repository_names_its_three_critical_tests_in_always():
+    """Orkboard's own critical tests (CLAUDE.md, Alpha); Orkline's (`idea_git.CRITICAL_TESTS`) stay the default of a
+    repository with no file."""
     gate = gate_config.read(ROOT)
-    assert gate.always == idea_git.CRITICAL_TESTS and not gate.error and not gate.custom
+    assert gate.always == ("tests/test_architecture.py", "tests/test_board_alone.py", "tests/test_updates.py")
+    assert not gate.error and not gate.custom and all((ROOT / t).is_file() for t in gate.always)
     assert (ROOT / "orkcraft.toml").is_file()
 
 
@@ -86,12 +88,11 @@ def test_without_a_gate_table_the_files_are_those_of_today(tmp_path):
         *idea_git.CRITICAL_TESTS, "tests/test_ideas.py", "tests/test_x.py"]
 
 
-def test_test_argv_comes_from_gate_config_for_the_forge_and_the_jobs():
-    from orkboard.realm import forge, jobs
+def test_test_argv_comes_from_gate_config_for_the_jobs():
+    from orkboard.realm import jobs
     assert gate_config.test_argv("pytest -q") == ["pytest", "-q"]
     assert gate_config.test_argv("pytest -q && ruff check .") == ["sh", "-c", "pytest -q && ruff check ."]
-    assert forge.test_argv is gate_config.test_argv and jobs.test_argv is gate_config.test_argv
-    assert not hasattr(forge, "_SHELL")
+    assert jobs.test_argv is gate_config.test_argv
 
 
 # -- the run -----------------------------------------------------------------------------------------------------
@@ -233,5 +234,6 @@ def test_a_link_to_a_secret_is_a_secret(host, tmp_path):                        
         host.command("ideas.doc", {"path": "readme-link.md"})
 
 
-def test_the_phone_reads_documents_through_the_same_command():
-    assert "ideas.doc" in mobile.COMMANDS and mobile.COMMANDS["ideas.doc"] is None      # no phone-only path to the files
+def test_the_phone_reads_documents_through_the_same_command(host):                         # noqa: F811
+    assert BoardPhone.allowed(host, "ideas.doc", {"path": "notes.md"})
+    assert "ideas.doc" not in BoardPhone.COMMANDS                                       # no phone-only path to the files
