@@ -52,7 +52,7 @@ def ensure(folder: Path | None = None) -> tuple[Path, Path]:
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.x509.oid import NameOID
     except ImportError:
-        raise TlsError("Pairing a phone needs the cryptography package: pip install 'orkcraft[gui]'") from None
+        raise TlsError("Pairing a phone needs the cryptography package: pip install 'orkboard[gui]'") from None
     private = ec.generate_private_key(ec.SECP256R1())
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Orkcraft town")])
     now = dt.datetime.now(dt.timezone.utc)

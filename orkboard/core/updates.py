@@ -1,9 +1,11 @@
-"""Updates (docs/updates.md): Orkline looks for a newer version of itself and installs it.
+"""Updates (docs/updates.md in Orkline): Orkboard looks for a newer version of itself and installs it.
 
-The list of releases is `updates.json` at the root of the repository, read from its `main` branch.
+The list of releases is `updates.json` at the root of Orkboard's repository (Orkcraft/orkboard), read from its `main`
+branch; while it has none, nothing is offered. Orkline's list is Orkline's: Orkboard never reads it, and keeps what it
+read in a cache file of its own.
 A release marked `critical` (a security fix, a bug that loses work) installs by itself when the
 town opens, before anything else loads, unless the operator said otherwise; any other release is
-offered and installs with one click (or `orkcraft update`).
+offered and installs with one click.
 
     s = updates.load_state()                  # what was read last, from the cache: no network
     offer = updates.offer(s.manifest, __version__)
@@ -40,8 +42,8 @@ from typing import Any, Callable
 from orkboard import __version__
 from orkboard.env import getenv
 
-MANIFEST_URL = "https://raw.githubusercontent.com/Orkcraft/orkcraft/main/updates.json"
-SOURCE = "git+https://github.com/Orkcraft/orkcraft"
+MANIFEST_URL = "https://raw.githubusercontent.com/Orkcraft/orkboard/main/updates.json"
+SOURCE = "git+https://github.com/Orkcraft/orkboard"
 CHECK_EVERY_S = 6 * 3600          # the list is read again after this long
 RETRY_FAILED_S = 24 * 3600        # an install that failed is tried again by itself after this long
 FETCH_TIMEOUT_S = 3.0             # a launch never waits longer than this for the list
@@ -149,7 +151,7 @@ def url() -> str:
 
 def state_path() -> Path:
     base = os.environ.get("XDG_CACHE_HOME", "").strip() or str(Path.home() / ".cache")
-    return Path(base) / "orkcraft" / "updates.json"
+    return Path(base) / "orkcraft" / "orkboard-updates.json"      # Orkline's is updates.json beside it
 
 
 @dataclass
@@ -196,7 +198,7 @@ def save_state(s: State, file: Path | None = None) -> None:
 
 def fetch(where: str | None = None, timeout: float = FETCH_TIMEOUT_S) -> dict:
     """The manifest at `where` (the default list); raises OSError or ValueError when it cannot be read."""
-    request = urllib.request.Request(where or url(), headers={"User-Agent": f"orkcraft/{__version__}",
+    request = urllib.request.Request(where or url(), headers={"User-Agent": f"orkboard/{__version__}",
                                                               "Cache-Control": "no-cache"})
     with urllib.request.urlopen(request, timeout=timeout) as answer:
         data = json.loads(answer.read(MAX_BYTES + 1)[:MAX_BYTES].decode("utf-8"))
@@ -243,20 +245,22 @@ class Method:
         return " && ".join(" ".join(step) for step in self.steps) if self.steps else self.why
 
 
-MANUAL = f'pipx install --force "orkcraft[gui] @ {SOURCE}"'
-PYPI = "orkline"                       # the name on PyPI (docs/distribution-howto.md); from git it stays orkcraft
-NAMES = (PYPI, "orkcraft")
+MANUAL = f'uv tool install --force "orkboard[gui] @ {SOURCE}"'
+PYPI = ""                              # Orkboard is not on PyPI: it installs from git
+NAMES = ("orkboard",)
 
 
 def _tool_name(prefix: str) -> str:
-    """The name pipx or uv knows this copy by: its environment's folder (`…/venvs/orkline`,
-    `…/tools/orkcraft`), the distribution it was installed as."""
+    """The name pipx or uv knows this copy by: its environment's folder (`…/venvs/orkboard`,
+    `…/tools/orkboard`), the distribution it was installed as."""
     name = Path(prefix).name
-    return name if name in NAMES else "orkcraft"
+    return name if name in NAMES else "orkboard"
 
 
 def _from_pypi() -> bool:
-    """Whether this copy is the PyPI distribution (`orkline`), installed by pip without a URL."""
+    """Whether this copy is the PyPI distribution, installed by pip without a URL (never: Orkboard is not on PyPI)."""
+    if not PYPI:
+        return False
     try:
         from importlib import metadata
         metadata.distribution(PYPI)
@@ -266,11 +270,11 @@ def _from_pypi() -> bool:
 
 
 def _checkout(package: Path) -> Path | None:
-    """The git checkout this package runs from (bin/orkcraft, `pip install -e`), or None."""
+    """The git checkout this package runs from (`pip install -e`, `uv run`), or None."""
     root = package.parent
     if (root / ".git").exists() and (root / "pyproject.toml").is_file():
         try:
-            if 'name = "orkcraft"' in (root / "pyproject.toml").read_text(encoding="utf-8"):
+            if 'name = "orkboard"' in (root / "pyproject.toml").read_text(encoding="utf-8"):
                 return root
         except OSError:
             return None
@@ -278,14 +282,14 @@ def _checkout(package: Path) -> Path | None:
 
 
 def _homebrew(prefix: str) -> Path | None:
-    """The Homebrew prefix this copy lives under (`<prefix>/Cellar/orkcraft/<version>/libexec`, or
-    `<prefix>/opt/orkcraft/libexec` with `HOMEBREW_PREFIX` set), or None."""
+    """The Homebrew prefix this copy lives under (`<prefix>/Cellar/orkboard/<version>/libexec`, or
+    `<prefix>/opt/orkboard/libexec` with `HOMEBREW_PREFIX` set), or None."""
     parts = Path(prefix).parts
     for i in range(len(parts) - 1):
-        if parts[i] == "Cellar" and parts[i + 1] == "orkcraft":
+        if parts[i] == "Cellar" and parts[i + 1] == "orkboard":
             return Path(*parts[:i])
     home = os.environ.get("HOMEBREW_PREFIX", "")
-    if home and Path(prefix).is_relative_to(Path(home) / "opt" / "orkcraft"):
+    if home and Path(prefix).is_relative_to(Path(home) / "opt" / "orkboard"):
         return Path(home)
     return None
 
@@ -325,8 +329,8 @@ def method(package: Path | None = None, prefix: str | None = None,
         # `brew update` first: `brew upgrade` alone reads the tap only once a day. The old keg is
         # removed after the upgrade, so the copy restarts on the interpreter under opt/, which follows it.
         brew = which("brew") or (str(home / "bin" / "brew") if (home / "bin" / "brew").is_file() else None)
-        python = str(home / "opt" / "orkcraft" / "libexec" / "bin" / "python")
-        name = "orkcraft/orkcraft/orkcraft"      # the full name: the tap is trusted for this formula only
+        python = str(home / "opt" / "orkboard" / "libexec" / "bin" / "python")
+        name = "orkcraft/orkcraft/orkboard"      # the full name: the tap is trusted for this formula only
         return (Method("brew", ((brew, "update", "--quiet"), (brew, "upgrade", name)), python=python)
                 if brew else Method("none", why=f"brew is not on PATH; run: brew update && brew upgrade {name}"))
     parts = Path(prefix).parts
@@ -340,7 +344,7 @@ def method(package: Path | None = None, prefix: str | None = None,
     source = _direct_url()
     if source.startswith("git+") or source.startswith("https://github.com/"):
         spec = source if source.startswith("git+") else f"git+{source}"
-        return Method("pip", ((sys.executable, "-m", "pip", "install", "--upgrade", f"orkcraft @ {spec}"),))
+        return Method("pip", ((sys.executable, "-m", "pip", "install", "--upgrade", f"orkboard @ {spec}"),))
     if not source and _from_pypi():
         return Method("pip", ((sys.executable, "-m", "pip", "install", "--upgrade", PYPI),))
     return Method("none", why=f"this copy was not installed from git; run: {MANUAL}")
@@ -424,7 +428,7 @@ def restart(argv: list[str], version: str = "", execv: Callable = os.execv, pyth
     sys.stdout.flush()
     sys.stderr.flush()
     python = python or method().python or sys.executable
-    execv(python, [python, "-m", "orkboard.cli", *argv])
+    execv(python, [python, "-m", "orkboard.gui.board_host", *argv])
 
 
 def at_launch(argv: list[str], policy: str, say: Callable[[str], None] | None = None,

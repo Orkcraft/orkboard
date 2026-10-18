@@ -1,12 +1,12 @@
 """Orkboard on its own (docs/specs/37-board-and-line.md §4, decisions §50): what the Board needs from its host, and the
-host `orkcraft board` serves, built without the town.
+host `orkboard` serves, built without the town.
 
     board = BoardHost(repo_root, owner, bus=…, toast=…, call=…, budget_ok=…, limits=…, day_logs=…, wiki_of=…)
     ideas = Ideas(board)                   # gui/ideas.py and its mixins use only what BoardHost has
 
     host = Orkboard(repo_root)             # the Board's own host: Ideas, Stop all, phones, updates, the first screen
     Server(host).start_thread()            # gui/server.py serves it as it serves Orkline's (gui/host.py)
-    main(["board"])                        # `orkcraft board` and `orkboard`: in a window, else the browser
+    main([])                               # `orkboard` (and `orkboard board`): in a window, else the browser
 
 Orkline's host (gui/host.py) builds the town and gives the Board a `BoardHost` made from it, `wiki_of` set (the town's
 Wiki); Orkboard's has none (§3.5). Both read the same machine settings and the same `<repo>/.orkcraft/`.
@@ -285,7 +285,7 @@ def show(host: Any, server: Any, thread: Any, browser: bool, title: str = "Orkli
         try:
             import webview
         except ImportError:
-            sys.stderr.write("orkcraft: no window toolkit (pip install 'orkcraft[gui]'); opening the browser\n")
+            sys.stderr.write("orkcraft: no window toolkit (pip install 'orkboard[gui]'); opening the browser\n")
             browser = True
     if browser:
         _in_browser(host, server, thread, stop)
@@ -337,10 +337,11 @@ def run(repo_root: Path, browser: bool = False, port: int = 0, demo: bool = Fals
 
 
 def main(argv: list[str] | None = None) -> int:
-    """`orkboard [--repo DIR] [--browser] [--port N]` (and `orkcraft board`): Orkboard on the project it was started
-    in (`config.find_project_root`, as `orkcraft gui`)."""
+    """`orkboard [board] [--repo DIR] [--browser] [--port N]`: Orkboard on the project it was started in
+    (`config.find_project_root`); `board` is the old habit of `orkcraft board`, and changes nothing."""
     from orkboard.config import NOT_A_PROJECT_HINT, find_project_root
     parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: goals, ideas, agents, review")
+    parser.add_argument("command", nargs="?", choices=["board"], help=argparse.SUPPRESS)   # `orkboard board`: the same
     parser.add_argument("--version", action="version", version=f"Orkline {__version__}")
     parser.add_argument("--repo", type=Path, default=None, help="Path to project root")
     parser.add_argument("--browser", action="store_true", help="Open it in the browser instead of a window")
@@ -352,8 +353,8 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"orkline error: {e}\n{NOT_A_PROJECT_HINT}\n")
         return 1
     code = run(root, browser=args.browser, port=args.port)
-    if code == core_updates.RESTART:            # the window installed an update: it opens again on it (`orkcraft board`)
-        core_updates.restart(["--repo", str(root), "board", *(["--browser"] if args.browser else []),
+    if code == core_updates.RESTART:            # the window installed an update: it opens again on it
+        core_updates.restart(["--repo", str(root), *(["--browser"] if args.browser else []),
                               *(["--port", str(args.port)] if args.port else [])])
     return code
 
