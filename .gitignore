@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# Orkboard's and Orkline's own state in a project they run in (local to a machine)
+.orkcraft/
+.orkcraft.json
+.orkcraft-demo
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Claude Code agents' worktrees (parallel work on this repo)
+.claude/worktrees/

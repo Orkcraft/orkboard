@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orkboard"
+dynamic = ["version"]          # orkboard/__init__.py __version__: the one place it is raised
+description = "Orkboard: the Board, the preview, Agents and Review of Orkline on their own, for one project's goals, ideas, agents and review"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Vadim Sidoryk" }]
+keywords = ["orkline", "orkboard", "agents", "claude-code", "gui"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development",
+]
+# What Orkboard's modules import. keyring (realm/idea_secrets.py) and zstandard (quota/codex_quota.py) are imported
+# only when present, as in Orkline, which does not install them either: a to-do's secret stays where both look.
+dependencies = [
+    "jsonschema>=4.18",          # a building's UI document (design/ui.py)
+    "markdown-it-py>=3.0",       # the page renders Markdown (gui/markdown.py)
+    "websockets>=13.0",          # the page's server (gui/server.py) and the phone's listener (gui/phones.py)
+    "segno>=1.5",                # the QR code a phone pairs with (gui/phones.py): pure Python, never left out
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=1.0", "pytest-xdist>=3", "cryptography>=41", "segno>=1.5", "websockets>=13.0"]
+browser = ["playwright>=1.45"]              # the browser tests (pytest -m browser)
+# the window of its own (without it Orkboard opens in the browser); a phone's TLS certificate (gui/phone_tls.py)
+gui = ["pywebview>=5.0", "cryptography>=41"]
+
+[project.urls]
+Homepage = "https://github.com/Orkcraft/orkboard"
+Issues = "https://github.com/Orkcraft/orkboard/issues"
+
+[project.scripts]
+orkboard = "orkboard.gui.board_host:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "orkboard.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["orkboard*"]
+
+[tool.setuptools.package-data]
+# design/system links to design-system/: a wheel carries the files themselves.
+orkboard = ["schemas/*.json", "design/*.json", "design/buildings/*.json", "design/agents/*.md", "design/system/**/*",
+            "gui/static/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["browser: drives the page in Chromium (Playwright); skipped without Playwright or Chromium"]
