@@ -1,62 +1,104 @@
-// The goal switch and the ideas of a goal (29a §7, 33 §6): ideas drag to reorder; a click opens the idea's spec in the preview.
+// The goal select and the ideas (docs/specs/35-goals-window.md §11.1, §11.3): a select of the goals with New goal and the Target
+// chip; a chosen goal shows its Summary's first line, Open and Edit, and filters Needs you and the ideas. Ideas are one row each —
+// title, priority mark, state in words, actions; they drag to reorder, and a click opens the idea's spec in the preview.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { say } from "../link.js";
-import { board, track, stateWords } from "./store.js";
+import { board, track, stateWords, goalList, hhmm, PRIORITY_WORDS } from "./store.js";
 import { act as run, preview, showIdea, showGoal } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
+import { TargetChip } from "./target.js";
 
 const DRAG = "text/x-board-slug";
 const drag = (slug) => (e) => { e.dataTransfer.setData(DRAG, slug); e.dataTransfer.effectAllowed = "move"; };
 const takes = (e) => e.dataTransfer.types.includes(DRAG);
 
-const PRIORITY_WORDS = { high: "High", normal: "Normal", low: "Low" };
 const GOAL_WORDS = { reading: "reading", asks: "asks you", ready: "ready" };
+const firstLine = (text) => String(text || "").split("\n").map((l) => l.trim()).find(Boolean) || "";
 
-/** The goals (spec 34 §7): each with its priority and state in words, New goal, Edit; a click opens the goal in the preview and
- *  shows its ideas (a second click shows all). */
 export function Goals() {
-  const b = board.value;
+  const goals = goalList();
+  const g = goals.find((x) => x.slug === track.value);
   return html`<div class="board-goals" aria-label="Goals">
-    <h3 class="board-sub kit-band">Goals ${b.tracks.length ? html`<span class="board-count kit-well">${b.tracks.length}</span>` : ""}</h3>
-    <ul class="board-list">${b.tracks.map((g) => html`<li key=${g.slug} class=${cls("board-goal", { "is-on": track.value === g.slug })} data-state=${g.state}
-      onDragOver=${(e) => takes(e) && e.preventDefault()}
-      onDrop=${(e) => { e.preventDefault(); const slug = e.dataTransfer.getData(DRAG);        // an idea dropped on a goal joins it
-        if (slug && b.ideas.some((i) => i.slug === slug)) run("ideas.move", { slug, track: g.slug }); }}>
-      <button class="board-goal__main" aria-pressed=${track.value === g.slug}
-        onClick=${() => { track.value = track.value === g.slug ? "" : g.slug; showGoal(g.slug); }}>
-        <b>${g.title}</b>
-        <span class="board-goal__meta"><span class="board-prio" data-priority=${g.priority}>${PRIORITY_WORDS[g.priority]}</span>
-          ${GOAL_WORDS[g.state] && html`<span class="board-state" data-state=${g.state}>${say(GOAL_WORDS[g.state])}</span>`}
-          <span class="ok-tone-muted">${g.count} idea${g.count === 1 ? "" : "s"}</span></span></button>
-      <button class="board-link" aria-label=${`Edit goal ${g.title}`} onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></li>`)}</ul>
+    <div class="board-row board-goals__bar">
+      <select class="ok-input board-goals__select" aria-label="Goal" value=${track.value} onChange=${(e) => { track.value = e.target.value; }}>
+        <option value="">All goals</option>
+        ${goals.map((x) => html`<option key=${x.slug} value=${x.slug}>${x.title} · ${PRIORITY_WORDS[x.priority] || "Normal"}${GOAL_WORDS[x.state] ? ` · ${say(GOAL_WORDS[x.state])}` : ""}</option>`)}</select>
+      <button class="ok-btn" onClick=${() => openDialog("goal")}>New goal</button>
+      <${TargetChip} /></div>
+    ${g && html`<div class="board-goals__one" data-state=${g.state}>
+      <p class="board-goals__line">${firstLine(g.summary) || html`<span class="ok-tone-muted">${g.state === "reading" ? "Reading the goal…" : "No summary yet."}</span>`}</p>
+      <div class="board-row"><button class="ok-btn" aria-label=${`Open goal ${g.title}`} onClick=${() => showGoal(g.slug)}>Open</button>
+        <button class="ok-btn" aria-label=${`Edit goal ${g.title}`} onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div></div>`}
   </div>`;
 }
 
-function Card({ i }) {
+/** What an idea's row says (§11.3) and the actions it has: [words, spinner, actions]. */
+export function rowOf(i, titles) {
+  const waits = (i.waits_on || []).map((s) => titles[s] || s);
+  const limits = i.held_until ? `waits for limits · after ${hhmm(i.held_until)}` : "";
+  if ((i.state === "raw" || i.state === "ready") && limits) return [limits, false, ["delete"]];
+  if (i.state === "raw") {
+    if (i.queue === "hold") return ["stopped", false, ["now", "tonight", "delete"]];
+    if (i.queue === "now") return ["drafting", true, ["stop"]];
+    return ["tonight", false, ["now", "delete"]];
+  }
+  if (i.state === "reading") return ["drafting", true, ["stop"]];
+  if (i.state === "planning") return ["planning", true, ["stop"]];
+  if (i.state === "plan" && i.start_at === "night") return ["starts tonight", false, ["start_now"]];
+  if (i.state === "working") return [`${stateWords(i)}${waits.length ? ` · waits for ${waits.join(", ")}` : ""}`, false, ["halt"]];
+  return [stateWords(i), false, []];
+}
+
+function Card({ i, titles }) {
   const [over, setOver] = useState(false);
-  return html`<li class="board-card-row"><button draggable="true" onDragStart=${drag(i.slug)} data-state=${i.state}
+  const [sure, setSure] = useState(false);
+  const [words, spin, acts] = rowOf(i, titles);
+  const t = i.title;
+  const go = {
+    now: () => run("ideas.queue", { slug: i.slug, queue: "now" }),
+    tonight: () => run("ideas.queue", { slug: i.slug, queue: "night" }),
+    stop: () => run("ideas.read_stop", { slug: i.slug }),
+    start_now: () => run("ideas.start_now", { slug: i.slug }),
+    halt: () => run("ideas.stop", { slug: i.slug }),
+    drop: () => run("ideas.drop", { slug: i.slug }),
+  };
+  return html`<li class="board-card-row" data-queue=${i.queue || ""}><button draggable="true" onDragStart=${drag(i.slug)} data-state=${i.state}
     class=${cls("board-card kit-well", { "is-on": preview.value?.slug === i.slug && preview.value?.kind === "idea", "is-over": over })}
     onDragOver=${(e) => { if (takes(e)) { e.preventDefault(); setOver(true); } }} onDragLeave=${() => setOver(false)}
     onDrop=${(e) => { e.preventDefault(); setOver(false); const s = e.dataTransfer.getData(DRAG);
       if (s && s !== i.slug) run("ideas.move", { slug: s, track: i.track, before: i.slug }); }}
     onClick=${() => showIdea(i.slug)}>
-    <b class="board-card__title">${i.title}</b>
-    ${i.thesis && html`<span class="board-card__thesis">${i.thesis}</span>`}
+    <b class="board-card__title">${t}</b>
     <span class="board-card__meta">${i.size && html`<span class="board-size kit-well">${i.size}</span>`}
       <span class="board-prio" data-priority=${i.priority}>${PRIORITY_WORDS[i.priority] || "Normal"}</span>
-      <span class="board-state" data-state=${i.state}>${stateWords(i)}</span></span>
+      <span class="board-state" data-state=${i.state}>${spin && html`<span class="shell-spin" aria-hidden="true">↻</span> `}${words}</span></span>
   </button>
-  ${i.state === "raw" && html`<button class="ok-btn board-card__now" aria-label=${`Process now: ${i.title}`} title=${say("The Taskmaster reads it at once")}
-    onClick=${() => run("ideas.read_now", { slug: i.slug })}>Process now</button>`}</li>`;
+  <div class="board-card__acts">
+    ${acts.includes("now") && html`<button class="ok-btn board-card__now" aria-label=${`Process now: ${t}`} title=${say("The Taskmaster drafts it at once")} onClick=${go.now}>Process now</button>`}
+    ${acts.includes("tonight") && html`<button class="ok-btn" aria-label=${`Tonight: ${t}`} onClick=${go.tonight}>Tonight</button>`}
+    ${acts.includes("stop") && html`<button class="ok-btn danger" aria-label=${`Stop: ${t}`} onClick=${go.stop}>Stop</button>`}
+    ${acts.includes("start_now") && html`<button class="ok-btn" aria-label=${`Start now: ${t}`} onClick=${go.start_now}>Start now</button>`}
+    ${acts.includes("halt") && html`<button class="ok-btn danger" aria-label=${`Stop: ${t}`} onClick=${go.halt}>Stop</button>`}
+    ${acts.includes("delete") && (sure ? html`<button class="ok-btn danger" aria-label=${`Delete it: ${t}`} onClick=${go.drop}>Delete it</button>
+        <button class="ok-btn" onClick=${() => setSure(false)}>Keep it</button>`
+      : html`<button class="ok-btn" aria-label=${`Delete: ${t}`} onClick=${() => setSure(true)}>Delete</button>`)}
+  </div></li>`;
 }
 
 export function Ideas() {
   const b = board.value;
-  const ideas = b.ideas.filter((i) => !track.value || i.track === track.value).sort((x, y) => x.order - y.order);
+  const titles = Object.fromEntries(b.ideas.map((i) => [i.slug, i.title]));
+  const mine = b.ideas.filter((i) => (!track.value || i.track === track.value) && !i.in_needs_you && i.state !== "proposed")
+    .sort((x, y) => x.order - y.order);
+  const open_ = mine.filter((i) => i.state !== "done"), done = mine.filter((i) => i.state === "done");
+  const some = (b.tracks || []).some((g) => g.slug !== "general");
   return html`<section class="board-ideas" aria-label="Ideas">
-    <h3 class="board-sub kit-band">Ideas ${ideas.length ? html`<span class="board-count kit-well">${ideas.length}</span>` : ""}</h3>
-    ${ideas.length ? html`<ul class="board-list">${ideas.map((i) => html`<${Card} key=${i.slug} i=${i} />`)}</ul>`
+    <h3 class="board-sub kit-band">Ideas ${open_.length ? html`<span class="board-count kit-well">${open_.length}</span>` : ""}
+      <button class="ok-btn primary board-ideas__new" onClick=${() => (some ? openDialog("idea", track.value ? { goal: track.value } : {}) : openDialog("goal", { then: "idea" }))}>New idea</button></h3>
+    ${open_.length ? html`<ul class="board-list">${open_.map((i) => html`<${Card} key=${i.slug} i=${i} titles=${titles} />`)}</ul>`
       : html`<p class="ok-tone-muted">No idea here yet.</p>`}
+    ${done.length > 0 && html`<details class="board-done"><summary>Done (${done.length})</summary>
+      <ul class="board-list">${done.map((i) => html`<${Card} key=${i.slug} i=${i} titles=${titles} />`)}</ul></details>`}
   </section>`;
 }

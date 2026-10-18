@@ -1,46 +1,48 @@
-// New idea (docs/specs/34-v1-round-2.md §2): one short text and the goal it belongs to (the goal open on the board, or
-// General). Process now saves it and the Taskmaster reads it at once; Later saves it for the batch. Closing the dialog
-// with text in it saves it as Later (never lost); closing it empty saves nothing.
+// New idea (docs/specs/35-goals-window.md §3): the text, the goal (required: the one chosen on the Board, else the first by
+// priority; General is not listed) and the priority (default the goal's). One button: Add. Closing the dialog with text in it
+// adds it to tonight's queue (never lost); closing it empty adds nothing.
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say } from "../link.js";
-import { board, track } from "../board/store.js";
-import { act, showIdea } from "./store.js";
+import { goalList, track, PRIORITY_WORDS } from "../board/store.js";
+import { act } from "./store.js";
 import { Modal, closeDialog } from "./modals.js";
 
-export function IdeaDialog() {
-  const goals = board.value?.tracks || [];
+export function IdeaDialog({ goal: first = "" }) {
+  const goals = goalList();
   const [text, setText] = useState("");
-  const [goal, setGoal] = useState(track.value || "general");
+  const [goal, setGoal] = useState(first || (goals.some((g) => g.slug === track.value) ? track.value : goals[0]?.slug) || "");
+  const [mine, setMine] = useState("");                      // the person's own priority; "" = the goal's
   const [busy, setBusy] = useState(false);
-  const send = async (now) => {
+  const priority = mine || goals.find((g) => g.slug === goal)?.priority || "normal";
+  const send = async () => {
     const t = text.trim();
-    if (!t || busy) return;
+    if (!t || !goal || busy) return;
     setBusy(true);
-    const got = await act("ideas.add", { text: t, now, ...(goal && goal !== "general" ? { track: goal } : {}) });
+    const got = await act("ideas.add", { text: t, track: goal, priority });
     setBusy(false);
-    if (got?.slug) { closeDialog(); showIdea(got.slug); }
+    if (got?.slug) closeDialog();
   };
-  const close = async () => {                 // closed with text in it: saved as Later
+  const close = async () => {                 // closed with text in it: tonight's queue
     const t = text.trim();
     closeDialog();
-    if (t) await act("ideas.add", { text: t, now: false, ...(goal && goal !== "general" ? { track: goal } : {}) });
+    if (t && goal) await act("ideas.add", { text: t, track: goal, priority, night: true });
   };
   return html`<${Modal} title="New idea" onClose=${close}
-    foot=${html`<button type="button" class="ok-btn" disabled=${!text.trim() || busy} onClick=${() => send(false)}
-        title="Save it now; the Taskmaster reads it in the next round">Later</button>
-      <button type="button" class="ok-btn primary" disabled=${!text.trim() || busy} onClick=${() => send(true)}
-        title=${say("Save it and the Taskmaster reads it at once")}>Process now</button>`}>
+    foot=${html`<button type="button" class="ok-btn primary" disabled=${!text.trim() || !goal || busy} onClick=${send}
+      title=${say("Add it: the Taskmaster drafts it at once, or tonight when its priority is Low")}>Add</button>`}>
     <div class="shell-form">
       <label class="shell-field"><span class="ok-font-label">Your idea</span>
         <textarea class="ok-input" rows="4" autofocus value=${text} aria-label="Your idea" placeholder="Your idea, in a few words or a few lines"
           onInput=${(e) => setText(e.target.value)}
-          onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(true); } }}></textarea></label>
+          onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}></textarea></label>
       <label class="shell-field"><span class="ok-font-label">Belongs to goal</span>
-        <select class="ok-input" aria-label="Goal" value=${goal} onChange=${(e) => setGoal(e.target.value)}>
-          ${goals.map((g) => html`<option key=${g.slug} value=${g.slug}>${g.title}</option>`)}
-          ${!goals.some((g) => g.slug === "general") && html`<option value="general">General</option>`}</select></label>
-      <p class="ok-font-status ok-tone-muted">${say("Process now: the Taskmaster reads it at once. Later: it waits for the next round. Closing this with text in it saves it as Later.")}</p>
+        <select class="ok-input" aria-label="Goal" value=${goal} onChange=${(e) => { setGoal(e.target.value); setMine(""); }}>
+          ${goals.map((g) => html`<option key=${g.slug} value=${g.slug}>${g.title}</option>`)}</select></label>
+      <label class="shell-field"><span class="ok-font-label">Priority</span>
+        <select class="ok-input" aria-label="Priority" value=${priority} onChange=${(e) => setMine(e.target.value)}>
+          ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>
+      <p class="ok-font-status ok-tone-muted">${say("High and Normal: the Taskmaster drafts it at once. Low: tonight. Closing this with text in it adds it to tonight's queue.")}</p>
     </div>
   <//>`;
 }
