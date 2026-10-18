@@ -16,11 +16,9 @@ from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
 from orkboard import settings
-from orkboard.core import buildings
-from orkboard.gui import mobile, pairing, phone_http, phone_tls, phones
-from orkboard.gui.host import Host
+from orkboard.gui import pairing, phone_http, phone_tls, phones
+from orkboard.gui.board_host import BoardPhone, Orkboard
 from orkboard.gui.server import PROTOCOL, Server
-from orkboard.realm import checkpoint
 
 
 # -- pairing, without a network ----------------------------------------------------------------------
@@ -100,32 +98,15 @@ def test_the_qr_code_carries_the_address_the_fingerprint_and_the_code():
     assert phones.qr_data_uri(link).startswith("data:image/svg+xml;base64,")
 
 
-def test_a_phones_drop_is_never_read_as_paths_on_this_machine(fake_repo, tmp_path):
-    secret = tmp_path / "id_rsa"
-    secret.write_text("PRIVATE KEY")
-    args = mobile.guard("act", {"id": "pit", "act": "drop", "args": {"text": str(secret), "paths": True}})
-    assert args["args"] == {"text": str(secret), "paths": False}
-    assert mobile.guard("halt", {}) == {"device": "phone"}          # the event log says which window stopped it (spec 33 §9)
-    from orkboard.realm import pit
-    (item,) = pit.sort(fake_repo, str(secret), paths=False)
-    assert item.kind == "text" and "PRIVATE KEY" not in (fake_repo / item.value).read_text()
-    (copied,) = pit.sort(fake_repo, str(secret))                    # the desktop's own drop still copies it
-    assert copied.copied
-
-
-def test_hello_carries_the_glossary(fake_repo):
-    checkpoint.ensure(fake_repo)
-    hello = Host(fake_repo, auto_commit=False).command("mobile.hello")
-    phone = next(w for w in hello["words"] if w["key"] == "war_raven")
-    assert phone == {"key": "war_raven", "word": "Phone", "was": "War Raven"}
+def test_a_phones_stop_all_is_said_to_be_the_phones():
+    assert BoardPhone.guard("halt", {}) == {"device": "phone"}      # the event log says which window stopped it (spec 33 §9)
 
 
 def test_a_phone_may_not_pair_list_or_forget_phones(fake_repo):
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
+    host = Orkboard(fake_repo)
     for name in ("phones.pair", "phones.list", "phones.forget", "phones.pair_stop", "watch", "term.attach",
                  "term.replay", "town.settings.set"):
-        assert not mobile.allowed(host, name, {}), name
+        assert not BoardPhone.allowed(host, name, {}), name
 
 
 # -- the listener, over TLS on 127.0.0.1 -----------------------------------------------------------
@@ -162,8 +143,7 @@ def _https(address: str, method: str, path: str, body: dict | None = None, heade
 
 
 async def _serve(repo: Path):
-    checkpoint.ensure(repo)
-    server = Server(Host(repo, auto_commit=False))
+    server = Server(Orkboard(repo))
     server.phones.bind = "127.0.0.1"
     task = asyncio.create_task(server.run())
     for _ in range(200):
@@ -212,14 +192,14 @@ async def test_a_paired_phone_reads_the_compact_town_and_sends_only_what_a_phone
         device_id, token = await _pair(server)
         auth = {"Authorization": f"Bearer {token}"}
         status, body, _ = await asyncio.to_thread(_https, server.phones.address, "GET", "/api/version", None, auth)
-        assert status == 200 and body["protocol"] == PROTOCOL and body["api"] == mobile.API
+        assert status == 200 and body["protocol"] == PROTOCOL and body["api"] == phones.API
         status, _, _ = await asyncio.to_thread(_https, server.phones.address, "GET", "/api/version")
         assert status == 403
         assert (await asyncio.to_thread(_https, server.phones.address, "GET", "/", None, auth))[0] == 404
 
         async with connect(_ws_url(server), ssl=_pinned(), additional_headers=auth) as ws:
             first = json.loads(await asyncio.wait_for(ws.recv(), 5))
-            assert first["t"] == "state" and first["state"]["v"] == mobile.API and "projects" not in first["state"]
+            assert first["t"] == "state" and first["state"]["v"] == phones.API and "projects" not in first["state"]
 
             async def cmd(i, name, args=None):
                 await ws.send(json.dumps({"t": "cmd", "id": i, "name": name, "args": args or {}}))
@@ -229,15 +209,15 @@ async def test_a_paired_phone_reads_the_compact_town_and_sends_only_what_a_phone
                         return msg
 
             hello = await cmd(1, "mobile.hello")
-            assert hello["ok"] and hello["result"]["api"] == mobile.API
+            assert hello["ok"] and hello["result"]["api"] == phones.API
             same = await cmd(2, "mobile.snapshot", {"since": first["state"]["rev"]})
             assert same["result"]["same"] is True
             for i, name in enumerate(("term.input", "town.build", "watch", "term.attach", "phones.pair",
                                       "town.settings.set"), start=10):
                 refused = await cmd(i, name, {"key": "x", "data": "rm -rf /\r"})
                 assert not refused["ok"] and refused["error"] == f"Not from a phone: {name}"
-            answered = await cmd(20, "orders.answer", {"id": "nothing", "key": "1"})
-            assert not answered["ok"] and "answered already" in answered["error"]
+            answered = await cmd(20, "ideas.board")                  # the Board's commands are a phone's
+            assert answered["ok"] and "tracks" in answered["result"]
             halted = await cmd(21, "halt")
             assert halted["ok"] and isinstance(halted["result"], int)
         seen = server.host.command("phones.list")["phones"]
@@ -349,7 +329,7 @@ async def test_a_town_with_a_paired_phone_listens_from_the_start_and_the_version
         await _listening(server)
         status, body, _ = await asyncio.to_thread(_https, offer["address"], "GET", "/api/version", None,
                                                   {"Authorization": f"Bearer {offer['code']}"})
-        assert status == 200 and body["api"] == mobile.API          # a phone checks the version before it pairs
+        assert status == 200 and body["api"] == phones.API          # a phone checks the version before it pairs
         await asyncio.to_thread(_https, offer["address"], "POST", "/api/pair", {"code": offer["code"], "name": "p"})
         port = settings.load().phone_port
     finally:
@@ -403,45 +383,6 @@ async def test_halt_from_a_phone_says_on_the_desktop_which_phone(fake_repo):
         await asyncio.wait_for(task, 10)
 
 
-def test_an_act_a_phone_may_send_is_guarded_on_the_way(fake_repo, isolated_layout_file):
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
-    pit = buildings.raise_spec(host.town, buildings.type_spec(host.town, "pit")).id
-    listener = phones.Listener(host, pairing.Pairing(fake_repo / "s.json"))
-
-    class Fake:
-        id, name = "0123456789abcdef", "p"
-        bucket = pairing.Bucket()
-    listener.pairing.known = lambda device_id: True
-    secret = fake_repo.parent / "outside.txt"
-    secret.write_text("not for the orks")
-    reply = listener.handle(Fake(), json.dumps({"t": "cmd", "id": 1, "name": "act",
-                                                "args": {"id": pit, "act": "drop", "args": {"text": str(secret)}}}))
-    assert reply["ok"], reply
-    kept = list((fake_repo / ".orkcraft" / "pit").glob("*")) if (fake_repo / ".orkcraft" / "pit").exists() else []
-    assert not any(p.read_text(errors="ignore") == "not for the orks" for p in kept if p.is_file())
-
-
-@pytest.mark.asyncio
-async def test_an_open_phone_hears_what_came_and_reads_the_chat(fake_repo):
-    server, task = await _serve(fake_repo)
-    try:
-        _, token = await _pair(server)
-        async with connect(_ws_url(server), ssl=_pinned(), additional_headers={"Authorization": f"Bearer {token}"}) as ws:
-            await asyncio.wait_for(ws.recv(), 5)
-            server.host.town.toast("a stack trace with secrets", title="Town clock", severity="error")
-            while (msg := json.loads(await asyncio.wait_for(ws.recv(), 5)))["t"] != "news":
-                pass
-            assert msg["news"] == [{"kind": "error", "line": "Something failed: Town clock"}]
-            await ws.send(json.dumps({"t": "cmd", "id": 1, "name": "mobile.chat", "args": {}}))
-            while (msg := json.loads(await asyncio.wait_for(ws.recv(), 5)))["t"] != "reply":
-                pass
-            assert msg["ok"] and msg["result"]["chat"] == []
-    finally:
-        server.stop()
-        await asyncio.wait_for(task, 10)
-
-
 @pytest.mark.asyncio
 async def test_a_listener_stopped_while_it_comes_up_never_comes_back_by_itself(fake_repo):
     server, task = await _serve(fake_repo)
@@ -464,18 +405,11 @@ async def test_a_listener_stopped_while_it_comes_up_never_comes_back_by_itself(f
         await asyncio.wait_for(task, 10)
 
 
-def test_settings_phones_offers_keeping_the_computer_awake_once_a_phone_is_paired(fake_repo, isolated_layout_file):
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
-    host.away.platform = "darwin"
-    listener = phones.Listener(host)                                # the machine's settings file, as Away reads it
-    assert listener.read()["awake_offer"] == ""                     # no phone yet: nothing to ask
-    code = listener.pairing.new_code()
-    listener.pairing.pair(code, "Vadim's phone")
-    assert listener.read()["awake_offer"] == "Mac"
-    host.command("awake.offer", {"yes": True})
-    assert listener.read()["awake_offer"] == "" and host.town.machine.keep_awake == "phone"
-    assert settings.load().keep_awake == "phone" and settings.load().phones   # the phone kept by the save
+def test_orkboard_offers_no_keeping_the_computer_awake(fake_repo):
+    """Keeping the computer awake for a paired phone is Orkline's (gui/away.py): Orkboard's host has no Away."""
+    listener = phones.Listener(Orkboard(fake_repo))
+    listener.pairing.pair(listener.pairing.new_code(), "Vadim's phone")
+    assert listener.read()["awake_offer"] == ""
 
 
 @pytest.mark.asyncio
@@ -495,7 +429,7 @@ async def test_two_get_requests_on_one_connection_both_answered_keep_alive(fake_
                 body1 = r1.read()
                 assert b"Orkline" in body1
 
-                conn.request("GET", "/app/app.js")
+                conn.request("GET", "/app/board-app.js")
                 r2 = conn.getresponse()
                 assert r2.status == 200
                 assert r2.getheader("Connection", "").lower() == "keep-alive"
@@ -602,7 +536,7 @@ async def test_an_http_1_0_request_without_keep_alive_is_answered_with_the_close
     try:
         offer = server.host.command("phones.pair")
         await _listening(server)
-        data = b"GET /app/ HTTP/1.0\r\nHost: x\r\n\r\nGET /app/app.js HTTP/1.0\r\nHost: x\r\n\r\n"
+        data = b"GET /app/ HTTP/1.0\r\nHost: x\r\n\r\nGET /app/board-app.js HTTP/1.0\r\nHost: x\r\n\r\n"
         got = await asyncio.to_thread(_raw_exchange, offer["address"], data)
         assert got.count(b"HTTP/1.1 200") == 1
         head = got.split(b"\r\n\r\n", 1)[0].decode("latin-1")
@@ -620,11 +554,11 @@ async def test_the_connection_header_is_a_list_of_options(fake_repo):
         offer = server.host.command("phones.pair")
         await _listening(server)
         kept = (b"GET /app/ HTTP/1.0\r\nHost: x\r\nConnection: Keep-Alive, Upgrade\r\n\r\n"
-                b"GET /app/app.js HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
+                b"GET /app/board-app.js HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
         got = await asyncio.to_thread(_raw_exchange, offer["address"], kept)
         assert got.count(b"HTTP/1.1 200") == 2
         assert b"Connection: keep-alive" in got.split(b"\r\n\r\n", 1)[0]
-        closed = b"GET /app/ HTTP/1.1\r\nHost: x\r\nConnection: close, foo\r\n\r\nGET /app/app.js HTTP/1.1\r\nHost: x\r\n\r\n"
+        closed = b"GET /app/ HTTP/1.1\r\nHost: x\r\nConnection: close, foo\r\n\r\nGET /app/board-app.js HTTP/1.1\r\nHost: x\r\n\r\n"
         got = await asyncio.to_thread(_raw_exchange, offer["address"], closed)
         assert got.count(b"HTTP/1.1 200") == 1
     finally:
