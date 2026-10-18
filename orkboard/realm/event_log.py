@@ -89,13 +89,26 @@ PROJECT_CLOSED = "project_closed"   # stopped (its running tasks were stopped)
 FILE_SAVED = "file_saved"         # kind (markdown · text), bytes: never the path or the text
 GIT_COMMITTED = "git_committed"   # files (how many), device
 GIT_PUSHED = "git_pushed"         # branch, device
+# Spec 38 §11: Operations, the person's (in `~/.config/orkcraft/ops/events.jsonl`, never a project's): names,
+# counts and states, never a field's, a draft's, a mail's or an issue's words.
+OP_ADDED = "op_added"             # op, template, version, device
+OP_PREPARED = "op_prepared"       # op, doubts (how many), step, tier, effort, prompt_chars, tokens, cost, seconds
+OP_CHECKED = "op_checked"         # op, edited (the names corrected), again (prepared again), device
+OP_DONE = "op_done"               # op, alone, step, tokens, cost, seconds
+OP_FAILED = "op_failed"           # op, step, acted (true · false · null)
+OP_DROPPED = "op_dropped"         # op, from (check · failed)
+OP_NOT_RIGHT = "op_not_right"     # op, has_reason
+OP_LEARNED = "op_learned"         # template, lines (how many), step, tokens, cost
+OP_RULES_ANSWERED = "op_rules_answered"   # template, take, has_reason
+OP_TRUST = "op_trust"             # template, alone, why (clean · edit · rules · not_right · version · reset)
 
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
           TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, TASK_STOPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, ROLE_SAVED,
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
-          GIT_PUSHED)
+          GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
+          OP_RULES_ANSWERED, OP_TRUST)
 
 _LOCK = threading.Lock()
 

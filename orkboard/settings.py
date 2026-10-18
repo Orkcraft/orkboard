@@ -20,6 +20,7 @@
                                      # Board settings start from them (`board_of`)
     s.projects_open                  # the open projects' folders, in the switcher's order (spec 37 §8)
     s.projects_recent                # the projects last shown, newest first (at most PROJECTS_RECENT)
+    s.ops                            # Operations, the person's (docs/specs/38-operations.md §1): target, trust_after, … (OPS)
     settings.save(s)
 
     board_of(repo_root, s.ideas)     # a project's Board settings: `<repo>/.orkcraft/board.json` over the machine's
@@ -89,6 +90,10 @@ IDEA_TARGETS = ("thrift", "balance", "quality")
 NIGHT = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$")
 FOCUSES = ("", "board")
 RECENT_FOLDERS = 8                       # the recent folders a Wiki's picker offers               # the GUI's two looks; camp the default
+# Operations (docs/specs/38-operations.md §1): the tier and effort of its calls, the clean checks in a row before a
+# template goes by itself, the most it does by itself a day, how long a finished operation keeps its texts, and each
+# template's server key → the MCP server's name on this machine.
+OPS = {"target": "balance", "trust_after": 1, "daily_alone": 20, "keep_days": 14, "servers": {}}
 PROJECTS_RECENT = 10                     # the projects the switcher's Recent remembers (spec 37 §8)
 PROJECTS_OPEN = 20                       # the most projects open at once
 # The Board's settings that are the project's (spec 37 §8): read from `<repo>/.orkcraft/board.json`, the machine's
@@ -139,6 +144,7 @@ class MachineSettings:
     ideas: dict = field(default_factory=lambda: dict(IDEAS))   # the board's keeper and runner (IDEAS)
     projects_open: list = field(default_factory=list)     # the open projects' folders, in the switcher's order
     projects_recent: list = field(default_factory=list)   # the projects last shown, newest first
+    ops: dict = field(default_factory=lambda: clean_ops(None))   # Operations (OPS)
 
     def to_dict(self) -> dict:
         return {
@@ -168,6 +174,7 @@ class MachineSettings:
             "ideas": dict(self.ideas),
             "projects_open": list(self.projects_open),
             "projects_recent": list(self.projects_recent),
+            "ops": {**self.ops, "servers": dict(self.ops.get("servers") or {})},
         }
 
     @classmethod
@@ -209,6 +216,7 @@ class MachineSettings:
         s.ideas = clean_ideas(data.get("ideas"))
         s.projects_open = clean_folders(data.get("projects_open"), PROJECTS_OPEN)
         s.projects_recent = clean_folders(data.get("projects_recent"), PROJECTS_RECENT)
+        s.ops = clean_ops(data.get("ops"))
         install_id = usage.get("id")
         if s.usage:                   # a broken id is drawn again: the stats never carry what was in the file
             ok = isinstance(install_id, str) and re.fullmatch(r"[0-9a-f]{32}", install_id)
@@ -259,6 +267,25 @@ def clean_ideas(raw: object) -> dict:
     if isinstance(wiki, str) and (wiki := wiki.strip().strip("/")) and re.fullmatch(r"[\w. /-]{1,200}", wiki) \
             and ".." not in wiki.split("/"):
         out["wiki"] = wiki
+    return out
+
+
+def clean_ops(raw: object) -> dict:
+    """Operations' settings: every key of OPS, a broken value as its default; `servers` keeps a key of a word and a
+    server's name as `claude mcp list` prints it."""
+    raw = raw if isinstance(raw, dict) else {}
+    out = {**OPS, "servers": {}}
+    if raw.get("target") in IDEA_TARGETS:
+        out["target"] = raw["target"]
+    for k, lo, hi in (("trust_after", 1, 5), ("daily_alone", 1, 100), ("keep_days", 1, 365)):
+        v = raw.get(k)
+        if isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi:
+            out[k] = v
+    servers = raw.get("servers")
+    for key, name in (servers.items() if isinstance(servers, dict) else ()):
+        if isinstance(key, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,39}", key) and isinstance(name, str) \
+                and name.strip() and len(name.strip()) <= 100 and name.isprintable():
+            out["servers"][key] = name.strip()
     return out
 
 

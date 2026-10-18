@@ -145,3 +145,32 @@ def test_a_tool_that_names_its_cache_its_own_way_counts_what_it_read_from_it():
     warm = {"input_tokens": 2_000, "output_tokens": 100, "cache_read_tokens": 19_800, "cachedContentTokenCount": 0}
     assert harnesses._tokens_of(cold) == 22_000 and harnesses._tokens_of(warm) == 21_900
     assert harnesses._tokens_of({"input_tokens": 5, "cache_read_input_tokens": 7, "cache_hit": True}) == 12
+
+
+def test_a_call_is_held_to_its_tools_and_takes_effort_budget_and_one_shot(monkeypatch, tmp_path):
+    """Spec 38 §4: `call` gains effort, budget and one shot as `read` has them; with no tool allowed, no list."""
+    h = harnesses.get("claude")
+    monkeypatch.setattr(harnesses, "cli_has", lambda h, flag: True)
+    argv = h.call("do it", tmp_path, ["mcp__a__b"], "warrior", effort="medium", budget=0.3, one_shot=True)
+    assert argv[argv.index("--allowedTools") + 1] == "mcp__a__b"
+    assert argv[argv.index("--disallowedTools") + 1] == harnesses.CLAUDE_NO_TOOLS
+    assert argv[-5:] == ["--effort", "medium", "--max-budget-usd", "0.30", "--no-session-persistence"]
+    bare = h.call("learn", tmp_path, [], "laborer", effort="low", one_shot=True)
+    assert "--allowedTools" not in bare and "--effort" not in bare and bare[-1] == "--no-session-persistence"
+
+
+def test_a_calls_stream_is_read_into_its_events():
+    from orkboard.realm import jobs
+    out = "\n".join(json.dumps(e) for e in [
+        {"type": "system", "subtype": "init", "tools": ["mcp__a__b", "Read"]},
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "…"},
+                                                      {"type": "tool_use", "id": "t1", "name": "mcp__a__b",
+                                                       "input": {"x": 1}}]}},
+        {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "is_error": True,
+                                                  "content": [{"type": "text", "text": "no such field"}]}]}},
+        {"type": "result", "result": "{}", "total_cost_usd": 0.02}])
+    events, result = jobs.call_events(out + "\nnot json")
+    assert events == [{"type": "init", "tools": ["mcp__a__b", "Read"]},
+                      {"type": "tool_use", "id": "t1", "name": "mcp__a__b", "input": {"x": 1}},
+                      {"type": "tool_result", "id": "t1", "is_error": True, "text": "no such field"}]
+    assert result["total_cost_usd"] == 0.02

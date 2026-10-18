@@ -3,6 +3,7 @@
 
     pick("draft", "balance")                       # ("elder", "medium")
     pick("refresh", "thrift")                      # None: thrift reads no goal again at night
+    pick("op_act", "balance")                      # ("laborer", ""): an operation's action (spec 38 §4)
     keeper_pick("talk", "quality", "haiku")        # ("haiku", "high"): the Taskmaster's own model wins
     task_pick("warrior", "thrift", "")             # ("laborer", "low"): Grunt runs on the shifted tier
     in_night("01:00-07:00", now)                   # inside the night window (the machine's local time)
@@ -37,16 +38,22 @@ MATRIX: dict[str, dict[str, tuple[Any, str] | None]] = {
     "refresh": {"thrift": None, "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "propose": {"thrift": None, "balance": ("elder", "low"), "quality": ("elder", "medium")},
     "task": {"thrift": (-1, "low"), "balance": (0, "medium"), "quality": (1, "high")},
+    # Operations' calls (docs/specs/38-operations.md §4), under Operations' own Target: no effort on the laborer tier
+    "op_prepare": {"thrift": ("warrior", "low"), "balance": ("warrior", "medium"), "quality": ("elder", "medium")},
+    "op_act": {"thrift": ("laborer", ""), "balance": ("laborer", ""), "quality": ("warrior", "low")},
+    "op_learn": {"thrift": ("laborer", ""), "balance": ("warrior", "low"), "quality": ("warrior", "medium")},
 }
+OP_STEPS = ("op_prepare", "op_act", "op_learn")
 
 
 # §0: one call, one job. What a keeper call is given is built by code and cut to a cap (characters of the prompt, the
 # call's own instructions not counted); how many files it may read; its budget in USD (`--max-budget-usd`) in balance,
 # half in thrift, double in quality.
 CONTEXT = {"goal": 12_000, "draft": 8_000, "answer": 8_000, "talk": 6_000, "plan": 10_000, "refresh": 12_000,
-           "propose": 10_000}
+           "propose": 10_000, "op_prepare": 12_000, "op_act": 6_000, "op_learn": 6_000}
 READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0}
-CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30}
+CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30,
+        "op_prepare": 0.30, "op_act": 0.10, "op_learn": 0.10}
 BUDGET_SHARE = {"thrift": 0.5, "balance": 1.0, "quality": 2.0}
 
 

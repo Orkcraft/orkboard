@@ -1,0 +1,44 @@
+# Orkboard's manifest for this skill (docs/specs/38-operations.md §2, §5). The skill (SKILL.md) stays the person's
+# and works in Claude Code as before; this file says what Orkboard asks, what it may read with and what it does.
+# The tools are named as the Gmail MCP server lists them: this file is the one place they are written.
+title = "Reply to an email"
+risk = "medium"          # the action saves a draft; the person sends it from Gmail
+servers = { gmail = "Gmail" }
+
+[[fields]]
+name = "find"
+label = "Which email"
+type = "text"
+required = true
+hint = "The sender, or words of the subject"
+
+[[fields]]
+name = "say"
+label = "What to answer"
+type = "long"
+required = true
+
+[[fields]]
+name = "tone"
+label = "Tone"
+type = "choice"
+options = ["short", "warm", "formal"]
+default = "short"
+
+[[draft]]
+name = "subject"
+label = "Subject"
+at = "subject"
+
+[[draft]]
+name = "body"
+label = "Reply"
+type = "long"
+at = "body"
+
+[prepare]
+tools = ["mcp__{gmail}__search_threads", "mcp__{gmail}__get_thread"]
+
+[act]
+tool = "mcp__{gmail}__create_draft"
+label = "Save as a draft in Gmail"

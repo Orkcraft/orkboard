@@ -50,7 +50,7 @@ include = ["orkboard*"]
 [tool.setuptools.package-data]
 # design/system links to design-system/: a wheel carries the files themselves.
 orkboard = ["schemas/*.json", "design/*.json", "design/buildings/*.json", "design/agents/*.md", "design/system/**/*",
-            "gui/static/**/*"]
+            "gui/static/**/*", "ops_templates/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

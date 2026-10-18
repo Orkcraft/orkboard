@@ -1,0 +1,61 @@
+# Orkboard's manifest for this skill (docs/specs/38-operations.md §2, §5). The skill (SKILL.md) stays the person's
+# and works in Claude Code as before; this file says what Orkboard asks, what it may read with and what it does.
+# The tools are named as the Atlassian Rovo MCP server documents them: this file is the one place they are written.
+title = "New Jira task"
+risk = "medium"
+servers = { jira = "Jira" }
+
+[[fields]]
+name = "what"
+label = "What needs doing"
+type = "long"
+required = true
+hint = "What is wrong or wanted, and how you will know it is done"
+
+[[fields]]
+name = "project"
+label = "Project"
+type = "text"
+remember = true
+hint = "Its key or its name"
+
+[[fields]]
+name = "priority"
+label = "Priority"
+type = "choice"
+options = ["Highest", "High", "Medium", "Low", "Lowest"]
+default = "Medium"
+at = "additional_fields.priority.name"
+
+[[fields]]
+name = "type"
+label = "Type"
+type = "choice"
+options = ["Task", "Bug", "Story"]
+default = "Task"
+at = "issueTypeName"
+
+[[fields]]
+name = "epic"
+label = "Epic"
+type = "text"
+hint = "A key or words of its name"
+
+[[draft]]
+name = "summary"
+label = "Title"
+at = "summary"
+
+[[draft]]
+name = "description"
+label = "Description"
+type = "long"
+at = "description"
+
+[prepare]
+tools = ["mcp__{jira}__getAccessibleAtlassianResources", "mcp__{jira}__getVisibleJiraProjects",
+         "mcp__{jira}__searchJiraIssuesUsingJql", "mcp__{jira}__getJiraIssue"]
+
+[act]
+tool = "mcp__{jira}__createJiraIssue"
+label = "Create in Jira"

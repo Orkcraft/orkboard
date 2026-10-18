@@ -6,6 +6,7 @@
     h.work(prompt, workdir, model, resume)   # argv of an agent that may change files in `workdir`
     h.read(…, effort="high")                 # … with the model's reasoning effort, where the tool takes one (spec 35 §1)
     h.call(prompt, workdir, allow, model)    # argv of an agent allowed only the MCP tools in `allow` (None: it cannot)
+                                             # (effort, budget, one_shot as `read`: an operation's calls, spec 38 §4)
     h.result(stdout, before)                 # (text, cost USD | None, tokens | None, session id)
     h.outcome(stdout, before, model)         # … priced from `model` when the tool prints tokens, no price
     harnesses.main(enabled, chosen)          # the tool decisions run on: the chosen one, else the first on
@@ -303,10 +304,13 @@ class Harness:
         """It can carry a Catapult's shot: held to one MCP tool."""
         return self.call_cmd is not None
 
-    def call(self, prompt: str, workdir: str | Path, allow: list[str], model: str = "") -> list[str] | None:
+    def call(self, prompt: str, workdir: str | Path, allow: list[str], model: str = "", effort: str = "",
+             budget: float | None = None, one_shot: bool = False) -> list[str] | None:
+        """`effort`, `budget` (USD), `one_shot` (no session kept) as `read` has them (spec 38 §4)."""
         if self.call_cmd is None:
             return None
-        return self.call_cmd(self, prompt, str(workdir), self.pick(model), list(allow))
+        return self.call_cmd(self, prompt, str(workdir), self.pick(model), list(allow)) + self._run(model, effort,
+                                                                                                    budget, one_shot)
 
     def outcome(self, stdout: str, before=0, model: str = "") -> tuple[str, float | None, int | None, str]:
         """`result`, given the model the run was asked for when the tool is priced from it."""
@@ -363,13 +367,14 @@ def _claude_read(h, prompt, workdir, model, web):
             *_model("--model", model), *_claude_mcp()]
 
 
-# Every built-in tool a carrier must not have; MCP tools not in --allowedTools are refused in -p.
+# Every built-in tool a carrier must not have; MCP tools not in --allowedTools are refused in -p (their schemas are
+# still shown: an operation's prepare writes its action's arguments from one, spec 38 §4). None allowed: no list.
 CLAUDE_NO_TOOLS = "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Read,Grep,Glob,Task,TodoWrite"
 
 
 def _claude_call(h, prompt, workdir, model, allow):
     return [h.bin, "-p", prompt, "--output-format", "stream-json", "--verbose",
-            "--allowedTools", ",".join(allow), "--disallowedTools", CLAUDE_NO_TOOLS, *_model("--model", model),
+            *(["--allowedTools", ",".join(allow)] if allow else []), "--disallowedTools", CLAUDE_NO_TOOLS, *_model("--model", model),
             *_claude_mcp()]
 
 
