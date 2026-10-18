@@ -77,7 +77,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         self._what: dict[str, str] = {}                   # slug → what its next Board commit says (spec 35 §13)
         self._limits_logged = float("-inf")
         self.keeper = idea_keeper.IdeaKeeper(
-            self.town.repo_root, self.state_dir, self.root, lambda: self.town.machine.ideas, self._publish,
+            self.town.repo_root, self.state_dir, self.keeper_root, lambda: self.town.machine.ideas, self._publish,
             demo=bool(self.town.demo), budget_ok=lambda: self.town.budget_ok(), limits=lambda: list(self.host.limits() or []),
             on_plan=self._on_plan, start_night=self.start_night, events=not self.town.demo)
         self.keeper.index_root = self.wiki
@@ -89,6 +89,12 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         """Where the Board's pages are: its own tree on the work branch (spec 35 §13, gui/ideas_board.py), else the Wiki
         joined to the board. `make`: the tree is made (and the pages moved into it) when missing; the snapshot only reads."""
         return self.tree_root(self.wiki(), make)
+
+    def keeper_root(self) -> Path:
+        """The keeper's (its clock, the night): the Board's tree is made only for a Board that has pages already."""
+        wiki = self.wiki()
+        used = any((wiki / f).is_dir() and any((wiki / f).glob("*.md")) for f in (ideas.TRACKS, ideas.IDEAS))
+        return self.tree_root(wiki, make=used)
 
     def wiki(self) -> Path:
         """The Wiki joined to the board: the board's `wiki` (a Wiki's id), else the camp's first Wiki (team or

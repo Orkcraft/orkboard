@@ -173,3 +173,13 @@ def test_the_host_says_board_held_when_the_person_has_changes_in_those_files(fak
     assert got["commit"] and got["held"]
     (e,) = [r for r in event_log.read(Path(fake_repo)) if r["event"] == "board_held"]
     assert "uncommitted" in e["why"]
+
+
+def test_the_clock_alone_makes_no_tree_and_no_branch(fake_repo):
+    checkpoint.ensure(fake_repo)
+    host = Host(fake_repo, auto_commit=False)
+    host.ideas.keeper._tick_at = float("-inf")
+    host.ideas.tick()
+    host.ideas.keeper.run_night()
+    assert not (fake_repo / ".orkcraft" / "board").exists()
+    assert "dev" not in git(fake_repo, "branch", "--list", "dev")
