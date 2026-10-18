@@ -90,7 +90,7 @@ class GoalsMixin:
 
     def doc(self, args: dict) -> dict:
         """A document a goal links, to show in the preview: a path in the repository or a page of the Wiki, read only,
-        cut at DOC_CHARS. Nothing outside those two folders; a URL is never fetched (the page opens it in the browser)."""
+        cut at DOC_CHARS; a Markdown one with its `html` too. Nothing outside those two folders; a URL is never fetched (the page opens it in the browser)."""
         link = _text(args, "path", 300).split("#")[0]
         if "://" in link:
             raise IdeasError("A web link opens in the browser")
@@ -104,7 +104,11 @@ class GoalsMixin:
                     text = path.read_text(encoding="utf-8")
                 except (OSError, UnicodeDecodeError):
                     raise IdeasError("That file cannot be read as text") from None
-                return {"path": link, "text": text[:DOC_CHARS], "truncated": len(text) > DOC_CHARS}
+                out = {"path": link, "text": text[:DOC_CHARS], "truncated": len(text) > DOC_CHARS}
+                if path.suffix.lower() in (".md", ".markdown"):      # rendered as the Files pane renders it (spec 37 §8)
+                    from orkboard.gui import markdown
+                    out["html"] = markdown.render(out["text"])
+                return out
         raise IdeasError("That document is not in the repository or the Wiki")
 
     def goal_event(self, slug: str) -> None:

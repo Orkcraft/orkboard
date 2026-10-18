@@ -233,7 +233,7 @@ def test_the_snapshot_carries_focus_and_the_phone_hears_an_idea(host):
 def test_the_runner_bus_hops_to_the_hosts_thread(host):
     hops = []
     host.town.call = lambda fn, *a: hops.append(fn)
-    gui_ideas._Hop(host.town).publish(idea_keeper.CHANGED, slug="x")
+    gui_ideas._Hop(host.board).publish(idea_keeper.CHANGED, slug="x")       # the shown project's Board, on the host's call
     rev = host.ideas.rev
     assert len(hops) == 1
     hops[0]()
@@ -466,7 +466,7 @@ def test_opened_goes_through_ideas_log_and_nothing_else_does(host):
     for bad in ({"event": "idea_added", "what": "idea"}, {"event": "stop_all"}, {"event": "nope"}, {"event": "opened", "what": "elsewhere"}):
         with pytest.raises(CommandError):
             host.command("ideas.log", bad)
-    assert len(_events(host)) == 1
+    assert [e["event"] for e in _events(host)] == ["project_opened", "opened"]      # the host opened the project first
 
 
 def test_the_logs_zip_holds_the_events_the_ideas_and_no_secret(host):

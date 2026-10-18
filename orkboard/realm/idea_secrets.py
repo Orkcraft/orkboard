@@ -2,7 +2,9 @@
 in plan.json or in a prompt.
 
 Where: the OS keychain through `keyring` when it is importable (service `orkcraft-ideas`, account
-`<idea slug>/<to-do id>`), else `<state_dir>/secrets.json` with mode 600, git-ignored. plan.json says only
+`<project id>/<idea slug>/<to-do id>`: the project's id is a hash of its folder's path, spec 37 §8, so two projects
+with the same idea and to-do keep two secrets), else `<state_dir>/secrets.json` with mode 600, git-ignored, under the
+same name. A secret under the old account (`<idea slug>/<to-do id>`) is read once and moved. plan.json says only
 `"value": "stored"`; the runner reads the value back here and hands it to the task's session as an environment
 variable named in the to-do's title.
 
@@ -28,6 +30,7 @@ import re
 from pathlib import Path
 
 from orkboard.env import getenv
+from orkboard.realm.project_folder import project_id
 
 SERVICE = "orkcraft-ideas"
 FILE = "secrets.json"
@@ -49,6 +52,11 @@ def key(slug: str, todo_id: str) -> str:
     if not _NAME.match(name):
         raise ValueError("Not a to-do of an idea")
     return name
+
+
+def account(state_dir: Path, slug: str, todo_id: str) -> str:
+    """The name a to-do's secret is kept under: the project's (`<state_dir>` is `<repo>/.orkcraft`), then the to-do's."""
+    return f"{project_id(Path(state_dir).parent)}/{key(slug, todo_id)}"
 
 
 def _path(state_dir: Path) -> Path:
@@ -86,27 +94,39 @@ def _ignored(state_dir: Path) -> None:
 
 
 def put(state_dir: Path, slug: str, todo_id: str, value: str) -> str:
-    """Keep the value; where it went: "keychain" or "file"."""
-    name = key(slug, todo_id)
+    """Keep the value; where it went: "keychain" or "file". A copy under the old account goes."""
+    name, old = account(state_dir, slug, todo_id), key(slug, todo_id)
     kc = _keychain()
     if kc is not None:
         try:
             kc.set_password(SERVICE, name, value)
+            _forget_old(kc, old)
             data = _read(state_dir)
-            if name in data:                    # an older copy in the file goes
-                data.pop(name)
+            if name in data or old in data:     # an older copy in the file goes
+                data.pop(name, None)
+                data.pop(old, None)
                 _write(state_dir, data)
             return "keychain"
         except Exception:                       # no secret service running: the file, as without it
             pass
     data = _read(state_dir)
     data[name] = value
+    data.pop(old, None)
     _write(state_dir, data)
     return "file"
 
 
+def _forget_old(kc, old: str) -> None:
+    try:
+        if kc.get_password(SERVICE, old) is not None:
+            kc.delete_password(SERVICE, old)
+    except Exception:
+        pass
+
+
 def get(state_dir: Path, slug: str, todo_id: str) -> str | None:
-    name = key(slug, todo_id)
+    """The value under the project's account; one under the old account (before spec 37 §8) is moved to it."""
+    name, old = account(state_dir, slug, todo_id), key(slug, todo_id)
     kc = _keychain()
     if kc is not None:
         try:
@@ -115,21 +135,36 @@ def get(state_dir: Path, slug: str, todo_id: str) -> str | None:
                 return value
         except Exception:
             pass
-    value = _read(state_dir).get(name)
-    return value if isinstance(value, str) else None
+    data = _read(state_dir)
+    value = data.get(name)
+    if isinstance(value, str):
+        return value
+    found = None
+    if kc is not None:
+        try:
+            found = kc.get_password(SERVICE, old)
+        except Exception:
+            found = None
+    if found is None and isinstance(data.get(old), str):
+        found = data[old]
+    if found is not None:
+        put(state_dir, slug, todo_id, found)    # read once, and moved
+    return found
 
 
 def forget(state_dir: Path, slug: str, todo_ids: list[str] = ()) -> None:
-    """The idea's secrets go (all of the file's, and the keychain's for the to-dos named)."""
+    """The idea's secrets go (all of the file's, and the keychain's for the to-dos named), the old accounts' too."""
     kc = _keychain()
     for todo_id in todo_ids:
-        try:
-            if kc is not None:
-                kc.delete_password(SERVICE, key(slug, todo_id))
-        except Exception:
-            pass
+        for name in (account(state_dir, slug, todo_id), key(slug, todo_id)):
+            try:
+                if kc is not None:
+                    kc.delete_password(SERVICE, name)
+            except Exception:
+                pass
     data = _read(state_dir)
-    kept = {k: v for k, v in data.items() if not k.startswith(f"{slug}/")}
+    mine = (f"{project_id(Path(state_dir).parent)}/{slug}/", f"{slug}/")
+    kept = {k: v for k, v in data.items() if not k.startswith(mine)}
     if kept != data:
         _write(state_dir, kept)
 

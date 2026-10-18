@@ -247,7 +247,8 @@ def test_the_keepers_talk_and_plans_run_on_the_taskmasters_model(host, model):
 def test_a_linked_document_is_read_from_the_repository_or_the_wiki_only(host):
     repo = Path(host.town.repo_root)
     (repo / "notes.md").write_text("# Notes\nhello\n")
-    assert host.command("ideas.doc", {"path": "notes.md"}) == {"path": "notes.md", "text": "# Notes\nhello\n", "truncated": False}
+    assert host.command("ideas.doc", {"path": "notes.md"}) == {"path": "notes.md", "text": "# Notes\nhello\n", "truncated": False,
+                                                              "html": "<h1>Notes</h1>\n<p>hello</p>\n"}   # spec 37 §8
     slug = _add(host, "an idea")["slug"]
     assert "an idea" in host.command("ideas.doc", {"path": f"pages/ideas/{slug}.md"})["text"]       # a Wiki page
     for bad in ("../outside.md", "/etc/passwd", "nope.md", "https://example.com/x"):

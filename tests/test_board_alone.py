@@ -77,7 +77,8 @@ def test_orkboards_wiki_is_the_setting_else_the_general_one(fake_repo):
 def test_the_snapshot_holds_only_what_the_shell_reads(host):
     snap = host.snapshot()
     assert set(snap) == {"focus", "onboarding", "ideas_rev", "needs_you", "idea_states", "review_count",
-                         "review_results", "limits", "hud", "repo", "update"}
+                         "review_results", "limits", "hud", "repo", "projects", "update"}
+    assert snap["projects"] == host.command("projects.list")                         # the switcher (spec 37 §8)
     assert snap["focus"] == "board" and set(snap["hud"]) == {"show_gold", "gold", "lumber"}
     assert snap["repo"] == str(host.repo_root) and snap["onboarding"] is None      # a machine set up: no first screen
     json.dumps(snap)
@@ -170,9 +171,13 @@ def test_orkboard_starts_on_the_project_and_board_is_the_old_habit(fake_repo, mo
     assert board_host.main([]) == 0 and started[-1] == (fake_repo.resolve(), False, 0)
 
 
-def test_a_folder_that_is_no_project_is_said(tmp_path, monkeypatch, capsys):
+def test_outside_a_project_it_starts_on_the_start_screen_and_a_refused_folder_is_said(tmp_path, monkeypatch, capsys):
+    """Spec 37 §8: no folder, no last project and none it was started in: the start screen (Open folder…, Recent);
+    a folder that may not be a project is refused in words."""
     from orkboard.gui import board_host
-    monkeypatch.setattr(board_host, "run", lambda *a, **k: pytest.fail("Orkboard started outside a project"))
+    started = []
+    monkeypatch.setattr(board_host, "run", lambda root, browser=False, port=0: started.append(root) or 0)
     monkeypatch.chdir(tmp_path)
-    assert board_host.main([]) == 1
-    assert "not found" in capsys.readouterr().err
+    assert board_host.main([]) == 0 and started == [None]
+    assert board_host.main([str(Path.home())]) == 1 and started == [None]
+    assert "home folder" in capsys.readouterr().err

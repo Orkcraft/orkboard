@@ -96,12 +96,12 @@ class BoardMixin:
     # -- the Board's settings (§1, §5, §7) ---------------------------------------------------------------------
 
     def board_settings(self) -> dict:
-        s = self.host.machine.ideas or settings.IDEAS
+        s = self.settings_now()
         return {"target": s.get("target", settings.IDEAS["target"]), "autostart": bool(s.get("autostart", True)),
                 "night": s.get("night", settings.IDEAS["night"])}
 
     def board_set(self, args: dict) -> dict:
-        mine = dict(self.host.machine.ideas or settings.IDEAS)
+        mine = dict(self.settings_now())
         for key in ("target", "autostart", "night"):
             if key not in args:
                 continue
@@ -111,8 +111,7 @@ class BoardMixin:
                                   "autostart": "Start plans by themselves is on or off",
                                   "night": "The night is HH:MM-HH:MM"}[key])
             mine[key] = got
-        self.host.machine.ideas = settings.clean_ideas(mine)
-        settings.save(self.host.machine)
+        self.save_settings(mine)
         out = self.board_settings()
         self._ev(event_log.BOARD_SET, args, **out)
         self.changed("")
@@ -199,7 +198,7 @@ class BoardMixin:
     def autostart(self, slug: str) -> str:
         """A plan made, or its idea's priority or risk changed: the board decides (code, no model) whether it starts,
         starts at night, or waits for the person. What it did ("" nothing to decide)."""
-        if not bool((self.host.machine.ideas or {}).get("autostart", True)):
+        if not bool(self.settings_now().get("autostart", True)):
             return "wait"
         plan, page = ideas.plan(self.state_dir, slug), ideas.idea_page(self.root(), slug)
         if plan is None or page is None or plan.get("passed_at") or plan.get("stopped") \
