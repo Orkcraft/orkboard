@@ -91,6 +91,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         hi = page.locator(".idea-card[data-slug=hi]")
         await hi.wait_for(timeout=WAIT_MS)
         assert await hi.locator(".spin").count() == 1 and "drafting" in await hi.inner_text()
+        await hi.scroll_into_view_if_needed()
         await _shot(page, "phone-ideas-390x844")
         await hi.get_by_role("button", name="Stop: Fast sync").click()                                   # Stop → stopped
         assert await _called(stub, "ideas.read_stop", {"slug": "hi"})
@@ -158,7 +159,8 @@ async def test_needs_you_is_one_list_questions_are_one_form_and_a_proposal_is_an
         await two.get_by_label("Why not: A tour").fill("Not now")
         await two.get_by_role("button", name="No").click()
         assert await _called(stub, "ideas.proposal", {"slug": "p2", "take": False, "reason": "Not now"})
-        await page.locator(".need-proposal").wait_for(state="detached", timeout=WAIT_MS)
+        await one.wait_for(state="detached", timeout=WAIT_MS)
+        await two.wait_for(state="detached", timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
 
 
