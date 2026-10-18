@@ -34,7 +34,7 @@ from typing import Any, Callable
 
 from orkcraft.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
 from orkcraft.realm import event_log, halt, harnesses, idea_secrets, idea_target, jobs, roles, status, tool_errors
-from orkcraft.realm.idea_git import CRITICAL_TESTS, Conflict, IdeaGit, env_name, parse_tests, read_secret
+from orkcraft.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, parse_tests, read_secret, spec_paths
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
 HARNESS = "claude"
@@ -166,7 +166,8 @@ class IdeaRunner(ReviewMixin):
             self._since[(slug, tid)] = now
             self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1),
                        tier=t.get("tier") or "", role=t.get("role") or "", seconds=round(now - since, 1) if since else None, tokens=t.get("tokens"),
-                       cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "")
+                       cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "",
+                       tool=t.get("tool") or "", model=t.get("model") or "")
             if new == "review":
                 tests, diff = t.get("tests") or {}, t.get("diff") or {}
                 self._emit(event_log.RESULT_READY, idea=slug, task=tid, round=int(t.get("round") or 1), passed=tests.get("passed"),
@@ -298,9 +299,9 @@ class IdeaRunner(ReviewMixin):
                     role = self._role(t)
                     if self._running_as(role["slug"]) >= role["max_parallel"]:
                         continue                     # this role's own limit (spec 34 §3): the task waits its turn
-                    until = status.reset_of(limits, HARNESS, now, status.NEARLY) or gate
-                    if until is not None:
-                        self._hold(slug, t, until)
+                    until = status.reset_of(limits, HARNESS, now, status.NEARLY)
+                    if until is not None or gate is not None:     # the window, else the person's reserve (§6)
+                        self._hold(slug, t, until if until is not None else gate, "" if until is not None else "reserve · ")
                     else:
                         self._launch(slug, t)
                         slots -= 1
@@ -367,9 +368,9 @@ class IdeaRunner(ReviewMixin):
             self._set_idea(slug, "failed", f"{failed.get('title') or failed.get('id')}: {why}")
         self._changed(slug)
 
-    def _hold(self, slug: str, task: dict, until: float) -> None:
+    def _hold(self, slug: str, task: dict, until: float, why: str = "") -> None:
         self._until[(slug, task.get("id"))] = until
-        task.update(state="held", note=f"after {dt.datetime.fromtimestamp(until):%H:%M}")
+        task.update(state="held", note=f"{why}after {dt.datetime.fromtimestamp(until):%H:%M}")
 
     def _read_limits(self, now: float) -> list:
         if self._limits_fn is not None:
@@ -395,6 +396,8 @@ class IdeaRunner(ReviewMixin):
         tid = task.get("id")
         cancel = threading.Event()
         run, effort = self.ran_on(task)
+        h = harnesses.get(HARNESS)
+        task.update(tool=HARNESS, model=(h.pick(run) if h else run) or run)    # the model the run names (spec 35 §12)
         task.update(state="running", started=now_iso(), finished="", error="", note="",
                     branch=f"idea/{slug}/{tid}", commit="", session="", cost=None, tokens=None,
                     tests=None, diff=None, round=1, conflict="", why="", base="", role=self._role(task)["slug"],
@@ -527,6 +530,9 @@ class IdeaRunner(ReviewMixin):
         self.git.commit_left(path, title)
         if not self.git.commits(path, start_sha):
             return "You changed no file. Make the change the task asks for in this worktree.", ""
+        board = [f for f in self.git.touched(path, str(setting(self.settings, "merge_into") or "dev")) if BOARD_PAGE.search(f)]
+        if board:                          # spec 35 §13: the Board's pages are the Board's
+            return f"A task never edits the Board's pages: put back {', '.join(board[:5])} as they were.", ""
         if self.git.dirty(path):
             return ("You left uncommitted changes: `git status` shows them. Commit them (or remove what is not "
                     "work)."), ""
@@ -547,19 +553,8 @@ class IdeaRunner(ReviewMixin):
 
     # -- the prompt ------------------------------------------------------------------------------
 
-    def _page(self, slug: str) -> str:
-        """The idea's page (the Wiki joined to the board, else llm-wiki/general): the newest one found."""
-        found = [p for pattern in (f"llm-wiki/*/pages/ideas/{slug}.md", f"*/pages/ideas/{slug}.md",
-                                   f"pages/ideas/{slug}.md") for p in self.repo_root.glob(pattern) if p.is_file()]
-        if not found:
-            return ""
-        newest = max(found, key=lambda p: p.stat().st_mtime)
-        try:
-            return newest.read_text(encoding="utf-8")[:PAGE_KEEP]
-        except OSError:
-            return ""
-
     def _prompt(self, slug: str, plan: dict, task: dict) -> str:
+        spec, deps = spec_paths(self.repo_root, self.state_dir, slug)
         tasks = plan.get("tasks") or []
         before = tasks[:tasks.index(task)] if task in tasks else []
         done = []
@@ -581,7 +576,8 @@ class IdeaRunner(ReviewMixin):
             f"You do one task of the idea `{slug}` in this repository: a git worktree on branch "
             f"`idea/{slug}/{task.get('id')}`, cut from `{setting(self.settings, 'merge_into') or 'main'}`. "
             "Work only here.",
-            "# The idea\n\n" + (self._page(slug) or "(its page was not found)"),
+            "# The idea\n\n" + (f"Its spec is at `{spec}` in this worktree: read it if you need it."
+                                  + "".join(f" It depends on `{d}`." for d in deps) if spec else "(its spec was not found)"),
             f"# Your task: {task.get('title', '')}\n\n{task.get('brief', '')}",
         ]
         if done:
