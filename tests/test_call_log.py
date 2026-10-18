@@ -201,7 +201,7 @@ def test_orkboard_keeps_its_logs_and_serves_a_period(fake_repo, tool):
     Orkline's switch for them and its clearing by dislikes are the town's (gui/town_settings.py, gui/day_logs.py)."""
     from orkboard.gui.board_host import Orkboard
     from orkboard.gui.server import Server
-    host = Orkboard(fake_repo)
+    host = Orkboard()                                                    # the start screen: no project, no logs
     try:
         server = Server(host)
         thread = server.start_thread()
@@ -209,6 +209,7 @@ def test_orkboard_keeps_its_logs_and_serves_a_period(fake_repo, tool):
             url = f"{server.origin}/api/analytics?days=7&t={server.token}"
             with pytest.raises(urllib.error.HTTPError):                     # nothing kept yet
                 urllib.request.urlopen(url, timeout=5)
+            assert host.command("projects.open", {"path": str(fake_repo)}) == {"ok": True, "git": True}
             jobs.run_work("claude", "hall work", fake_repo, threading.Event(), env={"ORKCRAFT_ORC": "town_hall/Chief"})
             with urllib.request.urlopen(url, timeout=5) as r:
                 assert "orkcraft-analytics-" in r.headers["Content-Disposition"]

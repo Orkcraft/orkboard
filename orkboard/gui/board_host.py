@@ -77,6 +77,16 @@ class BoardHost:
     def publish(self, topic: str, **data: Any) -> None:
         self.bus.publish(topic, **data)
 
+    def board_settings(self) -> dict:
+        """The Board's settings of this project (spec 37 §8): its `.orkcraft/board.json` over the machine's `ideas`,
+        `risk_paths` from its `orkcraft.toml`."""
+        return settings.board_of(self.repo_root, self.machine.ideas)
+
+    def save_board_settings(self, values: dict) -> dict:
+        """The Board's settings written for this project only, never the machine's; what it now reads."""
+        settings.save_board(self.repo_root, values)
+        return self.board_settings()
+
 
 class BoardLogs:
     """The Board's day logs (`/api/analytics`, `ideas.logs`): every model call of the last days and the Board's events
@@ -104,19 +114,24 @@ class BoardLogs:
 
 class BoardPhone:
     """What a paired phone may do in Orkboard and what it sees (gui/phones.py reads it as the host's `phone_face`;
-    Orkline's is gui/mobile.py): the Board's commands and Stop all, and the snapshot's Board, small."""
+    Orkline's is gui/mobile.py): the Board's commands and Stop all, the project switcher, a Markdown file read-only
+    (spec 37 §8: no edit and no git from the phone), and the snapshot's Board, small."""
 
-    COMMANDS = ("mobile.hello", "mobile.snapshot", "halt")
+    COMMANDS = ("mobile.hello", "mobile.snapshot", "halt", "projects.list", "projects.use")
+    MARKDOWN = (".md", ".markdown")
 
     @classmethod
     def allowed(cls, host, name: str, args: dict | None = None) -> bool:
+        if name == "files.read":
+            path = (args or {}).get("path")
+            return isinstance(path, str) and path.lower().endswith(cls.MARKDOWN)
         return name in cls.COMMANDS or (name.startswith("ideas.") and name in host.commands)
 
     @staticmethod
     def guard(name: str, args: dict, device: dict | None = None) -> dict:
         """As Orkline's (gui/mobile.py `guard`): the event log says the phone, and the link is the listener's to say."""
         args = dict(args)
-        if name.startswith("ideas.") or name == "halt":
+        if name.startswith(("ideas.", "projects.", "files.")) or name == "halt":
             args["device"] = "phone"
             args.pop("link", None)
             if (device or {}).get("id"):
@@ -128,37 +143,48 @@ class BoardPhone:
         return host.phone_snapshot()
 
 
+class _NoLogs:
+    """The day logs with no project open: nothing to pack."""
+
+    def pack_period(self, days: int = 7, today: dt.date | None = None) -> None:
+        return None
+
+
 class Orkboard:
-    """The Board's own host (spec 37 §4): the Board's commands (`ideas.*`), Stop all (`halt`), pairing a phone
-    (`phones.*`, added by the server), updates, `link.open`, `crash.window` and the onboarding's first screen (trust,
-    the AI tools found); no class, no Mission 1, no town. The page is `static/board.js`, the phone's `pwa/board-app.js`."""
+    """The Board's own host (spec 37 §4, §8): the open projects (gui/board_projects.py, one Board each, one shown) and
+    the Board's commands (`ideas.*`, to the shown one), the Files pane (`files.*`) and its Git section (`git.*`), Stop
+    all (`halt`, every project's), pairing a phone (`phones.*`, added by the server), updates, `link.open`,
+    `crash.window` and the onboarding's first screen (trust, the AI tools found); no class, no Mission 1, no town.
+    The page is `static/board.js`, the phone's `pwa/board-app.js`.
+
+    What is the host's is built once per host, beside the projects: the AI tools' limits, this run's spend, the
+    phones, updates, the onboarding (and the host-level services to come, spec 38's Operations); what is a project's
+    is its Board. With no project open it is the start screen: `ideas.*` say *Open a folder first*."""
 
     entry = "board.js"              # the desktop page's script (gui/server.py)
     phone_entry = "board-app.js"    # the phone's (gui/pwa.py)
 
-    def __init__(self, repo_root: Path, demo: bool = False) -> None:
-        from orkboard.gui import ideas, onboarding, updates
-        self.repo_root = Path(repo_root).resolve()
+    def __init__(self, repo_root: Path | None = None, demo: bool = False, restore: bool = False) -> None:
+        """`repo_root`: the folder opened and shown (refused in words: `ideas.IdeasError`); `restore`: the projects
+        open when Orkboard last closed are opened again too (`orkboard` does it; a test's host has only its own)."""
+        from orkboard.gui import board_files, board_git, board_projects, onboarding, updates
         self.demo = demo
         self.machine = settings.load()
         self.bus = b.Bus()
-        self._call: Callable[..., None] = lambda fn, *a: fn(*a)     # the server's loop, once it runs
+        self.call: Callable[..., None] = lambda fn, *a: fn(*a)    # the server's loop, once it runs (gui/server.py)
         self.on_change: Callable[[], None] = lambda: None
         self.on_toast: Callable[[dict], None] = lambda data: None
         self.on_detail: Callable[[str], None] = lambda building_id: None
         self.sessions = None                                          # no terminal sessions in Orkboard
         self.run_id = telemetry.new_run_id()
-        self.telemetry = telemetry.Telemetry(self.repo_root, self.run_id)
-        telemetry.keep_ledger(self.repo_root)
+        self.telemetry: telemetry.Telemetry | None = None             # this run's spend, in the shown project
         self.spend = telemetry.Snapshot()
         self._spend_at = float("-inf")
-        self.limits = BoardLimits(self.repo_root, self.call, demo)
-        self.day_logs = BoardLogs(self.repo_root)
-        self.board = BoardHost(self.repo_root, self, bus=self.bus, toast=self.toast, call=self.call,
-                               budget_ok=self.budget_ok, limits=lambda: self.limits(), day_logs=self.day_logs, demo=demo)
-        self.town = self.board          # what gui/updates.py and gui/onboarding.py read as `host.town`: the machine,
-        self.phone_face = BoardPhone    # demo, call and toast — the Board's own here, there is no town
+        self.limits = BoardLimits(Path.home(), lambda fn, *a: self.call(fn, *a), demo)
+        self.town = self                # what gui/updates.py, gui/onboarding.py and gui/server.py read as `host.town`:
+        self.phone_face = BoardPhone    # the machine, demo, call and toast — the host's own here, there is no town
         self.bus.subscribe(b.ANY, self._event)
+        self.projects = board_projects.Projects(self)
         self.commands: dict[str, Callable[[dict], Any]] = {
             "halt": self._halt,
             "link.open": open_link,
@@ -170,13 +196,51 @@ class Orkboard:
         self.commands.update(self.updates.commands())
         self.onboarding = onboarding.Onboarding(self)
         self.commands.update(self.onboarding.commands())
-        self.ideas = ideas.Ideas(self.board)
-        self.commands.update(self.ideas.commands())
+        self.commands.update(self.projects.commands())
+        self.commands.update(board_files.Files(self.projects).commands())
+        self.commands.update(board_git.Git(self.projects).commands())
+        if restore:
+            self.projects.restore()
+        if repo_root is not None:
+            self.projects.open(repo_root)
+
+    # -- the shown project -----------------------------------------------------------------------------------
+
+    @property
+    def project(self):
+        return self.projects.current()
+
+    @property
+    def repo_root(self) -> Path | None:
+        p = self.project
+        return p.root if p is not None else None
+
+    @property
+    def board(self) -> BoardHost | None:
+        p = self.project
+        return p.board if p is not None else None
+
+    @property
+    def ideas(self):
+        p = self.project
+        return p.ideas if p is not None else None
+
+    @property
+    def day_logs(self) -> Any:
+        p = self.project
+        return p.logs if p is not None else _NoLogs()
+
+    def shown(self, project: Any) -> None:
+        """Another project is shown (gui/board_projects.py): this run's spend, its call log and the limits' reader
+        follow it."""
+        root = project.root if project is not None else None
+        telemetry.keep_ledger(root)
+        call_log.keep_days(root)
+        self.telemetry = telemetry.Telemetry(root, self.run_id) if root is not None else None
+        self._spend_at = float("-inf")
+        self.limits.repo_root = root or Path.home()
 
     # -- the host's thread and its bus ---------------------------------------------------------------------
-
-    def call(self, fn: Callable[..., None], *a: Any) -> None:
-        self._call(fn, *a)
 
     def toast(self, message: str, title: str = "", severity: str = "information", timeout: float | None = None,
               kind: str = "") -> None:
@@ -188,25 +252,36 @@ class Orkboard:
             return
         self.on_change()
 
-    def budget_ok(self) -> bool:
-        return not self.demo and not treasury.over(self.spend.spent_usd, treasury.budget(self.repo_root)[0])
+    def budget_ok(self, root: Path | None = None) -> bool:
+        """Whether work may start in a project (the shown one when none is named): this run's spend under its cap."""
+        root = root or self.repo_root
+        if self.demo or root is None:
+            return False
+        return not treasury.over(self.spend.spent_usd, treasury.budget(root)[0])
 
     # -- what the page sees ----------------------------------------------------------------------------------
 
     def snapshot(self) -> dict[str, Any]:
-        """What the shell reads (spec 37 §4): the Board's counts and limits, the first screen, the top bar's spend,
-        the repository and an update."""
-        gold_usd, lumber_tokens = treasury.budget(self.repo_root)
+        """What the shell reads (spec 37 §4, §8): the shown Board's counts and limits, the first screen, the top
+        bar's spend, the repository, the project switcher (`projects.list`) and an update."""
+        root = self.repo_root
+        gold_usd, lumber_tokens = treasury.budget(root) if root is not None else (treasury.GOLD_LIMIT_USD,
+                                                                                   treasury.LUMBER_LIMIT_TOKENS)
         gold, _gold_level, lumber, _lumber_level = treasury.words(self.spend, gold_usd, lumber_tokens)
         _quota, _level, show_gold = treasury.quota(self.machine, self.limits())
-        return {**self.ideas.snapshot(), "focus": "board", "onboarding": self.onboarding.snapshot(),
+        board = self.ideas.snapshot() if self.ideas is not None else {
+            "focus": "board", "ideas_rev": 0, "needs_you": 0, "idea_states": [], "review_count": 0,
+            "review_results": [], "limits": []}
+        return {**board, "focus": "board", "onboarding": self.onboarding.snapshot(),
                 "hud": {"show_gold": show_gold, "gold": gold, "lumber": lumber},
-                "repo": str(self.repo_root), "update": self.updates.snapshot()}
+                "repo": str(root) if root is not None else "", "projects": self.projects.list(),
+                "update": self.updates.snapshot()}
 
     def phone_snapshot(self) -> dict[str, Any]:
         """The snapshot as a phone gets it; `rev` names its content (gui/phones.py sends it again only when it moved)."""
         s = self.snapshot()
-        out = {"v": 1, "project": self.repo_root.name, "focus": "board", "look": "office",
+        root = self.repo_root
+        out = {"v": 1, "project": root.name if root is not None else "", "focus": "board", "look": "office",
                **{k: s[k] for k in ("ideas_rev", "needs_you", "idea_states", "review_count", "review_results", "limits")},
                "hud": dict(s["hud"])}
         out["rev"] = hashlib.sha256(json.dumps(out, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
@@ -232,7 +307,7 @@ class Orkboard:
 
     def tick(self, now: float | None = None) -> None:
         now = time.monotonic() if now is None else now
-        if now - self._spend_at >= TELEMETRY_REFRESH_S:
+        if self.telemetry is not None and now - self._spend_at >= TELEMETRY_REFRESH_S:
             self._spend_at = now
             try:
                 self.spend = self.telemetry.refresh()
@@ -240,11 +315,11 @@ class Orkboard:
                 pass
         self.limits.tick(now)
         self.updates.tick(now)
-        self.ideas.tick(now)
+        self.projects.tick(now)           # every open project's Board: showing another stops nothing
 
     def close(self) -> None:
-        self.ideas.stop_all()
-        self.day_logs.close()
+        self.projects.close_all()
+        call_log.keep_days(None)
 
     # -- the page's commands ---------------------------------------------------------------------------------
 
@@ -259,8 +334,8 @@ class Orkboard:
             raise CommandError(str(e)) from None
 
     def _halt(self, args: dict) -> int:
-        """🛑 Stop all: the Board's keeper and runner stop, every agent process is killed."""
-        self.ideas.stop_all(device="phone" if args.get("device") == "phone" else "desktop")
+        """🛑 Stop all: every open project's keeper and runner stop, every agent process is killed."""
+        self.projects.stop_all(device="phone" if args.get("device") == "phone" else "desktop")
         stopped = halt.halt_all()
         self.toast(f"Stopped {stopped} run{'s' if stopped != 1 else ''}" if stopped else "Nothing was running",
                    title="Stop all")
@@ -331,36 +406,61 @@ def _stop(server: Any, thread: Any, stop: Callable[[], None]) -> None:
     stop()
 
 
-def run(repo_root: Path, browser: bool = False, port: int = 0, demo: bool = False) -> int:
-    """Orkboard on `repo_root` until its window closes; `core.updates.RESTART` when it closed on an update it
-    installed."""
+def run(repo_root: Path | None, browser: bool = False, port: int = 0, demo: bool = False) -> int:
+    """Orkboard on `repo_root` (None: the start screen), the projects open when it last closed opened again, until
+    its window closes; `core.updates.RESTART` when it closed on an update it installed."""
     from orkboard.gui.server import Server
-    host = Orkboard(repo_root, demo=demo)
+    host = Orkboard(repo_root, demo=demo, restore=True)
     server = Server(host, port)
     thread = server.start_thread()
     show(host, server, thread, browser)
     return core_updates.RESTART if host.updates.restart_wanted else 0
 
 
+def start_folder(folder: Path | None, machine: settings.MachineSettings) -> Path | None:
+    """The project `orkboard` opens (spec 37 §8): the folder named; without one the last shown project, else the
+    project it was started in (`config.find_project_root`); with none, None (the start screen)."""
+    from orkboard.config import find_project_root
+    if folder is not None:
+        return Path(folder).expanduser().resolve()
+    from orkboard.realm import project_folder
+    last = next((r for r in machine.projects_recent if not project_folder.refusal(r)), None)
+    if last is not None:
+        return Path(last)
+    try:
+        return find_project_root(None)
+    except FileNotFoundError:
+        return None
+
+
 def main(argv: list[str] | None = None) -> int:
-    """`orkboard [board] [--repo DIR] [--browser] [--port N]`: Orkboard on the project it was started in
-    (`config.find_project_root`); `board` is the old habit of `orkcraft board`, and changes nothing."""
-    from orkboard.config import NOT_A_PROJECT_HINT, find_project_root
+    """`orkboard [board] [<folder>] [--repo DIR] [--browser] [--port N]`: Orkboard on that folder; without one the last
+    shown project, else the one it was started in, else the start screen. `board` is the old habit of
+    `orkcraft board`, and changes nothing."""
+    from orkboard.realm import project_folder
     parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: goals, ideas, agents, review")
-    parser.add_argument("command", nargs="?", choices=["board"], help=argparse.SUPPRESS)   # `orkboard board`: the same
+    parser.add_argument("words", nargs="*", metavar="folder", help="The project's folder to open")
     parser.add_argument("--version", action="version", version=f"Orkboard {__version__}")
-    parser.add_argument("--repo", type=Path, default=None, help="Path to project root")
+    parser.add_argument("--repo", type=Path, default=None, help="Path to project root (as a folder named)")
     parser.add_argument("--browser", action="store_true", help="Open it in the browser instead of a window")
     parser.add_argument("--port", type=int, default=0, help="Port on 127.0.0.1 (default: any free one)")
     args = parser.parse_args(argv)
-    try:
-        root = find_project_root(args.repo)
-    except FileNotFoundError as e:
-        sys.stderr.write(f"orkline error: {e}\n{NOT_A_PROJECT_HINT}\n")
-        return 1
+    words = list(args.words)
+    if words and words[0] == "board":                     # `orkboard board`: the same
+        words.pop(0)
+    if len(words) > 1:
+        parser.error("one folder at most")
+    folder = Path(words[0]) if words else args.repo
+    root = start_folder(folder, settings.load())
+    if root is not None:
+        why = project_folder.refusal(root)
+        if why:
+            sys.stderr.write(f"orkline: {root}: {why}\n")
+            return 1
     code = run(root, browser=args.browser, port=args.port)
     if code == core_updates.RESTART:            # the window installed an update: it opens again on it
-        core_updates.restart(["--repo", str(root), *(["--browser"] if args.browser else []),
+        core_updates.restart([*(["--repo", str(root)] if root is not None else []),
+                              *(["--browser"] if args.browser else []),
                               *(["--port", str(args.port)] if args.port else [])])
     return code
 
