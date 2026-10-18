@@ -5,7 +5,7 @@
 import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 
-const ICONS = { goal: "🎯", asks: "❓", plan: "📋", todo: "☑️", failed: "⚠️", proposal: "💡" };
+const ICONS = { goal: "🎯", asks: "❓", plan: "📋", todo: "☑️", failed: "⚠️", proposal: "💡", op: "☑️", op_failed: "⚠️", op_rules: "💡" };
 const MAX_FILE = 5 * 1024 * 1024;
 const isList = /^([-*+]|\d+[.)])\s+/;
 
@@ -23,7 +23,7 @@ const toBase64 = (file) => new Promise((ok, no) => {
   r.readAsDataURL(file);
 });
 
-export function makeNeeds(core, ctx) {
+export function makeNeeds(core, ctx, ops) {
   const st = core.st;
 
   // -- the questions of a spec or a goal: one form, one Send (§0's one round) ---------------------------------------------
@@ -127,7 +127,10 @@ export function makeNeeds(core, ctx) {
   function row(n) {
     if (n.kind === "proposal") return proposal(n);
     const go = () => {
-      if (n.kind === "goal" || n.kind === "asks") askForm(n);
+      if (n.kind === "op") ops.openCheck(n.op);
+      else if (n.kind === "op_failed") ops.openRun(n.op);
+      else if (n.kind === "op_rules") ops.openProposal(n);
+      else if (n.kind === "goal" || n.kind === "asks") askForm(n);
       else if (n.kind === "todo") todoSheet(n);
       else core.open({ kind: "idea", slug: n.idea });
     };
@@ -141,7 +144,7 @@ export function makeNeeds(core, ctx) {
     sheets: [qSheet.el, tSheet.el],
     /** The list's nodes, narrowed to the chosen goal. */
     draw() {
-      const all = (st.board?.needs_you || []).filter((n) => !st.track || n.goal === st.track);
+      const all = (st.board?.needs_you || []).filter((n) => !st.track || n.goal === st.track || n.kind.startsWith("op"));   // Operations' rows are the person's, in every project and goal
       const kids = [h("h3", {}, "Needs you")];
       if (!all.length) kids.push(h("p", { class: "muted" }, "Nothing waits on you."));
       return [...kids, ...all.map(row)];
