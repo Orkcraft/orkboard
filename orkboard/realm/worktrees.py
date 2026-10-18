@@ -5,15 +5,13 @@
 `create` checks the branch name with `git check-ref-format`, reuses an existing branch or starts
 a new one from `base`; `remove` refuses while the worktree has uncommitted or untracked work
 unless forced, and keeps the branch. Every git call uses fixed arguments (no shell) and runs in the
-repository. The Board's tasks and the Agent pool share this part (Orkboard's); recording a worktree in an
-orkspace's `git` block of the Town Scroll is the town's (`realm/orkspace_trees.py`).
+repository. The Board's tasks use it; an orkspace's worktree (`link`, `unlink`, `cwd_for`) is Orkline's.
 """
 from __future__ import annotations
 
 import re
 import subprocess
 from dataclasses import dataclass
-from importlib import import_module
 from pathlib import Path
 
 WORKTREES_DIR = Path(".orkcraft") / "worktrees"
@@ -96,14 +94,3 @@ def remove(repo_root: Path, path: Path, force: bool = False) -> None:
     proc = _git(repo_root, *args)
     if proc.returncode != 0:
         raise WorktreeError((proc.stderr or proc.stdout).strip() or "git worktree remove failed")
-
-
-# An orkspace's worktree (`link`, `unlink`, `cwd_for`) is the town's: realm/orkspace_trees.py (spec 37 §3.4). Asked
-# here, the three are found there, so an old caller keeps working; Orkboard never asks for them.
-_MOVED = ("link", "unlink", "cwd_for")
-
-
-def __getattr__(name: str):
-    if name in _MOVED:
-        return getattr(import_module(f"{__package__}.orkspace_trees"), name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
