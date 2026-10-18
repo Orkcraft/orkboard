@@ -83,12 +83,19 @@ PROPOSAL_MADE = "proposal_made"   # idea, goal
 PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
 BOARD_COMMITTED = "board_committed"   # commit, pages, what, seconds (spec 35 §13: the Board's pages on the work branch)
 BOARD_HELD = "board_held"         # why (the work branch could not move to the Board's commit)
+# Spec 37 §8: the project, as in an IDE (in the project's own log).
+PROJECT_OPENED = "project_opened"   # new (never opened on this machine), git, device
+PROJECT_CLOSED = "project_closed"   # stopped (its running tasks were stopped)
+FILE_SAVED = "file_saved"         # kind (markdown · text), bytes: never the path or the text
+GIT_COMMITTED = "git_committed"   # files (how many), device
+GIT_PUSHED = "git_pushed"         # branch, device
 
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
           TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, TASK_STOPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, ROLE_SAVED,
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
-          IDEA_ANSWERED, BOARD_COMMITTED, BOARD_HELD)
+          IDEA_ANSWERED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
+          GIT_PUSHED)
 
 _LOCK = threading.Lock()
 
