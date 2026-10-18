@@ -1,7 +1,7 @@
 """The whole loop of the board in focus (docs/specs/29a-board-focus.md, 33 §2–§4, 35 §2–§5): a goal from a description,
 an idea under it drafted at once, its question answered (one round), the plan made at once and started by itself (low risk, Normal),
 its task a Claude session whose commit waits at Review; the person merges it into `dev`, which is made, and nothing is
-pushed. A real Host on a temp repository with a bare origin; `claude` is a stub on PATH that answers each kind of call."""
+pushed. A real Orkboard host on a temp repository with a bare origin; `claude` is a stub on PATH that answers each kind of call."""
 from __future__ import annotations
 
 import json
@@ -13,8 +13,8 @@ import time
 
 import pytest
 
-from orkboard.gui.host import Host
-from orkboard.realm import checkpoint, ideas
+from orkboard.gui.board_host import Orkboard
+from orkboard.realm import ideas
 
 STUB = r'''#!{python}
 import json, os, subprocess, sys
@@ -63,8 +63,7 @@ def town(fake_repo, tmp_path, monkeypatch):
     stub.write_text(STUB.replace("{python}", sys.executable))
     stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
     monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{os.environ['PATH']}")
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
+    host = Orkboard(fake_repo)
     yield host, fake_repo, origin
     host.ideas.stop_all()
 

@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from orkboard.gui.host import Host
-from orkboard.realm import checkpoint, event_log, ideas
+from orkboard.gui.board_host import Orkboard
+from orkboard.realm import event_log, ideas
 from orkboard.realm.idea_git import BoardTree, IdeaGit
 
 WIKI = "llm-wiki/general"
@@ -144,8 +144,7 @@ def test_the_move_copies_commits_then_removes_only_untracked_copies(repo):
 
 def test_the_host_keeps_its_pages_in_the_tree_and_logs_each_commit(fake_repo):
     (fake_repo / ".gitignore").write_text(".orkcraft/\n")
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
+    host = Orkboard(fake_repo)
     root = host.ideas.root()
     assert ".orkcraft/board" in root.as_posix()
     goal = ideas.add_track(root, "In the tree")
@@ -160,8 +159,7 @@ def test_the_host_keeps_its_pages_in_the_tree_and_logs_each_commit(fake_repo):
 
 def test_the_host_says_board_held_when_the_person_has_changes_in_those_files(fake_repo):
     (fake_repo / ".gitignore").write_text(".orkcraft/\n")
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
+    host = Orkboard(fake_repo)
     root = host.ideas.root()
     goal = ideas.add_track(root, "Held")
     host.ideas.tree_flush(force=True)
@@ -176,8 +174,7 @@ def test_the_host_says_board_held_when_the_person_has_changes_in_those_files(fak
 
 
 def test_the_clock_alone_makes_no_tree_and_no_branch(fake_repo):
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False)
+    host = Orkboard(fake_repo)
     host.ideas.keeper._tick_at = float("-inf")
     host.ideas.tick()
     host.ideas.keeper.run_night()

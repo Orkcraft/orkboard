@@ -11,18 +11,16 @@ from pathlib import Path
 
 import pytest
 
-from orkboard.gui import mobile
-from orkboard.gui.host import CommandError, Host
-from orkboard.realm import checkpoint, event_log, idea_secrets, ideas, jobs
+from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
+from orkboard.realm import event_log, idea_secrets, ideas, jobs
 
 NEW = {"ideas.answer", "ideas.queue", "ideas.read_stop", "ideas.start_now", "ideas.proposal", "ideas.board_set"}
 
 
 @pytest.fixture
-def host(fake_repo) -> Host:
+def host(fake_repo) -> Orkboard:
     (fake_repo / "src" / "board.py").write_text("x = 1\n")
-    checkpoint.ensure(fake_repo)
-    h = Host(fake_repo, auto_commit=False)
+    h = Orkboard(fake_repo)
     yield h
     sys.modules.pop("orkboard.core.idea_runner", None)
 
@@ -98,7 +96,7 @@ def _goal(host, about="Show the runs at a glance.", priority="normal", **more):
 
 
 def test_the_new_commands_are_the_hosts_and_a_phones(host):
-    assert NEW <= set(host.commands) and NEW <= set(mobile.COMMANDS)
+    assert NEW <= set(host.commands) and all(BoardPhone.allowed(host, c, {}) for c in NEW)
 
 
 def test_a_goal_from_a_description_and_a_priority_is_read_at_once_and_written(host, model):
@@ -275,9 +273,9 @@ def test_a_file_todo_is_kept_outside_the_repository_and_off_the_plan(host, model
     path = idea_secrets.file_path(host.ideas.state_dir, slug, "t2")
     assert path.read_bytes() == b'{"project": "x-secret"}' and oct(path.stat().st_mode & 0o777) == "0o600"
     assert host.ideas.state_dir in path.parents and not list(Path(host.town.repo_root).glob("**/google-services.json"))[1:]
-    guarded = mobile.guard("ideas.todo", {"idea": slug, "link": "paired"}, {"id": "p1", "name": "Phone"})
-    assert guarded["link"] == "paired" and mobile.guard("ideas.todo", {"link": "paired"}, {})["device"] == "phone"
-    assert "link" not in mobile.guard("ideas.todo", {"link": "paired"}, {})
+    guarded = BoardPhone.guard("ideas.todo", {"idea": slug, "link": "paired"}, {"id": "p1", "name": "Phone"})
+    assert guarded["link"] == "paired" and BoardPhone.guard("ideas.todo", {"link": "paired"}, {})["device"] == "phone"
+    assert "link" not in BoardPhone.guard("ideas.todo", {"link": "paired"}, {})
     host.command("ideas.drop", {"slug": slug})
     assert not path.exists()
 
