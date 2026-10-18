@@ -22,6 +22,17 @@ const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", te
 const usd = (x) => `$${Number(x) < 10 ? Number(x).toFixed(1) : Math.round(Number(x))}`;
 export const price = (e) => (e ? `~${usd(e.usd_low)}–${Number(e.usd_high) < 10 ? Number(e.usd_high).toFixed(1) : Math.round(Number(e.usd_high))}` : "");
 
+const STAGES = ["goal", "spec", "plan", "work", "rework", "dropped"];
+
+/** An idea's money so far (spec 36 §5): `≈$3.10 — goal 0.40 · spec 0.50 …`, the stages at 0 left out; `—` when all are unpriced. */
+export function spendLine(s) {
+  if (!s) return "";
+  const cents = (n) => Number(n).toFixed(2);
+  if (s.usd == null) return "This idea so far: —";
+  const parts = STAGES.filter((k) => s.stages?.[k]?.usd).map((k) => `${k} ${cents(s.stages[k].usd)}`);
+  return `This idea so far: ≈$${cents(s.usd)}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
+}
+
 /** "tasks k2 and k3 wait for it": the tasks a to-do holds back. */
 export function unblocks(todo) {
   const ids = todo.for || [];
@@ -51,13 +62,14 @@ export function makePreview(core, ctx) {
     const mine = ++seq;
     const names = p.kind === "task" || p.kind === "result" ? [["ideas.task", { slug: p.slug, task: p.task }]]
       : p.kind === "goal" ? [["ideas.goal", { slug: p.slug }]] : p.kind === "doc" ? [["ideas.doc", { path: p.path }]] : [["ideas.page", { slug: p.slug }]];
-    if (p.kind === "result") names.push(["ideas.diff", { slug: p.slug, task: p.task }]);
+    if (p.kind === "result") names.push(["ideas.diff", { slug: p.slug, task: p.task }], ["ideas.spend", { idea: p.slug }]);
     const got = await Promise.all(names.map(([n, a]) => ctx.send(n, a)));
     if (mine !== seq || !st.preview) return;
     if (failed(got[0])) { ctx.flash(got[0].error || got[0].result?.error); if (p.kind === "doc") data = { doc: null }; else return; }
     else if (p.kind === "goal") data = { goal: got[0].result };
     else if (p.kind === "doc") data = { doc: got[0].result };
-    else data = p.kind === "task" ? { task: got[0].result } : p.kind === "result" ? { task: got[0].result, diff: got[1].ok && !got[1].result?.error ? got[1].result : null }
+    else data = p.kind === "task" ? { task: got[0].result } : p.kind === "result" ? { task: got[0].result, diff: got[1].ok && !got[1].result?.error ? got[1].result : null,
+      spend: got[2].ok && !got[2].result?.error ? got[2].result : null }
       : { page: got[0].result };
     draw(false);
     clearTimeout(timer);
@@ -214,11 +226,12 @@ export function makePreview(core, ctx) {
     });
     return box;
   }
-  function resultScreen(t, diff, cur) {
+  function resultScreen(t, diff, cur, spend) {
     title.replaceChildren(h("span", { class: "muted" }, "Code "), t.title);
     const r = (st.review?.results || []).find((x) => x.idea === cur.slug && x.task === cur.task);
     body.replaceChildren(...[
       h("p", { class: "muted" }, t.idea_title),
+      spend ? h("p", { class: "muted spend-line", title: "At API prices, not your bill" }, spendLine(spend)) : null,
       r ? factsOf(r) : h("p", { class: "muted" }, "This result is no longer waiting at Review."),
       r?.conflict ? h("p", { class: "warn" }, `⚠ ${r.conflict}`) : null,
       !diff ? h("p", { class: "muted" }, "Reading the code…") : h("div", { class: "code" },
@@ -240,7 +253,7 @@ export function makePreview(core, ctx) {
     else if (cur.kind === "goal") actions = goalScreen(data.goal, cur);
     else if (cur.kind === "doc") actions = docScreen(data.doc, cur);
     else if (cur.kind === "task") actions = taskScreen(data.task, cur);
-    else actions = resultScreen(data.task, data.diff, cur);
+    else actions = resultScreen(data.task, data.diff, cur, data.spend);
     bar.replaceChildren(...actions.filter(Boolean));
     bar.hidden = !actions.filter(Boolean).length;
   }
