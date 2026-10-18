@@ -223,13 +223,15 @@ const TOOL_SVG = {
 };
 const TOOL_OF_MARK = { "✻": "claude", "✦": "agy", "⌬": "codex", "☤": "hermes", "π": "pi", "◆": "cursor" };
 
-/** An AI tool's mark by its id (`claude`) or its text mark (`✻`): the sprite in Camp, the SVG in Office. */
+/** An AI tool's mark by its id (`claude`) or its text mark (`✻`): the sprite in Camp, the SVG in Office (the sprite is
+ *  not even asked for there: Orkboard, always in Office, serves none). */
 export function ToolMark({ id = "", mark = "" }) {
   const tool = TOOL_SVG[id] ? id : TOOL_OF_MARK[mark];
   if (!tool) return mark ? html`<span class="gui-toolmark__text" aria-hidden="true">${mark}</span>` : null;
-  return html`<span class="gui-toolmark" aria-hidden="true"><img class="ok-sprite" data-kind="harness"
+  const camp = document.documentElement.dataset.look === "camp";
+  return html`<span class="gui-toolmark" aria-hidden="true">${camp && html`<img class="ok-sprite" data-kind="harness"
       src=${`/ds/sprites/icons/harness-${tool}.png`} srcset=${`/ds/sprites/icons/harness-${tool}@2x.png 2x`}
-      width="16" height="16" alt="" />
+      width="16" height="16" alt="" />`}
     <svg class="gui-toolmark__svg" viewBox="0 0 16 16" width="14" height="14">
       ${TOOL_SVG[tool].map(([tag, attrs]) => html`<${tag} ...${attrs} />`)}</svg></span>`;
 }

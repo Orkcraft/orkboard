@@ -24,6 +24,7 @@ const SECTIONS = {
   Decisions: ["ok", "M3 2v12M3 3h9l-2 2.5L12 8H3", "decide"],
 };
 const KIT_ICONS = "/ds/sprites/v4/ui/icons/";
+const camp = () => document.documentElement.dataset.look === "camp";    // the kit's icon only there: Office asks for no sprite
 
 const usd = (n) => (n < 10 ? n.toFixed(2).replace(/0$/, "") : String(Math.round(n)));
 export const price = (e) => (e ? `~$${usd(e.usd_low)}–${usd(e.usd_high)}` : "");
@@ -34,8 +35,8 @@ function Block({ s, onAsk, asked, slug, plan }) {
   const save = async () => { await run("ideas.edit", { slug, section: s.name, text: editing }); setEditing(null); };
   return html`<details class=${cls("board-sec kit-well", { "is-asked": asked })} data-sec=${role} data-name=${s.name} open=${s.name === "Gist"}>
     <summary><svg class="board-sec__icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d=${d} /></svg>
-      <span class="board-sec__mark" aria-hidden="true"><img alt="" width="24" height="24" src=${`${KIT_ICONS}${icon}.png`}
-        srcset=${`${KIT_ICONS}${icon}.png 1x, ${KIT_ICONS}${icon}@2x.png 2x`} /></span>
+      ${camp() && html`<span class="board-sec__mark" aria-hidden="true"><img alt="" width="24" height="24" src=${`${KIT_ICONS}${icon}.png`}
+        srcset=${`${KIT_ICONS}${icon}.png 1x, ${KIT_ICONS}${icon}@2x.png 2x`} /></span>`}
       <span class="board-sec__name">${s.name}</span>
       <b class="board-sec__thesis">${s.thesis}</b></summary>
     ${editing === null ? html`<div class="board-sec__body">${s.name === "Stages" ? html`<${Stages} text=${s.text} plan=${plan} slug=${slug} />` : html`<p class="board-sec__text">${s.text}</p>`}
