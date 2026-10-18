@@ -5,9 +5,12 @@ Every import counts, a lazy one inside a function too."""
 from __future__ import annotations
 
 import ast
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 import pytest
+
+from orkcraft import layers
 
 ROOT = Path(__file__).resolve().parents[1] / "orkcraft"
 FACELESS = ["core", "realm", "design"]
@@ -95,3 +98,57 @@ def test_whoever_starts_an_agent_registers_it_in_halt():
             bad.append(f"{rel} starts processes and knows the agent tools, but never uses realm/halt.py")
     assert not bad, "\n".join(bad)
     assert all((ROOT / rel).is_file() for rel in STARTS_WITHOUT_HALT), "a listed module is gone: drop it from the list"
+
+
+# Orkboard and Orkline (docs/specs/37-board-and-line.md): the modules of `layers.BOARD` import only each other. Every
+# edge out of it is listed here, `importer → imported`, and the list only shrinks (spec 37 B and C cut them).
+KNOWN = {
+    ("gui.ideas", "realm.catalog"),
+    ("gui.phone_http", "gui.pwa"),
+    ("realm.harnesses", "realm.builders"),
+    ("realm.tiers", "realm.builders"),
+    ("realm.jobs", "realm.roads"),
+    ("realm.jobs", "realm.road_agents"),
+    ("realm.jobs", "realm.forge"),
+    ("realm.worktrees", "scroll"),
+    ("realm.worktrees", "realm.projects"),
+}
+
+
+def _new_edges(found, known):
+    return [f"{layers.short(a)} imports {layers.short(b)} ({path.relative_to(ROOT.parent)}:{line}): cut it, or add "
+            f"the module to BOARD when all its own imports are Orkboard's"
+            for a, b, path, line in found if (layers.short(a), layers.short(b)) not in known]
+
+
+def test_orkboard_imports_only_orkboard():
+    bad = _new_edges(layers.edges(), KNOWN)
+    assert not bad, "\n".join(bad)
+
+
+def test_orkboard_check_sees_a_line_import(tmp_path):
+    """The check can fail: a Board module importing a line module (absolute, relative or lazy) is an edge."""
+    pkg = tmp_path / "orkcraft"
+    (pkg / "core").mkdir(parents=True)
+    (pkg / "__init__.py").write_text("")
+    (pkg / "core" / "__init__.py").write_text("")
+    (pkg / "core" / "idea_x.py").write_text(
+        "from orkcraft import camp\nfrom .. import camp as c2\n\ndef f():\n    import orkcraft.camp\n")
+    (pkg / "camp.py").write_text("")
+    mods = {"orkcraft": pkg / "__init__.py", "orkcraft.core": pkg / "core" / "__init__.py",
+            "orkcraft.core.idea_x": pkg / "core" / "idea_x.py", "orkcraft.camp": pkg / "camp.py"}
+    found = layers.edges(root=mods)
+    assert sorted(line for _a, _b, _p, line in found) == [1, 2, 5]
+    assert {(a, b) for a, b, _p, _l in found} == {("orkcraft.core.idea_x", "orkcraft.camp")}
+
+
+def test_known_edges_still_exist():
+    present = {(layers.short(a), layers.short(b)) for a, b, _p, _l in layers.edges()}
+    gone = sorted(KNOWN - present)
+    assert not gone, "\n".join(f"{a} -> {b} is gone from the code: remove it from KNOWN" for a, b in gone)
+
+
+def test_every_board_pattern_matches():
+    names = set(layers.modules())
+    dead = [p for p in layers.BOARD + layers.SPLIT if not any(fnmatchcase(n, p) for n in names)]
+    assert not dead, f"matches no module: {dead}"
