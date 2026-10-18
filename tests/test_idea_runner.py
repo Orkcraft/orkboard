@@ -13,8 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from orkcraft.core import idea_runner
-from orkcraft.core.idea_runner import IdeaRunner
+from orkboard.core import idea_runner
+from orkboard.core.idea_runner import IdeaRunner
 
 # What the stub does is chosen per task: STUB_MODE="k1=edit,k2=fail_once". Its calls go to STUB_LOG.
 STUB = r'''#!{python}
@@ -383,7 +383,7 @@ def test_settings_are_read_however_they_are_carried():
 
 # -- spec 33: Review ---------------------------------------------------------------------------------
 
-from orkcraft.core.idea_runner import RunnerError
+from orkboard.core.idea_runner import RunnerError
 
 
 def reviewing(town, **ideas):
@@ -462,7 +462,7 @@ def test_red_after_the_one_retry_waits_at_review_with_its_counts_and_cannot_merg
 
 
 def test_a_gate_without_pytest_says_no_counts():
-    from orkcraft.realm.idea_git import parse_tests
+    from orkboard.realm.idea_git import parse_tests
     assert parse_tests("no test files to run") == {"passed": 0, "failed": 0, "failing": [], "tail": "no test files to run"}
     got = parse_tests("FAILED tests/a.py::t1 - assert 1\nFAILED tests/a.py::t2\n2 failed, 18 passed in 1.2s")
     assert got["passed"] == 18 and got["failed"] == 2 and got["failing"] == ["tests/a.py::t1", "tests/a.py::t2"]
@@ -554,14 +554,14 @@ def test_the_log_is_cut_to_its_last_lines_and_masks_a_secret(town):
 
 
 def test_the_testers_defaults(town):
-    from orkcraft import settings
+    from orkboard import settings
     assert settings.IDEAS["merge_into"] == "dev" and settings.IDEAS["push"] is False and settings.IDEAS["review"] is True
     assert settings.clean_ideas({"merge_into": "main", "push": True})["merge_into"] == "main"
     assert settings.clean_ideas({"merge_into": "main", "push": True})["push"] is True
 
 
 def test_the_runner_writes_its_events_to_the_event_log(town):
-    from orkcraft.realm import event_log
+    from orkboard.realm import event_log
     plan_of(town, [{"id": "k1"}])
     runner, _ = reviewing(town)
     runner.start("demo")
@@ -580,7 +580,7 @@ def test_the_runner_writes_its_events_to_the_event_log(town):
 
 
 def test_back_and_drop_are_decisions_with_their_line_and_a_stop_is_a_task_stopped(town, monkeypatch):
-    from orkcraft.realm import event_log
+    from orkboard.realm import event_log
     monkeypatch.setenv("STUB_MODE", "k1=fix_conflict,k2=slow")
     plan_of(town, [{"id": "k1"}, {"id": "k2"}])
     runner, _ = reviewing(town, max_parallel=2)
@@ -599,7 +599,7 @@ def test_back_and_drop_are_decisions_with_their_line_and_a_stop_is_a_task_stoppe
 
 
 def test_a_task_runs_as_its_types_role_with_that_roles_model_and_instruction(town):
-    from orkcraft.realm import roles
+    from orkboard.realm import roles
     slug = roles.save(town.state, "Scribe", "laborer", 2, "Write like a patient scribe.")
     roles.set_kind(town.state, "docs", slug)
     plan_of(town, [{"id": "k1", "kind": "docs", "tier": "elder"}, {"id": "k2", "tier": "elder"}])
@@ -615,7 +615,7 @@ def test_a_task_runs_as_its_types_role_with_that_roles_model_and_instruction(tow
 
 
 def test_a_roles_max_parallel_is_held_besides_the_ideas(town, monkeypatch):
-    from orkcraft.realm import roles
+    from orkboard.realm import roles
     monkeypatch.setenv("STUB_SLEEP", "1.0")
     slug = roles.save(town.state, "Solo", "laborer", 1, "")
     roles.set_kind(town.state, "tests", slug)
@@ -633,7 +633,7 @@ def test_the_events_carry_the_role(town):
     runner.events = True
     runner.start("demo")
     wait_task(runner, "k1", "review")
-    from orkcraft.realm import event_log
+    from orkboard.realm import event_log
     rows = [r for r in event_log.read(town.repo) if r["event"] in ("task_state", "result_ready")]
     assert rows and all(r.get("role") == "grunt" for r in rows if r["event"] == "result_ready" or r["state"] in ("testing", "review"))
 
@@ -641,7 +641,7 @@ def test_the_events_carry_the_role(town):
 # -- spec 36: the ledger, Merge's `dear`, the prompt stable first ------------------------------------------------
 
 def test_a_tasks_two_rounds_and_a_gate_retry_write_their_lines(town, monkeypatch):
-    from orkcraft.realm import idea_spend
+    from orkboard.realm import idea_spend
     monkeypatch.setenv("STUB_MODE", "k1=fail_once,k2=fix_conflict")
     plan_of(town, [{"id": "k1"}, {"id": "k2"}])
     runner, _ = reviewing(town)
@@ -664,7 +664,7 @@ def test_a_tasks_two_rounds_and_a_gate_retry_write_their_lines(town, monkeypatch
 
 
 def test_merge_with_dear_writes_it_on_result_decided(town):
-    from orkcraft.realm import event_log
+    from orkboard.realm import event_log
     plan_of(town, [{"id": "k1"}, {"id": "k2"}])
     runner, _ = reviewing(town)
     runner.events = True
@@ -678,7 +678,7 @@ def test_merge_with_dear_writes_it_on_result_decided(town):
 
 
 def test_the_prompt_is_stable_first_and_lists_only_its_after_tasks(town):
-    from orkcraft.realm import roles
+    from orkboard.realm import roles
     roles.save(town.state, "Grunt", "", 8, "Keep it small. Name things plainly.", "grunt")
     (town.state).mkdir(parents=True, exist_ok=True)
     (town.state / "secrets.json").write_text(json.dumps({"ideas/demo/t1": "s3cret"}))

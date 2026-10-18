@@ -4,8 +4,8 @@ from __future__ import annotations
 import datetime as dt
 
 
-from orkcraft import schedule, settings
-from orkcraft.schedule import Span
+from orkboard import schedule, settings
+from orkboard.schedule import Span
 
 SIZE = (160, 50)
 MON_10 = dt.datetime(2026, 10, 5, 10, 0)      # a Monday

@@ -12,7 +12,7 @@ GUI shows the chevrons of the tier their road rules run at on the steward that c
 """
 from __future__ import annotations
 
-from orkcraft.realm import harnesses, model_families
+from orkboard.realm import harnesses, model_families
 
 TIERS = ("elder", "warrior", "laborer")          # heaviest first
 TIER_ICONS = {"elder": "★★★", "warrior": "★★", "laborer": "★"}     # chevrons: icons/rank-1..3.png in Camp
@@ -33,7 +33,7 @@ def tool_of(step: dict) -> str:
     """The tool a step runs on: `main` (or none) is the machine's main tool, as it is now."""
     harness = str(step.get("harness") or "")
     if harness in ("", harnesses.MAIN):
-        from orkcraft import settings
+        from orkboard import settings
         return settings.main_tool()
     return harness
 

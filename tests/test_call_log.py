@@ -12,7 +12,7 @@ import zipfile
 
 import pytest
 
-from orkcraft.realm import call_log, day_log, jobs, road_agents
+from orkboard.realm import call_log, day_log, jobs, road_agents
 
 ENVELOPE = json.dumps({"result": "done", "total_cost_usd": 0.03, "session_id": "s1",
                        "usage": {"input_tokens": 900, "output_tokens": 100, "cache_read_input_tokens": 4000}})
@@ -102,7 +102,7 @@ def test_outside_a_bench_run_a_call_goes_to_its_buildings_day(tmp_path, tool):
 
 def test_a_claude_call_keeps_how_it_worked_from_its_transcript(tmp_path, tool, monkeypatch):
     monkeypatch.setenv("CLAUDE_HOME", str(tmp_path / "claude"))
-    from orkcraft.sources import sessions
+    from orkboard.sources import sessions
     work = tmp_path / "wt"
     work.mkdir()
     transcript = sessions.claude_projects_dir(work) / "s1.jsonl"
@@ -152,9 +152,9 @@ def test_a_buildings_day_is_one_zip_and_asking_for_it_keeps_it(tmp_path, tool):
 
 
 def test_the_town_serves_a_buildings_day_and_clears_by_its_dislikes(fake_repo, isolated_layout_file, tool):
-    from orkcraft.gui.host import Host
-    from orkcraft.gui.server import Server
-    from orkcraft.realm import checkpoint, feedback
+    from orkboard.gui.host import Host
+    from orkboard.gui.server import Server
+    from orkboard.realm import checkpoint, feedback
     checkpoint.ensure(fake_repo)
     host = Host(fake_repo, auto_commit=False)
     try:
@@ -177,7 +177,7 @@ def test_the_town_serves_a_buildings_day_and_clears_by_its_dislikes(fake_repo, i
         yesterday = (today - dt.timedelta(days=1)).isoformat()
         _day(fake_repo, yesterday, "liked_one")
         _day(fake_repo, yesterday, "town_hall")
-        from orkcraft.realm import fastpath
+        from orkboard.realm import fastpath
         fastpath.save_settings(fake_repo, {"review_nightly": False})       # no night reading to wait for
         incident = feedback.Incident(f"{yesterday}T12:00:00", "town_hall", "logic", "", "")
         feedback._append(feedback._dir(fake_repo) / "incidents.jsonl", dataclasses.asdict(incident))
@@ -191,8 +191,8 @@ def test_the_town_serves_a_buildings_day_and_clears_by_its_dislikes(fake_repo, i
 
 def test_a_one_off_answer_is_kept_with_what_it_was_for(tmp_path, monkeypatch):
     import subprocess as sp
-    from orkcraft.realm import builders
-    from orkcraft.sources import telemetry
+    from orkboard.realm import builders
+    from orkboard.sources import telemetry
     monkeypatch.setattr(builders, "_call", lambda h, prompt, model: sp.CompletedProcess([], 0, ENVELOPE, ""))
     with call_log.kept(tmp_path / "calls", "building"), telemetry.tagged("sort", "tower"):
         assert builders.ask("claude", "sort these letters", "haiku")[0] == "done"
@@ -213,7 +213,7 @@ def test_kept_for_analysis_every_day_stays_a_month(tmp_path):
 
 
 def test_a_period_is_one_zip_with_each_day_added_up(tmp_path, tool):
-    from orkcraft.realm import analytics
+    from orkboard.realm import analytics
     call_log.keep_days(tmp_path)
     jobs.run_work("claude", "fix the tests", tmp_path, threading.Event(), env={"ORKCRAFT_ORC": "pool/Grub"})
     jobs.run_work("claude", "again", tmp_path, threading.Event(), env={"ORKCRAFT_ORC": "pool/Grub"})
@@ -238,10 +238,10 @@ def test_a_period_is_one_zip_with_each_day_added_up(tmp_path, tool):
 
 
 def test_the_town_keeps_its_logs_and_serves_a_period(fake_repo, isolated_layout_file, tool):
-    from orkcraft.gui import town_settings
-    from orkcraft.gui.host import Host
-    from orkcraft.gui.server import Server
-    from orkcraft.realm import checkpoint
+    from orkboard.gui import town_settings
+    from orkboard.gui.host import Host
+    from orkboard.gui.server import Server
+    from orkboard.realm import checkpoint
     checkpoint.ensure(fake_repo)
     host = Host(fake_repo, auto_commit=False)
     try:

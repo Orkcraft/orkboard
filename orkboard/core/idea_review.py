@@ -33,12 +33,12 @@ class RunnerError(Exception):
 
 def _r():
     """The runner's module (it imports this one: looked up when a command runs)."""
-    from orkcraft.core import idea_runner
+    from orkboard.core import idea_runner
     return idea_runner
 
 
 def _Conflict():
-    from orkcraft.realm.idea_git import Conflict
+    from orkboard.realm.idea_git import Conflict
     return Conflict
 
 
@@ -102,8 +102,8 @@ class ReviewMixin:
         return commit
 
     def _remove_worktree(self, slug: str, tid: str) -> None:
-        from orkcraft.realm import worktrees
-        from orkcraft.realm.idea_git import _worktree_id
+        from orkboard.realm import worktrees
+        from orkboard.realm.idea_git import _worktree_id
         try:
             self.git.remove(worktrees.worktree_path(self.repo_root, _worktree_id(slug, tid)))
         except Exception:

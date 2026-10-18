@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.core import buildings
-from orkcraft.gui import mobile
-from orkcraft.gui.host import Host
-from orkcraft.gui.server import PROTOCOL, Server
-from orkcraft.realm import checkpoint
+from orkboard.core import buildings
+from orkboard.gui import mobile
+from orkboard.gui.host import Host
+from orkboard.gui.server import PROTOCOL, Server
+from orkboard.realm import checkpoint
 
 
 def _host(repo: Path) -> Host:
@@ -128,7 +128,7 @@ async def test_the_version_handshake_takes_the_token(fake_repo):
 
 def test_a_drop_with_a_client_id_is_made_once_an_hour(fake_repo, isolated_layout_file):
     import base64
-    from orkcraft.core.workers import pit as pit_worker
+    from orkboard.core.workers import pit as pit_worker
     host = _host(fake_repo)
     pit = buildings.raise_spec(host.town, buildings.type_spec(host.town, "pit")).id
     drop = lambda args: host.command("act", {"id": pit, "act": "drop", "args": args})      # noqa: E731
@@ -171,7 +171,7 @@ class _Listener:
 
 
 def test_the_notifier_says_each_new_question_once_in_one_line(fake_repo):
-    from orkcraft.gui import notify
+    from orkboard.gui import notify
     host = _host(fake_repo)
     listener = _Listener()
     n = notify.Notifier(host, listener)
@@ -194,7 +194,7 @@ def test_the_notifier_says_each_new_question_once_in_one_line(fake_repo):
 
 
 def test_the_notifier_says_an_idea_that_needs_you_and_a_result_that_waits_at_review(fake_repo):
-    from orkcraft.gui import notify
+    from orkboard.gui import notify
     host = _host(fake_repo)
     listener = _Listener()
     n = notify.Notifier(host, listener)
@@ -207,8 +207,8 @@ def test_the_notifier_says_an_idea_that_needs_you_and_a_result_that_waits_at_rev
 
 
 def test_the_notifier_says_an_error_by_its_title_only_and_a_session_that_ended(fake_repo):
-    from orkcraft.core import bus
-    from orkcraft.gui import notify
+    from orkboard.core import bus
+    from orkboard.gui import notify
     host = _host(fake_repo)
     listener = _Listener()
     notify.Notifier(host, listener)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import shutil
 
-from orkcraft.realm import harnesses
+from orkboard.realm import harnesses
 
 
 def test_no_real_agent_cli_nor_gh_is_on_the_path():

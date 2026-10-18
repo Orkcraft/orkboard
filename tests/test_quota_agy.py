@@ -1,7 +1,7 @@
 """
 tests/test_agy_quota.py
 
-Tests for orkcraft.quota.agy_quota using pytest.
+Tests for orkboard.quota.agy_quota using pytest.
 All tests use fixtures or mock runners; real CLI commands are never executed.
 """
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.quota.agy_quota import get_agy_quota
+from orkboard.quota.agy_quota import get_agy_quota
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 _AGY_FIXTURE = _FIXTURES_DIR / "agy_usage.json"

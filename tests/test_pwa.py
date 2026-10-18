@@ -15,9 +15,9 @@ import pytest
 from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus
 
-from orkcraft.gui import phone_tls, phones, pwa, tailnet
-from orkcraft.gui.host import Host
-from orkcraft.realm import checkpoint
+from orkboard.gui import phone_tls, phones, pwa, tailnet
+from orkboard.gui.host import Host
+from orkboard.realm import checkpoint
 from tests.test_phones import _pair, _pinned, _serve, _ws_url
 
 
@@ -270,7 +270,7 @@ def test_the_phone_wears_the_design_system_its_fence_and_its_resources():
     sprites its windows and HUD draw: the fence round a window, the resources before the town's name."""
     import re
 
-    from orkcraft.design import tokens
+    from orkboard.design import tokens
 
     head, body = _split(pwa.serve("GET", "/app/"))
     assert b'href="tokens.css"' in body and b'href="components.css"' in body

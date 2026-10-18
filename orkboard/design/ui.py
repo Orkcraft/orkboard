@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterator
 
-from orkcraft.design import tokens
+from orkboard.design import tokens
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "building-ui.v1.json"
 CONTRACTS_DIR = Path(__file__).with_name("buildings")

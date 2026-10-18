@@ -30,8 +30,8 @@ import re
 import threading
 from pathlib import Path
 
-from orkcraft.realm import harnesses
-from orkcraft.sources import telemetry
+from orkboard.realm import harnesses
+from orkboard.sources import telemetry
 
 LINES = "calls.jsonl"
 DAYS = Path(".orkcraft") / "logs"
@@ -96,7 +96,7 @@ def session_of(stdout: str) -> str:
 def trail(harness: str, session: str, workdir: Path | None) -> str:
     """How the call went, where the tool keeps it: Claude Code's transcript of the session (its thinking, every tool
     call and result), agy's brain folder; "" for a tool whose output already holds it (codex) or keeps none."""
-    from orkcraft.sources import sessions
+    from orkboard.sources import sessions
     if not session or _SAFE.search(session):
         return ""                                            # a session id is a name, never a path
     try:

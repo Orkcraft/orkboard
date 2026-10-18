@@ -9,10 +9,10 @@ import subprocess
 
 import pytest
 
-from orkcraft.core import idea_night
-from orkcraft.core.idea_keeper import IdeaKeeper
-from orkcraft.realm import event_log, ideas
-from orkcraft.sources.limits import Limit
+from orkboard.core import idea_night
+from orkboard.core.idea_keeper import IdeaKeeper
+from orkboard.realm import event_log, ideas
+from orkboard.sources.limits import Limit
 
 from tests.test_idea_draft import DRAFT, PLAN, Model
 
@@ -124,7 +124,7 @@ def test_the_night_stops_at_its_reserve(keeper):
 
 
 def test_the_proposals_call_reads_nothing_and_keeps_no_session(keeper, monkeypatch):
-    from orkcraft.realm import jobs
+    from orkboard.realm import jobs
     seen = []
 
     def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):

@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from orkcraft.env import getenv
+from orkboard.env import getenv
 
 TOWN_SCROLL = ".orkcraft.json"
 

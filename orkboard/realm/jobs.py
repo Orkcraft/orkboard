@@ -20,9 +20,9 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from orkcraft.realm import call_log, halt, harnesses, tool_run  # noqa: F401  (halt: its runs wait under it, tool_run.wait)
-from orkcraft.realm.gate_config import test_argv
-from orkcraft.sources import telemetry
+from orkboard.realm import call_log, halt, harnesses, tool_run  # noqa: F401  (halt: its runs wait under it, tool_run.wait)
+from orkboard.realm.gate_config import test_argv
+from orkboard.sources import telemetry
 
 SCRIPT_TIMEOUT_S = 300
 WORK_TIMEOUT_S = 1800
@@ -136,7 +136,7 @@ def context_of(harness: str, session: str, workdir: Path) -> int:
     """🪵 of a work session: what the model read on its last turn (input + cache), from Claude Code's transcript of
     the session. Not the run's billed tokens: those sum every turn, and each turn re-reads the context. 0 when the
     tool keeps no transcript we read (the 5-task rollover still holds)."""
-    from orkcraft.sources import sessions, transcripts
+    from orkboard.sources import sessions, transcripts
     if harness != "claude" or not session or not session.replace("-", "").replace("_", "").isalnum():
         return 0                                            # a session id is a name, never a path
     path = sessions.claude_projects_dir(workdir) / f"{session}.jsonl"
@@ -294,7 +294,7 @@ def ensure_repo(repo_root: Path) -> str:
 def add_worktree(repo_root: Path, building_id: str, orc: str) -> tuple[Path, str]:
     """The orc's own worktree (realm/worktrees.py: `.orkcraft/worktrees/`), detached: the branches
     belong to the tasks, not to the orc. Reused when there."""
-    from orkcraft.realm import worktrees
+    from orkboard.realm import worktrees
     wid = f"pool-{building_id}-{orc.lower()}".replace("_", "-")
     path = worktrees.worktree_path(repo_root, wid)
     if (path / ".git").exists():

@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from orkcraft.realm import harnesses
+from orkboard.realm import harnesses
 
 VERSION_TIMEOUT_S = 5
 # The oldest agy the 🛡 Warder guards: `--mode` is honoured in `-p` runs and a project's

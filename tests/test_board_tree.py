@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.gui.host import Host
-from orkcraft.realm import checkpoint, event_log, ideas
-from orkcraft.realm.idea_git import BoardTree, IdeaGit
+from orkboard.gui.host import Host
+from orkboard.realm import checkpoint, event_log, ideas
+from orkboard.realm.idea_git import BoardTree, IdeaGit
 
 WIKI = "llm-wiki/general"
 

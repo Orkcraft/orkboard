@@ -32,9 +32,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from orkcraft.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
-from orkcraft.realm import event_log, halt, harnesses, idea_secrets, idea_spend, idea_target, jobs, roles, status, tool_errors
-from orkcraft.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths
+from orkboard.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
+from orkboard.realm import event_log, halt, harnesses, idea_secrets, idea_spend, idea_target, jobs, roles, status, tool_errors
+from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
 HARNESS = "claude"
@@ -396,7 +396,7 @@ class IdeaRunner(ReviewMixin):
             self._limits_at = now
 
             def read() -> None:
-                from orkcraft.sources.limits import fetch_limits
+                from orkboard.sources.limits import fetch_limits
                 try:
                     self._limits = list(fetch_limits(self.repo_root))
                 except Exception:          # a quota never stops the work

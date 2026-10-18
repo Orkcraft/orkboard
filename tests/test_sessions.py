@@ -10,14 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.sources import sessions as ss
+from orkboard.sources import sessions as ss
 
 REAL_REPO = Path(__file__).resolve().parent.parent.parent
 
 
 def _hook_module(repo: Path):
     """Load orkcraft/hooks/session.py with its log redirected into `repo`."""
-    spec = importlib.util.spec_from_file_location("session_hook", Path(__file__).resolve().parents[1] / "orkcraft" / "hooks" / "session.py")
+    spec = importlib.util.spec_from_file_location("session_hook", Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     mod.LOG = repo / ".orkcraft" / "sessions.jsonl"
@@ -37,7 +37,7 @@ def test_hook_records_claude_and_agy_payloads(tmp_path: Path):
 
 
 def test_hook_script_never_fails_and_prints_only_for_agy(tmp_path: Path):
-    script = Path(__file__).resolve().parents[1] / "orkcraft" / "hooks" / "session.py"
+    script = Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py"
     for harness, expected in (("agy", "{}"), ("claude", "")):
         out = subprocess.run(["python3", str(script), harness], input="not json", capture_output=True, text=True)
         assert out.returncode == 0 and out.stdout.strip() == expected
@@ -107,7 +107,7 @@ def test_hook_logs_into_the_project_the_session_works_in(tmp_path: Path):
 
 
 def test_deploy_command_passes_orders_as_one_safe_argument(monkeypatch):
-    from orkcraft.sources.sessions import deploy_command
+    from orkboard.sources.sessions import deploy_command
 
     monkeypatch.setenv("ORKCRAFT_CLAUDE_BIN", "claude")
     assert deploy_command("claude", "") == ["claude"]
@@ -121,7 +121,7 @@ def test_deploy_command_passes_orders_as_one_safe_argument(monkeypatch):
 def test_hook_records_a_deployed_orc_and_rejects_junk(tmp_path, monkeypatch):
     import importlib.util, sys
     spec = importlib.util.spec_from_file_location(
-        "session_hook", Path(__file__).resolve().parents[1] / "orkcraft" / "hooks" / "session.py")
+        "session_hook", Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py")
     hook = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(hook)
     monkeypatch.setattr(hook, "LOG", tmp_path / "sessions.jsonl")

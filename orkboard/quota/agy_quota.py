@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime, timezone
 from typing import Callable, Optional
 
-from orkcraft.quota.models import QuotaStatus
+from orkboard.quota.models import QuotaStatus
 
 
 def _parse_iso_datetime(dt_str: Optional[str]) -> Optional[datetime]:

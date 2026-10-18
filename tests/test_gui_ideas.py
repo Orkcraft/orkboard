@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.core import idea_keeper
-from orkcraft.gui import ideas as gui_ideas
-from orkcraft.gui import mobile
-from orkcraft.gui.host import CommandError, Host
-from orkcraft.realm import checkpoint, idea_secrets, ideas, jobs
+from orkboard.core import idea_keeper
+from orkboard.gui import ideas as gui_ideas
+from orkboard.gui import mobile
+from orkboard.gui.host import CommandError, Host
+from orkboard.realm import checkpoint, idea_secrets, ideas, jobs
 
 BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.plan", "ideas.start", "ideas.move",
                   "ideas.edit", "ideas.track_add", "ideas.track_set", "ideas.todo", "ideas.drop", "ideas.stop",
@@ -27,7 +27,7 @@ def host(fake_repo) -> Host:
     checkpoint.ensure(fake_repo)
     h = Host(fake_repo, auto_commit=False)
     yield h
-    sys.modules.pop("orkcraft.core.idea_runner", None)
+    sys.modules.pop("orkboard.core.idea_runner", None)
 
 
 def _wait(host, slug):
@@ -150,7 +150,7 @@ def test_the_demo_runs_no_model(fake_repo):
 
 
 def test_start_without_a_runner_says_so_and_passes_nothing(host, monkeypatch):
-    monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", None)     # this build has no runner
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", None)     # this build has no runner
     slug = _add(host, "x")["slug"]
     _plan(host, slug)
     with pytest.raises(CommandError, match="runner is not in this build"):
@@ -178,7 +178,7 @@ def test_start_passes_the_plan_to_the_runner_and_stop_all_reaches_it(host, monke
         def stop_all(self):
             seen.append(("stop_all",))
 
-    monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
     slug = _add(host, "x")["slug"]
     _plan(host, slug)
     host.command("ideas.start", {"slug": slug})
@@ -262,7 +262,7 @@ def test_the_snapshot_writes_nothing_into_a_town_that_has_no_board_yet(host):
 
 # -- spec 33: Review, Agents, the top bar's limits ---------------------------------------------------------
 
-from orkcraft.sources.limits import Limit
+from orkboard.sources.limits import Limit
 import datetime as dt
 
 
@@ -372,7 +372,7 @@ def test_the_answers_at_review_reach_the_runner_and_its_refusals_are_plain_words
         def log(self, slug, tid):
             return "the log"
 
-    monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
     slug = _review(host)
     a = {"slug": slug, "task": "k1"}
     assert host.command("ideas.merge", a) == {"ok": True, "commit": "abc123"}
@@ -415,7 +415,7 @@ def test_into_sets_the_branch_made_when_missing_and_the_push_switch(host):
 import io
 import zipfile
 
-from orkcraft.realm import event_log
+from orkboard.realm import event_log
 
 
 def _events(host, *names):
@@ -456,7 +456,7 @@ def test_the_keepers_states_and_the_plan_are_logged_and_a_secret_never(host, mon
 
         def stop_all(self):
             pass
-    monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", types.SimpleNamespace(IdeaRunner=Runner))
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", types.SimpleNamespace(IdeaRunner=Runner))
     host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "value": "s3cr3t-value"})
     (done,) = _events(host, "todo_done")
     assert done["todo"] == "t1" and done["kind"] == "secret" and done["seconds"] is not None
@@ -495,7 +495,7 @@ def test_the_logs_zip_holds_the_events_the_ideas_and_no_secret(host):
 
 
 def test_a_keeper_calls_record_names_its_idea_so_the_two_logs_join(tmp_path):
-    from orkcraft.realm import call_log
+    from orkboard.realm import call_log
     call_log.keep_days(tmp_path)
     try:
         call_log.record({"ORKCRAFT_ORC": "board/keeper", "ORKCRAFT_IDEA": "dark-mode"}, "read", "claude", "m", "p", "o", "", 0, 1.0)
@@ -509,7 +509,7 @@ def test_a_keeper_calls_record_names_its_idea_so_the_two_logs_join(tmp_path):
 # -- spec 36 §4, §7: Review's cost against the plan, `dear`, `ideas.spend`, the roles' week and types ----------------
 
 def test_a_result_has_its_cost_split_and_against_its_planned_share(host):
-    from orkcraft.realm import idea_spend
+    from orkboard.realm import idea_spend
     slug = _review(host, ran_tier="warrior")
     state = host.ideas.state_dir
     for step, rnd, cost in (("task", 1, 0.3), ("task", 2, 0.1), ("fix", 2, 0.02)):
@@ -532,7 +532,7 @@ def test_merge_sends_dear_only_when_it_is_ticked(host, monkeypatch):
             seen.append(more)
             return "abc"
 
-    monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
     slug = _review(host)
     host.command("ideas.merge", {"slug": slug, "task": "k1"})
     host.command("ideas.merge", {"slug": slug, "task": "k1", "dear": True})
@@ -542,7 +542,7 @@ def test_merge_sends_dear_only_when_it_is_ticked(host, monkeypatch):
 
 
 def test_ideas_spend_gives_an_ideas_and_a_goals_money_and_the_phone_may_call_it(host):
-    from orkcraft.realm import idea_spend
+    from orkboard.realm import idea_spend
     slug = _add(host, "an idea that costs")["slug"]
     goal = ideas.idea_page(host.ideas.root(), slug).get("track")
     state = host.ideas.state_dir
@@ -559,7 +559,7 @@ def test_ideas_spend_gives_an_ideas_and_a_goals_money_and_the_phone_may_call_it(
 
 
 def test_roles_gain_their_types_week_and_hand_model_and_role_save_takes_types(host):
-    from orkcraft.realm import idea_spend
+    from orkboard.realm import idea_spend
     idea_spend.forget()
     slug = host.command("ideas.role_save", {"name": "Scribe", "model": "", "max_parallel": 1,
                                             "instruction": "Write plainly.", "kinds": ["docs", "text"]})["slug"]

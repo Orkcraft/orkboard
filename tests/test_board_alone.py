@@ -12,15 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft import cli, layers, settings
-from orkcraft.core import treasury
-from orkcraft.core.board_limits import BoardLimits
-from orkcraft.gui import pwa
-from orkcraft.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkcraft.gui.host import Host
-from orkcraft.gui.server import Server
-from orkcraft.realm import checkpoint, ideas, wiki
-from orkcraft.sources.limits import Limit
+from orkboard import cli, layers, settings
+from orkboard.core import treasury
+from orkboard.core.board_limits import BoardLimits
+from orkboard.gui import pwa
+from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
+from orkboard.gui.host import Host
+from orkboard.gui.server import Server
+from orkboard.realm import checkpoint, ideas, wiki
+from orkboard.sources.limits import Limit
 from tests import test_architecture as architecture
 from tests import test_gui_goals as goals_suite
 from tests import test_gui_ideas as ideas_suite
@@ -31,7 +31,7 @@ def host(fake_repo) -> Orkboard:
     checkpoint.ensure(fake_repo)
     h = Orkboard(fake_repo)
     yield h
-    sys.modules.pop("orkcraft.core.idea_runner", None)
+    sys.modules.pop("orkboard.core.idea_runner", None)
 
 
 model = goals_suite.model
@@ -51,7 +51,7 @@ def test_no_module_holds_both_and_no_edge_is_known():
 
 def test_a_run_faked_where_the_town_fakes_it_is_the_boards_too(monkeypatch):
     """`road_agents.run_proc = fake` reaches the Board's runs (realm/jobs.py reads realm/tool_run.py)."""
-    from orkcraft.realm import jobs, road_agents, tool_run
+    from orkboard.realm import jobs, road_agents, tool_run
     seen = []
     monkeypatch.setattr(road_agents, "run_proc", lambda cmd, *a, **k: seen.append(cmd) or (0, '{"result": "ok"}', ""))
     assert tool_run.run_proc is road_agents.run_proc
@@ -59,7 +59,7 @@ def test_a_run_faked_where_the_town_fakes_it_is_the_boards_too(monkeypatch):
 
 
 def test_the_machines_main_tool_and_tiers_are_read_cached_from_settings(tmp_path, monkeypatch):
-    from orkcraft.realm import builders, harnesses, tiers
+    from orkboard.realm import builders, harnesses, tiers
     file = tmp_path / "machine.json"
     monkeypatch.setenv("ORKCRAFT_SETTINGS_FILE", str(file))
     m = settings.MachineSettings()
@@ -72,7 +72,7 @@ def test_the_machines_main_tool_and_tiers_are_read_cached_from_settings(tmp_path
 
 
 def test_an_orkspaces_worktree_is_the_towns_and_its_old_names_still_answer():
-    from orkcraft.realm import orkspace_trees, worktrees
+    from orkboard.realm import orkspace_trees, worktrees
     assert worktrees.cwd_for is orkspace_trees.cwd_for and worktrees.link is orkspace_trees.link
     with pytest.raises(AttributeError):
         worktrees.nothing_here
@@ -90,7 +90,7 @@ def test_orkboards_wiki_is_the_setting_else_the_general_one(fake_repo):
 
 
 def test_orklines_board_finds_the_towns_wiki_as_before(fake_repo):
-    from orkcraft.core import buildings
+    from orkboard.core import buildings
     town_host = Host(fake_repo, auto_commit=False)
     assert town_host.ideas.wiki() == wiki.root_of(fake_repo, None, "general")     # no Wiki in the camp: the default
     spec = buildings.type_spec(town_host.town, "scrolls")
@@ -156,7 +156,7 @@ def test_a_phone_may_send_the_boards_commands_and_stop_all_only(host):
 
 
 def test_the_first_screen_saves_the_tools_and_raises_no_town(fake_repo, tmp_path, monkeypatch):
-    from orkcraft import tools
+    from orkboard import tools
     monkeypatch.setenv("ORKCRAFT_ONBOARDING", "1")
     file = Path(settings.path())
     monkeypatch.setattr(tools, "detect", lambda *a, **k: [tools.ToolStatus(t, found=t.id == "claude", version="2")
@@ -190,7 +190,7 @@ def test_the_page_is_board_js_in_offices_look_and_the_phones_board_app_js(host):
 
 
 def test_orkcraft_board_starts_orkboard_on_the_project(fake_repo, monkeypatch):
-    from orkcraft.gui import board_host
+    from orkboard.gui import board_host
     started = []
     monkeypatch.setattr(board_host, "run", lambda root, browser=False, port=0: started.append((root, browser, port)) or 0)
     monkeypatch.setenv("ORKCRAFT_NO_UPDATE", "1")

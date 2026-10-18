@@ -21,7 +21,7 @@ import zipfile
 from pathlib import Path
 from typing import Callable
 
-from orkcraft.realm import call_log
+from orkboard.realm import call_log
 
 ASKED = ".asked"                  # in a building's day folder: its log was taken, keep the day
 KEEP_DAYS = 14                    # how long a day that was asked for or disliked is kept

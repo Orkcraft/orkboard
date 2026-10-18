@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-HOOK = Path(__file__).resolve().parents[1] / "orkcraft" / "hooks" / "warder.py"
+HOOK = Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "warder.py"
 spec = importlib.util.spec_from_file_location("warder_hook", HOOK)
 warder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(warder)

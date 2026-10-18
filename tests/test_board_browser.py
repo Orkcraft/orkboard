@@ -16,10 +16,10 @@ import pytest
 playwright = pytest.importorskip("playwright.sync_api")
 pw = pytest.importorskip("playwright.async_api")
 
-from orkcraft.gui import phone_tls  # noqa: E402
-from orkcraft.gui.board_host import Orkboard  # noqa: E402
-from orkcraft.gui.server import Server  # noqa: E402
-from orkcraft.realm import jobs  # noqa: E402
+from orkboard.gui import phone_tls  # noqa: E402
+from orkboard.gui.board_host import Orkboard  # noqa: E402
+from orkboard.gui.server import Server  # noqa: E402
+from orkboard.realm import jobs  # noqa: E402
 from tests.test_gui_browser import _launch  # noqa: E402
 from tests.test_phones import _listening  # noqa: E402
 from tests.test_pwa_browser import CHROMIUM, WAIT_MS, _spki  # noqa: E402

@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.core import buildings, roads
-from orkcraft.gui import mobile, phones, tailnet
-from orkcraft.gui.host import CommandError, Host
-from orkcraft.realm import checkpoint, places
+from orkboard.core import buildings, roads
+from orkboard.gui import mobile, phones, tailnet
+from orkboard.gui.host import CommandError, Host
+from orkboard.realm import checkpoint, places
 
 from tests.test_phones import _https, _pair, _serve
 

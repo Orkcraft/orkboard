@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.gui import mobile
-from orkcraft.gui.host import CommandError
-from orkcraft.realm import gate_config, idea_git
-from orkcraft.realm.idea_git import IdeaGit
+from orkboard.gui import mobile
+from orkboard.gui.host import CommandError
+from orkboard.realm import gate_config, idea_git
+from orkboard.realm.idea_git import IdeaGit
 
 from tests.test_gui_goals import host  # noqa: F401  (the host fixture)
 from tests.test_idea_git import commit_in, git, repo  # noqa: F401  (a repository with no tests)
@@ -87,7 +87,7 @@ def test_without_a_gate_table_the_files_are_those_of_today(tmp_path):
 
 
 def test_test_argv_comes_from_gate_config_for_the_forge_and_the_jobs():
-    from orkcraft.realm import forge, jobs
+    from orkboard.realm import forge, jobs
     assert gate_config.test_argv("pytest -q") == ["pytest", "-q"]
     assert gate_config.test_argv("pytest -q && ruff check .") == ["sh", "-c", "pytest -q && ruff check ."]
     assert forge.test_argv is gate_config.test_argv and jobs.test_argv is gate_config.test_argv

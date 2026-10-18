@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 from typing import Callable, Iterable
 
-from orkcraft.env import getenv
+from orkboard.env import getenv
 
 TTL_S = 24 * 3600            # a tool's list is asked again after a day
 FAILED_TTL_S = 3600          # … after an hour when it could not be had

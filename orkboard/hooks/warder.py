@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """🛡️ Warder — the Council's security orc, as a PreToolUse hook of every AI tool orkcraft leads.
 
-    .claude/settings.json → hooks.PreToolUse → python3 -m orkcraft.hooks.warder        (`orkcraft hooks install`)
-    .codex/hooks.json     → hooks.PreToolUse → python3 -m orkcraft.hooks.warder codex
-    .agents/hooks.json    → orkcraft.PreToolUse → python3 -m orkcraft.hooks.warder agy
-    .cursor/hooks.json    → hooks.preToolUse → python3 -m orkcraft.hooks.warder cursor
-    ~/.hermes/config.yaml → hooks.pre_tool_call → python3 -m orkcraft.hooks.warder hermes   (asked first)
-    pi: the extension `-e …/orkcraft.ts` (hooks/pi_extension.py) → python3 -m orkcraft.hooks.warder pi
+    .claude/settings.json → hooks.PreToolUse → python3 -m orkboard.hooks.warder        (`orkcraft hooks install`)
+    .codex/hooks.json     → hooks.PreToolUse → python3 -m orkboard.hooks.warder codex
+    .agents/hooks.json    → orkcraft.PreToolUse → python3 -m orkboard.hooks.warder agy
+    .cursor/hooks.json    → hooks.preToolUse → python3 -m orkboard.hooks.warder cursor
+    ~/.hermes/config.yaml → hooks.pre_tool_call → python3 -m orkboard.hooks.warder hermes   (asked first)
+    pi: the extension `-e …/orkcraft.ts` (hooks/pi_extension.py) → python3 -m orkboard.hooks.warder pi
 
 Hermes, Cursor and pi name their tools their way (`terminal`, `Shell`, `bash`…): `from_named` judges
 each as the Claude Code tool it is, and `answer` says the verdict as each reads it (Hermes hands an

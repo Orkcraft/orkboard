@@ -21,7 +21,7 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from orkcraft import autonomy, settings
+from orkboard import autonomy, settings
 
 CHANGES = ("arrived", "left")
 NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")

@@ -1,4 +1,4 @@
-"""Every AI tool's quota through the bundled `orkcraft.quota` (spends no quota): claude, agy and codex
+"""Every AI tool's quota through the bundled `orkboard.quota` (spends no quota): claude, agy and codex
 always; Hermes when it is on PATH; pi and Cursor keep no windows here (pi's spend shows in 🪙; Cursor has
 no public way to read its plan, and its stored sign-in token is never read)."""
 from __future__ import annotations
@@ -8,8 +8,8 @@ from shutil import which
 from dataclasses import dataclass
 from pathlib import Path
 
-from orkcraft.env import getenv
-from orkcraft.realm import harnesses
+from orkboard.env import getenv
+from orkboard.realm import harnesses
 
 PROVIDERS = harnesses.ids()     # the rows of ⏳ Limits, in this order
 
@@ -27,9 +27,9 @@ class Limit:
 
 def _codex(timeout: int) -> list:
     """Codex's windows: a plain row when it is not installed, not logged in or on an API key."""
-    from orkcraft import tools
-    from orkcraft.quota import codex_quota
-    from orkcraft.sources.sessions import codex_bin
+    from orkboard import tools
+    from orkboard.quota import codex_quota
+    from orkboard.sources.sessions import codex_bin
     path = which(codex_bin())
     if not path:
         return codex_quota.plain_row(codex_quota.NOT_INSTALLED)
@@ -45,7 +45,7 @@ def _on_path(harness: str) -> str | None:
 
 
 def _hermes(timeout: int) -> list:
-    from orkcraft.quota import hermes_quota
+    from orkboard.quota import hermes_quota
     path = _on_path("hermes")
     return hermes_quota.get_hermes_quota(path, timeout=timeout) if path else []
 
@@ -54,12 +54,12 @@ CURSOR_NOTE = "not read: Cursor has no public way to read its plan; see cursor.c
 
 
 def _cursor(timeout: int) -> list:
-    from orkcraft.quota.models import QuotaStatus
+    from orkboard.quota.models import QuotaStatus
     return [QuotaStatus("cursor", "", "", None, None, None, CURSOR_NOTE)] if _on_path("cursor") else []
 
 
 def _pi(timeout: int) -> list:
-    from orkcraft.quota.models import QuotaStatus
+    from orkboard.quota.models import QuotaStatus
     return [QuotaStatus("pi", "", "", None, None, None, "no windows: pi pays per token, see 🪙")] if _on_path("pi") else []
 
 
@@ -71,8 +71,8 @@ def fetch_limits(repo_root: Path, timeout: int = 30) -> list[Limit]:
     """
     if getenv("LIMITS").lower() in ("0", "false", "no", "off"):
         return [Limit("limits", "—", "—", None, None, "disabled (ORKCRAFT_LIMITS=0)")]
-    from orkcraft.quota.agy_quota import get_agy_quota
-    from orkcraft.quota.claude_quota import get_claude_quota
+    from orkboard.quota.agy_quota import get_agy_quota
+    from orkboard.quota.claude_quota import get_claude_quota
     out: list[Limit] = []
     for provider, fn, kwargs in (
         ("claude", get_claude_quota, {"timeout": timeout}),

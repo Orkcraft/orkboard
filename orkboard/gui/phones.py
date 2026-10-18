@@ -46,11 +46,11 @@ from websockets.frames import Frame, Opcode
 from websockets.http11 import Request
 from websockets.server import ServerProtocol
 
-from orkcraft import env
-from orkcraft.gui import phone_http, phone_tls, pwa, tailnet
-from orkcraft.gui.board_host import CommandError
-from orkcraft.gui.pairing import Bucket, PairError, Pairing, clean_name
-from orkcraft.gui.phone_http import (
+from orkboard import env
+from orkboard.gui import phone_http, phone_tls, pwa, tailnet
+from orkboard.gui.board_host import CommandError
+from orkboard.gui.pairing import Bucket, PairError, Pairing, clean_name
+from orkboard.gui.phone_http import (
     BODY_LIMIT,
     HEAD_LIMIT,
     HEAD_S,
@@ -58,7 +58,7 @@ from orkcraft.gui.phone_http import (
     _parse_head,
     _response,
 )
-from orkcraft.realm import places
+from orkboard.realm import places
 
 API = 1                  # the mobile API's version: a change that breaks a client raises it
 PUSH_S = 2.0             # a phone gets the compact snapshot at most this often, and only when its rev changed
@@ -326,8 +326,8 @@ class Listener:
             # Before pairing a phone shows the code it scanned; a wrong one counts as an attempt.
             if not token or not self.pairing.attempt() or not self.pairing.code_ok(token):
                 return _response(HTTPStatus.FORBIDDEN, keep_alive=keep_alive)
-        from orkcraft import __version__
-        from orkcraft.gui.server import PROTOCOL
+        from orkboard import __version__
+        from orkboard.gui.server import PROTOCOL
         return _json(HTTPStatus.OK, {"name": "orkcraft", "version": __version__, "protocol": PROTOCOL,
                                      "api": API}, keep_alive=keep_alive)
 

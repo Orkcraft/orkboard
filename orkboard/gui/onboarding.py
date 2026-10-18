@@ -22,9 +22,9 @@ from dataclasses import replace
 from typing import Any, Callable
 from urllib.parse import urlencode
 
-from orkcraft import settings, tools
-from orkcraft.env import getenv
-from orkcraft.realm import harnesses, tool_errors, tool_run
+from orkboard import settings, tools
+from orkboard.env import getenv
+from orkboard.realm import harnesses, tool_errors, tool_run
 
 TOOLS, WHO, MCP, TOWN, SURVEY, RAISING = "tools", "who", "mcp", "town", "survey", "raising"
 RAISE_STEP_S = 0.8          # between two raising steps of the town (gui/onboarding_town.py): each building seen going up

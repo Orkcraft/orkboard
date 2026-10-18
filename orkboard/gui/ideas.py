@@ -27,15 +27,15 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from orkcraft import settings
-from orkcraft.core import idea_keeper
-from orkcraft.realm import event_log, idea_secrets, idea_spend, ideas, wiki
-from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _str, _text
-from orkcraft.gui.ideas_board import BoardMixin
-from orkcraft.gui.ideas_goals import GoalsMixin
-from orkcraft.gui.ideas_limits import LimitsMixin
-from orkcraft.gui.ideas_roles import RolesMixin
-from orkcraft.realm.idea_git import IdeaGit
+from orkboard import settings
+from orkboard.core import idea_keeper
+from orkboard.realm import event_log, idea_secrets, idea_spend, ideas, wiki
+from orkboard.gui.ideas_args import IdeasError, _device, _opt, _str, _text
+from orkboard.gui.ideas_board import BoardMixin
+from orkboard.gui.ideas_goals import GoalsMixin
+from orkboard.gui.ideas_limits import LimitsMixin
+from orkboard.gui.ideas_roles import RolesMixin
+from orkboard.realm.idea_git import IdeaGit
 
 RUNNER_TICK_S = 3.0               # how often the runner looks at its tasks
 SNAPSHOT_S = 10.0                 # the most a cached Needs you count is kept without a change
@@ -170,7 +170,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         """The runner (spec 29a part B), made once; None while this build has none (`need`: say so instead)."""
         if self._runner is None and not self._runner_error:
             try:
-                from orkcraft.core.idea_runner import IdeaRunner
+                from orkboard.core.idea_runner import IdeaRunner
                 self._runner = IdeaRunner(self.host.repo_root, self.state_dir, self.host.machine, _Hop(self.host),
                                           events=not self.host.demo, on_held=lambda: self.log_limits(force=True),
                                           rank=self.rank)

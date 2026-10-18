@@ -17,7 +17,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from orkcraft.sources import pricing
+from orkboard.sources import pricing
 
 MAX_BYTES = 20 * 1024 * 1024
 DETAIL_CHARS = 2000

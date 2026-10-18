@@ -4,9 +4,9 @@
     pi -e <path> …                     # realm/harnesses.py passes it to every pi orkcraft starts
 
 pi runs an extension's `tool_call` handler before each tool: it hands the call to
-`python3 -m orkcraft.hooks.warder pi`, refuses a deny, asks the person in pi's UI on an ask (refuses
+`python3 -m orkboard.hooks.warder pi`, refuses a deny, asks the person in pi's UI on an ask (refuses
 when no one is there, a headless run), and lets anything else go. `session_start` and each `input`
-go to `orkcraft.hooks.session pi`. Our own failure never blocks a tool (pi blocks one whose handler
+go to `orkboard.hooks.session pi`. Our own failure never blocks a tool (pi blocks one whose handler
 throws, so every call is caught). docs/design/harnesses.md
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ const PYTHON = __PYTHON__;
 
 function call(module: string, payload: object): any {
   try {
-    const r = spawnSync(PYTHON, ["-m", `orkcraft.hooks.${module}`, "pi"],
+    const r = spawnSync(PYTHON, ["-m", `orkboard.hooks.${module}`, "pi"],
       { input: JSON.stringify(payload), encoding: "utf8", timeout: 10000 });
     return JSON.parse((r.stdout || "").trim() || "{}");
   } catch {

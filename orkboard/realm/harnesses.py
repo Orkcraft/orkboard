@@ -32,9 +32,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable
 
-from orkcraft.env import getenv
-from orkcraft.realm import model_families
-from orkcraft.sources import pricing
+from orkboard.env import getenv
+from orkboard.realm import model_families
+from orkboard.sources import pricing
 
 MAIN = "main"                  # a step on the machine's main tool
 TIERS = ("elder", "warrior", "laborer")
@@ -349,7 +349,7 @@ def _model(flag: str, model: str) -> list[str]:
 
 def _claude_mcp() -> list[str]:
     """A Test bench run's MCP servers only (realm/cassette.py): its configuration, and none of the person's own."""
-    from orkcraft.env import getenv
+    from orkboard.env import getenv
     path = getenv("MCP_CONFIG")
     return ["--mcp-config", path, "--strict-mcp-config"] if path else []
 
@@ -530,7 +530,7 @@ PI_WORK = "read,grep,find,ls,edit,write,bash"
 
 def pi_guard() -> list[str]:
     """`-e <orkcraft's extension>`: the Warder and the session log in every pi orkcraft starts."""
-    from orkcraft.hooks import pi_extension
+    from orkboard.hooks import pi_extension
     path = pi_extension.write()
     return ["-e", str(path)] if path else []
 
@@ -655,7 +655,7 @@ register(Harness(
 
 def tier_choices() -> dict:
     """{tool: {tier: model}} chosen on this machine (Settings → AI tools), read when the file changed."""
-    from orkcraft import settings              # it imports this module
+    from orkboard import settings              # it imports this module
     return getattr(settings.cached(), "tier_models", None) or {}
 
 

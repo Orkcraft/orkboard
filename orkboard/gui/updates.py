@@ -15,8 +15,8 @@ from __future__ import annotations
 import threading
 from typing import Any, Callable
 
-from orkcraft import __version__, settings
-from orkcraft.core import updates
+from orkboard import __version__, settings
+from orkboard.core import updates
 
 
 class Updates:

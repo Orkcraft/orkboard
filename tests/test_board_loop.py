@@ -13,8 +13,8 @@ import time
 
 import pytest
 
-from orkcraft.gui.host import Host
-from orkcraft.realm import checkpoint, ideas
+from orkboard.gui.host import Host
+from orkboard.realm import checkpoint, ideas
 
 STUB = r'''#!{python}
 import json, os, subprocess, sys

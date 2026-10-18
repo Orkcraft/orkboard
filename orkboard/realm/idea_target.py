@@ -16,7 +16,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Any
 
-from orkcraft.realm import plans
+from orkboard.realm import plans
 
 TARGETS = ("thrift", "balance", "quality")
 DEFAULT = "balance"
@@ -107,7 +107,7 @@ def tier_of(model: str) -> str:
     """The tier a model or tier counts as in an estimate (a model the tables do not know: warrior)."""
     if model in plans.tiers.TIERS:
         return model
-    from orkcraft.realm import harnesses
+    from orkboard.realm import harnesses
     return harnesses.tier_of_model(model) or "warrior"
 
 
@@ -156,7 +156,7 @@ def reserve(settings: dict | None, night: bool) -> float:
 def reserve_held(limits, settings: dict | None, now: float, provider: str = "claude") -> float | None:
     """What starts by itself waits while the tool's `left` is at or below the reserve (by day, or inside the night
     window): until when (epoch seconds), else None. With no limits read for the tool, no reserve applies."""
-    from orkcraft.realm import status
+    from orkboard.realm import status
     left = left_of(limits, provider)
     if left is None:
         return None

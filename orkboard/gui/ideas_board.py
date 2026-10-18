@@ -11,11 +11,11 @@ import time
 from pathlib import Path
 from typing import Any
 
-from orkcraft import settings
-from orkcraft.core import idea_keeper, idea_night
-from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkcraft.realm import event_log, idea_risk, idea_secrets, ideas
-from orkcraft.realm.idea_git import BoardTree
+from orkboard import settings
+from orkboard.core import idea_keeper, idea_night
+from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
+from orkboard.realm import event_log, idea_risk, idea_secrets, ideas
+from orkboard.realm.idea_git import BoardTree
 
 NEEDS_IDEA = ("asks", "plan", "failed", "proposed")
 

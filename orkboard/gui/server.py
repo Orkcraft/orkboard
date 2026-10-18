@@ -53,10 +53,10 @@ from websockets.datastructures import Headers
 from websockets.exceptions import ConnectionClosed
 from websockets.http11 import Request, Response
 
-from orkcraft import __version__
-from orkcraft.design import tokens
-from orkcraft.gui import phones, pwa
-from orkcraft.gui.board_host import CommandError
+from orkboard import __version__
+from orkboard.design import tokens
+from orkboard.gui import phones, pwa
+from orkboard.gui.board_host import CommandError
 
 STATIC = Path(__file__).with_name("static")
 TICK_S = 1.0

@@ -18,7 +18,7 @@ import json
 import time
 from pathlib import Path
 
-from orkcraft.realm import event_log, idea_risk, idea_target, ideas
+from orkboard.realm import event_log, idea_risk, idea_target, ideas
 
 OTHERS = 40                        # of the other goals' ideas not done, the most the draft is given
 MAX_DONE, MAX_OUT, MAX_TOUCHES, MAX_DEPENDS = 5, 3, 30, 8
@@ -26,7 +26,7 @@ COMPLEXITY = {"laborer": "S", "warrior": "M", "elder": "L"}
 
 
 def _kw():
-    from orkcraft.core import idea_keeper
+    from orkboard.core import idea_keeper
     return idea_keeper
 
 

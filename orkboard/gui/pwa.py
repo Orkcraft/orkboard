@@ -38,8 +38,8 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, quote, urlsplit
 
-from orkcraft.design import tokens
-from orkcraft.gui import tailnet
+from orkboard.design import tokens
+from orkboard.gui import tailnet
 
 ROOT = Path(__file__).resolve().parent / "static" / "pwa"
 FONTS = tokens.SYSTEM / "fonts"     # the desktop's faces (design/system/fonts), served as fonts/<file>
@@ -230,7 +230,7 @@ class Tailnet:
         now = time.monotonic() if now is None else now
         if now - self._at >= TAIL_S:
             self._at, self._got = now, self.phones()
-        from orkcraft.gui.phones import qr_data_uri   # phones imports this module
+        from orkboard.gui.phones import qr_data_uri   # phones imports this module
         got = self._got
         return {"running": got is not None, "installed": bool(tailnet.command()) and not tailnet.off(),
                 "account": (got or {}).get("account", ""),
@@ -306,7 +306,7 @@ def _restart_tail(listener, tail, move: bool) -> None:
     if listener.tail_server is not None:         # on the tailnet without a certificate: anew, with one
         old, listener.tail_server, listener.tail_address = listener.tail_server, None, ""
         old.close()
-    from orkcraft.gui import phone_tls
+    from orkboard.gui import phone_tls
     cert, key = phone_tls.ensure(listener.cert_folder)
     listener._start_tail(tail, listener.pairing.port(), phone_tls.context(cert, key), move)
 

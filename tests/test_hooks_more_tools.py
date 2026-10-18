@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.hooks import install, pi_extension, warder
+from orkboard.hooks import install, pi_extension, warder
 
 
 def _warder(monkeypatch, capsys, harness: str, payload: dict) -> str:

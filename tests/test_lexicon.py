@@ -1,7 +1,7 @@
 """One word for each concept: the Camp's when it says who, a plain one when it says what a thing does."""
 from __future__ import annotations
 
-from orkcraft.realm import catalog, lexicon, modes
+from orkboard.realm import catalog, lexicon, modes
 
 
 def test_a_concept_has_one_word():
@@ -71,7 +71,7 @@ def test_the_heaviest_tier_is_a_veteran_and_the_nights_council_are_the_elders():
     say = lexicon.words
     assert say("★★★ Elder — opus") == "★★★ Veteran — opus" and say("Default — Quality: Elder") == "Default — Quality: Veteran"
     assert say("The Elders advise") == "The Elders advise" and lexicon.term("elders", many=True) == "Elders"
-    from orkcraft.realm import modes, tiers
+    from orkboard.realm import modes, tiers
     assert modes.plain(tiers.label("elder")) == "Veteran" and say("warrior") == "warrior"   # a setting's value stays
 
 
@@ -86,7 +86,7 @@ def test_the_test_bench_and_its_mechanic_under_every_name_they_had():
     assert lexicon.words("Alchemist's Lab") == "Test bench"
     assert lexicon.words("Gearhead") == lexicon.words("Brewmaster") == "Mechanic"
     assert lexicon.words("🧪 Mechanic") == "🧪 Mechanic" and lexicon.words("Alchemist") == "Alchemist"
-    from orkcraft.realm import catalog
+    from orkboard.realm import catalog
     assert catalog.migrate({"id": "lab", "type": "lab", "title": "Mechanic"})["title"] == "Test bench"
 
 

@@ -196,7 +196,7 @@ def _write(path: Path, text: str) -> None:
 def _ensure_root(root: Path) -> None:
     """The Wiki the board writes into, scaffolded as the Wiki does when it is not there yet."""
     if not (root / "index.md").exists():
-        from orkcraft.realm import wiki
+        from orkboard.realm import wiki
         wiki.scaffold(root, "general")
     for rel, title, what in ((TRACKS, "Tracks", "The board's tracks, in order: what each is for and its success criteria."),
                              (IDEAS, "Ideas", "The board's ideas: each a spec under discussion, kept by the board.")):
@@ -583,7 +583,7 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
             raise ValueError(f"No idea {slug!r}")
         path.unlink(missing_ok=True)
         if state_dir is not None and re.fullmatch(r"[a-z0-9-]+", slug):
-            from orkcraft.realm import idea_spend
+            from orkboard.realm import idea_spend
             idea_spend.keep_gone(state_dir, slug)
             shutil.rmtree(state_dir / "ideas" / slug, ignore_errors=True)
         _reindex(root)

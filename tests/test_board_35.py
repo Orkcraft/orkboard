@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.gui import mobile
-from orkcraft.gui.host import CommandError, Host
-from orkcraft.realm import checkpoint, event_log, idea_secrets, ideas, jobs
+from orkboard.gui import mobile
+from orkboard.gui.host import CommandError, Host
+from orkboard.realm import checkpoint, event_log, idea_secrets, ideas, jobs
 
 NEW = {"ideas.answer", "ideas.queue", "ideas.read_stop", "ideas.start_now", "ideas.proposal", "ideas.board_set"}
 
@@ -24,7 +24,7 @@ def host(fake_repo) -> Host:
     checkpoint.ensure(fake_repo)
     h = Host(fake_repo, auto_commit=False)
     yield h
-    sys.modules.pop("orkcraft.core.idea_runner", None)
+    sys.modules.pop("orkboard.core.idea_runner", None)
 
 
 @pytest.fixture
@@ -73,7 +73,7 @@ class FakeRunner:
 
 @pytest.fixture
 def runner(monkeypatch):
-    monkeypatch.setitem(sys.modules, "orkcraft.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
     FakeRunner.started = []
     return FakeRunner
 
@@ -229,7 +229,7 @@ def test_a_proposal_taken_joins_the_queue_one_declined_is_kept_for_the_night(hos
     assert ideas.state(sd, take)["state"] == "raw" and ideas.state(sd, take)["queue"] == "night"
     host.command("ideas.proposal", {"slug": no, "take": False, "reason": "not now"})
     assert ideas.idea_page(root, no) is None
-    from orkcraft.core import idea_night
+    from orkboard.core import idea_night
     assert idea_night.declined(sd)[-1]["reason"] == "not now" and idea_night.declined(sd)[-1]["goal"] == g
     assert [(e["take"], e["has_reason"]) for e in _events(host, "proposal_answered")] == [(True, False), (False, True)]
 

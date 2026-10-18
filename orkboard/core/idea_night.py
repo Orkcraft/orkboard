@@ -23,7 +23,7 @@ import threading
 import time
 from pathlib import Path
 
-from orkcraft.realm import event_log, idea_target, ideas
+from orkboard.realm import event_log, idea_target, ideas
 
 RETRY_S = 600                     # a night the reserve held is tried again after this, inside the window
 DECLINED, NIGHT = "declined.jsonl", "night.json"
@@ -32,7 +32,7 @@ _PATH = re.compile(r"`?([\w.-]+(?:/[\w.*-]+)+/?|[\w-]+\.(?:py|js|ts|tsx|md|json|
 
 
 def _kw():
-    from orkcraft.core import idea_keeper
+    from orkboard.core import idea_keeper
     return idea_keeper
 
 
@@ -169,7 +169,7 @@ class NightMixin:
 
     def changed_since(self, commit: str) -> list[str] | None:
         """`git diff --name-only <commit>..HEAD`; None when it cannot be read."""
-        from orkcraft.realm.idea_git import _git
+        from orkboard.realm.idea_git import _git
         if not re.fullmatch(r"[0-9a-f]{7,40}", commit or ""):
             return None
         try:
@@ -199,7 +199,7 @@ class NightMixin:
     # -- proposals (§8) -----------------------------------------------------------------------------------------
 
     def commits_since(self, commit: str) -> str:
-        from orkcraft.realm.idea_git import _git
+        from orkboard.realm.idea_git import _git
         args = ["log", "--oneline", f"-{COMMITS_READ}"] + ([f"{commit}..HEAD"] if re.fullmatch(r"[0-9a-f]{7,40}", commit or "") else [])
         try:
             proc = _git(self.repo_root, *args)

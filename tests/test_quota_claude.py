@@ -1,7 +1,7 @@
 """
 tests/test_claude_quota.py
 
-Tests for orkcraft.quota.claude_quota using pytest.
+Tests for orkboard.quota.claude_quota using pytest.
 All tests use fixtures or mock runners; real CLI commands are never executed.
 """
 
@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from orkcraft.quota.claude_quota import get_claude_quota
+from orkboard.quota.claude_quota import get_claude_quota
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 _CLAUDE_FIXTURE = _FIXTURES_DIR / "claude_usage.json"

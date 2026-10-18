@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.realm import harnesses, model_families
-from orkcraft.sources import pricing
+from orkboard.realm import harnesses, model_families
+from orkboard.sources import pricing
 
 AGY_LIST = """gemini-3.7-flash-high Gemini 3.7 Flash (High)
 gemini-3.8-flash-high Gemini 3.8 Flash (High)

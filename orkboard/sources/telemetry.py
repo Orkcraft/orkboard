@@ -35,8 +35,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
 
-from orkcraft.sources import pricing
-from orkcraft.sources.sessions import log_file
+from orkboard.sources import pricing
+from orkboard.sources.sessions import log_file
 
 MAX_LINE = 4 * 1024 * 1024  # a single transcript line beyond this is skipped, not parsed
 

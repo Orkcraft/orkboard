@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from orkcraft.realm import idea_risk
-from orkcraft.realm.idea_risk import assess
+from orkboard.realm import idea_risk
+from orkboard.realm.idea_risk import assess
 
 
 @pytest.mark.parametrize("touches,texts,trigger,level", [

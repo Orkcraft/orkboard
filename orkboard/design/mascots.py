@@ -19,7 +19,7 @@ import re
 import struct
 import zlib
 
-from orkcraft.design import tokens
+from orkboard.design import tokens
 
 W, H = 12, 11
 STAGES = (1, 2, 3, 4)

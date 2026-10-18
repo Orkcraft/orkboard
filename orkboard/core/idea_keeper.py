@@ -38,10 +38,10 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-from orkcraft.core.idea_draft import DraftMixin
-from orkcraft.core.idea_goals import GoalMixin
-from orkcraft.core.idea_night import NightMixin
-from orkcraft.realm import event_log, idea_spend, idea_target, ideas, plans, roles, status
+from orkboard.core.idea_draft import DraftMixin
+from orkboard.core.idea_goals import GoalMixin
+from orkboard.core.idea_night import NightMixin
+from orkboard.realm import event_log, idea_spend, idea_target, ideas, plans, roles, status
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -123,8 +123,8 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
 
     def _claude(self, tier: str, prompt: str, effort: str = "", budget: float | None = None) -> tuple[str, Any, Any, str]:
         """One shot (spec 35 §0): a fresh read-only run, no session kept; the night's proposals read nothing."""
-        from orkcraft.realm import harnesses, jobs
-        from orkcraft.sources import telemetry
+        from orkboard.realm import harnesses, jobs
+        from orkboard.sources import telemetry
         h = harnesses.get(HARNESS)
         purpose = {"laborer": "sort", "elder": "plan"}.get(tier, "plan")      # the Taskmaster's own model is a plan
         cancel = getattr(self._tls, "cancel", None) or self.cancel
@@ -169,7 +169,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
 
     def _spent(self, step: str, got: tuple[str, str], usage: Any, tokens: Any, cost: Any) -> None:
         """The call's line in the ledger (spec 36 §1): its idea's, its goal's, or the board's (the night's proposals)."""
-        from orkcraft.realm import harnesses
+        from orkboard.realm import harnesses
         h, tier = harnesses.get(HARNESS), idea_target.tier_of(got[0])
         key = getattr(self._tls, "key", "") or getattr(self._tls, "slug", "") or ""
         where = {} if step == "propose" else ({"goal": key[5:]} if key.startswith("goal:") else {"idea": key})

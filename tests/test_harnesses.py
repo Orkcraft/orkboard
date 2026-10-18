@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from orkcraft.realm import builders, harnesses, roads
+from orkboard.realm import builders, harnesses, roads
 
 
 def _lines(*events: dict) -> str:
@@ -112,7 +112,7 @@ def test_a_decision_runs_on_any_tool(tool, answer, expect, tmp_path, monkeypatch
 
 
 def test_logins_of_the_new_tools_are_told_from_disk(tmp_path):
-    from orkcraft import tools
+    from orkboard import tools
     home = tmp_path
     assert tools._hermes_login({}, home) == (None, "subscription")
     (home / ".hermes").mkdir()
@@ -132,7 +132,7 @@ def test_logins_of_the_new_tools_are_told_from_disk(tmp_path):
 
 
 def test_autonomy_says_what_each_new_tool_changes():
-    from orkcraft import autonomy
+    from orkboard import autonomy
     free = autonomy.guide(autonomy.FREE, ("hermes", "pi", "cursor"))
     assert "hermes --yolo" in free and "cursor-agent --force" in free and "never asks" in free
     chains = autonomy.guide(0, ("hermes", "cursor"))
@@ -140,7 +140,7 @@ def test_autonomy_says_what_each_new_tool_changes():
 
 
 def test_mcp_servers_of_hermes_pi_and_cursor_are_named_never_read(tmp_path):
-    from orkcraft.realm import mcp
+    from orkboard.realm import mcp
     (tmp_path / ".hermes").mkdir()
     (tmp_path / ".hermes" / "config.yaml").write_text(
         "model:\n  default: x\nmcp_servers:\n  github:\n    command: npx\n    env:\n      TOKEN: secret\n"

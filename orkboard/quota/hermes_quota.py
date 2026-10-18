@@ -8,7 +8,7 @@ import subprocess
 from datetime import datetime, timezone
 from typing import Callable
 
-from orkcraft.quota.models import QuotaStatus
+from orkboard.quota.models import QuotaStatus
 
 PROVIDER = "hermes"
 

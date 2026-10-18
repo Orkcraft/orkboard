@@ -27,7 +27,7 @@ import os
 import re
 from pathlib import Path
 
-from orkcraft.env import getenv
+from orkboard.env import getenv
 
 SERVICE = "orkcraft-ideas"
 FILE = "secrets.json"

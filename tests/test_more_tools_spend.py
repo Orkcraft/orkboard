@@ -6,8 +6,8 @@ import json
 import sqlite3
 from pathlib import Path
 
-from orkcraft.quota import hermes_quota
-from orkcraft.sources import limits, telemetry
+from orkboard.quota import hermes_quota
+from orkboard.sources import limits, telemetry
 
 
 def _log(repo: Path, *entries: dict) -> None:
@@ -57,7 +57,7 @@ def test_hermes_usage_becomes_windows():
 def test_cursor_sign_in_token_is_never_read(tmp_path: Path, monkeypatch):
     """decisions-2026-10.md §5: Cursor's stored login is not read and its private API not called."""
     import importlib.util
-    assert importlib.util.find_spec("orkcraft.quota.cursor_quota") is None
+    assert importlib.util.find_spec("orkboard.quota.cursor_quota") is None
     src = Path(limits.__file__).read_text(encoding="utf-8")
     assert "auth.json" not in src and "cursor.sh" not in src
     monkeypatch.setattr(limits, "_on_path", lambda h: "/bin/cursor-agent" if h == "cursor" else None)

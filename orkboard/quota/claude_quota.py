@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable, Optional
 from zoneinfo import ZoneInfo
 
-from orkcraft.quota.models import QuotaStatus
+from orkboard.quota.models import QuotaStatus
 
 _MONTHS = {
     "jan": 1,

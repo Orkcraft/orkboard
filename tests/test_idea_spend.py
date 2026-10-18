@@ -8,7 +8,7 @@ import zipfile
 
 import pytest
 
-from orkcraft.realm import analytics, idea_spend, ideas, plans
+from orkboard.realm import analytics, idea_spend, ideas, plans
 
 
 def _line(step, cost, task="", rnd=None, role="taskmaster", at="", tier="elder", tokens=None):
@@ -166,7 +166,7 @@ def test_the_estimate_learns_from_the_last_20_tasks_of_a_tier(tmp_path):
 
 
 def test_the_keepers_estimate_uses_the_learned_costs():
-    from orkcraft.core import idea_keeper
+    from orkboard.core import idea_keeper
     tasks = [{"tier": "warrior"}, {"tier": "elder"}]
     assert idea_keeper.estimate(tasks, None, {"warrior": 2.0, "elder": 4.0, "laborer": 0.1}) == {
         "tasks": 2, "usd_low": 3.0, "usd_high": 9.0}

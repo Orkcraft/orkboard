@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.sources import pricing, telemetry
-from orkcraft.sources import transcripts as tr
+from orkboard.sources import pricing, telemetry
+from orkboard.sources import transcripts as tr
 
 
 def test_prices_match_the_published_table():
@@ -109,7 +109,7 @@ def test_levels_and_units():
 def test_hook_records_run_and_terminal(tmp_path, monkeypatch):
     import importlib.util
     spec = importlib.util.spec_from_file_location(
-        "session_hook", Path(__file__).resolve().parents[1] / "orkcraft" / "hooks" / "session.py")
+        "session_hook", Path(__file__).resolve().parents[1] / "orkboard" / "hooks" / "session.py")
     hook = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(hook)
     monkeypatch.setattr(hook, "LOG", tmp_path / "sessions.jsonl")
@@ -141,11 +141,11 @@ def test_model_calls_with_no_transcript_count_in_the_run(tmp_path: Path):
 
 def test_the_light_calls_charge_the_ledger(monkeypatch):
     import subprocess
-    from orkcraft.realm import builders
+    from orkboard.realm import builders
     telemetry.reset_charges()
     since = dt.datetime.now().astimezone()
     answer = json.dumps({"result": "ok", "total_cost_usd": 0.02})
-    from orkcraft.realm import halt
+    from orkboard.realm import halt
     monkeypatch.setattr(halt, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, answer, ""))
     assert builders.ask("claude", "hi", model="haiku") == ("ok", 0.02)
     assert [(usd, src) for _, usd, src, *_ in telemetry.charges(since)] == [(0.02, "claude -p haiku")]
@@ -188,7 +188,7 @@ def test_no_ledger_kept_writes_nothing(tmp_path: Path):
 
 
 def test_a_transcript_run_counts_by_the_purpose_its_hook_recorded(tmp_path: Path, monkeypatch):
-    from orkcraft.hooks import session as hook
+    from orkboard.hooks import session as hook
     monkeypatch.setattr(hook, "LOG", tmp_path / "sessions.jsonl")
     run = "b" * 32
     e = hook.record("claude", {"session_id": "s"}, env={"ORKCRAFT_RUN": run, "ORKCRAFT_TERMINAL": "t1",
@@ -203,7 +203,7 @@ def test_a_transcript_run_counts_by_the_purpose_its_hook_recorded(tmp_path: Path
 
 
 def test_a_steward_task_names_its_purpose():
-    from orkcraft.realm import steward
+    from orkboard.realm import steward
     assert steward.purpose_of("triage") == "sort" and steward.purpose_of("review") == "review"
     assert steward.purpose_of("answer", "barracks") == "answer" and steward.purpose_of("answer", "town_hall") == "chat"
     assert steward.purpose_of("something new") == "work"
@@ -211,7 +211,7 @@ def test_a_steward_task_names_its_purpose():
 
 
 def test_a_tagged_runner_charges_its_purpose(tmp_path: Path, monkeypatch):
-    from orkcraft.realm import builders
+    from orkboard.realm import builders
     telemetry.keep_ledger(tmp_path)
 
     def runner(prompt, m=None):
@@ -223,7 +223,7 @@ def test_a_tagged_runner_charges_its_purpose(tmp_path: Path, monkeypatch):
 
 def test_a_road_agent_charges_its_building_and_tells_its_transcript_the_purpose(tmp_path: Path, monkeypatch):
     import threading
-    from orkcraft.realm import road_agents as roads   # where run_agent finds run_proc
+    from orkboard.realm import road_agents as roads   # where run_agent finds run_proc
     telemetry.keep_ledger(tmp_path)
     envs = []
     answer = json.dumps({"result": "ok", "total_cost_usd": 0.05})
@@ -240,7 +240,7 @@ def test_a_road_agent_charges_its_building_and_tells_its_transcript_the_purpose(
 
 
 def test_the_housekeeping_keeps_the_ledger_within_the_log_limit(tmp_path: Path, monkeypatch):
-    from orkcraft.realm import housekeeping
+    from orkboard.realm import housekeeping
     monkeypatch.setattr(housekeeping, "LOG_LIMIT", 100)
     telemetry.keep_ledger(tmp_path)
     for _ in range(5):

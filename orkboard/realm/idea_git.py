@@ -28,7 +28,7 @@ import threading
 from pathlib import Path
 from typing import NamedTuple
 
-from orkcraft.realm import gate_config, jobs, worktrees
+from orkboard.realm import gate_config, jobs, worktrees
 
 GIT_TIMEOUT_S = 60
 PUSH_TIMEOUT_S = 120
@@ -355,7 +355,7 @@ def read_secret(state_dir: Path, slug: str, todo_id: str) -> str | None:
     keychain (`keyring`, service "orkline"), else `<state_dir>/secrets.json` (flat by key, or {slug: {id: v}})."""
     keys = secret_keys(slug, todo_id)
     try:
-        from orkcraft.realm import secrets as store          # type: ignore[attr-defined]
+        from orkboard.realm import secrets as store          # type: ignore[attr-defined]
         get = getattr(store, "get", None) or getattr(store, "read", None)
         for key in keys:
             value = get(key) if get else None

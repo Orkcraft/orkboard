@@ -15,7 +15,7 @@ import os
 import ssl
 from pathlib import Path
 
-from orkcraft import settings
+from orkboard import settings
 
 YEARS = 20
 

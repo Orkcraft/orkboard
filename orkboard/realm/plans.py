@@ -20,7 +20,7 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from orkcraft.realm import tiers
+from orkboard.realm import tiers
 
 MAX_SUBTASKS = 6
 SHORT = 400                      # characters: a task this short, with no steps, is simple by the rules

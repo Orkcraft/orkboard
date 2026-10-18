@@ -29,7 +29,7 @@ import re
 import threading
 from pathlib import Path
 
-from orkcraft.realm import ideas
+from orkboard.realm import ideas
 
 TASKMASTER, GRUNT = "taskmaster", "grunt"
 BUILTIN = (TASKMASTER, GRUNT)
@@ -54,7 +54,7 @@ def folder(state_dir: Path) -> Path:
 def models(current: str = "") -> list[dict]:
     """What a role may run on: {"id", "label"} — By Target, then the three tiers with the harness's model small;
     `current`, a model set by hand in a role's file, as one more option for that role."""
-    from orkcraft.realm import harnesses
+    from orkboard.realm import harnesses
     h = harnesses.get("claude")
     out = [{"id": "", "label": "By Target"}]
     out += [{"id": t, "label": t.capitalize() + (f" · {h.models[t]}" if h and t in h.models else "")} for t in TIERS]

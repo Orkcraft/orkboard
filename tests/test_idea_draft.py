@@ -9,10 +9,10 @@ import time
 
 import pytest
 
-from orkcraft.core import idea_draft, idea_keeper
-from orkcraft.core.idea_keeper import IdeaKeeper, KeeperError
-from orkcraft.realm import event_log, idea_target, ideas
-from orkcraft.sources.limits import Limit
+from orkboard.core import idea_draft, idea_keeper
+from orkboard.core.idea_keeper import IdeaKeeper, KeeperError
+from orkboard.realm import event_log, idea_target, ideas
+from orkboard.sources.limits import Limit
 
 STEPS = (("write its spec", "draft"), ("answered the questions", "answer"), ("turn it into a plan", "plan"),
          ("saved a goal", "goal"), ("It is night", "propose"), ("Rewrite only that section", "talk"))

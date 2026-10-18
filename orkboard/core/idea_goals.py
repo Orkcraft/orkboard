@@ -14,13 +14,13 @@ import datetime as dt
 import re
 from pathlib import Path
 
-from orkcraft.realm import idea_target, ideas
+from orkboard.realm import idea_target, ideas
 
 REPLY_CHARS, MAX_QUESTIONS = 4000, 3
 
 
 def _kw():
-    from orkcraft.core import idea_keeper
+    from orkboard.core import idea_keeper
     return idea_keeper
 
 
@@ -100,7 +100,7 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
 
     def head(self) -> str:
         """The repository's commit now (`git rev-parse HEAD`), "" when it has none."""
-        from orkcraft.realm.idea_git import _git
+        from orkboard.realm.idea_git import _git
         try:
             proc = _git(self.repo_root, "rev-parse", "HEAD")
         except Exception:

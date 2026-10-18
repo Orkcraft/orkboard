@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.gui import mobile
-from orkcraft.gui.host import CommandError, Host
-from orkcraft.realm import checkpoint, event_log, ideas, jobs
+from orkboard.gui import mobile
+from orkboard.gui.host import CommandError, Host
+from orkboard.realm import checkpoint, event_log, ideas, jobs
 
 NEW_COMMANDS = {"ideas.goal_save", "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_drop",
                 "ideas.kind_set", "ideas.doc"}
@@ -25,7 +25,7 @@ def host(fake_repo) -> Host:
     checkpoint.ensure(fake_repo)
     h = Host(fake_repo, auto_commit=False)
     yield h
-    sys.modules.pop("orkcraft.core.idea_runner", None)
+    sys.modules.pop("orkboard.core.idea_runner", None)
 
 
 @pytest.fixture
@@ -228,7 +228,7 @@ def test_agents_is_a_block_per_role_and_spend_is_summed_by_role(host):
 
 
 def test_the_plan_marks_each_task_with_its_type():
-    from orkcraft.core import idea_keeper
+    from orkboard.core import idea_keeper
     plan = idea_keeper.make_plan("x", {"tasks": [
         {"title": "a", "brief": "b", "kind": "docs"}, {"title": "c", "brief": "d"}, {"title": "e", "brief": "f", "kind": "poetry"}]})
     assert [t["kind"] for t in plan["tasks"]] == ["docs", "code", "code"]

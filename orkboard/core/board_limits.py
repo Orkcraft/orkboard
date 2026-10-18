@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from orkcraft.sources.limits import Limit, fetch_limits
+from orkboard.sources.limits import Limit, fetch_limits
 
 LIMITS_REFRESH_S = 10 * 60      # as the Town Hall's worker (core/workers/town_hall.py)
 

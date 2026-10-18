@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from orkcraft import env, settings
+from orkboard import env, settings
 
 ENV = "TAILSCALE"
 TIMEOUT_S = 10

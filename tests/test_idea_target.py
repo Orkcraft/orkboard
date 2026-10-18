@@ -8,8 +8,8 @@ import sys
 
 import pytest
 
-from orkcraft.realm import harnesses, idea_target, jobs
-from orkcraft.sources.limits import Limit
+from orkboard.realm import harnesses, idea_target, jobs
+from orkboard.sources.limits import Limit
 
 EXPECTED = {
     "goal": {"thrift": ("elder", "medium"), "balance": ("elder", "high"), "quality": ("elder", "xhigh")},

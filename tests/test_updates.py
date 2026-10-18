@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from orkcraft import __version__, cli, settings
-from orkcraft.core import updates
+from orkboard import __version__, cli, settings
+from orkboard.core import updates
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,7 +37,7 @@ class Runs:
     def __call__(self, cmd, **kw):
         self.calls.append(list(cmd))
         line = " ".join(cmd)
-        if "import orkcraft" in line:
+        if "import orkboard" in line:
             return SimpleNamespace(returncode=0, stdout=self.version + "\n", stderr="")
         if " status " in f" {line} ":
             return SimpleNamespace(returncode=0, stdout=self.status, stderr="")
@@ -89,7 +89,7 @@ def test_the_repositorys_list_names_this_version_last():
     data = json.loads((ROOT / "updates.json").read_text(encoding="utf-8"))
     rels = updates.releases(data)
     assert rels and len(rels) == len(data["releases"]), "every release in updates.json is well formed"
-    assert rels[0].version == __version__, "a release raises orkcraft.__version__ and lists it in updates.json"
+    assert rels[0].version == __version__, "a release raises orkboard.__version__ and lists it in updates.json"
 
 
 # -- reading the list ---------------------------------------------------------------------------
@@ -235,7 +235,7 @@ def test_a_critical_update_installs_and_restarts_before_the_town_loads(on, tmp_p
     runs = Runs(version="9.0.0")
     found, said, execs = launch(tmp_path, "critical", [("9.0.0", True)], runs, monkeypatch)
     assert found is None and ["pipx", "upgrade", "orkcraft"] in runs.calls
-    assert execs and execs[0][1][-1] == "gui" and execs[0][1][1:3] == ["-m", "orkcraft.cli"]
+    assert execs and execs[0][1][-1] == "gui" and execs[0][1][1:3] == ["-m", "orkboard.cli"]
     assert any("critical update 9.0.0" in line for line in said)
     import os
     assert os.environ.get(updates.UPDATED_ENV) == "9.0.0"
@@ -301,8 +301,8 @@ def test_the_policy_is_kept_and_a_broken_one_is_the_default():
 # -- the window ---------------------------------------------------------------------------------
 
 def test_the_window_installs_on_a_click_and_restarts(fake_repo, monkeypatch):
-    from orkcraft.gui import updates as gui_updates
-    from orkcraft.gui.host import CommandError, Host
+    from orkboard.gui import updates as gui_updates
+    from orkboard.gui.host import CommandError, Host
     host = Host(fake_repo, auto_commit=False)
     up = host.updates
     assert host.snapshot()["update"] is None
@@ -325,8 +325,8 @@ def test_the_window_installs_on_a_click_and_restarts(fake_repo, monkeypatch):
 
 
 def test_the_window_says_a_failed_install_and_keeps_running(fake_repo, monkeypatch):
-    from orkcraft.gui import updates as gui_updates
-    from orkcraft.gui.host import Host
+    from orkboard.gui import updates as gui_updates
+    from orkboard.gui.host import Host
     host = Host(fake_repo, auto_commit=False)
     up = host.updates
     up._method = lambda: updates.Method("pipx", (("pipx", "upgrade", "orkcraft"),))
@@ -345,7 +345,7 @@ def test_the_window_says_a_failed_install_and_keeps_running(fake_repo, monkeypat
 
 
 def test_the_window_never_reads_the_list_in_the_demo_or_when_off(fake_repo, monkeypatch):
-    from orkcraft.gui.host import Host
+    from orkboard.gui.host import Host
     host = Host(fake_repo, auto_commit=False)
     monkeypatch.setattr(updates, "check_later", lambda on_done=None: pytest.fail("read while off"))
     host.updates.tick(0.0)                     # conftest: ORKCRAFT_NO_UPDATE
@@ -356,4 +356,4 @@ def test_the_restart_runs_the_same_command(monkeypatch):
     seen = []
     monkeypatch.delenv(updates.UPDATED_ENV, raising=False)
     updates.restart(["gui", "--browser"], "9.0.0", execv=lambda exe, args: seen.append((exe, args)))
-    assert seen == [(sys.executable, [sys.executable, "-m", "orkcraft.cli", "gui", "--browser"])]
+    assert seen == [(sys.executable, [sys.executable, "-m", "orkboard.cli", "gui", "--browser"])]

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import datetime as dt
 
-from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkcraft.realm import event_log, idea_spend, ideas, roles
+from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
+from orkboard.realm import event_log, idea_spend, ideas, roles
 
 
 class RolesMixin:

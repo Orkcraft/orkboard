@@ -313,7 +313,7 @@ def forget() -> None:
 def tier_costs(state_dir: Path, last: int = LEARN_LAST) -> dict[str, float]:
     """$ a task per tier: the mean cost of the board's last `last` finished tasks (merged or failed) that ran on
     it (`ran_tier`), else `plans.DEFAULT_COST`."""
-    from orkcraft.realm import plans
+    from orkboard.realm import plans
     runs: dict[str, list[tuple[str, float]]] = {}
     for path in sorted((Path(state_dir) / "ideas").glob("*/plan.json")):
         for t in _tasks(_plan(state_dir, path.parent.name)).values():
@@ -330,7 +330,7 @@ def tier_costs(state_dir: Path, last: int = LEARN_LAST) -> dict[str, float]:
 
 def estimate_of(task: dict, costs: dict[str, float]) -> dict:
     """A result's planned share: the learned cost of the tier it ran on, ±50 % ({"low", "high"})."""
-    from orkcraft.realm import plans
+    from orkboard.realm import plans
     tier = str(task.get("ran_tier") or task.get("tier") or "warrior")
     base = costs.get(tier, plans.DEFAULT_COST.get(tier, plans.DEFAULT_COST["warrior"]))
     return {"low": round(base * 0.5, 2), "high": round(base * 1.5, 2)}

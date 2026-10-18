@@ -9,10 +9,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from orkcraft.core import idea_keeper
-from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkcraft.hooks.warder import is_secret
-from orkcraft.realm import event_log, ideas
+from orkboard.core import idea_keeper
+from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
+from orkboard.hooks.warder import is_secret
+from orkboard.realm import event_log, ideas
 
 
 DOC_CHARS = 100_000

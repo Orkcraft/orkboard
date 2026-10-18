@@ -5,7 +5,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from orkcraft import tools
+from orkboard import tools
 
 
 def _run(cmd, **_):

@@ -37,8 +37,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from orkcraft import __version__
-from orkcraft.env import getenv
+from orkboard import __version__
+from orkboard.env import getenv
 
 MANIFEST_URL = "https://raw.githubusercontent.com/Orkcraft/orkcraft/main/updates.json"
 SOURCE = "git+https://github.com/Orkcraft/orkcraft"
@@ -373,7 +373,7 @@ def _dirty(root: str, run: Callable) -> str:
 def installed_version(run: Callable = subprocess.run, python: str = "") -> str:
     """The version a fresh interpreter imports now (this process keeps the one it started with)."""
     try:
-        done = run([python or sys.executable, "-c", "import orkcraft; print(orkcraft.__version__)"],
+        done = run([python or sys.executable, "-c", "import orkboard; print(orkboard.__version__)"],
                    capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -424,7 +424,7 @@ def restart(argv: list[str], version: str = "", execv: Callable = os.execv, pyth
     sys.stdout.flush()
     sys.stderr.flush()
     python = python or method().python or sys.executable
-    execv(python, [python, "-m", "orkcraft.cli", *argv])
+    execv(python, [python, "-m", "orkboard.cli", *argv])
 
 
 def at_launch(argv: list[str], policy: str, say: Callable[[str], None] | None = None,

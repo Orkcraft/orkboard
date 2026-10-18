@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.realm import harnesses, jobs, roads
-from orkcraft.sources import pricing, telemetry
+from orkboard.realm import harnesses, jobs, roads
+from orkboard.sources import pricing, telemetry
 
 FIXTURE = Path(__file__).parent / "fixtures" / "codex_exec.jsonl"
 RESUMED = Path(__file__).parent / "fixtures" / "codex_exec_resumed.jsonl"

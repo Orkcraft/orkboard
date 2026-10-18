@@ -7,9 +7,9 @@ import time
 
 import pytest
 
-from orkcraft.core import idea_keeper
-from orkcraft.core.idea_keeper import IdeaKeeper, KeeperError
-from orkcraft.realm import ideas
+from orkboard.core import idea_keeper
+from orkboard.core.idea_keeper import IdeaKeeper, KeeperError
+from orkboard.realm import ideas
 
 
 class Model:
@@ -174,7 +174,7 @@ def test_first_json_reads_through_prose():
 # -- spec 36 §1: the ledger line of each keeper call ---------------------------------------------------------
 
 def test_a_keeper_call_writes_its_line_to_its_ideas_ledger(keeper):
-    from orkcraft.realm import idea_spend
+    from orkboard.realm import idea_spend
     ux = ideas.add_track(keeper.root, "UX")
     slug = ideas.add_idea(keeper.root, "dark mode pls", ux, state_dir=keeper.state)
     keeper.call = Model({"gist": "Dark mode.", "why": "calm", "size": "s", "questions": []})
@@ -187,7 +187,7 @@ def test_a_keeper_call_writes_its_line_to_its_ideas_ledger(keeper):
 
 
 def test_an_unpriced_call_writes_null_a_goals_goes_to_the_goal_and_the_nights_to_the_board(keeper):
-    from orkcraft.realm import idea_spend
+    from orkboard.realm import idea_spend
     keeper.call = lambda tier, prompt, effort="", budget=None: ("{}", None, None, "")
     assert keeper._sync("speed", "goal", lambda: keeper.ask("goal", "read it"), "goal:speed")
     (row,) = idea_spend.read(keeper.state / "goals" / "speed" / "spend.jsonl")

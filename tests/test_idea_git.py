@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.realm import idea_git
-from orkcraft.realm.idea_git import IdeaGit
+from orkboard.realm import idea_git
+from orkboard.realm.idea_git import IdeaGit
 
 
 def git(cwd: Path, *args: str) -> str:

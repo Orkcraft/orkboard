@@ -10,7 +10,7 @@ from http import HTTPStatus
 from typing import Any
 from urllib.parse import urlsplit
 
-from orkcraft.gui import pwa
+from orkboard.gui import pwa
 
 HEAD_LIMIT = 16 * 1024   # an HTTP request's head
 HEAD_S = 10.0            # …and how long it may take to come

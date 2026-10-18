@@ -21,7 +21,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Callable
 
-from orkcraft.realm import call_log, day_log, event_log
+from orkboard.realm import call_log, day_log, event_log
 
 REWORKS = ("follow-up", "reuse", "retier")      # a steward's decisions that send work back or again
 

@@ -10,9 +10,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from orkcraft.core.idea_runner import IdeaRunner
-from orkcraft.realm import event_log, idea_secrets
-from orkcraft.sources.limits import Limit
+from orkboard.core.idea_runner import IdeaRunner
+from orkboard.realm import event_log, idea_secrets
+from orkboard.sources.limits import Limit
 
 from tests.test_idea_runner import git, plan_of, town  # noqa: F401  (the fixture repository with a stub claude)
 

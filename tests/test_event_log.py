@@ -4,7 +4,7 @@ import io
 import json
 import zipfile
 
-from orkcraft.realm import analytics, event_log
+from orkboard.realm import analytics, event_log
 
 
 def test_an_event_is_one_exact_line_in_the_towns_folder(tmp_path):
@@ -51,7 +51,7 @@ def test_the_analytics_zip_carries_the_periods_events(tmp_path):
 
 
 def test_cli_usage_local_prints_the_counts(fake_repo, capsys):
-    from orkcraft.cli import main
+    from orkboard.cli import main
     event_log.record(fake_repo, event_log.ASKED, text="?")
     event_log.record(fake_repo, event_log.ANSWERED, who="person", waited_s=300)
     assert main(["--repo", str(fake_repo), "usage", "local"]) == 0

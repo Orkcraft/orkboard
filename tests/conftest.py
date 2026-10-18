@@ -28,7 +28,7 @@ def fake_repo(tmp_path: Path) -> Path:
 @pytest.fixture
 def night_on(fake_repo: Path) -> Path:
     """`fake_repo` as a town that kept the night's work on (a new town has it off: cut-list.md §2)."""
-    from orkcraft.realm import fastpath
+    from orkboard.realm import fastpath
     fastpath.save_settings(fake_repo, {})
     return fake_repo
 
@@ -39,7 +39,7 @@ _quiet_path: list[str] = []
 def _path_without_real_tools(factory: pytest.TempPathFactory) -> str:
     """$PATH with every folder that holds a real agent CLI or gh replaced by a copy of links to the rest."""
     if not _quiet_path:
-        from orkcraft.realm import harnesses
+        from orkboard.realm import harnesses
         tools = {h.default_bin for h in harnesses.REGISTRY.values()} | {"gh"}
         dirs = []
         for d in os.environ.get("PATH", "").split(os.pathsep):
@@ -83,19 +83,19 @@ def isolated_layout_file(tmp_path: Path, tmp_path_factory: pytest.TempPathFactor
     # No real agent CLI and no real gh, even on a machine that has them: a run a test does not fake finds
     # no tool, as on CI. Before, a Mine test's research ran a real `claude -p` on the web.
     monkeypatch.setenv("PATH", _path_without_real_tools(tmp_path_factory))
-    from orkcraft.realm import model_families
+    from orkboard.realm import model_families
     model_families.forget()
     # agy's global hooks file stays the test's own: `hooks install` / `uninstall` never touch ~/.gemini.
-    from orkcraft.hooks import install as hooks_install
+    from orkboard.hooks import install as hooks_install
     monkeypatch.setattr(hooks_install, "agy_global_file", lambda: tmp_path / "gemini" / "config" / "hooks.json")
     # The window-manager tests predate the town view (T1102): they run in tiles; test_town.py opts in.
-    from orkcraft import scroll
+    from orkboard import scroll
     monkeypatch.setattr(scroll, "DEFAULT_VIEW", "tiles")
     # They also predate the camp that starts with the Town Hall alone (T1107): every preset stands.
     monkeypatch.setattr(scroll, "STARTING", None)
     # The Watchtower's picker asks `claude mcp list`: never the machine's own servers (tests put theirs).
     import subprocess
-    from orkcraft.core.workers.watchtower import WatchtowerWorker
+    from orkboard.core.workers.watchtower import WatchtowerWorker
     monkeypatch.setattr(WatchtowerWorker, "mcp_runner",
                         staticmethod(lambda argv: subprocess.CompletedProcess(argv, 0, "No MCP servers configured.\n", "")))
     return path
@@ -104,7 +104,7 @@ def isolated_layout_file(tmp_path: Path, tmp_path_factory: pytest.TempPathFactor
 @pytest.fixture(autouse=True)
 def fresh_spend_ledger():
     """The side 🪙 ledger is process-wide: every test starts from an empty one."""
-    from orkcraft.sources import telemetry
+    from orkboard.sources import telemetry
     telemetry.reset_charges()
     telemetry.keep_ledger(None)
     yield
@@ -115,7 +115,7 @@ def fresh_spend_ledger():
 @pytest.fixture(autouse=True)
 def fresh_halt_registry():
     """🛑 Halt All's registry is process-wide: every test starts with nothing running and no halt."""
-    from orkcraft.realm import halt
+    from orkboard.realm import halt
     halt.reset()
     yield
     halt.reset()
@@ -131,17 +131,17 @@ def codex_limits(monkeypatch):
 def _codex_beside_claude_and_agy(monkeypatch, billing: str) -> None:
     from datetime import datetime, timezone
 
-    from orkcraft import tools
-    from orkcraft.quota import codex_quota
-    from orkcraft.quota.models import QuotaStatus
-    from orkcraft.sources import limits
+    from orkboard import tools
+    from orkboard.quota import codex_quota
+    from orkboard.quota.models import QuotaStatus
+    from orkboard.sources import limits
 
     soon = datetime.now(timezone.utc).replace(microsecond=0)
     raw = (Path(__file__).parent / "fixtures" / "codex_app_server_rate_limits.jsonl").read_text(encoding="utf-8")
     monkeypatch.setenv("ORKCRAFT_LIMITS", "1")
-    monkeypatch.setattr("orkcraft.quota.claude_quota.get_claude_quota",
+    monkeypatch.setattr("orkboard.quota.claude_quota.get_claude_quota",
                         lambda **k: [QuotaStatus("claude", "session", "session", 0.86, soon)])
-    monkeypatch.setattr("orkcraft.quota.agy_quota.get_agy_quota",
+    monkeypatch.setattr("orkboard.quota.agy_quota.get_agy_quota",
                         lambda **k: [QuotaStatus("agy", "pro", "daily", 0.4, soon)])
     monkeypatch.setattr(limits, "which", lambda name: "/usr/bin/codex" if name == "codex" else None)
     monkeypatch.setattr(tools, "codex_login", lambda path: (True, billing))

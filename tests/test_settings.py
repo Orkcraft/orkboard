@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from orkcraft import schedule, scroll, settings
+from orkboard import schedule, scroll, settings
 
 
 def test_defaults_when_there_is_no_file(tmp_path: Path):

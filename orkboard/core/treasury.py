@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from orkcraft.sources import telemetry
+from orkboard.sources import telemetry
 
 GOLD_LIMIT_USD = 20.0           # the Town Scroll's own defaults (scroll.py `Budget`), when it names none
 LUMBER_LIMIT_TOKENS = 131072

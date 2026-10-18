@@ -1,4 +1,4 @@
-"""orkcraft.quota.codex_quota: the app-server answer, every rollout shape, the plain rows.
+"""orkboard.quota.codex_quota: the app-server answer, every rollout shape, the plain rows.
 
 No real Codex runs: a fake runner answers recorded JSON-RPC lines, or a tiny script plays app-server.
 """
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft.quota import codex_quota
-from orkcraft.quota.codex_quota import from_rollouts, get_codex_quota, parse_app_server
+from orkboard.quota import codex_quota
+from orkboard.quota.codex_quota import from_rollouts, get_codex_quota, parse_app_server
 
 FIXTURES = Path(__file__).parent / "fixtures"
 NOW = datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc)
@@ -176,20 +176,20 @@ def test_silent_app_server_times_out(tmp_path):
 
 def _no_others(monkeypatch):
     monkeypatch.setenv("ORKCRAFT_LIMITS", "1")
-    monkeypatch.setattr("orkcraft.quota.claude_quota.get_claude_quota", lambda **k: [])
-    monkeypatch.setattr("orkcraft.quota.agy_quota.get_agy_quota", lambda **k: [])
+    monkeypatch.setattr("orkboard.quota.claude_quota.get_claude_quota", lambda **k: [])
+    monkeypatch.setattr("orkboard.quota.agy_quota.get_agy_quota", lambda **k: [])
 
 
 def test_limits_say_codex_is_not_installed(monkeypatch, tmp_path):
-    from orkcraft.sources import limits
+    from orkboard.sources import limits
     _no_others(monkeypatch)
     monkeypatch.setattr(limits, "which", lambda name: None)
     assert limits.fetch_limits(tmp_path) == [limits.Limit("codex", "", "", None, None, "not installed")]
 
 
 def test_limits_say_codex_runs_on_an_api_key(monkeypatch, tmp_path):
-    from orkcraft import tools
-    from orkcraft.sources import limits
+    from orkboard import tools
+    from orkboard.sources import limits
     _no_others(monkeypatch)
     monkeypatch.setattr(limits, "which", lambda name: "/usr/bin/codex" if name == "codex" else None)
     monkeypatch.setattr(tools, "codex_login", lambda path: (True, "api"))
@@ -199,8 +199,8 @@ def test_limits_say_codex_runs_on_an_api_key(monkeypatch, tmp_path):
 
 
 def test_limits_carry_codex_windows(monkeypatch, tmp_path):
-    from orkcraft import tools
-    from orkcraft.sources import limits
+    from orkboard import tools
+    from orkboard.sources import limits
     _no_others(monkeypatch)
     raw = (FIXTURES / "codex_app_server_rate_limits.jsonl").read_text(encoding="utf-8")
     monkeypatch.setattr(limits, "which", lambda name: "/usr/bin/codex" if name == "codex" else None)

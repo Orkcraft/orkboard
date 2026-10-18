@@ -17,9 +17,9 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from orkcraft import settings
-from orkcraft.realm import call_log, halt, harnesses, tool_errors
-from orkcraft.sources import telemetry
+from orkboard import settings
+from orkboard.realm import call_log, halt, harnesses, tool_errors
+from orkboard.sources import telemetry
 
 CALL_TIMEOUT_S = 240            # one answer of a tool (`ask`)
 

@@ -6,9 +6,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from orkcraft.realm import lexicon
+from orkboard.realm import lexicon
 
-STATIC = Path(__file__).resolve().parent.parent / "orkcraft" / "gui" / "static"
+STATIC = Path(__file__).resolve().parent.parent / "orkboard" / "gui" / "static"
 
 
 def _skip_string(src: str, i: int, quote: str) -> int:

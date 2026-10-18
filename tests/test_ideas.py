@@ -8,7 +8,7 @@ import stat
 
 import pytest
 
-from orkcraft.realm import idea_secrets, ideas, wiki
+from orkboard.realm import idea_secrets, ideas, wiki
 
 
 @pytest.fixture

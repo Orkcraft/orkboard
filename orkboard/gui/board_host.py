@@ -23,12 +23,12 @@ import webbrowser
 from pathlib import Path
 from typing import Any, Callable
 
-from orkcraft import __version__, settings
-from orkcraft.core import bus as b
-from orkcraft.core import treasury, updates as core_updates
-from orkcraft.core.board_limits import BoardLimits
-from orkcraft.realm import analytics, call_log, day_log, event_log, halt
-from orkcraft.sources import telemetry
+from orkboard import __version__, settings
+from orkboard.core import bus as b
+from orkboard.core import treasury, updates as core_updates
+from orkboard.core.board_limits import BoardLimits
+from orkboard.realm import analytics, call_log, day_log, event_log, halt
+from orkboard.sources import telemetry
 
 TELEMETRY_REFRESH_S = 5.0       # as Orkline's host: this run's spend read again
 SIZE = (1440, 900)
@@ -137,7 +137,7 @@ class Orkboard:
     phone_entry = "board-app.js"    # the phone's (gui/pwa.py)
 
     def __init__(self, repo_root: Path, demo: bool = False) -> None:
-        from orkcraft.gui import ideas, onboarding, updates
+        from orkboard.gui import ideas, onboarding, updates
         self.repo_root = Path(repo_root).resolve()
         self.demo = demo
         self.machine = settings.load()
@@ -243,7 +243,7 @@ class Orkboard:
     # -- the page's commands ---------------------------------------------------------------------------------
 
     def command(self, name: str, args: dict | None = None) -> Any:
-        from orkcraft.gui import ideas, onboarding, updates
+        from orkboard.gui import ideas, onboarding, updates
         fn = self.commands.get(name)
         if fn is None:
             raise CommandError(f"Unknown command: {name}")
@@ -328,7 +328,7 @@ def _stop(server: Any, thread: Any, stop: Callable[[], None]) -> None:
 def run(repo_root: Path, browser: bool = False, port: int = 0, demo: bool = False) -> int:
     """Orkboard on `repo_root` until its window closes; `core.updates.RESTART` when it closed on an update it
     installed."""
-    from orkcraft.gui.server import Server
+    from orkboard.gui.server import Server
     host = Orkboard(repo_root, demo=demo)
     server = Server(host, port)
     thread = server.start_thread()
@@ -339,7 +339,7 @@ def run(repo_root: Path, browser: bool = False, port: int = 0, demo: bool = Fals
 def main(argv: list[str] | None = None) -> int:
     """`orkboard [--repo DIR] [--browser] [--port N]` (and `orkcraft board`): Orkboard on the project it was started
     in (`config.find_project_root`, as `orkcraft gui`)."""
-    from orkcraft.config import NOT_A_PROJECT_HINT, find_project_root
+    from orkboard.config import NOT_A_PROJECT_HINT, find_project_root
     parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: goals, ideas, agents, review")
     parser.add_argument("--version", action="version", version=f"Orkline {__version__}")
     parser.add_argument("--repo", type=Path, default=None, help="Path to project root")

@@ -11,7 +11,7 @@ import threading
 import time
 from pathlib import Path
 
-from orkcraft.realm import event_log, harnesses
+from orkboard.realm import event_log, harnesses
 
 LIMITS_S = 300.0                  # how often the AI tools' limits are read for the top bar
 LIMITS_LOG_S = 3600.0             # limits_read at most once an hour (and whenever a task is held)
@@ -50,7 +50,7 @@ class LimitsMixin:
 
     def _read_limits(self) -> None:
         try:
-            from orkcraft.sources.limits import fetch_limits
+            from orkboard.sources.limits import fetch_limits
             self._limits = self._limits_of(fetch_limits(Path(self.host.repo_root)))
             self.log_limits()
         except Exception:                       # a quota never breaks the top bar

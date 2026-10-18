@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from orkcraft import layers
+from orkboard import layers
 
-ROOT = Path(__file__).resolve().parents[1] / "orkcraft"
+ROOT = Path(__file__).resolve().parents[1] / "orkboard"
 FACELESS = ["core", "realm", "design"]
 FORBIDDEN = ("textual", "rich")
 
@@ -33,7 +33,7 @@ def test_no_face_in(package):
     for path in sorted((ROOT / package).rglob("*.py")):
         for line, module in _imports(path):
             top = module.split(".")[0]
-            if top in FORBIDDEN or module.startswith("orkcraft.gui"):
+            if top in FORBIDDEN or module.startswith("orkboard.gui"):
                 bad.append(f"{path.relative_to(ROOT.parent)}:{line} imports {module}")
     assert not bad, "\n".join(bad)
 
@@ -42,7 +42,7 @@ def test_loading_the_core_loads_no_face():
     """Transitively too: importing every module of core/, realm/ and design/ pulls in no toolkit."""
     import subprocess
     import sys
-    modules = [f"orkcraft.{p.relative_to(ROOT).with_suffix('').as_posix().replace('/', '.')}"
+    modules = [f"orkboard.{p.relative_to(ROOT).with_suffix('').as_posix().replace('/', '.')}"
                for package in FACELESS for p in sorted((ROOT / package).rglob("*.py"))]
     modules = [m.removesuffix(".__init__") for m in modules]
     code = ("import importlib, sys\n"
@@ -57,7 +57,7 @@ def test_the_terminal_ui_stays_gone():
     bad = [f"{path.relative_to(ROOT.parent)}:{line} imports {module}"
            for path in sorted(ROOT.rglob("*.py")) for line, module in _imports(path)
            if module.split(".")[0] in FORBIDDEN]
-    bad += [f"orkcraft/{name} is back" for name in ("tui", "screens", "widgets", "wm", "app.py", "theme.py")
+    bad += [f"orkboard/{name} is back" for name in ("tui", "screens", "widgets", "wm", "app.py", "theme.py")
             if (ROOT / name).is_file() or any((ROOT / name).rglob("*.py"))]
     assert not bad, "\n".join(bad)
 
@@ -118,18 +118,18 @@ def test_orkboard_imports_only_orkboard():
 
 def test_orkboard_check_sees_a_line_import(tmp_path):
     """The check can fail: a Board module importing a line module (absolute, relative or lazy) is an edge."""
-    pkg = tmp_path / "orkcraft"
+    pkg = tmp_path / "orkboard"
     (pkg / "core").mkdir(parents=True)
     (pkg / "__init__.py").write_text("")
     (pkg / "core" / "__init__.py").write_text("")
     (pkg / "core" / "idea_x.py").write_text(
-        "from orkcraft import camp\nfrom .. import camp as c2\n\ndef f():\n    import orkcraft.camp\n")
+        "from orkboard import camp\nfrom .. import camp as c2\n\ndef f():\n    import orkboard.camp\n")
     (pkg / "camp.py").write_text("")
-    mods = {"orkcraft": pkg / "__init__.py", "orkcraft.core": pkg / "core" / "__init__.py",
-            "orkcraft.core.idea_x": pkg / "core" / "idea_x.py", "orkcraft.camp": pkg / "camp.py"}
+    mods = {"orkboard": pkg / "__init__.py", "orkboard.core": pkg / "core" / "__init__.py",
+            "orkboard.core.idea_x": pkg / "core" / "idea_x.py", "orkboard.camp": pkg / "camp.py"}
     found = layers.edges(root=mods)
     assert sorted(line for _a, _b, _p, line in found) == [1, 2, 5]
-    assert {(a, b) for a, b, _p, _l in found} == {("orkcraft.core.idea_x", "orkcraft.camp")}
+    assert {(a, b) for a, b, _p, _l in found} == {("orkboard.core.idea_x", "orkboard.camp")}
 
 
 def test_known_edges_still_exist():
@@ -146,7 +146,7 @@ def test_every_board_pattern_matches():
 
 def test_orkboard_starts_alone(tmp_path):
     """Spec 37 §4: in a fresh interpreter, Orkboard's host and its server, built on a fixture repository (no port
-    opened), load only `BOARD` modules of the package: none of the town's (a namespace package, `orkcraft.realm`,
+    opened), load only `BOARD` modules of the package: none of the town's (a namespace package, `orkboard.realm`,
     holds no code of its own)."""
     import os
     import subprocess
@@ -154,18 +154,18 @@ def test_orkboard_starts_alone(tmp_path):
     repo = tmp_path / "repo"
     (repo / ".git").mkdir(parents=True)
     code = ("import sys\n"
-            "from orkcraft.gui.board_host import Orkboard\n"
-            "from orkcraft.gui.server import Server\n"
+            "from orkboard.gui.board_host import Orkboard\n"
+            "from orkboard.gui.server import Server\n"
             f"host = Orkboard({str(repo)!r})\n"
             "server = Server(host)\n"
             "assert host.command('ideas.board')['tracks'] is not None and server.page()\n"
             "print('\\n'.join(sorted(n for n, m in list(sys.modules.items())\n"
-            "                          if (n == 'orkcraft' or n.startswith('orkcraft.')) and getattr(m, '__file__', None))))")
+            "                          if (n == 'orkboard' or n.startswith('orkboard.')) and getattr(m, '__file__', None))))")
     env = {**os.environ, "ORKCRAFT_SETTINGS_FILE": str(tmp_path / "settings.json"),
            "XDG_CONFIG_HOME": str(tmp_path / "config"), "ORKCRAFT_NO_UPDATE": "1"}
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env, cwd=tmp_path)
     assert out.returncode == 0, out.stderr
     loaded = out.stdout.split()
-    assert "orkcraft.gui.board_host" in loaded and "orkcraft.gui.ideas" in loaded and "orkcraft.gui.server" in loaded
+    assert "orkboard.gui.board_host" in loaded and "orkboard.gui.ideas" in loaded and "orkboard.gui.server" in loaded
     line = [n for n in loaded if not layers.matches(n)]
     assert not line, f"Orkboard loaded the line's modules: {line}"

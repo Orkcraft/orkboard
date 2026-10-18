@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
-from orkcraft.quota.models import QuotaStatus
+from orkboard.quota.models import QuotaStatus
 
 PROVIDER = "codex"
 API_KEY = "API key — no plan windows"

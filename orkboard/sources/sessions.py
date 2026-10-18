@@ -21,8 +21,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from orkcraft.env import getenv
-from orkcraft.realm import harnesses
+from orkboard.env import getenv
+from orkboard.realm import harnesses
 
 HARNESS_CLAUDE = "claude"
 HARNESS_AGY = "agy"
@@ -248,7 +248,7 @@ def new_command(harness: str) -> list[str]:
 def deploy_harness(step: dict) -> str:
     """The tool a garrison ork's session runs on: its step's (`main`: the machine's main tool), else —
     when that tool cannot start on a first prompt (agy) — the main tool, else Claude Code."""
-    from orkcraft.realm import tiers
+    from orkboard.realm import tiers
     tool = tiers.tool_of(step)
     if (h := harnesses.get(tool)) is not None and h.deploys:
         return tool

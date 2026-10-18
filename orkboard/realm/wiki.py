@@ -36,8 +36,8 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from orkcraft.realm import shelves
-from orkcraft.realm.shelves import Note
+from orkboard.realm import shelves
+from orkboard.realm.shelves import Note
 
 TOPICS = ("general", "codebase", "team", "design")
 WIKI_HOME = "llm-wiki"

@@ -22,7 +22,7 @@ import secrets
 import time
 from dataclasses import dataclass, field
 
-from orkcraft import settings
+from orkboard import settings
 
 CODE_S = 120.0           # a pairing code is good for 2 minutes
 ATTEMPTS = 5             # pairing attempts a minute; one more and pairing locks until a new code

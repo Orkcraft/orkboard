@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from orkcraft.realm import plans
+from orkboard.realm import plans
 
 WORK, REVIEW = "work", "review"
 DEFAULT_WAIT_MIN = 60          # a task waits for an older one on its area at most this long, then goes on flagged

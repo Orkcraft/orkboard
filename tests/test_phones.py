@@ -15,12 +15,12 @@ import pytest
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
-from orkcraft import settings
-from orkcraft.core import buildings
-from orkcraft.gui import mobile, pairing, phone_http, phone_tls, phones
-from orkcraft.gui.host import Host
-from orkcraft.gui.server import PROTOCOL, Server
-from orkcraft.realm import checkpoint
+from orkboard import settings
+from orkboard.core import buildings
+from orkboard.gui import mobile, pairing, phone_http, phone_tls, phones
+from orkboard.gui.host import Host
+from orkboard.gui.server import PROTOCOL, Server
+from orkboard.realm import checkpoint
 
 
 # -- pairing, without a network ----------------------------------------------------------------------
@@ -106,7 +106,7 @@ def test_a_phones_drop_is_never_read_as_paths_on_this_machine(fake_repo, tmp_pat
     args = mobile.guard("act", {"id": "pit", "act": "drop", "args": {"text": str(secret), "paths": True}})
     assert args["args"] == {"text": str(secret), "paths": False}
     assert mobile.guard("halt", {}) == {"device": "phone"}          # the event log says which window stopped it (spec 33 §9)
-    from orkcraft.realm import pit
+    from orkboard.realm import pit
     (item,) = pit.sort(fake_repo, str(secret), paths=False)
     assert item.kind == "text" and "PRIVATE KEY" not in (fake_repo / item.value).read_text()
     (copied,) = pit.sort(fake_repo, str(secret))                    # the desktop's own drop still copies it
