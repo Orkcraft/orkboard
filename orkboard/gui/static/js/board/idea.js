@@ -4,13 +4,16 @@
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { say } from "../link.js";
-import { stateWords } from "./store.js";
+import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
+import { Stages } from "./stages.js";
 import { act as run, showTask, showIdea, closePreview } from "../shell/store.js";
 
 // Section → [colour role, line icon, kit icon]. The role is a design-system token in board.css (`[data-sec]`); the line
 // icon (16px) is Office's, the kit's pixel icon (tools/ui_kit.py) Camp's.
 const SECTIONS = {
   Gist: ["info", "M3 2.5h7l3 3v8H3zM5.5 8h5M5.5 10.5h5", "gist"],
+  "Done when": ["ok", "M3 8.5l3.2 3.2L13 4.8", "in"],
+  "Depends on": ["muted", "M2 8h5M9 8h5M7 5.5 9.5 8 7 10.5", "stages"],
   Why: ["accent", "M8 1.5a4.5 4.5 0 0 0-2 8.5v1.5h4V10A4.5 4.5 0 0 0 8 1.5zM6.5 14h3", "why"],
   In: ["ok", "M3 8.5l3.2 3.2L13 4.8", "in"],
   Out: ["muted", "M4 4l8 8M12 4l-8 8", "out"],
@@ -25,17 +28,17 @@ const KIT_ICONS = "/ds/sprites/v4/ui/icons/";
 const usd = (n) => (n < 10 ? n.toFixed(2).replace(/0$/, "") : String(Math.round(n)));
 export const price = (e) => (e ? `~$${usd(e.usd_low)}–${usd(e.usd_high)}` : "");
 
-function Block({ s, onAsk, asked }) {
+function Block({ s, onAsk, asked, slug, plan }) {
   const [role, d, icon] = SECTIONS[s.name] || ["muted", "M3 8h10", "gist"];
   const [editing, setEditing] = useState(null);
-  const save = async () => { await run("ideas.edit", { slug: opened.value, section: s.name, text: editing }); setEditing(null); };
+  const save = async () => { await run("ideas.edit", { slug, section: s.name, text: editing }); setEditing(null); };
   return html`<details class=${cls("board-sec kit-well", { "is-asked": asked })} data-sec=${role} data-name=${s.name} open=${s.name === "Gist"}>
     <summary><svg class="board-sec__icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d=${d} /></svg>
       <span class="board-sec__mark" aria-hidden="true"><img alt="" width="24" height="24" src=${`${KIT_ICONS}${icon}.png`}
         srcset=${`${KIT_ICONS}${icon}.png 1x, ${KIT_ICONS}${icon}@2x.png 2x`} /></span>
       <span class="board-sec__name">${s.name}</span>
       <b class="board-sec__thesis">${s.thesis}</b></summary>
-    ${editing === null ? html`<div class="board-sec__body"><p class="board-sec__text">${s.text}</p>
+    ${editing === null ? html`<div class="board-sec__body">${s.name === "Stages" ? html`<${Stages} text=${s.text} plan=${plan} slug=${slug} />` : html`<p class="board-sec__text">${s.text}</p>`}
         <div class="board-row"><button class="ok-btn" onClick=${() => onAsk(s.name)}>Ask about ${s.name}</button>
           <button class="ok-btn" onClick=${() => setEditing(s.text)}>Edit</button></div></div>`
       : html`<div class="board-sec__body"><textarea class="ok-input" rows="6" value=${editing} aria-label=${`Text of ${s.name}`}
@@ -71,7 +74,7 @@ function Talk({ turns }) {
     <span>${t.text}</span></li>`)}</ol>`;
 }
 
-const TASK_WORDS = { waiting: "waiting", ready: "ready", running: "running", testing: "testing", review: "at Review", merged: "merged",
+const TASK_WORDS = { waiting: "waiting", ready: "ready", running: "working", testing: "testing", review: "at Review", merged: "merged",
   failed: "failed", held: "held" };
 
 function Tasks({ plan, working }) {
@@ -81,7 +84,8 @@ function Tasks({ plan, working }) {
     <span class="board-chip kit-well">${k.tier}</span>
     ${k.after?.length ? html`<span class="ok-tone-muted">after ${k.after.join(", ")}</span>` : ""}
     ${k.commit && html`<code class="board-commit" title=${k.branch}>${k.commit.slice(0, 8)}</code>`}
-    ${k.state === "held" && k.note && html`<span class="ok-tone-wait">${k.note}</span>`}
+    ${plan.passed_by === "auto" && !["waiting", "ready"].includes(k.state) && html`<span class="ok-tone-muted">by itself</span>`}
+    ${k.state === "held" && k.note && html`<span class="ok-tone-wait">${holdWords(k.note, k.waits_title || board.value?.ideas.find((i) => k.note.endsWith(` · ${i.slug}`))?.title)}</span>`}
     ${k.error && html`<span class="ok-tone-error">${k.error}</span>`}
     ${working && k.cost != null && html`<span class="ok-tone-muted">$${usd(k.cost)}</span>`}
   </li>`)}</ul>`;
@@ -110,9 +114,10 @@ function Plan({ plan, todo = "" }) {
 function Actions({ p }) {
   const s = p.state, plan = p.plan, slug = p.slug;
   const e = plan?.estimate;
-  if (s === "reading" || s === "planning") return html`<p class="ok-tone-wait" role="status">${say(`The Taskmaster is ${s === "reading" ? "reading" : "planning"}…`)}</p>`;
-  if (s === "raw") return html`<div class="board-row"><p class="ok-tone-muted">${say("New: the Taskmaster reads it at the next round.")}</p>
-    <button class="ok-btn" onClick=${() => run("ideas.read_now", { slug })}>Process now</button></div>`;
+  if (s === "reading" || s === "planning") return html`<div class="board-row"><p class="ok-tone-wait" role="status">${say(`The Taskmaster is ${s === "reading" ? "drafting" : "planning"}…`)}</p>
+    <button class="ok-btn danger" onClick=${() => run("ideas.read_stop", { slug })}>Stop</button></div>`;
+  if (s === "raw") return html`<div class="board-row"><p class="ok-tone-muted">${say("New: the Taskmaster drafts it tonight, or when you press Process now.")}</p>
+    <button class="ok-btn" onClick=${() => run("ideas.queue", { slug, queue: "now" })}>Process now</button></div>`;
   return html`<div class="board-actions">
     ${(s === "ready" || s === "asks") && html`<button class="ok-btn primary" onClick=${() => run("ideas.plan", { slug })}>Take it to work</button>`}
     ${plan && html`<${Plan} plan=${plan} />`}
@@ -137,13 +142,19 @@ export function PlanView({ p, todo }) {
 export function IdeaView({ p }) {
   const [section, setSection] = useState("");
   const [sure, setSure] = useState(false);
+  const row = board.value?.ideas.find((i) => i.slug === p.slug);
   const drop = async () => { await run("ideas.drop", { slug: p.slug }); closePreview(); };
   return html`<div class="board-ideaview">
     <div class="board-bar">
       <span class="board-state" data-state=${p.state}>${stateWords({ state: p.state, progress: planProgress(p.plan) })}</span>
-      ${p.size && html`<span class="board-size kit-well">${p.size}</span>`}</div>
+      ${p.size && html`<span class="board-size kit-well">${p.size}</span>`}
+      ${row?.risk && html`<span class="board-chip" title=${(row.risk_triggers || []).join(", ")}>Risk: ${row.risk[0].toUpperCase() + row.risk.slice(1)}</span>`}
+      ${row?.priority && html`<label class="board-inline"><span class="ok-font-status ok-tone-muted">Priority</span>
+        <select class="ok-input" aria-label="Priority of this idea" value=${row.priority}
+          onChange=${(e) => run("ideas.edit", { slug: p.slug, priority: e.target.value })}>
+          ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
     <${Actions} p=${p} />
-    <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} asked=${section === s.name} onAsk=${setSection} />`)}</div>
+    <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>
     <${Say} p=${p} section=${section} setSection=${setSection} />
     <${Talk} turns=${p.talk || []} />
     <div class="board-row">${sure ? html`<span>Drop this idea and its page?</span>

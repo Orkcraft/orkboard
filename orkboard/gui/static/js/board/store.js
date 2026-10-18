@@ -28,6 +28,37 @@ export function busy() {
 /** An idea's state in the person's words (§7). */
 export function stateWords(i) {
   const p = i.progress || { done: 0, total: 0 };
-  return say({ raw: "new", reading: "the Taskmaster is reading", asks: "asks you", ready: "ready", planning: "the Taskmaster is planning",
+  return say({ raw: "new", reading: "drafting", asks: "asks you", ready: "ready", planning: "planning", proposed: "proposed",
     plan: "plan ready", working: `working ${p.done}/${p.total}`, done: "done", failed: "needs you" }[i.state] || i.state);
+}
+
+export const PRIORITY_WORDS = { high: "High", normal: "Normal", low: "Low" };
+const PRIORITY_ORDER = ["high", "normal", "low"];
+
+/** The goals a person can choose (spec 35 §3: General is the system's, never listed), by priority, then the person's order. */
+export function goalList() {
+  const tracks = (board.value?.tracks || []).filter((g) => g.slug !== "general");
+  return [...tracks].sort((a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority) || a.order - b.order);
+}
+
+/** "2026-10-18T18:00:00" → "18:00". */
+export const hhmm = (iso) => (String(iso || "").length >= 16 ? String(iso).slice(11, 16) : String(iso || ""));
+
+/** A section's list (`- x`, `1. x`), or its lines when it has none (realm/ideas.py `items`). */
+export function items(text) {
+  const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const marked = lines.filter((l) => /^([-*+]|\d+[.)])\s+/.test(l)).map((l) => l.replace(/^([-*+]|\d+[.)])\s+/, ""));
+  return marked.length ? marked : lines;
+}
+
+/** A held task's note in words (spec 35 §11.5): the limits, the person's reserve (§6), or another idea on the same files
+ *  (§5; after the wait, beside it). `title` is that idea's title when the host sent it. */
+export function holdWords(note, title = "") {
+  const n = String(note || "");
+  let m;
+  if ((m = /^reserve · after (.+)$/.exec(n))) return `keeps your reserve · after ${m[1]}`;
+  if ((m = /^after (\d\d:\d\d)$/.exec(n))) return `waits for limits · after ${m[1]}`;
+  if ((m = /^files beside · (.+)$/.exec(n))) return `beside ${title || m[1]} · same files`;
+  if ((m = /^files · (.+)$/.exec(n))) return `waits for ${title || m[1]} · same files`;
+  return n;
 }

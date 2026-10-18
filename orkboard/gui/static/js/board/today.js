@@ -1,43 +1,59 @@
-// Today (29a §7, 33 §6): what needs the person (each opens its idea), then the to-dos of the plans (each opens the plan, scrolled
-// to it). A to-do is ticked; a secret asks for its value in a
-// password field, a choice offers its choices, instructions show their steps.
+// Needs you (docs/specs/35-goals-window.md §10–§11.2): one list, sorted by the host (what blocks work in progress, then the
+// priority, then the oldest; proposals last), an icon per kind, its title and one line. A click opens what it is about:
+// the questions as one form, the plan, the to-do's dialog, the goal. A proposal is answered in its row.
 import { useState } from "preact/hooks";
-import { html, cls } from "../html.js";
-import { board } from "./store.js";
+import { html } from "../html.js";
+import { say } from "../link.js";
+import { board, track, PRIORITY_WORDS } from "./store.js";
 import { act as run, showGoal, showIdea, showPlan } from "../shell/store.js";
+import { openDialog } from "../shell/modals.js";
 
-function Todo({ t }) {
-  const [value, setValue] = useState("");
-  const done = (extra = {}) => run("ideas.todo", { idea: t.idea, id: t.id, done: true, ...extra });
-  return html`<li class=${cls("board-todo", { "is-done": t.done })} data-kind=${t.kind}>
-    <div class="board-todo__head">
-      <input type="checkbox" checked=${!!t.done} aria-label=${`Done: ${t.title}`}
-        onChange=${(e) => run("ideas.todo", { idea: t.idea, id: t.id, done: e.target.checked })} />
-      <button class="board-link board-todo__title" onClick=${() => showPlan(t.idea, t.id)}><b>${t.title}</b></button>
-      <button class="board-link board-todo__idea" onClick=${() => showIdea(t.idea)}>${t.idea}</button>
-    </div>
-    ${t.why && html`<p class="ok-tone-muted board-todo__why">${t.why}</p>`}
-    ${t.kind === "secret" && !t.done && html`<form class="board-row" onSubmit=${(e) => { e.preventDefault(); if (value) done({ value }); }}>
-      <input class="ok-input" type="password" autocomplete="off" value=${value} aria-label=${`Value of ${t.title}`}
-        placeholder="The value (kept on this machine, never in a prompt)" onInput=${(e) => setValue(e.target.value)} />
-      <button class="ok-btn primary" disabled=${!value}>Keep it</button></form>`}
-    ${t.kind === "choice" && !t.done && html`<div class="board-row">${(t.choices || []).map((c) =>
-      html`<button key=${c} class="ok-btn" onClick=${() => done({ value: c })}>${c}</button>`)}</div>`}
-    ${t.kind === "instructions" && html`<ol class="board-steps">${(t.steps || []).map((s, n) => html`<li key=${n}>${s}</li>`)}</ol>`}
-  </li>`;
+const ICONS = { goal: "◎", asks: "?", plan: "▶", todo: "☐", failed: "!", proposal: "✦" };
+const KIND_WORDS = { goal: "A goal asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal" };
+
+function Proposal({ n }) {
+  const g = board.value.tracks.find((t) => t.slug === n.goal);
+  const [priority, setPriority] = useState(g?.priority || "normal");
+  const [reason, setReason] = useState("");
+  const [declining, setDeclining] = useState(false);
+  return html`<li class="board-need board-proposal" data-kind="proposal">
+    <span class="board-need__icon" aria-hidden="true">${ICONS.proposal}</span>
+    <div class="board-need__text"><b>${n.title}</b><span class="ok-tone-muted">${n.text}</span>
+      <div class="board-row">
+        <label class="board-inline">
+          <select class="ok-input" aria-label=${`Priority of ${n.title}`} title="Priority" value=${priority} onChange=${(e) => setPriority(e.target.value)}>
+            ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>
+        <button class="ok-btn primary" aria-label=${`Take: ${n.title}`} onClick=${() => run("ideas.proposal", { slug: n.idea, take: true, priority })}>Take</button>
+        ${!declining && html`<button class="ok-btn" aria-label=${`No: ${n.title}`} onClick=${() => setDeclining(true)}>No</button>`}</div>
+      ${declining && html`<div class="board-row">
+        <input class="ok-input" value=${reason} aria-label=${`Why not: ${n.title}`} placeholder="Why not? (optional, one line)" autofocus
+          onInput=${(e) => setReason(e.target.value)}
+          onKeyDown=${(e) => { if (e.key === "Enter") run("ideas.proposal", { slug: n.idea, take: false, ...(reason.trim() ? { reason: reason.trim() } : {}) }); }} />
+        <button class="ok-btn" aria-label=${`Decline: ${n.title}`}
+          onClick=${() => run("ideas.proposal", { slug: n.idea, take: false, ...(reason.trim() ? { reason: reason.trim() } : {}) })}>No</button>
+        <button class="board-link" onClick=${() => setDeclining(false)}>Cancel</button></div>`}
+    </div></li>`;
+}
+
+function open(n) {
+  if (n.kind === "goal") openDialog("ask", { slug: n.goal, goal: true, title: n.title });
+  else if (n.kind === "asks") openDialog("ask", { slug: n.idea, title: n.title });
+  else if (n.kind === "todo") openDialog("todo", { idea: n.idea, todo: n.todo });
+  else if (n.kind === "plan") showPlan(n.idea);
+  else showIdea(n.idea);
 }
 
 export function Today() {
-  const today = board.value.today;
-  const open_ = today.todos.filter((t) => !t.done), shown = [...open_, ...today.todos.filter((t) => t.done)];
-  return html`<section class="board-today" aria-label="Today">
-    <h3 class="board-sub kit-band">Needs you ${today.needs_you.length ? html`<span class="board-count kit-well">${today.needs_you.length}</span>` : ""}</h3>
-    ${today.needs_you.length ? html`<ul class="board-list">${today.needs_you.map((n) => html`<li key=${(n.goal || n.idea) + n.kind}>
-      <button class="board-need" data-kind=${n.kind} onClick=${() => (n.goal ? showGoal(n.goal) : showIdea(n.idea))}>
-        <b>${n.title}</b><span class="ok-tone-muted">${n.text}</span></button></li>`)}</ul>`
+  const all = board.value.needs_you || [];
+  const list = all.filter((n) => !track.value || n.goal === track.value);
+  return html`<section class="board-today" aria-label="Needs you">
+    <h3 class="board-sub kit-band">Needs you ${list.length ? html`<span class="board-count kit-well">${list.length}</span>` : ""}</h3>
+    ${list.length ? html`<ul class="board-list">${list.map((n) => (n.kind === "proposal" ? html`<${Proposal} key=${"p" + n.idea} n=${n} />`
+      : html`<li key=${n.kind + (n.idea || n.goal) + (n.todo?.id || "")}>
+        <button class="board-need" data-kind=${n.kind} data-priority=${n.priority} onClick=${() => open(n)}>
+          <span class="board-need__icon" aria-hidden="true">${ICONS[n.kind]}</span>
+          <span class="board-need__text"><b>${n.title}</b><span class="ok-tone-muted board-need__kind">${KIND_WORDS[n.kind]}</span>
+            <span class="ok-tone-muted">${say(n.text)}</span></span></button></li>`))}</ul>`
       : html`<p class="ok-tone-muted">Nothing waits for you.</p>`}
-    <h3 class="board-sub kit-band">To-dos ${open_.length ? html`<span class="board-count kit-well">${open_.length}</span>` : ""}</h3>
-    ${shown.length ? html`<ul class="board-list">${shown.map((t) => html`<${Todo} key=${t.idea + t.id} t=${t} />`)}</ul>`
-      : html`<p class="ok-tone-muted">No to-dos from a plan yet.</p>`}
   </section>`;
 }

@@ -5,13 +5,14 @@ import { html, cls } from "../html.js";
 import { say } from "../link.js";
 import { agents, agentsLayout, roles, setLayout, showIdea, showGoal, showTask, act } from "./store.js";
 import { openDialog } from "./modals.js";
+import { holdWords } from "../board/store.js";
 
 const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: ["at Review", ""], ready: ["queued", ""],
   held: ["held", "⏳"], failed: ["needs you", "⚠"] };
 
 export function gruntWords(c) {
   const [word, mark] = GRUNT[c.state] || [c.state, ""];
-  if (c.state === "held") return `${c.note || "held"}`;
+  if (c.state === "held") return holdWords(c.note, c.waits_title) || "held";
   if (c.state === "ready" && c.note) return "stopped";
   return mark ? `${word} ${mark}` : word;
 }
@@ -50,7 +51,7 @@ function Worker({ role, done, models }) {
     ${role.kinds?.length > 0 && html`<span class="ok-font-status ok-tone-muted">Does: ${role.kinds.join(", ")}</span>`}
     ${chips.length ? html`<ul class="shell-chips">${chips.map((c) => html`<li key=${c.idea + c.task}><button
         class=${cls("shell-chip", `is-${c.state}`)} data-state=${c.state} onClick=${() => showTask(c.idea, c.task)}>
-        <span class="shell-chip__state">${gruntWords(c)}</span><b>${c.title}</b><small class="ok-tone-muted">${c.idea_title}</small></button></li>`)}</ul>`
+        <span class="shell-chip__state">${gruntWords(c)}</span>${c.by === "auto" && html`<span class="shell-chip__tag">by itself</span>`}${c.night && html`<span class="shell-chip__tag">tonight</span>`}<b>${c.title}</b><small class="ok-tone-muted">${c.idea_title}</small></button></li>`)}</ul>`
       : html`<span class="ok-tone-muted">No task runs now.</span>`}
     ${mine.length > 0 && html`<details class="shell-done"><summary>Done today (${mine.length})</summary>
       <ul class="shell-chips">${mine.map((d) => html`<li key=${d.idea + d.task}><button class="shell-chip is-done"
