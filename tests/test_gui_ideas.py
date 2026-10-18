@@ -1,4 +1,5 @@
-"""The board's host commands (spec 29a §6), the phone's allowlist, its compact snapshot and its news."""
+"""The board's host commands (spec 29a §6), the phone's allowlist and its compact snapshot, on Orkboard's host
+(gui/board_host.py; Orkline ran them on its town's host too, spec 37 B)."""
 from __future__ import annotations
 
 import json
@@ -11,9 +12,8 @@ import pytest
 
 from orkboard.core import idea_keeper
 from orkboard.gui import ideas as gui_ideas
-from orkboard.gui import mobile
-from orkboard.gui.host import CommandError, Host
-from orkboard.realm import checkpoint, idea_secrets, ideas, jobs
+from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
+from orkboard.realm import idea_secrets, ideas, jobs
 
 BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.plan", "ideas.start", "ideas.move",
                   "ideas.edit", "ideas.track_add", "ideas.track_set", "ideas.todo", "ideas.drop", "ideas.stop",
@@ -23,9 +23,8 @@ BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.
 
 
 @pytest.fixture
-def host(fake_repo) -> Host:
-    checkpoint.ensure(fake_repo)
-    h = Host(fake_repo, auto_commit=False)
+def host(fake_repo) -> Orkboard:
+    h = Orkboard(fake_repo)
     yield h
     sys.modules.pop("orkboard.core.idea_runner", None)
 
@@ -58,8 +57,7 @@ def _plan(host, slug, todos=()):
 
 def test_every_board_command_is_the_hosts_and_a_phones(host):
     assert BOARD_COMMANDS <= set(host.commands)
-    assert BOARD_COMMANDS <= set(mobile.COMMANDS)
-    assert all(mobile.allowed(host, c, {}) for c in BOARD_COMMANDS)
+    assert all(BoardPhone.allowed(host, c, {}) for c in BOARD_COMMANDS)
     assert BOARD_COMMANDS <= set(host.command("mobile.hello")["commands"])
 
 
@@ -140,8 +138,7 @@ def test_say_and_plan_run_the_keeper_in_the_background(host, monkeypatch):
 
 
 def test_the_demo_runs_no_model(fake_repo):
-    checkpoint.ensure(fake_repo)
-    host = Host(fake_repo, auto_commit=False, demo=True)
+    host = Orkboard(fake_repo, demo=True)
     slug = _add(host, "x")["slug"]
     assert host.command("ideas.board")["demo"] is True
     with pytest.raises(CommandError, match="demo runs no model"):
@@ -216,27 +213,21 @@ def test_a_secret_todo_is_stored_and_the_plan_says_stored(host):
     assert idea_secrets.get(host.ideas.state_dir, slug, "t1") is None
 
 
-def test_the_snapshot_carries_focus_and_the_phone_hears_an_idea(host, monkeypatch):
-    monkeypatch.delenv("ORKCRAFT_FOCUS")                # the machine's default, not the suite's whole town
+def test_the_snapshot_carries_focus_and_the_phone_hears_an_idea(host):
     snap = host.snapshot()
     assert snap["focus"] == "board" and "ideas_rev" in snap and snap["needs_you"] == 0
-    before = mobile.phone_snapshot(host)
+    before = BoardPhone.phone_snapshot(host)
     assert before["focus"] == "board" and before["needs_you"] == 0
     slug = _add(host, "phone idea")["slug"]
-    mid = mobile.phone_snapshot(host)
+    mid = BoardPhone.phone_snapshot(host)
     assert mid["ideas_rev"] > before["ideas_rev"] and mid["rev"] != before["rev"]
-    assert mobile.news(before, mid) == []                   # raw: no push
+    assert [i["state"] for i in mid["idea_states"] if i["slug"] == slug] == ["raw"]     # raw: nothing asks yet
     ideas.save_state(host.ideas.state_dir, slug, state="asks")
     host.ideas.changed(slug)
-    after = mobile.phone_snapshot(host)
-    assert after["needs_you"] == 1
-    assert mobile.news(mid, after) == [{"kind": "idea", "slug": slug, "title": "phone idea", "state": "asks"}]
-    assert mobile.news(after, mobile.phone_snapshot(host)) == []          # once
-
-
-def test_the_focus_is_a_machine_setting(host):
-    host.town.machine.focus = ""
-    assert host.snapshot()["focus"] == "" and mobile.phone_snapshot(host)["focus"] == ""
+    after = BoardPhone.phone_snapshot(host)
+    assert after["needs_you"] == 1 and after["rev"] != mid["rev"]                        # the phone gets it
+    assert {"slug": slug, "title": "phone idea", "state": "asks"} in after["idea_states"]
+    assert BoardPhone.phone_snapshot(host)["rev"] == after["rev"]                        # once: nothing new to push
 
 
 def test_the_runner_bus_hops_to_the_hosts_thread(host):
@@ -289,19 +280,18 @@ def test_review_list_has_the_spec_shape_and_the_phones_may_call_it(host):
     assert set(r) == {"idea", "idea_title", "task", "title", "round", "tests", "diff", "cost", "conflict", "finished",
                       "work", "rework", "estimate", "over"}       # spec 36 §4
     assert r["idea"] == slug and r["task"] == "k1" and r["round"] == 2 and r["diff"]["files"] == 14
-    assert mobile.allowed(host, "ideas.merge", {"slug": slug, "task": "k1"})
+    assert BoardPhone.allowed(host, "ideas.merge", {"slug": slug, "task": "k1"})
 
 
 def test_the_snapshot_counts_results_and_the_phone_is_pushed_when_one_arrives(host):
-    before = mobile.phone_snapshot(host)
+    before = BoardPhone.phone_snapshot(host)
     assert before["review_count"] == 0
     slug = _review(host)
     host.ideas.changed(slug)
-    after = mobile.phone_snapshot(host)
+    after = BoardPhone.phone_snapshot(host)
     assert after["review_count"] == 1 and after["review_results"] == [{"idea": slug, "task": "k1", "title": "Do it"}]
-    assert [n for n in mobile.news(before, after) if n["kind"] == "result"] == [
-        {"kind": "result", "slug": slug, "task": "k1", "title": "Do it"}]
-    assert mobile.news(after, mobile.phone_snapshot(host)) == []
+    assert after["rev"] != before["rev"]                                                 # the phone is pushed
+    assert BoardPhone.phone_snapshot(host)["rev"] == after["rev"]                        # once
 
 
 def test_the_limits_are_the_smallest_remaining_of_each_installed_tools_rows(host, monkeypatch):
@@ -316,7 +306,7 @@ def test_the_limits_are_the_smallest_remaining_of_each_installed_tools_rows(host
     assert claude["name"] == "Claude" and claude["left"] == 0.62
     assert claude["rows"][0] == {"window": "5h", "left": 0.62, "reset": "2026-10-17T18:00"}
     assert claude["rows"][1]["window"] == "week" and got[1]["left"] == 0.4
-    assert mobile.phone_snapshot(host)["limits"][0]["left"] == 0.62
+    assert BoardPhone.phone_snapshot(host)["limits"][0]["left"] == 0.62
 
 
 def test_agents_shows_the_taskmaster_and_a_chip_per_live_task(host):
@@ -430,8 +420,8 @@ def test_each_action_writes_its_event_with_its_fields_and_the_device(host):
     _wait(host, slug)
     (e,) = _events(host, "idea_said")
     assert e["section"] == "Risks" and e["text"] == "Does it follow the system?" and e["chars"] == 26 and e["device"] == "phone"
-    assert e["device"] == "phone"                                   # the phone listener puts it there (mobile.guard)
-    assert mobile.guard("ideas.say", {"slug": "x", "device": "desktop"}, {"id": "p", "name": "P"})["device"] == "phone"
+    assert e["device"] == "phone"                                   # the phone listener puts it there (BoardPhone.guard)
+    assert BoardPhone.guard("ideas.say", {"slug": "x", "device": "desktop"}, {"id": "p", "name": "P"})["device"] == "phone"
     host.command("ideas.into", {"push": True})
     (e,) = _events(host, "into_changed")
     assert e["branch"] == "dev" and e["push"] is True and e["device"] == "desktop"
@@ -555,7 +545,7 @@ def test_ideas_spend_gives_an_ideas_and_a_goals_money_and_the_phone_may_call_it(
     for bad in ({"idea": "ghost"}, {"goal": "ghost"}, {}):
         with pytest.raises(CommandError):
             host.command("ideas.spend", bad)
-    assert "ideas.spend" in mobile.COMMANDS and mobile.allowed(host, "ideas.spend", {"idea": slug})
+    assert "ideas.spend" in host.commands and BoardPhone.allowed(host, "ideas.spend", {"idea": slug})
 
 
 def test_roles_gain_their_types_week_and_hand_model_and_role_save_takes_types(host):

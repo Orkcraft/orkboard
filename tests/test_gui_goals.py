@@ -9,9 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from orkboard.gui import mobile
-from orkboard.gui.host import CommandError, Host
-from orkboard.realm import checkpoint, event_log, ideas, jobs
+from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
+from orkboard.realm import event_log, ideas, jobs
 
 NEW_COMMANDS = {"ideas.goal_save", "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_drop",
                 "ideas.kind_set", "ideas.doc"}
@@ -21,9 +20,8 @@ GOAL = {"title": "Grow installs", "about": "More people try Orkline.", "priority
 
 
 @pytest.fixture
-def host(fake_repo) -> Host:
-    checkpoint.ensure(fake_repo)
-    h = Host(fake_repo, auto_commit=False)
+def host(fake_repo) -> Orkboard:
+    h = Orkboard(fake_repo)
     yield h
     sys.modules.pop("orkboard.core.idea_runner", None)
 
@@ -68,8 +66,8 @@ def _events(host, name):
 
 
 def test_the_new_commands_are_the_hosts_and_a_phones(host):
-    assert NEW_COMMANDS <= set(host.commands) and NEW_COMMANDS <= set(mobile.COMMANDS)
-    assert all(mobile.allowed(host, c, {}) for c in NEW_COMMANDS)
+    assert NEW_COMMANDS <= set(host.commands)
+    assert all(BoardPhone.allowed(host, c, {}) for c in NEW_COMMANDS)
 
 
 def test_a_goal_saved_is_read_by_the_keeper_at_once_and_written(host, model):
