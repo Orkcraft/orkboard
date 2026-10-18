@@ -9,8 +9,12 @@ import { AgentDialog } from "./agentdialog.js";
 import { SettingsDialog } from "./settings.js";
 import { PairDialog } from "./pair.js";
 import { IntoDialog, DropDialog } from "./review.js";
+import { OpenFolderDialog, CloseProjectDialog } from "./projects.js";
+import { LeaveDialog } from "./editor.js";
+import { SwitchDialog } from "./gitpane.js";
 
-const KINDS = { goal: GoalDialog, idea: IdeaDialog, ask: AskDialog, todo: TodoDialog, agent: AgentDialog, settings: SettingsDialog, pair: PairDialog, into: IntoDialog, drop: DropDialog };
+const KINDS = { goal: GoalDialog, idea: IdeaDialog, ask: AskDialog, todo: TodoDialog, agent: AgentDialog, settings: SettingsDialog, pair: PairDialog, into: IntoDialog, drop: DropDialog,
+  "open-folder": OpenFolderDialog, "close-project": CloseProjectDialog, leave: LeaveDialog, "switch-branch": SwitchDialog };
 
 export function Dialogs() {
   const d = dialog.value;

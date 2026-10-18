@@ -12,7 +12,11 @@ import { ReviewPane } from "./review.js";
 import { AgentsPane } from "./agents.js";
 import { Preview } from "./preview.js";
 import { Dialogs } from "./dialogs.js";
-import { preview, review, tab, agentsLayout, setLayout, refreshShell, closePreview, busy, logOpened } from "./store.js";
+import { StartScreen, currentProject, projectsOn } from "./projects.js";
+import { resetFiles } from "./files.js";
+import { resetGit } from "./gitpane.js";
+import { openDialog } from "./modals.js";
+import { preview, review, tab, agentsLayout, setLayout, refreshShell, closePreview, busy, logOpened, resetForProject } from "./store.js";
 
 const sheet = new URL("./shell.css", import.meta.url).href;
 const boardSheet = new URL("../board/board.css", import.meta.url).href;
@@ -58,15 +62,22 @@ export function Shell() {
   const narrow = useNarrow();
   const centre = useRef();
   const { h, hidden } = agentsLayout.value;
+  const project = projectsOn.value ? currentProject.value?.path || "" : "-";   // "-": Orkline's one fixed project
+  // Another project is shown: nothing of the last one stays (its Board, its tree, its git, its preview).
+  const was = useRef(project);
+  if (was.current !== project) { was.current = project; resetForProject(); resetFiles(); resetGit(); }
   // Fresh when the town says the ideas changed, and every 10 s while a model or a task runs.
-  useEffect(() => { refreshShell(); }, [t.ideas_rev]);
+  useEffect(() => { if (project) refreshShell(); }, [t.ideas_rev, project]);
   useEffect(() => {
-    const id = setInterval(() => { if (busy()) refreshShell(); }, 10000);
+    const id = setInterval(() => { if (currentProject.value && busy()) refreshShell(); }, 10000);
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
     const key = (e) => {
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {   // as VS Code's panel
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "o") {   // Open folder…, as an IDE
+        e.preventDefault();
+        if (!document.querySelector("[aria-modal='true']")) openDialog("open-folder");
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {   // as VS Code's panel
         e.preventDefault();
         setLayout({ hidden: !agentsLayout.value.hidden });
       } else if (e.key === "Escape" && preview.value && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
@@ -93,6 +104,9 @@ export function Shell() {
     const now = h || Math.round(centre.current.getBoundingClientRect().height / 3);
     setLayout({ h: Math.max(MIN_H, now + step) });
   };
+  if (!project) {
+    return html`<div class="shell" data-narrow=${narrow} data-start="true"><${TopBar} /><${StartScreen} /><${Dialogs} /></div>`;
+  }
   return html`<div class="shell" data-narrow=${narrow} data-tab=${tab.value} data-previewing=${!!preview.value}>
     <${TopBar} />
     <div class="shell-main">

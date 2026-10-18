@@ -4,6 +4,7 @@
 import { signal, batch } from "@preact/signals";
 import { command } from "../link.js";
 import { ask, board, opened, page, BUSY } from "../board/store.js";
+import { openDialog } from "./modals.js";
 
 export const preview = signal(null);       // null | {kind: "idea"|"plan"|"task"|"result", slug, task?, todo?}
 export const review = signal(null);        // ideas.review_list
@@ -12,6 +13,8 @@ export const detail = signal(null);        // the preview's own data: {task} (id
 export const goal = signal(null);          // ideas.goal of the goal in the preview
 export const roles = signal(null);         // ideas.roles: the agents, the task types and their agent, the models
 export const tab = signal("board");        // the narrow layout's tab (below 1 024 px the shell is the phone's layout)
+export const leftTab = signal("board");    // the left column's tab (spec 37 §8): "board" | "files"
+export const editing = signal(null);       // the file open in the editor: {path, dirty, save()}, null when none is
 
 const LIVE = ["running", "testing"];
 
@@ -56,8 +59,29 @@ export function logOpened(what, ref) {
   command("ideas.log", { event: "opened", what, ref: String(ref || ""), device: "desktop" }).catch(() => {});
 }
 
+/** Runs `then` now, or after the person says what to do with the unsaved changes of the file in the editor. */
+export function leaving(then) {
+  if (editing.value?.dirty) openDialog("leave", { then });
+  else then();
+}
+
+/** Another project is shown: nothing of the last one stays on the page. */
+export function resetForProject() {
+  batch(() => {
+    editing.value = null;
+    preview.value = null; detail.value = null; page.value = null; goal.value = null; opened.value = "";
+    board.value = null; review.value = null; agents.value = null; roles.value = null;
+    leftTab.value = "board";
+  });
+}
+
 export function show(p) {
-  if (p && p.kind !== "doc") logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
+  leaving(() => showNow(p));
+}
+
+function showNow(p) {
+  editing.value = null;
+  if (p && !["doc", "file", "gitdiff"].includes(p.kind)) logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
     p.kind === "goal" ? `goal:${p.slug}` : p.task ? `${p.slug}/${p.task}` : p.todo ? `${p.slug}/${p.todo}` : p.slug);
   batch(() => {
     preview.value = p;
@@ -73,6 +97,8 @@ export const showPlan = (slug, todo = "") => show({ kind: "plan", slug, todo });
 export const showTask = (slug, task) => show({ kind: "task", slug, task });
 export const showGoal = (slug) => show({ kind: "goal", slug });
 export const showDoc = (slug, path) => show({ kind: "doc", slug, path });
+export const showFile = (path) => show({ kind: "file", path });
+export const showGitDiff = (path) => show({ kind: "gitdiff", path });
 export const showResult = (slug, task) => show({ kind: "result", slug, task });
 export const closePreview = () => show(null);
 

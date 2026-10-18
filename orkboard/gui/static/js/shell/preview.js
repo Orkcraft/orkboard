@@ -1,13 +1,16 @@
 // The preview, the centre (docs/specs/33-v1-shell.md §6): one thing at a time — an idea's spec (29a's sections view), an
 // idea's plan (scrolled to a to-do, said what it unblocks), a task (its brief, state and log) or a result's code
 // (commits, then the files changed, each patch folded). A result's actions stay pinned at its foot.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { board, page } from "../board/store.js";
 import { IdeaView, PlanView } from "../board/idea.js";
 import { preview, detail, review, goal, act, closePreview, showIdea, showGoal, showResult, refreshShell } from "./store.js";
 import { ResultActions, testsWords, changesWords, isRed } from "./review.js";
 import { GoalView } from "./goalview.js";
+import { File } from "./diffview.js";
+import { FileView } from "./files.js";
+import { GitDiffView } from "./gitpane.js";
 
 const TASK_STATE = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "at Review", merged: "merged",
   failed: "needs you", held: "held" };
@@ -45,20 +48,6 @@ function Task({ d }) {
     <h3 class="board-sub">Log</h3>
     <pre class="shell-log" ref=${ref} aria-label="Log">${t.log || "Nothing logged yet."}</pre>
   </div>`;
-}
-
-function Patch({ patch }) {
-  return html`<pre class="shell-patch">${patch.split("\n").map((ln, n) => html`<span key=${n}
-    class=${cls("shell-patch__line", { "is-add": ln.startsWith("+") && !ln.startsWith("+++"), "is-del": ln.startsWith("-") && !ln.startsWith("---"),
-      "is-hunk": ln.startsWith("@@") })}>${ln}\n</span>`)}</pre>`;
-}
-
-function File({ f }) {
-  const [open, setOpen] = useState(false);       // the lines are drawn when it opens: a big diff stays light
-  return html`<details class="shell-file" onToggle=${(e) => setOpen(e.currentTarget.open)}>
-    <summary><code>${f.path}</code><span class="shell-file__n"><span class="is-add">+${f.added}</span> <span class="is-del">−${f.removed}</span></span></summary>
-    ${open && (f.patch == null ? html`<p class="ok-tone-muted">Too large to show.</p>` : html`<${Patch} patch=${f.patch} />`)}
-  </details>`;
 }
 
 const STAGE_WORDS = [["goal", "goal"], ["spec", "spec"], ["plan", "plan"], ["work", "work"], ["rework", "rework"], ["dropped", "dropped"]];
@@ -99,6 +88,7 @@ function Result({ d, p }) {
 function Doc({ d, p }) {
   return html`<div class="shell-doc"><p><button class="board-link" onClick=${() => showGoal(p.slug)}>← Back to the goal</button></p>
     ${!d ? html`<p class="ok-tone-muted">Opening…</p>`
+      : d.doc?.html ? html`<div class="shell-md" aria-label=${p.path} dangerouslySetInnerHTML=${{ __html: d.doc.html }}></div>${d.doc.truncated ? html`<p class="ok-tone-muted">Cut here: the document is longer.</p>` : ""}`
       : d.doc ? html`<pre class="shell-log shell-doc__text" aria-label=${p.path}>${d.doc.text}</pre>${d.doc.truncated ? html`<p class="ok-tone-muted">Cut here: the document is longer.</p>` : ""}`
       : html`<p class="ok-tone-muted">That document cannot be shown.</p>`}</div>`;
 }
@@ -106,8 +96,8 @@ function Doc({ d, p }) {
 export function Preview() {
   const p = preview.value, pg = page.value, d = detail.value;
   const title = !p ? "" : p.kind === "task" || p.kind === "result" ? (d?.task?.title || "…") : p.kind === "goal" ? (goal.value?.title || "…")
-    : p.kind === "doc" ? p.path : (pg?.title || "…");
-  const kind = { idea: "Spec", plan: "Plan", task: "Task", result: "Code", goal: "Goal", doc: "Document" }[p?.kind] || "";
+    : p.kind === "doc" || p.kind === "file" || p.kind === "gitdiff" ? p.path : (pg?.title || "…");
+  const kind = { idea: "Spec", plan: "Plan", task: "Task", result: "Code", goal: "Goal", doc: "Document", file: "File", gitdiff: "Changes" }[p?.kind] || "";
   const sub = (p?.kind === "task" || p?.kind === "result") ? d?.task?.idea_title : "";
   return html`<section class=${cls("shell-preview", { "is-open": !!p })} aria-label="Preview">
     ${p && html`<header class="shell-pane__head"><button class="ok-btn shell-back" aria-label="Back" onClick=${closePreview}>← Back</button>
@@ -119,6 +109,8 @@ export function Preview() {
         : p.kind === "plan" ? (pg ? html`<${PlanView} p=${pg} todo=${p.todo} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "goal" ? html`<${GoalView} />`
         : p.kind === "doc" ? html`<${Doc} d=${d} p=${p} />`
+        : p.kind === "file" ? html`<${FileView} path=${p.path} />`
+        : p.kind === "gitdiff" ? html`<${GitDiffView} path=${p.path} />`
         : p.kind === "task" ? html`<${Task} d=${d} />` : html`<${Result} d=${d} p=${p} />`}
     </div>
   </section>`;

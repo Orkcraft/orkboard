@@ -186,3 +186,60 @@
 .shell-takes { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .shell-takes__row { display: flex; align-items: baseline; gap: var(--space-2); }
 .shell-takes__row small { margin-left: auto; }
+
+/* spec 37 §8: the project switcher, the start screen, the Files pane, the Git section, the file in the preview */
+.shell-proj { position: relative; }
+.shell-proj__btn b { max-width: 220px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.shell-proj__menu { position: absolute; top: 100%; left: 0; z-index: 40; min-width: 300px; display: flex; flex-direction: column; padding: var(--space-1);
+  background: var(--panel-raised); border: 1px solid var(--frame-strong); box-shadow: var(--shadow-window); }
+.shell-proj__head { padding: var(--space-1) var(--space-2); color: var(--ink-muted); }
+.shell-proj__one { display: flex; justify-content: space-between; gap: var(--space-3); }
+.shell-proj__one.is-on { background: var(--selection); }
+.shell-proj__counts { font-size: .85em; white-space: nowrap; }
+.shell-proj__sep { height: 1px; background: var(--frame); margin: var(--space-1) 0; }
+.shell-start { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); padding: var(--space-4); text-align: center; }
+.shell-start h1 { margin: 0; font-size: 1.4em; }
+.shell-start__recent { text-align: left; min-width: 320px; }
+.shell-start__recent ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.shell-start__recent h2 { margin: 0 0 var(--space-1); }
+
+.shell-pane__tabs { padding: 0; gap: 0; }
+.shell-ltab { flex: 1; padding: var(--space-2) var(--space-3); background: none; border: 0; border-bottom: 2px solid transparent; color: var(--ink-muted); font: inherit; cursor: pointer; }
+.shell-ltab.is-on { color: var(--ink); border-bottom-color: var(--frame-focus); font-weight: 600; }
+.shell-files { display: flex; flex-direction: column; gap: var(--space-3); }
+.shell-files__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.shell-tree, .shell-tree__list { list-style: none; margin: 0; padding: 0; }
+.shell-tree__row { display: flex; align-items: baseline; gap: 4px; width: 100%; box-sizing: border-box; text-align: left; padding-top: 2px; padding-bottom: 2px; padding-right: var(--space-2);
+  background: none; border: 0; color: var(--ink); font: inherit; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell-tree__row:hover, .shell-tree__row:focus-visible { background: var(--selection); outline: none; }
+.shell-tree__row.is-on { background: var(--selection); font-weight: 600; }
+.shell-tree__row.is-secret { color: var(--ink-muted); font-style: italic; }
+.shell-tree__mark { display: inline-block; width: 1em; flex: none; color: var(--ink-muted); }
+.shell-tree__note { padding: 2px var(--space-2); font-size: .9em; }
+.shell-git { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--frame); padding-top: var(--space-3); }
+.shell-git__branch { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.shell-git__files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.shell-git__file { display: flex; align-items: baseline; gap: var(--space-2); padding: 2px 0; }
+.shell-git__file.is-on { background: var(--selection); }
+.shell-git__name { flex: 1; min-width: 0; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell-git__st { font-size: .8em; text-transform: uppercase; }
+.shell-git__commit, .shell-git__sync { display: flex; gap: var(--space-2); align-items: center; }
+.shell-git__commit .ok-input { flex: 1; min-width: 0; }
+.shell-file__bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+.shell-md { max-width: 80ch; line-height: 1.55; overflow-wrap: anywhere; }
+.shell-md h1, .shell-md h2, .shell-md h3 { margin: var(--space-4) 0 var(--space-2); }
+.shell-md pre, .shell-md code { font-family: var(--font-mono, ui-monospace, monospace); background: var(--panel-inset); }
+.shell-md pre { padding: var(--space-2); overflow: auto; }
+.shell-md table { border-collapse: collapse; }
+.shell-md th, .shell-md td { border: 1px solid var(--frame); padding: 3px var(--space-2); }
+.shell-md blockquote { margin-left: 0; padding-left: var(--space-3); border-left: 3px solid var(--frame); color: var(--ink-muted); }
+.shell-code { display: flex; overflow: auto; font: 12px/1.5 var(--font-mono, ui-monospace, monospace); background: var(--panel-inset); border: 1px solid var(--frame); }
+.shell-code pre { margin: 0; padding: var(--space-2); }
+.shell-code__nos { flex: none; text-align: right; color: var(--ink-muted); border-right: 1px solid var(--frame); user-select: none; }
+.shell-code__text { flex: 1; min-width: 0; white-space: pre; }
+.shell-edit { display: flex; flex-direction: column; gap: var(--space-2); height: 100%; min-height: 0; }
+.shell-edit__bar { display: flex; align-items: center; gap: var(--space-2); }
+.shell-edit__why { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.shell-edit__text { flex: 1; min-height: 240px; width: 100%; box-sizing: border-box; resize: none; padding: var(--space-2); background: var(--panel-inset); color: var(--ink);
+  border: 1px solid var(--frame); font: 13px/1.5 var(--font-mono, ui-monospace, monospace); tab-size: 4; }
+.shell-edit__text:focus { outline: 2px solid var(--frame-focus); outline-offset: -1px; }
