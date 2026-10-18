@@ -33,8 +33,8 @@ def tool_of(step: dict) -> str:
     """The tool a step runs on: `main` (or none) is the machine's main tool, as it is now."""
     harness = str(step.get("harness") or "")
     if harness in ("", harnesses.MAIN):
-        from orkcraft.realm import builders
-        return builders.main_tool()
+        from orkcraft import settings
+        return settings.main_tool()
     return harness
 
 
