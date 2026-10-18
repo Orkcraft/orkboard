@@ -50,13 +50,13 @@ CART_MOVED = "cart_moved"         # source, target, title: a cart delivered alon
 LOOKED = "look"                   # started, seconds: the GUI in front of the person (looks a day, their length)
 
 # The board (docs/specs/33-v1-shell.md §9): every action of the v1 shell, for the day's analysis. `device` is "desktop" or "phone".
-IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it at once), device
+IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it at once), priority, queue, device
 IDEA_SAID = "idea_said"           # idea, section, chars, text, device (the person's turn to the Taskmaster)
 KEEPER_STATE = "keeper_state"     # idea, state, was, seconds in the previous state
 PLAN_MADE = "plan_made"           # idea, tasks, todos, usd_low, usd_high
-PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made
+PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority
 TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan (a secret's value never)
-TASK_STATE = "task_state"         # idea, task, state, was, round, tier, role, seconds in the previous state, tokens, cost
+TASK_STATE = "task_state"         # idea, task, state, was, round, tier, role, seconds in the previous state, tokens, cost, ran_tier, effort
 RESULT_READY = "result_ready"     # idea, task, round, passed, failed, files, added, removed, cost, role
 RESULT_DECIDED = "result_decided"  # idea, task, round, decision, why, into, pushed, conflict, device, seconds from result_ready
 TASK_STOPPED = "task_stopped"     # idea, task, device
@@ -66,15 +66,28 @@ OPENED = "opened"                 # what (idea · plan · todo · task · result
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
 GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device
-GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took
+GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took, tier, effort
 ROLE_SAVED = "role_saved"         # role, model, max_parallel, new, device
 ROLE_DROPPED = "role_dropped"     # role, kinds (the task types sent back to Grunt), device
 KIND_SET = "kind_set"             # kind, role, device
+# Spec 35 §12: the Board writes, starts what is safe, and works at night.
+BOARD_SET = "board_set"           # target, autostart, night, device
+IDEA_DRAFTED = "idea_drafted"     # idea, risk, triggers, questions, tier, effort, seconds
+IDEA_ANSWERED = "idea_answered"   # idea, answers (how many)
+# … and every keeper event (goal_read, idea_drafted, idea_answered, idea_said, plan_made, night_run) carries §0's
+# step, prompt_chars, tokens ({"in", "out", "cache_read"}) and cost (null when unpriced, never 0)
+KEEPER_STOPPED = "keeper_stopped"  # idea (the person stopped the keeper's run on it)
+NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, seconds
+PROPOSAL_MADE = "proposal_made"   # idea, goal
+PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
+BOARD_COMMITTED = "board_committed"   # commit, pages, what, seconds (spec 35 §13: the Board's pages on the work branch)
+BOARD_HELD = "board_held"         # why (the work branch could not move to the Board's commit)
 
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
           TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, TASK_STOPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, ROLE_SAVED,
-          ROLE_DROPPED, KIND_SET)
+          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
+          IDEA_ANSWERED, BOARD_COMMITTED, BOARD_HELD)
 
 _LOCK = threading.Lock()
 
@@ -93,6 +106,9 @@ def _plain(value: Any) -> Any:
         return value[:TEXT_MAX]
     if isinstance(value, (list, tuple)) and all(isinstance(v, str) for v in value):
         return [v[:TEXT_MAX] for v in value][:50]
+    if isinstance(value, dict) and len(value) <= 8 and all(isinstance(k, str) and (v is None or (
+            isinstance(v, (int, float)) and not isinstance(v, bool))) for k, v in value.items()):
+        return dict(value)                     # a small count of numbers: a call's tokens (spec 35 §0)
     return None
 
 

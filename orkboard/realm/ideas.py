@@ -25,13 +25,16 @@ import threading
 import unicodedata
 from pathlib import Path
 
-SECTIONS = ("Gist", "Why", "In", "Out", "Risks", "Open questions", "Estimate", "Stages", "Decisions")
+SECTIONS = ("Gist", "Why", "Done when", "Out", "Risks", "Depends on", "Stages", "Open questions", "Decisions")   # spec 35 §3
 TRACK_SECTIONS = ("Description", "Summary", "Metrics", "Open questions")
 OLD_TRACK_SECTIONS = ("About", "Success criteria")      # a goal written before spec 34 keeps them, read as Description
 PRIORITIES = ("high", "normal", "low")
 GOAL_STATES = ("raw", "reading", "asks", "ready")
 MAX_METRICS, MAX_LINKS = 12, 12
-STATES = ("raw", "reading", "asks", "ready", "planning", "plan", "working", "done", "failed")
+KEEPER_METRICS, KEEPER_LINKS = 3, 8   # what the keeper writes of a goal (spec 35 §2)
+STATES = ("raw", "reading", "asks", "ready", "planning", "plan", "working", "done", "failed", "proposed")
+QUEUES = ("now", "night", "hold")    # a raw idea: drafted at once, tonight, or stopped by the person (spec 35 §3)
+TITLE_KEEPER = 60                    # a goal's title as the keeper writes it
 SIZES = ("S", "M", "L")
 GENERAL, GENERAL_TITLE = "general", "General"
 TRACKS, IDEAS = "pages/tracks", "pages/ideas"
@@ -250,13 +253,26 @@ def _metrics(page: Page) -> list[dict]:
     return out[:MAX_METRICS]
 
 
+def _links(page: Page) -> list[str]:
+    """A goal's links: the person's (spec 34), then the paths the keeper found relevant (spec 35 §2)."""
+    both = [str(x)[:300] for x in _json_list(page.get("links")) + _json_list(page.get("keeper_links")) if str(x).strip()]
+    return list(dict.fromkeys(both))[:MAX_LINKS + KEEPER_LINKS]
+
+
+def _metrics_by(page: Page) -> str:
+    """Who wrote a goal's metrics: the person (spec 34's dialog; a goal from before 35 with metrics), else the keeper."""
+    return page.get("metrics_by") or ("person" if _metrics(page) and not page.get("title_by") else "")
+
+
 def _track(slug: str, page: Page, count: int = 0) -> dict:
     about = page.section("Description") or page.section("About")
     return {"slug": slug, "title": page.title or page.get("title") or slug, "about": about,
+            "title_by": page.get("title_by") if page.get("title_by") in ("keeper", "person") else "person",
+            "metrics_by": _metrics_by(page),
             "criteria": items(page.section("Success criteria")), "deadline": page.get("deadline"),
             "order": _int(page.get("order")), "count": count, "priority": _priority(page.get("priority")),
             "metrics": _metrics(page), "summary": page.section("Summary"),
-            "links": [str(x)[:300] for x in _json_list(page.get("links")) if str(x).strip()][:MAX_LINKS],
+            "links": _links(page),
             "questions": items(page.section("Open questions"))}
 
 
@@ -325,46 +341,65 @@ def _metric_lines(metrics: list[dict]) -> str:
                      for m in metrics)
 
 
-def save_goal(root: Path, slug: str | None, title: str, about: str = "", metrics: object = (), priority: str = "normal",
-              links: object = (), deadline: str = "") -> tuple[str, bool]:
-    """A goal made or edited in its dialog (spec 34 §1): (its slug, whether it is new). What the keeper wrote (Summary,
-    Open questions, how a metric is counted) is kept; Description, Metrics, Priority, Links and Deadline are the person's."""
+def save_goal(root: Path, slug: str | None, title: str = "", about: str = "", metrics: object = None,
+              priority: str = "normal", links: object = None, deadline: str | None = None) -> tuple[str, bool]:
+    """A goal made or edited (spec 35 §2): (its slug, whether it is new). The person writes its Description and
+    Priority, and on Edit may correct its Title: a title they type is theirs (`title_by: person`) and the keeper never
+    rewrites it; without one the keeper writes it (`title_by: keeper`). Spec 34's metrics, links and deadline are still
+    taken and kept when given; left out (None), what is there stays. What the keeper wrote is kept."""
     title = " ".join(str(title or "").split())[:TITLE_CHARS]
-    if not title:
-        raise ValueError("A goal needs a title")
-    if not isinstance(metrics, (list, tuple)) or not isinstance(links, (list, tuple)):
+    about = str(about or "").strip()
+    if metrics is not None and not isinstance(metrics, (list, tuple)) or links is not None and not isinstance(links, (list, tuple)):
         raise ValueError("Metrics and links are lists")
     if str(priority or "normal").lower() not in PRIORITIES:
         raise ValueError("Priority is High, Normal or Low")
-    deadline = _date(deadline)
+    deadline = _date(deadline) if deadline is not None else None
+    if not slug and not title and not about:
+        raise ValueError("A goal needs a description, or at least a title")
     with LOCK:
         new = not slug
         if new:
-            slug = add_track(root, title)
+            first = thesis(about) or about
+            slug = add_track(root, title or (first if len(first) <= TITLE_KEEPER else first[:TITLE_KEEPER - 1].rsplit(" ", 1)[0] + "…"))
         page = track_page(root, slug)
         if page is None:
             raise ValueError(f"No goal {slug!r}")
-        had = {m["name"].lower(): m.get("how", "") for m in _metrics(page)}
-        kept = []
-        for m in metrics:
-            if not isinstance(m, dict) or not str(m.get("name") or "").strip():
-                continue
-            name = " ".join(str(m["name"]).split())[:300]
-            kept.append({"name": name, "target": " ".join(str(m.get("target") or "").split())[:300],
-                         "how": had.get(name.lower(), "")})
-        kept = kept[:MAX_METRICS]
-        urls = list(dict.fromkeys(" ".join(str(x).split())[:300] for x in links if str(x).strip()))[:MAX_LINKS]
-        page.title = title
-        page.set("title", title)
+        if title:
+            page.title = title
+            page.set("title", title)
+            page.set("title_by", "person")
+        elif new:
+            page.set("title", page.title)
+            page.set("title_by", "keeper")
         page.set("priority", _priority(priority))
-        page.set("deadline", deadline)
-        page.set("metrics", json.dumps(kept, ensure_ascii=False))
-        page.set("links", json.dumps(urls, ensure_ascii=False))
+        if deadline is not None:
+            page.set("deadline", deadline)
+        elif new:
+            page.set("deadline", "")
+        if metrics is not None:
+            had = {m["name"].lower(): m.get("how", "") for m in _metrics(page)}
+            kept = []
+            for m in metrics:
+                if not isinstance(m, dict) or not str(m.get("name") or "").strip():
+                    continue
+                name = " ".join(str(m["name"]).split())[:300]
+                kept.append({"name": name, "target": " ".join(str(m.get("target") or "").split())[:300],
+                             "how": had.get(name.lower(), "")})
+            page.set("metrics", json.dumps(kept[:MAX_METRICS], ensure_ascii=False))
+            if kept:
+                page.set("metrics_by", "person")
+        elif new:
+            page.set("metrics", "[]")
+        if links is not None:
+            urls = list(dict.fromkeys(" ".join(str(x).split())[:300] for x in links if str(x).strip()))[:MAX_LINKS]
+            page.set("links", json.dumps(urls, ensure_ascii=False))
+        elif new:
+            page.set("links", "[]")
         page.sections = [(n, t) for n, t in page.sections if n != "About" or not page.section("Description")]
         if any(n == "About" for n, _t in page.sections):          # an older goal: About becomes Description
             page.sections = [("Description" if n == "About" else n, t) for n, t in page.sections]
         page.set_section("Description", about, TRACK_SECTIONS)
-        page.set_section("Metrics", _metric_lines(kept), TRACK_SECTIONS)
+        page.set_section("Metrics", _metric_lines(_metrics(page)), TRACK_SECTIONS)
         for name in TRACK_SECTIONS:
             if not any(n == name for n, _t in page.sections):
                 page.set_section(name, "", TRACK_SECTIONS)
@@ -373,13 +408,27 @@ def save_goal(root: Path, slug: str | None, title: str, about: str = "", metrics
     return slug, new
 
 
-def write_goal_reading(root: Path, slug: str, summary: str, how: dict, questions: list[str]) -> None:
-    """What the keeper's reading of a goal writes: Summary, how each metric is counted, the open questions."""
+def write_goal_reading(root: Path, slug: str, summary: str, how: dict, questions: list[str], title: str = "",
+                       metrics: list[dict] | None = None, links: list[str] | None = None) -> None:
+    """What the keeper's reading of a goal writes: Summary, its metrics (1–3 `done when` lines with how each is
+    counted; on a goal whose metrics the person wrote in spec 34, only how each is counted), the open questions, its
+    title unless the person typed one, and the paths it found relevant (`keeper_links`: the person's links stay)."""
     with LOCK:
         page = track_page(root, slug)
         if page is None:
             raise ValueError(f"No goal {slug!r}")
-        metrics = _metrics(page)
+        title = " ".join(str(title or "").split())[:TITLE_KEEPER]
+        if title and page.get("title_by") == "keeper":
+            page.title = title
+            page.set("title", title)
+        if links is not None:
+            page.set("keeper_links", json.dumps(list(dict.fromkeys(links))[:KEEPER_LINKS], ensure_ascii=False))
+        written = [m for m in metrics or [] if isinstance(m, dict) and str(m.get("name") or "").strip()]
+        if written and _metrics_by(page) != "person":
+            metrics = [{k: " ".join(str(m.get(k) or "").split())[:300] for k in ("name", "target", "how")}
+                       for m in written[:KEEPER_METRICS]]
+        else:
+            metrics = _metrics(page)
         for i, m in enumerate(metrics):
             m["how"] = " ".join(str(how.get(m["name"]) or how.get(str(i)) or m.get("how") or "").split())[:300]
         page.set("metrics", json.dumps(metrics, ensure_ascii=False))
@@ -419,8 +468,10 @@ def ideas(root: Path, track: str | None = None) -> list[dict]:
     return sorted(out, key=lambda i: (place.get(i["track"], len(place)), i["order"], i["slug"]))
 
 
-def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None = None) -> str:
-    """A dropped idea: its text under Gist, the rest empty, last in its track. No model."""
+def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None = None, priority: str = "",
+             queue: str = "") -> str:
+    """A dropped idea: its text under Gist, the rest empty, last in its track. No model. `priority`: the person's
+    (else its goal's); `queue`: where a raw idea waits (spec 35 §3)."""
     text = str(text or "").strip()
     if not text:
         raise ValueError("An idea needs a few words")
@@ -434,13 +485,16 @@ def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None
         taken = {p.name for p in (state_dir / "ideas").iterdir()} if state_dir and (state_dir / "ideas").is_dir() else set()
         slug = _free(root / IDEAS, slugify(" ".join(first.split()[:8])), taken)
         order = max((i["order"] for i in ideas(root, track)), default=0) + 1
-        page = Page([("owner", OWNER), ("kind", "idea"), ("track", track), ("order", str(order)), ("size", "")],
+        if not priority:
+            priority = next((t["priority"] for t in tracks(root, make=False) if t["slug"] == track), "normal")
+        page = Page([("owner", OWNER), ("kind", "idea"), ("track", track), ("order", str(order)), ("size", ""),
+                     ("priority", _priority(priority))],
                     title, "", [(name, text if name == "Gist" else "") for name in SECTIONS])
         page.set_section("Gist", text)
         _write(root / IDEAS / f"{slug}.md", page.text())
         _reindex(root)
     if state_dir is not None:
-        save_state(state_dir, slug, state="raw")
+        save_state(state_dir, slug, state="raw", **({"queue": queue} if queue in QUEUES else {}))
     return slug
 
 
@@ -534,7 +588,14 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
 
 # -- what runs on an idea: <state_dir>/ideas/<slug>/ ------------------------------------------------
 
-STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": ""}
+STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": "",
+                 "queue": "", "held_until": "", "measure": None}
+
+
+def queue_of(st: dict) -> str:
+    """Where a raw idea waits: its queue; a raw idea from before spec 35, with none, waits for the night."""
+    q = st.get("queue")
+    return q if q in QUEUES else ("night" if st.get("state") == "raw" else "")
 
 
 def state_folder(state_dir: Path, slug: str) -> Path:
@@ -582,7 +643,9 @@ def goal_state(state_dir: Path, slug: str) -> dict:
     """A goal's state beside its page: `raw` (not read), `reading`, `asks`, `ready`; the last error."""
     data = _json(goal_folder(state_dir, slug) / "state.json") or {}
     return {"state": data.get("state") if data.get("state") in GOAL_STATES else "raw", "error": str(data.get("error") or ""),
-            "read_at": str(data.get("read_at") or "")}
+            "read_at": str(data.get("read_at") or ""), "read_time": str(data.get("read_time") or ""),
+            "tier": str(data.get("tier") or ""), "effort": str(data.get("effort") or ""),
+            "measure": data.get("measure") if isinstance(data.get("measure"), dict) else None}
 
 
 def save_goal_state(state_dir: Path, slug: str, **changes: object) -> dict:

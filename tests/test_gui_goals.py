@@ -37,7 +37,7 @@ def model(monkeypatch):
                "idea": {"gist": "Dark mode.\nIt glares at night.", "why": "Moves weekly installs.", "size": "S",
                         "priority": "high", "priority_why": "Helps night users stay.", "before": "", "questions": []}}
 
-    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0):
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
         kind = "goal" if "saved a goal" in prompt else "idea"
         seen.append({"kind": kind, "model": model, "prompt": prompt, "env": env})
         return json.dumps(answers[kind]), 0.01, 10, "s-1"
@@ -45,6 +45,13 @@ def model(monkeypatch):
     monkeypatch.setattr(jobs, "run_read", run_read)
     run_read.seen, run_read.answers = seen, answers
     return run_read
+
+
+def _add(host, text, **more):
+    """An idea under a goal (spec 35 §3: no idea without one), waiting for the night unless asked."""
+    root = host.ideas.root()
+    goal = next((t["slug"] for t in ideas.tracks(root, make=False) if t["slug"] != "general"), None) or ideas.add_track(root, "First goal")
+    return host.command("ideas.add", {"text": text, "track": goal, "night": True, **more})
 
 
 def _wait(host, slug="", goal=False):
@@ -70,7 +77,7 @@ def test_a_goal_saved_is_read_by_the_keeper_at_once_and_written(host, model):
     assert slug == "grow-installs"
     _wait(host, slug, goal=True)
     (call,) = model.seen
-    assert call["model"] == "sonnet" or "sonnet" in call["model"]                 # the warrior tier
+    assert call["model"] == "opus" or "opus" in call["model"]                     # spec 35 §1: the goal step is elder
     assert "More people try Orkline." in call["prompt"] and "weekly installs" in call["prompt"]
     assert "Write the specs" in call["prompt"] or "34-v1-round-2" in call["prompt"]            # a linked file is read …
     assert "https://example.com/post (a web link: not fetched)" in call["prompt"]            # … a URL only named
@@ -79,12 +86,13 @@ def test_a_goal_saved_is_read_by_the_keeper_at_once_and_written(host, model):
     assert g["summary"].startswith("Installs are the first step.") and g["questions"] == ["Which channel first?"]
     assert g["metrics"] == [{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}]
     assert g["links"] == ["docs/specs/34-v1-round-2.md", "https://example.com/post"] and g["description"] == "More people try Orkline."
-    text = (Path(host.town.repo_root) / "llm-wiki/general/pages/tracks/grow-installs.md").read_text()
+    text = (host.ideas.root() / "pages/tracks/grow-installs.md").read_text()      # spec 35 §13: the Board's tree
     assert "priority: high" in text and "## Summary" in text and "## Metrics" in text and "## Open questions" in text
     board = host.command("ideas.board")
     row = next(t for t in board["tracks"] if t["slug"] == slug)
     assert row["state"] == "asks" and row["priority"] == "high" and row["metrics"] and row["links"]
-    assert {"idea": "", "goal": slug, "kind": "goal", "title": "Grow installs", "text": "Which channel first?"} in board["today"]["needs_you"]
+    assert {"idea": "", "goal": slug, "kind": "goal", "title": "Grow installs", "text": "Which channel first?"} in [
+        {k: n[k] for k in ("idea", "goal", "kind", "title", "text")} for n in board["needs_you"]]     # spec 35 §10
     saved = _events(host, "goal_saved")[0]
     assert saved["goal"] == slug and saved["new"] is True and saved["priority"] == "high" and saved["device"] == "desktop"
     assert saved["metrics"] == ["weekly installs"] and len(saved["links"]) == 2
@@ -132,36 +140,40 @@ def test_the_answer_to_a_goals_question_is_the_same_talk_on_the_goal(host, model
 
 
 def test_an_idea_added_now_is_read_at_once_later_waits_for_the_batch(host, model):
-    later = host.command("ideas.add", {"text": "wait for the batch", "now": False})["slug"]
-    now = host.command("ideas.add", {"text": "dark mode please", "now": True})["slug"]
+    # spec 35 §3: `now` became the queue (Normal → drafted at once; the closed dialog's `night` waits); with no
+    # question the plan follows at once (this stub answers it with no plan, so the idea stays ready)
+    later = _add(host, "wait for the batch")["slug"]
+    now = _add(host, "dark mode please", night=False)["slug"]
     _wait(host, now)
-    assert [c["kind"] for c in model.seen] == ["idea"] and "dark mode please" in model.seen[0]["prompt"]
+    assert [c["kind"] for c in model.seen][:1] == ["idea"] and "dark mode please" in model.seen[0]["prompt"]
     assert ideas.state(host.ideas.state_dir, later)["state"] == "raw"
     assert ideas.state(host.ideas.state_dir, now)["state"] == "ready"
     assert [e["now"] for e in _events(host, "idea_added")] == [False, True]
+    seen = len(model.seen)
     host.command("ideas.read_now", {"slug": later})                      # the card's Process now
     _wait(host, later)
-    assert len(model.seen) == 2 and ideas.state(host.ideas.state_dir, later)["state"] == "ready"
+    assert len(model.seen) > seen and ideas.state(host.ideas.state_dir, later)["state"] == "ready"
     with pytest.raises(CommandError, match="read this idea already"):
         host.command("ideas.read_now", {"slug": later})
 
 
 def test_the_keeper_fills_an_ideas_priority_with_one_line_why_and_proposes_its_place(host, model):
-    first = host.command("ideas.add", {"text": "first idea"})["slug"]
-    second = host.command("ideas.add", {"text": "second idea"})["slug"]
+    # spec 35 §3: the priority is the person's; the keeper no longer proposes one, and still proposes the place
+    first = _add(host, "first idea")["slug"]
+    second = _add(host, "second idea")["slug"]
     model.answers["idea"]["before"] = first
     host.command("ideas.read_now", {"slug": second})
     _wait(host, second)
     page = host.command("ideas.page", {"slug": second})
     why = next(s["text"] for s in page["sections"] if s["name"] == "Why")
-    assert "Priority: High — Helps night users stay." in why
+    assert why == "Moves weekly installs." and "Priority:" not in why
     board = host.command("ideas.board")
-    assert [(i["slug"], i["priority"]) for i in board["ideas"]] == [(second, "high"), (first, "normal")]
+    assert [(i["slug"], i["priority"]) for i in board["ideas"]] == [(second, "normal"), (first, "normal")]
 
 
 def test_the_persons_drag_wins_over_the_keepers_place(host, model):
-    a = host.command("ideas.add", {"text": "alpha idea"})["slug"]
-    b = host.command("ideas.add", {"text": "beta idea"})["slug"]
+    a = _add(host, "alpha idea")["slug"]
+    b = _add(host, "beta idea")["slug"]
     host.command("ideas.move", {"slug": b})                              # the person drags b to the end: theirs now
     model.answers["idea"]["before"] = a
     host.command("ideas.read_now", {"slug": b})
@@ -199,7 +211,7 @@ def test_roles_are_made_edited_dropped_and_the_built_ins_refused(host):
 
 def test_agents_is_a_block_per_role_and_spend_is_summed_by_role(host):
     slug = host.command("ideas.role_save", {"name": "Scribe", "model": "laborer", "max_parallel": 1})["slug"]
-    idea = host.command("ideas.add", {"text": "an idea with work"})["slug"]
+    idea = _add(host, "an idea with work")["slug"]
     state = host.ideas.state_dir
     task = lambda tid, role, cost: {"id": tid, "title": tid, "brief": "b", "tier": "laborer", "kind": "docs", "role": role,  # noqa: E731
                                     "after": [], "state": "running", "started": time.strftime("%Y-%m-%dT%H:%M:%S"), "cost": cost}
@@ -223,7 +235,7 @@ def test_the_plan_marks_each_task_with_its_type():
 
 
 def test_the_keepers_talk_and_plans_run_on_the_taskmasters_model(host, model):
-    slug = host.command("ideas.add", {"text": "talk to me"})["slug"]
+    slug = _add(host, "talk to me")["slug"]
     model.answers["idea"] = {"reply": "ok", "sections": {}, "questions": []}
     host.command("ideas.say", {"slug": slug, "text": "hello"})
     _wait(host, slug)
@@ -238,7 +250,7 @@ def test_a_linked_document_is_read_from_the_repository_or_the_wiki_only(host):
     repo = Path(host.town.repo_root)
     (repo / "notes.md").write_text("# Notes\nhello\n")
     assert host.command("ideas.doc", {"path": "notes.md"}) == {"path": "notes.md", "text": "# Notes\nhello\n", "truncated": False}
-    slug = host.command("ideas.add", {"text": "an idea"})["slug"]
+    slug = _add(host, "an idea")["slug"]
     assert "an idea" in host.command("ideas.doc", {"path": f"pages/ideas/{slug}.md"})["text"]       # a Wiki page
     for bad in ("../outside.md", "/etc/passwd", "nope.md", "https://example.com/x"):
         with pytest.raises(CommandError):

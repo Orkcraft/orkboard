@@ -1,7 +1,7 @@
-"""The whole loop of the board in focus (docs/specs/29a-board-focus.md, 33 §2–§4): an idea dropped, read by the batch, talked
-through, planned, started, its task a Claude session whose commit waits at Review; the person merges it into `dev`, which
-is made, and nothing is pushed. A real Host on a
-temp repository with a bare origin; `claude` is a stub on PATH that answers each kind of call."""
+"""The whole loop of the board in focus (docs/specs/29a-board-focus.md, 33 §2–§4, 35 §2–§5): a goal from a description,
+an idea under it drafted at once, its question answered (one round), the plan made at once and started by itself (low risk, Normal),
+its task a Claude session whose commit waits at Review; the person merges it into `dev`, which is made, and nothing is
+pushed. A real Host on a temp repository with a bare origin; `claude` is a stub on PATH that answers each kind of call."""
 from __future__ import annotations
 
 import json
@@ -26,7 +26,7 @@ if "--permission-mode" in argv:                     # a task's session: it does 
     subprocess.run(["git", "-c", "user.name=Stub", "-c", "user.email=stub@x", "commit", "-qm", "Add the feature"],
                    check=True)
     out = "Done: feature.txt added."
-elif '"gist"' in prompt:                            # the batch
+elif '"gist"' in prompt:                            # the draft
     out = json.dumps({"gist": "Build the feature\nA small file the tests can see.", "why": "It moves the first track",
                       "size": "S", "track": "", "questions": ["Which file name?"]})
 elif '"reply"' in prompt:                           # the talk
@@ -82,25 +82,22 @@ def _until(host, check, what, seconds=60.0):
 def test_an_idea_goes_from_the_phone_through_review_to_a_commit_on_dev(town):
     host, repo, origin = town
     state = lambda slug: ideas.state(host.ideas.state_dir, slug)["state"]   # noqa: E731
-    slug = host.command("ideas.add", {"text": "a feature file"})["slug"]
-    assert state(slug) == "raw"
+    goal = host.command("ideas.goal_save", {"about": "Ship features the tests can see.", "priority": "normal"})["slug"]
+    _until(host, lambda: not host.ideas.keeper.busy_goal(goal), "the goal is read")
+    main, pushed = _git(repo, "rev-parse", "main"), _git(origin, "rev-parse", "main")
+    slug = host.command("ideas.add", {"text": "a feature file", "track": goal})["slug"]   # Normal: drafted at once
 
-    host.ideas.keeper.read_one(slug)                     # the batch, as its clock would run it
-    _until(host, lambda: state(slug) == "asks", "the batch asks")
+    _until(host, lambda: state(slug) == "asks", "the draft asks")
     page = host.command("ideas.page", {"slug": slug})
     assert any(s["name"] == "Open questions" and "file name" in s["text"] for s in page["sections"])
 
-    host.command("ideas.say", {"slug": slug, "text": "Call it feature.txt"})
-    _until(host, lambda: state(slug) == "ready", "the talk leaves no question")
+    host.command("ideas.answer", {"slug": slug, "answers": ["Call it feature.txt"]})     # §0: one round of answers
+    _until(host, lambda: (ideas.plan(host.ideas.state_dir, slug) or {}).get("passed_by") == "auto",
+           "the answer writes the rest: the plan follows and starts by itself")
     page = host.command("ideas.page", {"slug": slug})
     assert "feature.txt" in next(s["text"] for s in page["sections"] if s["name"] == "Decisions")
+    assert page["plan"]["estimate"]["tasks"] == 1
 
-    host.command("ideas.plan", {"slug": slug})
-    _until(host, lambda: state(slug) == "plan", "the plan is ready")
-    assert host.command("ideas.page", {"slug": slug})["plan"]["estimate"]["tasks"] == 1
-
-    main, pushed = _git(repo, "rev-parse", "main"), _git(origin, "rev-parse", "main")
-    host.command("ideas.start", {"slug": slug})
     _until(host, lambda: host.command("ideas.review_list")["results"], "the result waits at Review", seconds=120)
     (result,) = host.command("ideas.review_list")["results"]
     assert result["idea"] == slug and result["task"] == "k1" and result["tests"]["green"] is True and result["tests"]["failed"] == 0

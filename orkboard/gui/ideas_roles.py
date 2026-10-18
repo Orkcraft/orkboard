@@ -84,7 +84,10 @@ class RolesMixin:
                         {"idea": slug, "idea_title": titles.get(slug, title), "task": t.get("id"),
                          "title": t.get("title", ""), "state": state, "tier": t.get("tier", ""), "role": role,
                          "kind": t.get("kind") or roles.DEFAULT_KIND,
-                         "note": t.get("note") or (t.get("error") if state == "failed" else "") or ""})
+                         "note": t.get("note") or (t.get("error") if state == "failed" else "") or "",
+                         # spec 35 §11.5: who started it, and whether it waits for the night
+                         "by": "auto" if plan.get("passed_by") == "auto" else "person",
+                         "night": plan.get("start_at") == "night" and not t.get("started")})
         spent, out = self._role_spend(), []
         for r in roles.roles(self.state_dir):
             block = {"role": r["slug"], "name": "Grunts" if r["slug"] == roles.GRUNT and r["name"] == "Grunt" else r["name"],

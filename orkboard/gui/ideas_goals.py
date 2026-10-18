@@ -1,4 +1,5 @@
-"""A goal by dialog (spec 34 §1, §4), as `gui/ideas.py`'s `Ideas` has it: `ideas.goal_save`, `ideas.goal`, `ideas.read_now`.
+"""A goal by dialog (spec 34 §1, §4; spec 35 §2: a description and a priority, the keeper writes the rest), as
+`gui/ideas.py`'s `Ideas` has it: `ideas.goal_save`, `ideas.goal`, `ideas.read_now`.
 
 Saving a goal sends it to the keeper at once (core/idea_goals.py); a goal's state (`reading` → `asks` | `ready`) lives
 beside its page (`<state_dir>/goals/<slug>/`). Split from ideas.py to keep it under ~600 lines.
@@ -41,15 +42,19 @@ class GoalsMixin:
                 "busy": bool(self.keeper.busy_goal(slug)) or st["state"] == "reading"}
 
     def goal_save(self, args: dict) -> dict:
+        """`{"slug"?, "about", "priority", "title"?}`: a title typed is the person's (never rewritten); spec 34's
+        metrics, links and deadline are still taken and kept when given."""
         slug = _opt(args, "slug") or None
         about = args.get("about", "")
-        if not isinstance(about, str):
+        title = args.get("title", "")
+        if not isinstance(about, str) or not isinstance(title, str):
             raise IdeasError("about is not text")
-        metrics, links = args.get("metrics") or [], args.get("links") or []
-        if not isinstance(metrics, list) or not isinstance(links, list):
+        metrics, links = args.get("metrics"), args.get("links")
+        if metrics is not None and not isinstance(metrics, list) or links is not None and not isinstance(links, list):
             raise IdeasError("Metrics and links are lists")
-        got, new = ideas.save_goal(self.root(), slug, _text(args, "title", ideas.TITLE_CHARS), about[:ideas.SECTION_CHARS],
-                                   metrics, _opt(args, "priority") or "normal", links, _opt(args, "deadline"))
+        deadline = args.get("deadline") if isinstance(args.get("deadline"), str) else None
+        got, new = ideas.save_goal(self.root(), slug, title[:ideas.TITLE_CHARS], about[:ideas.SECTION_CHARS],
+                                   metrics, _opt(args, "priority") or "normal", links, deadline)
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
                  priority=g["priority"])
@@ -101,13 +106,19 @@ class GoalsMixin:
             return
         self._seen[f"goal:{slug}"] = (st, now)
         if st in ("asks", "ready", "raw") and was == "reading":
-            self._ev(event_log.GOAL_READ, goal=slug, state=st, seconds=round(now - since, 1) if since else None)
+            got = ideas.goal_state(self.state_dir, slug)
+            m = got["measure"] or {}
+            self._ev(event_log.GOAL_READ, goal=slug, state=st, seconds=round(now - since, 1) if since else None,
+                     tier=got["tier"], effort=got["effort"], step=m.get("step") or "goal", prompt_chars=m.get("prompt_chars"),
+                     tokens=m.get("tokens"), cost=m.get("cost"))
 
     def goal_needs(self, goals: list[dict]) -> list[dict[str, Any]]:
-        """A goal that asks is in Needs you."""
+        """A goal that asks is in Needs you (spec 35 §10: its own priority, oldest first)."""
         out = []
         for g in goals:
             if g["state"] == "asks":
                 out.append({"idea": "", "goal": g["slug"], "kind": "goal", "title": g["title"],
-                            "text": g["questions"][0] if g["questions"] else "The keeper asks you about this goal"})
+                            "text": g["questions"][0] if g["questions"] else "The keeper asks you about this goal",
+                            "priority": g["priority"], "blocks": False,
+                            "at": ideas.goal_state(self.state_dir, g["slug"])["read_time"]})
         return out

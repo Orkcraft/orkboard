@@ -16,6 +16,10 @@ and its tool's window is not nearly spent (else `held`, "after HH:MM"), works as
 model and instruction; its `max_parallel` is held besides `ideas.max_parallel`, spec 34 §3), passes the gate (once more on the
 same session when red) and waits at `review`, green or red, holding its worktree and branch (`ideas.review` false:
 green lands by itself, as before). Every task change publishes `ideas.changed`. All git: realm/idea_git.py.
+
+Spec 35: a task runs on the Target's tier and effort (`ran_tier`, `effort`; a role's own model wins); `start_at: "night"`
+starts only inside the night window; `passed_by: "auto"` leaves the person the reserve (realm/idea_target.py `gate`);
+ideas go by `rank` (priority, then order); a file to-do's path reaches its task in the environment (idea_secrets).
 """
 from __future__ import annotations
 
@@ -29,8 +33,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orkcraft.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
-from orkcraft.realm import event_log, halt, harnesses, jobs, roles, status, tool_errors
-from orkcraft.realm.idea_git import CRITICAL_TESTS, Conflict, IdeaGit, env_name, parse_tests, read_secret
+from orkcraft.realm import event_log, halt, harnesses, idea_secrets, idea_target, jobs, roles, status, tool_errors
+from orkcraft.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, parse_tests, read_secret, spec_paths
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
 HARNESS = "claude"
@@ -97,9 +101,10 @@ class Run:
 class IdeaRunner(ReviewMixin):
     def __init__(self, repo_root: Path, state_dir: Path, settings: Any, bus: Any = None, *,
                  limits: Callable[[], list] | None = None, events: bool = True,
-                 on_held: Callable[[], None] | None = None) -> None:
+                 on_held: Callable[[], None] | None = None, rank: Callable[[str], Any] | None = None) -> None:
         """`limits`: the quota readers' last read (the town's `limits`); without it the runner reads it itself.
-        `events`: write the task's events to the local event log (spec 33 §9); `on_held`: a task was held (the limits are read)."""
+        `events`: write the task's events to the local event log (spec 33 §9); `on_held`: a task was held (the limits are read);
+        `rank(slug)`: the idea's place (its priority, then the person's order): the ideas are served in that order."""
         self.repo_root, self.state_dir = Path(repo_root), Path(state_dir)
         self.settings, self.bus = settings, bus
         self.git = IdeaGit(self.repo_root)
@@ -110,7 +115,7 @@ class IdeaRunner(ReviewMixin):
         self._runs: dict[tuple[str, str], Run] = {}
         self._active: list[str] = []
         self._until: dict[tuple[str, str], float] = {}
-        self.events, self.on_held = events, on_held
+        self.events, self.on_held, self.rank = events, on_held, rank
         self._since: dict[tuple[str, str], float] = {}     # when a task entered the state it is in (the event log)
         self._resume_working()
 
@@ -161,7 +166,8 @@ class IdeaRunner(ReviewMixin):
             self._since[(slug, tid)] = now
             self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1),
                        tier=t.get("tier") or "", role=t.get("role") or "", seconds=round(now - since, 1) if since else None, tokens=t.get("tokens"),
-                       cost=t.get("cost"))
+                       cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "",
+                       tool=t.get("tool") or "", model=t.get("model") or "")
             if new == "review":
                 tests, diff = t.get("tests") or {}, t.get("diff") or {}
                 self._emit(event_log.RESULT_READY, idea=slug, task=tid, round=int(t.get("round") or 1), passed=tests.get("passed"),
@@ -268,7 +274,7 @@ class IdeaRunner(ReviewMixin):
         with self._lock:
             limits = self._read_limits(now)
             slots = max(1, int(setting(self.settings, "max_parallel") or 1)) - len(self._runs)
-            for slug in list(self._active):
+            for slug in sorted(self._active, key=self._rank_of):
                 plan = self.plan(slug)
                 if plan is None:
                     self._active.remove(slug)
@@ -284,8 +290,9 @@ class IdeaRunner(ReviewMixin):
                     elif changed:
                         self._changed(slug)
                     continue
+                gate = idea_target.gate(plan, limits, self.board(), now)
                 for t in tasks:
-                    if slots <= 0:
+                    if slots <= 0 or gate == "night":       # starts at night: only inside the window
                         break
                     if t.get("state") != "ready" or t.get("note") == STOPPED_NOTE:
                         continue
@@ -293,8 +300,8 @@ class IdeaRunner(ReviewMixin):
                     if self._running_as(role["slug"]) >= role["max_parallel"]:
                         continue                     # this role's own limit (spec 34 §3): the task waits its turn
                     until = status.reset_of(limits, HARNESS, now, status.NEARLY)
-                    if until is not None:
-                        self._hold(slug, t, until)
+                    if until is not None or gate is not None:     # the window, else the person's reserve (§6)
+                        self._hold(slug, t, until if until is not None else gate, "" if until is not None else "reserve · ")
                     else:
                         self._launch(slug, t)
                         slots -= 1
@@ -305,6 +312,22 @@ class IdeaRunner(ReviewMixin):
 
     def _role(self, task: dict) -> dict:
         return roles.role_for(self.state_dir, str(task.get("kind") or ""))
+
+    def _rank_of(self, slug: str) -> Any:
+        try:
+            return (0, self.rank(slug)) if self.rank is not None else (0, 0)
+        except Exception:                      # an idea the face cannot place goes last
+            return (1, 0)
+
+    def board(self) -> dict:
+        """The Board's own settings as the runner reads them (spec 35): its Target, night, reserves."""
+        return {k: setting(self.settings, k, d) for k, d in (("target", "balance"), ("night", "01:00-07:00"),
+                                                             ("reserve_day", 0.3), ("reserve_night", 0.1))}
+
+    def ran_on(self, task: dict) -> tuple[str, str]:
+        """(the model or tier a task runs on, its effort): the Target's shift of its tier, a role's own model winning."""
+        return idea_target.task_pick(str(task.get("tier") or "warrior"), idea_target.target_of(self.board()),
+                                     str(self._role(task).get("model") or ""))
 
     def _running_as(self, slug: str) -> int:
         return sum(1 for r in self._runs.values() if r.role == slug)
@@ -345,9 +368,9 @@ class IdeaRunner(ReviewMixin):
             self._set_idea(slug, "failed", f"{failed.get('title') or failed.get('id')}: {why}")
         self._changed(slug)
 
-    def _hold(self, slug: str, task: dict, until: float) -> None:
+    def _hold(self, slug: str, task: dict, until: float, why: str = "") -> None:
         self._until[(slug, task.get("id"))] = until
-        task.update(state="held", note=f"after {dt.datetime.fromtimestamp(until):%H:%M}")
+        task.update(state="held", note=f"{why}after {dt.datetime.fromtimestamp(until):%H:%M}")
 
     def _read_limits(self, now: float) -> list:
         if self._limits_fn is not None:
@@ -372,9 +395,13 @@ class IdeaRunner(ReviewMixin):
     def _launch(self, slug: str, task: dict) -> None:
         tid = task.get("id")
         cancel = threading.Event()
+        run, effort = self.ran_on(task)
+        h = harnesses.get(HARNESS)
+        task.update(tool=HARNESS, model=(h.pick(run) if h else run) or run)    # the model the run names (spec 35 §12)
         task.update(state="running", started=now_iso(), finished="", error="", note="",
                     branch=f"idea/{slug}/{tid}", commit="", session="", cost=None, tokens=None,
-                    tests=None, diff=None, round=1, conflict="", why="", base="", role=self._role(task)["slug"])
+                    tests=None, diff=None, round=1, conflict="", why="", base="", role=self._role(task)["slug"],
+                    ran_tier=idea_target.tier_of(run), effort=effort)
         self._clear_log(slug, tid)
         self._spawn(slug, tid, cancel, None)
 
@@ -396,8 +423,8 @@ class IdeaRunner(ReviewMixin):
             base = str(setting(self.settings, "merge_into") or "dev")
             env = self._env(slug, tid, plan)
             h = harnesses.need(HARNESS)
-            role = self._role(task)
-            model = h.pick(role["model"] or task.get("tier") or "warrior")      # the role's model, else the tier's
+            run, effort = self.ran_on(task)
+            model = h.pick(run)                          # the role's model, else the tier the Target gives
             rnd = int(task.get("round") or 1)
             if again is None:
                 self.git.ensure_branch(base)
@@ -422,7 +449,7 @@ class IdeaRunner(ReviewMixin):
                 if not resume:
                     prompt = self._prompt(slug, plan, task) + "\n\n" + prompt
             self._log(slug, tid, f"== round {rnd} · {now_iso()} · {model}\n{prompt}\n", env)
-            session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent)
+            session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent, effort)
             problem, out = None, ""
             for attempt in (1, 2):
                 self._set_task(slug, tid, state="testing")
@@ -436,7 +463,7 @@ class IdeaRunner(ReviewMixin):
                     raise RuntimeError(f"the gate is still red after one fix: {problem[-600:]}")
                 self._set_task(slug, tid, state="running")
                 session = self._session(slug, tid, path, cancel, model, env, FIX.format(problem=problem), session,
-                                        spent)
+                                        spent, effort)
             tests = parse_tests(out)
             tests["green"] = problem is None
             diff = self.git.stats(path, start_sha)
@@ -477,11 +504,11 @@ class IdeaRunner(ReviewMixin):
                 pass
 
     def _session(self, slug: str, tid: str, path: Path, cancel: threading.Event, model: str, env: dict,
-                 prompt: str, resume: str, spent: dict) -> str:
+                 prompt: str, resume: str, spent: dict, effort: str = "") -> str:
         """One turn of the task's Claude session (work mode); its cost and tokens add up on the task."""
         try:
             _text, cost, tokens, session = jobs.run_work(HARNESS, prompt, path, cancel, model=model, env=env,
-                                                         resume=resume)
+                                                         resume=resume, effort=effort)
         except tool_errors.ToolError as e:
             if e.kind != tool_errors.LIMIT:
                 raise
@@ -503,6 +530,9 @@ class IdeaRunner(ReviewMixin):
         self.git.commit_left(path, title)
         if not self.git.commits(path, start_sha):
             return "You changed no file. Make the change the task asks for in this worktree.", ""
+        board = [f for f in self.git.touched(path, str(setting(self.settings, "merge_into") or "dev")) if BOARD_PAGE.search(f)]
+        if board:                          # spec 35 §13: the Board's pages are the Board's
+            return f"A task never edits the Board's pages: put back {', '.join(board[:5])} as they were.", ""
         if self.git.dirty(path):
             return ("You left uncommitted changes: `git status` shows them. Commit them (or remove what is not "
                     "work)."), ""
@@ -519,23 +549,12 @@ class IdeaRunner(ReviewMixin):
             value = read_secret(self.state_dir, slug, str(todo.get("id") or "")) if name else None
             if name and value:
                 env[name] = value
-        return env
+        return {**env, **idea_secrets.file_env(self.state_dir, slug, plan, tid)}
 
     # -- the prompt ------------------------------------------------------------------------------
 
-    def _page(self, slug: str) -> str:
-        """The idea's page (the Wiki joined to the board, else llm-wiki/general): the newest one found."""
-        found = [p for pattern in (f"llm-wiki/*/pages/ideas/{slug}.md", f"*/pages/ideas/{slug}.md",
-                                   f"pages/ideas/{slug}.md") for p in self.repo_root.glob(pattern) if p.is_file()]
-        if not found:
-            return ""
-        newest = max(found, key=lambda p: p.stat().st_mtime)
-        try:
-            return newest.read_text(encoding="utf-8")[:PAGE_KEEP]
-        except OSError:
-            return ""
-
     def _prompt(self, slug: str, plan: dict, task: dict) -> str:
+        spec, deps = spec_paths(self.repo_root, self.state_dir, slug)
         tasks = plan.get("tasks") or []
         before = tasks[:tasks.index(task)] if task in tasks else []
         done = []
@@ -547,7 +566,9 @@ class IdeaRunner(ReviewMixin):
             rules = (self.repo_root / "CLAUDE.md").read_text(encoding="utf-8")[:CLAUDE_KEEP]
         except OSError:
             rules = ""
-        secrets = [n for n in self._env(slug, task.get("id"), plan) if n not in ("ORKCRAFT_ORC", "ORKCRAFT_IDEA", "ORKCRAFT_TASK")]
+        env = self._env(slug, task.get("id"), plan)
+        files = [n for n in env if n.startswith("ORKCRAFT_FILE_")]
+        secrets = [n for n in env if n not in ("ORKCRAFT_ORC", "ORKCRAFT_IDEA", "ORKCRAFT_TASK", *files)]
         parts = []
         if (instruction := str(self._role(task).get("instruction") or "").strip()):
             parts.append(f"# Your role: {self._role(task)['name']}\n\n{instruction}")
@@ -555,7 +576,8 @@ class IdeaRunner(ReviewMixin):
             f"You do one task of the idea `{slug}` in this repository: a git worktree on branch "
             f"`idea/{slug}/{task.get('id')}`, cut from `{setting(self.settings, 'merge_into') or 'main'}`. "
             "Work only here.",
-            "# The idea\n\n" + (self._page(slug) or "(its page was not found)"),
+            "# The idea\n\n" + (f"Its spec is at `{spec}` in this worktree: read it if you need it."
+                                  + "".join(f" It depends on `{d}`." for d in deps) if spec else "(its spec was not found)"),
             f"# Your task: {task.get('title', '')}\n\n{task.get('brief', '')}",
         ]
         if done:
@@ -569,5 +591,7 @@ class IdeaRunner(ReviewMixin):
         if secrets:
             finish += (" The environment holds " + ", ".join(secrets) + ": use them from the environment, never "
                        "print them, write them to a file or commit them.")
+        for name in files:
+            finish += f"\n\nThe file is at ${name}; copy it into the repository only if the task says so."
         parts.append(finish)
         return "\n\n".join(parts)

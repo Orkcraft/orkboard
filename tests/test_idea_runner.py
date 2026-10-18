@@ -179,7 +179,9 @@ def test_the_prompt_holds_the_page_the_brief_the_tasks_before_and_the_rules(town
     plan = runner.plan("demo")
     plan["tasks"][0].update(state="merged", subjects=["k1: add k1.txt"])
     prompt = runner._prompt("demo", plan, plan["tasks"][1])
-    assert "A demo idea." in prompt and "second brief" in prompt and "first brief" in prompt
+    # spec 35 §0, §13: the spec is named by its path, never pasted
+    assert "llm-wiki/general/pages/ideas/demo.md" in prompt and "A demo idea." not in prompt
+    assert "second brief" in prompt and "first brief" in prompt
     assert "k1: add k1.txt" in prompt and "write ork, never orc" in prompt
 
 

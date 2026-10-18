@@ -4,6 +4,7 @@
     h.ask(prompt, folder, model)             # argv of a one-shot answer in an empty folder (no edits)
     h.read(prompt, workdir, model, web)      # argv of an agent that reads (the repository when `in_repo`)
     h.work(prompt, workdir, model, resume)   # argv of an agent that may change files in `workdir`
+    h.read(…, effort="high")                 # … with the model's reasoning effort, where the tool takes one (spec 35 §1)
     h.call(prompt, workdir, allow, model)    # argv of an agent allowed only the MCP tools in `allow` (None: it cannot)
     h.result(stdout, before)                 # (text, cost USD | None, tokens | None, session id)
     h.outcome(stdout, before, model)         # … priced from `model` when the tool prints tokens, no price
@@ -23,6 +24,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
+import tempfile
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,6 +53,32 @@ def _tokens_of(usage) -> int | None:
     vals += [v for k, v in usage.items() if k not in keys and isinstance(v, int) and not isinstance(v, bool)
              and "cache" in k.lower() and "token" in k.lower()]
     return sum(vals) if vals else None
+
+
+def usage_split(stdout: str) -> dict | None:
+    """A Claude envelope's tokens apart: {"in", "out", "cache_read"} (spec 35 §0's measure); None when not read."""
+    try:
+        env = json.loads(stdout.strip())
+    except ValueError:
+        return None
+    usage = env.get("usage") if isinstance(env, dict) else None
+    if not isinstance(usage, dict):
+        return None
+    n = lambda k: usage.get(k) if isinstance(usage.get(k), int) and not isinstance(usage.get(k), bool) else 0  # noqa: E731
+    return {"in": n("input_tokens") + n("cache_creation_input_tokens"), "out": n("output_tokens"),
+            "cache_read": n("cache_read_input_tokens")}
+
+
+def capped(stdout: str, stderr: str = "") -> bool:
+    """Whether a run ended on its `--max-budget-usd` cap (its envelope's subtype, or its words)."""
+    try:
+        env = json.loads(stdout.strip())
+    except ValueError:
+        env = None
+    if isinstance(env, dict) and "budget" in str(env.get("subtype") or "").lower():
+        return True
+    text = f"{stdout}\n{stderr}".lower()
+    return "max budget" in text or "max_budget" in text or "budget exceeded" in text
 
 
 def json_result(stdout: str, before: int = 0) -> tuple[str, float | None, int | None, str]:
@@ -204,6 +234,11 @@ class Harness:
     # Experimental, at the person's own risk: never on by default; this warning is read before it is turned on
     # (onboarding, Settings → AI tools). "" for a tool that is not.
     experimental: str = ""
+    # (h, model, effort, budget, one_shot) → what a read or work argv gets for the model's reasoning effort, its budget
+    # in USD and a run that keeps no session (spec 35 §0, §1). None: the tool takes none of them, and they are ignored
+    # (agy's reasoning is in its model's name).
+    run_args: Callable[..., list[str]] | None = None
+    no_tools: tuple[str, ...] = ()   # what a reading argv gets to read nothing at all (the night's proposals)
 
     @property
     def bin(self) -> str:
@@ -243,13 +278,23 @@ class Harness:
     def ask(self, prompt: str, folder: str | Path, model: str = "") -> list[str]:
         return self.ask_cmd(self, prompt, str(folder), self.pick(model))
 
-    def read(self, prompt: str, workdir: str | Path, model: str = "", web: bool = False) -> list[str]:
-        return self.read_cmd(self, prompt, str(workdir), self.pick(model), web)
+    def read(self, prompt: str, workdir: str | Path, model: str = "", web: bool = False, effort: str = "",
+             budget: float | None = None, one_shot: bool = False, tools: bool = True) -> list[str]:
+        """`effort`, `budget` (USD), `one_shot` (no session kept), `tools` False: it reads nothing (spec 35 §0)."""
+        return (self.read_cmd(self, prompt, str(workdir), self.pick(model), web) + ([] if tools else list(self.no_tools))
+                + self._run(model, effort, budget, one_shot))
+
+    def _run(self, model: str, effort: str = "", budget: float | None = None, one_shot: bool = False) -> list[str]:
+        if not self.run_args or not (effort or budget or one_shot):
+            return []
+        return self.run_args(self, model, effort, budget, one_shot)
 
     def work(self, prompt: str, workdir: str | Path, model: str = "", resume: str = "",
-             dirs: Iterable[str] = (), free: bool = False) -> list[str]:
-        """`dirs`: folders outside `workdir` it may read too; `free`: its building is unchained."""
-        cmd = self.work_cmd(self, prompt, str(workdir), self.pick(model), resume) + list(self.free_args if free else ())
+             dirs: Iterable[str] = (), free: bool = False, effort: str = "") -> list[str]:
+        """`dirs`: folders outside `workdir` it may read too; `free`: its building is unchained; `effort`: the model's
+        reasoning (where the tool takes one)."""
+        cmd = (self.work_cmd(self, prompt, str(workdir), self.pick(model), resume) + list(self.free_args if free else ())
+               + self._run(model, effort))
         dirs = [str(d) for d in dirs if str(d)]
         return cmd + self.read_dirs(dirs) if dirs and self.read_dirs else cmd
 
@@ -339,6 +384,42 @@ def _claude_read_dirs(dirs: list[str]) -> list[str]:
 def _claude_work(h, prompt, workdir, model, resume):
     return [h.bin, "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
             *_model("--model", model), *(["--resume", resume] if resume else []), *_claude_mcp()]
+
+
+EFFORTS = ("low", "medium", "high", "xhigh", "max")      # the CLI's levels
+_HELP: dict[str, str] = {}                                # the CLI's path → its `--help`
+
+
+def cli_has(h, flag: str) -> bool:
+    """Whether the installed CLI lists `flag` in its `--help`: read once per CLI, then cached. It runs in an empty
+    folder with only PATH and HOME, so nothing of the town reaches it."""
+    path = shutil.which(h.bin) or h.bin
+    if path not in _HELP:
+        env = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "LANG", "USERPROFILE", "SYSTEMROOT")}
+        try:
+            with tempfile.TemporaryDirectory() as empty:
+                proc = subprocess.run([path, "--help"], cwd=empty, env=env, capture_output=True, text=True, timeout=15)
+            _HELP[path] = (proc.stdout or "") + (proc.stderr or "")
+        except (OSError, subprocess.SubprocessError, ValueError):
+            _HELP[path] = ""
+    return flag in _HELP[path]
+
+
+def effort_supported(h) -> bool:
+    return cli_has(h, "--effort")
+
+
+def _claude_run(h, model, effort="", budget=None, one_shot=False):
+    """`--effort <level>` (a known level, never on the laborer tier), `--max-budget-usd <x>`, `--no-session-persistence`:
+    each only when the installed CLI lists it."""
+    out = []
+    if effort in EFFORTS and (h.tier_for(model) or tier_of_model(model)) != "laborer" and cli_has(h, "--effort"):
+        out += ["--effort", effort]
+    if isinstance(budget, (int, float)) and budget > 0 and cli_has(h, "--max-budget-usd"):
+        out += ["--max-budget-usd", f"{budget:.2f}"]
+    if one_shot and cli_has(h, "--no-session-persistence"):
+        out.append("--no-session-persistence")
+    return out
 
 
 # agy (Antigravity) -------------------------------------------------------------------------------
@@ -510,7 +591,8 @@ register(Harness(
     _claude_ask, _claude_read, _claude_work,
     resumable=True, deploys=True, web=True, priced=True, mark="✻", color="bold #f59e0b",
     resume_cmd=lambda h, sid: [h.bin, "--resume", sid], call_cmd=_claude_call, read_dirs=_claude_read_dirs,
-    read_session=lambda sid, reopen: ["--resume", sid] if reopen else ["--session-id", sid]))
+    read_session=lambda sid, reopen: ["--resume", sid] if reopen else ["--session-id", sid], run_args=_claude_run,
+    no_tools=("--disallowedTools", CLAUDE_NO_TOOLS)))
 register(Harness(
     "agy", "Antigravity", "agy", "see antigravity.google", "agy login",
     {"elder": "gemini-pro-high", "warrior": "gemini-flash-high", "laborer": "gemini-flash-low"},
