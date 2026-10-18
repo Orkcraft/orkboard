@@ -4,6 +4,7 @@
     h.ask(prompt, folder, model)             # argv of a one-shot answer in an empty folder (no edits)
     h.read(prompt, workdir, model, web)      # argv of an agent that reads (the repository when `in_repo`)
     h.work(prompt, workdir, model, resume)   # argv of an agent that may change files in `workdir`
+    h.read(…, effort="high")                 # … with the model's reasoning effort, where the tool takes one (spec 35 §1)
     h.call(prompt, workdir, allow, model)    # argv of an agent allowed only the MCP tools in `allow` (None: it cannot)
     h.result(stdout, before)                 # (text, cost USD | None, tokens | None, session id)
     h.outcome(stdout, before, model)         # … priced from `model` when the tool prints tokens, no price
@@ -23,6 +24,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
+import tempfile
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -204,6 +208,9 @@ class Harness:
     # Experimental, at the person's own risk: never on by default; this warning is read before it is turned on
     # (onboarding, Settings → AI tools). "" for a tool that is not.
     experimental: str = ""
+    # (h, effort, model) → what a read or work argv gets for the model's reasoning effort (spec 35 §1). None: the
+    # tool takes none, and an effort is ignored (agy's reasoning is in its model's name).
+    effort_args: Callable[["Harness", str, str], list[str]] | None = None
 
     @property
     def bin(self) -> str:
@@ -243,13 +250,18 @@ class Harness:
     def ask(self, prompt: str, folder: str | Path, model: str = "") -> list[str]:
         return self.ask_cmd(self, prompt, str(folder), self.pick(model))
 
-    def read(self, prompt: str, workdir: str | Path, model: str = "", web: bool = False) -> list[str]:
-        return self.read_cmd(self, prompt, str(workdir), self.pick(model), web)
+    def read(self, prompt: str, workdir: str | Path, model: str = "", web: bool = False, effort: str = "") -> list[str]:
+        return self.read_cmd(self, prompt, str(workdir), self.pick(model), web) + self._effort(effort, model)
+
+    def _effort(self, effort: str, model: str) -> list[str]:
+        return self.effort_args(self, effort, model) if effort and self.effort_args else []
 
     def work(self, prompt: str, workdir: str | Path, model: str = "", resume: str = "",
-             dirs: Iterable[str] = (), free: bool = False) -> list[str]:
-        """`dirs`: folders outside `workdir` it may read too; `free`: its building is unchained."""
-        cmd = self.work_cmd(self, prompt, str(workdir), self.pick(model), resume) + list(self.free_args if free else ())
+             dirs: Iterable[str] = (), free: bool = False, effort: str = "") -> list[str]:
+        """`dirs`: folders outside `workdir` it may read too; `free`: its building is unchained; `effort`: the model's
+        reasoning (where the tool takes one)."""
+        cmd = (self.work_cmd(self, prompt, str(workdir), self.pick(model), resume) + list(self.free_args if free else ())
+               + self._effort(effort, model))
         dirs = [str(d) for d in dirs if str(d)]
         return cmd + self.read_dirs(dirs) if dirs and self.read_dirs else cmd
 
@@ -339,6 +351,32 @@ def _claude_read_dirs(dirs: list[str]) -> list[str]:
 def _claude_work(h, prompt, workdir, model, resume):
     return [h.bin, "-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits",
             *_model("--model", model), *(["--resume", resume] if resume else []), *_claude_mcp()]
+
+
+EFFORTS = ("low", "medium", "high", "xhigh", "max")      # the CLI's levels
+_HELP: dict[str, bool] = {}                               # the CLI's path → whether its `--help` lists `--effort`
+
+
+def effort_supported(h) -> bool:
+    """Whether the installed CLI lists `--effort` in its `--help`: read once per CLI, then cached. It runs in an
+    empty folder with only PATH and HOME, so nothing of the town reaches it."""
+    path = shutil.which(h.bin) or h.bin
+    if path not in _HELP:
+        env = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "LANG", "USERPROFILE", "SYSTEMROOT")}
+        try:
+            with tempfile.TemporaryDirectory() as empty:
+                proc = subprocess.run([path, "--help"], cwd=empty, env=env, capture_output=True, text=True, timeout=15)
+            _HELP[path] = "--effort" in (proc.stdout or "") + (proc.stderr or "")
+        except (OSError, subprocess.SubprocessError, ValueError):
+            _HELP[path] = False
+    return _HELP[path]
+
+
+def _claude_effort(h, effort, model):
+    """`--effort <level>`: a known level, never on the laborer tier, only when the CLI takes it."""
+    if effort not in EFFORTS or (h.tier_for(model) or tier_of_model(model)) == "laborer":
+        return []
+    return ["--effort", effort] if effort_supported(h) else []
 
 
 # agy (Antigravity) -------------------------------------------------------------------------------
@@ -510,7 +548,7 @@ register(Harness(
     _claude_ask, _claude_read, _claude_work,
     resumable=True, deploys=True, web=True, priced=True, mark="✻", color="bold #f59e0b",
     resume_cmd=lambda h, sid: [h.bin, "--resume", sid], call_cmd=_claude_call, read_dirs=_claude_read_dirs,
-    read_session=lambda sid, reopen: ["--resume", sid] if reopen else ["--session-id", sid]))
+    read_session=lambda sid, reopen: ["--resume", sid] if reopen else ["--session-id", sid], effort_args=_claude_effort))
 register(Harness(
     "agy", "Antigravity", "agy", "see antigravity.google", "agy login",
     {"elder": "gemini-pro-high", "warrior": "gemini-flash-high", "laborer": "gemini-flash-low"},

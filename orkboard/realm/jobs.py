@@ -110,22 +110,23 @@ def run_script(command: str, stdin: str, repo_root: Path, cancel: threading.Even
 
 
 def work_cmd(harness: str, prompt: str, workdir: Path, model: str = "", resume: str = "",
-             dirs: tuple = (), free: bool = False) -> list[str]:
+             dirs: tuple = (), free: bool = False, effort: str = "") -> list[str]:
     """An agent that may change files — only inside `workdir` (a Barracks worktree); `dirs` it may read too;
     `free`: its building is unchained (autonomy.FREE), so it asks nothing."""
     h = harnesses.get(roads.resolve(harness))
     if h is None:
         raise RuntimeError(f"harness {harness!r} cannot work in a worktree")
-    return h.work(prompt, workdir, model, resume if h.resumable else "", dirs, free)
+    return h.work(prompt, workdir, model, resume if h.resumable else "", dirs, free, effort)
 
 
 def run_work(harness: str, prompt: str, workdir: Path, cancel: threading.Event, model: str = "",
              env: dict | None = None, resume: str = "",
              timeout_s: int = WORK_TIMEOUT_S, dirs: tuple = (),
-             free: bool = False) -> tuple[str, float | None, int | None, str]:
-    """(text, cost, tokens, session) of an agent working in `workdir` (and reading `dirs` too)."""
+             free: bool = False, effort: str = "") -> tuple[str, float | None, int | None, str]:
+    """(text, cost, tokens, session) of an agent working in `workdir` (and reading `dirs` too); `effort`: the model's
+    reasoning, where the tool takes one (spec 35 §1)."""
     harness = roads.resolve(harness)
-    cmd = work_cmd(harness, prompt, workdir, model, resume, dirs, free)
+    cmd = work_cmd(harness, prompt, workdir, model, resume, dirs, free, effort)
     tool_env = h.env("work", workdir) if (h := harnesses.get(harness)) else {}
     run_env = {**os.environ, **tool_env, **(env or {})}
     resumed = roads.codex_thread_usage(resume, run_env) if harness == "codex" and resume else None
@@ -163,7 +164,7 @@ def context_of(harness: str, session: str, workdir: Path) -> int:
 
 def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, model: str = "",
              env: dict | None = None, resume: str = "",
-             timeout_s: int = WORK_TIMEOUT_S) -> tuple[str, float | None, int | None, str]:
+             timeout_s: int = WORK_TIMEOUT_S, effort: str = "") -> tuple[str, float | None, int | None, str]:
     """(text, cost, tokens, session) of an agent that only reads, in `workdir` (harness mode `read`: no terminal, no
     file edits) — an Agent pool's reply (docs/design/barracks-flows.md §7). It starts fresh unless `resume` names a
     session of a tool that can reopen one (the board's keeper: one session per idea, spec 29a §4); `session` is
@@ -172,7 +173,7 @@ def run_read(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
     h = harnesses.get(harness)
     if h is None:
         raise RuntimeError(f"harness {harness!r} cannot read")
-    cmd = h.read(prompt, workdir, model, False)
+    cmd = h.read(prompt, workdir, model, False, effort)
     if resume and h.read_session:
         cmd = cmd + h.read_session(resume, True)
     run_env = {**os.environ, **h.env("read", workdir), **(env or {})}
