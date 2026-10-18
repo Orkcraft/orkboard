@@ -9,6 +9,8 @@
     g.ensure_branch("dev") / g.branches()                # the branch results merge into (made when missing)
     g.stats(path, base) / g.diff(branch, base)           # what a task changed, counted / with its patches (Review)
     parse_tests(output)                                  # pytest's summary line → {"passed","failed","failing","tail"}
+    tree = BoardTree(repo_root, state_dir, "llm-wiki/general", lambda: "dev")   # the Board's pages (spec 35 §13)
+    tree.ensure(); tree.note("Dark mode", "drafted"); tree.flush(force=True)    # one commit of its pages, `dev` moved
 
 Every call runs git with fixed arguments (no shell). One lock per repository (`lock_of`) holds every change
 of refs and worktrees, so two tasks never rebase or fast-forward at once. A task that fails or conflicts never
@@ -404,3 +406,146 @@ def parse_tests(output: str, keep_lines: int = 40) -> dict:
         if m and m.group(1) not in names:
             names.append(m.group(1))
     return {"passed": passed, "failed": failed, "failing": names[:20], "tail": "\n".join(lines[-keep_lines:])}
+
+
+# -- the Board's own tree (spec 35 §13) ----------------------------------------------------------------------------
+
+BOARD_PAGE = re.compile(r"(^|/)pages/(ideas|tracks)/[^/]+\.md$")     # a Board page, wherever its Wiki is
+BOARD_NAME, BOARD_EMAIL = "Orkline board", "board@orkline.local"
+COMMIT_AFTER_S = 10.0                # the writes within this as one commit
+
+
+def spec_paths(repo_root: Path, state_dir: Path, slug: str) -> tuple[str, list[str]]:
+    """An idea's spec as a path in a task's worktree (the work branch holds the Board's pages), and the paths of the
+    specs it depends on: named, never pasted (spec 35 §0, §13). ("", []) when not found."""
+    for base in (Path(state_dir) / "board", Path(repo_root)):
+        found = [p for pattern in (f"llm-wiki/*/pages/ideas/{slug}.md", f"*/pages/ideas/{slug}.md", f"pages/ideas/{slug}.md")
+                 for p in base.glob(pattern) if p.is_file()]
+        if not found:
+            continue
+        page = max(found, key=lambda p: p.stat().st_mtime)
+        try:
+            head = page.read_text(encoding="utf-8")[:20000]
+        except OSError:
+            head = ""
+        m = re.search(r"^depends_on:[ \t]*(\[.*\])$", head, re.M)
+        try:
+            deps = [d for d in json.loads(m.group(1)) if isinstance(d, str)] if m else []
+        except ValueError:
+            deps = []
+        folder = page.relative_to(base).parent
+        return page.relative_to(base).as_posix(), [(folder / f"{d}.md").as_posix() for d in deps]
+    return "", []
+
+
+class BoardTree:
+    """The Board's pages in a worktree of their own, `<state_dir>/board/`, detached at the work branch's tip: it locks
+    no branch, so the person can check out any. A change is a commit of the Board's pages only (the writes within 10 s
+    as one), author *Orkline board*; the work branch is then fast-forwarded to it under the repository's lock, by
+    `IdeaGit._fast_forward`'s rules (in place when the person's checkout is on it, by `update-ref` when not). Refused
+    when the person has uncommitted changes in those files: held, tried again at the next write. Nothing is pushed."""
+
+    def __init__(self, repo_root: Path, state_dir: Path, wiki_rel: str, branch) -> None:
+        self.git = IdeaGit(Path(repo_root))
+        self.path = Path(state_dir) / "board"
+        self.wiki_rel, self.branch = wiki_rel.strip("/"), branch
+        self._since: float | None = None
+        self._notes: list[tuple[str, str]] = []
+        self.held = ""
+
+    def exists(self) -> bool:
+        return (self.path / ".git").exists()
+
+    def root(self) -> Path:
+        return self.path / self.wiki_rel
+
+    def pages(self) -> list[str]:
+        return [f"{self.wiki_rel}/pages/tracks", f"{self.wiki_rel}/pages/ideas"]
+
+    def _tip(self) -> str:
+        return _ok(_git(self.git.root, "rev-parse", f"refs/heads/{self.branch()}"))
+
+    def ensure(self) -> None:
+        """The tree, made when missing (detached at the work branch's tip), else moved to the tip when behind."""
+        with self.git.lock:
+            self.git.ensure_branch(self.branch())
+            if not self.exists():
+                _git(self.git.root, "worktree", "prune")
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                _ok(_git(self.git.root, "worktree", "add", "--detach", str(self.path), self.branch()))
+            else:
+                self.follow()
+
+    def follow(self) -> None:
+        """A tree behind its branch (a task landed) moves to the tip; one that holds commits of its own the branch has
+        not taken is rebased onto the tip (its pages never conflict: a task never edits them)."""
+        tip, head = self._tip(), self.git.head(self.path)
+        if tip == head or _git(self.path, "merge-base", "--is-ancestor", tip, head).returncode == 0:
+            return
+        if _git(self.path, "merge-base", "--is-ancestor", head, tip).returncode == 0:
+            _ok(_git(self.path, "checkout", "-q", "--detach", tip))
+        elif _git(self.path, "rebase", "-q", tip, timeout=PUSH_TIMEOUT_S).returncode != 0:
+            _git(self.path, "rebase", "--abort")
+            raise RuntimeError(f"the Board's tree could not follow {self.branch()}")
+
+    def note(self, title: str, what: str, now: float) -> None:
+        """A write of the Board's: committed with the others within COMMIT_AFTER_S."""
+        if self._since is None:
+            self._since = now
+        self._notes.append((" ".join(str(title or "the Board").split())[:80], what))
+
+    def due(self, now: float) -> bool:
+        return self._since is not None and now - self._since >= COMMIT_AFTER_S
+
+    def flush(self, now: float = 0.0, force: bool = False, message: str = "") -> dict | None:
+        """Commit the Board's pages when due (or `force`) and fast-forward the work branch: {"commit", "pages", "what",
+        "held"} (commit "" when nothing changed), None when nothing was due."""
+        if not self.exists() or not (force or self.due(now)):
+            return None
+        title, what = self._notes[0] if self._notes else ("the Board", "edited")
+        self._since, self._notes = None, []
+        out = {"commit": "", "pages": 0, "what": what, "held": ""}
+        with self.git.lock:
+            _git(self.path, "add", "-A", "--", *self.pages())
+            staged = [f for f in _git(self.path, "diff", "--cached", "--name-only").stdout.splitlines() if f.strip()]
+            if staged:
+                _ok(_git(self.path, "-c", f"user.name={BOARD_NAME}", "-c", f"user.email={BOARD_EMAIL}", "commit", "-q",
+                         "-m", message or f"board: {title} — {what}", "--author", f"{BOARD_NAME} <{BOARD_EMAIL}>"))
+                out.update(commit=self.git.head(self.path), pages=len(staged))
+            out["held"] = self.land()
+        return out
+
+    def land(self) -> str:
+        """The work branch fast-forwarded to the tree: "" when it moved (or had nothing to take), else why it is held."""
+        try:
+            self.follow()
+            tip, head = self._tip(), self.git.head(self.path)
+            if tip != head:
+                self.git._fast_forward(self.branch(), tip, head)
+        except RuntimeError as e:
+            self.held = str(e)[:300]
+            return self.held
+        self.held = ""
+        return ""
+
+    def move(self, legacy: Path) -> dict | None:
+        """The first start after spec 35: the Board's pages in the person's Wiki that the work branch does not hold are
+        copied into the tree and committed; then, and only then, the person's untracked copies are removed (they would
+        block a checkout of the work branch). Tracked copies are left alone."""
+        copied = []
+        for folder in ("pages/tracks", "pages/ideas"):
+            for page in sorted((Path(legacy) / folder).glob("*.md")) if (Path(legacy) / folder).is_dir() else []:
+                target = self.root() / folder / page.name
+                if not target.exists():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(page.read_bytes())
+                    copied.append(page)
+        if not copied:
+            return None
+        got = self.flush(force=True, message=f"board: the pages move to {self.branch()}")
+        if got and got["commit"]:
+            for page in copied:
+                rel = page.resolve().relative_to(self.git.root.resolve()).as_posix()
+                if _git(self.git.root, "ls-files", "--error-unmatch", "--", rel).returncode != 0:
+                    page.unlink(missing_ok=True)
+        return got

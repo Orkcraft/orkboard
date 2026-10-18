@@ -74,18 +74,25 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         self._limits_at = float("-inf")
         self._limits_busy = False
         self._seen: dict[str, tuple[str, float]] = {}     # slug → (state, when it began): keeper_state
+        self._what: dict[str, str] = {}                   # slug → what its next Board commit says (spec 35 §13)
         self._limits_logged = float("-inf")
         self.keeper = idea_keeper.IdeaKeeper(
             self.town.repo_root, self.state_dir, self.root, lambda: self.town.machine.ideas, self._publish,
             demo=bool(self.town.demo), budget_ok=lambda: self.town.budget_ok(), limits=lambda: list(self.host.limits() or []),
             on_plan=self._on_plan, start_night=self.start_night, events=not self.town.demo)
+        self.keeper.index_root = self.wiki
         self.town.bus.subscribe(idea_keeper.CHANGED, self._changed)
 
     # -- where the pages are --------------------------------------------------------------------------------
 
-    def root(self) -> Path:
+    def root(self, make: bool = True) -> Path:
+        """Where the Board's pages are: its own tree on the work branch (spec 35 §13, gui/ideas_board.py), else the Wiki
+        joined to the board. `make`: the tree is made (and the pages moved into it) when missing; the snapshot only reads."""
+        return self.tree_root(self.wiki(), make)
+
+    def wiki(self) -> Path:
         """The Wiki joined to the board: the board's `wiki` (a Wiki's id), else the camp's first Wiki (team or
-        general first), else `llm-wiki/general/` in the town's folder."""
+        general first), else `llm-wiki/general/` in the town's folder. The keeper reads its index here."""
         repo = Path(self.town.repo_root)
         found, named = [], ""
         for bid, spec in self.town.custom_specs.items():
@@ -121,6 +128,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
                     self._state_event(slug)
             except Exception:                   # a log never stops the board
                 pass
+        self.tree_note(slug)
 
     # -- the event log (spec 33 §9): every action of the shell, for the day's analysis ------------------------
 
@@ -139,12 +147,18 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         if state == was:
             return
         self._seen[slug] = (state, now)
+        what = {"plan": "planned", "proposed": "proposed"}.get(state) or ("drafted" if was == "reading" and state in ("asks", "ready") else "")
+        if what:
+            self._what.setdefault(slug, what)
         self._ev(event_log.KEEPER_STATE, idea=slug, state=state, was=was, seconds=round(now - since, 1) if since else None)
         if state == "plan":
             plan = ideas.plan(self.state_dir, slug) or {}
             est = plan.get("estimate") or {}
+            m = ideas.state(self.state_dir, slug).get("measure") or {}
             self._ev(event_log.PLAN_MADE, idea=slug, tasks=len(plan.get("tasks") or []), todos=len(plan.get("todos") or []),
-                     usd_low=est.get("usd_low"), usd_high=est.get("usd_high"))
+                     usd_low=est.get("usd_low"), usd_high=est.get("usd_high"),
+                     **{k: m.get(k) for k in ("step", "prompt_chars", "tokens", "cost")} if m.get("step") == "plan" else
+                     {"step": "plan", "prompt_chars": None, "tokens": None, "cost": None})
 
     def _since(self, iso: object) -> float | None:
         try:
@@ -173,6 +187,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
 
     def tick(self, now: float | None = None) -> None:
         now = time.monotonic() if now is None else now
+        self.tree_flush()
         try:
             self.keeper.tick()
         except Exception as e:                  # the keeper's batch never stops the clock
@@ -205,7 +220,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         now = time.monotonic()
         if self._cache is None or self._cache[0] != self.rev or now - self._cache[1] > SNAPSHOT_S:
             try:
-                b = self.board(make=False)
+                b = self.board(make=False)       # reads only: no tree is made for a snapshot
                 waiting = self.results()
                 data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] != "proposal"),
                         "idea_states": [{"slug": i["slug"], "title": i["title"], "state": i["state"]} for i in b["ideas"]],
@@ -278,8 +293,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
             self._ev(event_log.IDEA_SAID, args, idea=f"goal:{slug}", section="", chars=len(text), text=text)
             self.changed(f"goal:{slug}")
             return {"ok": True}
-        self.keeper.say(slug, text, _opt(args, "section"))
-        self._ev(event_log.IDEA_SAID, args, idea=slug, section=_opt(args, "section"), chars=len(text), text=text)
+        self.keeper.say(slug, text, _opt(args, "section"), _device(args))     # its `idea_said` is the keeper's, measured
         self.changed(slug)
         return {"ok": True}
 
@@ -313,6 +327,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
     def move(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)
         ideas.move(self.root(), slug, _opt(args, "track") or None, _opt(args, "before") or None, by="person")
+        self._what[slug] = "moved"
         self.changed(slug)
         return {"ok": True}
 
@@ -402,27 +417,6 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
         idea_secrets.forget_files(self.state_dir, slug)
         self.changed(slug)
         return {"ok": True}
-
-    def _todo_file(self, args: dict, slug: str, todo: dict) -> str:
-        """A file to-do's file (spec 35 §9): base64, at most 5 MB, kept beside the secrets (mode 600); plan.json says
-        only its name. From a phone only over the paired link, as a secret."""
-        got = args.get("file")
-        if _device(args) == "phone" and args.get("link") != "paired":
-            raise IdeasError("A file is given at the computer, or over the paired link")
-        if not isinstance(got, dict):
-            if todo.get("value"):
-                return todo["value"]
-            raise IdeasError("A file to-do needs its file")
-        data = got.get("data")
-        if not isinstance(data, str) or len(data) > idea_secrets.FILE_MAX * 4 // 3 + 8:
-            raise IdeasError("The file is larger than 5 MB")
-        try:
-            raw = base64.b64decode(data, validate=True)
-        except ValueError:
-            raise IdeasError("The file did not arrive whole") from None
-        path = idea_secrets.put_file(self.state_dir, slug, str(todo.get("id")), str(got.get("name") or ""), raw,
-                                     todo.get("accept") or [])
-        return path.name.split("-", 1)[1]
 
     # -- Review, Agents, one task (spec 33 §5) -------------------------------------------------------------
 
@@ -582,7 +576,7 @@ class Ideas(LimitsMixin, GoalsMixin, RolesMixin, BoardMixin):
                  "ideas.goal": self.goal, "ideas.read_now": self.read_now, "ideas.doc": self.doc, "ideas.roles": self.roles,
                  "ideas.role_save": self.role_save, "ideas.role_drop": self.role_drop, "ideas.kind_set": self.kind_set,
                  "ideas.queue": self.queue, "ideas.read_stop": self.read_stop, "ideas.start_now": self.start_now,
-                 "ideas.proposal": self.proposal, "ideas.board_set": self.board_set}
+                 "ideas.proposal": self.proposal, "ideas.board_set": self.board_set, "ideas.answer": self.answer}
         return {name: guarded(fn) for name, fn in table.items()}
 
 

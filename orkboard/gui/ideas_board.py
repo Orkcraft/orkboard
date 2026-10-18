@@ -1,17 +1,21 @@
 """The Board as `gui/ideas.py`'s `Ideas` shows it (docs/specs/35-goals-window.md §5, §10–§12): `ideas.board` with Needs
 you as one list, who passes a plan (autostart by risk and priority), and the Board's own commands — `ideas.queue`,
-`ideas.read_stop`, `ideas.start_now`, `ideas.proposal`, `ideas.board_set`. Split from ideas.py (its size).
+`ideas.read_stop`, `ideas.start_now`, `ideas.proposal`, `ideas.board_set`, `ideas.answer`, and a file to-do's file.
+Split from ideas.py (its size).
 """
 from __future__ import annotations
 
+import base64
 import json
 import time
+from pathlib import Path
 from typing import Any
 
 from orkcraft import settings
 from orkcraft.core import idea_keeper, idea_night
-from orkcraft.gui.ideas_args import IdeasError, _opt, _text
-from orkcraft.realm import event_log, idea_risk, ideas
+from orkcraft.gui.ideas_args import IdeasError, _device, _opt, _text
+from orkcraft.realm import event_log, idea_risk, idea_secrets, ideas
+from orkcraft.realm.idea_git import BoardTree
 
 NEEDS_IDEA = ("asks", "plan", "failed", "proposed")
 
@@ -25,6 +29,70 @@ def _list(text: str) -> list[str]:
 
 
 class BoardMixin:
+    # -- the Board's own tree on the work branch (§13) ----------------------------------------------------------
+
+    def _tree(self, wiki: Path):
+        """The Board's tree for this Wiki and work branch; None where it cannot be (the demo, a Wiki outside the
+        repository, a folder with no git history): the pages stay in the Wiki then, as before spec 35."""
+        if self.town.demo or getattr(self, "_tree_off", False):
+            return None
+        repo = Path(self.town.repo_root).resolve()
+        try:
+            rel = Path(wiki).resolve().relative_to(repo).as_posix()
+        except ValueError:
+            return None
+        got = getattr(self, "_board_tree", None)
+        if got is None or got.wiki_rel != rel:
+            got = self._board_tree = BoardTree(repo, self.state_dir, rel, lambda: self._into())
+        return got
+
+    def tree_root(self, wiki: Path, make: bool = True) -> Path:
+        tree = self._tree(wiki)
+        if tree is None:
+            return wiki
+        if tree.exists():
+            return tree.root()
+        if not make or not (Path(self.town.repo_root) / ".git").exists():
+            return wiki
+        try:
+            tree.ensure()
+            got = tree.move(wiki)
+            if got and got["commit"]:
+                self._ev(event_log.BOARD_COMMITTED, commit=got["commit"], pages=got["pages"], what="moved", seconds=None)
+        except Exception as e:                  # a repository the tree cannot live in: the Wiki, as before
+            self._tree_off = True
+            self.town.toast(f"The Board keeps its pages in the Wiki: {' '.join(str(e).split())[:200]}", title="The Board",
+                            severity="warning")
+            return wiki
+        return tree.root()
+
+    def tree_note(self, slug: str, what: str = "") -> None:
+        """A write of the Board's, for its next commit: the idea's or goal's title and what happened."""
+        tree = getattr(self, "_board_tree", None)
+        if tree is None or not tree.exists():
+            return
+        what = what or self._what.pop(slug, "") or "edited"
+        key = slug[5:] if slug.startswith("goal:") else slug
+        page = (ideas.track_page if slug.startswith("goal:") else ideas.idea_page)(tree.root(), key) if key else None
+        tree.note((page.title if page else "") or key or "the Board", what, time.time())
+
+    def tree_flush(self, force: bool = False) -> dict | None:
+        """The Board's writes of the last 10 s as one commit, the work branch moved (or held: `board_held`)."""
+        tree = getattr(self, "_board_tree", None)
+        if tree is None:
+            return None
+        began = time.monotonic()
+        try:
+            got = tree.flush(time.time(), force)
+        except Exception as e:                  # a commit that cannot be made never stops the board
+            got = {"commit": "", "pages": 0, "what": "", "held": str(e)[:300]}
+        if got and got["commit"]:
+            self._ev(event_log.BOARD_COMMITTED, commit=got["commit"], pages=got["pages"], what=got["what"],
+                     seconds=round(time.monotonic() - began, 2))
+        if got and got["held"]:
+            self._ev(event_log.BOARD_HELD, why=got["held"])
+        return got
+
     # -- the Board's settings (§1, §5, §7) ---------------------------------------------------------------------
 
     def board_settings(self) -> dict:
@@ -54,7 +122,7 @@ class BoardMixin:
 
     def board(self, make: bool = True) -> dict[str, Any]:
         """`make`: General (and the Wiki) written when missing; the snapshot only reads."""
-        root = self.root()
+        root = self.root(make)
         goals = [self._goal_row(g) for g in ideas.tracks(root, make=make)]
         rows, needs = [], self.goal_needs(goals)
         found = ideas.ideas(root)
@@ -237,6 +305,49 @@ class BoardMixin:
         self.changed(slug)
         return {"ok": True}
 
+    # -- one round of questions (§0), a file to-do's file (§9) ---------------------------------------------------
+
+    def answer(self, args: dict) -> dict:
+        """The questions of a spec (or of a goal, `goal: true`) answered together, in their order: one round (§0)."""
+        slug = _text(args, "slug", 100)
+        answers = args.get("answers")
+        if not isinstance(answers, list) or not all(isinstance(a, str) for a in answers):
+            raise IdeasError("answers are a list of text")
+        if args.get("goal") is True:
+            g = next((t for t in ideas.tracks(self.root(), make=False) if t["slug"] == slug), None)
+            if g is None:
+                raise IdeasError("That goal is gone")
+            said = "\n".join(f"{q} — {a.strip() or '(no answer: decide)'}" for q, a in zip(g["questions"], answers))
+            self.keeper.read_goal(slug, said, answered=True)
+            self._what[f"goal:{slug}"] = "answered"
+            self.changed(f"goal:{slug}")
+            return {"ok": True}
+        self.keeper.answer(slug, answers)
+        self._what[slug] = "answered"
+        self.changed(slug)
+        return {"ok": True}
+
+    def _todo_file(self, args: dict, slug: str, todo: dict) -> str:
+        """A file to-do's file (spec 35 §9): base64, at most 5 MB, kept beside the secrets (mode 600); plan.json says
+        only its name. From a phone only over the paired link, as a secret."""
+        got = args.get("file")
+        if _device(args) == "phone" and args.get("link") != "paired":
+            raise IdeasError("A file is given at the computer, or over the paired link")
+        if not isinstance(got, dict):
+            if todo.get("value"):
+                return todo["value"]
+            raise IdeasError("A file to-do needs its file")
+        data = got.get("data")
+        if not isinstance(data, str) or len(data) > idea_secrets.FILE_MAX * 4 // 3 + 8:
+            raise IdeasError("The file is larger than 5 MB")
+        try:
+            raw = base64.b64decode(data, validate=True)
+        except ValueError:
+            raise IdeasError("The file did not arrive whole") from None
+        path = idea_secrets.put_file(self.state_dir, slug, str(todo.get("id")), str(got.get("name") or ""), raw,
+                                     todo.get("accept") or [])
+        return path.name.split("-", 1)[1]
+
     # -- proposals (§8) -----------------------------------------------------------------------------------------
 
     def proposal(self, args: dict) -> dict:
@@ -264,6 +375,7 @@ class BoardMixin:
         else:
             idea_night.decline(self.state_dir, page.title or slug, page.get("track") or "", reason)
             ideas.drop(root, slug, self.state_dir)
+            self._what[slug] = "declined"
         self._ev(event_log.PROPOSAL_ANSWERED, args, idea=slug, take=take, has_reason=bool(reason.strip()))
         self.changed(slug)
         return {"ok": True}

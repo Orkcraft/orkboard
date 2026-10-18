@@ -107,8 +107,10 @@ class GoalsMixin:
         self._seen[f"goal:{slug}"] = (st, now)
         if st in ("asks", "ready", "raw") and was == "reading":
             got = ideas.goal_state(self.state_dir, slug)
+            m = got["measure"] or {}
             self._ev(event_log.GOAL_READ, goal=slug, state=st, seconds=round(now - since, 1) if since else None,
-                     tier=got["tier"], effort=got["effort"])
+                     tier=got["tier"], effort=got["effort"], step=m.get("step") or "goal", prompt_chars=m.get("prompt_chars"),
+                     tokens=m.get("tokens"), cost=m.get("cost"))
 
     def goal_needs(self, goals: list[dict]) -> list[dict[str, Any]]:
         """A goal that asks is in Needs you (spec 35 §10: its own priority, oldest first)."""
