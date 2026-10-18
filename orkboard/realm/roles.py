@@ -10,8 +10,14 @@ how many may work at once; each task type is given one role.
 
 One small file per role, `<state_dir>/roles/<slug>.md` (front matter `name, model, max_parallel`; the body is the
 instruction), so it is seen and undone by hand; the types' roles are `<state_dir>/roles/kinds.json`. **Taskmaster**
-(the keeper) and **Grunt** (the default worker) exist by themselves: they can be edited, not deleted. A model is a
-tier (`elder · warrior · laborer`) or a model of the Claude harness; "" (Grunt only) is the task's own tier.
+(the keeper) and **Grunt** (the default worker) exist by themselves: they can be edited, not deleted.
+
+A role is who; the Target is how much thinking (spec 36 §3): a model is "" **By Target** (the task's own tier,
+shifted by the Target; every role but the Taskmaster, and a new agent's default) or a tier (`elder · warrior ·
+laborer`); the Taskmaster picks a tier only. A file that names another model (written before, or by hand) keeps it
+and runs it (`hand_set`). An instruction is at most 600 characters; a longer one in its file goes to the ork cut at
+its last sentence end (`instruction`, the file's whole text in `instruction_long`) until the person saves. An agent
+takes its task types (`save(..., takes=[...])`); Grunt takes what no other agent takes.
 
 No face, no model.
 """
@@ -31,7 +37,8 @@ TASK_KINDS = ("code", "tests", "docs", "text", "research")
 KIND_LABELS = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
 DEFAULT_KIND = "code"
 MAX_PARALLEL = (1, 8)
-NAME_CHARS, INSTRUCTION_CHARS = 40, 4000
+NAME_CHARS, INSTRUCTION_CHARS = 40, 600
+READ_CHARS = 4000                  # of an instruction written before spec 36, the most a read keeps
 TIERS = ("elder", "warrior", "laborer")
 _DEFAULTS = {
     TASKMASTER: {"name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": ""},
@@ -44,27 +51,43 @@ def folder(state_dir: Path) -> Path:
     return Path(state_dir) / "roles"
 
 
-def models() -> list[dict]:
-    """What a role may run on: {"id", "label"} — the task's own tier, the three tiers, then the Claude harness's
-    models as it names them."""
+def models(current: str = "") -> list[dict]:
+    """What a role may run on: {"id", "label"} — By Target, then the three tiers with the harness's model small;
+    `current`, a model set by hand in a role's file, as one more option for that role."""
     from orkcraft.realm import harnesses
     h = harnesses.get("claude")
-    named = list(dict.fromkeys(h.models.values())) if h else []
-    out = [{"id": "", "label": "The task's own tier"}]
-    out += [{"id": t, "label": f"{t.capitalize()} tier" + (f" ({h.models[t]})" if h and t in h.models else "")}
-            for t in TIERS]
-    return out + [{"id": m, "label": m} for m in named]
+    out = [{"id": "", "label": "By Target"}]
+    out += [{"id": t, "label": t.capitalize() + (f" · {h.models[t]}" if h and t in h.models else "")} for t in TIERS]
+    if current and current not in TIERS:
+        out.append({"id": current, "label": f"{current} (set by hand)"})
+    return out
 
 
-def _model(value: object, allow_empty: bool) -> str:
+def hand_set(r: dict) -> bool:
+    """Whether a role's model was set by hand (a model, not By Target or a tier)."""
+    return bool(r.get("model")) and r.get("model") not in TIERS
+
+
+def _model(value: object, slug: str | None, old: dict | None) -> str:
+    """By Target (not the Taskmaster's), a tier, or the model the role's file names already (kept, never changed
+    silently)."""
     value = str(value or "").strip()
-    if not value:
-        if allow_empty:
-            return ""
-        raise ValueError("Pick a model from the list")
-    if re.fullmatch(r"[\w.\[\]-]{1,60}", value):      # a tier, or a model the harness takes as written
+    if value in TIERS or (value == "" and slug != TASKMASTER):
         return value
-    raise ValueError("Pick a model from the list")
+    if old is not None and value and value == old.get("model") and re.fullmatch(r"[\w.\[\]-]{1,60}", value):
+        return value
+    raise ValueError("The Taskmaster runs on a tier: pick one" if slug == TASKMASTER and not value
+                     else "Pick a model from the list")
+
+
+def for_prompt(text: str) -> str:
+    """An instruction as it goes to the ork: at most 600 characters, cut at its last sentence end within them."""
+    text = text.strip()
+    if len(text) <= INSTRUCTION_CHARS:
+        return text
+    head = text[:INSTRUCTION_CHARS + 1]
+    ends = [m.end() for m in re.finditer(r"[.!?…](?=\s|$)", head) if m.end() <= INSTRUCTION_CHARS]
+    return head[:ends[-1]].strip() if ends else text[:INSTRUCTION_CHARS].strip()
 
 
 def _clean_parallel(value: object) -> int:
@@ -94,16 +117,16 @@ def _read(state_dir: Path, slug: str) -> dict | None:
         mp = int(page.get("max_parallel") or base["max_parallel"])
     except ValueError:
         mp = base["max_parallel"]
-    body = text[m.end():] if (m := ideas._FENCE.match(text)) else text
+    body = (text[m.end():] if (m := ideas._FENCE.match(text)) else text).strip()[:READ_CHARS]
     return {"slug": slug, "name": page.get("name") or base["name"], "model": page.get("model", base["model"]),
-            "max_parallel": min(max(mp, MAX_PARALLEL[0]), MAX_PARALLEL[1]), "instruction": body.strip()[:INSTRUCTION_CHARS],
-            "builtin": slug in BUILTIN}
+            "max_parallel": min(max(mp, MAX_PARALLEL[0]), MAX_PARALLEL[1]), "instruction": for_prompt(body),
+            "instruction_long": body if len(body) > INSTRUCTION_CHARS else "", "builtin": slug in BUILTIN}
 
 
 def role(state_dir: Path, slug: str) -> dict | None:
     got = _read(state_dir, slug)
     if got is None and slug in _DEFAULTS:
-        return {"slug": slug, **_DEFAULTS[slug], "builtin": True}
+        return {"slug": slug, **_DEFAULTS[slug], "instruction_long": "", "builtin": True}
     return got
 
 
@@ -124,12 +147,23 @@ def _write(state_dir: Path, r: dict) -> None:
 
 
 def save(state_dir: Path, name: str, model: object, max_parallel: object, instruction: object = "",
-         slug: str | None = None) -> str:
-    """A role made or edited. A new one keeps the name it is given; the built-in two keep their names too (editable)."""
+         slug: str | None = None, takes: list[str] | None = None) -> str:
+    """A role made or edited. A new one keeps the name it is given; the built-in two keep their names too (editable).
+    `takes`: the task types it takes (a type another agent had moves here, one unticked goes back to Grunt); None
+    leaves them as they are. Grunt takes what no other agent takes and the Taskmaster takes none: refused."""
     name = " ".join(str(name or "").split())[:NAME_CHARS]
     if not name:
         raise ValueError("An agent needs a name")
+    text = str(instruction or "").replace("\r\n", "\n").strip()
+    if len(text) > INSTRUCTION_CHARS:
+        raise ValueError(f"An instruction is at most {INSTRUCTION_CHARS} characters")
+    if takes and slug in BUILTIN:
+        raise ValueError("Grunt takes what no other agent takes" if slug == GRUNT
+                         else "The Taskmaster plans, it does not do tasks: pick a Grunt or an agent of your own")
+    if bad := [k for k in takes or [] if k not in TASK_KINDS]:
+        raise ValueError(f"No task type {bad[0]!r}")
     with LOCK:
+        old = None
         if slug:
             old = role(state_dir, slug)
             if old is None:
@@ -142,9 +176,11 @@ def save(state_dir: Path, name: str, model: object, max_parallel: object, instru
                 slug, n = f"{base}-{n}", n + 1
         if any(r["name"].lower() == name.lower() and r["slug"] != slug for r in roles(state_dir)):
             raise ValueError(f"There is an agent called {name} already")
-        _write(state_dir, {"slug": slug, "name": name, "model": _model(model, slug == GRUNT),
-                           "max_parallel": _clean_parallel(max_parallel),
-                           "instruction": str(instruction or "").replace("\r\n", "\n").strip()[:INSTRUCTION_CHARS]})
+        _write(state_dir, {"slug": slug, "name": name, "model": _model(model, slug, old),
+                           "max_parallel": _clean_parallel(max_parallel), "instruction": text})
+        if takes is not None and slug not in BUILTIN:
+            _save_kinds(state_dir, {k: slug if k in takes else (GRUNT if r == slug else r)
+                                    for k, r in kinds(state_dir).items()})
     return slug
 
 

@@ -66,13 +66,13 @@ def summary(root: Path, days: list[str], titles: dict[str, str],
 
 
 def _board_files(root: Path) -> list[Path]:
-    """Each idea's `state.json`, `plan.json` and task logs (`<task>.log`: written with a secret's value masked; a plan keeps
-    only "stored" for a secret)."""
+    """Each idea's `state.json`, `plan.json`, its ledger `spend.jsonl` (what each model call cost, spec 36 §1) and task
+    logs (`<task>.log`: written with a secret's value masked; a plan keeps only "stored" for a secret)."""
     folder = Path(root) / ".orkcraft" / "ideas"
     if not folder.is_dir():
         return []
     return [p for d in sorted(folder.iterdir()) if d.is_dir() for p in sorted(d.iterdir())
-            if p.is_file() and (p.name in ("state.json", "plan.json") or p.suffix == ".log")]
+            if p.is_file() and (p.name in ("state.json", "plan.json", "spend.jsonl") or p.suffix == ".log")]
 
 
 def _after(day: str) -> str:

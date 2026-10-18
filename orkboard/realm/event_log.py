@@ -58,7 +58,8 @@ PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made,
 TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan (a secret's value never)
 TASK_STATE = "task_state"         # idea, task, state, was, round, tier, role, seconds in the previous state, tokens, cost, ran_tier, effort
 RESULT_READY = "result_ready"     # idea, task, round, passed, failed, files, added, removed, cost, role
-RESULT_DECIDED = "result_decided"  # idea, task, round, decision, why, into, pushed, conflict, device, seconds from result_ready
+RESULT_DECIDED = "result_decided"  # idea, task, round, decision, why, into, pushed, conflict, device, seconds from result_ready,
+#                                    dear (on a merge: the person said it cost too much for this, spec 36 §4)
 TASK_STOPPED = "task_stopped"     # idea, task, device
 STOP_ALL = "stop_all"             # count, device
 INTO_CHANGED = "into_changed"     # branch, push, device
@@ -67,7 +68,7 @@ LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
 GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device
 GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took, tier, effort
-ROLE_SAVED = "role_saved"         # role, model, max_parallel, new, device
+ROLE_SAVED = "role_saved"         # role, model, max_parallel, new, device, kinds (the types it takes), instruction_chars
 ROLE_DROPPED = "role_dropped"     # role, kinds (the task types sent back to Grunt), device
 KIND_SET = "kind_set"             # kind, role, device
 # Spec 35 §12: the Board writes, starts what is safe, and works at night.

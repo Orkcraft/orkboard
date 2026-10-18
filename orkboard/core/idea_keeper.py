@@ -17,9 +17,10 @@ idea straight into its spec, talks a spec through with the person, turns a spec 
 - **One call, one job** (spec 35 §0): every call is a fresh `claude -p` (never `--resume`, no session kept), given only
   what its step needs, cut to `idea_target.CONTEXT`, with its budget (`--max-budget-usd`). The page is the memory; the
   talk is archived in `talk.jsonl` and never read back into a model. One round of questions: the `answer` call asks
-  nothing more. Each call is measured (`step`, `prompt_chars`, `tokens`, `cost`) on the keeper's events.
+  nothing more. Each call is measured (`step`, `prompt_chars`, `tokens`, `cost`) on the keeper's events, and its line
+  goes to the ledger (realm/idea_spend.py, spec 36 §1).
 - **Plan**: the page → `plan.json` (at most 8 tasks), its Stages and its risk written by code, the estimate from the
-  tiers the tasks will run on; then `on_plan(slug)` (the face decides whether it starts by itself, spec 35 §5).
+  tiers the tasks will run on, at what the board's last tasks on each cost (spec 36 §6); then `on_plan(slug)` (the face decides whether it starts by itself, spec 35 §5).
 - **The window** (spec 35 §6): in a spent window a call is not made; what runs by itself waits with `held_until`, a
   call the person asks for is refused in plain words.
 
@@ -40,7 +41,7 @@ from typing import Any, Callable
 from orkcraft.core.idea_draft import DraftMixin
 from orkcraft.core.idea_goals import GoalMixin
 from orkcraft.core.idea_night import NightMixin
-from orkcraft.realm import event_log, idea_target, ideas, plans, roles, status
+from orkcraft.realm import event_log, idea_spend, idea_target, ideas, plans, roles, status
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -160,10 +161,20 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
         usage = getattr(self._tls, "usage", None)
         self._tls.measure.update(tokens=usage or ({"total": tokens} if isinstance(tokens, int) else None),
                                  cost=cost if isinstance(cost, (int, float)) and not isinstance(cost, bool) else None)
+        self._spent(step, got, usage, tokens, cost)
         cancel = getattr(self._tls, "cancel", None)
         if (cancel is not None and cancel.is_set()) or self.cancel.is_set():
             raise InterruptedError("stopped")
         return text, cost, tokens, session
+
+    def _spent(self, step: str, got: tuple[str, str], usage: Any, tokens: Any, cost: Any) -> None:
+        """The call's line in the ledger (spec 36 §1): its idea's, its goal's, or the board's (the night's proposals)."""
+        from orkcraft.realm import harnesses
+        h, tier = harnesses.get(HARNESS), idea_target.tier_of(got[0])
+        key = getattr(self._tls, "key", "") or getattr(self._tls, "slug", "") or ""
+        where = {} if step == "propose" else ({"goal": key[5:]} if key.startswith("goal:") else {"idea": key})
+        idea_spend.append(self.state_dir, idea_spend.line(step, roles.TASKMASTER, HARNESS, (h.pick(got[0]) if h else "") or got[0],
+                                                          tier, got[1], idea_spend.tokens_of(usage, tokens), cost), **where)
 
     def parse(self, text: str) -> dict:
         """The call's JSON, strictly; a run cut by its budget with no JSON says so."""
@@ -283,7 +294,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
         cancel = threading.Event()
         with self._lock:
             self._cancels[key] = cancel
-        self._tls.cancel, self._tls.slug = cancel, slug or key
+        self._tls.cancel, self._tls.slug, self._tls.key = cancel, slug or key, key
         try:
             fn()
         finally:
@@ -291,7 +302,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
                 self._busy.pop(key, None)
                 if self._cancels.get(key) is cancel:
                     self._cancels.pop(key)
-            self._tls.cancel = None
+            self._tls.cancel = self._tls.key = None
             self.publish(key)
 
     def _claim(self, key: str, what: str) -> None:
@@ -473,7 +484,7 @@ Answer with one JSON object and nothing else:
             target = self.target()
             runs = [idea_target.tier_of(idea_target.task_pick(t["tier"], target, str(roles.role_for(self.state_dir, t["kind"]).get("model") or ""))[0])
                     for t in data["tasks"]]
-            data["estimate"] = estimate(data["tasks"], runs)
+            data["estimate"] = estimate(data["tasks"], runs, idea_spend.tier_costs(self.state_dir))   # learned (spec 36 §6)
             ideas.save_plan(self.state_dir, slug, data)
         except Exception as e:
             stopped = isinstance(e, InterruptedError)
@@ -537,10 +548,12 @@ def make_plan(slug: str, answer: dict | None, made_at: str = "") -> dict:
     return data
 
 
-def estimate(tasks: list[dict], tiers: list[str] | None = None) -> dict:
-    """The price range of the tasks, counted on the tiers they will run on (`tiers`, else their planned ones)."""
+def estimate(tasks: list[dict], tiers: list[str] | None = None, costs: dict[str, float] | None = None) -> dict:
+    """The price range of the tasks, counted on the tiers they will run on (`tiers`, else their planned ones), at
+    `costs` a task per tier (the board's own, `idea_spend.tier_costs`), else `plans.DEFAULT_COST`; ±50 %."""
     tiers = tiers if tiers is not None else [t.get("tier", "warrior") for t in tasks]
-    base = sum(plans.DEFAULT_COST.get(tier, plans.DEFAULT_COST["warrior"]) for tier in tiers)
+    costs = costs or plans.DEFAULT_COST
+    base = sum(costs.get(tier, plans.DEFAULT_COST.get(tier, plans.DEFAULT_COST["warrior"])) for tier in tiers)
     return {"tasks": len(tasks), "usd_low": round(base * 0.5, 2), "usd_high": round(base * 1.5, 2)}
 
 
