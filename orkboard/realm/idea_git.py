@@ -506,7 +506,9 @@ class BoardTree:
         self._since, self._notes = None, []
         out = {"commit": "", "pages": 0, "what": what, "held": ""}
         with self.git.lock:
-            _git(self.path, "add", "-A", "--", *self.pages())
+            folders = [p for p in self.pages() if (self.path / p).is_dir()]
+            if folders:
+                _git(self.path, "add", "-A", "--", *folders)
             staged = [f for f in _git(self.path, "diff", "--cached", "--name-only").stdout.splitlines() if f.strip()]
             if staged:
                 _ok(_git(self.path, "-c", f"user.name={BOARD_NAME}", "-c", f"user.email={BOARD_EMAIL}", "commit", "-q",

@@ -171,10 +171,17 @@ class DraftMixin:
         """The plan that follows a spec by itself, on this thread (it waits with `held_until` in a spent window)."""
         if self.hold(slug):
             return
+        was = self._busy.get(slug)
         self._busy[slug] = "planning"
         ideas.save_state(self.state_dir, slug, state="planning")
         self.publish(slug)
-        self.plan_one(slug, "ready")
+        try:
+            self.plan_one(slug, "ready")
+        finally:                                     # the run that holds the idea ends it; else it ends here
+            if was is None:
+                self._busy.pop(slug, None)
+            else:
+                self._busy[slug] = was
 
     # -- one round of questions (§0) -------------------------------------------------------------------------
 
