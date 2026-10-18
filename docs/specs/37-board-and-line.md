@@ -1,4 +1,4 @@
-# Spec 37 — Orkboard and Orkline, stage 1: the boundary, Orkboard on its own, the gate on any repository
+# Spec 37 — Orkboard and Orkline, stage 1: the boundary, Orkboard on its own, the gate on any repository, the project as in an IDE
 
 The owner, 18 October (decisions §50). After specs 35 and 36 the four windows (the Board with its goals, the
 preview, Agents, Review) are a whole tool, and the owner wants it every day, at work and at home, on other projects:
@@ -7,20 +7,22 @@ town: `focus = "board"` only changes what is drawn. The host still builds the wh
 Board reaches into it at run time (its Wiki among the town's buildings, the limits from the Town Hall's worker, the
 budget from the Treasury), nine imports pull the town's modules in, the desktop and phone pages load the camp's
 scripts, and the gate passes a result when it finds no test file to run. This spec draws the line, cuts it, starts
-Orkboard on its own, and lets the gate test another repository. Nothing moves to another repository here (stage 2,
-§7). **Builds:** Claude (A and C on the warrior tier; B on the elder tier) · **Review:** full · P1.
+Orkboard on its own, lets the gate test another repository, and opens a project as an IDE does (§8). Nothing moves
+to another repository here (stage 2, §7). **Builds:** Claude (A, C, D2, D3 on the warrior tier; B and D1 on the
+elder tier) · **Review:** full · P1.
 
 **When.** A now: it touches no file of specs 35 or 36. C after 35 and 36 are merged: it is what Orkboard needs
 first at work. B after C (both change `realm/jobs.py`). gate-kinds (decisions §49.4–7) comes after C and puts its
-`[[check]]` rows into C's file; B and gate-kinds are not built at the same time (both change `gui/ideas.py`).
+`[[check]]` rows into C's file; B and gate-kinds are not built at the same time (both change `gui/ideas.py`). D
+(§8, its own three branches) after B.
 
-Three parts, one branch each; **this file is the contract** (names, data, commands); the rest is the builder's
+Four parts, one branch each (D in three, in §8); **this file is the contract** (names, data, commands); the rest is the builder's
 choice inside its files. Wording: CLAUDE.md. **Change nothing outside these files.**
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
 | **A. The boundary** | `spec/37-boundary` | §1, §2 | new `orkcraft/layers.py`, `tests/test_architecture.py` (new tests only), `CLAUDE.md` ("Where code goes": one bullet, §2) |
-| **C. The gate on any repository** | `spec/37-gate` | §5 | new `realm/gate_config.py`, `realm/idea_git.py`, `core/idea_runner.py` and `core/idea_review.py` (*no tests ran* never lands by itself), `realm/forge.py` and `realm/jobs.py` (`test_argv` imported from `gate_config`, one line each), new `orkcraft.toml` (this repository's), `orkcraft/layers.py` (`KNOWN` loses `jobs → forge`) |
+| **C. The gate on any repository** | `spec/37-gate` | §5 | new `realm/gate_config.py`, `realm/idea_git.py`, `core/idea_runner.py` and `core/idea_review.py` (*no tests ran* never lands by itself), `realm/forge.py` and `realm/jobs.py` (`test_argv` imported from `gate_config`, one line each), new `orkcraft.toml` (this repository's), `gui/ideas_goals.py` (`ideas.doc` reads no secret), `orkcraft/layers.py` (`KNOWN` loses `jobs → forge`; `hooks.warder`, `gui.markdown` join `BOARD`) |
 | **B. Orkboard on its own** | `spec/37-alone` | §3, §4 | new `realm/tool_run.py`, `realm/jobs.py`, `realm/road_agents.py`, `realm/roads.py`, `realm/harnesses.py`, `realm/tiers.py`, `realm/looks.py`, `realm/builders.py`, `realm/worktrees.py` and a new line module for its town part, `settings.py` (`ideas.wiki`, `MachineSettings` read cached), new `core/board_limits.py`, `core/treasury.py`, `gui/ideas.py`, `gui/ideas_limits.py`, new `gui/board_host.py`, `gui/host.py`, `gui/state.py`, `gui/onboarding.py`, `gui/static/js/onboarding.js`, `gui/launch.py`, `gui/server.py`, `gui/pwa.py`, `gui/phone_http.py`, `gui/mobile.py`, `gui/phones.py`, `cli.py`, `pyproject.toml` (`[project.scripts]`), new `gui/static/board.js`, `gui/static/index.html` only if the entry needs it, new `gui/static/pwa/board-app.js`, `gui/static/pwa/index.html`, `pwa/sw.js`, `orkcraft/layers.py` (`SPLIT` and `KNOWN` emptied), new `<name>_town.py` modules beside the split ones (§4) |
 
 ## 0. The words
@@ -135,13 +137,14 @@ changes more than an import.
 - **The command.** `orkcraft board` (a `cli.py` subcommand) and the script `orkboard` (`pyproject.toml`) start
   Orkboard: `BoardHost` and the server with the Board's commands (`ideas.*`), Stop all (`halt`), pairing a phone
   (`phones.*`, `phones.tailnet`), updates, `link.open`, `crash.window`, and the onboarding's first screen (trust, the
-  AI tools found, the repository): no class, no Mission 1, no town raised behind it (today `js/onboarding.js:545-559`
-  raises one). The same machine settings and state folder as Orkline's: switching between the two loses nothing.
+  AI tools found): no class, no Mission 1, no town raised behind it (today `js/onboarding.js:545-559` raises one).
+  The folder is the one `orkcraft board` was started in (`config.find_project_root`, as `orkcraft gui` does); D
+  (§8) adds opening another. The same machine settings and state folder as Orkline's: switching between the two loses nothing.
 - **The snapshot** in Orkboard holds only what the shell reads: `focus` (`"board"`), `onboarding`, `ideas_rev`,
   `needs_you`, `idea_states`, `review_count`, `review_results`, `limits`, `hud` with `show_gold`, `gold`, `lumber`
-  only (the top bar's spend), `repo`, `projects`, `orkspaces` (the repository picker), `update`.
-- **The pages.** The desktop page in Orkboard loads `static/board.js`: the shell, the onboarding's first screen,
-  the repository picker and the toasts, and no camp module (`app.js:4-35` imports them all today). The phone loads
+  only (the top bar's spend), `repo`, `update`.
+- **The pages.** The desktop page in Orkboard loads `static/board.js`: the shell, the onboarding's first screen
+  and the toasts, and no camp module (`app.js:4-35` imports them all today). The phone loads
   `pwa/board-app.js`: `board.js`, `util.js` and the `shell-*.js`; no `precacheCamp`, no camp file in its cache
   (`sw.js`'s list for Orkboard is the shell's; the cache version goes up). In Orkline, `app.js` and `pwa/app.js` keep
   drawing the shell when `focus = "board"`, as today.
@@ -175,6 +178,13 @@ timeout_min = 20
   through `test_argv` (words, or `sh -c` when it needs a shell), which moves from `realm/forge.py` to
   `realm/gate_config.py`; `forge` and `jobs` import it from there (`KNOWN` loses `jobs → forge`).
 - `plan.json` task `tests` gains `ran` (bool) and `command` (the command as run); old tasks read `ran: true`.
+- **`ideas.doc` reads no secret** (found 18 October, closed here because C comes first). Today it reads any path
+  under the repository, `.env`, `.orkcraft/secrets.json` and `.git/config` included, on the desktop and on the phone
+  (`gui/ideas_goals.py:83-97`; its tests check only `../`, `/etc/passwd`, a missing file and a URL), and since spec 35
+  §2 the keeper writes a goal's links itself. From C on, `ideas.doc` refuses, in words (*may hold secrets: open it in
+  your own editor*), what `hooks/warder.py` `is_secret` names (the list the Warder already keeps from the orks: what
+  an ork may not read, the preview does not show) and anything under `.git/` or `.orkcraft/`. `hooks.warder` and
+  `gui.markdown` join `BOARD` (they import nothing of `orkcraft`).
 
 ## 6. The contract between the modules (written now; no code in this spec)
 What passes along each edge of Orkboard's loop and where it lives. Orkline's graph (decisions §50.3) joins the same
@@ -202,6 +212,106 @@ modules by these hand-offs and no others; a new module speaks them. A setting th
 - Mission 1 on the person's commands, the score counting the Board's results (§50.5): when Camp comes back.
 - A Wiki pane in Orkboard: when the owner's use asks for it.
 
+## 8. The project, as in an IDE (D)
+The owner (18 October, decisions §50.10): Orkboard opens a folder as an IDE does and works on its git, its code and
+its Markdown; the goals, the ideas and everything of the Board belong to that project. Today the folder is fixed when
+the host starts (the town's repository), the Board's settings are the machine's (`settings.py` `IDEAS`: one Target,
+one `merge_into` for every repository), and nothing shows the project's files or its git but a result's diff at
+Review. The orks still write the code; the person reads it, fixes small things, writes the Markdown, and commits.
+
+**A project is a repository's folder.**
+- **Open folder…** (the shell's project menu, the start screen, Ctrl+O / ⌘O) picks a folder. What must not be a
+  project is refused in plain words (today's `realm/projects.py` `refusal`: the home folder, the system's, Orkline's
+  own…); a folder without git offers **Start git here** (`start_git`, as today: a first commit, unless it would be too
+  large). Both move to an Orkboard module, `realm/project_folder.py`; `realm/projects.py` keeps the orkspaces and
+  imports them.
+- **The list:** the machine's settings gain `projects_open` (paths, in the switcher's order) and `projects_recent`
+  (at most 10). The **project switcher** heads the top bar: the current project's name; its menu lists the open
+  projects, each with its counts (*working 2 · needs you 1 · review 3*), then Recent, **Open folder…**, **Close
+  project**. `orkcraft board <folder>` opens that folder; without one, the last current project; with no project, the
+  start screen (Open folder…, Recent).
+- **Several at once, one shown.** Each open project has its own Board: its keeper, runner, claims and night (one
+  `BoardHost` each, §4). Showing another project stops nothing: its tasks go on, the switcher counts what it needs, a
+  push names its project. The limits are the tool's, so spec 35's reserve and *High first* hold across the open
+  projects (each runner reads the same window, as today). **Stop all** stops every project's work. **Close project**
+  stops its keeper and runner; with tasks running it asks first (*2 tasks are running in shop: Stop them and close ·
+  Keep it open*).
+
+**Everything of the Board is the project's.**
+- Its pages, `plan.json`, the to-dos' secrets and files, the claims, the event log and the Board's tree are already
+  under the project (`<repo>/.orkcraft/`, its Wiki): nothing of one project is seen in another.
+- **The Board's settings move from the machine to the project:** `target`, `autostart`, `night`, `merge_into`,
+  `push`, `review`, `wiki`, `max_parallel`, `reserve_day`, `reserve_night` are read from
+  `<repo>/.orkcraft/board.json` (machine-local, git-ignored), the machine's `ideas` being the defaults a new project
+  starts from; `risk_paths` from the tracked `orkcraft.toml` `[board]` (a fact of the repository, shared with whoever
+  clones it). The gear says *for this project*. Roles (`.orkcraft/roles/`) are already the project's.
+
+**Files.**
+- A **Files** pane, a tab of the left column beside the Board (*Board · Files*), so the shell keeps its three
+  columns: the project's tree, one level at a time, folders folded; `.git/` and `.orkcraft/` never shown;
+  git-ignored files hidden behind a toggle. A click opens the file in the preview:
+  - **Markdown** rendered by `gui/markdown.py` (markdown-it, raw HTML off; `files.read` returns its `html`), with
+    **Edit**; a goal's linked document (`ideas.doc`, a `<pre>` today) is rendered the same way;
+  - **code and any text** with line numbers (highlighted only if a highlighter is already vendored in
+    `gui/static/vendor/`; no new library in this spec), with **Edit**;
+  - a **binary** file or one over 1 MB: its size and **Open in the system** (`files.reveal`: the system's app for it,
+    desktop only; `link.open` opens only http and https).
+- **Edit** is a plain monospace editor: Ctrl+S saves, leaving with changes asks. A save is refused, in words, when the
+  file changed on disk since it was read (*changed on disk: reload*), when the path leaves the project (`..`, a link
+  out), and for a Board page (`pages/ideas/`, `pages/tracks/` of the Board's Wiki): those open in the Board, which
+  commits them (spec 35 §13).
+- **What may hold a secret is never read or written** by these commands: what `hooks/warder.py` `is_secret` names
+  (`.env*`, keys, certificates, credentials: the Warder's list, as `ideas.doc` from C, §5) and the to-dos' secret
+  store. The tree lists them greyed, *may hold secrets: open it in your own editor*.
+- **The to-dos' secrets are the project's too.** The keychain's account is `<slug>/<todo id>` today
+  (`realm/idea_secrets.py`), with no project in it: two projects with the same idea and to-do would share a secret.
+  The account gains the project (`<project id>/<slug>/<todo id>`, the id a hash of the repository's path); a secret
+  under the old account is read once and moved.
+
+**Git.**
+- A **Git** section of the Files pane: the branch, and whether it is the work branch (`merge_into`) or `main`;
+  ahead / behind its upstream; the changed files with their + / −. A click shows the file's diff in the preview, in
+  Review's diff view.
+- **Commit** (the person ticks the files and writes the message; a secret-looking file is never offered), **Switch
+  branch** (refused with uncommitted changes, said plainly), **Pull** (fast-forward only) and **Push** (on the press
+  only, said plainly: *sends your code to origin*).
+- Every call: fixed arguments, no shell, under the repository's lock (`idea_git.lock_of`); never in a task's worktree
+  or the Board's tree. No rebase, reset, force or stash in this spec.
+
+**The phone:** the project switcher, and a Markdown file read-only when the Board links it (a spec, a goal's
+document). No edit and no git from the phone: `gui/mobile.py` allows `projects.list`, `projects.use` and
+`files.read` (Markdown only), nothing else of this section.
+
+| command | args | returns |
+|---|---|---|
+| `projects.list` | — | `{"current", "open": [{"path", "name", "working", "needs_you", "review"}], "recent": [{"path", "name"}]}` |
+| `projects.open` | `{"path"}` | `{"ok": true, "git": bool}` or `{"error"}` (the refusal, in words) |
+| `projects.start_git` | `{"path"}` | `{"ok": true, "said"}` or `{"error"}` |
+| `projects.use` | `{"path"}` | `{"ok": true}` (an open project becomes the shown one) |
+| `projects.close` | `{"path", "stop"?: bool}` | `{"ok": true}`, or `{"running": n}` when tasks run and `stop` is not set |
+| `files.tree` | `{"dir"?, "ignored"?: bool}` | `{"entries": [{"name", "path", "dir", "size", "secret"}]}` (one level) |
+| `files.read` | `{"path"}` | `{"path", "kind": "markdown" \| "text" \| "binary" \| "large" \| "secret", "text"?, "size", "mtime"}` |
+| `files.write` | `{"path", "text", "mtime"}` | `{"ok": true, "mtime"}` or `{"error"}` |
+| `files.reveal` | `{"path"}` | `{"ok": true}` (desktop only) |
+| `git.status` | — | `{"branch", "work_branch", "upstream", "ahead", "behind", "files": [{"path", "status", "added", "removed"}]}` |
+| `git.diff` | `{"path"}` | one file in `ideas.diff`'s shape |
+| `git.commit` | `{"paths", "message"}` | `{"ok": true, "commit"}` or `{"error"}` |
+| `git.switch` | `{"branch"}` | `{"ok": true}` or `{"error"}` |
+| `git.pull`, `git.push` | — | `{"ok": true, "said"}` or `{"error"}` |
+
+- Events (the same log, the project's): `project_opened` (new, git, device), `project_closed` (stopped),
+  `file_saved` (kind, bytes: never the path's text), `git_committed` (files, device), `git_pushed` (branch, device).
+- All of it is Orkboard's: its modules join `BOARD`, and Orkline gets it through the same panes (decisions §50.6).
+
+| part | branch | builds | files (and their tests) |
+|---|---|---|---|
+| **D1. Backend** | `spec/37-project-backend` | §8 but the screens | new `realm/project_folder.py`, `realm/projects.py` (imports it), new `realm/repo_git.py`, new `gui/board_projects.py` (the open projects, a `BoardHost` each), new `gui/board_files.py`, new `gui/board_git.py`, `gui/board_host.py`, `gui/ideas.py` and its mixins (the settings from the project), `settings.py` (`projects_open`, `projects_recent`), `realm/event_log.py`, `gui/mobile.py` (allowlist), `cli.py` (`orkcraft board <folder>`), `realm/idea_secrets.py` (the account per project), `orkcraft/layers.py` (the new modules in `BOARD`) |
+| **D2. Desktop** | `spec/37-project-desktop` | §8's screens on the desktop | `gui/static/js/shell/*` (new `files.js`, `gitpane.js`, `projects.js`, `editor.js`; `shell.js`, `preview.js`, `topbar.js`, `settings.js`, `shell.css`), `gui/static/board.js` |
+| **D3. Phone** | `spec/37-project-phone` | the switcher and a Markdown file read-only | `gui/static/pwa/shell-*.js` (new `shell-projects.js`), `pwa/board-app.js`, `pwa/app.css`, `pwa/sw.js` (cache version, and `tests/test_pwa.py`'s pinned version with it) |
+
+D comes after B (it needs `BoardHost`); D1 on the elder tier (paths, secrets, git: security and data that can be
+lost), D2 and D3 on the warrior tier, branched from D1 once it is pushed.
+
 ## Tests
 - **A:**
   - `test_orkboard_imports_only_orkboard`, `test_known_edges_still_exist`, `test_every_board_pattern_matches`;
@@ -218,7 +328,9 @@ modules by these hand-offs and no others; a new module speaks them. A setting th
   - no `orkcraft.toml`: the same command and files as today on this repository; a broken file: the card's line and
     today's gate;
   - `test_argv` from `gate_config`: words, and `sh -c` for `&&`;
-  - `test_idea_git.py`, `test_idea_runner.py`, `test_gui_ideas.py`, the critical tests.
+  - `ideas.doc` refuses `.env`, `.orkcraft/secrets.json`, `.git/config` and an `id_ed25519`, from the desktop and
+    the phone, and still reads a Markdown file and a `.env.example` (the Warder's `ENV_OK`);
+  - `test_idea_git.py`, `test_idea_runner.py`, `test_gui_ideas.py`, `test_gui_goals.py`, the critical tests.
 - **B:**
   - `test_orkboard_starts_alone`: in a fresh interpreter, building Orkboard's host and its server on a fixture
     repository (no port opened) leaves only `BOARD` modules in `sys.modules` (as `test_loading_the_core_loads_no_face`
@@ -233,3 +345,28 @@ modules by these hand-offs and no others; a new module speaks them. A setting th
   - Orkline with `focus = "board"` and `focus = ""` as today (`test_shell_browser.py`, `test_pwa_shell_browser.py`);
   - the critical tests, the touched modules' tests, `tests/test_gui_wording.py`, and the four checks of
     specs/README.md "Before you commit".
+- **D1:**
+  - on two fixture repositories: open both; a goal and an idea in one are not seen in the other; each runs its own
+    runner; switching the shown one stops nothing; Stop all stops both; Close with a running task answers `running`
+    and stops only with `stop`;
+  - the Board's settings: a project's `board.json` wins over the machine's; a new project starts from the machine's;
+    `risk_paths` from `orkcraft.toml`;
+  - Open folder: the refusal's words for the home folder; a folder without git answers `git: false`, then
+    `start_git` makes the first commit;
+  - two projects with the same idea slug and to-do id keep two secrets; one stored under the old account is read
+    and moved;
+  - files: the tree hides `.git/` and `.orkcraft/`, the ignored files only behind the toggle; `files.read` of
+    Markdown, text, binary, over 1 MB; a `.env` and an `id_ed25519` read as `secret` with no text; `files.write`
+    refused outside the project (`../x`, a symlink out), on a Board page, on a secret-looking path, and when the
+    file changed since `mtime`; a save that passes writes the file and records `file_saved` without its text;
+  - git on a fixture with an upstream: status with ahead/behind and + / −; a file's diff; a commit of the ticked
+    files only; switch refused with uncommitted changes; pull fast-forward only (a diverged one refused); push only
+    on its command; every call under the lock and with no shell;
+  - the phone: `projects.list`, `projects.use` and a Markdown `files.read` allowed; `files.write`, `git.*` and a
+    code file refused;
+  - `test_orkboard_imports_only_orkboard` with the new modules in `BOARD`; the critical tests.
+- **D2:** browser at 1 440 × 900: Open folder on a fixture, the switcher with two projects and their counts; the
+  Files pane: a Markdown file rendered, edited and saved; a code file with line numbers; a `.env` greyed; the Git
+  section: a changed file's diff, a commit; *changed on disk: reload* after the file changes underneath.
+- **D3:** at 390 × 844: the switcher as a sheet; a spec opened read-only; no edit or git control; no horizontal
+  scroll.
