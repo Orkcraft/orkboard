@@ -149,6 +149,19 @@ def test_claude_cli_nonzero_exit() -> None:
     assert "exit 127" in s.error
 
 
+def test_claude_says_why_its_usage_failed() -> None:
+    # the owner's 19 October: Claude was missing from the limits; its reader's words say why, not its raw JSON
+    env = json.dumps({"type": "result", "is_error": True, "result": "Not logged in · Please run /login"})
+
+    def fail(cmd, **kwargs):
+        raise subprocess.CalledProcessError(1, cmd, output=env, stderr="")
+
+    (s,) = get_claude_quota(runner=fail)
+    assert s.error == "Command failed (exit 1): Not logged in · Please run /login"
+    (s,) = get_claude_quota(runner=lambda cmd, **kwargs: env)          # an error envelope that exits 0
+    assert s.error == "Not logged in · Please run /login" and s.remaining_fraction is None
+
+
 def test_claude_garbage_json() -> None:
     statuses = get_claude_quota(runner=lambda cmd, **kwargs: "not json at all!")
     assert len(statuses) == 1

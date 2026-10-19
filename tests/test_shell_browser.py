@@ -66,7 +66,8 @@ class StubHost:
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
         self.limits = [{"provider": "claude", "name": "Claude", "left": 0.62,
                         "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
-                       {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]}]
+                       {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]},
+                       {"provider": "codex", "name": "Codex", "left": None, "error": "Not logged in", "rows": []}]   # turned on, not read
         self.ideas = {"sync": self.idea("sync", "Sync ideas between the phone and the town", "working", 0),
                       "dark": self.idea("dark", "Dark mode", "plan", 1, start_at="night"),
                       "offline": self.idea("offline", "Offline mode", "raw", 2, queue="night"),
@@ -95,7 +96,7 @@ class StubHost:
 
     def goal(self, slug, title, priority, state, order=1, **more):
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": order, "count": 0, "priority": priority,
-                "metrics": [], "links": [], "summary": "", "questions": [], "state": state, "error": "", **more}
+                "metrics": [], "links": [], "summary": "", "questions": [], "state": state, "state_error": "", **more}
 
     def kind_list(self):
         names = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
@@ -121,7 +122,7 @@ class StubHost:
         if slug == "search":
             next(x for x in secs if x["name"] == "Open questions")["text"] = "- Which fields count?\n- Do tags count?"
         return {"slug": slug, "title": i["title"], "track": "general", "state": i["state"], "size": "M", "sections": secs, "talk": i["talk"],
-                "plan": self.plan if slug == "sync" else None, "busy": False}
+                "plan": self.plan if slug == "sync" else None, "busy": False, "state_error": i.get("state_error", "")}
 
     def find(self, a):
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])
@@ -351,6 +352,10 @@ def test_the_top_bar_limits_spend_stop_all_and_the_push_switch(shell):
     assert not pop.is_visible()
     top.locator(".shell-limit").nth(0).hover()
     assert pop.is_visible() and "week" in pop.inner_text() and "resets at 18:00" in pop.inner_text()
+    unread = top.locator(".shell-limit").nth(2)                  # a tool turned on whose limits were not read: never missing
+    assert "is-unread" in unread.get_attribute("class") and "?" in unread.inner_text() and "%" not in unread.inner_text()
+    unread.hover()
+    assert "Codex: limits not read" in unread.locator(".shell-pop").inner_text() and "Not logged in" in unread.inner_text()
     assert "$2.40" in top.inner_text()
     top.get_by_role("button", name="Stop all").click()
     assert _sent(pg, host, ("halt", {}))
@@ -770,6 +775,20 @@ def test_the_spec_shows_its_sections_and_stages_with_each_tasks_live_state(shell
     assert "held" in state("k3")
     if os.environ.get("ORKCRAFT_SHOTS"):
         pg.screenshot(path=str(SHOTS / "desktop-spec-stages-1440x900.png"))
+
+
+def test_a_draft_the_tool_failed_says_why_in_the_spec_and_offers_try_again(shell):
+    # the owner's 19 October: the draft's failure came as a toast of raw JSON on every refresh and the spec never opened
+    pg, host = shell
+    why = "Claude Code is not signed in, or its sign-in has expired. Claude Code said: Not logged in · Please run /login"
+    host.ideas["offline"]["state_error"] = why
+    pg.locator(".board-card", has_text="Offline mode").click()
+    alert = pg.locator(".shell-preview .board-ideaview > p[role=alert]")
+    alert.wait_for(timeout=WAIT_MS)
+    assert alert.inner_text() == why and pg.locator(".ok-toast", has_text="not signed in").count() == 0
+    assert "drafts it tonight" not in pg.locator(".shell-preview").inner_text()
+    pg.locator(".shell-preview").get_by_role("button", name="Try again").click()
+    assert _sent(pg, host, ("ideas.queue", {"slug": "offline", "queue": "now"}))
 
 
 def test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its_steps_too(shell, tmp_path):

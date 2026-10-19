@@ -77,7 +77,7 @@ export function goalBody(g, core, act, asked, setAsked) {
   const sec = (name, ...kids) => h("section", { class: "goal-sec", "aria-label": name }, h("h3", {}, name), ...kids);
   return [
     h("p", { class: "muted" }, [words || "not read yet", PRIORITY_WORDS[g.priority], g.deadline ? `by ${g.deadline}` : ""].filter(Boolean).join(" · ")),
-    g.error && g.state === "raw" ? h("p", { class: "warn" }, g.error) : null,
+    g.state_error && g.state === "raw" ? h("p", { class: "warn" }, g.state_error) : null,
     sec("Description", h("p", { class: "brief" }, g.description || "No description yet.")),
     sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? "The Taskmaster is reading the goal…" : "Not written yet."))),
     sec("Metrics", g.metrics.length ? h("div", { class: "metrics" }, ...g.metrics.map((m) => h("div", { class: "card metric" }, h("b", {}, m.name),

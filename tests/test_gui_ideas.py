@@ -13,7 +13,7 @@ import pytest
 from orkboard.core import idea_keeper
 from orkboard.gui import ideas as gui_ideas
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import idea_secrets, ideas, jobs
+from orkboard.realm import idea_secrets, ideas, jobs, tool_run
 
 BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.plan", "ideas.start", "ideas.move",
                   "ideas.edit", "ideas.track_add", "ideas.track_set", "ideas.todo", "ideas.drop", "ideas.stop",
@@ -307,6 +307,40 @@ def test_the_limits_are_the_smallest_remaining_of_each_installed_tools_rows(host
     assert claude["rows"][0] == {"window": "5h", "left": 0.62, "reset": "2026-10-17T18:00"}
     assert claude["rows"][1]["window"] == "week" and got[1]["left"] == 0.4
     assert BoardPhone.phone_snapshot(host)["limits"][0]["left"] == 0.62
+
+
+def test_a_tool_turned_on_whose_limits_were_not_read_stays_and_says_why(host, monkeypatch):
+    # the owner's 19 October: Claude was missing from the limits without a word; a tool not turned on stays out
+    rows = [Limit("agy", "Pro", "daily", 0.4, None), Limit("claude", "", "", None, None, "Not logged in · Please run /login"),
+            Limit("codex", "", "", None, None, "not installed")]
+    monkeypatch.setattr(host, "limits", lambda: rows)
+    host.machine.tools["claude"].enabled, host.machine.tools["codex"].enabled = True, False
+    got = host.snapshot()["limits"]
+    assert [(x["provider"], x["left"]) for x in got] == [("claude", None), ("agy", 0.4)]
+    assert got[0] == {"provider": "claude", "name": "Claude", "left": None, "error": "Not logged in · Please run /login",
+                      "rows": []}
+    host.ideas.log_limits(force=True)                                    # an unread tool logs no limits_read
+    rows[:1] = [Limit("agy", "Gemini Models", "weekly", 0.87, None), Limit("agy", "Claude and GPT models", "session", 1.0, None)]
+    agy = host.snapshot()["limits"][1]                                   # a tool with groups: each row says whose
+    assert [r["window"] for r in agy["rows"]] == ["Gemini Models · week", "Claude and GPT models · 5h"]
+
+
+def test_a_draft_the_tool_failed_says_why_on_the_page_not_as_its_error(host, monkeypatch):
+    # the owner's 19 October: the page's `error` read as the command's own, so it toasted on every refresh and the
+    # idea never opened; the line is the tool's failure in plain words, with what to do
+    said = json.dumps({"type": "result", "is_error": True, "subtype": "success", "result": "Not logged in · Please run /login",
+                       "usage": {"input_tokens": 0, "output_tokens": 0}})
+
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
+        raise tool_run.failure(harness, 1, said, "")
+
+    monkeypatch.setattr(jobs, "run_read", run_read)
+    slug = _add(host, "Dark mode", night=False)["slug"]                  # Normal: drafted at once
+    _wait(host, slug)
+    page = host.command("ideas.page", {"slug": slug})
+    assert "error" not in page and page["state"] == "raw"
+    assert page["state_error"].startswith("Claude Code is not signed in, or its sign-in has expired.")
+    assert "Not logged in · Please run /login" in page["state_error"] and "{" not in page["state_error"]
 
 
 def test_agents_shows_the_taskmaster_and_a_chip_per_live_task(host):

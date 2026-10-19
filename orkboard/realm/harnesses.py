@@ -36,7 +36,7 @@ from orkboard.env import getenv
 from orkboard.realm import model_families
 from orkboard.realm.harness_claude import (  # noqa: F401  (re-exported: the names callers and tests use)
     CLAUDE_NO_TOOLS, CLAUDE_READ_ONLY, CLAUDE_READ_WEB, EFFORTS, _HELP, _claude_ask, _claude_call, _claude_mcp,
-    _claude_read, _claude_read_dirs, _claude_run, _claude_work, cli_has, effort_supported)
+    _claude_read, _claude_read_dirs, _claude_run, _claude_work, claude_error, cli_has, effort_supported)
 from orkboard.realm.harness_tools import (  # noqa: F401
     CODEX_USAGE_KEYS, CODEX_WEB, HERMES_READ, HERMES_WORK, NOWHERE, PI_READ, PI_WORK, _agy, _cursor, _hermes,
     _hermes_env, _model, _pi, _plain_tokens, codex_config_model, codex_error, codex_exec, codex_result,
@@ -280,7 +280,7 @@ register(Harness(
     "claude", "Claude Code", "claude", "npm i -g @anthropic-ai/claude-code", "claude  (then /login)",
     {"elder": "opus", "warrior": "sonnet", "laborer": "haiku"},
     _claude_ask, _claude_read, _claude_work,
-    resumable=True, deploys=True, web=True, priced=True, mark="✻", color="bold #f59e0b",
+    resumable=True, deploys=True, web=True, priced=True, mark="✻", color="bold #f59e0b", error=claude_error,
     resume_cmd=lambda h, sid: [h.bin, "--resume", sid], call_cmd=_claude_call, read_dirs=_claude_read_dirs,
     read_session=lambda sid, reopen: ["--resume", sid] if reopen else ["--session-id", sid], run_args=_claude_run,
     no_tools=("--disallowedTools", CLAUDE_NO_TOOLS)))

@@ -118,8 +118,8 @@ function Actions({ p }) {
   const e = plan?.estimate;
   if (s === "reading" || s === "planning") return html`<div class="board-row"><p class="ok-tone-wait" role="status">${say(`The Taskmaster is ${s === "reading" ? "drafting" : "planning"}…`)}</p>
     <button class="ork-btn danger" onClick=${() => run("ideas.read_stop", { slug })}>Stop</button></div>`;
-  if (s === "raw") return html`<div class="board-row"><p class="ok-tone-muted">${say("New: the Taskmaster drafts it tonight, or when you press Process now.")}</p>
-    <button class="ork-btn" onClick=${() => run("ideas.queue", { slug, queue: "now" })}>Process now</button></div>`;
+  if (s === "raw") return html`<div class="board-row">${!p.state_error && html`<p class="ok-tone-muted">${say("New: the Taskmaster drafts it tonight, or when you press Process now.")}</p>`}
+    <button class="ork-btn" onClick=${() => run("ideas.queue", { slug, queue: "now" })}>${p.state_error ? "Try again" : "Process now"}</button></div>`;
   return html`<div class="board-actions">
     ${(s === "ready" || s === "asks") && html`<button class="ork-btn primary" onClick=${() => run("ideas.plan", { slug })}>Take it to work</button>`}
     ${plan && html`<${Plan} plan=${plan} />`}
@@ -155,6 +155,7 @@ export function IdeaView({ p }) {
         <select class="ork-field" aria-label="Priority of this idea" value=${row.priority}
           onChange=${(e) => run("ideas.edit", { slug: p.slug, priority: e.target.value })}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
+    ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<p class="ok-tone-error" role="alert">${p.state_error}</p>`}
     <${Actions} p=${p} />
     <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>
     <${Say} p=${p} section=${section} setSection=${setSection} />

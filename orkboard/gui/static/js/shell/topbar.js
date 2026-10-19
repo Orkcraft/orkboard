@@ -21,7 +21,16 @@ export function resetWords(iso, now = new Date()) {
   return d.toDateString() === now.toDateString() ? `resets at ${hm}` : `resets ${d.toLocaleDateString([], { weekday: "short" })} ${hm}`;
 }
 
+/** A tool turned on whose limits could not be read: its mark, a ?, and its reader's words on hover. */
+function Unread({ l }) {
+  return html`<span class="shell-limit is-unread" tabindex="0" data-provider=${l.provider} aria-label=${`${l.name}: limits not read`}>
+    <span aria-hidden="true">${MARKS[l.provider] || l.name[0]}</span> <b>?</b>
+    <span class="shell-pop" role="tooltip"><b>${l.name}: limits not read</b><span class="ok-tone-muted">${l.error}</span></span>
+  </span>`;
+}
+
 function Limit({ l }) {
+  if (typeof l.left !== "number") return html`<${Unread} l=${l} />`;
   const level = levelOf(l.left);
   return html`<span class=${cls("shell-limit", `is-${level}`)} tabindex="0" data-provider=${l.provider}
       aria-label=${`${l.name}: ${pct(l.left)} left`}>

@@ -34,6 +34,17 @@ _CLAUDE_LINE_RE = re.compile(
 )
 
 
+def _said(output: str) -> str:
+    """Claude's own words when its envelope is an error ("Not logged in · Please run /login"), else ""."""
+    try:
+        data = json.loads(output.strip())
+    except (ValueError, AttributeError):
+        return ""
+    if isinstance(data, dict) and data.get("is_error") is True and isinstance(data.get("result"), str):
+        return data["result"].strip()
+    return ""
+
+
 def _infer_window(label: str) -> str:
     lower = label.lower()
     if "session" in lower:
@@ -164,7 +175,7 @@ def get_claude_quota(
             )
         ]
     except subprocess.CalledProcessError as e:
-        err = (e.stderr or e.stdout or f"Process exited with code {e.returncode}").strip()
+        err = _said(e.stdout or "") or (e.stderr or e.stdout or f"Process exited with code {e.returncode}").strip()
         return [
             QuotaStatus(
                 provider="claude",
@@ -202,6 +213,17 @@ def get_claude_quota(
         ]
 
     result_text = data.get("result")
+    if _said(raw_output):
+        return [
+            QuotaStatus(
+                provider="claude",
+                group="",
+                window="",
+                remaining_fraction=None,
+                reset_time=None,
+                error=_said(raw_output),
+            )
+        ]
     if not isinstance(result_text, str):
         return [
             QuotaStatus(
