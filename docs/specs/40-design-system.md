@@ -185,10 +185,13 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
   words, not an icon, except a **chevron** that says it opens something (a select, a menu, *Merge into dev*, *hide*); the
   24 px icons stand in rows, heads, tabs and the empty states, where a row is 28 and a bar 32.
 - **Arrows are pixel marks, never typed.** Every arrow and chevron of the chrome (a select's, a menu's, a disclosure's, a
-  row's *›*, Back, a step's →) is a Pixelarticons icon (`chevron-down` · `chevron-up` · `chevron-right` · `chevron-left` ·
-  `arrow-left` · `arrow-right`), drawn at 24 px in the text's colour; the glyphs `▾ ▸ › → ⚙ ◎` are not used in a face's
-  templates (the gear is `sliders`, the goal `flag`). A native `<select>` is `appearance: none` with the chevron icon over
-  it. A test scans the faces' templates for those glyphs (§9). A subset is vendored in `office/icons/` as one sprite `icons.svg`
+  row's *›*, Back, a step's →) is a pixel mark, never a typed glyph. The **chevrons** (`chevron-down` · `-up` · `-right` ·
+  `-left`) are the form's own, in `office/icons/`: **5 × 3 cells of 2 × 2 px** (a down or up chevron is 10 × 6 px, a left or
+  right one 6 × 10), one cell thick, `shape-rendering: crispEdges`, `currentColor`, with 4 px beside the word they follow
+  (a 24 px Pixelarticons chevron was too large inside a 24 px control). The long **arrows** (`arrow-left` for Back,
+  `arrow-right` for a step) are Pixelarticons at 24 px. The glyphs `▾ ▸ › → ⚙ ◎` are not used in a face's templates (the
+  gear is `sliders`, the goal `flag`). A native `<select>` is `appearance: none` with the chevron over it, in the field's
+  right 8 px. A test scans the faces' templates for those glyphs (§9). A subset is vendored in `office/icons/` as one sprite `icons.svg`
   (only the icons a face uses) with the MIT text; a face names an icon by its Pixelarticons name.
   The first set (`goal` → `flag`, `idea` → `lightbulb`, `task` → `checkbox`, `agent` → `robot`, `review` → `eye`,
   `stop` → `stop`, `settings` → `sliders`, `project` → `folder`, `file` → `file`, `add` → `plus`, `close` → `close`,
