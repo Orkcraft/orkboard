@@ -42,7 +42,7 @@ function GoalCard({ g }) {
   const state = g.state === "reading" ? `${leaderOf(g)} is reading` : say(GOAL_WORDS[g.state] || "");
   const led = g.leader?.name || "Taskmaster";
   return html`<div class="board-goals__one board-goal" data-state=${g.state} data-goal=${g.slug}>
-    ${heads.length > 0 && html`<span class="board-goal__heads" aria-hidden="true">${heads.map((x) => html`<${WhoHead} key=${x.slug} head=${x.head} small />`)}</span>`}
+    ${heads.length > 0 && html`<span class="board-goal__heads" aria-hidden="true">${heads.map((x) => html`<${WhoHead} key=${x.slug} head=${x.head} />`)}</span>`}
     <p class="board-goals__line">${firstLine(g.summary) || html`<span class="ok-tone-muted">${g.state === "reading" ? `${leaderOf(g)} is reading the goal…` : "No summary yet."}</span>`}</p>
     <p class="board-goal__meta ok-font-status ok-tone-muted">${[CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering, PRIORITY_WORDS[g.priority] || "Normal", state].filter(Boolean).join(" · ")}</p>
     <p class="board-goal__party ok-font-status ok-tone-muted">Led by ${led}${party.length ? ` · ${party.map((r) => r.name).join(", ")}` : ""}</p>

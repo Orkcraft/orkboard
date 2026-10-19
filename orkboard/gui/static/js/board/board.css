@@ -211,7 +211,7 @@
 .board-need-row { display: flex; align-items: stretch; gap: var(--ork-2); }
 .board-need-row > .board-need { flex: 1; min-width: 0; }
 .board-need__later { flex: none; align-self: center; }
-.board-quick { cursor: default; }
+.board-quick { cursor: default; box-sizing: border-box; }
 .board-quick .board-need__text { gap: var(--ork-3); }
 .board-quick__q { display: flex; flex-direction: column; gap: var(--ork-2); }
 .board-quick__answers { flex-wrap: wrap; }
