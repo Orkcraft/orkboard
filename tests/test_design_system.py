@@ -62,3 +62,21 @@ def test_orkboards_own_sheets_carry_no_colour_no_font_and_no_corner_of_their_own
         assert "[data-look=\"camp\"]" not in css and "[data-theme" not in css, path.name
         legacy = set(re.findall(r"var\((--(?!ork-)[\w-]+)", css)) - {"--agents-h", "--sec", "--role", "--tabs"}
         assert not legacy, (path.name, legacy)
+
+
+def test_every_crafts_head_is_in_the_copy_and_the_pages_words_are_the_glossarys():
+    from orkboard.realm import lexicon, roles
+
+    for craft, race in roles.RACES.items():
+        assert lexicon.term(f"race.{race}") and lexicon.term(f"craft.{craft}") == roles.CRAFT_LABELS[craft]
+        for tier in roles.TIERS:
+            for big in (False, True):
+                assert (orkui.ROOT / orkui.race_png(race, tier, big)).is_file(), (race, tier, big)
+    words = {"TIER_WORDS": {t: lexicon.term(f"tier.{t}") for t in roles.TIERS},
+             "RACE_WORDS": {r: lexicon.term(f"race.{r}") for r in roles.RACES.values()},
+             "CRAFT_WORDS": {c: lexicon.term(f"craft.{c}") for c in roles.CRAFTS}}
+    for path in (STATIC / "js" / "orkui.js", STATIC / "pwa" / "shell-who.js"):
+        js = path.read_text(encoding="utf-8")
+        for name, want in words.items():
+            got = dict(re.findall(r'(\w+): "([^"]+)"', re.search(rf"const {name} = \{{([^}}]*)\}}", js).group(1)))
+            assert got == want, (path.name, name)

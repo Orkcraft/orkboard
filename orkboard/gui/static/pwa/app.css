@@ -266,15 +266,15 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .agents .role, .review .results { display: flex; flex-direction: column; gap: var(--ork-4); }
 .agents .role + .role { border-top: var(--ork-line) solid var(--ork-frame); padding-top: var(--ork-5); }
 .role-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ork-2) var(--ork-4); }
-.role-head > .ork-race__head { grid-row: span 2; width: 48px; height: 44px; }
-.role-head h3 { margin: 0; color: var(--ork-ink); }
+.role-head > .ork-race__head { grid-row: span 2; }
+.role-head h3 { margin: 0; color: var(--ork-ink); font: var(--ork-type-body); font-weight: 600; text-transform: none; letter-spacing: 0; }
 .role-facts { grid-column: 2 / -1; }
 .priced { cursor: help; }
 .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-4); }
 .chip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--ork-1) var(--ork-4); width: 100%; min-height: 56px; text-align: left;
   font: inherit; color: inherit; cursor: pointer; }
 .chip > * { grid-column: 2; }
-.chip > .ork-race__head { grid-column: 1; grid-row: span 4; margin-top: var(--ork-1); }
+.chip > .ork-race__head { grid-column: 1; grid-row: span 4; margin-top: var(--ork-2); }
 .chip-state { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
 .chip.is-running .chip-state, .chip.is-testing .chip-state, .chip.is-live { color: var(--ork-ink); }
 .chip.is-review .chip-state { color: var(--ork-success); }
@@ -369,3 +369,5 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .pip { width: 10px; height: 10px; border: 2px solid var(--ork-edge); background: transparent; }
 .pip-done { background: var(--ork-ink); border-color: var(--ork-ink); }
 .pip-work { border-width: 3px; border-style: double; }
+.plan .tasks .task-title { display: inline-flex; align-items: center; gap: var(--ork-3); }
+.facts .ork-race { vertical-align: middle; }

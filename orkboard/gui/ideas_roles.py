@@ -3,17 +3,28 @@
 gets it right (spec 36 §2: each role's `week`), and `ideas.spend`, an idea's or a goal's money by stage.
 
 A role is a small file in the repository's `.orkcraft/roles/` (realm/roles.py); the runner runs a task as its type's
-role (core/idea_runner.py). Split from ideas.py to keep it under ~600 lines.
+role (core/idea_runner.py). Each role, each chip, carries the head the page draws for it (`head`: its craft's race at the
+tier it runs at, realm/roles.py `head`; decisions §53). Split from ideas.py to keep it under ~600 lines.
 """
 from __future__ import annotations
 
 import datetime as dt
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import event_log, idea_spend, ideas, roles
+from orkboard.realm import event_log, idea_spend, idea_target, ideas, roles
 
 
 class RolesMixin:
+    def _target(self) -> str:
+        return idea_target.target_of(self.board_settings())
+
+    def _with_heads(self, plan: dict | None) -> dict | None:
+        """A plan as the page reads it: each task with the head of who does it (`head`: race and tier, realm/roles.py)."""
+        if not plan:
+            return plan
+        target, read = self._target(), roles.known(self.state_dir)
+        return {**plan, "tasks": [{**t, "head": roles.task_head(self.state_dir, t, target, read)} for t in plan.get("tasks") or []]}
+
     def _role_spend(self) -> dict[str, float]:
         """Today's cost of each role: the tasks it ran today, summed."""
         pairs = [(str(t.get("role") or roles.GRUNT), t) for _s, _title, plan in self._plans() for t in plan.get("tasks") or []]
@@ -21,11 +32,15 @@ class RolesMixin:
 
     def roles(self, args: dict) -> dict:
         spent, week, kinds = self._role_spend(), idea_spend.by_role(self.state_dir), roles.kinds(self.state_dir)
+        target = self._target()
         mine = [{**r, "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]),
-                 "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r)}
+                 "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r),
+                 "head": roles.head(r, target)}
                 for r in roles.roles(self.state_dir)]
         return {"roles": mine, "kinds": [{"kind": k, "label": roles.KIND_LABELS[k], "role": kinds[k]} for k in roles.TASK_KINDS],
-                "models": roles.models()}
+                "models": roles.models(), "target": target,
+                "crafts": [{"craft": c, "label": roles.CRAFT_LABELS[c], "race": roles.RACES[c],
+                            "heads": {m["id"]: roles.head_tier(m["id"], target) for m in roles.models()}} for c in roles.CRAFTS]}
 
     def role_save(self, args: dict) -> dict:
         slug = _opt(args, "slug") or None
@@ -35,11 +50,14 @@ class RolesMixin:
         kinds = args.get("kinds")
         if kinds is not None and (not isinstance(kinds, list) or not all(isinstance(k, str) for k in kinds)):
             raise IdeasError("kinds is a list of task types")
+        craft = args.get("craft")
+        if craft is not None and not isinstance(craft, str):
+            raise IdeasError("craft is engineering, design, data or marketing")
         got = roles.save(self.state_dir, _text(args, "name", roles.NAME_CHARS), args.get("model", ""),
-                         args.get("max_parallel"), instruction, slug, kinds)
+                         args.get("max_parallel"), instruction, slug, kinds, craft)
         r = roles.role(self.state_dir, got)
         idea_spend.forget()
-        self._ev(event_log.ROLE_SAVED, args, role=got, model=r["model"], max_parallel=r["max_parallel"], new=slug is None,
+        self._ev(event_log.ROLE_SAVED, args, role=got, model=r["model"], max_parallel=r["max_parallel"], new=slug is None, craft=r["craft"],
                  kinds=[k for k, v in roles.kinds(self.state_dir).items() if v == got], instruction_chars=len(instruction.strip()))
         self.changed("")
         return {"slug": got}
@@ -92,6 +110,7 @@ class RolesMixin:
                 break
         by_role: dict[str, list] = {}
         done, today = [], dt.date.today().isoformat()
+        target, read = board.get("target") or self._target(), roles.known(self.state_dir)
         for slug, title, plan in self._plans():
             for t in plan.get("tasks") or []:
                 state, role = t.get("state"), str(t.get("role") or roles.GRUNT)
@@ -101,7 +120,7 @@ class RolesMixin:
                     by_role.setdefault(role, []).append(
                         {"idea": slug, "idea_title": titles.get(slug, title), "task": t.get("id"),
                          "title": t.get("title", ""), "state": state, "tier": t.get("tier", ""), "role": role,
-                         "kind": t.get("kind") or roles.DEFAULT_KIND,
+                         "kind": t.get("kind") or roles.DEFAULT_KIND, "head": roles.task_head(self.state_dir, t, target, read),
                          "note": t.get("note") or (t.get("error") if state == "failed" else "") or "",
                          # spec 35 §11.5: who started it, and whether it waits for the night
                          "by": "auto" if plan.get("passed_by") == "auto" else "person",
@@ -110,7 +129,7 @@ class RolesMixin:
         for r in roles.roles(self.state_dir):
             block = {"role": r["slug"], "name": "Grunts" if r["slug"] == roles.GRUNT and r["name"] == "Grunt" else r["name"],
                      "model": r["model"], "max_parallel": r["max_parallel"], "builtin": r["builtin"],
-                     "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"])}
+                     "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]), "head": roles.head(r, target)}
             if r["slug"] == roles.TASKMASTER:
                 out.append({**block, "state": mode, "waits_on": waits, "chips": chips})
             else:

@@ -3,6 +3,7 @@
 // Take it to work · Start · task states with Stop · Start again. `PlanView` is the same idea's plan, scrolled to a to-do.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
+import { Who } from "../orkui.js";
 import { say } from "../link.js";
 import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
 import { Stages } from "./stages.js";
@@ -82,7 +83,7 @@ function Tasks({ plan, working }) {
   return html`<ul class="board-tasks">${plan.tasks.map((k) => html`<li key=${k.id} data-state=${k.state}>
     <span class="board-task__state" data-state=${k.state}>${TASK_WORDS[k.state] || k.state}</span>
     <button class="board-link board-task__title" onClick=${() => showTask(plan.idea, k.id)}><b>${k.title}</b></button>
-    <span class="board-chip kit-well">${k.tier}</span>
+    ${k.head ? html`<${Who} head=${k.head} small />` : html`<span class="board-chip">${k.tier}</span>`}
     ${k.after?.length ? html`<span class="ok-tone-muted">after ${k.after.join(", ")}</span>` : ""}
     ${k.commit && html`<code class="board-commit" title=${k.branch}>${k.commit.slice(0, 8)}</code>`}
     ${plan.passed_by === "auto" && !["waiting", "ready"].includes(k.state) && html`<span class="ok-tone-muted">by itself</span>`}

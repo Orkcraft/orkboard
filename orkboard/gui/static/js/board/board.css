@@ -109,7 +109,7 @@
 .board-inline { display: inline-flex; align-items: center; gap: var(--ork-2); }
 
 .board-need { flex-direction: row; align-items: flex-start; gap: var(--ork-4); }
-.board-need__icon { flex: none; width: 1.4em; text-align: center; font-weight: 600; }
+.board-need__icon { flex: none; display: flex; width: 24px; font-weight: 600; }
 .board-need[data-kind="asks"] .board-need__icon, .board-need[data-kind="goal"] .board-need__icon { color: var(--ork-alert); }
 .board-need[data-kind="failed"] .board-need__icon { color: var(--ork-danger); }
 .board-need__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }

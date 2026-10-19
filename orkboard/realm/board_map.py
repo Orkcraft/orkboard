@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import idea_risk, idea_spend, ideas
+from orkboard.realm import idea_risk, idea_spend, idea_target, ideas, roles
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
@@ -163,6 +163,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                 todo.append(d)
 
     goals, nodes, edges = [], [], []
+    target, read = idea_target.target_of(settings), roles.known(state_dir)         # a task's head: who does it, at what tier
     for g in shown:
         mine = [i for i in found if i["track"] == g["slug"]]
         order = [i["slug"] for i in mine]
@@ -190,7 +191,8 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                     if r["state"] != "done" else "",
                     "progress": r["progress"],
                     "tasks": [{"id": t.get("id"), "title": t.get("title") or "", "state": t.get("state") or "waiting",
-                               "after": list(t.get("after") or []), "tier": t.get("tier") or ""} for t in tasks],
+                               "after": list(t.get("after") or []), "tier": t.get("tier") or "",
+                               "head": roles.task_head(state_dir, t, target, read)} for t in tasks],
                     "estimate": {"usd_low": est.get("usd_low"), "usd_high": est.get("usd_high")}
                     if isinstance(est, dict) and plan and not started else None,
                     "by_itself": bool(plan) and plan.get("passed_by") == "auto",

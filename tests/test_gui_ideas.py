@@ -325,6 +325,10 @@ def test_agents_shows_the_taskmaster_and_a_chip_per_live_task(host):
     assert tm["chips"] == [{"idea": other, "title": "asking idea", "state": "waiting"}]
     (chip,) = grunts["chips"]
     assert chip["state"] == "review" and chip["task"] == "k1" and chip["idea"] == slug and chip["tier"] == "warrior"
+    assert chip["head"] == {"craft": "engineering", "race": "peon", "tier": "warrior"}            # a Grunt, an ork (decisions §53)
+    assert tm["head"] == {"craft": "engineering", "race": "peon", "tier": "elder"} and grunts["head"]["race"] == "peon"
+    assert host.command("ideas.task", {"slug": slug, "task": "k1"})["head"] == chip["head"]           # the task, the plan: the same head
+    assert host.command("ideas.page", {"slug": slug})["plan"]["tasks"][0]["head"] == chip["head"]
     ideas.edit_plan(host.ideas.state_dir, slug, lambda p: p["tasks"][0].update(
         state="merged", finished=dt.datetime.now().isoformat(timespec="seconds")))
     got = host.command("ideas.agents")
@@ -569,3 +573,22 @@ def test_roles_gain_their_types_week_and_hand_model_and_role_save_takes_types(ho
     assert [(e["kinds"], e["instruction_chars"]) for e in saved] == [(["docs", "text"], 14), (["docs"], 0)]
     blocks = {b["role"]: b for b in host.command("ideas.agents")["roles"]}
     assert all("week" in b for b in blocks.values()) and blocks["taskmaster"]["week"]["plans"] == 0
+
+
+def test_an_agents_craft_is_saved_and_every_role_says_the_head_it_wears(host):
+    slug = host.command("ideas.role_save", {"name": "Layout", "model": "elder", "max_parallel": 1, "craft": "design"})["slug"]
+    got = host.command("ideas.roles")
+    mine = {r["slug"]: r for r in got["roles"]}
+    assert mine[slug]["craft"] == "design" and mine[slug]["head"] == {"craft": "design", "race": "elf", "tier": "elder"}
+    assert mine["grunt"]["head"] == {"craft": "engineering", "race": "peon", "tier": "warrior"}          # By Target, balance
+    assert [(c["craft"], c["race"]) for c in got["crafts"]] == [("engineering", "peon"), ("design", "elf"), ("data", "goblin"),
+                                                               ("marketing", "gnome")]
+    assert got["crafts"][2]["heads"] == {"": "warrior", "elder": "elder", "warrior": "warrior", "laborer": "laborer"}
+    host.command("ideas.role_save", {"slug": slug, "name": "Layout", "model": "elder", "max_parallel": 1})
+    assert {r["slug"]: r for r in host.command("ideas.roles")["roles"]}[slug]["craft"] == "design"             # kept when not sent
+    assert _events(host, "role_saved")[-1]["craft"] == "design"
+    for bad in ({"craft": "sorcery"}, {"craft": 3}, {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "craft": "data"}):
+        with pytest.raises(CommandError):
+            host.command("ideas.role_save", {"name": "X", "model": "", "max_parallel": 1, **bad})
+    block = next(b for b in host.command("ideas.agents")["roles"] if b["role"] == slug)
+    assert block["head"] == {"craft": "design", "race": "elf", "tier": "elder"}

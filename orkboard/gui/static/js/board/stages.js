@@ -2,6 +2,7 @@
 // (`1. k1 The table (S) ∥ k2 The form (M)`); here each task shows its live state beside it, from the plan, in words.
 import { html } from "../html.js";
 import { showTask } from "../shell/store.js";
+import { WhoHead } from "../orkui.js";
 
 const WORDS = { merged: "merged", running: "working", testing: "working", held: "held", failed: "failed", review: "at Review",
   waiting: "waiting", ready: "queued" };
@@ -22,7 +23,7 @@ export function Stages({ text, plan, slug }) {
   const by = Object.fromEntries((plan?.tasks || []).map((k) => [k.id, k]));
   return html`<ol class="board-stages">${lines.map((wave, n) => html`<li key=${n} class="board-stages__wave">
     ${wave.map((t) => { const k = by[t.id]; return html`<span key=${t.id || t.text} class="board-stages__task" data-task=${t.id} data-state=${k?.state || ""}>
-      ${t.id && html`<button class="board-link" onClick=${() => showTask(slug, t.id)}>${t.id}</button>`} <span>${t.text}</span>
+      ${k?.head && html`<${WhoHead} head=${k.head} small />`}${t.id && html`<button class="board-link" onClick=${() => showTask(slug, t.id)}>${t.id}</button>`} <span>${t.text}</span>
       ${k && html`<span class="board-stages__state board-task__state" data-state=${k.state}><span aria-hidden="true">${MARKS[k.state] || ""}</span> ${WORDS[k.state] || k.state}</span>`}</span>`; })}
   </li>`)}</ol>`;
 }

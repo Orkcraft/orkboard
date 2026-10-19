@@ -610,7 +610,7 @@ async def test_agents_add_an_agent_give_it_a_task_type_edit_and_delete_it(fake_r
         await sheet.get_by_label("Docs", exact=True).check()                                            # a type given in the dialog (spec 36 §3)
         await sheet.get_by_role("button", name="Save agent").click()
         assert await _called(stub, "ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.",
-                                                        "kinds": ["docs"]})
+                                                        "kinds": ["docs"], "craft": "engineering"})
         await agents.locator(".role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
         assert "Takes: docs" in await agents.locator(".role[data-slug='docs-scribe']").inner_text()
         await agents.get_by_role("button", name="Edit Docs scribe").click()

@@ -21,6 +21,7 @@ They are the only raster art of the look, in colour but muted: no head is more c
 beside the head in its signal colour, never onto it.
 `.ork-race` puts a head beside its word: `<span class="ork-race"><img class="ork-race__head" src="races/elf-elder.png"
 srcset="races/elf-elder@2x.png 2x" alt=""><span class="ork-race__word">… <span class="ork-race__tier">…</span></span></span>`, 24 x 22
-in a row, `.ork-race.big` 48 x 44.
+in a row, `.ork-race.big` 48 x 44, `.ork-race.small` 12 x 11 (a cell a pixel: an accent in a line of text, beside a task or in a
+chip). A head is an accent, not a picture: the smallest that says it.
 
 Pointer targets are at least 24 x 24 px; on the phone a control is 40 px drawn and 44 px to hit (`min-height: var(--ork-tap)`).

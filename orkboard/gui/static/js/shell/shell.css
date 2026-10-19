@@ -51,7 +51,7 @@
 .shell-agents__body { flex: 1; min-height: 0; overflow: auto; padding: var(--ork-5); display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--ork-6); }
 .shell-role { min-width: 220px; display: flex; flex-direction: column; gap: var(--ork-4); align-items: flex-start; }
 .shell-role[data-role="grunt"] { flex: 1; }
-.shell-role__name { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink); }
+.shell-role__name { font: var(--ork-type-body); font-weight: 600; color: var(--ork-ink); }      /* a name the person gave: never the pixel face */
 .shell-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ork-4); }
 .shell-chip { display: inline-flex; align-items: center; gap: var(--ork-3); max-width: 100%; padding: var(--ork-2) var(--ork-4); box-sizing: border-box;
   background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); cursor: pointer; font: inherit; text-align: left; }
@@ -184,7 +184,6 @@
 .board-card__now { align-self: flex-start; }
 
 /* agents, a monitor */
-.shell-role__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ork-4); }
 .shell-metrics { border-collapse: collapse; width: 100%; }
 .shell-metrics th, .shell-metrics td { text-align: left; padding: 3px var(--ork-4); border-bottom: 1px solid var(--ork-frame); vertical-align: top; }
 .shell-links { margin: 0; padding-left: 20px; }
@@ -290,3 +289,15 @@
 .shell[data-narrow="true"] .shell-tabstrip { display: none; }
 .shell[data-narrow="true"] .shell-narrowhead { display: flex; }
 .shell[data-narrow="true"] .shell-mapbtn { display: inline-flex; align-self: flex-start; }
+
+/* decisions §53: who does a task, as orkUI draws it: the head of the craft's race in its tier's gear, its words beside it */
+.shell-role__head { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: var(--ork-1) var(--ork-4); }
+.shell-role__head > .ork-race__head { grid-row: span 2; }
+.shell-role__head > .shell-role__facts { grid-column: 2 / -1; }
+.shell-role__head > .board-link { justify-self: start; }
+.shell-chip > .ork-race__head { align-self: center; }
+.shell-agent__who { min-height: 24px; display: flex; align-items: center; }
+.board-tasks .ork-race, .shell-facts .ork-race { vertical-align: middle; }
+.board-stages__task > .ork-race__head { align-self: center; }
+.map-task > .ork-race__head { display: inline-block; margin-right: var(--ork-2); vertical-align: -1px; }
+.board-stages__task > .ork-race__head { display: inline-block; vertical-align: -1px; }

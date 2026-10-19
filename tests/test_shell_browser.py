@@ -860,12 +860,12 @@ def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
     dlg.get_by_label("Instruction").fill("Write plainly.")
     dlg.get_by_role("button", name="Save agent").click()
     pg.locator(".shell-role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": []}))
+    assert _sent(pg, host, ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": [], "craft": "engineering"}))
     pg.get_by_role("button", name="Edit Docs scribe").click()                                       # a type given in its dialog (Takes)
     pg.get_by_role("dialog", name="Edit agent").get_by_label("Docs").check()
     pg.get_by_role("button", name="Save agent").click()
     pg.get_by_role("dialog").wait_for(state="detached", timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.role_save", {"slug": "docs-scribe", "name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": ["docs"]}))
+    assert _sent(pg, host, ("ideas.role_save", {"slug": "docs-scribe", "name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": ["docs"], "craft": "engineering"}))
     pg.get_by_role("button", name="Edit Docs scribe").click()                                        # Edit, then Delete says what moves back
     dlg = pg.get_by_role("dialog", name="Edit agent")
     assert dlg.get_by_label("Instruction").input_value() == "Write plainly."

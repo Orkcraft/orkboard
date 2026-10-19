@@ -9,7 +9,7 @@ from pathlib import Path
 
 from orkboard import settings
 from orkboard.gui.ideas_args import IdeasError, _device, _text
-from orkboard.realm import event_log, idea_spend, ideas
+from orkboard.realm import event_log, idea_spend, ideas, roles
 from orkboard.realm.idea_git import IdeaGit
 
 _NO_TESTS = {"passed": 0, "failed": 0, "failing": [], "tail": ""}
@@ -111,6 +111,7 @@ class ReviewMixin:
         page = ideas.idea_page(self.root(), slug)
         runner = self._runner
         return {**task, "idea": slug, "idea_title": (page.title if page else "") or slug,
+                "head": roles.task_head(self.state_dir, task, self._target()),
                 "log": runner.log(slug, tid) if runner is not None else "",
                 "after": task.get("after") or [], "round": int(task.get("round") or 1)}
 

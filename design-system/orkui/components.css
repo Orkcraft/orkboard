@@ -110,7 +110,8 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
    it in its signal colour, never onto it ------------------------------------------------------------------------------------- */
 .ork-race { display: inline-flex; align-items: center; gap: var(--ork-3); min-width: 0; max-width: 100%; vertical-align: middle; }
 .ork-race__head { flex: none; display: block; width: 24px; height: 22px; image-rendering: pixelated; }
-.ork-race.big .ork-race__head { width: 48px; height: 44px; }
+.ork-race.big .ork-race__head, .ork-race__head.big { width: 48px; height: 44px; }
+.ork-race.small .ork-race__head, .ork-race__head.small { width: 12px; height: 11px; }      /* 1 px a cell: an accent in a line of text */
 .ork-race__word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ork-race__tier { color: var(--ork-ink-muted); }
 

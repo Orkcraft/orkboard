@@ -21,7 +21,7 @@ def test_the_two_built_in_roles_exist_by_themselves_and_can_be_edited_not_droppe
 def test_a_role_is_a_small_file_the_person_can_read(tmp_path):
     slug = roles.save(tmp_path, "Docs scribe", "laborer", 2, "Write plainly.\n\n# not a title")
     text = (tmp_path / "roles" / f"{slug}.md").read_text()
-    assert text.startswith("---\nname: Docs scribe\nmodel: laborer\nmax_parallel: 2\n---\n") and "Write plainly." in text
+    assert text.startswith("---\nname: Docs scribe\nmodel: laborer\nmax_parallel: 2\ncraft: engineering\n---\n") and "Write plainly." in text
     r = roles.role(tmp_path, slug)
     assert r["name"] == "Docs scribe" and r["instruction"] == "Write plainly.\n\n# not a title" and not r["builtin"]
     assert [x["slug"] for x in roles.roles(tmp_path)] == ["taskmaster", "grunt", slug]
@@ -68,8 +68,8 @@ def test_the_models_are_the_tiers_and_the_claude_harness_s(tmp_path):
 def test_the_model_list_is_by_target_and_the_three_tiers_and_a_hand_set_model_only_for_its_role(tmp_path):
     got = roles.models()
     assert got[0] == {"id": "", "label": "By Target"}
-    assert [m["label"].split(" · ")[0] for m in got[1:]] == ["Elder", "Warrior", "Laborer"]
-    assert " · " in got[1]["label"]                                    # the harness's model, small: Elder · opus
+    assert [m["label"].split(" · ")[0] for m in got[1:]] == ["Veteran", "Seasoned", "Novice"]       # the tiers in today's words
+    assert " · " in got[1]["label"]                                    # the harness's model, small: Veteran · opus
     (tmp_path / "roles").mkdir()
     (tmp_path / "roles" / "old-hand.md").write_text("---\nname: Old hand\nmodel: opus\nmax_parallel: 1\n---\n")
     r = roles.role(tmp_path, "old-hand")
@@ -123,3 +123,39 @@ def test_an_agent_takes_its_task_types(tmp_path):
             roles.save(tmp_path, slug.capitalize(), "elder", 1, "", slug, ["code"])
     with pytest.raises(ValueError, match="No task type"):
         roles.save(tmp_path, "Tester", "", 1, "", b, ["poetry"])
+
+
+def test_a_roles_craft_is_its_race_engineering_by_default_and_the_built_in_two_are_orks(tmp_path):
+    assert roles.RACES == {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome"}
+    slug = roles.save(tmp_path, "Layout", "elder", 1, "", craft="design")
+    assert "craft: design" in (tmp_path / "roles" / f"{slug}.md").read_text() and roles.role(tmp_path, slug)["craft"] == "design"
+    assert roles.save(tmp_path, "Layout", "warrior", 1, "", slug) == slug and roles.role(tmp_path, slug)["craft"] == "design"   # kept
+    assert roles.role(tmp_path, roles.save(tmp_path, "Coder", "", 2))["craft"] == "engineering"                           # a new one's
+    (tmp_path / "roles" / "old.md").write_text("---\nname: Old\nmodel: warrior\nmax_parallel: 1\n---\n")
+    assert roles.role(tmp_path, "old")["craft"] == "engineering"                                                          # before crafts
+    (tmp_path / "roles" / "odd.md").write_text("---\nname: Odd\nmodel: warrior\nmax_parallel: 1\ncraft: sorcery\n---\n")
+    assert roles.role(tmp_path, "odd")["craft"] == "engineering"
+    assert roles.role(tmp_path, "taskmaster")["craft"] == roles.role(tmp_path, "grunt")["craft"] == "engineering"
+    with pytest.raises(ValueError, match="engineering, design, data or marketing"):
+        roles.save(tmp_path, "Seer", "", 1, craft="sorcery")
+    with pytest.raises(ValueError, match="orks"):
+        roles.save(tmp_path, "Grunt", "", 8, slug="grunt", craft="design")
+    assert roles.save(tmp_path, "Grunt", "", 8, slug="grunt", craft="engineering") == "grunt"
+
+
+def test_a_head_wears_the_roles_tier_its_models_or_the_targets(tmp_path):
+    seer = roles.role(tmp_path, roles.save(tmp_path, "Seer", "", 1, craft="data"))
+    assert [roles.head(seer, t) for t in ("thrift", "balance", "quality")] == [
+        {"craft": "data", "race": "goblin", "tier": tier} for tier in ("laborer", "warrior", "elder")]        # By Target: the Target's
+    assert roles.head(seer, "balance", "elder")["tier"] == "elder"                                        # a heavy task, by balance
+    assert roles.head(roles.role(tmp_path, "taskmaster"), "thrift") == {"craft": "engineering", "race": "peon", "tier": "elder"}
+    assert roles.head({"model": "haiku", "craft": "marketing"}, "quality") == {"craft": "marketing", "race": "gnome", "tier": "laborer"}
+
+
+def test_a_tasks_head_is_who_runs_it_at_the_tier_it_runs_at(tmp_path):
+    seer = roles.save(tmp_path, "Seer", "", 1, takes=["research"], craft="data")
+    assert roles.task_head(tmp_path, {"kind": "research", "tier": "warrior"}, "thrift") == {"craft": "data", "race": "goblin", "tier": "laborer"}
+    assert roles.task_head(tmp_path, {"kind": "code", "tier": "elder"}, "balance") == {"craft": "engineering", "race": "peon", "tier": "elder"}
+    ran = {"kind": "code", "tier": "elder", "role": seer, "ran_tier": "warrior"}                          # what it ran as, at what it ran at
+    assert roles.task_head(tmp_path, ran, "quality", roles.known(tmp_path)) == {"craft": "data", "race": "goblin", "tier": "warrior"}
+    assert roles.task_head(tmp_path, {"role": "gone", "tier": "laborer"}, "balance")["race"] == "peon"     # a dropped role: Grunt's

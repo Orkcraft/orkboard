@@ -1,11 +1,13 @@
-// Add agent / Edit agent (docs/specs/34-v1-round-2.md §3, spec 36 §3, §5): a name, a model (By Target or a tier), how many
-// may work at once, an instruction of at most 600 characters (added to every task prompt of that agent) and the task types
-// it takes. An agent of your own can be deleted (its task types go back to Grunt, said before); Taskmaster and Grunt can be
+// Add agent / Edit agent (docs/specs/34-v1-round-2.md §3, spec 36 §3, §5): a name, its craft (engineering, design, data or
+// marketing: the race of its head, decisions §53; Taskmaster and Grunt are orks), a model (By Target or a tier: the gear on its
+// head), how many may work at once, an instruction of at most 600 characters (added to every task prompt of that agent) and
+// the task types it takes. An agent of your own can be deleted (its task types go back to Grunt, said before); Taskmaster and Grunt can be
 // edited, not deleted. Grunt takes what no other agent takes (shown, not editable); the Taskmaster takes none.
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say } from "../link.js";
 import { roles, act } from "./store.js";
+import { Who, CRAFT_WORDS, RACE_WORDS } from "../orkui.js";
 
 const CHARS = 600;                                  // roles.INSTRUCTION_CHARS
 import { Modal, closeDialog } from "./modals.js";
@@ -16,9 +18,13 @@ export function AgentDialog({ slug = "" }) {
   const [model, setModel] = useState(r ? r.model : "");
   const [instruction, setInstruction] = useState(r?.instruction || "");
   const [many, setMany] = useState(r?.max_parallel || 2);
+  const [craft, setCraft] = useState(r?.craft || "engineering");
   const [sure, setSure] = useState(false);
   const [busy, setBusy] = useState(false);
   const taskmaster = slug === "taskmaster", grunt = slug === "grunt";
+  const crafts = data?.crafts || [];
+  const one = crafts.find((c) => c.craft === craft);
+  const head = one ? { craft, race: one.race, tier: one.heads?.[model] || (r?.head?.tier) || "warrior" } : r?.head;
   const models = (data?.models || []).filter((m) => m.id || !taskmaster);          // By Target for everyone but the Taskmaster
   if (r?.hand_model && !models.some((m) => m.id === r.model)) models.push({ id: r.model, label: `${r.model} (set by hand)` });
   const mine = data ? data.kinds.filter((k) => k.role === slug).map((k) => k.label.toLowerCase()) : [];
@@ -31,7 +37,7 @@ export function AgentDialog({ slug = "" }) {
     if (!name.trim() || busy || over) return;
     setBusy(true);
     const got = await act("ideas.role_save", { ...(slug ? { slug } : {}), name: name.trim(), model, max_parallel: Number(many), instruction,
-      ...(taskmaster || grunt ? {} : { kinds: takes }) });
+      ...(taskmaster || grunt ? {} : { kinds: takes, craft }) });
     setBusy(false);
     if (got?.slug) closeDialog();
   };
@@ -46,6 +52,12 @@ export function AgentDialog({ slug = "" }) {
     <form id="agent-form" class="shell-form" onSubmit=${save}>
       <label class="shell-field"><span class="ok-font-label">Name</span>
         <input class="ork-field" autofocus required value=${name} aria-label="Name" placeholder="Docs scribe" onInput=${(e) => setName(e.target.value)} /></label>
+      <label class="shell-field"><span class="ok-font-label">Craft</span>
+        <select class="ork-field" aria-label="Craft" value=${craft} disabled=${taskmaster || grunt} onChange=${(e) => setCraft(e.target.value)}>
+          ${(crafts.length ? crafts : [{ craft: "engineering", label: "Engineering", race: "peon" }]).map((c) => html`<option key=${c.craft} value=${c.craft}>
+            ${CRAFT_WORDS[c.craft] || c.label}: ${/^[aeiou]/.test(RACE_WORDS[c.race]) ? "an" : "a"} ${RACE_WORDS[c.race]}</option>`)}</select>
+        <small class="ok-tone-muted">${taskmaster || grunt ? "Taskmaster and Grunt are orks: engineering" : "Its head on Agents: the race says the craft, the gear the tier"}</small></label>
+      <div class="shell-agent__who" aria-live="polite"><${Who} head=${head} /></div>
       <label class="shell-field"><span class="ok-font-label">Model</span>
         <select class="ork-field" aria-label="Model" value=${model} onChange=${(e) => setModel(e.target.value)}>
           ${models.map((m) => html`<option key=${m.id} value=${m.id}>${m.label}</option>`)}</select>

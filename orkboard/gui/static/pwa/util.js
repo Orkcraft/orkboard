@@ -24,11 +24,12 @@ export function icon(name) {
   return svg;
 }
 
-/** A race's head (orkUI races/ beside the app's files: 24 x 22, its @2x for a sharp screen), pixelated; `big` 48 x 44. */
-export function head(race, tier = "laborer", { big = false, title = "" } = {}) {
+/** A race's head (orkUI races/ beside the app's files), pixelated: 24 x 22 (its @2x for a sharp screen), or `small` 12 x 11, a pixel a
+ *  cell, an accent in a line of text. A head is an accent, never a picture to look at. */
+export function head(race, tier = "laborer", { small = false, title = "" } = {}) {
   const src = `races/${race}-${tier}`;
-  return h("img", { class: "ork-race__head", src: `${src}${big ? "@2x" : ""}.png`, srcset: big ? null : `${src}@2x.png 2x`, width: big ? 48 : 24,
-    height: big ? 44 : 22, alt: "", title: title || null, draggable: "false" });
+  return h("img", { class: `ork-race__head${small ? " small" : ""}`, src: `${src}.png`, srcset: small ? null : `${src}@2x.png 2x`,
+    width: small ? 12 : 24, height: small ? 11 : 22, alt: "", title: title || null, draggable: "false" });
 }
 
 export const KEY = "orkcraft.device";   // {id, token, name}: this browser's pairing with the town

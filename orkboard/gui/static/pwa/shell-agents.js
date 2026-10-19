@@ -6,6 +6,7 @@ import { h } from "./util.js";
 import { steady } from "./shell-util.js";
 import { makeAgentSheet } from "./shell-agent.js";
 import { heldWords } from "./shell-words.js";
+import { whoHead, headWords, CRAFT_WORDS, TIER_WORDS } from "./shell-who.js";
 
 const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: ["at Review", ""], ready: ["queued", ""], held: ["held", "⏳"],
   failed: ["needs you", "⚠"] };
@@ -29,6 +30,8 @@ export function makeAgents(core) {
   const fresh = steady(el);
   const sheetOf = makeAgentSheet(core);
   const modelWords = (r) => (core.st.roles?.models || []).find((m) => m.id === r.model)?.label || (r.model ? `${r.model} (set by hand)` : "By Target");
+  // a role's craft and model: "Design · Veteran · opus"; By Target says the tier the Target gives it now (decisions §53)
+  const whoWords = (r) => [CRAFT_WORDS[r.head?.craft], r.model ? modelWords(r) : `By Target${r.head ? `, now ${TIER_WORDS[r.head.tier]}` : ""}`].filter(Boolean).join(" · ");
   const priced = (text) => h("span", { class: "priced", title: HINT }, text);
 
   /** The week (spec 36 §2): what a result costs and how often it is merged the first time; said once there are enough to say. */
@@ -41,11 +44,11 @@ export function makeAgents(core) {
   }
 
   function head(role) {
-    const bits = [modelWords(role), role.role === "taskmaster" ? null : `up to ${role.max_parallel}`,
+    const bits = [whoWords(role), role.role === "taskmaster" ? null : `up to ${role.max_parallel}`,
       role.spend_today ? priced(`${money(role.spend_today)} today`) : null, ...(week(role) || [])].filter(Boolean);
     const facts = h("small", { class: "muted role-facts" });
     bits.forEach((b, i) => facts.append(...(i ? [" · "] : []), b));
-    return h("div", { class: "role-head" }, h("h3", {}, role.name),
+    return h("div", { class: "role-head" }, whoHead(role.head), h("h3", {}, role.name),
       h("button", { class: "linkish", type: "button", "aria-label": `Edit ${role.name}`, onclick: () => sheetOf.open(role.role) }, "Edit"), facts);
   }
 
@@ -69,9 +72,9 @@ export function makeAgents(core) {
     return h("div", { class: "role", "data-role": role.role === "grunt" ? "grunt" : "agent", "data-slug": role.role }, head(role),
       (role.kinds || []).length ? h("small", { class: "muted" }, `Takes: ${role.kinds.map((k) => labels[k] || k).join(", ")}`) : null,
       chips.length ? h("ul", { class: "chips" }, ...chips.map((c) => h("li", {},
-        h("button", { class: `card chip is-${c.state}`, type: "button", "data-state": c.state,
+        h("button", { class: `card chip is-${c.state}`, type: "button", "data-state": c.state, title: headWords(c.head) || null,
           onclick: () => core.open({ kind: "task", slug: c.idea, task: c.task }) },
-        h("span", { class: "chip-state" }, gruntWords(c)), h("b", {}, c.title), h("small", { class: "muted" }, c.idea_title),
+        whoHead(c.head, true), h("span", { class: "chip-state" }, gruntWords(c)), h("b", {}, c.title), h("small", { class: "muted" }, c.idea_title),
           c.by === "auto" || c.night ? h("small", { class: "chip-why" }, [c.by === "auto" ? "by itself" : "", c.night ? "tonight" : ""].filter(Boolean).join(" · ")) : null))))
         : h("p", { class: "muted" }, "No task runs now."),
       mine.length ? h("details", { class: "done-today" }, h("summary", {}, `Done today (${mine.length})`),

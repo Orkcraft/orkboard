@@ -9,6 +9,7 @@ import { resultActions, factsOf, mergeReason } from "./shell-review.js";
 import { gruntWords } from "./shell-agents.js";
 import { goalBody } from "./shell-goal.js";
 import { heldWords } from "./shell-words.js";
+import { who, whoHead, headWords, TIER_WORDS } from "./shell-who.js";
 
 const TALK_SHOWN = 6;
 const LOG_MS = 5000;
@@ -124,9 +125,9 @@ export function makePreview(core, ctx) {
 
   function planList(plan, p, todo = "") {
     const byId = new Map((plan.tasks || []).map((t) => [t.id, t]));
-    const kids = [h("ul", { class: "tasks" }, ...(plan.tasks || []).map((t) => h("li", { class: `task t-${t.state}` },
-      h("button", { class: "linkish task-title", type: "button", onclick: () => core.open({ kind: "task", slug: p.slug, task: t.id }) }, t.title),
-      h("small", { class: "muted" }, [t.tier, (t.after || []).length ? `after ${t.after.map((a) => byId.get(a)?.title || a).join(", ")}` : "",
+    const kids = [h("ul", { class: "tasks" }, ...(plan.tasks || []).map((t) => h("li", { class: `task t-${t.state}`, title: headWords(t.head) || null },
+      h("button", { class: "linkish task-title", type: "button", onclick: () => core.open({ kind: "task", slug: p.slug, task: t.id }) }, whoHead(t.head, true), t.title),
+      h("small", { class: "muted" }, [t.head ? TIER_WORDS[t.head.tier] : t.tier, (t.after || []).length ? `after ${t.after.map((a) => byId.get(a)?.title || a).join(", ")}` : "",
         TASK_WORDS[t.state] && p.state !== "plan" ? TASK_WORDS[t.state] : "", t.state === "held" && t.note ? heldWords(t.note, t.waits_title) : "",
         t.commit ? `commit ${t.commit.slice(0, 7)}` : "", t.state === "failed" && t.error ? t.error : ""].filter(Boolean).join(" · ")))))];
     if ((plan.todos || []).length) {
@@ -212,7 +213,7 @@ export function makePreview(core, ctx) {
       h("dl", { class: "facts" },
         h("dt", {}, "State"), h("dd", { "data-state": t.state }, TASK_WORDS[t.state] || t.state, t.note ? h("small", { class: "muted" }, ` ${t.state === "held" ? heldWords(t.note, t.waits_title) : t.note}`) : null),
         h("dt", {}, "Idea"), h("dd", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "idea", slug: t.idea }) }, t.idea_title)),
-        h("dt", {}, "Tier"), h("dd", {}, t.tier), h("dt", {}, "Branch"), h("dd", {}, h("code", {}, t.branch || "—")),
+        h("dt", {}, "Tier"), h("dd", {}, t.head ? who(t.head, true) : t.tier), h("dt", {}, "Branch"), h("dd", {}, h("code", {}, t.branch || "—")),
         h("dt", {}, "Round"), h("dd", {}, String(t.round || 1)), h("dt", {}, "Spend"), h("dd", {}, t.cost != null ? `$${Number(t.cost).toFixed(2)}` : "—")),
       t.error ? h("p", { class: "warn", role: "alert" }, t.error) : null,
       h("h3", {}, "Brief"), h("p", { class: "brief" }, t.brief), h("h3", {}, "Log"), log].filter(Boolean));

@@ -74,7 +74,7 @@ TERMS: tuple[Term, ...] = (
     _t("home", "Home"),                                            # the person's house by the Review gate (v3 §4.13)
     _t("look", "Look", "Looks"),                                   # how the town is drawn: never its words
     _t("look.camp", "Camp"),                                       # the default look: sprites, the mascot, flames
-    _t("look.office", "Office"),                                   # the calm look: monochrome, no sprites
+    _t("look.office", "Office"),                                   # the calm look: monochrome, its only pictures the races' heads
     _t("dnd", "Do not disturb"),                                   # sounds, pushes, the Workchief's news wait
     _t("warchief_council", "The Workchief's council"),             # the Town Hall's door in the home's menu
     # -- what a thing does, costs or risks: plain words ---------------------------------------------
@@ -141,6 +141,18 @@ TERMS: tuple[Term, ...] = (
     _t("track", "goal", "goals", "track", "tracks"),               # the project's line of work: ideas in order (spec 29, 32)
     _t("steward_goal", "Target", "", "Goal"),                      # the Steward's setting: what the retros improve it towards (spec 32)
     _t("agent", "agent", "agents"),                                # a role: a model, an instruction, a limit (realm/roles.py, spec 34)
+    # an agent's craft, drawn as the head of its race in orkUI (realm/roles.py CRAFTS, RACES; decisions §53): the race says
+    # what the agent does, the gear on its head its tier (a novice bare, a seasoned in iron, a veteran hooded)
+    _t("craft", "craft", "crafts"),
+    _t("craft.engineering", "Engineering"),                        # an ork: the Taskmaster, the Grunts, a role of code
+    _t("craft.design", "Design"),                                  # an elf
+    _t("craft.data", "Data"),                                      # a goblin
+    _t("craft.marketing", "Marketing"),                            # a gnome
+    _t("race", "race", "races"),                                   # orkUI's heads (races/<race>-<tier>.png)
+    _t("race.peon", "ork", "orks"),                                # orkUI's id for the ork's head is the site's class, peon
+    _t("race.elf", "elf", "elves"),
+    _t("race.goblin", "goblin", "goblins"),
+    _t("race.gnome", "gnome", "gnomes"),
     _t("task_kind", "task type", "task types"),                    # code · tests · docs · text for people · research
     _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)

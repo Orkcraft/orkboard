@@ -4,6 +4,7 @@
 // actions stay pinned at its foot. Below 1 024 px there is no strip: the active tab is the screen, with Back.
 import { useEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
+import { Who } from "../orkui.js";
 import { page } from "../board/store.js";
 import { IdeaView, PlanView } from "../board/idea.js";
 import { MapView } from "../board/map.js";
@@ -31,7 +32,7 @@ function Task({ d }) {
     <dl class="shell-facts">
       <dt>State</dt><dd data-state=${t.state}>${TASK_STATE[t.state] || t.state}${t.note ? html` <span class="ok-tone-muted">${t.note}</span>` : ""}</dd>
       <dt>Idea</dt><dd><button class="board-link" onClick=${() => showIdea(t.idea)}>${t.idea_title}</button></dd>
-      <dt>Tier</dt><dd>${t.tier}</dd>
+      <dt>Tier</dt><dd>${t.head ? html`<${Who} head=${t.head} small />` : t.tier}</dd>
       <dt>Branch</dt><dd><code>${t.branch || "—"}</code></dd>
       <dt>Round</dt><dd>${t.round || 1}</dd>
       <dt>Spend</dt><dd>${t.cost != null ? `$${t.cost.toFixed(2)}` : "—"}</dd>

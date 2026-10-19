@@ -3,7 +3,7 @@
 // A view of `ideas.map`: it changes nothing, its one action is open. Words of a node's state are the Board row's (`rowOf`).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { Chev } from "../orkui.js";
+import { Chev, WhoHead } from "../orkui.js";
 import { track, PRIORITY_WORDS, OPS } from "./store.js";
 import { mapData, mapSince, mapFolded, mapUi, mapView, preview, showIdea } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
@@ -34,7 +34,7 @@ function Node({ n, titles, since }) {
     ${n.tasks.length > 0 && html`<button class="map-pips" aria-expanded=${open} aria-label=${`Tasks of ${n.title}`} onClick=${() => toggle("tasks", n.slug)}>
       ${n.tasks.map((t) => html`<i key=${t.id} class="map-pip" data-pip=${pipState(t.state)} aria-hidden="true"></i>`)}<span>Tasks</span></button>`}
     ${open && html`<div class="map-tasks" aria-label=${`Tasks of ${n.title}`}>${wavesOf(n.tasks).map((wave, i) => html`<div key=${i} class="map-wave" data-wave=${i + 1}>
-      ${wave.map((t) => html`<p key=${t.id} class="map-task" data-state=${t.state}><code>${t.id}</code> ${t.title} · ${TASK_STATE[t.state] || t.state}</p>`)}</div>`)}</div>`}
+      ${wave.map((t) => html`<p key=${t.id} class="map-task" data-state=${t.state}><${WhoHead} head=${t.head} small /><code>${t.id}</code> ${t.title} · ${TASK_STATE[t.state] || t.state}</p>`)}</div>`)}</div>`}
   </li>`;
 }
 
