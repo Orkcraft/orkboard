@@ -47,12 +47,12 @@ function Head({ role, models }) {
 function Taskmaster({ role, models }) {
   const c = role.chips || [];
   const say_ = (c0) => `${c0.state === "talking" ? "talking about" : c0.state} “${c0.title}”`;
-  const open = (c0) => (c0.goal ? showGoal(c0.goal) : showIdea(c0.idea));
+  const open = (c0) => (c0.goal ? showGoal(c0.goal, { via: "agents" }) : showIdea(c0.idea, { via: "agents" }));
   const lead = c.find((x) => x.state !== "waiting");
   return html`<div class="shell-role" data-role="taskmaster">
     <${Head} role=${role} models=${models} />
     ${role.state === "waiting" && role.waits_on
-      ? html`<button class="shell-chip is-wait" onClick=${() => showIdea(role.waits_on.idea)}>${role.waits_on.text}</button>`
+      ? html`<button class="shell-chip is-wait" onClick=${() => showIdea(role.waits_on.idea, { via: "agents" })}>${role.waits_on.text}</button>`
       : lead ? html`<button class="shell-chip is-live" onClick=${() => open(lead)}><span class="shell-spin" aria-hidden="true">↻</span> ${say_(lead)}</button>`
         : html`<span class="ok-tone-muted">nothing to do</span>`}
     ${c.filter((x) => x !== lead && x.state !== "waiting").map((x) => html`<button key=${x.goal || x.idea} class="shell-chip" onClick=${() => open(x)}>${say_(x)}</button>`)}
@@ -66,12 +66,12 @@ function Worker({ role, done, models }) {
     <${Head} role=${role} models=${models} />
     ${role.kinds?.length > 0 && html`<span class="ok-font-status ok-tone-muted shell-role__takes">Takes: ${role.kinds.join(", ")}</span>`}
     ${chips.length ? html`<ul class="shell-chips">${[...chips].sort(byState).map((c) => html`<li key=${c.idea + c.task}><button
-        class=${cls("shell-chip", `is-${c.state}`)} data-state=${c.state} onClick=${() => showTask(c.idea, c.task)}>
+        class=${cls("shell-chip", `is-${c.state}`)} data-state=${c.state} onClick=${() => showTask(c.idea, c.task, { via: "agents" })}>
         <span class="shell-chip__state">${gruntWords(c)}</span>${c.by === "auto" && html`<span class="shell-chip__tag">by itself</span>`}${c.night && html`<span class="shell-chip__tag">tonight</span>`}<b>${c.title}</b><small class="ok-tone-muted">${c.idea_title}</small></button></li>`)}</ul>`
       : html`<span class="ok-tone-muted">No task runs now.</span>`}
     ${mine.length > 0 && html`<details class="shell-done"><summary>Done today (${mine.length})</summary>
       <ul class="shell-chips">${mine.map((d) => html`<li key=${d.idea + d.task}><button class="shell-chip is-done"
-        onClick=${() => showTask(d.idea, d.task)}>${d.title}</button></li>`)}</ul></details>`}
+        onClick=${() => showTask(d.idea, d.task, { via: "agents" })}>${d.title}</button></li>`)}</ul></details>`}
   </div>`;
 }
 

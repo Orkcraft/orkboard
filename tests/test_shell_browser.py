@@ -387,7 +387,7 @@ def test_agents_resize_hide_and_remember(shell, gui):
 def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(shell):
     pg, host = shell
     pg.locator(".board-card", has_text="Sync ideas").click()                      # an idea → its spec: the nine sections
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "desktop"}))
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "desktop", "via": "board"}))
     pg.locator(".shell-preview .board-sec").first.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-preview .board-sec").count() == len(SECTIONS)
     assert "Spec" in pg.locator(".shell-preview > header").inner_text()
@@ -404,14 +404,14 @@ def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(s
     pg.locator(".shell-task").wait_for(timeout=WAIT_MS)
     text = pg.locator(".shell-task").inner_text()
     assert "Brief of Retry on a lost signal" in text and "reading sync.py" in text and "idea/sync/k3" in text and "working" in text
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "task", "ref": "sync/k3", "device": "desktop"}))
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "task", "ref": "sync/k3", "device": "desktop", "via": "agents"}))
     pg.get_by_role("button", name="Stop", exact=True).click()
     assert _sent(pg, host, ("ideas.stop_task", {"slug": "sync", "task": "k3"}))
 
     pg.locator(".shell-card", has_text="Add the queue").click()                   # a result → its code
     pg.locator(".shell-result .shell-commits").wait_for(timeout=WAIT_MS)
     assert "k2: add the queue" in pg.locator(".shell-commits").inner_text()
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "result", "ref": "sync/k2", "device": "desktop"}))
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "result", "ref": "sync/k2", "device": "desktop", "via": "review"}))
     pg.locator(".shell-file", has_text="sync.py").locator("summary").click()
     pg.locator(".shell-patch__line.is-add").first.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-patch__line.is-add").count() == 2 and pg.locator(".shell-patch__line.is-del").count() == 1

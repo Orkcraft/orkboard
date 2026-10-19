@@ -51,8 +51,8 @@ function open(n) {
   else if (n.kind === "goal") openDialog("ask", { slug: n.goal, goal: true, title: n.title });
   else if (n.kind === "asks") openDialog("ask", { slug: n.idea, title: n.title });
   else if (n.kind === "todo") openDialog("todo", { idea: n.idea, todo: n.todo });
-  else if (n.kind === "plan") showPlan(n.idea);
-  else showIdea(n.idea);
+  else if (n.kind === "plan") showPlan(n.idea, "", { via: "needs" });
+  else showIdea(n.idea, { via: "needs" });
 }
 
 export function Today() {

@@ -459,3 +459,23 @@ def test_at_1000_px_no_strip_the_preview_full_screen_back_closes_it_and_the_map_
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
+
+
+def test_an_idea_opened_from_the_board_or_needs_you_says_where_it_was_opened_from(mapped):
+    """Spec 39 §6: an open is logged with `via`, so the Map's share can be told from the Board's and Needs you's."""
+    pg, host = mapped
+
+    def opened_via(via):
+        for _ in range(WAIT_MS // 50):
+            if any(name == "ideas.log" and a.get("what") == "idea" and a.get("via") == via for name, a in host.log):
+                return True
+            pg.wait_for_timeout(50)
+        return False
+    board_card = pg.locator(".board-card").first
+    board_card.wait_for(timeout=WAIT_MS)
+    board_card.click()
+    assert opened_via("board")
+    need = pg.locator(".board-need").filter(has_not=pg.locator("[data-kind^=op]")).first
+    if need.count() and need.get_attribute("data-kind") in ("plan", "failed", "proposal", None):
+        need.click()
+        assert opened_via("needs")

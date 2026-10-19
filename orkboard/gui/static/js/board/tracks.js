@@ -31,7 +31,7 @@ export function Goals() {
       ${inOps ? html`<${NewMenu} />` : html`<${TargetChip} />`}</div>
     ${g && html`<div class="board-goals__one" data-state=${g.state}>
       <p class="board-goals__line">${firstLine(g.summary) || html`<span class="ok-tone-muted">${g.state === "reading" ? "Reading the goal…" : "No summary yet."}</span>`}</p>
-      <div class="board-row"><button class="ok-btn" aria-label=${`Open goal ${g.title}`} onClick=${() => showGoal(g.slug)}>Open</button>
+      <div class="board-row"><button class="ok-btn" aria-label=${`Open goal ${g.title}`} onClick=${() => showGoal(g.slug, { via: "board" })}>Open</button>
         <button class="ok-btn" aria-label=${`Edit goal ${g.title}`} onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div></div>`}
   </div>`;
 }
@@ -71,7 +71,7 @@ function Card({ i, titles }) {
     onDragOver=${(e) => { if (takes(e)) { e.preventDefault(); setOver(true); } }} onDragLeave=${() => setOver(false)}
     onDrop=${(e) => { e.preventDefault(); setOver(false); const s = e.dataTransfer.getData(DRAG);
       if (s && s !== i.slug) run("ideas.move", { slug: s, track: i.track, before: i.slug }); }}
-    onClick=${() => showIdea(i.slug)}>
+    onClick=${() => showIdea(i.slug, { via: "board" })}>
     <b class="board-card__title">${t}</b>
     <span class="board-card__meta">${i.size && html`<span class="board-size kit-well">${i.size}</span>`}
       <span class="board-prio" data-priority=${i.priority}>${PRIORITY_WORDS[i.priority] || "Normal"}</span>

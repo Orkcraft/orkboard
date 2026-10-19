@@ -75,8 +75,8 @@ export function ResultActions({ r, pinned = false }) {
 function Card({ r, selected }) {
   const t = testsWords(r);
   return html`<article class=${cls("shell-card", { "is-on": selected })} tabindex="0" role="listitem" aria-label=${r.title}
-      data-task=${r.task} data-idea=${r.idea} aria-current=${selected} onClick=${() => showResult(r.idea, r.task)}
-      onKeyDown=${(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showResult(r.idea, r.task); } }}>
+      data-task=${r.task} data-idea=${r.idea} aria-current=${selected} onClick=${() => showResult(r.idea, r.task, { via: "review" })}
+      onKeyDown=${(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showResult(r.idea, r.task, { via: "review" }); } }}>
     <div class="shell-card__head"><b>${r.title}</b>
       <span class="ok-tone-muted">${r.idea_title}${r.round > 1 ? html` · <span class="shell-round">round ${r.round}</span>` : ""}</span></div>
     <dl class="shell-facts">
