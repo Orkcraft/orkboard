@@ -309,6 +309,18 @@ async def _goal_row(page, slug):
     return text
 
 
+async def _new_goal(page):
+    """New goal: at the foot of the top bar's Goals sheet."""
+    await page.locator(".board-bar .goal-chip").click()
+    await page.get_by_role("dialog", name="Goals").get_by_role("button", name="New goal").click()
+
+
+async def _needs(page):
+    """Needs you: its screen, opened with the top bar's !."""
+    await page.locator(".board-bar .needs-chip").click()
+    await page.locator(".needs-pane").wait_for(timeout=WAIT_MS)
+
+
 async def _stop_all(page):
     """Stop all, in the gear's sheet."""
     await page.locator(".board-bar").get_by_role("button", name="Settings").click()
@@ -325,12 +337,13 @@ SMALL = """() => [...document.querySelectorAll('.board button, .board input, .bo
 async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         tabs = page.locator(".board-tabs")
-        assert [await b.get_attribute("aria-label") for b in await tabs.get_by_role("tab").all()] == ["Board, 2", "Agents", "Review, 2"]
+        assert [await b.get_attribute("aria-label") for b in await tabs.get_by_role("tab").all()] == ["Board", "Agents", "Review, 2"]
         assert await page.evaluate("document.documentElement.dataset.look") == "office"        # the phone's look is camp: not here
         assert await page.locator(".dock, .camp, .grid, .head").count() == 0
         top = page.locator(".board-bar")
         assert await top.get_by_role("button", name="Settings").is_visible() and "Stop all" not in await top.inner_text()   # one line: the gear holds it
-        assert "All goals" in await top.locator(".goal-chip").inner_text()
+        assert "General" in await top.locator(".goal-chip").inner_text()                                # the goal shown: General holds the ideas here
+        assert await top.locator(".needs-chip").get_attribute("aria-label") == "Needs you, 2"            # ! says what waits, every goal's
         chip = top.locator(".limit-chip")
         assert "15 %" in await chip.inner_text() and "is-warn" in await chip.get_attribute("class")      # the smallest of all tools
         await chip.click()
@@ -339,8 +352,11 @@ async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, m
         assert "Claude" in await sheet.inner_text() and "resets at 18:00" in await sheet.inner_text()
         assert "Codex · limits not read" in await sheet.inner_text() and "Not logged in" in await sheet.inner_text()
         await sheet.get_by_role("button", name="Close").click()
-        await page.get_by_role("heading", name="Needs you").wait_for(timeout=WAIT_MS)
+        await page.locator(".idea-card").first.wait_for(timeout=WAIT_MS)
         await _shot(page, "phone-board-390x844")
+        await _needs(page)
+        await page.get_by_role("heading", name="Needs you").wait_for(timeout=WAIT_MS)
+        await _shot(page, "phone-needs-you-390x844")
         await tabs.get_by_role("tab").nth(1).click()
         await page.locator(".chip", has_text="Retry on a lost signal").wait_for(timeout=WAIT_MS)
         assert "waiting for your answers" in await page.locator(".agents").inner_text() and "Done today (1)" in await page.locator(".agents").inner_text()
@@ -361,6 +377,7 @@ async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, m
 @pytest.mark.asyncio
 async def test_an_idea_a_todo_a_chip_and_a_result_each_open_on_their_own_screen_with_back(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _needs(page)
         await page.locator(".need-plan", has_text="Dark mode").click()                                # a plan waiting (Needs you, not Ideas) → its spec
         screen = page.locator(".screen")
         await screen.locator(".sec").first.wait_for(timeout=WAIT_MS)
@@ -374,7 +391,7 @@ async def test_an_idea_a_todo_a_chip_and_a_result_each_open_on_their_own_screen_
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "dark", "device": "phone"})
         await page.get_by_role("button", name="Back", exact=True).click()
         await page.locator(".screen").wait_for(state="hidden", timeout=WAIT_MS)
-        assert (await page.locator(".board-tab.is-active").text_content()).startswith("Board")                     # back on the tab it came from
+        assert await page.locator(".needs-pane").is_visible()                                         # back on the screen it came from
 
         await page.locator(".need-todo", has_text="API_KEY").click()                                  # a to-do → its sheet → the plan, scrolled to it
         await page.get_by_role("dialog", name="To-do").get_by_role("button", name="Open the plan").click()
@@ -451,6 +468,7 @@ async def test_review_merge_is_off_on_red_send_back_needs_a_line_and_a_patch_scr
 @pytest.mark.asyncio
 async def test_a_secret_todo_is_entered_over_the_paired_link_on_the_board(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _needs(page)
         await page.locator(".need-todo", has_text="API_KEY").click()                                    # a to-do's sheet (spec 35 §9)
         sheet = page.get_by_role("dialog", name="To-do")
         await sheet.wait_for(timeout=WAIT_MS)
@@ -460,6 +478,7 @@ async def test_a_secret_todo_is_entered_over_the_paired_link_on_the_board(fake_r
         await sheet.get_by_role("button", name="Store it").click()
         await page.locator(".need-todo").wait_for(state="detached", timeout=WAIT_MS)
         assert ("ideas.todo", {"idea": "sync", "id": "t1", "done": True, "value": "s3cret"}) in stub.calls
+        await page.get_by_role("tab", name="Board").click()
         await page.get_by_role("button", name="New idea", exact=True).click()                           # no goal yet: New goal opens first (spec 35 §3)
         goal = page.get_by_role("dialog", name="New goal")
         await goal.get_by_label("Description").fill("Offline first")
@@ -516,7 +535,7 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
         stub.bump({})
         await page.get_by_role("button", name="New idea", exact=True).wait_for(timeout=WAIT_MS)
         await _goal_row(page, "ship")
-        opens = [("New goal", lambda: page.get_by_role("button", name="New goal", exact=True).click()),
+        opens = [("New goal", lambda: _new_goal(page)),
                  ("New idea", lambda: page.get_by_role("button", name="New idea", exact=True).click()),
                  ("Settings", lambda: page.get_by_role("button", name="Settings").click()),
                  ("Goals", lambda: page.locator(".board-bar .goal-chip").click()),
@@ -533,7 +552,7 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
             assert await page.evaluate(NO_SCROLL)
             await page.keyboard.press("Escape")
             await sheet.wait_for(state="hidden", timeout=WAIT_MS)
-        await page.get_by_role("button", name="New goal", exact=True).click()                           # the buttons are pinned at the foot
+        await _new_goal(page)                                                                           # the buttons are pinned at the foot
         sheet = page.get_by_role("dialog", name="New goal")
         foot = await sheet.locator(".sheet-foot").bounding_box()
         assert foot["y"] + foot["height"] >= 844 - 2
@@ -543,7 +562,7 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
 @pytest.mark.asyncio
 async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_shows_its_summary(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.get_by_role("button", name="New goal", exact=True).click()
+        await _new_goal(page)
         sheet = page.get_by_role("dialog", name="New goal")
         assert await sheet.get_by_role("button", name="Save goal").is_disabled()                        # a description is required
         assert await sheet.get_by_label("Title").count() == 1 and not await sheet.get_by_label("Title").is_visible()   # no title to type on a new goal

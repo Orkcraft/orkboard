@@ -6,6 +6,7 @@ import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
 import { CRAFT_WORDS, RACE_WORDS, goalHead } from "./shell-who.js";
+import { limitsNote } from "./shell-limits.js";
 
 const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"]];   // realm/roles.py RACES
 
@@ -24,11 +25,12 @@ export function makeGoalSheet(core) {
   craft.addEventListener("change", drawCraft);
   const priority = prioritySwitch();
   const hint = h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the title, the summary, what counts as done and the links.");
+  const left = h("div", {});                         // what is left of the AI tools: reading the goal spends them
   const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save goal");
   const cancel = h("button", { class: "ork-btn big", type: "button" }, "Cancel");
   const form = h("form", { class: "sheet-form" }, titleField, field("Description", about),
     field("Craft", h("div", { class: "row craft-pick" }, craftNow, craft), "Its head marks the goal in the top bar"),
-    h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(cancel, save));
+    h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, left, foot(cancel, save));
   const sh = sheet("New goal", form);
   let slug = "";
   let then = null;                                   // what to do with the goal's slug instead of opening its screen (New idea with no goal yet)
@@ -63,6 +65,7 @@ export function makeGoalSheet(core) {
       about.value = g?.about || "";
       priority.set(g?.priority || "normal");
       craft.value = g?.craft || "engineering";
+      left.replaceChildren(limitsNote(core.st.snap) || "");
       drawCraft();
       save.disabled = !about.value.trim();
       sh.open();

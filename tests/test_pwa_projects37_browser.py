@@ -42,7 +42,7 @@ def _projects(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_the_switcher_is_a_sheet_with_the_open_projects_and_a_tap_shows_another(fake_repo, monkeypatch):
+async def test_the_switcher_is_a_drawer_with_the_open_projects_and_a_tap_shows_another(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         chip = page.locator(".project-chip")
         await chip.wait_for(timeout=WAIT_MS)
@@ -54,7 +54,7 @@ async def test_the_switcher_is_a_sheet_with_the_open_projects_and_a_tap_shows_an
         assert "3 to review" in text and "old" in text and "Open a folder" not in text
         assert "opened and closed at the computer" in text
         box = await sheet.bounding_box()
-        assert box["x"] == 0 and box["width"] == 390 and box["y"] + box["height"] == 844            # a bottom sheet
+        assert box["x"] == 0 and box["y"] == 0 and box["height"] == 844 and box["width"] < 390       # a drawer from the left
         assert "Shown now" in await sheet.locator('[aria-current="true"]').inner_text()
         assert await sheet.get_by_role("button", name="old").count() == 0                   # a recent one is not opened from the phone
         await _shot(page, "phone-projects-390x844")

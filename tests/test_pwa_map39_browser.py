@@ -8,6 +8,12 @@ import pytest
 
 from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
 
+
+async def _open_map(page):
+    """The Map: a row of the top bar's Goals sheet."""
+    await page.locator(".board-bar .goal-chip").click()
+    await page.get_by_role("dialog", name="Goals").locator('.goal-row[data-goal="map"]').click()
+
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
@@ -57,8 +63,7 @@ def _map(monkeypatch):
 @pytest.mark.asyncio
 async def test_the_map_button_opens_the_map_and_a_tap_opens_the_idea(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.locator(".goal-pick").wait_for(timeout=WAIT_MS)
-        await page.locator(".goal-pick").get_by_role("button", name="Map", exact=False).click()
+        await _open_map(page)
         goal = page.locator(".map-goal")
         await goal.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "map", "device": "phone"})
@@ -102,7 +107,7 @@ async def test_no_project_open_says_open_a_folder_first(fake_repo, monkeypatch):
     ANSWER.clear()
     ANSWER["error"] = "Open a folder first"
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.locator(".goal-pick").get_by_role("button", name="Map").click()
+        await _open_map(page)
         await page.get_by_text("Open a folder first").wait_for(timeout=WAIT_MS)
         assert await page.locator(".map-goal").count() == 0
         assert await page.evaluate(NO_SCROLL)
@@ -112,7 +117,7 @@ async def test_no_project_open_says_open_a_folder_first(fake_repo, monkeypatch):
 async def test_a_project_with_no_goal_says_no_goals_yet_with_new_goal(fake_repo, monkeypatch):
     ANSWER.update(goals=[], nodes=[], edges=[])
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.locator(".goal-pick").get_by_role("button", name="Map").click()
+        await _open_map(page)
         await page.get_by_text("No goals yet.").wait_for(timeout=WAIT_MS)
         await page.locator(".pane").get_by_role("button", name="New goal").last.click()
         await page.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)

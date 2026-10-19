@@ -100,7 +100,7 @@ export function makeMap(core, goalSheet) {
   function section() {
     if (st.mapError) return [h("p", { class: "muted" }, st.mapError)];
     if (!st.map) return [h("p", { class: "muted" }, "Loading…")];
-    const goals = st.map.goals.filter((g) => !st.track || g.slug === st.track);
+    const goals = st.map.goals;                           // every goal: the Map is the view of them all (the Board shows one)
     if (!st.map.goals.length) {
       return [h("p", { class: "muted" }, "No goals yet."), h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open() }, "New goal")];
     }

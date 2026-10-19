@@ -55,7 +55,7 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
  "summary": "5 to 12 lines: what the goal means for this repository, the modules and files it touches (as repository paths), what exists already, the constraints",
  "metrics": [{"name": "done when …: one to three, each measurable", "target": "the number or state", "how": "how it is counted, and where"}],
  "links": ["at most 8 repository paths or Wiki pages you read and found relevant"],
- "questions": ["zero to three questions the person must answer to make the goal clear, all at once"],
+ "questions": ["zero to three questions the person must answer to make the goal clear, all at once, each ending with its likely answers: (one / other)"],
  "reply": "one short line to the person (only when they said something)"}
 """
 

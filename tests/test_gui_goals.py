@@ -313,3 +313,18 @@ def test_the_words_of_a_goal_complete_new_idea_titles_first_then_its_terms(host)
     assert BoardPhone.allowed(host, "ideas.words", {"track": slug})                         # the phone asks for them
     with pytest.raises(CommandError, match="That goal is gone"):
         host.command("ideas.words", {"track": "nope"})
+
+
+def test_needs_you_carries_every_question_with_its_likely_answers_and_one_answered_on_the_phone_leaves_the_rest_to_decide(host, model):
+    """The phone answers a question in its card (shell-needs.js): the row carries the questions, the Taskmaster is asked to end
+    each with its likely answers "(one / other)", and a goal's answers may be fewer than its questions."""
+    model.answers["goal"] = {"summary": "Installs first.", "questions": ["Which channel first? (npm / brew)", "Which week?"], "metrics": []}
+    slug = host.command("ideas.goal_save", GOAL)["slug"]
+    _wait(host, slug, goal=True)
+    assert "each ending with its likely answers: (one / other)" in model.seen[0]["prompt"]
+    row = next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "goal")
+    assert row["questions"] == ["Which channel first? (npm / brew)", "Which week?"] and row["text"] == "Which channel first? (npm / brew)"
+    host.command("ideas.answer", {"slug": slug, "answers": ["npm"], "goal": True})
+    _wait(host, slug, goal=True)
+    said = model.seen[-1]["prompt"]
+    assert "Which channel first? (npm / brew) — npm" in said and "Which week? — (no answer: decide)" in said

@@ -1,10 +1,11 @@
 // The ideas on the phone (docs/specs/35-goals-window.md §3, §11.3): New idea in a sheet — the text (with the goal's words to complete with,
 // Photo and Speak: shell-idea-field.js), the goal and the priority, one button, Add — and one row per idea: its title, its priority as a mark, its state in words, and its actions. An idea that is in Needs you is
 // not listed here; the done ones are folded at the end.
-import { h, sheet } from "./util.js";
+import { h, sheet, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
 import { makeIdeaField } from "./shell-idea-field.js";
+import { keepGoal } from "./shell-top.js";
 
 const HOLD_MS = 450;                    // a card held this long can be dragged
 const RANK = { high: 0, normal: 1, low: 2 };
@@ -64,6 +65,8 @@ export function makeIdeas(core, ctx, goalSheet) {
     if (!r.ok || r.result?.error) { saved = false; ctx.flash(r.error || r.result?.error); return null; }
     field_.value = "";
     more.reset();
+    st.track = args.track;                            // the Board shows the goal the idea went to: it is there
+    keepGoal(st.snap?.project, args.track);
     return r;
   }
   add.addEventListener("click", async () => {
@@ -81,7 +84,7 @@ export function makeIdeas(core, ctx, goalSheet) {
     saved = false;
     if (r) { ctx.flash("Kept for tonight."); if (!r.kept) core.refresh(); }
   });
-  function open(goal) {
+  function open(goal, voice = false) {
     saved = false;
     touched = false;
     const list = [...tracks()].sort((a, b) => (RANK[a.priority] ?? 1) - (RANK[b.priority] ?? 1) || (a.order ?? 0) - (b.order ?? 0));
@@ -93,12 +96,18 @@ export function makeIdeas(core, ctx, goalSheet) {
     more.track(on.slug);
     addSheet.open();
     field_.focus();
+    if (voice) more.listen();
   }
-  /** New idea needs a goal: with none yet, New goal opens first and then this. */
-  function openNew() {
-    if (tracks().length) open("");
-    else goalSheet.open("", (slug) => open(slug));
+  /** New idea needs a goal: with none yet, New goal opens first and then this. `voice`: Speak at once. */
+  function openNew(voice = false) {
+    if (tracks().length) open("", voice);
+    else goalSheet.open("", (slug) => open(slug, voice));
   }
+
+  // New idea at the bottom right, under the thumb (and Speak above it, where the browser has speech to text).
+  const fab = h("div", { class: "fab-stack", hidden: true },
+    more.speaks ? h("button", { class: "fab small", type: "button", "aria-label": "Speak a new idea", onclick: () => openNew(true) }, "Speak") : null,
+    h("button", { class: "fab", type: "button", "aria-label": "New idea", onclick: () => openNew() }, icon("plus")));
 
   // -- Delete asks first, on a sheet --------------------------------------------------------------------------------
   let doomed = null;
@@ -192,14 +201,14 @@ export function makeIdeas(core, ctx, goalSheet) {
 
   /** The section's nodes: New idea at its head, the rows, and the done ones folded. */
   function section() {
-    const mine = (st.board?.ideas || []).filter((i) => (!st.track || i.track === st.track) && !i.in_needs_you).sort((a, b) => a.order - b.order);
+    const mine = (st.board?.ideas || []).filter((i) => i.track === st.track && !i.in_needs_you).sort((a, b) => a.order - b.order);
     const open_ = mine.filter((i) => i.state !== "done"), done = mine.filter((i) => i.state === "done");
     const list = h("ol", { class: "ideas" }, ...open_.map(card));
     wireDrag(list);
-    return [h("div", { class: "section-head" }, h("h3", {}, "Ideas"), h("button", { class: "ork-btn primary", type: "button", onclick: openNew }, "New idea")),
-      open_.length ? list : h("p", { class: "muted" }, "No ideas here yet. Drop one with New idea: it costs nothing, the Taskmaster drafts it."),
+    return [h("div", { class: "section-head" }, h("h3", {}, "Ideas")),
+      open_.length ? list : h("p", { class: "muted" }, "No ideas here yet. Drop one with + at the bottom: it costs nothing, the Taskmaster drafts it."),
       done.length ? h("details", { class: "done-ideas" }, h("summary", {}, `Done (${done.length})`), h("ol", { class: "ideas" }, ...done.map(card))) : null].filter(Boolean);
   }
 
-  return { sheets: [addSheet.el, dropSheet.el], section, openNew };
+  return { sheets: [addSheet.el, dropSheet.el], section, openNew, fab };
 }

@@ -265,7 +265,8 @@ class BoardMixin:
             g = next((t for t in ideas.tracks(self.root(), make=False) if t["slug"] == slug), None)
             if g is None:
                 raise IdeasError("That goal is gone")
-            said = "\n".join(f"{q} — {a.strip() or '(no answer: decide)'}" for q, a in zip(g["questions"], answers))
+            said = "\n".join(f"{q} — {(answers[n] if n < len(answers) else '').strip() or '(no answer: decide)'}"
+                             for n, q in enumerate(g["questions"]))      # a phone's quick answer may answer one
             self.keeper.read_goal(slug, said, answered=True)
             self._what[f"goal:{slug}"] = "answered"
             self.changed(f"goal:{slug}")

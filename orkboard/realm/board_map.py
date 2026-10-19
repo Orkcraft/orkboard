@@ -37,7 +37,7 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
     tasks = (plan or {}).get("tasks") or []
     out = []
     if state == "asks":
-        out.append({**base, "kind": "asks", "text": asks[0] if asks else "The keeper asks you"})
+        out.append({**base, "kind": "asks", "text": asks[0] if asks else "The keeper asks you", "questions": asks[:5]})
     if state == "plan" and plan and not plan.get("passed_at"):
         out.append({**base, "kind": "plan", "text": "Plan ready" + (f" · {len(tasks)} tasks" if tasks else ""),
                     "at": str(plan.get("made_at") or base["at"])})

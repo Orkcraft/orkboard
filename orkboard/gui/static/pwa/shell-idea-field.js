@@ -128,5 +128,7 @@ export function makeIdeaField(ctx, text) {
     photos: () => photos.map((url) => ({ data: url.slice(url.indexOf(",") + 1) })),
     reset() { stopSpeaking(); photos = []; wordsOf = ""; drawPhotos(); strip.hidden = true; },
     stop: stopSpeaking,
+    /** Speak at once (the button that opened the sheet was the tap the microphone needs). */
+    listen() { if (Speech && !rec) speak.click(); },
   };
 }
