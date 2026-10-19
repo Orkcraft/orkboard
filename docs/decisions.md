@@ -312,15 +312,15 @@ ranks (*working 2/5*), a plan's estimate its cost, the night's proposals the ski
    (`opened` gains `via`).
 A view of existing data: an improvement of v1's existing mechanics (§27); the Camp skin waits as §50.8 says. Spec 39.
 
-## 53. Orkforms: the design system gets a name and a first form, `orkforms/office`: denser, monochrome, a pixel face for buttons and headings (19 October, the owner)
+## 53. orkUI: the design system gets a name and a first look, `orkui/office`: denser, monochrome, a pixel face for buttons and headings (19 October, the owner)
 
 Why: the owner asked for the elements to be smaller and the look more minimal, monochrome, with a nod to game
 interfaces. The audit (spec 40 §0) found the product drawn twice (a grey Office on the desktop, a brown one on the
 phone), text at the browser's default 16 px beside 13 px controls, an Office type scale that nothing reads, and 3.4–3.8 : 1
 for `--ink-comment`. Tuning Office in place would have kept the two palettes and Camp's shapes in one file. So:
-1. **Orkforms is the design system, a form is a member.** `orkforms/office` first, `orkforms/game` later (Camp's
-   successor); the same token names and component classes in each, a form changing the values and the layers. Switched by
-   `data-forms` on the root. Camp's themes and Orkline stay untouched until `orkforms/game` and Orkline's own spec take
+1. **orkUI is the design system, a look is a member.** `orkui/office` first, `orkui/game` later (Camp's
+   successor); the same token names and component classes in each, a look changing the values and the layers. Switched by
+   `data-looks` on the root. Camp's themes and Orkline stay untouched until `orkui/game` and Orkline's own spec take
    them over.
 2. **Two faces: pixel for buttons and headings, Plex Mono for everything else** (the owner's choice: one monospaced
    voice beside the pixel one, a real 600 for emphasis). The pixel face never below 12 px, at whole pixels, no
@@ -338,17 +338,17 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    the fill means *press this*, and green text or a ✓ means *this went well*, never a filled button. The signals (question,
    error, success, warning) keep their hues, with a mark or a word beside them. Numbers on buttons are set in the text
    face (the pixel *5* reads as an *S*).
-6. **Dark only for now.** Office's light variant (desktop and phone) is dropped from this form; it returns as a second
+6. **Dark only for now.** Office's light variant (desktop and phone) is dropped from this look; it returns as a second
    palette if the testers ask.
 7. **Accessibility is a test, not a hope:** contrast computed from the tokens (text ≥ 4.5, edges ≥ 3), targets ≥ 24 px
    everywhere (WCAG 2.2 AA), focus drawn inside the notched corners, the system's text size followed on the phone.
 8. **Built after spec 39** (its B and C own the stylesheets this changes): A the system, B the desktop, C the phone.
    Orkline adopts it by its own spec; until then its frozen copy and Office stay as they are (decisions §50).
-9. **Orkforms is a repository of its own, `orkworks/orkforms`, mounted as a pinned git submodule** by Orkboard
-   (`design-system/orkforms`) and, by its own spec, by Orkline: the system changes where both can use it, each face
+9. **orkUI is a repository of its own, `orkworks/orkui`, mounted as a pinned git submodule** by Orkboard
+   (`design-system/orkui`) and, by its own spec, by Orkline: the system changes where both can use it, each face
    moves the pin when it chooses. A submodule rather than a package or a synced copy: the alpha has one owner and needs to
    change the system and see it the same day; a package (versioned releases) waits for a consumer outside the
-   organisation. Camp's themes stay in Orkboard's `design-system/` until `orkforms/game`.
+   organisation. Camp's themes stay in Orkboard's `design-system/` until `orkui/game`.
 10. **A nod to ASCII games, in six small things** (the owner chose them): a double frame on dialogs, a block caret, blocks and
    hatching drawn by CSS, a key line at the foot of the desktop (and letters on menu items, the one new behaviour here), the
    orks as one-character marks (Taskmaster `@`, Grunt `o`, idea `?`, goal `*`, task `+`; never alone, never the only
