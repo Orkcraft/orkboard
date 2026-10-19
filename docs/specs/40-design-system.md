@@ -228,6 +228,11 @@ sizes in `rem`).
   (`position: relative`), and neighbours are at least 8 px apart so the hit areas never overlap. A list row is 44 px. A
   text link's target is its row, 44 px. Nothing smaller than 24 × 24 anywhere (WCAG 2.5.8), and the primary action of a
   screen is a full 44 px.
+- **The notch must not cut the hit area.** `clip-path` also clips what a finger can hit, so a control's 4 px `::after` would
+  be cut off. On the phone a control is therefore a 44 px-high box (a transparent 4 px frame in its own `padding`/`border`
+  zone, the target being the box) with the 36 px look drawn inside it by `background-clip: content-box` and the notch cut
+  by corner gradients or a `border-image`, not by `clip-path`; the desktop (controls ≥ 24 px, no extension) keeps `clip-path`.
+  The browser test for §9 C asserts the hit area, not the look.
 - **Space:** card padding 8 (was 12), gaps 6–8, the page's side padding 12, the tab bar 40 + the safe area.
 - **The head** becomes one line (the product's name, the project, Stop all, the settings, the spend as a count beside
   them) in place of three; Stop all stays a full-size 44 px control (it is a safety control).
