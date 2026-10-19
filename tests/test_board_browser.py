@@ -70,7 +70,7 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
                 assert pg.locator(pane).is_visible(), pane
             assert pg.evaluate("document.documentElement.dataset.look") == "office"
             assert pg.locator(".gui-hud, .gui-camp, .gui-town, .gui-foot").count() == 0
-            pg.get_by_role("button", name="New goal").click()
+            pg.get_by_role("region", name="Board").get_by_role("button", name="New goal").click()
             dlg = pg.get_by_role("dialog", name="New goal")
             dlg.get_by_label("Description").fill("More people try Orkline.")
             dlg.get_by_role("button", name="Save goal").click()

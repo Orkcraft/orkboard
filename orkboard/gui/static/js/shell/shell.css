@@ -246,3 +246,23 @@
 
 /* Operations on the start screen (spec 38 §10): the person's, with no project open */
 .shell-start__ops { width: min(100%, 560px); text-align: left; }
+
+/* spec 39 §3: the preview's tabs — the Map first and pinned, then a tab per thing opened; the passing tab in italics */
+.shell-tabstrip { flex: none; display: flex; align-items: stretch; overflow-x: auto; background: var(--panel); border-bottom: 1px solid var(--frame); min-height: 36px; box-sizing: border-box; }
+.shell-ptab { flex: none; display: inline-flex; align-items: center; max-width: 240px; border-right: 1px solid var(--frame); border-bottom: 2px solid transparent; color: var(--ink-muted); }
+.shell-ptab.is-on { background: var(--canvas); color: var(--ink); border-bottom-color: var(--frame-focus); }
+.shell-ptab__main { flex: 1; min-width: 0; display: inline-flex; align-items: baseline; gap: 4px; padding: var(--space-2) var(--space-3); background: none; border: 0; color: inherit; font: inherit;
+  cursor: pointer; white-space: nowrap; }
+.shell-ptab__main:focus-visible, .shell-ptab__x:focus-visible, .shell-ptab__keep:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: -2px; }
+.shell-ptab__kind { font-size: .8em; color: var(--ink-muted); }
+.shell-ptab__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.shell-ptab.is-passing .shell-ptab__main { font-style: italic; }
+.shell-ptab__x, .shell-ptab__keep { flex: none; background: none; border: 0; color: var(--ink-muted); font: inherit; cursor: pointer; padding: 0 var(--space-2); }
+.shell-ptab__keep { font-size: .8em; text-decoration: underline; padding: 0 var(--space-1); }
+.shell-ptab__x:hover, .shell-ptab__keep:hover { color: var(--ink); }
+.shell-ptab.is-pinned .shell-ptab__main { font-weight: 600; }
+.shell-narrowhead, .shell-mapbtn { display: none; }
+.shell-preview__body.is-map { padding: 0; overflow: hidden; }
+.shell[data-narrow="true"] .shell-tabstrip { display: none; }
+.shell[data-narrow="true"] .shell-narrowhead { display: flex; }
+.shell[data-narrow="true"] .shell-mapbtn { display: inline-flex; align-self: flex-start; }
