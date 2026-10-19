@@ -403,8 +403,43 @@ input[type="radio"] { accent-color: var(--ork-ink); }
   white-space: nowrap; }
 .word-chip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .idea-tools { margin-top: 0; }
-.idea-tools .ork-btn.is-on { color: var(--ork-danger); box-shadow: inset 0 -2px 0 var(--ork-danger); }
+.idea-tools .ork-btn.is-on { --_fg: var(--ork-danger); --_bd: var(--ork-danger); --_ring: var(--ork-danger); }   /* listening */
 .idea-photos { display: flex; gap: var(--ork-3); flex-wrap: wrap; }
 .idea-photo { position: relative; width: 72px; height: 72px; border: var(--ork-line) solid var(--ork-edge); }
 .idea-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .idea-photo .ork-btn { position: absolute; top: 0; right: 0; min-width: var(--ork-tap); min-height: var(--ork-tap); padding: 0; background: var(--ork-panel); }
+
+/* -- the phone's round of UX: the bar without frames, project over goal, ! for Needs you; quick answers; the + at the bottom right;
+      the projects' drawer ------------------------------------------------------------------------------------------------------ */
+.board-bar .project-chip { flex: none; max-width: none; min-width: var(--ork-tap); justify-content: center; color: var(--ork-ink); }
+.board-bar .goal-chip { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; max-width: 100%; }
+.goal-chip__project { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.goal-chip__goal { display: inline-flex; align-items: center; gap: var(--ork-2); max-width: 100%; min-width: 0; font: var(--ork-type-body); }
+.board-bar .limit-chip { border: 0; clip-path: none; padding: 0 var(--ork-2); }
+.bar-btn { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-width: var(--ork-tap); min-height: var(--ork-tap); display: inline-flex;
+  align-items: center; justify-content: center; color: var(--ork-ink); }
+.bar-btn:focus-visible, .needs-chip:focus-visible, .fab:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.needs-chip { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-width: var(--ork-tap); min-height: var(--ork-tap); display: inline-flex;
+  align-items: center; justify-content: center; gap: var(--ork-1); color: var(--ork-alert); font: var(--ork-type-button); font-variant-numeric: tabular-nums; }
+.needs-chip[hidden] { display: none; }
+.needs-chip.is-on { box-shadow: inset 0 -2px 0 var(--ork-alert); }
+.needs-pane .need { touch-action: pan-y; transition: transform 0.15s ease; }
+.need.quick { display: flex; align-items: flex-start; }
+.quick-q p { margin: var(--ork-2) 0; color: var(--ork-ink); }
+.quick-q .answers { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+.ork-btn.answer[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }   /* chosen: inverted, as orkUI's hover */
+.limits-note { margin: 0; font: var(--ork-type-caption); }
+.limits-note.is-warn { color: var(--ork-alert); }
+.goal-progress { margin: 0; font: var(--ork-type-caption); }
+.fab-stack { position: fixed; right: var(--ork-6); bottom: calc(var(--tabs) + var(--ork-6) + env(safe-area-inset-bottom)); z-index: 3; display: flex;
+  flex-direction: column; align-items: flex-end; gap: var(--ork-4); }
+.fab-stack[hidden] { display: none; }
+.fab { all: unset; box-sizing: border-box; cursor: pointer; width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ork-action); color: var(--ork-on-ink); clip-path: var(--ork-notch); }
+.fab .ork-icon { width: 28px; height: 28px; }
+.fab.small { width: auto; height: var(--ork-tap); padding: 0 var(--ork-4); background: var(--ork-panel); color: var(--ork-ink);
+  border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-button); }
+.board-tab-pane { padding-bottom: 96px; }                           /* the last card never under the + */
+dialog.sheet.drawer { margin: 0 auto 0 0; top: 0; bottom: 0; height: 100dvh; max-height: 100dvh; width: min(86vw, 360px); max-width: 86vw; }
+dialog.sheet.drawer .sheet-in { height: 100%; }
+dialog.sheet.drawer .sheet-foot { margin-top: auto; }

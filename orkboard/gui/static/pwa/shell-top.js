@@ -1,7 +1,9 @@
-// The phone's top bar (docs/specs/33-v1-shell.md §6), one line: the project / the goal shown — its craft's head (decisions §53), a tap
-// picks another goal, All goals or Operations — · what is left of the AI tools as one chip — the smallest of all of them, a tap opens each
-// tool's windows with when they reset — · the gear: today's Spend, Stop all and the settings (Push after merging). It slides away as the
-// page scrolls down and comes back as it scrolls up. Roles only: warning at 20 % or less left, danger at 5 % or less.
+// The phone's top bar (docs/specs/33-v1-shell.md §6): the folder — the drawer of projects — · the project, small, over the goal shown, its
+// craft's head (decisions §53): a tap picks another goal, Operations or the Map · ! with how many rows Needs you
+// (its screen) · what is left of the AI tools as one chip, only when a tool is low or its limits were not read — the smallest of all of
+// them, a tap opens each tool's windows with when they reset — · the gear: today's Spend, Stop all and the settings (Push after
+// merging). No frames: the words and icons alone. It slides away as the page scrolls down and comes back as it scrolls up. Roles only:
+// warning at 20 % or less left, danger at 5 % or less.
 import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { makeProjects } from "./shell-projects.js";
@@ -10,10 +12,17 @@ import { CRAFT_WORDS, goalHead } from "./shell-who.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { MAP_VIEW } from "./shell-map.js";
 
+import { WARN, DANGER, levelOf, pct } from "./shell-limits.js";
+
+export { WARN, DANGER, levelOf };
 const MARKS = { claude: "✱", agy: "∩", codex: "◇", hermes: "☿", pi: "π", cursor: "▷" };
-export const WARN = 0.2, DANGER = 0.05;
-const pct = (left) => `${Math.round(left * 100)} %`;
-export const levelOf = (left) => (left <= DANGER ? "is-danger" : left <= WARN ? "is-warn" : "");
+const GOAL_KEPT = "orkcraft.goal";                    // {project: goal slug}: the goal this phone showed last
+
+/** The goal this phone showed last in this project ("" none). */
+export const keptGoal = (project) => { try { return (JSON.parse(localStorage.getItem(GOAL_KEPT)) || {})[project || ""] || ""; } catch { return ""; } };
+export function keepGoal(project, slug) {
+  try { localStorage.setItem(GOAL_KEPT, JSON.stringify({ ...(JSON.parse(localStorage.getItem(GOAL_KEPT)) || {}), [project || ""]: slug })); } catch { /* this run only */ }
+}
 const GOAL_SHORT = { reading: "reading", asks: "asks you", ready: "ready" };
 const SLIDE_PX = 6;                       // a scroll this far down hides the bar, this far up brings it back
 
@@ -33,37 +42,40 @@ export function makeTop(core, ctx) {
   const projects = makeProjects(core, ctx);
   const goalChip = h("button", { class: "goal-chip", type: "button", "aria-haspopup": "dialog" });
   const stop = h("button", { class: "ork-btn danger board-stop", type: "button" }, "Stop all");
-  const gear = h("button", { class: "ork-btn gear", type: "button", "aria-label": "Settings" }, icon("sliders"));
-  const el = h("header", { class: "board-bar" },
-    h("div", { class: "board-name" }, projects.chip, h("span", { class: "muted", "aria-hidden": "true" }, "/"), goalChip), chip, gear);
+  const gear = h("button", { class: "bar-btn gear", type: "button", "aria-label": "Settings" }, icon("sliders"));
+  const needsChip = h("button", { class: "needs-chip", type: "button", hidden: true, onclick: () => core.go("needs") });
+  const el = h("header", { class: "board-bar" }, projects.chip, h("div", { class: "board-name" }, goalChip), needsChip, chip, gear);
 
-  // -- the goal shown: a sheet of the goals (their heads, priority and state), All goals, Operations, and New goal ----------
+  // -- the goal shown: a sheet of the goals (their heads, priority and state), Operations, the Map, and New goal --------------
   const goalList = h("ul", { class: "goal-list" });
   const goalsSheet = sheet("Goals", goalList, foot(h("button", { class: "ork-btn primary big", type: "button",
     onclick: () => { goalsSheet.close(); core.editGoal(""); } }, "New goal")));
-  const goals = () => (st.board?.tracks || []).filter((t) => t.slug !== "general");
+  const goals = () => (st.board?.tracks || []).filter((t) => t.slug !== "general" || t.count);   // General once it holds ideas (older ones)
   function show(track, view = "") {
     goalsSheet.close();
-    st.track = track;
-    st.view = view || (st.view === MAP_VIEW ? MAP_VIEW : "");
+    if (track) { st.track = track; keepGoal(st.snap?.project, track); }
+    st.view = view;
+    if (st.tab !== "board") core.go("board");
     core.draw();
     window.scrollTo(0, 0);
   }
   function drawGoals() {
-    const now = st.view === OPS_VIEW ? OPS_VIEW : st.track;
+    const now = st.view === OPS_VIEW || st.view === MAP_VIEW ? st.view : st.track;
     const row = (key, label, onclick, mark = null, line = null) => h("li", {}, h("button", { class: "goal-row", type: "button", "data-goal": key,
       "aria-current": key === now ? "true" : null, onclick }, mark, h("b", {}, label), line));
-    goalList.replaceChildren(row("", "All goals", () => show("")),
+    goalList.replaceChildren(
       ...goals().map((g) => row(g.slug, g.title, () => show(g.slug), goalHead(g),
         h("small", { class: "muted" }, [CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · ")))),
-      row(OPS_VIEW, "Operations", () => show("", OPS_VIEW)));
+      row(OPS_VIEW, "Operations", () => show("", OPS_VIEW)),
+      row(MAP_VIEW, "Map", () => { show("", MAP_VIEW); core.showMap(); }, null, h("small", { class: "muted" }, "Every goal, its ideas and tasks on one screen")));
   }
   goalChip.addEventListener("click", () => { drawGoals(); goalsSheet.open(); });
   function drawChip() {
     const g = goals().find((x) => x.slug === st.track);
-    const word = st.view === OPS_VIEW ? "Operations" : g ? g.title : st.board ? "All goals" : "";
+    const word = st.view === OPS_VIEW ? "Operations" : st.view === MAP_VIEW ? "Map" : g ? g.title : st.board ? "No goal yet" : "";
     goalChip.hidden = !word;
-    goalChip.replaceChildren(...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾"));
+    goalChip.replaceChildren(h("small", { class: "goal-chip__project" }, st.snap?.project || ""),
+      h("span", { class: "goal-chip__goal" }, ...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾")));
     goalChip.setAttribute("aria-label", `Goal: ${word}. Choose another`);
   }
 
@@ -91,6 +103,14 @@ export function makeTop(core, ctx) {
   const limitsBody = h("div", { class: "limits" });
   const limitsSheet = sheet("What is left", limitsBody);
   chip.addEventListener("click", () => limitsSheet.open());
+  function drawLimits(tools, unread) {
+    limitsBody.replaceChildren(...tools.map((l) => h("div", { class: `limit ${levelOf(l.left)}`.trim() },
+      h("b", {}, `${MARKS[l.provider] || ""} ${l.name} · ${pct(l.left)}`),
+      ...(l.rows || []).map((r) => h("div", { class: "limit-row" }, h("span", {}, r.window), h("b", {}, pct(r.left)),
+        h("span", { class: "muted" }, resetWords(r.reset)))))),
+      ...unread.map((l) => h("div", { class: "limit" }, h("b", {}, `${MARKS[l.provider] || ""} ${l.name} · limits not read`),
+        h("div", { class: "muted" }, l.error))));
+  }
 
   // The analytics zip (gui/ideas.py `ideas.logs`), handed over the paired link and saved as a file on this phone.
   async function download(days) {
@@ -124,7 +144,8 @@ export function makeTop(core, ctx) {
   const autoBox = h("input", { type: "checkbox", id: "autostart" });
   const nightFrom = h("input", { class: "ork-field", type: "time", "aria-label": "Night from" });
   const nightTo = h("input", { class: "ork-field", type: "time", "aria-label": "Night to" });
-  const gearSheet = sheet("Settings", spend, h("div", { class: "row" }, stop),
+  const gearSheet = sheet("Settings", spend, h("div", { class: "row" }, stop,
+    h("button", { class: "ork-btn", type: "button", onclick: () => { gearSheet.close(); limitsSheet.open(); } }, "What is left")),
     h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
     h("label", { class: "check-line", for: "autostart" }, autoBox, h("span", {}, "Start plans by themselves")),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Night"), h("div", { class: "row night-row" }, nightFrom, h("span", {}, "to"), nightTo)),
@@ -151,8 +172,12 @@ export function makeTop(core, ctx) {
 
   return {
     el,
-    /** The goal shown, drawn again with the Board (st.track, st.view). */
-    draw() {
+    /** The goal shown and how many rows Needs you, drawn again with the Board. */
+    draw(needs = 0) {
+      needsChip.hidden = !needs;
+      needsChip.classList.toggle("is-on", st.tab === "needs");
+      needsChip.replaceChildren(h("b", { "aria-hidden": "true" }, "!"), h("span", {}, String(needs)));
+      needsChip.setAttribute("aria-label", `Needs you, ${needs}`);
       drawChip();
       if (goalsSheet.el.open) drawGoals();
       if (window.scrollY <= el.offsetHeight) el.classList.remove("is-away");     // back at the top: always there
@@ -165,7 +190,9 @@ export function makeTop(core, ctx) {
       spend.hidden = !gold;
       const tools = (s.limits || []).filter((l) => typeof l.left === "number");
       const unread = (s.limits || []).filter((l) => typeof l.left !== "number" && l.error);   // turned on, not read: never missing without a word
-      chip.hidden = !tools.length && !unread.length;
+      const low = tools.some((l) => l.left <= WARN);
+      chip.hidden = !low && !unread.length;                       // the chip is a signal; New goal, Take and Start say the rest
+      drawLimits(tools, unread);
       if (chip.hidden) return;
       if (tools.length) {
         const worst = tools.reduce((a, b) => (b.left < a.left ? b : a));
@@ -178,12 +205,6 @@ export function makeTop(core, ctx) {
         chip.replaceChildren(h("span", { "aria-hidden": "true" }, MARKS[unread[0].provider] || unread[0].name[0]), " ", h("b", {}, "?"));
         chip.setAttribute("aria-label", `${unread[0].name}: limits not read`);
       }
-      limitsBody.replaceChildren(...tools.map((l) => h("div", { class: `limit ${levelOf(l.left)}`.trim() },
-        h("b", {}, `${MARKS[l.provider] || ""} ${l.name} · ${pct(l.left)}`),
-        ...(l.rows || []).map((r) => h("div", { class: "limit-row" }, h("span", {}, r.window), h("b", {}, pct(r.left)),
-          h("span", { class: "muted" }, resetWords(r.reset)))))),
-        ...unread.map((l) => h("div", { class: "limit" }, h("b", {}, `${MARKS[l.provider] || ""} ${l.name} · limits not read`),
-          h("div", { class: "muted" }, l.error))));
     },
   };
 }

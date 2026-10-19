@@ -9,6 +9,7 @@ import { resultActions, factsOf, mergeReason } from "./shell-review.js";
 import { gruntWords } from "./shell-agents.js";
 import { goalBody } from "./shell-goal.js";
 import { heldWords } from "./shell-words.js";
+import { limitsNote } from "./shell-limits.js";
 import { who, whoHead, headWords, TIER_WORDS } from "./shell-who.js";
 
 const TALK_SHOWN = 6;
@@ -158,10 +159,11 @@ export function makePreview(core, ctx) {
     const n = p.plan?.estimate?.tasks ?? (p.plan?.tasks || []).length;
     const btn = (label, onclick, cls = "primary") => h("button", { class: `ork-btn ${cls} big`, type: "button", onclick }, label);
     const slug = p.slug;
+    const left = limitsNote(core.st.snap);              // what is left of the AI tools, where a choice spends them
     switch (p.state) {
-      case "ready": case "asks": return [btn("Take it to work", () => act("ideas.plan", { slug }, "The Taskmaster is planning.").then(() => read(cur)))];
-      case "plan": if (p.plan?.start_at === "night") return [btn("Start now", () => act("ideas.start_now", { slug }, "Started.").then(() => read(cur)))];
-        return [btn(`Start · ${n} tasks · ${price(p.plan?.estimate)}`, () => act("ideas.start", { slug }, "Started.").then(() => read(cur)))];
+      case "ready": case "asks": return [left, btn("Take it to work", () => act("ideas.plan", { slug }, "The Taskmaster is planning.").then(() => read(cur)))];
+      case "plan": if (p.plan?.start_at === "night") return [left, btn("Start now", () => act("ideas.start_now", { slug }, "Started.").then(() => read(cur)))];
+        return [left, btn(`Start · ${n} tasks · ${price(p.plan?.estimate)}`, () => act("ideas.start", { slug }, "Started.").then(() => read(cur)))];
       case "working": return [btn("Stop", () => act("ideas.stop", { slug }, "Stopped.").then(() => read(cur)), "danger")];
       case "failed": {
         const why = p.state_error || (p.plan?.tasks || []).find((t) => t.state === "failed")?.error || "";
@@ -183,7 +185,7 @@ export function makePreview(core, ctx) {
     body.replaceChildren(planList(p.plan, p, cur.todo));
     requestAnimationFrame(() => body.querySelector(".plan-todo.is-target")?.scrollIntoView({ block: "center" }));
     const n = p.plan.estimate?.tasks ?? (p.plan.tasks || []).length;
-    return p.state === "plan" ? [h("button", { class: "ork-btn primary big", type: "button",
+    return p.state === "plan" ? [limitsNote(core.st.snap), h("button", { class: "ork-btn primary big", type: "button",
       onclick: () => act("ideas.start", { slug: p.slug }, "Started.").then(() => read(cur)) }, `Start · ${n} tasks · ${price(p.plan.estimate)}`)] : [];
   }
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from orkboard.gui.board_host import BoardPhone
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _needs, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -186,8 +186,8 @@ async def test_operations_is_among_the_goals_new_lists_the_templates_and_the_for
         await page.locator(".board-bar .goal-chip").click()
         rows = page.get_by_role("dialog", name="Goals").locator(".goal-row")
         await rows.first.wait_for(timeout=WAIT_MS)
-        assert (await rows.all_inner_texts())[-1] == "Operations"
-        await rows.last.click()
+        assert (await rows.all_inner_texts())[-2:] == ["Operations", "Map\nEvery goal, its ideas and tasks on one screen"]
+        await rows.filter(has_text="Operations").click()
         assert await page.get_by_role("heading", name="Needs you").count() == 0 and await page.locator(".target-chip").count() == 0
         await page.get_by_role("button", name="Operations settings").wait_for(timeout=WAIT_MS)
         await page.get_by_role("button", name="New…").click()
@@ -231,7 +231,7 @@ async def test_the_check_edits_in_place_prepares_again_for_an_other_field_and_cr
         _ops["ops"].add_run(doubts=["A like task is open: ORK-3"])
         _ops["ops"].changed()
         await _ops_view(page)
-        row = page.locator(".need-op")
+        row = page.locator(".board-tab-pane .need-op")
         await row.wait_for(timeout=WAIT_MS)
         text = await row.inner_text()
         assert "New Jira task" in text and "Fix the lost signal" in text and "at your check" in text
@@ -281,7 +281,7 @@ async def test_a_template_that_goes_by_itself_says_so_not_right_and_check_again(
         ops.add_run(state="check", alone=True, why="a doubt")
         ops.changed()
         await _ops_view(page)
-        assert "at your check · a doubt" in await page.locator(".need-op").inner_text()
+        assert "at your check · a doubt" in await page.locator(".board-tab-pane .need-op").inner_text()
         await page.locator(".ops-fold", has_text="Done (1)").locator("summary").click()
         done = page.locator(".ops-done")
         assert "by itself" in await done.inner_text()
@@ -315,23 +315,24 @@ async def test_needs_you_holds_the_op_rows_in_every_goal_and_a_proposal_is_taken
         ops.add_run(state="failed", why="Jira said no", acted=False)
         ops.templates[0]["proposal"] = {"lines": ["Titles start with a verb.", "Name the epic."], "why": "", "op": "op1", "at": ""}
         ops.changed()
-        await _pick_goal(page, "ship")                                # another goal: Operations' rows stay
-        kinds = page.locator(".need[data-kind], .need-op, .need-op_failed, .need-op_rules")
-        await page.locator(".need-op").wait_for(timeout=WAIT_MS)
-        assert await page.locator(".need-op_failed").inner_text() and "Jira said no" in await page.locator(".need-op_failed").inner_text()
-        assert await page.locator(".need-op_rules").count() == 1 and await kinds.count() >= 3
-        await page.locator(".need-op_failed").click()
+        await _pick_goal(page, "ship")                                # another goal: Needs you holds Operations' rows all the same
+        await _needs(page)
+        kinds = page.locator(".needs-pane").locator(".need[data-kind], .need-op, .need-op_failed, .need-op_rules")
+        await page.locator(".needs-pane .need-op").wait_for(timeout=WAIT_MS)
+        assert await page.locator(".needs-pane .need-op_failed").inner_text() and "Jira said no" in await page.locator(".needs-pane .need-op_failed").inner_text()
+        assert await page.locator(".needs-pane .need-op_rules").count() == 1 and await kinds.count() >= 3
+        await page.locator(".needs-pane .need-op_failed").click()
         failed = page.get_by_role("dialog", name="Failed")
         await failed.get_by_role("button", name="Try again").click()
         assert await _called(stub, "ops.retry", {"id": "op2"})
-        await page.locator(".need-op_rules").click()
+        await page.locator(".needs-pane .need-op_rules").click()
         rules = page.get_by_role("dialog", name="Rules: New Jira task")
         assert "Name the epic." in await rules.inner_text()
         await rules.get_by_label("Why not: jira-task").fill("too fussy")
         await rules.get_by_role("button", name="No").click()
         assert await _called(stub, "ops.rules_answer", {"template": "jira-task", "take": False, "reason": "too fussy"})
-        await page.locator(".need-op_rules").wait_for(state="detached", timeout=WAIT_MS)
-        await page.locator(".need-op").click()                                                       # a tap opens the check
+        await page.locator(".needs-pane .need-op_rules").wait_for(state="detached", timeout=WAIT_MS)
+        await page.locator(".needs-pane .need-op").click()                                                       # a tap opens the check
         await page.get_by_role("dialog", name="New Jira task").get_by_role("button", name="Create in Jira").wait_for(timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
 

@@ -135,7 +135,7 @@ class DraftMixin:
  "depends_on": ["the slugs of listed ideas, of any goal, that must be done first"],
  "size": "S, M or L",
  "before": "the slug of the goal's idea this one should stand before, or empty",
- "questions": ["zero to three questions the person must answer before it can be planned, all at once"]}}
+ "questions": ["zero to three questions the person must answer before it can be planned, all at once, each ending with its likely answers: (one / other)"]}}
 """
 
     def draft_one(self, slug: str) -> None:

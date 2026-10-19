@@ -1,6 +1,7 @@
 // The v1 shell on a phone (docs/specs/33-v1-shell.md §6, §8; decisions §45.2): the one face when the compact snapshot's `focus` is
-// "board". Three tabs at the foot — Board · Agents · Review, each with its count when it is not zero — under a top bar of one line (the
-// project / the goal shown, what is left of the AI tools, the gear with Spend and Stop all). An idea's spec, a plan, a task or a result's code opens on its own full
+// "board". Three tabs at the foot — Board · Agents · Review, Review with its count when it is not zero — under a top bar (the project
+// over the goal shown, ! with what Needs you — its own screen —, what is left of the AI tools when one is low, the gear with Spend and
+// Stop all). New idea is the button at the bottom right of the Board, with Speak beside it. An idea's spec, a plan, a task or a result's code opens on its own full
 // screen over the tab, with Back (and the system back gesture) to the tab it came from and its actions pinned at the bottom.
 // It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's
 // `ideas_rev` changes (and every POLL_MS while the Taskmaster or a task works). Always Office's calm look.
@@ -10,6 +11,8 @@ import { makeBoardTab, BUSY } from "./shell-board.js";
 import { makeAgents } from "./shell-agents.js";
 import { makeReview } from "./shell-review.js";
 import { makePreview } from "./shell-preview.js";
+import { makeNeeds } from "./shell-needs.js";
+import { steady } from "./shell-util.js";
 
 const POLL_MS = 10000;
 const TABS = [["board", "Board"], ["agents", "Agents"], ["review", "Review"]];
@@ -36,8 +39,9 @@ export function makeBoard(ctx) {
       if (!r.ok || r.result?.error) { ctx.flash(r.error || r.result?.error); return null; }
       return r.result ?? {};
     },
-    refresh, open, close, back, reset,
+    refresh, open, close, back, reset, go,
     editGoal(slug) { boardTab.editGoal(slug); },
+    showMap() { boardTab.showMap(); },
     draw() { drawAll(); },
   };
 
@@ -46,7 +50,9 @@ export function makeBoard(ctx) {
   const agents = makeAgents(core);
   const review = makeReview(core);
   const preview = makePreview(core, ctx);
-  const panes = { board: boardTab.el, agents: agents.el, review: review.el };
+  const needs = makeNeeds(core, ctx, boardTab.ops);
+  const needsPane = h("section", { class: "pane needs-pane", "aria-label": "Needs you" });
+  const panes = { board: boardTab.el, agents: agents.el, review: review.el, needs: needsPane };
 
   const tabs = {};
   const tabBar = h("nav", { class: "board-tabs ork-tabbar", role: "tablist", "aria-label": "Board, Agents, Review" });
@@ -55,7 +61,7 @@ export function makeBoard(ctx) {
       h("span", { class: "count ork-count on", hidden: true }));
     tabBar.append(tabs[id]);
   }
-  const el = h("div", { class: "board v1" }, top.el, ...Object.values(panes), tabBar, preview.el);
+  const el = h("div", { class: "board v1" }, top.el, ...Object.values(panes), boardTab.fab, tabBar, preview.el);
 
   /** What the person opened, for the day's analysis (docs/specs/33-v1-shell.md §9): the host's one loggable event. The listener
    *  allows a device only a few commands a second, so the lines go out one at a time, a moment apart, behind the ones that matter. */
@@ -78,16 +84,22 @@ export function makeBoard(ctx) {
     window.scrollTo(0, 0);
   }
 
+  const needsFresh = steady(needsPane);
+  function drawNeeds() {
+    if (!needsFresh(needs.key())) return;                // drawn again only when what it shows changed: a choice half made stays
+    needsPane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Needs you"),
+      h("button", { class: "ork-btn", type: "button", onclick: () => go("board") }, "Board")), ...needs.draw());
+  }
+
   function drawPanes() {
     for (const [id, p] of Object.entries(panes)) p.hidden = st.tab !== id;
+    boardTab.fab.hidden = st.tab !== "board" || Boolean(st.preview) || !boardTab.fabOn();
     for (const [id, b] of Object.entries(tabs)) { b.classList.toggle("is-active", id === st.tab); b.setAttribute("aria-selected", String(id === st.tab)); }
     el.classList.toggle("is-open", Boolean(st.preview));
   }
 
   function counts() {
-    const t = st.board?.today;
-    const n = { board: t ? t.needs_you.length + t.todos.filter((x) => !x.done).length : st.snap?.needs_you || 0, agents: 0,
-      review: st.review ? st.review.results.length : st.snap?.review_count || 0 };
+    const n = { board: 0, agents: 0, review: st.review ? st.review.results.length : st.snap?.review_count || 0 };   // Needs you: the top bar's !
     for (const [id, b] of Object.entries(tabs)) {
       const c = b.querySelector(".count");
       c.hidden = !n[id];
@@ -97,7 +109,8 @@ export function makeBoard(ctx) {
   }
 
   function drawAll() {
-    top.draw();
+    top.draw(st.board ? needs.count() : st.snap?.needs_you || 0);
+    drawNeeds();
     boardTab.draw();
     agents.draw();
     review.draw();
@@ -160,9 +173,9 @@ export function makeBoard(ctx) {
 
   return {
     el,
-    sheets: [...top.sheets, ...boardTab.sheets, ...review.sheets, ...agents.sheets],
+    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets],
     // What is acted on only while the town answers: not the bar's Stop all, nor New idea (kept with no signal).
-    content: () => [panes.board, panes.agents, panes.review, preview.el],
+    content: () => [panes.board, panes.agents, panes.review, panes.needs, preview.el],
     render(s) {
       st.snap = s;
       top.render(s, s.rev !== seenSnap ? s.rev : undefined);

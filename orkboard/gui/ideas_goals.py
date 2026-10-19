@@ -147,6 +147,7 @@ class GoalsMixin:
             if g["state"] == "asks":
                 out.append({"idea": "", "goal": g["slug"], "kind": "goal", "title": g["title"],
                             "text": g["questions"][0] if g["questions"] else "The keeper asks you about this goal",
+                            "questions": g["questions"][:5],
                             "priority": g["priority"], "blocks": False,
                             "at": ideas.goal_state(self.state_dir, g["slug"])["read_time"]})
         return out
