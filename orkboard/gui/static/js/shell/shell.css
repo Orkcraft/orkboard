@@ -156,6 +156,8 @@
 .shell-form { display: flex; flex-direction: column; gap: var(--ork-5); }
 .shell-field { display: flex; flex-direction: column; gap: var(--ork-2); }
 .shell-field .ork-field { width: 100%; box-sizing: border-box; }
+.shell-pick { display: flex; gap: var(--ork-3); align-items: center; }
+.shell-pick > .ork-field { flex: 1; min-width: 0; }
 .shell-rowfields { display: flex; gap: var(--ork-4); }
 .shell-rowfields .ork-field { flex: 1; min-width: 0; }
 .shell-rowfields .shell-rowfields__target { flex: 0 0 30%; }
