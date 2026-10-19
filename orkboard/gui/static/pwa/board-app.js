@@ -163,7 +163,11 @@ async function deliver(name, args, label) {
     const r = await send(name, args);
     if (r.ok || r.error !== "The town went away") return r;
   }
-  outbox.add({ name, args, label, at: Date.now() });
+  if (outbox.add({ name, args, label, at: Date.now() })) return { ok: true, kept: true };
+  if (args?.photos) {                             // no room for the photos on this phone: the words are kept all the same
+    const { photos: _left, ...rest } = args;
+    if (outbox.add({ name, args: rest, label, at: Date.now() })) return { ok: true, kept: true, unphotographed: true };
+  }
   return { ok: true, kept: true };
 }
 

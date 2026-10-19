@@ -18,7 +18,7 @@ import json
 import time
 from pathlib import Path
 
-from orkboard.realm import event_log, idea_risk, idea_target, ideas
+from orkboard.realm import event_log, idea_photos, idea_risk, idea_target, ideas
 
 OTHERS = 40                        # of the other goals' ideas not done, the most the draft is given
 MAX_DONE, MAX_OUT, MAX_TOUCHES, MAX_DEPENDS = 5, 3, 30, 8
@@ -121,7 +121,7 @@ class DraftMixin:
         return f"""You are the keeper of this project's Task board. A person wrote an idea under the goal
 {(g or {}).get('title', track)}: write its spec straight away. You may read the repository (read only).
 {self.reads("draft", links)}
-
+{idea_photos.prompt_lines(self.state_dir, slug)}
 {context}Answer with one JSON object and nothing else:
 {{"title": "a short title",
  "gist": "the idea rewritten clearly: its first line one sentence, the thesis; then a few lines if needed",
