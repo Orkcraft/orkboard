@@ -57,7 +57,7 @@ B and C branch from A once A is pushed; they touch no file of each other's.
   one, never left to Camp's.
 - Camp's tokens stay in `design-system/tokens.json` and `tokens.css`, untouched, for Orkline.
 
-## 1a. Its own repository (decisions §53.8)
+## 1a. Its own repository (decisions §53.9)
 Orkforms is shared by Orkboard and Orkline, so it is a repository of its own, **`orkworks/orkforms`** (the owner's
 organisation, renamed from `orkcraft`; Orkboard's own remote keeps working through GitHub's redirect and is not
 renamed here). It holds, and only it holds: each form's tokens, stylesheets, fonts and gallery; the generator of
@@ -78,7 +78,7 @@ Orkline and needs nothing of theirs to test.
 
 ## 2. Colour (`orkforms/office`, dark only)
 Monochrome: a grey scale and one accent that is the ink itself. **Colour means a signal** and nothing else (decisions
-§53.4): a question, an error, a success, a warning keep their hue. Light Office is not in this spec (§53.5).
+§53.5): a question, an error, a success, a warning keep their hue. Light Office is not in this spec (§53.6).
 
 | token | value | role |
 |---|---|---|
@@ -143,14 +143,24 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
 - **Space** on a 2 px step: `--of-1` 2 · `--of-2` 4 · `--of-3` 6 · `--of-4` 8 · `--of-5` 12 · `--of-6` 16 · `--of-8` 24.
   Gaps inside a card 2–4, between cards 6, a pane's padding 8, a dialog's 12. Nothing outside the steps.
 - **Sizes** (desktop): `--of-control` 24 (a button, a field, a select) · `--of-chip` 20 · `--of-bar` 32 (the top bar, a
-  pane's head, a tab) · `--of-row` 28 (a list row) · `--of-icon` 16. Every pointer target is at least 24 × 24 (WCAG
+  pane's head, a tab) · `--of-row` 28 (a list row) · `--of-icon` 24 (§4 Icons). Every pointer target is at least 24 × 24 (WCAG
   2.2 AA 2.5.8). Panes keep spec 33's widths (300 · fluid · 340; 260 · fluid · 300 under 1 280).
 - **Meters** are segmented: cells of 8 × 8 with a 2 px gap, filled cells ink, the rest `--of-frame`; a signal's cells take
   its hue only when the meter is a limit near its end (a limit past 80 %: alert; past 95 %: danger).
 - **Motion:** none but a caret's blink (1 s, steps) in a focused field and the existing spin; all off under
   `prefers-reduced-motion`.
-- **Icons:** 16 px grid, 2 px stroke, `stroke-linecap: square`, `stroke-linejoin: miter`, `currentColor`, no fill, no
-  emoji anywhere in a face (the rule of Office stands, now tested: §9).
+- **Icons: Pixelarticons** (MIT; 700 icons on a 24 px grid of whole pixels, so they match the pixel face and the notched
+  corners; picked from Pixelarticons, Lucide, Phosphor and Tabler on the needed set). Rules: drawn at **24 px or 48 and
+  never scaled to 16 or 12** (a cell would become 0.67 px and the lines uneven); `fill: currentColor`, so an icon takes its
+  text's colour (ink, muted, or a signal's); no emoji anywhere in a face (Office's rule, now tested: §9). A button carries
+  words, not an icon (`+`, `▾` are typed characters in the pixel face), so the 24 px icons stand in rows, heads, tabs and
+  the empty states, where a row is 28 and a bar 32. A subset is vendored in `office/icons/` as one sprite `icons.svg`
+  (only the icons a face uses) with the MIT text; a face names an icon by its Pixelarticons name.
+  The first set (`goal` → `target`, `idea` → `lightbulb`, `task` → `checkbox`, `agent` → `robot`, `review` → `eye`,
+  `stop` → `stop`, `settings` → `sliders`, `project` → `folder`, `file` → `file`, `add` → `plus`, `close` → `close`,
+  `expand` → `chevron-down`, `warning` → `warning-diamond`, `error` → `square-alert`, `done` → `check`, `map` → `map`,
+  `night` → `moon`, `cost` → `coins`, `phone` → `phone`, `edit` → `pencil`, `delete` → `trash`, `run` → `play`,
+  `merge` → `git-merge`, `search` → `search`, `time` → `clock`, `link` → `link`, `more` → `more-horizontal`).
 - **Key hints** `[K]` in the text face, 11 px, muted; **prefixes** `>` for the product's name and `▪` before a label.
 
 ## 5. Components (`components.css`, in this order)
@@ -209,7 +219,7 @@ sizes in `rem`).
   - **contrast, computed from the values:** `--of-ink`, `-muted`, `-faint` on canvas, panel and raised ≥ 4.5 : 1;
     `--of-edge` on each ground ≥ 3 : 1; each signal on the panel ≥ 4.5 : 1; `--of-on-ink` on `--of-ink` ≥ 7 : 1;
   - no radius token above 0, no space or size outside the steps, no pixel size below 12 or fractional, the families
-    named in `fonts/`, each font file present, `fonts.css` names only files that exist, the licences in `NOTICE`; the generator is deterministic (twice the same bytes);
+    named in `fonts/`, each font file present, `fonts.css` names only files that exist, the licences in `NOTICE` (Plex, Pixelify, Pixelarticons); every icon the sprite names exists in it and is drawn from the upstream file unchanged; the generator is deterministic (twice the same bytes);
   - the legacy roles of §1 are all defined, to colours of the form;
 - **A1** `tests/test_orkforms_pin.py` (critical): the submodule is mounted at `design-system/orkforms` and `.gitmodules`
   names `orkworks/orkforms`; its commit is a tag (not a branch head); `tokens.css` there equals what the repository's
@@ -222,6 +232,7 @@ sizes in `rem`).
     block is at most 90 characters wide;
   - `body` is 12/18; no visible text under 11 px, no pixel text under 12; every button, field and tab ≥ 24 px high; the
     top bar and a pane's head 32; panes keep their widths; no horizontal scroll;
+  - icons are 24 or 48 px (never another size) and take their text's colour;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
     `--of-ink` inside the box); the selected row is inverted; an asking card has the alert edge;
   - the old Office's files (`office.css`) and Camp's are not requested; a screenshot to `docs/design/img/v1/` when

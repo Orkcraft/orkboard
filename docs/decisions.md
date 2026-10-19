@@ -331,15 +331,17 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    screen (measured with a proportional face; mono's 12 is a little wider, so the Board's lines wrap a little more).
    The phone keeps a thumb's targets by drawing 36 and hitting 44 (neighbours 8 px apart), body 14, one-line head, no
    emoji.
-4. **Colour is a signal and nothing else.** A grey scale; selected and primary are the inverted ink; no accent hue. The
+4. **Icons are Pixelarticons** (MIT, a 24 px grid of whole pixels, drawn at 24 or 48 only; buttons carry words, not icons), a
+   vendored sprite of the ones used; no emoji.
+5. **Colour is a signal and nothing else.** A grey scale; selected and primary are the inverted ink; no accent hue. The
    signals (question, error, success, warning) keep their hues, with a mark or a word beside them.
-5. **Dark only for now.** Office's light variant (desktop and phone) is dropped from this form; it returns as a second
+6. **Dark only for now.** Office's light variant (desktop and phone) is dropped from this form; it returns as a second
    palette if the testers ask.
-6. **Accessibility is a test, not a hope:** contrast computed from the tokens (text ≥ 4.5, edges ≥ 3), targets ≥ 24 px
+7. **Accessibility is a test, not a hope:** contrast computed from the tokens (text ≥ 4.5, edges ≥ 3), targets ≥ 24 px
    everywhere (WCAG 2.2 AA), focus drawn inside the notched corners, the system's text size followed on the phone.
-7. **Built after spec 39** (its B and C own the stylesheets this changes): A the system, B the desktop, C the phone.
+8. **Built after spec 39** (its B and C own the stylesheets this changes): A the system, B the desktop, C the phone.
    Orkline adopts it by its own spec; until then its frozen copy and Office stay as they are (decisions §50).
-8. **Orkforms is a repository of its own, `orkworks/orkforms`, mounted as a pinned git submodule** by Orkboard
+9. **Orkforms is a repository of its own, `orkworks/orkforms`, mounted as a pinned git submodule** by Orkboard
    (`design-system/orkforms`) and, by its own spec, by Orkline: the system changes where both can use it, each face
    moves the pin when it chooses. A submodule rather than a package or a synced copy: the alpha has one owner and needs to
    change the system and see it the same day; a package (versioned releases) waits for a consumer outside the
