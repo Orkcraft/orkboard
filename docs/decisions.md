@@ -332,8 +332,8 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    The phone keeps a thumb's targets by drawing 40 and hitting 44 (neighbours 4 px apart), body 16/22 (14 was tried: too small), one-line head, no
    emoji.
 4. **Icons are Pixelarticons** (MIT, a 24 px grid of whole pixels, drawn at 24 or 48 only; buttons carry words, not icons), a
-   vendored sprite of the ones used; no emoji.
-5. **Colour is a signal, except the one ork green of the primary action.** A grey scale; *selected* is the inverted ink; the
+   vendored sprite of the ones used; no emoji; arrows and chevrons are pixel icons, never typed glyphs.
+5. **Colour is a signal, except the one ork green of the primary action.** A grey scale; *selected* is a raised ground with a 2 px ink bar (an inverted white tab was too bright); the
    primary button is green (the owner's choice, a nod to the orks: `#6aa84f`, the phone's green kept). Green is kept apart:
    the fill means *press this*, and green text or a ✓ means *this went well*, never a filled button. The signals (question,
    error, success, warning) keep their hues, with a mark or a word beside them. Numbers on buttons are set in the text

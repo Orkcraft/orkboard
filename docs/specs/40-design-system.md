@@ -116,8 +116,11 @@ the state's own look. **Success has no button:** it is a mark (✓) and text in 
 of a meter that is fine. Outside buttons: a card that **asks** has a 1 px `--of-alert` edge, one that **fails** a
 `--of-danger` edge; a limit's meter takes `--of-alert` past 80 % and `--of-danger` past 95 %.
 
-- **Selected is inverted:** ink ground, `--of-on-ink` text (16 : 1), on a row, a card or a tab; the primary button is not
-  that (it is green), so *selected* and *press this* never look alike.
+- **Selected is raised, not white** (the owner found an inverted tab too bright): ground `--of-raised`, text `--of-ink`, and a
+  **2 px `--of-ink` bar** on the edge that points at the content (the foot of a tab, the left edge of a row or a card):
+  `box-shadow: inset 0 -2px 0 var(--of-ink)` (a row: `inset 2px 0 0`). Contrast of text on it 14.2 : 1. The primary button is
+  green, so *selected* and *press this* never look alike. A button's hover and pressed (the table above) stay filled: they
+  last a moment; a selection stays on screen.
 - **Focus** is a 2 px ring drawn **inside** the control (`box-shadow: inset 0 0 0 2px var(--of-ink)`): the corners are
   notched with `clip-path` (§4), which clips an `outline`.
 - Links are ink, underlined; there is no hue for them.
@@ -153,8 +156,8 @@ The scale (desktop; px are CSS px; the phone's in §8):
 | `--of-type-caption` | text 400 | 11/16 | a row's second line, a hint, meta (a time, a count); never the only place a fact is |
 
 Rules: the pixel face is **never below 12 px and always at whole pixels** (`font-size` an integer, no `em`/`%` of a
-fractional size, no `transform: scale`); `font-synthesis: none` (Pixelify has one weight: emphasis is the inverted
-ground, a mark or the caps, never a faux bold); `font-variant-ligatures: none` on the pixel face (its *fi* is drawn as
+fractional size, no `transform: scale`); `font-synthesis: none` (Pixelify has one weight: emphasis is a mark, the 2 px bar,
+the caps or the text face's 600, never a faux bold); `font-variant-ligatures: none` on the pixel face (its *fi* is drawn as
 an *A*); the text face is monospaced, so its numbers already align. **Numbers and amounts are never set in the pixel face** (its *5* reads as an *S*: *Spend $5* looked like *Spend $S*): a button that carries one wraps it in the text face (`<span class="of-num">$5</span>`), and the words stay pixel. The body is set on the root
 (`html { font: var(--of-type-body) }`): nothing is left to the browser's 16. A heading or a button never carries text a
 person wrote (a goal's title is body text, not a heading), so a Cyrillic title is never set in Pixelify.
@@ -179,8 +182,13 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
   corners; picked from Pixelarticons, Lucide, Phosphor and Tabler on the needed set). Rules: drawn at **24 px or 48 and
   never scaled to 16 or 12** (a cell would become 0.67 px and the lines uneven); `fill: currentColor`, so an icon takes its
   text's colour (ink, muted, or a signal's); no emoji anywhere in a face (Office's rule, now tested: §9). A button carries
-  words, not an icon (`+`, `▾` are typed characters in the pixel face), so the 24 px icons stand in rows, heads, tabs and
-  the empty states, where a row is 28 and a bar 32. A subset is vendored in `office/icons/` as one sprite `icons.svg`
+  words, not an icon, except a **chevron** that says it opens something (a select, a menu, *Merge into dev*, *hide*); the
+  24 px icons stand in rows, heads, tabs and the empty states, where a row is 28 and a bar 32.
+- **Arrows are pixel marks, never typed.** Every arrow and chevron of the chrome (a select's, a menu's, a disclosure's, a
+  row's *›*, Back, a step's →) is a Pixelarticons icon (`chevron-down` · `chevron-up` · `chevron-right` · `chevron-left` ·
+  `arrow-left` · `arrow-right`), drawn at 24 px in the text's colour; the glyphs `▾ ▸ › → ⚙ ◎` are not used in a face's
+  templates (the gear is `sliders`, the goal `flag`). A native `<select>` is `appearance: none` with the chevron icon over
+  it. A test scans the faces' templates for those glyphs (§9). A subset is vendored in `office/icons/` as one sprite `icons.svg`
   (only the icons a face uses) with the MIT text; a face names an icon by its Pixelarticons name.
   The first set (`goal` → `flag`, `idea` → `lightbulb`, `task` → `checkbox`, `agent` → `robot`, `review` → `eye`,
   `stop` → `stop`, `settings` → `sliders`, `project` → `folder`, `file` → `file`, `add` → `plus`, `close` → `close`,
@@ -192,8 +200,8 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
 ## 5. Components (`components.css`, in this order)
 `.of-btn` (variants default · primary · danger · warning · quiet, each in rest · hover · pressed · focus · disabled: the table in §2) ·
 `.of-field` (input, select, textarea: 1 px `--of-edge`, `--of-canvas` ground, text face 12, focus inset ring and caret) ·
-`.of-tabs` / `.of-tab` (pixel caps, the active one inverted) · `.of-tabbar` (§8) · `.of-head` (a pane's head, 32 px, a hairline under) ·
-`.of-row` / `.of-card` (a hairline edge; selected inverted; **asks**: a 1 px `--of-alert` edge, **fails**: `--of-danger`)
+`.of-tabs` / `.of-tab` (pixel caps, the active one raised with its 2 px bar) · `.of-tabbar` (§8) · `.of-head` (a pane's head, 32 px, a hairline under) ·
+`.of-row` / `.of-card` (a hairline edge; selected raised with its 2 px bar; **asks**: a 1 px `--of-alert` edge, **fails**: `--of-danger`)
 · `.of-chip` and `.of-count` (20 px, pixel label, 1 px edge) · `.of-label` (a section's label with its `▪`) ·
 `.of-meter` · `.of-dialog` (+ `.of-scrim`) · `.of-menu` · `.of-toast` · `.of-kbd` · `.of-split` (a pane divider: a 4 px
 dotted line, ink on hover and focus) · `.of-icon`. Each has the states default · hover · pressed · focus · disabled, and
@@ -205,7 +213,7 @@ look replaces whole becomes an alias in `components.css` (`.ok-btn` ↔ `.of-btn
 ## 6. Rules for a UI document (`design/ui.py` `RULES`)
 A model that writes a UI document is told, for a form: the roles of §3 (pixel for buttons and headings, text for
 everything else, code for code); that colour is a signal only; the control and space steps of §4; that selected is
-inverted; that nothing is an emoji. The text is part A's, added next to the Camp rules, chosen by the form.
+raised with a 2 px ink bar; that nothing is an emoji. The text is part A's, added next to the Camp rules, chosen by the form.
 
 ## 7. The desktop (B)
 - `index.html`: `data-forms="office"` on the root (with `data-look="office"` kept: other code reads it); the
@@ -238,7 +246,7 @@ sizes in `rem`).
 - **The tab bar** (`.of-tabbar`, Board · Agents · Review): three equal cells across the foot, each an icon over its word: the
   24 px icon (`board` → `list-box`, `agents` → `robot`, `review` → `eye`) and the word in the pixel face, 12/16 caps (the
   floor of the pixel face), 56 px high and the safe area under it, the whole cell the target, cells split by a hairline,
-  a hairline over the bar. The active cell is inverted (ink ground, `--of-on-ink` icon and word); the others are
+  a hairline over the bar. The active cell is raised (`--of-raised` ground, ink icon and word, a 2 px ink bar along its top edge); the others are
   `--of-ink-muted` (6.7 : 1). The icon never stands without its word. A count (Board's *3*) is a notched square, 16 px,
   on the icon's top right corner, in `--of-action`. The desktop's narrow shell (under 1 024 px) uses the same bar.
 - **Space:** card padding 8 (was 12), gaps 6–8, the page's side padding 12, the tab bar 40 + the safe area.
@@ -270,10 +278,12 @@ sizes in `rem`).
     top bar and a pane's head 32; panes keep their widths; no horizontal scroll;
   - in a button, a heading and a tab no digit is in the pixel face (the number sits in an `.of-num` span in the text face);
   a primary button's ground is `--of-action`, and nothing else on the page is filled with it;
+  - no typed arrow or symbol glyph (`▾ ▸ › → ⚙ ◎`) in the faces' templates and rendered text; a select shows its chevron icon;
+  - a selected tab, row and card is `--of-raised` with a 2 px `--of-ink` bar and is not an ink-filled box;
   - no visible element has a `border-radius` above 0 (a scan of every box, on the desktop and the phone);
   - icons are 24 or 48 px (never another size) and take their text's colour;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
-    `--of-ink` inside the box); the selected row is inverted; an asking card has the alert edge;
+    `--of-ink` inside the box); the selected row is raised with its bar; an asking card has the alert edge;
   - the old Office's files (`office.css`) and Camp's are not requested; a screenshot to `docs/design/img/v1/` when
     `ORKCRAFT_SHOTS` is set (before and after kept in the PR).
 - **C** at 390 × 844, at the system text size 100 % and 130 %: the tab bar's three cells 56 px high, each with its icon (24 px) and word, one active; every control ≥ 40 px drawn, and its hit area (an
