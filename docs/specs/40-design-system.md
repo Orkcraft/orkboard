@@ -163,7 +163,9 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
 - **Edges** 1 px (`--of-line: 1px`); no radius (`--of-radius: 0`); no shadow but a dialog's hard 1 px frame on a dimmed
   backdrop. **Corners notched** by 2 px on controls, cards, chips and dialogs:
   `--of-notch: polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 0 calc(100% - 2px), 0 2px)`
-  (`clip-path`; the edge is the element's own 1 px border). Text fields and big panes stay square.
+  (`clip-path`; the edge is the element's own 1 px border). Text fields and big panes stay square. **Nothing is round:** the pills and circles of today's faces (`border-radius: 999px` on the count badges, the Target
+  and limit chips, the dots, the phone's sheets' 12 px top corners) become the same notched square, so a chip's outline is
+  as pixel-made as a button's.
 - **Space** on a 2 px step: `--of-1` 2 · `--of-2` 4 · `--of-3` 6 · `--of-4` 8 · `--of-5` 12 · `--of-6` 16 · `--of-8` 24.
   Gaps inside a card 2–4, between cards 6, a pane's padding 8, a dialog's 12. Nothing outside the steps.
 - **Sizes** (desktop): `--of-control` 24 (a button, a field, a select) · `--of-chip` 20 · `--of-bar` 32 (the top bar, a
@@ -262,6 +264,7 @@ sizes in `rem`).
     top bar and a pane's head 32; panes keep their widths; no horizontal scroll;
   - in a button, a heading and a tab no digit is in the pixel face (the number sits in an `.of-num` span in the text face);
   a primary button's ground is `--of-action`, and nothing else on the page is filled with it;
+  - no visible element has a `border-radius` above 0 (a scan of every box, on the desktop and the phone);
   - icons are 24 or 48 px (never another size) and take their text's colour;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
     `--of-ink` inside the box); the selected row is inverted; an asking card has the alert edge;
