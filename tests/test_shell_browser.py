@@ -14,7 +14,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from orkboard.realm import library  # noqa: E402
+from orkboard.realm import library, plans  # noqa: E402
 
 _TODAY = dt.date.today().isoformat()                 # a reset today reads "resets at 18:00", whatever the day
 _IN_TWO_DAYS = (dt.date.today() + dt.timedelta(days=2)).isoformat()
@@ -125,7 +125,10 @@ class StubHost:
         if slug == "search":
             next(x for x in secs if x["name"] == "Open questions")["text"] = "- Which fields count?\n- Do tags count?"
         return {"slug": slug, "title": i["title"], "track": "general", "state": i["state"], "size": "M", "sections": secs, "talk": i["talk"],
-                "plan": self.plan if slug == "sync" else None, "busy": False, "state_error": i.get("state_error", "")}
+                "plan": self.plan if slug == "sync" else None, "busy": False, "state_error": i.get("state_error", ""),
+                "checks": [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed"},
+                           {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": False, "why": "It changes no screen",
+                            "state": ""}] if slug == "sync" else []}
 
     def find(self, a):
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])
@@ -162,7 +165,7 @@ class StubHost:
             return {"roles": [r | {"spend_today": 0} for r in self.roles.values()], "kinds": self.kind_list(),
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
                                {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],
-                    "library": library.listed(), "suggested": library.SUGGESTED}
+                    "library": library.listed(), "suggested": library.SUGGESTED, "tier_costs": dict(plans.DEFAULT_COST)}
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -576,6 +579,9 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
         pg.screenshot(path=str(SHOTS / "desktop-new-goal-team-1440x900.png"))
     dlg.get_by_role("button", name="Next").click()                                                  # 3. what it is for
     assert dlg.is_visible() and dlg.get_by_role("button", name="Save goal").is_disabled()           # a description is required
+    checks = dlg.get_by_role("group", name="Checks")                                                # the team's checkers, what they add
+    assert "Design system designer" in checks.inner_text() and "Analyst" in checks.inner_text() and "Product designer" not in checks.inner_text()
+    checks.get_by_label("Every idea: Analyst").check()
     assert dlg.get_by_label("Title").count() == 0 and dlg.get_by_label("Deadline").count() == 0     # nothing else is asked
     assert dlg.get_by_label("Metric 1: what is measured").count() == 0 and dlg.get_by_label("Link 1", exact=True).count() == 0
     dlg.get_by_label("Description").fill("More people try Orkline.")
@@ -586,7 +592,7 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
     dlg.get_by_role("button", name="Save goal").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "craft": "design",
-                                                      "team": ["product-designer", "ui-kit", "analyst"], "priority": "high"}
+                                                      "team": ["product-designer", "ui-kit", "analyst"], "every": ["analyst"], "priority": "high"}
     pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)                                             # the goal opens in the preview
     assert "drafting" in pg.locator(".board-state", has_text="reading").first.inner_text() or "reading" in pg.locator(".shell-goal").inner_text()
     assert "reading" in pg.locator(".board-goals__select option:checked").inner_text()
@@ -786,6 +792,9 @@ def test_the_spec_shows_its_sections_and_stages_with_each_tasks_live_state(shell
     stages = pg.locator(".shell-preview .board-sec[data-name=Stages]")
     stages.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-preview .board-sec").evaluate_all("els => els.map(e => e.dataset.name)") == SECTIONS
+    checks = pg.locator(".shell-preview").get_by_role("list", name="Checks")                        # the team's checks of this idea
+    assert [" ".join(t.split()) for t in checks.get_by_role("listitem").all_inner_texts()] == [
+        "Reviewer passed", "Accessibility reviewer not needed: It changes no screen"]
     stages.locator("summary").click()
     waves = stages.locator(".board-stages__wave")
     assert waves.count() == 3 and waves.nth(1).locator(".board-stages__task").count() == 2           # k2 ∥ k3

@@ -32,7 +32,7 @@ from typing import Any, Callable
 
 from orkboard import settings
 from orkboard.core import idea_keeper
-from orkboard.realm import event_log, idea_photos, idea_secrets, ideas, wiki
+from orkboard.realm import event_log, idea_checks, idea_photos, idea_secrets, ideas, wiki
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _str, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_goals import GoalsMixin
@@ -274,11 +274,14 @@ class Ideas(LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixin, BoardMix
             raise IdeasError("That idea is gone")
         names = list(ideas.SECTIONS) + [n for n, _t in page.sections if n not in ideas.SECTIONS]
         st = self._state(slug)
-        return {"slug": slug, "title": page.title or slug, "track": page.get("track") or ideas.GENERAL,
+        plan = ideas.plan(self.state_dir, slug)
+        checks = idea_checks.status(self.keeper.idea_checks(root, slug), self.keeper.team_checks(root, slug),
+                                    (plan or {}).get("tasks") or [])
+        return {"slug": slug, "title": page.title or slug, "track": page.get("track") or ideas.GENERAL, "checks": checks,
                 "state": st["state"], "size": page.get("size") if page.get("size") in ideas.SIZES else "",
                 "sections": [{"name": n, "thesis": ideas.thesis(page.section(n)), "text": page.section(n)}
                              for n in names],
-                "talk": ideas.talk(self.state_dir, slug), "plan": self._with_heads(ideas.plan(self.state_dir, slug)),
+                "talk": ideas.talk(self.state_dir, slug), "plan": self._with_heads(plan),
                 "busy": bool(self.keeper.busy(slug)) or st["state"] in ("reading", "planning"),
                 "state_error": st.get("error", ""), "proposed_track": page.get("proposed_track")}
 

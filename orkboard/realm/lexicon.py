@@ -146,6 +146,8 @@ TERMS: tuple[Term, ...] = (
     _t("craft", "craft", "crafts"),
     _t("team", "team", "teams"),                                   # a goal's agents, picked from the library (realm/goal_team.py)
     _t("library", "library"),                                      # the agents that come with Orkline (realm/library.py)
+    _t("check", "check", "checks"),                                # what a team's checker holds each idea to (realm/idea_checks.py)
+    _t("checker", "checker", "checkers"),                          # an agent of the library that brings a check
     _t("tag", "tag", "tags"),                                      # a task's kind of work: who of the team does it (roles.TASK_KINDS)
     _t("craft.engineering", "Engineering"),                        # an ork: the Taskmaster, the Grunts, a role of code
     _t("craft.design", "Design"),                                  # an elf

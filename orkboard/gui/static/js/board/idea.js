@@ -3,7 +3,7 @@
 // Take it to work · Start · task states with Stop · Start again. `PlanView` is the same idea's plan, scrolled to a to-do.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { Who } from "../orkui.js";
+import { Who, Icon } from "../orkui.js";
 import { say } from "../link.js";
 import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
 import { Stages } from "./stages.js";
@@ -95,6 +95,17 @@ function Tasks({ plan, working }) {
 }
 
 /** "tasks k2 and k3 wait for it": the tasks a to-do holds back. */
+const CHECK_STATE = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "at Review", held: "held", failed: "failed" };
+
+/** The checks the goal's team holds this idea to (realm/idea_checks.py): passed, its task's state, or why it does not apply. */
+function Checks({ checks }) {
+  if (!(checks || []).length) return null;
+  const words = (c) => (!c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : CHECK_STATE[c.state] || c.state || "in the plan to come");
+  return html`<div class="board-checks" role="list" aria-label="Checks"><span class="ok-font-label">Checks</span>
+    ${checks.map((c) => html`<span key=${c.by} role="listitem" class=${cls("board-check", { "is-off": !c.applies, "is-passed": c.state === "passed" })}>
+      <b>${c.state === "passed" && html`<${Icon} name="check" />`}${c.name}</b><small>${words(c)}</small></span>`)}</div>`;
+}
+
 export function unblocks(todo) {
   const ids = todo.for || [];
   if (!ids.length) return "";
@@ -157,6 +168,7 @@ export function IdeaView({ p }) {
           onChange=${(e) => run("ideas.edit", { slug: p.slug, priority: e.target.value })}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
     ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<${ErrorLine} text=${p.state_error} />`}
+    <${Checks} checks=${p.checks} />
     <${Actions} p=${p} />
     <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>
     <${Say} p=${p} section=${section} setSection=${setSection} />

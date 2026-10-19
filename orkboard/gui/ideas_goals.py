@@ -63,8 +63,9 @@ class GoalsMixin:
         return {"track": track, "words": idea_words.words(texts, [g["title"], *(i["title"] for i in mine)])}
 
     def goal_save(self, args: dict) -> dict:
-        """`{"slug"?, "about", "priority", "title"?, "craft"?, "team"?}`: a team's agents of the library are made roles
-        of the project (realm/library.py), the person's own agents taken as they are: a title typed is the person's (never rewritten); spec 34's
+        """`{"slug"?, "about", "priority", "title"?, "craft"?, "team"?, "every"?}`: a team's agents of the library are made
+        roles of the project (realm/library.py), the person's own agents taken as they are; `every`: the team's checkers
+        whose check applies to every idea, not only where it applies (realm/idea_checks.py): a title typed is the person's (never rewritten); spec 34's
         metrics, links and deadline are still taken and kept when given."""
         slug = _opt(args, "slug") or None
         about = args.get("about", "")
@@ -87,10 +88,11 @@ class GoalsMixin:
                                    metrics, _opt(args, "priority") or "normal", links, deadline, _opt(args, "craft") or None)
         if team is not None:
             library.install(self.state_dir, [s for s in team if library.get(s) is not None])
-            goal_team.set_team(self.root(), got, team)
+            every = args.get("every") if isinstance(args.get("every"), list) else []
+            goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)])
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
-                 priority=g["priority"], craft=g["craft"], team=g["team"])
+                 priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"])
         self._read_goal(got)
         self.changed(f"goal:{got}")
         return {"slug": got}

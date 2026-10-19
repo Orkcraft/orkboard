@@ -143,7 +143,7 @@ def _track(slug: str, page: Page, count: int = 0) -> dict:
             "metrics_by": _metrics_by(page),
             "criteria": items(page.section("Success criteria")), "deadline": page.get("deadline"),
             "order": _int(page.get("order")), "count": count, "priority": _priority(page.get("priority")),
-            "craft": page.get("craft") if page.get("craft") in CRAFTS else CRAFTS[0], "team": _json_list(page.get("team")), "metrics": _metrics(page), "summary": page.section("Summary"),
+            "craft": page.get("craft") if page.get("craft") in CRAFTS else CRAFTS[0], "team": _json_list(page.get("team")), "every": _json_list(page.get("team_every")), "metrics": _metrics(page), "summary": page.section("Summary"),
             "links": _links(page),
             "questions": items(page.section("Open questions"))}
 

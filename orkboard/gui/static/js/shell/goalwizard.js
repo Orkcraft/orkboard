@@ -1,7 +1,9 @@
 // New goal on the desktop in three steps, as on the phone (pwa/shell-goal-new.js): 1. its craft — four tiles, the race's head on
 // each (decisions §53), and Mixed —; 2. its team — the library's agents (ideas.roles `library`, realm/library.py), the craft's first
 // ones in it at once; a click takes one in or out, any craft's from the library; the Taskmaster plans for every team —; 3. what it is
-// for — the description and the priority —, Save goal. A task goes to the one of the team who does its kind of work.
+// for — the description, the priority and the team's checks (each checker's, where it applies or on every idea, and what it adds to
+// an idea) —, Save goal. A task goes to the one of the team who does its kind of work; a checker's check adds its line to the spec's
+// Done when and its task to the plan (realm/idea_checks.py).
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say } from "../link.js";
@@ -23,6 +25,7 @@ export function GoalWizard({ then = "" }) {
   const [step, setStep] = useState(1);
   const [craft, setCraft] = useState("");
   const [team, setTeam] = useState([]);
+  const [every, setEvery] = useState([]);
   const [more, setMore] = useState(false);
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
@@ -43,7 +46,7 @@ export function GoalWizard({ then = "" }) {
     e?.preventDefault();
     if (!about.trim() || saving) return;
     setSaving(true);
-    const got = await act("ideas.goal_save", { about: about.trim(), craft: craftOf(), team, priority });
+    const got = await act("ideas.goal_save", { about: about.trim(), craft: craftOf(), team, every: every.filter((id) => team.includes(id)), priority });
     setSaving(false);
     if (!got?.slug) return;
     closeDialog();
@@ -54,11 +57,27 @@ export function GoalWizard({ then = "" }) {
 
   const row = (a) => html`<button type="button" key=${a.id} class="shell-team-row" aria-pressed=${String(team.includes(a.id))}
       aria-label=${`${team.includes(a.id) ? "Take out" : "Take in"}: ${a.name}`} onClick=${() => toggle(a.id)}>
-    <${Head} race=${RACE[a.craft]} tier=${a.tier} /><b>${a.name}</b>
+    <${Head} race=${RACE[a.craft]} tier=${a.tier} /><b>${a.name}${a.check && html`<span class="shell-check-badge">checks</span>`}</b>
     <small class="ok-tone-muted">${TIER_WORDS[a.tier]} ${RACE_WORDS[RACE[a.craft]]} · ${a.line}</small>
     <span class="shell-team-mark" aria-hidden="true"><${Icon} name=${team.includes(a.id) ? "check" : "plus"} /></span></button>`;
   const byCraft = (list) => CRAFTS.filter(([c]) => list.some((a) => a.craft === c)).map(([c]) => html`<div key=${c}>
     <h4 class="shell-team-craft">${CRAFT_WORDS[c]}</h4>${list.filter((a) => a.craft === c).map(row)}</div>`);
+
+  /** The team's checks: each checker's, where it applies or on every idea, and what a check adds to an idea, in dollars. */
+  function checksBlock() {
+    const costs = roles.value?.tier_costs || {};
+    const checkers = team.map((id) => library.find((a) => a.id === id)).filter((a) => a?.check);
+    if (!checkers.length) return html`<p class="ok-tone-muted">No checker in the team: an idea is done when its own Done when lines are.</p>`;
+    const priced = checkers.every((a) => Number(costs[a.tier]) > 0);       // no price known: no number said
+    const usd = (n) => (priced ? ` · ≈ $${Number(n).toFixed(2)}` : "");
+    const total = checkers.reduce((sum, a) => sum + Number(costs[a.tier] || 0), 0);
+    return html`<div class="shell-checks" role="group" aria-label="Checks"><span class="ok-font-label">Checks</span>
+      <p class="ok-tone-muted">How deep each idea is worked: every check adds a line to its Done when and a task to its plan${priced ? `, ≈ $${total.toFixed(2)} an idea they all apply to` : ""}.</p>
+      ${checkers.map((a) => html`<div key=${a.id} class="shell-check-row"><${Head} race=${RACE[a.craft]} tier=${a.tier} small=${true} />
+        <span><b>${a.name}</b> <small class="ok-tone-muted">${a.check.done} · applies ${a.check.applies}${usd(costs[a.tier])}</small></span>
+        <label class="shell-check-every"><input type="checkbox" aria-label=${`Every idea: ${a.name}`} checked=${every.includes(a.id)}
+          onChange=${(e) => setEvery(e.target.checked ? [...every, a.id] : every.filter((x) => x !== a.id))} /> Every idea</label></div>`)}</div>`;
+  }
 
   const steps = html`<ol class="shell-steps" aria-label=${`Step ${step} of 3`}>${["Craft", "Team", "What for"].map((w, i) => html`<li key=${w}
     class=${i + 1 === step ? "is-on" : i + 1 < step ? "is-done" : ""}>${w}</li>`)}</ol>`;
@@ -96,6 +115,7 @@ export function GoalWizard({ then = "" }) {
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
           <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>
       <p class="ok-font-status ok-tone-muted">${say("The Taskmaster reads the repository and writes the title, the summary, the metrics and the links.")}</p>
+      ${checksBlock()}
     </form>`;
     foot = html`<button type="button" class="ork-btn" onClick=${() => setStep(2)}>Back</button>
       <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!about.trim() || saving}>Save goal</button>`;

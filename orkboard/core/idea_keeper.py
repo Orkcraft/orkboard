@@ -41,7 +41,7 @@ from typing import Any, Callable
 from orkboard.core.idea_draft import DraftMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
-from orkboard.realm import event_log, goal_team, idea_photos, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
+from orkboard.realm import event_log, goal_team, idea_checks, idea_photos, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -442,17 +442,6 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
             raise
         return True
 
-    def role_of(self, task: dict) -> dict:
-        """The role a task runs as: the one its plan gave it from the goal's team, else its tag's in the project."""
-        return (roles.role(self.state_dir, str(task.get("role") or "")) if task.get("role") else None) \
-            or roles.role_for(self.state_dir, str(task.get("kind") or ""))
-
-    def team_lines(self, team: list[str]) -> str:
-        """The goal's team for the plan prompt: who does which tags (a task of a tag no one takes goes to Grunt)."""
-        known = roles.kinds(self.state_dir)
-        rows = [f"{r['name']} ({', '.join(sorted(roles.takes_of(r, known))) or 'code'})" for s in team if (r := roles.role(self.state_dir, s))]
-        return ("\n- The goal's team, by the tags each does: " + "; ".join(rows) + ". Tag each task so one of them does it.") if rows else ""
-
     def plan_prompt(self, root: Path, slug: str) -> str:
         """§0's `plan` context: Gist, Done when, Out, Risks, Depends on; the goal's Summary."""
         page = ideas.idea_page(root, slug)
@@ -463,9 +452,10 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         touches = [t for t in json.loads(page.get("touches") or "[]") if isinstance(t, str)] if page.get("touches", "").startswith("[") else []
         kinds = "; ".join(f'"{k}" ({roles.KIND_LINES[k]})' for k in roles.TASK_KINDS)
         team = self.team_lines(goal_team.team_of(root, page.get("track") or ideas.GENERAL))
+        checks = idea_checks.plan_lines(self.idea_checks(root, slug), self.team_checks(root, slug))
         return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
 read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
-{idea_photos.prompt_lines(self.state_dir, slug)}
+{idea_photos.prompt_lines(self.state_dir, slug)}{checks}
 The spec: {page.title}
 {context}
 Rules:
@@ -494,6 +484,7 @@ Answer with one JSON object and nothing else:
         try:
             text, *_rest = self.ask("plan", self.plan_prompt(root, slug))
             data = make_plan(slug, self.parse(text))
+            data["tasks"] = idea_checks.with_check_tasks(data["tasks"], self.idea_checks(root, slug), self.team_checks(root, slug), _task)
             team = goal_team.for_idea(root, slug)
             for t in data["tasks"]:                      # who of the goal's team does it, by its tag (none: the project's)
                 t["role"] = roles.role_for(self.state_dir, t["kind"], team)["slug"] if team else ""
@@ -514,6 +505,13 @@ Answer with one JSON object and nothing else:
         self.on_plan(slug)
 
 
+def _task(tid: str, title: str, brief: str, kind: str, tier: str, after: list[str]) -> dict:
+    """A task of a plan as plan.json keeps it, waiting."""
+    return {"id": tid, "title": title, "brief": brief, "kind": kind, "tier": tier, "after": after, "state": "waiting",
+            "branch": "", "commit": "", "session": "", "cost": None, "tokens": None, "started": "", "finished": "",
+            "error": "", "note": ""}
+
+
 def make_plan(slug: str, answer: dict | None, made_at: str = "") -> dict:
     """plan.json from the model's answer, strictly: at most 8 tasks with their ids renamed k1…, `after` only to an
     earlier task, known tiers and kinds; the estimate from the tiers' default cost, ±50 %."""
@@ -532,9 +530,7 @@ def make_plan(slug: str, answer: dict | None, made_at: str = "") -> dict:
         names[_words(raw.get("id"), 20) or tid] = tid
         tier = raw.get("tier") if raw.get("tier") in TIERS else "warrior"
         kind = raw.get("kind") if raw.get("kind") in roles.TASK_KINDS else roles.DEFAULT_KIND
-        tasks.append({"id": tid, "title": title, "brief": brief, "kind": kind, "tier": tier, "after": list(dict.fromkeys(after)),
-                      "state": "waiting", "branch": "", "commit": "", "session": "", "cost": None, "tokens": None,
-                      "started": "", "finished": "", "error": "", "note": ""})
+        tasks.append(_task(tid, title, brief, kind, tier, list(dict.fromkeys(after))))
     if not tasks:
         raise KeeperError("the plan had no task")
     todos: list[dict] = []
