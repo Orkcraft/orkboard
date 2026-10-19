@@ -19,10 +19,10 @@ builder's choice inside its files. Wording: CLAUDE.md (labels say plainly what h
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
-| **A0. The system, in its own repository** | `spec/40-orkforms` in **`orkworks/orkforms`** (new, §1a) | §2–§6, §9 (A0) | in the new repository: `office/` (`tokens.json`, generated `tokens.css`, `components.css`, `fonts/` with the OFL texts, `preview.html` the gallery, `README.md`), `tools/build_tokens.py` (the generator, standard library only), `tests/test_orkforms.py`, `NOTICE`, `CHANGELOG.md`, tag `v0.1.0` |
+| **A0. The system, in its own repository** | `spec/40-orkforms` in **`orkworks/orkforms`** (new, §1a) | §2–§6, §8a, §9 (A0) | in the new repository: `office/` (`ascii/ork.txt`, `tokens.json`, generated `tokens.css`, `components.css`, `fonts/` with the OFL texts, `preview.html` the gallery, `README.md`), `tools/build_tokens.py` (the generator, standard library only), `tests/test_orkforms.py`, `NOTICE`, `CHANGELOG.md`, tag `v0.1.0` |
 | **A1. Orkboard takes it** | `spec/40-submodule` | §1a, §6, §9 (A1) | `.gitmodules` and the submodule `design-system/orkforms` (pinned at `v0.1.0`), `pyproject.toml` (`package-data`: the wheel carries the files), `orkboard/design/tokens.py` (reads the form's tokens; it generates only Camp's), `orkboard/design/ui.py` (`RULES`), new `tests/test_orkforms_pin.py` |
-| **B. Desktop** | `spec/40-desktop` | §7 | `gui/static/index.html`, `gui/static/js/shell/shell.css`, `gui/static/js/board/board.css`, the inline sizes and colours in `js/shell/*`, `js/board/*`, `js/icons.js`; `gui/static/office.css` leaves Orkboard's page; `tests/test_board_browser.py` and the desktop browser tests |
-| **C. Phone** | `spec/40-phone` | §8 | `gui/static/pwa/app.css`, `pwa/index.html`, `pwa/shell-*.js` (the emoji, the header), `pwa/sw.js` (cache version) with `tests/test_pwa.py`'s pinned version, `gui/pwa.py` (what it serves), the phone browser tests |
+| **B. Desktop** | `spec/40-desktop` | §7, §8a | `gui/static/index.html`, `gui/static/js/shell/shell.css`, `gui/static/js/board/board.css`, the inline sizes and colours in `js/shell/*`, `js/board/*`, `js/icons.js`; `gui/static/office.css` leaves Orkboard's page; `tests/test_board_browser.py` and the desktop browser tests |
+| **C. Phone** | `spec/40-phone` | §8, §8a | `gui/static/pwa/app.css`, `pwa/index.html`, `pwa/shell-*.js` (the emoji, the header), `pwa/sw.js` (cache version) with `tests/test_pwa.py`'s pinned version, `gui/pwa.py` (what it serves), the phone browser tests |
 
 B and C branch from A once A is pushed; they touch no file of each other's.
 
@@ -259,6 +259,44 @@ sizes in `rem`).
   colours in `app.css` become roles; `sw.js` caches `orkforms/office` and its fonts; the cache version rises.
 - Measured on the prototype: about 10 % less height before the head's rework, the head's two lines more after it.
 
+## 8a. ASCII-game cues (the owner's choice, decisions §53.10)
+A nod to NetHack, Dwarf Fortress and Brogue, in six small things; none of them changes what a screen says or does, and each
+is drawn so it works without the font having the glyph (the shipped subsets of Plex Mono have no box-drawing, block or
+shape characters), without a screen reader reading them out, and in the form's colours.
+1. **Double frame on dialogs:** a dialog, a sheet and a menu take `border: 3px double var(--of-edge)` (a 1 px line, a gap,
+   a 1 px line: the look of `╔═╗`), with the notch of §4. Cards and rows keep their 1 px edge.
+2. **A block caret.** A focused text field shows `caret-shape: block` (Chrome 138+, Safari and Firefox keep their bar until
+   they follow); a screen that waits for a model (the Taskmaster *thinking*, a Grunt *working*) shows a block `█` drawn by CSS
+   after its word, blinking 1 s in steps. Under `prefers-reduced-motion` both are still.
+3. **Blocks and hatching, drawn.** A limit, a spend and a plan's progress are the segmented meter of §4; a task's pips on the
+   Map and in Agents are 8 × 8 cells in a row (done: ink; working: ink with a 2 px hole; waiting: `--of-frame`; failed:
+   `--of-danger`; asks: `--of-alert`), `aria-label` saying the count in words. Empty and loading grounds are a hatch
+   (`repeating-linear-gradient`, 2 px lines at 45°, `--of-frame`), never a spinner image. ✓ ✗ ! marks are the icons `check`,
+   `close`, `warning-diamond`, not typed glyphs.
+4. **The key line (desktop).** A 24 px line at the foot of the page, `--of-ink-muted`, lists the keys that work *here*, as
+   `[Esc] close  [Ctrl+Enter] send  [↑↓] choose`, from the context (a dialog open, a field focused, a tab active, the Board).
+   It shows only keys that exist. The keys of the existing code stay as they are (Esc, Enter, Ctrl or ⌘ + Enter, the arrows
+   of Review); **new behaviour, the one in this spec:** the items of a menu get letters (`a) Add agent`, `e) Edit`), unique
+   in the menu, shown in the pixel face and answered by that key (a menu is the project menu, the Merge menu, a row's
+   *more*). The arrows in `[↑↓]` are the pixel chevrons, not typed. The line is hidden on the phone.
+5. **Orks as characters.** Taskmaster `@`, Grunt `o`, idea `?`, goal `*`, task `+`: a one-character mark in the text face before a
+   name in Agents, the Map's nodes and Review's lines. **A mark never stands alone:** its word is beside it or in its
+   `aria-label`, and the glyph is `aria-hidden` (the word is the glossary's, `realm/lexicon.py`; no new word). The legend is
+   in the form's README and in `RULES`.
+6. **The ork in empty states.** A screen with nothing to show (the Board with no idea, Review with nothing waiting, Agents
+   with no task) shows this, in the text face at 12/14 (`white-space: pre`, `aria-hidden`), muted, over the screen's own
+   sentence (the words stay as they are):
+```
+   _______
+  /       \
+ | (o) (o) |
+ |    v    |
+  \ |V_V| /
+   '-----'
+```
+   The art is `office/ascii/ork.txt` (UTF-8, 6 lines, 11 columns, ASCII only), one file the faces read; a second ork (asleep,
+   for the night) can follow. No sprite, no image.
+
 ## 9. Tests (A, and the faces' B and C)
 - **A0** `tests/test_orkforms.py` in `orkworks/orkforms` (its gate; Orkboard's critical tests add `test_orkforms_pin.py`):
   - `tokens.json` of a form has every token of §2–§4 under the names of this file; `tokens.css` is exactly what the
@@ -284,6 +322,11 @@ sizes in `rem`).
   - no typed arrow or symbol glyph (`▾ ▸ › → ⚙ ◎`) in the faces' templates and rendered text; a select shows its chevron icon;
   - a selected tab, row and card is `--of-raised` with a 2 px `--of-ink` bar and is not an ink-filled box;
   - no visible element has a `border-radius` above 0 (a scan of every box, on the desktop and the phone);
+  - a dialog and a menu have a double 3 px border; a focused field has `caret-shape: block`; a waiting screen's block is
+    still under reduced motion; the key line lists only keys that work in the current context and each listed key does what
+    it says; a menu's letters are unique and a letter activates its item (and does nothing while a field is focused);
+  - the empty states show the ork (`aria-hidden`, the same lines as `ork.txt`) with their own sentence; an `@ o ? * +` mark
+    is `aria-hidden` and its word is present; no pip, meter or hatch is a typed glyph;
   - icons are 24 or 48 px (never another size) and take their text's colour;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
     `--of-ink` inside the box); the selected row is raised with its bar; an asking card has the alert edge;

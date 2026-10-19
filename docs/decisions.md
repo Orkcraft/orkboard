@@ -349,4 +349,9 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    moves the pin when it chooses. A submodule rather than a package or a synced copy: the alpha has one owner and needs to
    change the system and see it the same day; a package (versioned releases) waits for a consumer outside the
    organisation. Camp's themes stay in Orkboard's `design-system/` until `orkforms/game`.
+10. **A nod to ASCII games, in six small things** (the owner chose them): a double frame on dialogs, a block caret, blocks and
+   hatching drawn by CSS, a key line at the foot of the desktop (and letters on menu items, the one new behaviour here), the
+   orks as one-character marks (Taskmaster `@`, Grunt `o`, idea `?`, goal `*`, task `+`; never alone, never the only
+   carrier of the word), and a small ASCII ork in the empty states. Left out: CRT effects, box-drawing characters in text, a
+   character-cell layout grid.
 A change of looks, not of mechanics: no label, command or datum changes. Spec 40.
