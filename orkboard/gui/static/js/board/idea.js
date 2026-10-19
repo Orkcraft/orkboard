@@ -40,12 +40,12 @@ function Block({ s, onAsk, asked, slug, plan }) {
       <span class="board-sec__name">${s.name}</span>
       <b class="board-sec__thesis">${s.thesis}</b></summary>
     ${editing === null ? html`<div class="board-sec__body">${s.name === "Stages" ? html`<${Stages} text=${s.text} plan=${plan} slug=${slug} />` : html`<p class="board-sec__text">${s.text}</p>`}
-        <div class="board-row"><button class="ok-btn" onClick=${() => onAsk(s.name)}>Ask about ${s.name}</button>
-          <button class="ok-btn" onClick=${() => setEditing(s.text)}>Edit</button></div></div>`
-      : html`<div class="board-sec__body"><textarea class="ok-input" rows="6" value=${editing} aria-label=${`Text of ${s.name}`}
+        <div class="board-row"><button class="ork-btn" onClick=${() => onAsk(s.name)}>Ask about ${s.name}</button>
+          <button class="ork-btn" onClick=${() => setEditing(s.text)}>Edit</button></div></div>`
+      : html`<div class="board-sec__body"><textarea class="ork-field" rows="6" value=${editing} aria-label=${`Text of ${s.name}`}
           onInput=${(e) => setEditing(e.target.value)}></textarea>
-        <div class="board-row"><button class="ok-btn primary" onClick=${save}>Keep it</button>
-          <button class="ok-btn" onClick=${() => setEditing(null)}>Cancel</button></div></div>`}
+        <div class="board-row"><button class="ork-btn primary" onClick=${save}>Keep it</button>
+          <button class="ork-btn" onClick=${() => setEditing(null)}>Cancel</button></div></div>`}
   </details>`;
 }
 
@@ -60,10 +60,10 @@ function Say({ p, section, setSection }) {
   return html`<div class="board-say">
     ${section && html`<span class="board-chip">About ${section} <button class="board-link" aria-label="Ask about the whole idea"
       onClick=${() => setSection("")}>×</button></span>`}
-    <textarea class="ok-input" rows="2" value=${text} aria-label=${say("Ask or answer the Taskmaster")}
+    <textarea class="ork-field" rows="2" value=${text} aria-label=${say("Ask or answer the Taskmaster")}
       placeholder=${section ? `About ${section}…` : say("Ask or answer the Taskmaster…")} onInput=${(e) => setText(e.target.value)}
       onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}></textarea>
-    <div class="board-row"><button class="ok-btn" disabled=${!text.trim() || p.busy} onClick=${send}>Ask</button>
+    <div class="board-row"><button class="ork-btn" disabled=${!text.trim() || p.busy} onClick=${send}>Ask</button>
       ${p.busy && html`<span class="ok-tone-wait">${say("The Taskmaster is answering…")}</span>`}</div>
   </div>`;
 }
@@ -116,16 +116,16 @@ function Actions({ p }) {
   const s = p.state, plan = p.plan, slug = p.slug;
   const e = plan?.estimate;
   if (s === "reading" || s === "planning") return html`<div class="board-row"><p class="ok-tone-wait" role="status">${say(`The Taskmaster is ${s === "reading" ? "drafting" : "planning"}…`)}</p>
-    <button class="ok-btn danger" onClick=${() => run("ideas.read_stop", { slug })}>Stop</button></div>`;
+    <button class="ork-btn danger" onClick=${() => run("ideas.read_stop", { slug })}>Stop</button></div>`;
   if (s === "raw") return html`<div class="board-row"><p class="ok-tone-muted">${say("New: the Taskmaster drafts it tonight, or when you press Process now.")}</p>
-    <button class="ok-btn" onClick=${() => run("ideas.queue", { slug, queue: "now" })}>Process now</button></div>`;
+    <button class="ork-btn" onClick=${() => run("ideas.queue", { slug, queue: "now" })}>Process now</button></div>`;
   return html`<div class="board-actions">
-    ${(s === "ready" || s === "asks") && html`<button class="ok-btn primary" onClick=${() => run("ideas.plan", { slug })}>Take it to work</button>`}
+    ${(s === "ready" || s === "asks") && html`<button class="ork-btn primary" onClick=${() => run("ideas.plan", { slug })}>Take it to work</button>`}
     ${plan && html`<${Plan} plan=${plan} />`}
-    ${s === "plan" && e && html`<button class="ok-btn primary" onClick=${() => run("ideas.start", { slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
-    ${s === "working" && html`<button class="ok-btn danger" onClick=${() => run("ideas.stop", { slug })}>Stop</button>`}
+    ${s === "plan" && e && html`<button class="ork-btn primary" onClick=${() => run("ideas.start", { slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
+    ${s === "working" && html`<button class="ork-btn danger" onClick=${() => run("ideas.stop", { slug })}>Stop</button>`}
     ${s === "failed" && html`<p class="ok-tone-error" role="alert">${plan?.tasks.find((k) => k.error)?.error || "It stopped and needs you."}</p>
-      <button class="ok-btn primary" onClick=${() => run("ideas.start", { slug })}>Start again</button>`}
+      <button class="ork-btn primary" onClick=${() => run("ideas.start", { slug })}>Start again</button>`}
   </div>`;
 }
 
@@ -135,7 +135,7 @@ export function PlanView({ p, todo }) {
   if (!plan) return html`<p class="ok-tone-muted">This idea has no plan yet.</p>`;
   return html`<div class="board-actions">
     <${Plan} plan=${plan} todo=${todo} />
-    ${p.state === "plan" && e && html`<button class="ok-btn primary" onClick=${() => run("ideas.start", { slug: p.slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
+    ${p.state === "plan" && e && html`<button class="ork-btn primary" onClick=${() => run("ideas.start", { slug: p.slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
     <button class="board-link" onClick=${() => showIdea(p.slug)}>Open the spec</button>
   </div>`;
 }
@@ -151,7 +151,7 @@ export function IdeaView({ p }) {
       ${p.size && html`<span class="board-size kit-well">${p.size}</span>`}
       ${row?.risk && html`<span class="board-chip" title=${(row.risk_triggers || []).join(", ")}>Risk: ${row.risk[0].toUpperCase() + row.risk.slice(1)}</span>`}
       ${row?.priority && html`<label class="board-inline"><span class="ok-font-status ok-tone-muted">Priority</span>
-        <select class="ok-input" aria-label="Priority of this idea" value=${row.priority}
+        <select class="ork-field" aria-label="Priority of this idea" value=${row.priority}
           onChange=${(e) => run("ideas.edit", { slug: p.slug, priority: e.target.value })}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
     <${Actions} p=${p} />
@@ -159,8 +159,8 @@ export function IdeaView({ p }) {
     <${Say} p=${p} section=${section} setSection=${setSection} />
     <${Talk} turns=${p.talk || []} />
     <div class="board-row">${sure ? html`<span>Drop this idea and its page?</span>
-        <button class="ok-btn danger" onClick=${drop}>Delete it</button><button class="ok-btn" onClick=${() => setSure(false)}>Keep it</button>`
-      : html`<button class="ok-btn danger" onClick=${() => setSure(true)}>Delete idea</button>`}</div>
+        <button class="ork-btn danger" onClick=${drop}>Delete it</button><button class="ork-btn" onClick=${() => setSure(false)}>Keep it</button>`
+      : html`<button class="ork-btn danger" onClick=${() => setSure(true)}>Delete idea</button>`}</div>
   </div>`;
 }
 

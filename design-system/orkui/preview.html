@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en" data-look="office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>orkUI office: gallery</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body { margin: 0; padding: var(--ork-6); display: grid; gap: var(--ork-6); max-width: 1000px; }
+  h2 { margin: 0 0 var(--ork-4); font: var(--ork-type-heading); text-transform: uppercase; letter-spacing: var(--ork-type-heading-track); }
+  section { display: grid; gap: var(--ork-4); align-content: start; }
+  table { border-collapse: separate; border-spacing: var(--ork-4); }
+  th { font: var(--ork-type-label); color: var(--ork-ink-muted); text-align: left; text-transform: uppercase; }
+  .sw { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+  .sw div { width: 112px; height: 48px; box-sizing: border-box; border: 1px solid var(--ork-frame); padding: var(--ork-2); font: var(--ork-type-caption); }
+  .icons { display: flex; flex-wrap: wrap; gap: var(--ork-4); }
+  figure { margin: 0; display: grid; justify-items: center; gap: var(--ork-2); width: 96px; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+  .orks figure { width: auto; }
+  .orks { display: flex; flex-wrap: wrap; gap: var(--ork-6); }
+  .races { display: grid; grid-template-columns: repeat(6, 96px); gap: var(--ork-4); }
+  .races img { image-rendering: pixelated; }
+  .row { display: flex; gap: var(--ork-4); flex-wrap: wrap; align-items: center; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--ork-4); }
+  .box { border: 1px solid var(--ork-frame); }
+</style>
+</head>
+<body>
+<h1 class="ork-head" style="font:var(--ork-type-title);text-transform:uppercase">&gt; orkUI / office</h1>
+
+<section><h2>Colour</h2><div class="sw" id="sw"></div></section>
+
+<section><h2>Type</h2>
+  <div style="font:var(--ork-type-title);text-transform:uppercase;letter-spacing:.04em">Title 16/20 pixel</div>
+  <div style="font:var(--ork-type-heading);text-transform:uppercase;letter-spacing:.04em">Heading 14/16 pixel</div>
+  <div class="ork-label">Label 12/16 pixel</div>
+  <div style="font:var(--ork-type-button)">Button 13/16 pixel</div>
+  <div>Body 12/18 text: More people try Orkline. Считаем установки каждую неделю. 0123456789 $20.00</div>
+  <div style="font:var(--ork-type-caption);color:var(--ork-ink-muted)">Caption 11/16 text: A goal asks · waits for idea 12</div>
+</section>
+
+<section><h2>Buttons</h2>
+<table><thead><tr><th></th><th>rest</th><th>hover</th><th>pressed</th><th>focus</th><th>disabled</th></tr></thead><tbody><tr><th scope="row">default</th><td><button class="ork-btn  ">Save goal</button></td><td><button class="ork-btn  is-hover">Save goal</button></td><td><button class="ork-btn  is-pressed">Save goal</button></td><td><button class="ork-btn  is-focus">Save goal</button></td><td><button class="ork-btn  is-disabled" disabled>Save goal</button></td></tr><tr><th scope="row">primary</th><td><button class="ork-btn primary ">Save goal</button></td><td><button class="ork-btn primary is-hover">Save goal</button></td><td><button class="ork-btn primary is-pressed">Save goal</button></td><td><button class="ork-btn primary is-focus">Save goal</button></td><td><button class="ork-btn primary is-disabled" disabled>Save goal</button></td></tr><tr><th scope="row">danger</th><td><button class="ork-btn danger ">Stop all</button></td><td><button class="ork-btn danger is-hover">Stop all</button></td><td><button class="ork-btn danger is-pressed">Stop all</button></td><td><button class="ork-btn danger is-focus">Stop all</button></td><td><button class="ork-btn danger is-disabled" disabled>Stop all</button></td></tr><tr><th scope="row">warning</th><td><button class="ork-btn warning ">Spend <span class="ork-num">$5</span></button></td><td><button class="ork-btn warning is-hover">Spend <span class="ork-num">$5</span></button></td><td><button class="ork-btn warning is-pressed">Spend <span class="ork-num">$5</span></button></td><td><button class="ork-btn warning is-focus">Spend <span class="ork-num">$5</span></button></td><td><button class="ork-btn warning is-disabled" disabled>Spend <span class="ork-num">$5</span></button></td></tr><tr><th scope="row">quiet</th><td><button class="ork-btn quiet ">Cancel</button></td><td><button class="ork-btn quiet is-hover">Cancel</button></td><td><button class="ork-btn quiet is-pressed">Cancel</button></td><td><button class="ork-btn quiet is-focus">Cancel</button></td><td><button class="ork-btn quiet is-disabled" disabled>Cancel</button></td></tr></tbody></table></section>
+
+<section><h2>Fields</h2><div class="row" style="max-width:520px">
+  <input class="ork-field" placeholder="A few lines: what you want to reach">
+  <span class="ork-select" style="width:200px"><select class="ork-field"><option>All goals</option></select></span>
+  <button class="ork-btn">Merge into dev <i class="ork-chev"></i></button></div></section>
+
+<section><h2>Tabs, head, tab bar</h2>
+  <div class="box"><div class="ork-tabs"><button class="ork-tab is-on" aria-selected="true">Board</button><button class="ork-tab">Files</button></div></div>
+  <div class="box"><div class="ork-head">Review <span class="ork-count on" style="margin-left:auto">3</span></div></div>
+  <div class="box" style="max-width:390px"><div class="ork-tabbar">
+    <button class="ork-tabbar__tab is-on" aria-selected="true"><svg class="ork-icon"><use href="icons/icons.svg#list-box"/></svg>Board<span class="ork-count on">3</span></button>
+    <button class="ork-tabbar__tab"><svg class="ork-icon"><use href="icons/icons.svg#robot"/></svg>Agents</button>
+    <button class="ork-tabbar__tab"><svg class="ork-icon"><use href="icons/icons.svg#eye"/></svg>Review</button></div></div></section>
+
+<section><h2>Rows, cards, chips, labels</h2><div class="cards">
+  <div class="ork-card"><b>Default</b><div class="ork-ink-muted" style="color:var(--ork-ink-muted)">hairline edge</div></div>
+  <div class="ork-card is-on"><b>Selected</b><div style="color:var(--ork-ink-muted)">raised, a 2 px bar</div></div>
+  <div class="ork-card asks"><svg class="ork-icon" style="color:var(--ork-alert)"><use href="icons/icons.svg#flag"/></svg><b>Asks</b><div style="color:var(--ork-ink-muted)">alert edge</div></div>
+  <div class="ork-card fails"><b>Fails</b><div style="color:var(--ork-ink-muted)">danger edge</div></div></div>
+  <div class="row"><span class="ork-label">Needs you</span><span class="ork-chip">Target: Balance</span><span class="ork-count">3</span>
+  <span style="color:var(--ork-success)"><svg class="ork-icon"><use href="icons/icons.svg#check"/></svg> merged into dev</span>
+  <span style="color:var(--ork-alert)"><svg class="ork-icon"><use href="icons/icons.svg#warning-diamond"/></svg> needs your answer</span>
+  <span style="color:var(--ork-danger)"><svg class="ork-icon"><use href="icons/icons.svg#square-alert"/></svg> tests failed</span></div></section>
+
+<section><h2>Meters, pips, hatching</h2><div class="row">
+  <span class="ork-meter" id="m1"></span> 37 % <span class="ork-meter alert" id="m2"></span> 83 % <span class="ork-meter danger" id="m3"></span> 97 %
+  <span class="ork-pips"><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i class="a"></i><i class="f"></i></span>
+  <span class="ork-hatch" style="width:160px"></span></div></section>
+
+<section><h2>Dialog, menu, toast, key line, think</h2><div class="row" style="align-items:start">
+  <div class="ork-dialog" style="width:360px"><h3 class="ork-dialog__title">New goal</h3><input class="ork-field" placeholder="Description">
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="ork-btn">Cancel</button><button class="ork-btn primary">Save goal</button></div></div>
+  <div class="ork-menu"><button class="ork-menu__item" data-k="a">Open folder…</button><button class="ork-menu__item" data-k="b">Close project</button></div>
+  <div><span class="ork-toast">Saved.</span><p class="ork-think">Taskmaster thinking</p></div></div>
+  <div class="ork-keyline box"><span><span class="ork-kbd">Esc</span> close tab</span><span><span class="ork-kbd">Ctrl+Enter</span> send</span></div></section>
+
+<section><h2>Icons (Pixelarticons, 24 px; the chevrons are this look's own)</h2><div class="icons"><figure><svg class="ork-icon"><use href="icons/icons.svg#arrow-left"/></svg><figcaption>arrow-left</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#arrow-right"/></svg><figcaption>arrow-right</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#check"/></svg><figcaption>check</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#checkbox"/></svg><figcaption>checkbox</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#clock"/></svg><figcaption>clock</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#close"/></svg><figcaption>close</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#coins"/></svg><figcaption>coins</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#eye"/></svg><figcaption>eye</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#file"/></svg><figcaption>file</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#flag"/></svg><figcaption>flag</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#folder"/></svg><figcaption>folder</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#git-merge"/></svg><figcaption>git-merge</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#lightbulb"/></svg><figcaption>lightbulb</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#link"/></svg><figcaption>link</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#list-box"/></svg><figcaption>list-box</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#map"/></svg><figcaption>map</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#moon"/></svg><figcaption>moon</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#more-horizontal"/></svg><figcaption>more-horizontal</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#pencil"/></svg><figcaption>pencil</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#phone"/></svg><figcaption>phone</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#play"/></svg><figcaption>play</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#plus"/></svg><figcaption>plus</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#robot"/></svg><figcaption>robot</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#search"/></svg><figcaption>search</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#sliders"/></svg><figcaption>sliders</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#square-alert"/></svg><figcaption>square-alert</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#stop"/></svg><figcaption>stop</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#trash"/></svg><figcaption>trash</figcaption></figure><figure><svg class="ork-icon"><use href="icons/icons.svg#warning-diamond"/></svg><figcaption>warning-diamond</figcaption></figure></div></section>
+
+<section><h2>Orks</h2><div class="orks" id="orks"></div></section>
+
+<section><h2>Races (laborer, warrior, elder; 48 x 44)</h2><div class="races" id="races"></div></section>
+
+<section><h2>A race beside its word</h2><div class="row" id="race-words"></div>
+  <div class="row"><span class="ork-race big"><img class="ork-race__head" src="races/elf-elder@2x.png" alt=""><span class="ork-race__word">elf <span class="ork-race__tier">elder</span></span></span>
+  <span class="ork-race"><img class="ork-race__head" src="races/peon-warrior.png" srcset="races/peon-warrior@2x.png 2x" alt=""><span class="ork-race__word">peon <span class="ork-race__tier">warrior</span></span></span>
+  <span style="color:var(--ork-alert)"><svg class="ork-icon"><use href="icons/icons.svg#warning-diamond"/></svg> needs your answer</span></div></section>
+
+<script>
+  const css = getComputedStyle(document.documentElement);
+  const sw = document.getElementById("sw");
+  for (const n of ["canvas","panel","raised","frame","edge","ink","ink-muted","ink-faint","on-ink","action","action-hi","action-press","danger","alert","success"]) {
+    const d = document.createElement("div"); d.style.background = "var(--ork-" + n + ")"; d.textContent = n;
+    d.style.color = ["ink","ink-muted","ink-faint","action","action-hi","action-press","danger","alert","success","edge"].includes(n) ? "var(--ork-on-ink)" : "var(--ork-ink)"; sw.append(d); }
+  const cells = (el, on) => { for (let i = 0; i < 16; i++) { const c = document.createElement("i"); if (i < on) c.className = "on"; el.append(c); } };
+  cells(document.getElementById("m1"), 6); cells(document.getElementById("m2"), 13); cells(document.getElementById("m3"), 16);
+  for (const n of ["ork","ork-asleep","ork-asks","ork-failed","ork-working"]) {
+    fetch("ascii/" + n + ".txt").then(r => r.text()).then(t => { const f = document.createElement("figure"); const p = document.createElement("pre"); p.className = "ork-ork";
+      p.textContent = t; p.setAttribute("aria-hidden", "true"); const c = document.createElement("figcaption"); c.textContent = n + ".txt"; f.append(p, c); document.getElementById("orks").append(f); }).catch(() => {});
+  }
+  for (const tier of ["laborer","warrior","elder"]) for (const race of ["peon","knight","goblin","gnome","elf","lich"]) {
+    const f = document.createElement("figure"); const i = document.createElement("img"); i.src = "races/" + race + "-" + tier + "@2x.png";
+    i.width = 48; i.height = 44; i.alt = ""; const c = document.createElement("figcaption"); c.textContent = race + " " + tier; f.append(i, c);
+    document.getElementById("races").append(f); }
+  for (const [race, tier] of [["peon", "laborer"], ["knight", "warrior"], ["goblin", "elder"], ["gnome", "laborer"], ["elf", "warrior"], ["lich", "elder"]]) {
+    const s = document.createElement("span"); s.className = "ork-race"; const i = document.createElement("img"); i.className = "ork-race__head";
+    i.src = "races/" + race + "-" + tier + ".png"; i.srcset = "races/" + race + "-" + tier + "@2x.png 2x"; i.alt = "";
+    const w = document.createElement("span"); w.className = "ork-race__word"; w.textContent = race + " ";
+    const t = document.createElement("span"); t.className = "ork-race__tier"; t.textContent = tier; w.append(t); s.append(i, w);
+    document.getElementById("race-words").append(s); }
+</script>
+</body>
+</html>

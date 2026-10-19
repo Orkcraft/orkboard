@@ -23,7 +23,7 @@ export function AskDialog({ slug, goal = false, title = "" }) {
     if (got) closeDialog();
   };
   return html`<${Modal} title=${`Questions: ${title}`} onClose=${closeDialog} wide=${true}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Later</button>`}>
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Later</button>`}>
     ${questions === null ? html`<p class="ok-tone-muted">Opening…</p>`
       : questions.length ? html`<${Questions} questions=${questions} onSend=${send} />`
         : html`<p class="ok-tone-muted">No question is open any more.</p>`}

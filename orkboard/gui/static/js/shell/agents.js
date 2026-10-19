@@ -2,6 +2,7 @@
 // a monitor — a block per role: its name, model, today's spend and its week (what a result costs, how often it is right the
 // first time), what it takes, its chips (needs you first), Edit — with + Add agent at the top. A chip opens its task.
 import { html, cls } from "../html.js";
+import { Chev } from "../orkui.js";
 import { say } from "../link.js";
 import { agents, agentsLayout, roles, setLayout, showIdea, showGoal, showTask } from "./store.js";
 import { openDialog } from "./modals.js";
@@ -83,9 +84,9 @@ export function AgentsPane() {
   const models = roles.value?.models;
   return html`<section class=${cls("shell-agents", { "is-hidden": hidden })} aria-label="Agents">
     <header class="shell-pane__head"><h2>Agents ${live > 0 && html`<span class="shell-count">${live}</span>`}</h2>
-      ${!hidden && html`<button class="ok-btn primary" onClick=${() => openDialog("agent")}>+ Add agent</button>`}
-      <button class="ok-btn" aria-expanded=${!hidden} aria-label=${hidden ? "Show Agents (Ctrl+J)" : "Hide Agents (Ctrl+J)"}
-        title="Ctrl+J" onClick=${() => setLayout({ hidden: !hidden })}>${hidden ? "▴ show" : "▾ hide"}</button></header>
+      ${!hidden && html`<button class="ork-btn primary" onClick=${() => openDialog("agent")}>+ Add agent</button>`}
+      <button class="ork-btn" aria-expanded=${!hidden} aria-label=${hidden ? "Show Agents (Ctrl+J)" : "Hide Agents (Ctrl+J)"}
+        title="Ctrl+J" onClick=${() => setLayout({ hidden: !hidden })}>${hidden ? html`<${Chev} dir="up" /> show` : html`<${Chev} /> hide`}</button></header>
     ${!hidden && html`<div class="shell-agents__body">
       ${a ? a.roles.map((r) => r.role === "taskmaster" ? html`<${Taskmaster} key=${r.role} role=${r} models=${models} />`
         : html`<${Worker} key=${r.role} role=${r} done=${a.done_today || []} models=${models} />`) : html`<p class="ok-tone-muted">Opening…</p>`}

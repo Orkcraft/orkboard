@@ -12,14 +12,14 @@ export function Dialog({ title, meta, text, children, actions, onCancel, warn = 
     return () => window.removeEventListener("keydown", key);
   }, [onCancel]);
   return html`<div class="gui-modal" onClick=${(e) => e.target === e.currentTarget && onCancel()}>
-    <div class=${cls("ok-dialog", { "is-warn": warn, "is-wide": wide })} role="dialog" aria-modal="true" aria-label=${title}>
-      <div class="ok-dialog__head"><h3 class="ok-dialog__title">${title}</h3></div>
-      ${meta && html`<p class="ok-dialog__hint gui-dialog__meta">${meta}</p>`}
+    <div class=${cls("ork-dialog gui-dialog", { "is-warn": warn, "is-wide": wide })} role="dialog" aria-modal="true" aria-label=${title}>
+      <h3 class="ork-dialog__title">${title}</h3>
+      ${meta && html`<p class="gui-dialog__meta">${meta}</p>`}
       <div class="gui-dialog__body">
-        ${text && html`<p class="ok-dialog__text">${linked(text)}</p>`}
+        ${text && html`<p class="gui-dialog__text">${linked(text)}</p>`}
         ${children}
       </div>
-      <div class="ok-dialog__actions">${actions}</div>
+      <div class="gui-dialog__actions">${actions}</div>
     </div>
   </div>`;
 }

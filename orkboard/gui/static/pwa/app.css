@@ -1,814 +1,371 @@
-/* The town in a phone's browser (gui/pwa.py), on the desktop's design system: its colours (tokens.css, the camp
-   and office themes, set on the root as data-theme) and its components (components.css: ok-btn, ok-input,
-   ok-tabs, ok-hud, ok-res). What is here is only what a phone needs on top of them: thumb-sized targets, the
-   page's layout, the fence round a window in Camp, the bar at the foot and the sheets. The look follows the
-   town's; Office follows the phone's light or dark. */
-:root {
-  --inset: var(--panel-inset); --muted: var(--ink-muted); --accent: var(--success); --warn: var(--warning); --gold: var(--ink-gold);
-  --dock: 4.25rem;   /* the bar at the foot, without the safe area under it */
-  --font-name: var(--ok-font);
-  color-scheme: dark;
-}
-:root[data-theme="camp"] { --font-name: "Pixelify Sans", var(--font-camp); }  /* the map's names */
-/* Office in a light phone: the office theme's roles, light (the desktop's Office is dark only). */
-@media (prefers-color-scheme: light) {
-  :root[data-theme="office"] {
-    --canvas: #f4f4f4; --terrain: #f4f4f4; --panel: #ffffff; --panel-inset: #f0f0f0; --panel-raised: #f7f7f7;
-    --bevel-hi: #e6e6e6; --bevel-lo: #d6d6d6; --selection: #e6eefb; --frame: #d6d6d6; --frame-strong: #bdbdbd;
-    --ink: #1f1f1f; --ink-muted: #5c5c5c; --ink-comment: #8a8a8a; --ink-gold: #8a5a00;
-    --action: #3f7a1f; --on-action: #ffffff; --success: #3f7a1f; --warning: #8a5a00; --alert: #a16207; --danger: #b42318;
-    --bevel-sunken: inset 0 0 0 1px #d6d6d6; --shadow-window: 0 6px 20px rgba(0, 0, 0, 0.15);
-    color-scheme: light;
-  }
-}
+/* Orkboard on a phone (gui/pwa.py, board-app.js, board.js, shell-*.js; docs/specs/33-v1-shell.md §6, §8), in orkUI's office
+   look (fonts.css, tokens.css, components.css beside this file; docs/specs/40-design-system.md): dark, monochrome, colour a
+   signal, the pixel face for headings and buttons only, nothing round. Designed at 390 × 844: a control is 40 px drawn and
+   44 to hit, text 16/22, the tabs at the thumb. What is here is only the phone's layout on top of orkUI's components. */
+:root { --tabs: 64px; }
 
 * { box-sizing: border-box; }
-/* The page stands on the ground of the orkspace it shows (ground.js): its colour and, in Camp, its glyphs. */
-html, body { margin: 0; color: var(--ink); background: var(--canvas); }
-body { background: var(--canvas) var(--terrain-image, none) repeat; background-size: 480px 432px; }
-/* The phone's own text size: iOS's Dynamic Type through -apple-system-body (elsewhere the browser's 16px and
-   its own text scaling); every size below is in rem, so it follows. */
-html { font: -apple-system-body; }
-body { font-family: var(--ok-font); font-size: 1rem; line-height: 1.4; -webkit-text-size-adjust: 100%; }
-h1, h2 { font-family: var(--ok-head); font-weight: 400; }
-:root[data-theme="office"] h1, :root[data-theme="office"] h2 { font-weight: 600; }
-.tile-name, .cell-name { font-family: var(--font-name); }
-.app { max-width: 640px; margin: 0 auto;
-  padding: max(12px, env(safe-area-inset-top)) 16px calc(var(--dock) + 16px + env(safe-area-inset-bottom));
-  display: flex; flex-direction: column; gap: 12px; }
-.no-dock .app { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
-h1 { font-size: 1.25rem; margin: 0; overflow-wrap: anywhere; }
-h1 small { font-size: 0.8125rem; color: var(--muted); font-family: var(--ok-font); }
-h2 { font-size: 1rem; margin: 0 0 8px; color: var(--gold); letter-spacing: .03em; }
-:root[data-theme="office"] h2 { font-size: 0.875rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-h3 { font-size: 0.875rem; margin: 8px 0 4px; color: var(--muted); font-weight: 600; }
-p { margin: 0 0 8px; }
-.muted { color: var(--muted); font-size: 0.875rem; }
-.warn { color: var(--warn); font-size: 0.875rem; }
-.done { color: var(--accent); font-weight: 600; margin: 0; }
-.mark { width: 28px; height: 28px; vertical-align: -6px; margin-right: 8px; image-rendering: pixelated; }
-:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
+html, body { margin: 0; background: var(--ork-canvas); color: var(--ork-ink); }
+body { font: var(--ork-type-body); -webkit-text-size-adjust: 100%; overflow-wrap: anywhere; }
+h1, h2 { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+h1 { font: var(--ork-type-title); }
+h1 small { font: var(--ork-type-caption); color: var(--ork-ink-muted); text-transform: none; letter-spacing: 0; }
+h2 { color: var(--ork-ink); margin: 0 0 var(--ork-4); }
+h3 { margin: var(--ork-4) 0 var(--ork-2); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track);
+  color: var(--ork-ink-muted); }
+p { margin: 0 0 var(--ork-4); }
+code, pre, kbd { font-family: var(--ork-font-code); }
+.muted { color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.warn { color: var(--ork-alert); font: var(--ork-type-caption); }
+:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 [hidden] { display: none !important; }
-
-/* -- the design system at a thumb's size: every target at least 44 px, text in rem, inputs at 16 px (iOS zooms in
-   on a smaller one) ----------------------------------------------------------------------------------------- */
-:root .ok-btn { min-height: 44px; height: auto; padding: 8px 14px; font-size: 0.8125rem; line-height: 1.15;
-  justify-content: center; text-align: center; white-space: normal; }
-:root .ok-btn:active { padding: 10px 14px 6px; }
-:root[data-theme="office"] .ok-btn:active { padding: 8px 14px; }
-:root .ok-input { min-height: 44px; height: auto; padding: 8px 10px; font-size: 1rem; line-height: 1.3; }
-:root textarea.ok-input { resize: vertical; }
-:root .ok-tab { min-height: 44px; height: auto; font-size: 0.8125rem; flex: 0 0 auto; border: 0; appearance: none; }
-.ok-tabs { overflow-x: auto; scrollbar-width: none; }
-.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-.row .ok-input { flex: 1 1 auto; width: auto; }
-.file { flex: 1 1 auto; min-width: 0; font-size: 0.875rem; color: var(--muted); }
-
-/* -- the head: the resources before the town's name, as the desktop's HUD (components.css Hud) ---------------- */
-.head.ok-hud { height: auto; min-height: 44px; padding: 8px 12px; gap: 8px 14px; flex-wrap: wrap; white-space: normal; overflow: visible; }
-.head .hud { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.head .ok-res { font-size: 0.875rem; }
-.head .ok-res img { width: 20px; height: 20px; }
-.head h1 { flex: 1 1 auto; min-width: 0; font-size: 1.25rem; line-height: 1.2; }
-:root[data-theme="office"] .head h1 { font-size: 1.0625rem; }
-.head .sleep { flex: 1 0 100%; margin: 0; }
-
-/* -- cards ---------------------------------------------------------------------------------------------------- */
-.card { background: var(--panel); border: 1px solid var(--frame); border-radius: var(--ok-radius-lg); padding: 12px; box-shadow: var(--card-edge); }
-:root[data-theme="camp"] .card { border-width: 2px; }
-.install { border-color: var(--action); }
-.install p { margin-bottom: 8px; }
-.status { margin: 0; padding: 6px 10px; border-radius: var(--ok-radius-md); background: var(--inset); color: var(--warn); font-size: 0.875rem; }
-
-/* A window of the town (util.js `fenced`), as the desktop's (yards.css §3): in Camp its name over it and the fence
-   round its yard — pickets along the top and the bottom, a side of stakes on a rail each side, a bone tusk where
-   the top fence ends and a stout post at each foot (design-system/sprites/fence); the plain panel inside, so text
-   never sits on wood. In Office a plain card. */
-:root[data-theme="camp"] .fenced {
-  --fence-o: #1a1813; --fence-m: #5a4730; --fence-h: #7a6240;
-  --yard: color-mix(in srgb, var(--panel) 92%, transparent);
-  --fence-row: image-set(url("fence/row.png") 1x, url("fence/row@2x.png") 2x);
-  --fence-side: image-set(url("fence/side.png") 1x, url("fence/side@2x.png") 2x);
-  --tusk: image-set(url("fence/tusk-1.png") 1x, url("fence/tusk-1@2x.png") 2x);
-  --corner-post: image-set(url("fence/corner-post.png") 1x, url("fence/corner-post@2x.png") 2x);
-  --fence-rail: linear-gradient(90deg, var(--fence-o) 0 1px, var(--fence-h) 1px 3px, var(--fence-m) 3px 6px, var(--fence-o) 6px 7px);
-  background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
-:root[data-theme="camp"] .fenced > h2, :root[data-theme="camp"] .fenced > .w-head { margin: 0 0 -2px 6px; position: relative; z-index: 2;
-  text-shadow: 0 1px 0 #000, 0 0 6px #000; }
-:root[data-theme="camp"] .fenced > .yard { position: relative; padding: 31px 23px 33px; image-rendering: pixelated;
-  background: linear-gradient(var(--yard), var(--yard)) 7px 24px / calc(100% - 14px) calc(100% - 38px) no-repeat; }
-:root[data-theme="camp"] .fenced > .yard > * { position: relative; z-index: 1; }
-:root[data-theme="camp"] .fenced > .yard::before { content: ""; position: absolute; left: 0; right: 0; top: 27px; bottom: 14px;
-  pointer-events: none; image-rendering: pixelated; background:
-    var(--fence-side) left top / 15px 27px no-repeat space,
-    var(--fence-side) right top / 15px 27px no-repeat space,
-    var(--fence-rail) 4px 0 / 7px 100% no-repeat,
-    var(--fence-rail) right 4px top 0 / 7px 100% no-repeat; }
-:root[data-theme="camp"] .fenced > .yard::after { content: ""; position: absolute; left: -6px; right: -6px; top: 0; bottom: 0; padding: 0 6px;
-  pointer-events: none; image-rendering: pixelated; background:
-    var(--tusk) right 9px top / 21px 27px no-repeat border-box,
-    var(--corner-post) left bottom / 27px 36px no-repeat border-box,
-    var(--corner-post) right bottom / 27px 36px no-repeat border-box,
-    var(--fence-row) left top 6px / 21px 21px round no-repeat content-box,
-    var(--fence-row) left bottom / 21px 21px round no-repeat content-box; }
-/* A window whose ork asks: the fence glows as on the desktop, the yard takes the warning's ground. */
-:root[data-theme="camp"] .fenced.asking > .yard { --yard: color-mix(in srgb, var(--warning) 10%, var(--panel)); }
-:root[data-theme="camp"] .fenced.asking > .yard::before, :root[data-theme="camp"] .fenced.asking > .yard::after {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--warning) 70%, transparent)); }
-:root[data-theme="office"] .fenced > h2 { margin-bottom: 8px; }
-
-/* -- what asks, said once over the questions ------------------------------------------------------------------ */
-.summary { margin: 0 0 10px; color: var(--muted); }
-.summary.asks { color: var(--ink); font-weight: 600; }
-.summary.long { color: var(--warn); }
-.tiles { display: flex; flex-direction: column; gap: 8px; }
-.tile { border: 1px solid var(--frame); border-radius: var(--ok-radius-md); background: var(--inset); }
-.tile.is-open { border-color: var(--warning); }
-.tile-head, .row-b { font: inherit; color: inherit; background: none; border: 0; width: 100%; min-height: 52px; padding: 6px 10px;
-  display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer; }
-.tile-mark { flex: none; width: 40px; height: 40px; display: grid; place-items: center; }
-.tile-name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow-wrap: anywhere; font-weight: 600; }
-.tile-name small { font-family: var(--ok-font); font-weight: 400; font-size: 0.8125rem; }
-.chev { flex: none; color: var(--muted); }
-.tile-body { padding: 0 10px 10px; }
-.question { border-top: 1px solid var(--frame); padding-top: 10px; }
-.question:first-child { border-top: 0; padding-top: 0; }
-.question .title { font-size: 1rem; font-weight: 600; margin: 0 0 8px; overflow-wrap: anywhere; font-family: var(--ok-font); color: var(--ink); }
-.question pre { font-family: var(--font-mono); margin: 0 0 8px; padding: 8px; background: var(--canvas); border-radius: var(--ok-radius-md);
-  font-size: 0.75rem; overflow-x: auto; white-space: pre-wrap; }
-.advice { font-size: 0.875rem; color: var(--muted); }
-.answers { display: flex; flex-wrap: wrap; gap: 8px; }
-
-/* -- the buildings (town.js): the orkspace's tabs, rows of what is in trouble or at work, a grid of the quiet --- */
-.spaces { margin-bottom: 8px; }
-.q-dot { min-width: 1.25rem; padding: 0 5px; border-radius: 999px; background: var(--alert); color: var(--on-action);
-  font-size: 0.6875rem; line-height: 1.25rem; text-align: center; letter-spacing: 0; }
-.rows { display: flex; flex-direction: column; margin-bottom: 8px; border: 1px solid var(--frame); border-radius: var(--ok-radius-md); background: var(--inset); }
-.row-b + .row-b { border-top: 1px solid var(--frame); }
-.state { flex: none; font-size: 0.75rem; border: 1px solid currentColor; border-radius: 999px; padding: 1px 8px; }
-.state.trouble { color: var(--danger); }
-.state.work { color: var(--accent); }
-.quiet-head { margin-top: 4px; }
-.grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr)); gap: 4px; }
-.cell { font: inherit; color: inherit; background: none; border: 1px solid transparent; border-radius: var(--ok-radius-md); width: 100%;
-  min-height: 5.25rem; padding: 6px 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
-.cell:active { background: var(--inset); }
-.cell-mark { height: 2.5rem; display: grid; place-items: center; }
-.cell-name { font-size: 0.75rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.mark-sprite { width: 3.25rem; height: auto; max-height: 2.5rem; object-fit: contain; }
-.tile-mark .mark-sprite { width: 2.5rem; }
-.mark-line { width: 1.75rem; height: 1.75rem; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
-.info { display: flex; flex-direction: column; gap: 8px; }
-.info-mark { display: grid; place-items: center; padding: 8px; }
-.info-mark .mark-sprite { width: 7rem; max-height: none; }
-.info-mark .mark-line { width: 3rem; height: 3rem; }
-.info b { font-weight: 600; }
-.info h3 { margin-bottom: 0; }
-.q-acts { margin-top: 0; }
-.q-form { display: flex; flex-direction: column; gap: 8px; }
-.q-form .row { margin-top: 0; }
-
-/* the roads (links.js): a block per chain, a › where the one before sends to it; a long press lights neighbours */
-.blocks { display: flex; flex-direction: column; gap: 10px; }
-.grid.linked { border: 1px dashed var(--frame); border-radius: var(--ok-radius-md); padding: 4px; }
-.grid li { position: relative; }
-.grid li.fed::before { content: "›"; position: absolute; left: -6px; top: 1.1rem; color: var(--muted); font-size: 1rem; line-height: 1; }
-.lighting [data-b] { opacity: .3; transition: opacity .15s; }
-.lighting [data-b].is-near, .lighting [data-b].is-focus { opacity: 1; }
-.lighting [data-b].is-focus { outline: 2px solid var(--frame-focus); outline-offset: -2px; }
-.lighting [data-b].is-near { outline: 1px solid var(--warning); outline-offset: -1px; }
-.lit { position: fixed; left: 16px; right: 16px; bottom: calc(var(--dock) + 8px + env(safe-area-inset-bottom)); z-index: 2;
-  margin: 0 auto; max-width: 608px; padding: 8px 10px; background: var(--inset); border: 1px solid var(--frame); border-radius: var(--ok-radius-md); }
-[data-b] { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-
-/* -- Task Fields kept open (fields.js): a widget ---------------------------------------------------------------- */
-.widget .yard { display: flex; flex-direction: column; gap: 4px; }
-.w-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.w-head h2 { margin: 0; }
-.widget h3 { margin: 6px 0 2px; color: var(--ink); }
-.widget .new { color: var(--warn); }
-.w-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.w-list li { display: flex; gap: 8px; overflow-wrap: anywhere; }
-.w-sign { flex: none; color: var(--muted); width: 1em; }
-.w-more { margin: 2px 0 0; }
-.w-work { font: inherit; color: inherit; background: none; border: 0; border-top: 1px solid var(--frame); margin-top: 8px;
-  min-height: 44px; padding: 6px 0; display: flex; gap: 8px; align-items: center; text-align: left; cursor: pointer; width: 100%; }
-.w-work > span:first-child { font-weight: 600; flex: none; }
-.w-work .muted { flex: 1 1 auto; min-width: 0; }
-.w-lanes { display: flex; flex-direction: column; gap: 4px; }
-.w-add { display: flex; gap: 8px; margin-top: 8px; }
-.w-add .ok-btn { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+.app { max-width: 640px; margin: 0 auto; padding: 0 var(--ork-6) calc(var(--tabs) + var(--ork-6) + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: var(--ork-5); }
+.app > div:empty, .status:empty { display: none; }
+.card { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); padding: var(--ork-5); }
+.status { margin: 0; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-alert); color: var(--ork-alert); font: var(--ork-type-caption); }
+.row { display: flex; gap: var(--ork-4); align-items: center; flex-wrap: wrap; margin-top: var(--ork-4); }
+.row .ork-field { flex: 1 1 auto; width: auto; }
+.row.between { justify-content: space-between; }
 .hint { margin: 0; }
-.trail { list-style: none; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px dashed var(--frame); display: flex;
-  flex-direction: column; gap: 2px; font-size: 0.875rem; }
-.trail li { display: flex; gap: 8px; overflow-wrap: anywhere; }
-.trail time { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
-
-/* -- this phone, at the page's foot: the look, notices, Unpair, the version ----------------------------------- */
-.phone { margin-top: 12px; padding: 12px; border-top: 1px solid var(--frame); background: color-mix(in srgb, var(--canvas) 70%, transparent); }
-.phone h2 { margin-bottom: 6px; }
-.looks { margin-bottom: 6px; }
-.foot { margin: 8px 0 0; text-align: center; }
-
-/* -- news over the bar ------------------------------------------------------------------------------------------ */
-.news { position: fixed; left: 0; right: 0; bottom: calc(var(--dock) + env(safe-area-inset-bottom)); z-index: 2;
-  display: flex; flex-direction: column; gap: 6px; padding: 0 16px 8px; max-width: 640px; margin: 0 auto; pointer-events: none; }
-.no-dock .news { bottom: env(safe-area-inset-bottom); }
-.flash { margin: 0; padding: 8px 10px; border-left: 3px solid var(--action); background: var(--panel); border-radius: var(--ok-radius-md);
-  font-size: 0.875rem; box-shadow: var(--shadow-window); }
-
-/* -- the bar at the foot (dock.js): where the thumb is ---------------------------------------------------------- */
-.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; background: var(--panel); border-top: 2px solid var(--frame);
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
-:root[data-theme="office"] .dock { border-top-width: 1px; }
-.dock-in { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; }
-.dock .ok-btn { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
-.dock .stop { flex: 1.4 1 0; position: relative; overflow: hidden; flex-direction: column; line-height: 1.1;
-  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.stop small { font-size: 0.6875rem; font-weight: 400; color: var(--muted); text-transform: none; }
-.stop > * { position: relative; }
-/* Holding fills the button from the left: the hold is seen, and letting go before it is full stops nothing. */
-.stop::before { content: ""; position: absolute; inset: 0; width: 0; background: var(--danger); opacity: .28; }
-.stop.holding::before { width: 100%; transition: width 1.2s linear; }
-
-/* -- a sheet over the town, from the foot (util.js `sheet`) ----------------------------------------------------- */
-.sheet { margin: auto 0 0; width: 100%; max-width: 100%; max-height: 85dvh; padding: 0; border: 0; border-top: 2px solid var(--frame);
-  border-radius: 0; background: var(--panel); color: var(--ink); box-shadow: var(--shadow-window); }
-:root[data-theme="office"] .sheet { border-top-width: 1px; border-radius: 12px 12px 0 0; }
-.sheet::backdrop { background: rgb(0 0 0 / .5); }
-.sheet-in { max-width: 640px; margin: 0 auto; padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-  display: flex; flex-direction: column; gap: 10px; }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.sheet-head h2 { margin: 0; }
-.sheet .ok-btn.danger { width: 100%; }
-.chat { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.msg .who { font-size: 0.75rem; color: var(--muted); }
-
-/* -- away from the town (stage 5) ------------------------------------------------------------------------------- */
-.offline .asking, .offline .widget, .offline .quiet { opacity: .5; filter: grayscale(.6); }
-
-@media (prefers-reduced-motion: reduce) { .lighting [data-b] { transition: none; } .stop.holding::before { transition: none; } }
-
-/* -- since your last look (look.js): the line the camp opens under ------------------------------------------- */
-.look .look-line { font-size: 1rem; font-weight: 600; margin: 0 0 6px; }
-.look-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 0; }
-.look-open { all: unset; cursor: pointer; display: flex; align-items: center; min-height: 44px; line-height: 1.3;
-  color: var(--ink); text-decoration: underline; text-decoration-color: var(--frame-strong); }
-.look-open:focus-visible { outline: 2px solid var(--frame-focus); }
-.look .row { margin-top: 4px; }
-
-/* -- the living camp in v3 (camp.js, design-system-v3.md): the desktop's layout and sprites, each at a whole number of
-   device px an art px (image-rendering: pixelated); ❓ ! and chips as UI; a finger pans, two pinch a zoom step ------ */
-.camp { position: relative; border-radius: var(--ok-radius-lg); overflow: hidden; border: 2px solid var(--frame);
-  background: var(--world-grass, #7cbd40); }
-.camp-view { position: relative; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
-.camp-world { position: absolute; left: 0; top: 0; will-change: transform; }
-.camp-px { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; max-width: none; pointer-events: none; }
-.camp-px.is-hd { image-rendering: auto; }   /* its high-density cut at one image px per device px */
-.camp-earth { position: absolute; background: var(--world-earth, #e4b469); }
-.camp-logs { position: absolute; background: var(--art-wood, #c88444); border-bottom: 2px solid var(--art-outline, #1c1410); }
-.camp-block { position: absolute; background: var(--art-wood, #c88444); border: 2px solid var(--art-outline, #1c1410); }
-.camp-hut { all: unset; position: absolute; cursor: pointer; -webkit-tap-highlight-color: transparent; min-width: 44px; min-height: 44px; }
-.camp-hut .camp-sprite { left: 0; top: 0; }
-.camp-hut:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
-.camp-hut.is-selected .camp-sprite { filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff); }
-.camp-name, .camp-chip { position: absolute; z-index: 1; white-space: nowrap; height: 24px; display: inline-flex; align-items: center;
-  padding: 0 8px; font-family: var(--font-name); font-size: 0.8125rem; background: var(--chip, #1c1712); color: var(--chip-ink, #e8e0c8);
-  border: 1px solid var(--art-outline, #1c1410); }
-.camp-name { left: 50%; transform: translateX(-50%); }
-.camp-name.is-top { top: 12%; }
-.camp-name.is-under { top: 100%; }
-/* ❓ and !: at least 28 px, whatever the art's scale (design-system-v3.md §5) */
-.camp-sig { position: absolute; top: -6px; left: 50%; transform: translate(-50%, -100%); min-width: 28px; height: 28px; padding: 0 6px;
-  display: flex; align-items: center; justify-content: center; font-size: 1rem; line-height: 1; font-weight: 700; z-index: 2;
-  background: var(--chip, #1c1712); color: var(--signal-ask, #facc15); border: 1px solid var(--art-outline, #1c1410);
-  box-shadow: inset 0 0 0 1px var(--chip-ink, #e8e0c8); }
-.camp-sig.fire { color: var(--signal-fire, #e8411c); }
-.camp-ork { all: unset; position: absolute; cursor: pointer; background-repeat: no-repeat; image-rendering: pixelated; }
-.camp-ork.is-hd { image-rendering: auto; }   /* its high-density cut at one image px per device px */
-.camp-bubble { all: unset; position: absolute; transform: translate(-50%, -100%); padding: 4px 10px; background: #fff; color: #3d2a23;
-  border: 2px solid var(--art-outline, #1c1410); border-radius: 12px; font-weight: 700; cursor: pointer; z-index: 40; }
-.camp-scrolls { position: absolute; left: 8px; right: 8px; top: 8px; z-index: 100; pointer-events: none; }
-.camp-scroll { pointer-events: auto; padding: 10px 12px; box-shadow: 0 4px 0 rgb(0 0 0 / .25);
-  background: var(--parchment, #ebdebb); color: var(--parchment-ink, #3d2a23); border: 3px solid var(--walnut, #3d2a23); }
-.camp-scroll p { margin: 4px 0; font-size: 0.875rem; }
-.camp-scroll .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-.camp-cart { all: unset; position: absolute; left: 0; top: 0; width: 0; height: 0; cursor: pointer; z-index: 30; }
-.camp-cart .camp-px { pointer-events: auto; }
-.camp-cart .camp-chip { left: 0; top: 6px; transform: translateX(-50%); }
-.camp-cart.is-ask .camp-chip { color: var(--signal-ask, #facc15); }
-.camp-cart.is-rolling { offset-rotate: 0deg; offset-anchor: 0 0; animation: camp-roll linear 1 both; }
-@keyframes camp-roll { from { offset-distance: 0%; } 96% { offset-distance: 100%; opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
-.camp.is-hidden .camp-cart { animation-play-state: paused; }
-@media (prefers-reduced-motion: reduce) { .camp-cart.is-rolling { animation-duration: .01s !important; } }
-
-/* -- 🥩 in the head opens the orks at work (slots.js) --------------------------------------------------------- */
-.head .meat { all: unset; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; cursor: pointer; }
-.head .meat:focus-visible { outline: 2px solid var(--frame-focus); }
-.meat-sig { font-size: 0.875rem; font-weight: 700; }
-.slots { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-.slot { display: flex; align-items: center; gap: 8px; }
-.slot-line { all: unset; flex: 1 1 auto; min-height: 44px; display: flex; gap: 8px; align-items: center; cursor: pointer; font-size: 0.875rem; }
-.slot-mark { flex: 0 0 auto; min-width: 24px; text-align: center; }
-.slots-stop { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
-
-/* -- the pinned context of an ork's question, and the bar's Idea ------------------------------------------------ */
-.question .pinned { font-size: 0.875rem; padding: 6px 8px; background: var(--inset); border-left: 3px solid var(--alert); }
-.question.pool .pool-q h3 { margin-top: 8px; }
-.dock .idea { flex: 1.1 1 0; }
-.head .score { white-space: nowrap; }
-.head .score .trend { margin-left: 3px; color: var(--success); }
-@media (max-width: 400px) { .head .score img { display: none; } .head .hud { column-gap: 8px; } }
-
-/* -- the board in focus (board.js, docs/specs/29a-board-focus.md §7): designed at 390 px; the thumb's actions at the
-   bottom — the tabs, and on an idea the action and the ask box — over the roles of the design system ------------- */
-:root { --tabs: 3.5rem; }
-.focus-board .app { padding-bottom: calc(var(--tabs) + 16px + env(safe-area-inset-bottom)); }
-.focus-board .news { bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); }
-.board { display: flex; flex-direction: column; gap: 12px; }
-.board-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px;
-  background: var(--panel); border: 1px solid var(--frame); border-radius: var(--ok-radius-lg); }
-.board-name { min-width: 0; display: flex; flex-direction: column; }
-.board-bar .ok-btn.board-stop { flex: none; }
-.board .pane { display: flex; flex-direction: column; gap: 8px; }
-.board h2 { margin: 4px 0 0; }
-.board-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; gap: 8px; background: var(--panel);
-  border-top: 2px solid var(--frame); padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
-:root[data-theme="office"] .board-tabs { border-top-width: 1px; }
-.board-tab { flex: 1 1 0; min-height: 44px; font: inherit; font-size: 0.9375rem; font-weight: 600; color: var(--muted); background: none;
-  border: 1px solid transparent; border-radius: var(--ok-radius-md); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
-.board-tab.is-active { color: var(--ink); background: var(--inset); border-color: var(--frame-strong); }
-.is-open .board-tabs { display: none; }
-.is-open .board-bar { display: none; }
-.focus-board:has(.board.is-open) .app { padding-bottom: 16px; }
-.focus-board:has(.board.is-open) .news { bottom: 0; }
-
-.need, .todo { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; color: inherit; }
-.need { cursor: pointer; min-height: 56px; }
-.need-asks { border-left: 4px solid var(--warning); }
-.need-plan { border-left: 4px solid var(--action); }
-.need-failed { border-left: 4px solid var(--danger); }
-.need-held { border-left: 4px solid var(--frame-strong); }
-.need-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow-wrap: anywhere; }
-.need-text small { color: var(--muted); font-size: 0.8125rem; }
-.need-mark { flex: none; font-size: 1.25rem; width: 1.75rem; text-align: center; }
-.todo { flex-direction: column; align-items: stretch; }
-.todo-head { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
-.todo.is-done .need-text { text-decoration: line-through; color: var(--muted); }
-.check { flex: none; width: 1.75rem; height: 1.75rem; border: 2px solid var(--frame-strong); border-radius: var(--ok-radius-md);
-  display: grid; place-items: center; color: var(--on-action); font-weight: 700; }
-.check.is-on { background: var(--action); border-color: var(--action); }
-.steps { margin: 0 0 8px; padding-left: 1.4rem; }
-.steps li { margin-bottom: 4px; overflow-wrap: anywhere; }
-.linkish { all: unset; cursor: pointer; text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
-.foot-line { text-align: center; margin-top: 8px; }
-
-.track-switch { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-.track { flex: none; min-height: 44px; font: inherit; font-size: 0.875rem; color: var(--muted); background: var(--inset);
-  border: 1px solid var(--frame); border-radius: 999px; padding: 0 14px; cursor: pointer; }
-.track.is-active { color: var(--ink); border-color: var(--action); background: var(--panel); font-weight: 600; }
-.ideas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.idea-card { background: var(--panel); border: 1px solid var(--frame); border-radius: var(--ok-radius-lg); touch-action: pan-y;
-  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-:root[data-theme="camp"] .idea-card { border-width: 2px; }
-.idea-card.is-dragging { position: relative; z-index: 2; box-shadow: var(--shadow-window); border-color: var(--action); touch-action: none; }
-.idea-open { all: unset; box-sizing: border-box; width: 100%; min-height: 56px; padding: 10px 12px; cursor: pointer; display: flex;
-  flex-direction: column; gap: 4px; }
-.idea-title { font-weight: 600; overflow-wrap: anywhere; }
-.idea-thesis { color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden; }
-.idea-meta { display: flex; gap: 8px; align-items: center; font-size: 0.75rem; }
-.size { border: 1px solid var(--frame-strong); border-radius: var(--ok-radius-md); padding: 0 6px; font-weight: 700; }
-.state-word { border: 1px solid currentColor; border-radius: 999px; padding: 1px 8px; color: var(--muted); }
-.state-word.asks, .state-word.plan { color: var(--warning); }
-.state-word.work, .state-word.ready, .state-word.done { color: var(--accent); }
-.state-word.failed { color: var(--danger); }
-
-.idea-head { display: flex; justify-content: space-between; gap: 8px; }
-.idea-nudge { display: flex; gap: 8px; }
-.idea-nudge .ok-btn { min-width: 44px; }
-.idea-name { font-size: 1.125rem; margin: 0; color: var(--ink); overflow-wrap: anywhere; }
-.sec { --role: var(--muted); background: var(--panel); border: 1px solid var(--frame); border-left: 4px solid var(--role);
-  border-radius: var(--ok-radius-md); }
-.sec-action { --role: var(--action); } .sec-gold { --role: var(--gold); } .sec-success { --role: var(--success); }
-.sec-danger { --role: var(--danger); } .sec-warning { --role: var(--warning); } .sec-muted { --role: var(--frame-strong); }
-.sec-head { all: unset; box-sizing: border-box; width: 100%; min-height: 52px; padding: 8px 12px; cursor: pointer; display: flex;
-  align-items: center; gap: 10px; }
-.sec-icon { flex: none; width: 1.5rem; text-align: center; color: var(--role); font-size: 1.125rem; }
-.sec-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.sec-name { color: var(--role); font-size: 0.75rem; text-transform: uppercase; letter-spacing: .05em; }
-.sec-body .thesis { font-weight: 600; overflow-wrap: anywhere; }
-.sec-text { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-.sec-text p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.plan .tasks { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.task { display: flex; flex-direction: column; overflow-wrap: anywhere; }
-.task.t-merged .task-title { color: var(--accent); }
-.task.t-failed .task-title { color: var(--danger); }
-.talk { display: flex; flex-direction: column; gap: 6px; }
-.turn { padding: 8px 10px; border-radius: var(--ok-radius-md); background: var(--inset); }
-.turn.you { border-left: 3px solid var(--action); }
-.turn.keeper { border-left: 3px solid var(--gold); }
-.turn .who { font-size: 0.75rem; color: var(--muted); }
-.turn p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9375rem; }
-/* the thumb's end of an idea: what the state allows, then the ask box, kept at the bottom of the screen */
-.idea-foot { position: sticky; bottom: 0; z-index: 2; margin: 8px -16px 0; padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-  background: var(--panel); border-top: 2px solid var(--frame); display: flex; flex-direction: column; gap: 8px; }
-:root[data-theme="office"] .idea-foot { border-top-width: 1px; }
-.idea-foot:empty { display: none; }
-.idea-foot .big { width: 100%; }
-.idea-foot .row { margin-top: 0; flex-wrap: nowrap; }
-.ask { display: flex; flex-direction: column; gap: 6px; }
-.about { all: unset; align-self: flex-start; cursor: pointer; font-size: 0.8125rem; padding: 4px 12px; min-height: 44px;
-  border: 1px solid var(--action); border-radius: 999px; color: var(--ink); box-sizing: border-box; display: inline-flex; align-items: center; }
-.ask textarea.ok-input { resize: none; min-height: 44px; max-height: 8rem; }
-.sec-kit { display: none; }
-
-/* -- the board in Camp: v4's kit (docs/design/design-system-v4.md) at a phone's size. The pieces are tools/ui_kit.py's,
-   served as ui/<piece>.png (gui/pwa.py), drawn pixelated at whole multiples; the pixel face (Jersey 15) only for
-   headings, numbers and buttons, every sentence in the body face. Office keeps the rules above. ------------------- */
-:root[data-look="camp"] .board { --kit-face: 400 1.25rem/1.2 var(--font-kit); --kit-head: 400 1.375rem/1.1 var(--font-kit); }
-/* the top bar: the bar's wood round parchment, the spend in a framed chip, Stop all a teal button */
-:root[data-look="camp"] .board-bar { border: var(--kit-bar) solid transparent; border-radius: 0; padding: 2px 4px 2px 8px; image-rendering: pixelated;
-  border-image: image-set(url("ui/bar.png") 1x, url("ui/bar@2x.png") 2x) 10 / var(--kit-bar) round;
-  background: var(--parchment) image-set(url("ui/parchment.png") 1x, url("ui/parchment@2x.png") 2x) repeat; background-clip: padding-box;
-  color: var(--parchment-ink); }
-:root[data-look="camp"] .board-bar h1 { font: var(--kit-head); color: var(--parchment-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:root[data-look="camp"] .board-name { align-items: flex-start; gap: 2px; }
-:root[data-look="camp"] .board-spend:not(:empty) { flex: none; display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 8px 0;
-  color: var(--parchment-ink); font-size: 0.75rem; line-height: 1.1; border: 4px solid transparent; image-rendering: pixelated;
-  border-image: image-set(url("ui/well.png") 1x, url("ui/well@2x.png") 2x) 4 / 4px repeat;
-  background: var(--kit-parchment-deep); background-clip: padding-box; }
-:root[data-look="camp"] .board-spend b { font: var(--kit-face); font-variant-numeric: tabular-nums; }
-
-/* buttons: the kit's wood, the one primary teal, pressed in when down, flat parchment when off; a button that
-   destroys keeps the wood and carries the signal's red as a mark */
-:root[data-look="camp"] .board .ok-btn { border-radius: 0; box-shadow: none; filter: none; color: var(--kit-ink); font: var(--kit-face);
-  letter-spacing: .02em; text-transform: none; background: var(--kit-wood); border: var(--kit-bevel) solid transparent; image-rendering: pixelated;
-  border-image: image-set(url("ui/btn-wood.png") 1x, url("ui/btn-wood@2x.png") 2x) 6 fill / var(--kit-bevel) repeat; }
-:root[data-look="camp"] .board .ok-btn:active { padding: 10px 14px 6px;
-  border-image-source: image-set(url("ui/btn-wood-down.png") 1x, url("ui/btn-wood-down@2x.png") 2x); }
-:root[data-look="camp"] .board .ok-btn.primary, :root[data-look="camp"] .board .ok-btn.board-stop { background: var(--accent-teal);
-  border-image-source: image-set(url("ui/btn-teal.png") 1x, url("ui/btn-teal@2x.png") 2x); }
-:root[data-look="camp"] .board .ok-btn.primary:active, :root[data-look="camp"] .board .ok-btn.board-stop:active {
-  border-image-source: image-set(url("ui/btn-teal-down.png") 1x, url("ui/btn-teal-down@2x.png") 2x); }
-:root[data-look="camp"] .board .ok-btn:disabled { color: var(--parchment-ink); padding: 8px 14px; background: var(--kit-parchment-rule);
-  border-image-source: image-set(url("ui/btn-wood-off.png") 1x, url("ui/btn-wood-off@2x.png") 2x); }
-:root[data-look="camp"] .board .ok-btn.danger:not(.board-stop) { gap: 8px; }
-:root[data-look="camp"] .board .ok-btn.danger:not(.board-stop)::before { content: ""; width: 8px; height: 8px; flex: none;
-  background: var(--signal-fire); box-shadow: 0 0 0 2px var(--art-outline); }
-:root[data-look="camp"] .board .ok-btn:focus-visible { outline: 2px solid var(--parchment-ink); outline-offset: 0; box-shadow: 0 0 0 4px var(--kit-ink); }
-:root[data-look="camp"] .board .ok-input { border-radius: 0; box-shadow: none; color: var(--parchment-ink); background: var(--panel-inset);
-  border: 4px solid transparent; background-clip: padding-box; image-rendering: pixelated;
-  border-image: image-set(url("ui/well.png") 1x, url("ui/well@2x.png") 2x) 4 / 4px repeat; }
-:root[data-look="camp"] .board .ok-input:focus { outline: 2px solid var(--accent-teal); outline-offset: 0; }
-
-/* the panes: parchment in the wooden frame; the colour roles read dark on cream (as design-system/kit.css .kit-paper) */
-:root[data-look="camp"] .board .pane, :root[data-look="camp"] .board-tabs, :root[data-look="camp"] .idea-foot {
-  --ink: var(--parchment-ink); --muted: var(--ink-muted); --ink-muted: var(--kit-wood); --panel: var(--parchment); --inset: var(--kit-parchment-deep);
-  --panel-inset: var(--parchment); --frame: var(--kit-parchment-rule); --frame-strong: var(--kit-wood-light); --action: var(--accent-teal);
-  --success: var(--kit-teal-dark); --accent: var(--kit-teal-dark); --gold: var(--kit-wood); --warning: var(--kit-wood-dark); --warn: var(--kit-wood-dark);
-  --danger: var(--kit-wood-dark); color: var(--parchment-ink); }
-:root[data-look="camp"] .board .pane { gap: 8px; padding: 6px 4px 10px; border: var(--kit-frame) solid transparent; image-rendering: pixelated;
-  border-image: image-set(url("ui/frame.png") 1x, url("ui/frame@2x.png") 2x) 14 / var(--kit-frame) round;
-  background: var(--parchment) image-set(url("ui/parchment.png") 1x, url("ui/parchment@2x.png") 2x) repeat; background-clip: padding-box; }
-/* Today's two groups split by bands; a pane's other headings in the kit's heading */
-:root[data-look="camp"] .board .pane > h2 { display: flex; align-items: center; min-height: 36px; margin: 0 -4px; padding: 0 12px;
-  font: var(--kit-head); color: var(--kit-ink); letter-spacing: 0; text-transform: none; border: 4px solid transparent; border-left: 0; border-right: 0;
-  image-rendering: pixelated; background: var(--kit-wood);
-  border-image: image-set(url("ui/band.png") 1x, url("ui/band@2x.png") 2x) 4 0 fill / 4px 0 repeat; }
-:root[data-look="camp"] .board .pane h3 { font: var(--kit-head); color: var(--parchment-ink); }
-:root[data-look="camp"] .board .muted { color: var(--kit-wood); }
-/* cards: parchment with an engraved rule; what needs you carries its signal as a mark at its left */
-:root[data-look="camp"] .board .card, :root[data-look="camp"] .idea-card, :root[data-look="camp"] .sec, :root[data-look="camp"] .turn {
-  border-radius: 0; box-shadow: none; background: var(--panel-inset); color: var(--parchment-ink); border: 4px solid transparent;
-  image-rendering: pixelated; background-clip: padding-box;
-  border-image: image-set(url("ui/well.png") 1x, url("ui/well@2x.png") 2x) 4 / 4px repeat; }
-:root[data-look="camp"] .board .need { position: relative; padding-left: 10px; }
-:root[data-look="camp"] .board .need::before { content: ""; position: absolute; left: 2px; top: 8px; bottom: 8px; width: 4px;
-  background: var(--frame-strong); box-shadow: 0 0 0 2px var(--art-outline); }
-:root[data-look="camp"] .board .need-asks::before { background: var(--signal-ask); }
-:root[data-look="camp"] .board .need-failed::before { background: var(--signal-fire); }
-:root[data-look="camp"] .board .need-plan::before { background: var(--accent-teal); }
-:root[data-look="camp"] .board .check { border-radius: 0; border-color: var(--kit-wood); background: var(--parchment); color: var(--kit-ink); }
-:root[data-look="camp"] .board .check.is-on { background: var(--accent-teal); border-color: var(--kit-teal-dark); }
-/* the track switch: slots sunk into the parchment, the open one with its teal rim; its count in the pixel face */
-:root[data-look="camp"] .board .track { border-radius: 0; color: var(--parchment-ink); background: var(--kit-parchment-deep);
-  border: var(--kit-bevel) solid transparent; image-rendering: pixelated; padding: 0 10px;
-  border-image: image-set(url("ui/slot.png") 1x, url("ui/slot@2x.png") 2x) 6 fill / var(--kit-bevel) repeat; }
-:root[data-look="camp"] .board .track.is-active { font-weight: 700;
-  border-image-source: image-set(url("ui/slot-on.png") 1x, url("ui/slot-on@2x.png") 2x); }
-:root[data-look="camp"] .board .track small { font: var(--kit-face); }
-/* an idea's card; held for a drag, its rule turns teal */
-:root[data-look="camp"] .idea-card.is-dragging { box-shadow: 0 6px 0 color-mix(in srgb, var(--art-outline) 30%, transparent);
-  border-image-source: image-set(url("ui/well-on.png") 1x, url("ui/well-on@2x.png") 2x); }
-:root[data-look="camp"] .board .size { border-radius: 0; font: 400 1rem/1 var(--font-kit); padding: 2px 5px 0; border: 2px solid var(--kit-parchment-rule);
-  background: var(--kit-parchment-deep); }
-:root[data-look="camp"] .board .state-word { border-radius: 0; border: 0; padding: 0; font-weight: 700; }
-:root[data-look="camp"] .board .state-word.asks { color: var(--kit-wood-dark); }
-:root[data-look="camp"] .board .state-word.asks::before, :root[data-look="camp"] .board .state-word.failed::before { content: ""; display: inline-block;
-  width: 6px; height: 6px; margin-right: 5px; vertical-align: 1px; background: var(--signal-ask); box-shadow: 0 0 0 2px var(--art-outline); }
-:root[data-look="camp"] .board .state-word.failed::before { background: var(--signal-fire); }
-:root[data-look="camp"] .board .state-word.work, :root[data-look="camp"] .board .state-word.plan { color: var(--accent-teal); }
-
-/* an opened idea: its name on the teal plate, the sections as blocks with their role's mark and the kit's icon */
-:root[data-look="camp"] .idea-page .idea-name { align-self: flex-start; max-width: 100%; box-sizing: border-box; height: 40px; padding: 0 12px;
-  display: block; line-height: 28px; font: var(--kit-head); line-height: 28px; color: var(--kit-ink); white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; border: var(--kit-bevel) solid transparent; image-rendering: pixelated; background: var(--accent-teal);
-  border-image: image-set(url("ui/plate.png") 1x, url("ui/plate@2x.png") 2x) 6 fill / var(--kit-bevel) repeat; }
-:root[data-look="camp"] .sec { --role: var(--kit-wood-light); }
-:root[data-look="camp"] .sec-action { --role: var(--accent-teal); } :root[data-look="camp"] .sec-gold { --role: var(--kit-wood); }
-:root[data-look="camp"] .sec-success { --role: var(--kit-teal-dark); }
-/* Risks and Open questions keep the signals' colours, as a mark on their icon only */
-:root[data-look="camp"] .sec-danger { --role: var(--signal-fire); } :root[data-look="camp"] .sec-warning { --role: var(--signal-ask); }
-:root[data-look="camp"] .sec.is-open { background: var(--parchment); }
-:root[data-look="camp"] .sec-icon { width: 32px; height: 32px; display: grid; place-items: center; background: var(--role);
-  box-shadow: inset 0 0 0 2px var(--art-outline); }
-:root[data-look="camp"] .sec-glyph { display: none; }
-:root[data-look="camp"] .sec-kit { display: block; width: 24px; height: 24px; image-rendering: pixelated; }
-:root[data-look="camp"] .sec-name { font: var(--kit-face); color: var(--parchment-ink); letter-spacing: 0; text-transform: none; }
-:root[data-look="camp"] .sec-text { padding-left: 54px; }
-:root[data-look="camp"] .board .plan { background: var(--parchment); }
-:root[data-look="camp"] .task.t-merged .task-title { color: var(--kit-teal-dark); }
-:root[data-look="camp"] .turn { padding: 6px 10px; }
-:root[data-look="camp"] .turn.you { border-left: 4px solid var(--kit-wood-light); border-image: none; }
-:root[data-look="camp"] .turn.keeper { border-left: 4px solid var(--accent-teal); border-image: none; }
-:root[data-look="camp"] .about { border-radius: 0; border: 2px solid var(--accent-teal); color: var(--parchment-ink); background: var(--parchment); }
-
-/* the thumb's end: the tabs and an idea's foot stand on the bar's wood at the screen's foot */
-:root[data-look="camp"] .board-tabs, :root[data-look="camp"] .idea-foot { border: 0; border-top: var(--kit-bar) solid transparent; image-rendering: pixelated;
-  border-image: image-set(url("ui/bar.png") 1x, url("ui/bar@2x.png") 2x) 10 10 0 / var(--kit-bar) 0 0 round;
-  background: var(--parchment) image-set(url("ui/parchment.png") 1x, url("ui/parchment@2x.png") 2x) repeat; background-clip: padding-box; }
-:root[data-look="camp"] .board-tabs { gap: 6px; padding-top: 0; }
-:root[data-look="camp"] .idea-foot { padding-top: 8px; }
-/* Today, Ideas and + as the kit's tabs, hanging under the bar's edge; the open one teal; the count in the pixel face */
-:root[data-look="camp"] .board-tab { min-height: 48px; border-radius: 0; color: var(--kit-ink); font: var(--kit-face); background: var(--kit-wood);
-  border: 8px solid transparent; border-top-width: 0; image-rendering: pixelated;
-  border-image: image-set(url("ui/tab-foot.png") 1x, url("ui/tab-foot@2x.png") 2x) 0 8 8 8 fill / 0 8px 8px 8px repeat; }
-:root[data-look="camp"] .board-tab.is-active { color: var(--kit-ink); background: var(--accent-teal);
-  border-image-source: image-set(url("ui/tab-foot-on.png") 1x, url("ui/tab-foot-on@2x.png") 2x); }
-:root[data-look="camp"] .board-tab:focus-visible { outline: 2px solid var(--parchment-ink); outline-offset: -2px; box-shadow: inset 0 0 0 4px var(--kit-ink); }
-:root[data-look="camp"] .board-tab .q-dot { position: static; min-width: 22px; height: 22px; padding: 2px 4px 0; box-sizing: border-box;
-  font: 400 1rem/1 var(--font-kit); color: var(--parchment-ink); background: var(--parchment); box-shadow: 0 0 0 2px var(--art-outline); border-radius: 0; }
-:root[data-look="camp"] .ask .row .ok-btn { flex: none; padding: 8px 10px; }
-:root[data-look="camp"] .ask textarea.ok-input { padding: 8px 6px; }
-
-/* -- the v1 shell (board.js, shell-*.js; docs/specs/33-v1-shell.md §6, §8): always Office's calm look, designed at 390 × 844. A top
-   bar with the limits chip, three tabs with their counts, the preview on its own full screen with its actions pinned at the
-   foot; a patch scrolls sideways inside its own box, never the page. Roles of the design system only. ---------------- */
-.board.v1 .board-bar { flex-wrap: wrap; }
-.board.v1 .board-name { flex: 1 1 auto; }
-.limit-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; padding: 0 10px; display: inline-flex; align-items: center; gap: 2px;
-  font-variant-numeric: tabular-nums; border: 1px solid var(--frame); border-radius: var(--ok-radius-md); color: var(--ink); }
-.limit-chip.is-warn, .limit .is-warn, .limit.is-warn > b { color: var(--warning); }
-.limit-chip.is-danger, .limit.is-danger > b { color: var(--danger); font-weight: 700; }
-.limit { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-.limit-row { display: grid; grid-template-columns: 4rem 3.5rem 1fr; gap: 8px; font-size: 0.875rem; }
-.check-line { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.check-line input { width: 1.5rem; height: 1.5rem; }
-.board-bar .ok-btn.gear { min-width: 44px; flex: none; padding: 8px; }
-.board-tab { position: relative; }
-.board-tab .count { min-width: 1.25rem; padding: 0 6px; border-radius: 999px; background: var(--action); color: var(--on-action); font-size: 0.75rem;
-  line-height: 1.25rem; text-align: center; font-variant-numeric: tabular-nums; }
-.board-tab[aria-selected="true"] .count { background: var(--action); }
-.pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.pane-head h2 { margin: 0; }
-.goal { margin: 0; }
-.todo-head { display: flex; align-items: center; gap: 4px; }
-.todo-mark, .todo-open { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; min-height: 44px; }
-.todo-mark { min-width: 44px; justify-content: center; }
-.todo-open { flex: 1 1 auto; min-width: 0; gap: 10px; }
-.todo-open .need-text { flex: 1 1 auto; }
-.todo-open b, .todo-open small { display: block; overflow-wrap: anywhere; }
-.todo-open .chev { margin-left: auto; }
-.agents .role, .review .results { display: flex; flex-direction: column; gap: 8px; }
-.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.chip { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 56px; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.chip b, .chip small { overflow-wrap: anywhere; }
-.chip-state { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-.chip.is-running .chip-state, .chip.is-live { color: var(--info); }
-.chip.is-review .chip-state { color: var(--action); }
-.chip.is-failed .chip-state, .chip.is-wait { color: var(--alert); }
-.chip.is-held .chip-state { color: var(--warning); }
-.chip.is-done { color: var(--muted); min-height: 44px; }
-.spin { display: inline-block; animation: spin 1.6s linear infinite; }
+.chev { flex: none; color: var(--ork-ink-muted); }
+.linkish { all: unset; cursor: pointer; text-decoration: underline; min-height: var(--ork-tap); display: inline-flex; align-items: center; color: var(--ork-ink-muted); }
+.linkish:focus-visible { outline: 2px solid var(--ork-ink); }
+.foot-line { text-align: center; margin-top: var(--ork-4); }
+.steps { margin: 0 0 var(--ork-4); padding-left: var(--ork-8); }
+.steps li { margin-bottom: var(--ork-2); }
+.spin { display: inline-block; animation: spin 1.6s steps(8) infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
-.done-today summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--muted); }
-.ok-btn.into { align-self: flex-start; }
-.branch { all: unset; box-sizing: border-box; display: flex; align-items: center; min-height: 44px; width: 100%; cursor: pointer; gap: 6px; }
-.branch.is-on { font-weight: 700; }
-.result { display: flex; flex-direction: column; gap: 8px; }
-.result-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; cursor: pointer; min-height: 44px; width: 100%; }
-.result-open b, .result-open small, .facts dd { overflow-wrap: anywhere; }
-.round { color: var(--alert); }
-.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: 0.9375rem; }
-.facts dt { color: var(--muted); }
-.facts dd { margin: 0; min-width: 0; }
-.facts .is-success { color: var(--success); }
-.facts .is-danger { color: var(--danger); }
-.facts .is-muted { color: var(--muted); }
-.result-actions { display: flex; flex-direction: column; gap: 8px; }
-.result-actions .big { width: 100%; }
-.result-actions .row { margin-top: 0; }
-.row.between { justify-content: space-between; }
-.back-line .ok-input { min-width: 0; }
-.sure span { flex: 1 1 100%; }
 
-.screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--canvas); max-width: 100vw; overflow: hidden; }
+/* A select of orkUI's fields without its wrapper: the look's chevron in five whole pixels of ink. */
+select.ork-field { padding-right: var(--ork-8);
+  background-image: linear-gradient(var(--ork-ink) 0 0), linear-gradient(var(--ork-ink) 0 0), linear-gradient(var(--ork-ink) 0 0),
+    linear-gradient(var(--ork-ink) 0 0), linear-gradient(var(--ork-ink) 0 0);
+  background-position: right 20px top calc(50% - 2px), right 18px top 50%, right 16px top calc(50% + 2px), right 14px top 50%, right 12px top calc(50% - 2px);
+  background-size: 2px 2px; background-repeat: no-repeat; background-color: var(--ork-canvas); }
+select.ork-field option { background: var(--ork-panel); color: var(--ork-ink); }
+textarea.ork-field { min-height: calc(var(--ork-tap) * 2); resize: vertical; line-height: 22px; }
+/* a checkbox as the look draws one: a square edge, an ink square inside when it is on; a radio in ink */
+input[type="checkbox"] { appearance: none; -webkit-appearance: none; flex: none; width: 22px; height: 22px; margin: 0; border: var(--ork-line) solid var(--ork-edge);
+  background: var(--ork-canvas); cursor: pointer; }
+input[type="checkbox"]:checked { background: var(--ork-ink); box-shadow: inset 0 0 0 4px var(--ork-canvas); }
+input[type="checkbox"]:disabled { border-style: dashed; border-color: var(--ork-ink-faint); }
+input[type="radio"] { accent-color: var(--ork-ink); }
+.ork-btn.big { width: 100%; }
+.ork-btn .ork-icon, .ork-tabbar__tab .ork-icon { pointer-events: none; }
+
+/* -- news over the tabs ------------------------------------------------------------------------------------------------- */
+.news { position: fixed; left: 0; right: 0; bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); z-index: 2; display: flex; flex-direction: column;
+  gap: var(--ork-3); padding: 0 var(--ork-6) var(--ork-4); max-width: 640px; margin: 0 auto; pointer-events: none; }
+.flash { margin: 0; padding: var(--ork-3) var(--ork-4); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch);
+  font: var(--ork-type-caption); }
+.offline .board { opacity: .6; }
+
+/* -- a sheet from the foot (util.js `sheet`): orkUI's dialog frame, its buttons pinned at its foot ---------------------- */
+.sheet { margin: auto 0 0; width: 100%; max-width: 100%; max-height: 85dvh; padding: 0; overflow-y: auto; background: var(--ork-panel); color: var(--ork-ink);
+  border: 0; border-top: var(--ork-double) double var(--ork-edge); }
+.sheet::backdrop { background: var(--ork-scrim); }
+.sheet-in { max-width: 640px; margin: 0 auto; padding: var(--ork-5) var(--ork-6) calc(var(--ork-6) + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: var(--ork-5); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
+.sheet-head h2 { margin: 0; font: var(--ork-type-title); }
+.sheet .ork-btn.danger { width: 100%; }
+.sheet [hidden] { display: none !important; }
+.sheet-form { display: flex; flex-direction: column; gap: var(--ork-5); }
+.sheet .field, .sheet .list-editor { display: flex; flex-direction: column; gap: var(--ork-2); }
+.field-label { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
+.sheet-foot { position: sticky; bottom: 0; z-index: 1; display: flex; gap: var(--ork-4); margin: var(--ork-2) calc(-1 * var(--ork-6)) calc(-1 * var(--ork-6) - env(safe-area-inset-bottom));
+  padding: var(--ork-4) var(--ork-6) calc(var(--ork-4) + env(safe-area-inset-bottom)); background: var(--ork-panel); border-top: var(--ork-line) solid var(--ork-frame); }
+.sheet-foot .ork-btn { flex: 1 1 0; width: auto; }
+.sheet-foot .ork-btn.primary { flex: 2 1 0; }
+.sheet .sure { display: flex; flex-direction: column; gap: var(--ork-4); }
+.sure span { flex: 1 1 100%; }
+.list-rows { display: flex; flex-direction: column; gap: var(--ork-3); }
+.list-row { display: flex; gap: var(--ork-3); align-items: center; }
+.list-row .ork-field { flex: 1 1 0; min-width: 0; }
+.list-row .ork-field.narrow { flex: 0 0 28%; }
+.list-row .ork-btn { flex: none; min-width: var(--ork-tap); }
+.pills { display: flex; gap: var(--ork-4); }
+.pill { position: relative; flex: 1 1 0; min-height: var(--ork-tap); display: flex; align-items: center; justify-content: center; cursor: pointer;
+  border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink-muted); font: var(--ork-type-button); }
+.pill input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.pill.is-on { color: var(--ork-ink); background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.pill:focus-within { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.check-line { display: flex; align-items: center; gap: var(--ork-4); min-height: var(--ork-tap); }
+
+/* -- the frame: the top bar, the panes, the tabs at the foot (orkUI's tab bar), the preview on its own screen --------------- */
+.board { display: flex; flex-direction: column; gap: var(--ork-5); }
+.board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-3) var(--ork-4); margin: 0 calc(-1 * var(--ork-6));
+  padding: max(var(--ork-4), env(safe-area-inset-top)) var(--ork-6) var(--ork-4); background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); }
+.board-name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.board-bar .ork-btn, .board-bar .limit-chip { flex: none; }
+.board-bar .ork-btn.gear { min-width: var(--ork-tap); padding: 0 var(--ork-3); }
+.board-spend { flex: 1 0 100%; order: 9; margin: 0; font-variant-numeric: tabular-nums; }
+.board-spend b { color: var(--ork-ink); }
+.limit-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: var(--ork-tap); padding: 0 var(--ork-4); display: inline-flex; align-items: center;
+  gap: var(--ork-1); font-variant-numeric: tabular-nums; border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); }
+.limit-chip:focus-visible { outline: 2px solid var(--ork-ink); }
+.limit-chip.is-warn, .limit .is-warn, .limit.is-warn > b { color: var(--ork-alert); }
+.limit-chip.is-danger, .limit.is-danger > b { color: var(--ork-danger); font-weight: 600; }
+.limit { display: flex; flex-direction: column; gap: var(--ork-1); margin-bottom: var(--ork-5); }
+.limit-row { display: grid; grid-template-columns: 4rem 3.5rem 1fr; gap: var(--ork-4); }
+.project-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: var(--ork-tap); max-width: 100%; display: inline-flex; align-items: center;
+  gap: var(--ork-2); color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.project-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink); }
+.project-chip:focus-visible, .project-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.pane { display: flex; flex-direction: column; gap: var(--ork-4); }
+.pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
+.pane-head h2 { margin: 0; }
+.pane-head .row { margin-top: 0; flex-wrap: nowrap; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
+.section-head h3 { margin: 0; }
+.board-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; }
+.board-tab .count[hidden] { display: none; }
+.is-open .board-tabs, .is-open .board-bar { display: none; }
+.focus-board:has(.board.is-open) .app { padding-bottom: var(--ork-6); }
+
+.screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--ork-canvas); max-width: 100vw; overflow: hidden; }
 .screen[hidden] { display: none; }
-.screen-head { flex: none; display: flex; align-items: center; gap: 8px; padding: max(8px, env(safe-area-inset-top)) 12px 8px; background: var(--panel);
-  border-bottom: 1px solid var(--frame); }
-.screen-title { margin: 0; flex: 1 1 auto; min-width: 0; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); text-transform: none; letter-spacing: 0; }
-.screen-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px;
-  max-width: 640px; width: 100%; margin: 0 auto; }
-.screen-bar { flex: none; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--frame);
-  display: flex; flex-direction: column; gap: 8px; max-width: 100vw; }
+.screen-head { flex: none; display: flex; align-items: center; gap: var(--ork-4); padding: max(var(--ork-4), env(safe-area-inset-top)) var(--ork-5) var(--ork-4);
+  background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); }
+.screen-title { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: var(--ork-type-body); font-weight: 600; text-transform: none; letter-spacing: 0; }      /* an idea's, a file's name: never the pixel face */
+.screen-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: var(--ork-5) var(--ork-6); display: flex; flex-direction: column;
+  gap: var(--ork-4); max-width: 640px; width: 100%; margin: 0 auto; }
+.screen-bar { flex: none; display: flex; flex-direction: column; gap: var(--ork-4); max-width: 100vw;
+  padding: var(--ork-4) var(--ork-6) calc(var(--ork-4) + env(safe-area-inset-bottom)); background: var(--ork-panel); border-top: var(--ork-line) solid var(--ork-frame); }
 .screen-bar > * { max-width: 640px; width: 100%; margin: 0 auto; }
 .screen-bar .big { width: 100%; }
 .screen .ask .row { flex-wrap: nowrap; }
-.brief { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
-.log, .patch { margin: 0; padding: 8px; background: var(--inset); border-radius: var(--ok-radius-md); font: 0.75rem/1.45 ui-monospace, monospace; max-width: 100%; }
-.log { max-height: 40vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.patch { overflow: auto; max-height: 50vh; }
-.pl { display: block; white-space: pre; }
-.pl.is-add, .file-n .is-add { color: var(--success); }
-.pl.is-del, .file-n .is-del { color: var(--danger); }
-.pl.is-hunk { color: var(--info); }
-.file { border: 1px solid var(--frame); border-radius: var(--ok-radius-md); background: var(--panel); max-width: 100%; }
-.file summary { display: flex; gap: 8px; align-items: baseline; padding: 10px 12px; min-height: 44px; cursor: pointer; }
-.file summary code { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-.commits { margin: 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
-.plan-todo { list-style: none; padding: 6px 8px; border-radius: var(--ok-radius-md); overflow-wrap: anywhere; }
-.plan-todo.is-target { outline: 2px solid var(--frame-focus); background: var(--selection); }
-.plan-todo small { display: block; }
-.plan .todos { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.unblocks { color: var(--action); font-weight: 600; }
-.chip-kind { color: var(--muted); }
-.plan .tasks .task-title { text-align: left; min-height: 32px; }
-.board.v1 .board-bar { flex-wrap: nowrap; gap: 8px; padding: 8px; }
-.board.v1 .board-name { min-width: 0; }
-.board.v1 .board-spend { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.board.v1 .board-bar .ok-btn, .board.v1 .limit-chip { flex: none; }
-.board.v1 .board-bar .ok-btn.board-stop { padding-left: 10px; padding-right: 10px; }
 
-/* -- round 2 (docs/specs/34-v1-round-2.md): goals and ideas by sheet, agents by task type, the top bar's two lines ---------------- */
-/* no band above the top bar: the bar is the top of the page (its own safe-area padding), and it holds today's spend whole on a line of its own */
-.focus-board .app { padding-top: 0; }
-.status:empty, .focus-board .app > div:empty { display: none; }          /* the empty status line was the grey band above the bar */
-.board.v1 .board-bar { flex-wrap: wrap; border-radius: 0; border-width: 0 0 1px; margin: 0 -16px; padding: max(8px, env(safe-area-inset-top)) 12px 8px; }
-.board.v1 .board-name { flex: 1 1 auto; }
-.board.v1 .board-spend { flex: 1 0 100%; margin: 0; order: 9; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
-.board.v1 .board-spend b { color: var(--ink); }
-.board.v1 .board-spend[hidden] { display: none; }
-.pane-head .row { margin-top: 0; flex-wrap: nowrap; }
-.sheet-form { display: flex; flex-direction: column; gap: 12px; }
-.sheet .field, .sheet .list-editor { display: flex; flex-direction: column; gap: 4px; }
-.field-label { font-size: 0.8125rem; font-weight: 700; color: var(--muted); }
-.sheet .ok-input { width: 100%; box-sizing: border-box; min-height: 44px; }
-.list-rows { display: flex; flex-direction: column; gap: 6px; }
-.list-row { display: flex; gap: 6px; align-items: center; }
-.list-row .ok-input { flex: 1 1 0; min-width: 0; }
-.list-row .ok-input.narrow { flex: 0 0 28%; }
-.list-row .ok-btn { flex: none; min-width: 44px; min-height: 44px; }
-.pills { display: flex; gap: 8px; }
-.pill { flex: 1 1 0; min-height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--frame); border-radius: 999px;
-  color: var(--muted); cursor: pointer; position: relative; }
-.pill input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.pill.is-on { color: var(--on-action); background: var(--action); border-color: var(--action); font-weight: 600; }
-.pill:focus-within { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
-/* a sheet's buttons stay at its foot while the form scrolls */
-.sheet { overflow-y: auto; }
-.sheet-foot { position: sticky; bottom: 0; margin: 4px -16px calc(-16px - env(safe-area-inset-bottom)); display: flex; gap: 8px;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--frame); z-index: 1; }
-.sheet-foot .ok-btn { flex: 1 1 0; width: auto; }
-.sheet-foot .ok-btn.primary { flex: 2 1 0; }
-.sheet .sure { display: flex; flex-direction: column; gap: 8px; }
-.goals { display: flex; flex-direction: column; gap: 8px; }
-.goal-card { display: flex; align-items: center; gap: 8px; padding: 0 8px 0 0; }
-.goal-card.is-on { border-color: var(--action); }
-.goal-open { all: unset; box-sizing: border-box; flex: 1 1 auto; min-width: 0; min-height: 56px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
-.goal-open b { overflow-wrap: anywhere; }
-.goal-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.75rem; }
-.prio { font-size: 0.75rem; color: var(--muted); }
-.prio-high { color: var(--alert); font-weight: 700; }
-.idea-card .now { margin: 0 12px 10px; align-self: flex-start; }
-.idea-card { display: flex; flex-direction: column; }
-.goal-sec { display: flex; flex-direction: column; gap: 6px; }
-.goal-sec h3 { margin: 6px 0 0; }
-.metrics { display: flex; flex-direction: column; gap: 6px; }
-.metric { display: flex; flex-direction: column; gap: 2px; }
-.metric b, .metric small, .links li { overflow-wrap: anywhere; }
-.links { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 4px; }
-.doc { max-height: none; }
-.role-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
-.role-head h3 { margin: 0; }
-.role-facts { flex: 1 0 100%; }
-/* spec 36: the agent's dialog — the Takes boxes, the instruction's counter; the result's idea line */
-.takes { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.take-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.take-row input { flex: 0 0 auto; width: 22px; height: 22px; margin: 0; }
-.take-row span { flex: 1 1 auto; min-width: 0; }
-.take-row small { flex: 0 1 auto; text-align: right; overflow-wrap: anywhere; }
-.counter { align-self: flex-end; margin-top: -8px; }
-.priced { cursor: help; }
-.spend-line { overflow-wrap: anywhere; }
-
-/* spec 35 on the phone: the Target chip, the goal select, Needs you with proposals, the ideas' actions, the to-do sheet */
-.sheet [hidden] { display: none !important; }
-.target-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 4px;
-  border: 1px solid var(--frame-strong); border-radius: 999px; font-size: 0.875rem; }
-.target-chip:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
-.target-pick { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 4px; cursor: pointer; border-bottom: 1px solid var(--frame); }
-.target-pick input { width: 1.5rem; height: 1.5rem; flex: none; }
-.target-pick small { color: var(--muted); }
-.goal-pick { margin-top: 0; flex-wrap: nowrap; }
-.goal-pick .ok-input { min-width: 0; min-height: 44px; }
-.goal-pick .ok-btn { flex: none; }
-.goal-now { display: flex; flex-direction: column; gap: 6px; }
-.goal-line { margin: 0; overflow-wrap: anywhere; }
-.goal-now .row { margin-top: 0; }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.section-head h3 { margin: 0; }
+/* -- the Board: Needs you, to-dos, the goal and the Target, the ideas ----------------------------------------------------- */
+.need, .todo { display: flex; align-items: center; gap: var(--ork-4); width: 100%; text-align: left; font: inherit; color: inherit; }
+.need { cursor: pointer; min-height: 56px; }
+.need-asks, .need-goal, .need-op { border-color: var(--ork-alert); }
+.need-failed, .need-op_failed { border-color: var(--ork-danger); }
+.need-plan, .need-op_rules, .need-proposal, .need-held { border-color: var(--ork-edge); }
+.need-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.need-text small { color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.need-mark { flex: none; width: 1.75rem; text-align: center; font-weight: 600; }
+.need-asks .need-mark, .need-goal .need-mark, .need-op .need-mark { color: var(--ork-alert); }
+.need-failed .need-mark, .need-op_failed .need-mark { color: var(--ork-danger); }
 .need-proposal { align-items: flex-start; cursor: default; }
-.need-proposal .need-text { gap: 8px; }
+.need-proposal .need-text { gap: var(--ork-4); }
 .need-proposal .row { margin-top: 0; flex-wrap: wrap; }
-.need-proposal .row .ok-input { min-width: 0; flex: 1 1 100%; order: -1; }
-.need-proposal .row .ok-btn { flex: 1 1 0; white-space: nowrap; min-height: 44px; }
-.need-proposal .field { display: flex; flex-direction: column; gap: 4px; }
-.idea-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 12px 10px; }
-.idea-actions .ok-btn { min-height: 44px; }
+.need-proposal .row .ork-field { min-width: 0; flex: 1 1 100%; order: -1; }
+.need-proposal .row .ork-btn { flex: 1 1 0; white-space: nowrap; }
+.need-proposal .field { display: flex; flex-direction: column; gap: var(--ork-2); }
+.todo { flex-direction: column; align-items: stretch; }
+.todo-head { display: flex; align-items: center; gap: var(--ork-2); }
+.todo-mark, .todo-open { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; min-height: var(--ork-tap); }
+.todo-mark { min-width: var(--ork-tap); justify-content: center; }
+.todo-open { flex: 1 1 auto; min-width: 0; gap: var(--ork-4); }
+.todo-open .need-text { flex: 1 1 auto; }
+.todo-open b, .todo-open small { display: block; }
+.todo-open .chev { margin-left: auto; }
+.todo.is-done .need-text { text-decoration: line-through; color: var(--ork-ink-muted); }
+.todo-sheet { display: flex; flex-direction: column; gap: var(--ork-4); }
+.todo-sheet h3 { margin: 0; }
+.todo-sheet .answers { display: flex; flex-direction: column; gap: var(--ork-4); }
+.q-form { display: flex; flex-direction: column; gap: var(--ork-4); }
+.q-form .row { margin-top: 0; }
+.answers { display: flex; flex-wrap: wrap; gap: var(--ork-4); }
+.target-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: var(--ork-tap); padding: 0 var(--ork-5); display: inline-flex; align-items: center;
+  gap: var(--ork-2); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: var(--ork-type-button); }
+.target-chip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.target-pick { display: flex; align-items: center; gap: var(--ork-5); min-height: 56px; padding: var(--ork-4) var(--ork-2); cursor: pointer;
+  border-bottom: var(--ork-line) solid var(--ork-frame); }
+.target-pick input { width: 22px; height: 22px; flex: none; }
+.target-pick small { color: var(--ork-ink-muted); }
+.goal-pick { margin-top: 0; flex-wrap: nowrap; }
+.goal-pick .ork-field { min-width: 0; }
+.goal-pick .ork-btn { flex: none; }
+.goal-now { display: flex; flex-direction: column; gap: var(--ork-3); }
+.goal-line { margin: 0; }
+.goal-now .row { margin-top: 0; }
+.goals { display: flex; flex-direction: column; gap: var(--ork-4); }
+.goal-meta { display: flex; flex-wrap: wrap; gap: var(--ork-4); align-items: center; font: var(--ork-type-caption); }
+.goal-sec { display: flex; flex-direction: column; gap: var(--ork-3); }
+.goal-sec h3 { margin: var(--ork-3) 0 0; }
+.metrics { display: flex; flex-direction: column; gap: var(--ork-3); }
+.metric { display: flex; flex-direction: column; gap: var(--ork-1); }
+.links { margin: 0; padding-left: var(--ork-8); display: flex; flex-direction: column; gap: var(--ork-2); }
+.prio { font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.prio-high { color: var(--ork-alert); font-weight: 600; }
+.ideas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-4); }
+.idea-card { display: flex; flex-direction: column; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch);
+  touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.idea-card.is-dragging { position: relative; z-index: 2; border-color: var(--ork-ink); box-shadow: inset 2px 0 0 var(--ork-ink); touch-action: none; }
+.idea-open { all: unset; box-sizing: border-box; width: 100%; min-height: 56px; padding: var(--ork-4) var(--ork-5); cursor: pointer; display: flex;
+  flex-direction: column; gap: var(--ork-2); }
+.idea-open:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.idea-title { font-weight: 600; }
+.idea-thesis { color: var(--ork-ink-muted); font: var(--ork-type-caption); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.idea-meta { display: flex; gap: var(--ork-4); align-items: center; font: var(--ork-type-caption); }
+.idea-actions { display: flex; flex-wrap: wrap; gap: var(--ork-4); margin: 0 var(--ork-5) var(--ork-4); }
 .idea-card .idea-actions .now { margin: 0; }
-.done-ideas { margin-top: 8px; }
-.done-ideas summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
-.state-word.held, .state-word.raw { color: var(--muted); }
-.chip-why { color: var(--muted); }
+.done-ideas { margin-top: var(--ork-4); }
+.done-ideas summary, .done-today summary, .ops-other summary, .ops-fold summary, .map-done-when summary {
+  min-height: var(--ork-tap); display: flex; align-items: center; cursor: pointer; color: var(--ork-ink-muted); }
+.size { border: var(--ork-line) solid var(--ork-edge); padding: 0 var(--ork-2); font-weight: 600; }
+.state-word { border: var(--ork-line) solid currentColor; padding: 0 var(--ork-3); color: var(--ork-ink-muted); }
+.state-word.asks, .state-word.plan { color: var(--ork-alert); }
+.state-word.work, .state-word.ready { color: var(--ork-ink); }
+.state-word.done { color: var(--ork-success); }
+.state-word.failed { color: var(--ork-danger); }
+.state-word.held, .state-word.raw { color: var(--ork-ink-muted); }
 .night-row { flex-wrap: nowrap; }
-.night-row .ok-input { min-width: 0; }
-.todo-sheet { display: flex; flex-direction: column; gap: 10px; }
-.todo-sheet h3 { margin: 0; overflow-wrap: anywhere; }
-.todo-sheet .answers { display: flex; flex-direction: column; gap: 8px; }
-.q-form textarea { resize: vertical; }
+.night-row .ork-field { min-width: 0; }
 
-/* spec 37 D3: the project switcher's chip under the name, its sheet, and a Markdown file read on the phone */
-.project-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: 44px; max-width: 100%; display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.875rem; color: var(--muted); }
-.project-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-.project-chip:focus-visible, .project-row:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
-.project-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.project-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; min-height: 56px; padding: 8px 4px; display: flex; flex-direction: column;
-  justify-content: center; gap: 2px; border-bottom: 1px solid var(--frame); overflow-wrap: anywhere; }
-.project-row[aria-current="true"] { border-left: 3px solid var(--frame-strong); padding-left: 10px; }
-.project-recent { min-height: 44px; display: flex; align-items: center; padding: 4px; border-bottom: 1px solid var(--frame); overflow-wrap: anywhere; }
-.md { overflow-wrap: anywhere; min-width: 0; }
+/* -- an idea on its own screen: the sections, the plan, the talk, the ask box ------------------------------------------------ */
+.sec { --role: var(--ork-ink-muted); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); border-left: 2px solid var(--role); }
+.sec-action, .sec-gold, .sec-muted { --role: var(--ork-edge); }
+.sec-success { --role: var(--ork-success); }
+.sec-danger { --role: var(--ork-danger); }
+.sec-warning { --role: var(--ork-alert); }
+.sec-head { all: unset; box-sizing: border-box; width: 100%; min-height: 52px; padding: var(--ork-4) var(--ork-5); cursor: pointer; display: flex; align-items: center;
+  gap: var(--ork-4); }
+.sec-head:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.sec-icon, .sec-glyph { flex: none; width: 1.5rem; text-align: center; color: var(--role); }
+.sec-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.sec-name { color: var(--role); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); }
+.sec-body .thesis { font-weight: 600; }
+.sec-text { padding: 0 var(--ork-5) var(--ork-5); display: flex; flex-direction: column; gap: var(--ork-4); }
+.sec-text p { margin: 0; white-space: pre-wrap; }
+.plan .tasks { list-style: none; margin: 0 0 var(--ork-4); padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
+.plan .todos { margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
+.plan .tasks .task-title { text-align: left; min-height: 32px; }
+.task { display: flex; flex-direction: column; }
+.task.t-merged .task-title { color: var(--ork-success); }
+.task.t-failed .task-title { color: var(--ork-danger); }
+.plan-todo { list-style: none; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame); }
+.plan-todo.is-target { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); }
+.plan-todo small { display: block; }
+.unblocks { color: var(--ork-ink); font-weight: 600; }
+.chip-kind { color: var(--ork-ink-muted); }
+.talk { display: flex; flex-direction: column; gap: var(--ork-3); }
+.turn { padding: var(--ork-3) var(--ork-4); background: var(--ork-panel); border-left: 2px solid var(--ork-frame); }
+.turn.you { border-left-color: var(--ork-ink); }
+.turn .who { font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.turn p { margin: 0; white-space: pre-wrap; }
+.ask { display: flex; flex-direction: column; gap: var(--ork-3); }
+.about { all: unset; box-sizing: border-box; align-self: flex-start; cursor: pointer; min-height: var(--ork-tap); padding: 0 var(--ork-5); display: inline-flex;
+  align-items: center; border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); font: var(--ork-type-caption); }
+.ask textarea.ork-field { resize: none; min-height: var(--ork-tap); max-height: 8rem; }
+.brief { white-space: pre-wrap; margin: 0; }
+.md { min-width: 0; }
+.md h1, .md h2, .md h3 { margin: var(--ork-5) 0 var(--ork-3); color: var(--ork-ink); font: var(--ork-type-body); font-weight: 600; text-transform: none;
+  letter-spacing: 0; }      /* a person's words: never the pixel face */
+.md h1 { font-size: 20px; line-height: 26px; }
 .md img, .md table, .md pre { max-width: 100%; }
 .md pre, .md table { overflow-x: auto; display: block; }
+.doc { max-height: none; }
 
-/* spec 38 C: Operations on the phone — the list in the Board tab, its sheets (New…, the form, the check, the gear, the rules) */
-.ops-menu, .ops-gear, .ops-servers { display: flex; flex-direction: column; gap: 8px; }
-.ops-cant, .ops-form p, .ops-check p { overflow-wrap: anywhere; }
-.ops-found, .ops-lines { margin: 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
-.ops-doubt { margin: 0; padding: 8px 10px; border-left: 4px solid var(--warning); }
-.ops-other summary, .ops-fold summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
-.ops-other .field { margin-top: 8px; }
-.ops-fold { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.ops-fold > .card, .ops-run-row, .ops-failed, .ops-done, .ops-template { margin-top: 8px; }
-.ops-run-row, .ops-done { display: flex; align-items: center; gap: 8px; }
-.ops-failed, .ops-template { display: flex; flex-direction: column; gap: 8px; }
-.ops-run-row .ok-btn, .ops-done .ok-btn, .ops-failed .ok-btn, .ops-template .ok-btn, .ops-proposal .ok-btn, .gear { min-height: 44px; display: inline-flex; align-items: center; }
-.ops-done a.ok-btn { text-decoration: none; color: inherit; }
+/* -- Agents: a block per agent, its race's head beside its name; a card per live task, the head of who does it ------------ */
+.agents .role, .review .results { display: flex; flex-direction: column; gap: var(--ork-4); }
+.agents .role + .role { border-top: var(--ork-line) solid var(--ork-frame); padding-top: var(--ork-5); }
+.role-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ork-2) var(--ork-4); }
+.role-head > .ork-race__head { grid-row: span 2; width: 48px; height: 44px; }
+.role-head h3 { margin: 0; color: var(--ork-ink); }
+.role-facts { grid-column: 2 / -1; }
+.priced { cursor: help; }
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-4); }
+.chip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--ork-1) var(--ork-4); width: 100%; min-height: 56px; text-align: left;
+  font: inherit; color: inherit; cursor: pointer; }
+.chip > * { grid-column: 2; }
+.chip > .ork-race__head { grid-column: 1; grid-row: span 4; margin-top: var(--ork-1); }
+.chip-state { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
+.chip.is-running .chip-state, .chip.is-testing .chip-state, .chip.is-live { color: var(--ork-ink); }
+.chip.is-review .chip-state { color: var(--ork-success); }
+.chip.is-failed { border-color: var(--ork-danger); }
+.chip.is-failed .chip-state { color: var(--ork-danger); }
+.chip.is-wait { border-color: var(--ork-alert); color: var(--ork-alert); }
+.chip.is-held .chip-state { color: var(--ork-ink-muted); }
+.chip.is-done { color: var(--ork-ink-muted); min-height: var(--ork-tap); display: flex; }
+.chip-why { color: var(--ork-ink-muted); }
+.takes { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
+.take-row { display: flex; align-items: center; gap: var(--ork-4); min-height: var(--ork-tap); }
+.take-row span { flex: 1 1 auto; min-width: 0; }
+.take-row small { flex: 0 1 auto; text-align: right; }
+.counter { align-self: flex-end; margin-top: calc(-1 * var(--ork-4)); }
+.craft-now { display: flex; align-items: center; gap: var(--ork-4); }
+
+/* -- Review: the results, a result's facts, its patch ------------------------------------------------------------------- */
+.ork-btn.into { align-self: flex-start; }
+.branch { all: unset; box-sizing: border-box; display: flex; align-items: center; min-height: var(--ork-tap); width: 100%; cursor: pointer; gap: var(--ork-3); }
+.branch.is-on { font-weight: 600; box-shadow: inset 2px 0 0 var(--ork-ink); padding-left: var(--ork-4); }
+.result { display: flex; flex-direction: column; gap: var(--ork-4); }
+.result-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-2); cursor: pointer; min-height: var(--ork-tap); width: 100%; }
+.result-open:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.round { color: var(--ork-alert); }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ork-1) var(--ork-5); margin: 0; }
+.facts dt { color: var(--ork-ink-muted); }
+.facts dd { margin: 0; min-width: 0; }
+.facts .is-success { color: var(--ork-success); }
+.facts .is-danger { color: var(--ork-danger); }
+.facts .is-muted { color: var(--ork-ink-muted); }
+.result-actions { display: flex; flex-direction: column; gap: var(--ork-4); }
+.result-actions .big { width: 100%; }
+.result-actions .row { margin-top: 0; }
+.back-line .ork-field { min-width: 0; }
+.spend-line { overflow-wrap: anywhere; }
+.log, .patch { margin: 0; padding: var(--ork-4); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); font: var(--ork-type-caption);
+  font-family: var(--ork-font-code); max-width: 100%; }
+.log { max-height: 40vh; overflow: auto; white-space: pre-wrap; }
+.patch { overflow: auto; max-height: 50vh; overflow-wrap: normal; }
+.pl { display: block; white-space: pre; }
+.pl.is-add, .file-n .is-add { color: var(--ork-success); }
+.pl.is-del, .file-n .is-del { color: var(--ork-danger); }
+.pl.is-hunk { color: var(--ork-ink-muted); }
+.file { flex: 1 1 auto; min-width: 0; border: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); max-width: 100%; }
+.file summary { display: flex; gap: var(--ork-4); align-items: baseline; padding: var(--ork-4) var(--ork-5); min-height: var(--ork-tap); cursor: pointer; }
+.file summary code { flex: 1 1 auto; min-width: 0; }
+.commits { margin: 0; padding-left: var(--ork-8); }
+
+/* -- projects (spec 37 D3) and Operations (spec 38 C) --------------------------------------------------------------------- */
+.project-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.project-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; min-height: 56px; padding: var(--ork-4) var(--ork-2); display: flex;
+  flex-direction: column; justify-content: center; gap: var(--ork-1); border-bottom: var(--ork-line) solid var(--ork-frame); }
+.project-row[aria-current="true"] { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); padding-left: var(--ork-5); }
+.project-recent { min-height: var(--ork-tap); display: flex; align-items: center; padding: var(--ork-2); border-bottom: var(--ork-line) solid var(--ork-frame); }
+.ops-menu, .ops-gear, .ops-servers { display: flex; flex-direction: column; gap: var(--ork-4); }
+.ops-found, .ops-lines { margin: 0; padding-left: var(--ork-8); display: flex; flex-direction: column; gap: var(--ork-2); }
+.ops-doubt { margin: 0; padding: var(--ork-3) var(--ork-4); border-left: 2px solid var(--ork-alert); }
+.ops-other .field { margin-top: var(--ork-4); }
+.ops-fold { display: flex; flex-direction: column; gap: var(--ork-4); margin-top: var(--ork-4); }
+.ops-fold > .card, .ops-run-row, .ops-failed, .ops-done, .ops-template { margin-top: var(--ork-4); }
+.ops-run-row, .ops-done { display: flex; align-items: center; gap: var(--ork-4); }
+.ops-failed, .ops-template { display: flex; flex-direction: column; gap: var(--ork-4); }
+.ops-failed { border-color: var(--ork-danger); }
+.ops-done a.ork-btn { text-decoration: none; }
 .ops-failed .row, .ops-template .row, .ops-proposal .row { margin-top: 0; flex-wrap: wrap; }
-.ops-proposal { display: flex; flex-direction: column; gap: 8px; }
-.ops-proposal .row .ok-input { min-width: 0; flex: 1 1 100%; order: -1; }
-.ops-proposal .row .ok-btn { flex: 1 1 0; }
-.need-op { border-left: 4px solid var(--warning); }
-.need-op_failed { border-left: 4px solid var(--danger); }
-.need-op_rules { border-left: 4px solid var(--action); }
+.ops-proposal { display: flex; flex-direction: column; gap: var(--ork-4); }
+.ops-proposal .row .ork-field { min-width: 0; flex: 1 1 100%; order: -1; }
+.ops-proposal .row .ork-btn { flex: 1 1 0; }
 
-/* spec 39 C: the Map on the phone — a goal's ideas as rows. The marks differ by shape, not by colour alone (spec 39 §4.3):
-   needs your hand = a heavier frame and ●; working = the spinner; waits = dashed; done = filled; proposed = dotted. */
-.map-goal { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-4); min-width: 0; }
-.map-goal h3 { margin: 0; overflow-wrap: anywhere; }
-.map-goal-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; font-size: 0.875rem; color: var(--muted); }
-.map-done-when summary { min-height: var(--tap-min); display: flex; align-items: center; cursor: pointer; overflow-wrap: anywhere; }
-.map-done-when ul { margin: 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
-.map-row { background: var(--panel); border: 1px solid var(--frame); border-radius: var(--radius-lg); min-width: 0; }
-.map-row.needs-hand { border: 3px solid var(--frame-strong); }
+/* -- the Map (spec 39 C): a goal's ideas as rows; the marks differ by shape, not by colour alone (spec 39 §4.3): needs your hand
+   = a heavier frame and its dot; working = the spinner; waits = dashed; done = filled; proposed = dotted. ---------------- */
+.map-goal { display: flex; flex-direction: column; gap: var(--ork-4); margin-top: var(--ork-6); min-width: 0; }
+.map-goal h3 { margin: 0; color: var(--ork-ink); font: var(--ork-type-body); font-weight: 600; text-transform: none; letter-spacing: 0; }
+.map-goal-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); margin: 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.map-done-when ul { margin: 0; padding-left: var(--ork-8); }
+.map-row { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); min-width: 0; }
+.map-row.needs-hand { border: 3px solid var(--ork-edge); }
 .map-row.is-waiting { border-style: dashed; }
 .map-row.is-proposed { border-style: dotted; }
-.map-row.state-done { background: var(--inset); }
-.map-open { all: unset; box-sizing: border-box; width: 100%; min-height: var(--tap-min); padding: var(--space-3); cursor: pointer; display: flex;
-  flex-direction: column; gap: var(--space-1); }
-.map-open:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
-.map-top { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
-.map-dots { flex: none; letter-spacing: 1px; color: var(--muted); }
+.map-row.state-done { background: var(--ork-raised); }
+.map-open { all: unset; box-sizing: border-box; width: 100%; min-height: var(--ork-tap); padding: var(--ork-5); cursor: pointer; display: flex; flex-direction: column;
+  gap: var(--ork-2); }
+.map-open:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.map-top { display: flex; align-items: baseline; gap: var(--ork-4); min-width: 0; }
+.map-dots { flex: none; letter-spacing: 1px; color: var(--ork-ink-muted); }
 .map-row .idea-meta { flex-wrap: wrap; }
-.map-hand { font-weight: 700; color: var(--ink); }
-.map-why, .map-after { color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
-.map-mark, .map-new { border: 1px solid var(--frame-strong); border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 0.75rem; }
-.map-new { font-weight: 700; }
-.map-pips { display: inline-flex; gap: var(--space-1); align-items: center; }
-.pip { box-sizing: border-box; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); border: 2px solid var(--frame-strong); background: transparent; }
-.pip-done { background: var(--ink); border-color: var(--ink); }
+.map-hand { font-weight: 600; color: var(--ork-ink); }
+.map-why, .map-after { color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.map-mark, .map-new { border: var(--ork-line) solid var(--ork-edge); padding: 0 var(--ork-3); font: var(--ork-type-caption); }
+.map-new { font-weight: 600; }
+.map-pips { display: inline-flex; gap: var(--ork-2); align-items: center; }
+.pip { width: 10px; height: 10px; border: 2px solid var(--ork-edge); background: transparent; }
+.pip-done { background: var(--ork-ink); border-color: var(--ork-ink); }
 .pip-work { border-width: 3px; border-style: double; }

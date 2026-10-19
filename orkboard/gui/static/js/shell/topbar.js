@@ -2,6 +2,7 @@
 // window and its week; a hover or focus shows each window and when it resets) · today's Spend · Stop all · the gear.
 // Roles only: warning at 20 % or less left, danger at 5 % or less (docs/design-system.md).
 import { html, cls } from "../html.js";
+import { Icon } from "../orkui.js";
 import { town, command, say } from "../link.js";
 import { openDialog } from "./modals.js";
 import { ProjectSwitcher } from "./projects.js";
@@ -37,7 +38,7 @@ export function Limits() {
 }
 
 function Gear() {
-  return html`<button class="ok-btn" aria-label="Settings" aria-haspopup="dialog" onClick=${() => openDialog("settings")}>⚙</button>`;
+  return html`<button class="ork-btn" aria-label="Settings" aria-haspopup="dialog" onClick=${() => openDialog("settings")}><${Icon} name="sliders" /></button>`;
 }
 
 export function TopBar() {
@@ -49,7 +50,7 @@ export function TopBar() {
     <${Limits} />
     <span class="shell-top__spacer"></span>
     <span class="shell-top__spend" title="What was spent today"><span class="ok-tone-muted">Spend</span> <b>${spend ?? "—"}</b></span>
-    <button class="ok-btn danger" title=${say("Stop every ork, script and browser at once")}
+    <button class="ork-btn danger" title=${say("Stop every ork, script and browser at once")}
       onClick=${() => command("halt").catch(() => {})}>Stop all</button>
     <${Gear} />
   </header>`;

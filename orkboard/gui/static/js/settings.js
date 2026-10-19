@@ -48,7 +48,7 @@ function UpdatesField({ s }) {
       items=${[["auto", say("All")], ["critical", say("Critical")], ["ask", say("None")]]} onPick=${pick} />
     <p class="ok-font-status ok-tone-muted">${say(UPDATE_WHAT[policy] || "")}${t && t.update
       ? say(` Orkline ${t.update.version} is out.`) : ""}</p>
-    <span><button class="ok-btn" onClick=${check}>Check for updates</button></span>`;
+    <span><button class="ork-btn" onClick=${check}>Check for updates</button></span>`;
 }
 
 function UsageField({ s, onPick }) {
@@ -95,8 +95,8 @@ export function UsageAsk() {
   const answer = (v) => { setDone(true); command("usage.share", { share: v }).catch(() => {}); };
   return html`<${Dialog} title=${say("Help improve Orkline?")} onCancel=${() => setDone(true)}
       text=${say(USAGE_WHAT + " You can change this in Settings.")}
-      actions=${html`<button class="ok-btn" onClick=${() => answer(false)}>${say("No, thanks")}</button>
-        <button class="ok-btn primary" onClick=${() => answer(true)}>${say("Share")}</button>`} />`;
+      actions=${html`<button class="ork-btn" onClick=${() => answer(false)}>${say("No, thanks")}</button>
+        <button class="ork-btn primary" onClick=${() => answer(true)}>${say("Share")}</button>`} />`;
 }
 
 /** The Security reviewer's hooks in this project's AI tool settings: on or off (`orkline hooks remove` does the
@@ -116,7 +116,7 @@ function RoundField({ s, set, setS }) {
       items=${[[true, say("On")], [false, say("Off")]]} onPick=${(v) => set({ round: v })} />
     <p class="ok-font-status ok-tone-muted">${say(`At ${r.at}, the to-dos and tasks that lie get a 🌙 when a commit or a wiki page is about them, and the day's code gives at most 3 cleanup ideas as notes in Ideas. It never sends work to the orks. Free when nothing changed.`)}</p>
     <p class="ok-font-status">${say(`Last night: ${r.said}`)}</p>
-    <span><button class="ok-btn" onClick=${now}>${say("Look now")}</button></span>
+    <span><button class="ork-btn" onClick=${now}>${say("Look now")}</button></span>
     ${s.round_said && html`<p class="ok-font-status ok-tone-ok">${say(s.round_said)}</p>`}`;
 }
 
@@ -137,8 +137,8 @@ function LogsField({ s, set }) {
       : "A building's day is cleared the next morning, unless you downloaded it or gave it a 👎.")}</p>
     <${Steps} label=${say("Analytics of")} value=${days} items=${PERIODS.map(([v, t]) => [v, say(t)])} onPick=${setDays} />
     <p class="ok-font-status">${say(`${l.days} day${l.days === 1 ? "" : "s"} of logs kept`)}</p>
-    <span>${l.days ? html`<a class="ok-btn" href=${href} download>${say("Download analytics (.zip)")}</a>`
-      : html`<button class="ok-btn" disabled>${say("Download analytics (.zip)")}</button>`}</span>`;
+    <span>${l.days ? html`<a class="ork-btn" href=${href} download>${say("Download analytics (.zip)")}</a>`
+      : html`<button class="ork-btn" disabled>${say("Download analytics (.zip)")}</button>`}</span>`;
 }
 
 /** The AI tools: which are on, and the main one decisions and `main` steps run on. */
@@ -155,8 +155,8 @@ function ToolsField({ s, set }) {
       </span></div>
     ${s.tools.filter((x) => x.risk).map((x) => html`<p key=${x.id} class="ok-font-status ok-tone-wait">⚠ ${x.title}: ${say(x.risk)}</p>`)}
     ${risking && html`<${Dialog} title=${say(`Turn on ${risking.title}?`)} text=${say(risking.risk)} warn onCancel=${() => setRisking(null)}
-      actions=${html`<button class="ok-btn" onClick=${() => setRisking(null)}>${say("Keep it off")}</button>
-        <button class="ok-btn danger" onClick=${() => { set({ tools: { [risking.id]: true }, risk_read: risking.id }); setRisking(null); }}>
+      actions=${html`<button class="ork-btn" onClick=${() => setRisking(null)}>${say("Keep it off")}</button>
+        <button class="ork-btn danger" onClick=${() => { set({ tools: { [risking.id]: true }, risk_read: risking.id }); setRisking(null); }}>
           ${say(`Turn on ${risking.title} at my own risk`)}</button>`} />`}
     <${Steps} label=${say("Main tool")} value=${s.main_tool}
       items=${[["", say("First one on")], ...on.map((x) => [x.id, html`<${ToolMark} id=${x.id} mark=${x.mark} /> ${x.title}`])]}
@@ -176,16 +176,16 @@ function TierModel({ tool, row, set }) {
   const pick = (v) => (v === OTHER ? setTyping(true) : save(v));
   return html`<div class="gui-field"><span class="ok-font-label"><${ToolMark} id=${tool.id} mark=${tool.mark} /> ${tool.title} · ${say(row.label)}</span>
       <span>
-        <select class="ok-input" value=${typing ? OTHER : row.chosen} aria-label=${say(`${tool.title}: the ${row.label} model`)}
+        <select class="ork-field" value=${typing ? OTHER : row.chosen} aria-label=${say(`${tool.title}: the ${row.label} model`)}
             onChange=${(e) => pick(e.target.value)}>
           ${row.options.map(([v, text]) => html`<option key=${v} value=${v}>${say(text)}</option>`)}
           <option value=${OTHER}>${say("Another model…")}</option>
         </select>
-        ${typing && html` <input class="ok-input" autofocus value=${typed} placeholder=${say("the model's name, as the tool spells it")}
+        ${typing && html` <input class="ork-field" autofocus value=${typed} placeholder=${say("the model's name, as the tool spells it")}
             aria-label=${say(`${tool.title}: the ${row.label} model's name`)}
             onInput=${(e) => setTyped(e.target.value)} onKeyDown=${(e) => e.key === "Enter" && typed.trim() && save(typed.trim())} />
-          <button class="ok-btn" disabled=${!typed.trim()} onClick=${() => save(typed.trim())}>${say("Use it")}</button>`}
-        ${row.chosen && html` <button class="ok-btn" onClick=${() => save("")}>${say("Reset to latest")}</button>`}
+          <button class="ork-btn" disabled=${!typed.trim()} onClick=${() => save(typed.trim())}>${say("Use it")}</button>`}
+        ${row.chosen && html` <button class="ork-btn" onClick=${() => save("")}>${say("Reset to latest")}</button>`}
       </span></div>
     <p class="ok-font-status ok-tone-muted">${say(`Runs on ${row.now}`)}${row.price ? ` · ${row.price}` : ""}</p>`;
 }
@@ -210,7 +210,7 @@ export function SettingsDialog() {
   const t = town.value;
   return html`<${Dialog} title=${say("Town settings")} onCancel=${close}
       actions=${html`<span class="ok-font-status ok-tone-muted gui-settings__version">Orkline ${s.version}</span>
-        <button class="ok-btn primary" onClick=${close}>${say("Close")}</button>`}>
+        <button class="ork-btn primary" onClick=${close}>${say("Close")}</button>`}>
     <div ref=${box} class="gui-form gui-settings gui-scrolls">
       <span class="gui-you__camp">${say(`Town: ${t.project}`)}</span>
       <${Steps} label=${say("Autonomy: how freely the orks decide")} value=${s.autonomy}

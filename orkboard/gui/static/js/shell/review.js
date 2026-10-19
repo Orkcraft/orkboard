@@ -3,6 +3,7 @@
 // (only when the tests are green and nothing conflicts), Send back / Fix (one line, required), Drop (quiet, apart).
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
+import { Chev } from "../orkui.js";
 import { review, preview, act, showResult, closePreview } from "./store.js";
 import { Modal, openDialog, closeDialog } from "./modals.js";
 
@@ -58,17 +59,17 @@ export function ResultActions({ r, pinned = false }) {
   };
   return html`<div class=${cls("shell-actions", { "is-pinned": pinned })} onClick=${(e) => e.stopPropagation()}>
     <div class="shell-actions__main">
-      <button class="ok-btn primary" disabled=${!!reason || working} title=${reason || `Merge into ${into}`}
+      <button class="ork-btn primary" disabled=${!!reason || working} title=${reason || `Merge into ${into}`}
         onClick=${merge}>Merge into ${into}</button>
-      <button class="ok-btn" aria-expanded=${line !== null} onClick=${() => setLine(line === null ? fixLine(r, into) : null)}>${fix ? "Fix" : "Send back"}</button>
+      <button class="ork-btn" aria-expanded=${line !== null} onClick=${() => setLine(line === null ? fixLine(r, into) : null)}>${fix ? "Fix" : "Send back"}</button>
       <button class="shell-quiet" onClick=${() => openDialog("drop", { r })}>Drop…</button>
     </div>
     ${reason && html`<p class="shell-actions__why ok-tone-error" role="status">${reason}</p>`}
     ${line !== null && html`<form class="shell-actions__line" onSubmit=${back}>
-      <input class="ok-input" autofocus value=${line} aria-label=${fix ? "What to fix, in one line" : "Why you send it back, in one line"}
+      <input class="ork-field" autofocus value=${line} aria-label=${fix ? "What to fix, in one line" : "Why you send it back, in one line"}
         placeholder="One line: what should change?" onInput=${(e) => setLine(e.target.value)}
         onKeyDown=${(e) => e.key === "Escape" && (e.stopPropagation(), setLine(null))} />
-      <button class="ok-btn primary" disabled=${!line.trim() || working}>${fix ? "Fix" : "Send back"}</button></form>`}
+      <button class="ork-btn primary" disabled=${!line.trim() || working}>${fix ? "Fix" : "Send back"}</button></form>`}
   </div>`;
 }
 
@@ -93,7 +94,7 @@ function Into() {
   const rv = review.value;
   if (!rv) return null;
   return html`<div class="shell-into">
-    <button class="ok-btn" aria-haspopup="dialog" onClick=${() => openDialog("into")}>Merge into <b>${rv.into}</b> ▾</button>
+    <button class="ork-btn" aria-haspopup="dialog" onClick=${() => openDialog("into")}>Merge into <b>${rv.into}</b><${Chev} /></button>
   </div>`;
 }
 
@@ -109,8 +110,8 @@ export function IntoDialog() {
         aria-checked=${b === rv.into} onClick=${() => pick(b)}>${b === rv.into ? "✓" : ""} ${b}</button>`)}
       ${making === null ? html`<button class="shell-menu__item" role="menuitem" onClick=${() => setMaking("")}>New branch…</button>`
         : html`<form class="shell-menu__new" onSubmit=${(e) => { e.preventDefault(); if (making.trim()) pick(making.trim()); }}>
-          <input class="ok-input" autofocus value=${making} aria-label="Name of the new branch" placeholder="Name of the new branch"
-            onInput=${(e) => setMaking(e.target.value)} /><button class="ok-btn primary" disabled=${!making.trim()}>Make it</button></form>`}
+          <input class="ork-field" autofocus value=${making} aria-label="Name of the new branch" placeholder="Name of the new branch"
+            onInput=${(e) => setMaking(e.target.value)} /><button class="ork-btn primary" disabled=${!making.trim()}>Make it</button></form>`}
     </div>
   <//>`;
 }
@@ -122,9 +123,9 @@ export function DropDialog({ r }) {
     if (got?.ok) { if (preview.value?.task === r.task && preview.value?.slug === r.idea) closePreview(); closeDialog(); }
   };
   return html`<${Modal} title="Drop this result?" onClose=${closeDialog}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Keep it</button>
-      <button type="button" class="ok-btn danger" onClick=${drop}>Drop it</button>`}>
-    <p class="ok-dialog__text"><b>${r.title}</b> will not be merged. Its worktree goes; its branch stays.</p>
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Keep it</button>
+      <button type="button" class="ork-btn danger" onClick=${drop}>Drop it</button>`}>
+    <p class="shell-modal__text"><b>${r.title}</b> will not be merged. Its worktree goes; its branch stays.</p>
   <//>`;
 }
 

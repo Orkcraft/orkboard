@@ -2,7 +2,7 @@
 // select. The same as the desktop, as sheets: New… (a menu of the usable templates, then a template's form), the check (what was
 // found, the doubts, the fields and draft parts to correct, the action's button), Operations' gear, a template's rules. The list
 // is read again when the snapshot's `ops_rev` moves; it works with no project open (the operations are the person's).
-import { h, sheet } from "./util.js";
+import { h, sheet, icon } from "./util.js";
 import { field, foot } from "./shell-forms.js";
 import { TARGETS, hhmm } from "./shell-words.js";
 
@@ -22,7 +22,7 @@ const kept = {
 
 /** A manifest's field or draft part as a control: a box (long), a select (choice) or a line; `value` is what it starts with. */
 function control(def, value, label) {
-  const attrs = { class: "ok-input", "aria-label": label || def.label, placeholder: def.hint || "" };
+  const attrs = { class: "ork-field", "aria-label": label || def.label, placeholder: def.hint || "" };
   let el;
   if (def.type === "choice") {
     el = h("select", attrs, ...(def.options || []).map((o) => h("option", { value: o }, o)));
@@ -90,7 +90,7 @@ export function makeOps(core, ctx) {
     const saved = kept.get(t.name);
     const inputs = Object.fromEntries(t.fields.map((f) => [f.name, control(f, saved[f.name] ?? f.default ?? "", f.label)]));
     const say = h("p", { class: "warn", role: "alert", hidden: true });
-    const add = h("button", { class: "ok-btn primary big", type: "submit" }, "Add");
+    const add = h("button", { class: "ork-btn primary big", type: "submit" }, "Add");
     const values = () => Object.fromEntries(Object.entries(inputs).map(([k, el]) => [k, el.value.trim()]));
     const stash = () => {
       const typed = Object.fromEntries(Object.entries(values()).filter(([k, v]) => v && v !== String(t.fields.find((f) => f.name === k)?.default ?? "")));
@@ -99,7 +99,7 @@ export function makeOps(core, ctx) {
     for (const el of Object.values(inputs)) el.addEventListener("input", stash);
     formBody.replaceChildren(h("p", { class: "muted" }, t.title),
       ...t.fields.map((f) => field(f.label + (f.required ? " *" : ""), inputs[f.name])),
-      say, foot(h("button", { class: "ok-btn big", type: "button", onclick: () => formSheet.close() }, "Cancel"), add));
+      say, foot(h("button", { class: "ork-btn big", type: "button", onclick: () => formSheet.close() }, "Cancel"), add));
     formBody.onsubmit = async (e) => {
       e.preventDefault();
       add.disabled = true;
@@ -130,7 +130,7 @@ export function makeOps(core, ctx) {
     const changedFields = () => Object.fromEntries(t.fields.filter((f) => fieldInputs[f.name].value !== mine(f.name)).map((f) => [f.name, fieldInputs[f.name].value.trim()]));
     const changedDraft = () => Object.fromEntries(t.draft.filter((p) => partInputs[p.name].value !== String(r.draft?.[p.name] ?? "")).map((p) => [p.name, partInputs[p.name].value]));
     const say = h("p", { class: "warn", role: "alert", hidden: true });
-    const go = h("button", { class: "ok-btn primary big", type: "submit" }, t.act_label);
+    const go = h("button", { class: "ork-btn primary big", type: "submit" }, t.act_label);
     const again = () => t.fields.some((f) => !f.at && f.name in changedFields());
     const sync_ = () => { go.textContent = again() ? "Prepare again" : t.act_label; };
     for (const el of [...Object.values(fieldInputs), ...Object.values(partInputs)]) el.addEventListener("input", sync_);
@@ -146,7 +146,7 @@ export function makeOps(core, ctx) {
         h("p", { class: "muted hint" }, "A change here is read again: the button becomes Prepare again."),
         ...other.map((f) => field(f.label, fieldInputs[f.name]))) : null,
       say,
-      foot(h("button", { class: "ok-btn big", type: "button", onclick: async () => { if (await act("ops.drop", { id }, "Dropped.")) checkSheet.close(); } }, "Drop"), go));
+      foot(h("button", { class: "ork-btn big", type: "button", onclick: async () => { if (await act("ops.drop", { id }, "Dropped.")) checkSheet.close(); } }, "Drop"), go));
     checkBody.onsubmit = async (e) => {
       e.preventDefault();
       go.disabled = true;
@@ -166,9 +166,9 @@ export function makeOps(core, ctx) {
   function failedActions(r, after) {
     const done = () => { after?.(); };
     return h("div", { class: "row" },
-      r.acted === false ? h("button", { class: "ok-btn", type: "button", onclick: async () => { if (await act("ops.retry", { id: r.id })) done(); } }, "Try again") : null,
-      h("button", { class: "ok-btn", type: "button", onclick: async () => { if (await act("ops.again", { id: r.id }, "Added again.")) done(); } }, "Add again"),
-      h("button", { class: "ok-btn", type: "button", onclick: async () => { if (await act("ops.drop", { id: r.id }, "Dropped.")) done(); } }, "Drop"));
+      r.acted === false ? h("button", { class: "ork-btn", type: "button", onclick: async () => { if (await act("ops.retry", { id: r.id })) done(); } }, "Try again") : null,
+      h("button", { class: "ork-btn", type: "button", onclick: async () => { if (await act("ops.again", { id: r.id }, "Added again.")) done(); } }, "Add again"),
+      h("button", { class: "ork-btn", type: "button", onclick: async () => { if (await act("ops.drop", { id: r.id }, "Dropped.")) done(); } }, "Drop"));
   }
   const runBody = h("div", { class: "todo-sheet ops-run" });
   const runSheet = sheet("Failed", runBody);
@@ -184,9 +184,9 @@ export function makeOps(core, ctx) {
   }
 
   // -- Not right: what was wrong, if the person says --------------------------------------------------------------------------
-  const wrongBox = h("textarea", { class: "ok-input", rows: "3", maxlength: "1000", "aria-label": "What was not right", placeholder: "What was not right (optional)" });
+  const wrongBox = h("textarea", { class: "ork-field", rows: "3", maxlength: "1000", "aria-label": "What was not right", placeholder: "What was not right (optional)" });
   let wrongId = "";
-  const wrongSend = h("button", { class: "ok-btn primary big", type: "button", onclick: async () => {
+  const wrongSend = h("button", { class: "ork-btn primary big", type: "button", onclick: async () => {
     const why = wrongBox.value.trim();
     wrongSend.disabled = true;
     const r = await act("ops.not_right", { id: wrongId, ...(why ? { why } : {}) }, "Noted: it will check with you again.");
@@ -194,20 +194,20 @@ export function makeOps(core, ctx) {
     if (r) wrongSheet.close();
   } }, "Send: not right");
   const wrongSheet = sheet("Not right", h("p", { class: "muted" }, "It did this by itself. Say what was wrong and it learns; it checks with you again."), field("What was not right", wrongBox),
-    foot(h("button", { class: "ok-btn big", type: "button", onclick: () => wrongSheet.close() }, "Cancel"), wrongSend));
+    foot(h("button", { class: "ork-btn big", type: "button", onclick: () => wrongSheet.close() }, "Cancel"), wrongSend));
   function openWrong(id) { wrongId = id; wrongBox.value = ""; wrongSheet.open(); wrongBox.focus(); }
 
   // -- a template's rules, and a proposal waiting ------------------------------------------------------------------------------
-  const rulesBox = h("textarea", { class: "ok-input", rows: "10", maxlength: "4000", "aria-label": "Rules", spellcheck: "false" });
+  const rulesBox = h("textarea", { class: "ork-field", rows: "10", maxlength: "4000", "aria-label": "Rules", spellcheck: "false" });
   let rulesFor = "";
-  const rulesSave = h("button", { class: "ok-btn primary big", type: "button", onclick: async () => {
+  const rulesSave = h("button", { class: "ork-btn primary big", type: "button", onclick: async () => {
     rulesSave.disabled = true;
     const r = await core.call("ops.rules_save", { template: rulesFor, text: rulesBox.value });
     rulesSave.disabled = false;
     if (r) { rulesSheet.close(); tell("Rules saved."); load(); }
   } }, "Save rules");
   const rulesSheet = sheet("Rules", h("p", { class: "muted" }, "What this template learned from your corrections. It reads these before it prepares. Change or delete a line."), field("Rules", rulesBox),
-    foot(h("button", { class: "ok-btn big", type: "button", onclick: () => rulesSheet.close() }, "Cancel"), rulesSave));
+    foot(h("button", { class: "ork-btn big", type: "button", onclick: () => rulesSheet.close() }, "Cancel"), rulesSave));
   async function openRules(name) {
     const r = await core.call("ops.rules", { template: name });
     if (!r) return;
@@ -219,7 +219,7 @@ export function makeOps(core, ctx) {
 
   /** The lines a template learned, answered in place: Take adds them to its rules; No may say why. */
   function proposalBlock(template, lines, done) {
-    const why = h("input", { class: "ok-input", type: "text", maxlength: "300", "aria-label": `Why not: ${template}`, placeholder: "Why not (optional)" });
+    const why = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${template}`, placeholder: "Why not (optional)" });
     const answer = async (take) => {
       const r = await core.call("ops.rules_answer", { template, take, ...(!take && why.value.trim() ? { reason: why.value.trim() } : {}) });
       if (r) { load(); core.refresh(); done?.(); }
@@ -227,8 +227,8 @@ export function makeOps(core, ctx) {
     return h("div", { class: "ops-proposal" },
       h("p", { class: "muted" }, "It would add these to its rules:"),
       h("ul", { class: "ops-lines" }, ...lines.map((l) => h("li", {}, l))),
-      h("div", { class: "row" }, h("button", { class: "ok-btn primary", type: "button", onclick: () => answer(true) }, "Take"),
-        why, h("button", { class: "ok-btn", type: "button", onclick: () => answer(false) }, "No")));
+      h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => answer(true) }, "Take"),
+        why, h("button", { class: "ork-btn", type: "button", onclick: () => answer(false) }, "No")));
   }
   const propBody = h("div", { class: "todo-sheet" });
   const propSheet = sheet("Rules", propBody);
@@ -240,7 +240,7 @@ export function makeOps(core, ctx) {
 
   // -- the gear: Target, clean checks, a day's limit, a server for each key ----------------------------------------------------
   const gearBody = h("div", { class: "ops-gear" });
-  const gearSheet = sheet("Operations settings", gearBody, foot(h("button", { class: "ok-btn primary big", type: "button", onclick: () => gearSheet.close() }, "Done")));
+  const gearSheet = sheet("Operations settings", gearBody, foot(h("button", { class: "ork-btn primary big", type: "button", onclick: () => gearSheet.close() }, "Done")));
   async function setting(args) {
     const r = await core.call("ops.set", args);
     if (r) load();
@@ -249,7 +249,7 @@ export function makeOps(core, ctx) {
   async function openGear() {
     const mine = () => data?.settings || {};
     const num = (key, label, lo, hi, hint) => {
-      const el = h("input", { class: "ok-input", type: "number", min: String(lo), max: String(hi), inputmode: "numeric", "aria-label": label });
+      const el = h("input", { class: "ork-field", type: "number", min: String(lo), max: String(hi), inputmode: "numeric", "aria-label": label });
       el.value = String(mine()[key] ?? "");
       el.addEventListener("change", async () => { if (!(await setting({ [key]: Number(el.value) }))) el.value = String(mine()[key] ?? ""); });
       return field(label, el, hint);
@@ -271,7 +271,7 @@ export function makeOps(core, ctx) {
     const got = await ctx.send("ops.servers");
     const names = got.ok && !got.result?.error ? got.result.servers || [] : [];
     serverBox.replaceChildren(...needed.map(([key, what]) => {
-      const pick = h("select", { class: "ok-input", "aria-label": `Server for ${what}` },
+      const pick = h("select", { class: "ork-field", "aria-label": `Server for ${what}` },
         h("option", { value: "" }, "not connected"), ...names.map((n) => h("option", { value: n }, n)));
       pick.value = names.includes(mine().servers?.[key]) ? mine().servers[key] : "";
       pick.addEventListener("change", () => setting({ servers: { [key]: pick.value } }));
@@ -283,7 +283,7 @@ export function makeOps(core, ctx) {
   function checkRow(r) {
     const t = tpl(r.template);
     return h("button", { class: "card need need-op", type: "button", "data-op": r.id, onclick: () => openCheck(r.id) },
-      h("span", { class: "need-mark", "aria-hidden": "true" }, "☑️"),
+      h("span", { class: "need-mark" }, icon("checkbox")),
       h("span", { class: "need-text" }, h("b", {}, r.title), first(r, t) ? h("small", {}, first(r, t)) : null,
         h("small", {}, [r.why ? `at your check · ${r.why}` : "at your check", hhmm(r.at)].filter(Boolean).join(" · "))),
       h("span", { class: "chev", "aria-hidden": "true" }, "›"));
@@ -293,7 +293,7 @@ export function makeOps(core, ctx) {
     return h("div", { class: "card ops-run-row", "data-op": r.id },
       h("span", { class: "need-text" }, h("b", {}, r.title),
         h("small", { class: "state-word work" }, held ? null : SPIN(), held ? "" : " ", held || (r.state === "acting" ? "doing it" : "preparing"))),
-      h("button", { class: "ok-btn", type: "button", "aria-label": `Stop: ${r.title}`, onclick: () => act("ops.stop", { id: r.id }, "Stopped.") }, "Stop"));
+      h("button", { class: "ork-btn", type: "button", "aria-label": `Stop: ${r.title}`, onclick: () => act("ops.stop", { id: r.id }, "Stopped.") }, "Stop"));
   }
   const failedRow = (r) => h("div", { class: "card ops-failed", "data-op": r.id },
     h("span", { class: "need-text" }, h("b", {}, r.title), h("small", { class: "warn" }, r.why || "It failed")), failedActions(r));
@@ -301,8 +301,8 @@ export function makeOps(core, ctx) {
     return h("div", { class: "card ops-done", "data-op": r.id },
       h("span", { class: "need-text" }, h("b", {}, r.title), first(r, tpl(r.template)) ? h("small", {}, first(r, tpl(r.template))) : null,
         r.alone ? h("small", { class: "muted" }, "by itself") : null),
-      r.link ? h("a", { class: "ok-btn", href: r.link, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open the result of ${r.title}` }, "Open") : null,
-      r.alone ? h("button", { class: "ok-btn", type: "button", "aria-label": `Not right: ${r.title}`, onclick: () => openWrong(r.id) }, "Not right") : null);
+      r.link ? h("a", { class: "ork-btn", href: r.link, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open the result of ${r.title}` }, "Open") : null,
+      r.alone ? h("button", { class: "ork-btn", type: "button", "aria-label": `Not right: ${r.title}`, onclick: () => openWrong(r.id) }, "Not right") : null);
   }
   function templateRow(t) {
     return h("div", { class: "card ops-template", "data-template": t.name },
@@ -311,8 +311,8 @@ export function makeOps(core, ctx) {
         t.unusable ? h("small", { class: "warn" }, t.unusable) : null),
       t.proposal ? proposalBlock(t.name, t.proposal.lines || []) : null,
       h("div", { class: "row" },
-        t.state === "alone" ? h("button", { class: "ok-btn", type: "button", "aria-label": `Check again: ${t.title}`, onclick: () => act("ops.trust_reset", { template: t.name }, "It checks with you again.") }, "Check again") : null,
-        h("button", { class: "ok-btn", type: "button", "aria-label": `Rules: ${t.title}`, onclick: () => openRules(t.name) }, "Rules")));
+        t.state === "alone" ? h("button", { class: "ork-btn", type: "button", "aria-label": `Check again: ${t.title}`, onclick: () => act("ops.trust_reset", { template: t.name }, "It checks with you again.") }, "Check again") : null,
+        h("button", { class: "ork-btn", type: "button", "aria-label": `Rules: ${t.title}`, onclick: () => openRules(t.name) }, "Rules")));
   }
   const unfolded = new Set();                      // a fold the person opened stays open when the list is drawn again
   function fold(title, n, rows, open) {

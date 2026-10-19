@@ -51,8 +51,8 @@ const halfOf = (r) => { const k = `${r.idea}/${r.task}`; if (!half.has(k)) half.
 
 // Drop's confirm is one sheet for every result (spec 34 §5): it names the result and drops it only at the second press.
 const dropText = h("p", {});
-const dropYes = h("button", { class: "ok-btn danger big", type: "button" }, "Drop it");
-const dropNo = h("button", { class: "ok-btn big", type: "button" }, "Keep it");
+const dropYes = h("button", { class: "ork-btn danger big", type: "button" }, "Drop it");
+const dropNo = h("button", { class: "ork-btn big", type: "button" }, "Keep it");
 export const dropSheet = sheet("Drop this result?", dropText, foot(dropNo, dropYes));
 let onDrop = () => {};
 dropNo.addEventListener("click", () => dropSheet.close());
@@ -69,13 +69,13 @@ export function resultActions(core, r, done = () => {}) {
   const into = core.st.review?.into || "dev";
   const reason = mergeReason(r), fix = isRed(r) || Boolean(r.conflict);
   const key = { slug: r.idea, task: r.task };
-  const merge = h("button", { class: "ok-btn primary big", type: "button", disabled: Boolean(reason), title: reason || null }, `Merge into ${into}`);
-  const back = h("button", { class: "ok-btn", type: "button", "aria-expanded": "false" }, fix ? "Fix" : "Send back");
+  const merge = h("button", { class: "ork-btn primary big", type: "button", disabled: Boolean(reason), title: reason || null }, `Merge into ${into}`);
+  const back = h("button", { class: "ork-btn", type: "button", "aria-expanded": "false" }, fix ? "Fix" : "Send back");
   const drop = h("button", { class: "linkish", type: "button" }, "Drop…");
   const why = reason ? h("p", { class: "warn why", role: "status" }, reason) : null;
-  const line = h("input", { class: "ok-input", type: "text", "aria-label": fix ? "What to fix, in one line" : "Why you send it back, in one line",
+  const line = h("input", { class: "ork-field", type: "text", "aria-label": fix ? "What to fix, in one line" : "Why you send it back, in one line",
     placeholder: "One line: what should change?", maxlength: "1000", enterkeyhint: "send" });
-  const go = h("button", { class: "ok-btn primary", type: "submit", disabled: true }, fix ? "Fix" : "Send back");
+  const go = h("button", { class: "ork-btn primary", type: "submit", disabled: true }, fix ? "Fix" : "Send back");
   const form = h("form", { class: "row back-line", hidden: mine.line === null }, line, go);
   if (mine.line !== null) { line.value = mine.line; go.disabled = !line.value.trim(); back.setAttribute("aria-expanded", "true"); }
   line.addEventListener("input", () => { mine.line = line.value; go.disabled = !line.value.trim(); });
@@ -112,7 +112,7 @@ export function makeReview(core) {
   const fresh = steady(el);
   const branchBody = h("div", { class: "branches" });
   const branchSheet = sheet("Merge into", branchBody);
-  const intoBtn = h("button", { class: "ok-btn into", type: "button", "aria-haspopup": "dialog" });
+  const intoBtn = h("button", { class: "ork-btn into", type: "button", "aria-haspopup": "dialog" });
   intoBtn.addEventListener("click", () => { drawBranches(); branchSheet.open(); });
 
   async function pick(branch) {
@@ -121,8 +121,8 @@ export function makeReview(core) {
   }
   function drawBranches() {
     const rv = core.st.review;
-    const name = h("input", { class: "ok-input", type: "text", "aria-label": "Name of the new branch", placeholder: "Name of the new branch", maxlength: "100" });
-    const make = h("button", { class: "ok-btn primary", type: "submit", disabled: true }, "Make it");
+    const name = h("input", { class: "ork-field", type: "text", "aria-label": "Name of the new branch", placeholder: "Name of the new branch", maxlength: "100" });
+    const make = h("button", { class: "ork-btn primary", type: "submit", disabled: true }, "Make it");
     name.addEventListener("input", () => { make.disabled = !name.value.trim(); });
     const form = h("form", { class: "row", hidden: true }, name, make);
     form.addEventListener("submit", (e) => { e.preventDefault(); if (name.value.trim()) pick(name.value.trim()); });
@@ -148,7 +148,7 @@ export function makeReview(core) {
       const rv = core.st.review;
       if (!fresh(JSON.stringify(rv))) return;
       if (!rv) { el.replaceChildren(h("h2", {}, "Review"), h("p", { class: "muted" }, "Loading…")); return; }
-      intoBtn.replaceChildren("Merge into ", h("b", {}, rv.into), " ▾");
+      intoBtn.replaceChildren("Merge into ", h("b", {}, rv.into), h("i", { class: "ork-chev", "aria-hidden": "true" }));
       el.replaceChildren(h("h2", {}, "Review"), intoBtn,
         rv.results.length ? h("div", { class: "results" }, ...rv.results.map(card))
           : h("p", { class: "muted" }, "Nothing waits at Review. A result lands here when a Grunt's work has been tested."));

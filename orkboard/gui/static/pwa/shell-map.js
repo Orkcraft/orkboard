@@ -102,7 +102,7 @@ export function makeMap(core, goalSheet) {
     if (!st.map) return [h("p", { class: "muted" }, "Loading…")];
     const goals = st.map.goals.filter((g) => !st.track || g.slug === st.track);
     if (!st.map.goals.length) {
-      return [h("p", { class: "muted" }, "No goals yet."), h("button", { class: "ok-btn primary", type: "button", onclick: () => goalSheet.open() }, "New goal")];
+      return [h("p", { class: "muted" }, "No goals yet."), h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open() }, "New goal")];
     }
     const titles = new Map(st.map.nodes.map((n) => [n.slug, n.title]));
     const titleOf = (slug) => titles.get(slug) || slug;

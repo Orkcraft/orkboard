@@ -24,8 +24,8 @@ function AwakeOffer({ machine, onDone }) {
   const answer = (yes) => { setGone(true); command("awake.offer", { yes }).then(() => onDone && onDone(), () => {}); };
   return html`<span class="gui-phones__awake" role="group" aria-label=${say("Keep the computer awake")}>
     <span class="ok-font-status">${say(`Keep this ${machine} awake so your phone can reach the town all day? Only on power.`)}</span>
-    <span><button class="ok-btn primary" onClick=${() => answer(true)}>${say("Yes")}</button>
-      <button class="ok-btn" onClick=${() => answer(false)}>${say("Not now")}</button></span>
+    <span><button class="ork-btn primary" onClick=${() => answer(true)}>${say("Yes")}</button>
+      <button class="ork-btn" onClick=${() => answer(false)}>${say("Not now")}</button></span>
   </span>`;
 }
 
@@ -83,7 +83,7 @@ function Offer({ offer, left, onCancel }) {
       <span class="ok-font-status ok-tone-muted">${say(`Address: ${offer.address}`)}</span>
       <span class="ok-font-status ok-tone-muted">${say("Certificate (the phone checks it):")}</span>
       <code class="gui-phones__fp">${offer.fingerprint}</code>
-      <span><button class="ok-btn" onClick=${onCancel}>${say("Cancel")}</button></span>
+      <span><button class="ork-btn" onClick=${onCancel}>${say("Cancel")}</button></span>
     </div>
   </div>`;
 }
@@ -114,7 +114,7 @@ function Recipe({ r, onDone }) {
       <dt>${say("Body")}</dt><dd><code>${body}</code></dd>
     </dl>
     ${!r.trusted && html`<span class="ok-font-status ok-tone-wait">${say("This address has no certificate a phone trusts by itself: Shortcuts will refuse it. Turn on Tailscale's HTTPS certificates and open Settings again.")}</span>`}
-    <span><button class="ok-btn" onClick=${onDone}>${say("Done")}</button></span>
+    <span><button class="ork-btn" onClick=${onDone}>${say("Done")}</button></span>
   </div>`;
 }
 
@@ -159,7 +159,7 @@ export function PairQr({ pairing: { step } }) {
 export function PairNote({ pairing: { offer, paired, awake, pair, cancel, step } }) {
   if (!offer) {
     return html`<span class="gui-you__pair">
-      <button class="ok-btn" title=${say("A QR code to scan with the Orkline app. The paired phones and Forget are in Town settings → Phones.")}
+      <button class="ork-btn" title=${say("A QR code to scan with the Orkline app. The paired phones and Forget are in Town settings → Phones.")}
         onClick=${pair}>${say("Pair a phone")}</button>
       ${paired && html`<span class="ok-font-status">${say(`Paired: ${paired}`)}</span>`}
       ${paired && html`<${AwakeOffer} machine=${awake} />`}</span>`;
@@ -169,7 +169,7 @@ export function PairNote({ pairing: { offer, paired, awake, pair, cancel, step }
     <span class="ok-font-status ok-tone-muted">${say(`Address: ${offer.address}`)}</span>
     <span class="ok-font-status ok-tone-muted">${say("Certificate (the phone checks it):")}</span>
     <code class="gui-phones__fp">${offer.fingerprint}</code>
-    <span><button class="ok-btn" onClick=${cancel}>${say("Cancel")}</button></span>
+    <span><button class="ork-btn" onClick=${cancel}>${say("Cancel")}</button></span>
   </div>`;
 }
 
@@ -207,18 +207,18 @@ export function PhonesField({ pairNow = false }) {
       ${p.phones.map((d) => html`<li key=${d.id} class="gui-phones__one">
         <span class="gui-phones__name">${d.name}</span>
         <span class="ok-font-status ok-tone-muted">${open.has(d.id) ? say("connected now") : say(`last seen ${when(d.seen)}`)}</span>
-        <button class="ok-btn" onClick=${() => forget(d.id)} title=${say("Its token stops working at once")}>${say("Forget")}</button>
+        <button class="ork-btn" onClick=${() => forget(d.id)} title=${say("Its token stops working at once")}>${say("Forget")}</button>
       </li>`)}
     </ul>`}
     ${!offer && p.phones.length > 0 && html`<${AwakeOffer} machine=${p.awake_offer}
       onDone=${() => command("phones.list").then(setP, () => {})} />`}
     ${offer
       ? html`<${Offer} offer=${offer} left=${left} onCancel=${cancel} />`
-      : html`<span><button class="ok-btn" onClick=${pair}>${say("Pair a phone")}</button></span>`}
+      : html`<span><button class="ork-btn" onClick=${pair}>${say("Pair a phone")}</button></span>`}
     ${p.listening && !offer && p.address && html`<span class="ok-font-status ok-tone-muted">${say(`Listening for paired phones on ${p.address}`)}</span>`}
     <${Tailnet} p=${p} />
     ${recipe ? html`<${Recipe} r=${recipe} onDone=${() => setRecipe(null)} />`
-      : html`<span><button class="ok-btn" onClick=${makeRecipe}
+      : html`<span><button class="ork-btn" onClick=${makeRecipe}
           title=${say("A token for an iOS Shortcuts or Android Tasker automation that reports places")}>${say("Places through Shortcuts or Tasker")}</button></span>`}
   </div>`;
 }

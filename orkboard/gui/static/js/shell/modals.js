@@ -5,6 +5,7 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { html } from "../html.js";
+import { Icon } from "../orkui.js";
 
 export const dialog = signal(null);          // null | {kind, props}
 let opener = null;
@@ -45,11 +46,11 @@ export function Modal({ title, onClose, children, foot, wide = false }) {
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   };
   return html`<div class="shell-backdrop" data-modal-backdrop onMouseDown=${(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <section class=${`ok-dialog shell-modal${wide ? " is-wide" : ""}`} role="dialog" aria-modal="true" aria-label=${title} tabindex="-1" ref=${panel} onKeyDown=${trap}>
-      <header class="ok-dialog__head shell-modal__head"><h2 class="ok-dialog__title">${title}</h2>
-        <button type="button" class="ok-btn shell-modal__x" aria-label="Close" onClick=${onClose}>×</button></header>
+    <section class=${`ork-dialog shell-modal${wide ? " is-wide" : ""}`} role="dialog" aria-modal="true" aria-label=${title} tabindex="-1" ref=${panel} onKeyDown=${trap}>
+      <header class="shell-modal__head"><h2 class="ork-dialog__title">${title}</h2>
+        <button type="button" class="ork-btn shell-modal__x" aria-label="Close" onClick=${onClose}><${Icon} name="close" /></button></header>
       <div class="shell-modal__body">${children}</div>
-      ${foot && html`<footer class="ok-dialog__actions shell-modal__foot">${foot}</footer>`}
+      ${foot && html`<footer class="shell-modal__foot">${foot}</footer>`}
     </section>
   </div>`;
 }

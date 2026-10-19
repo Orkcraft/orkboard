@@ -30,13 +30,13 @@ export function GoalDialog({ slug = "", then = "" }) {
     else showGoal(got.slug);
   };
   return html`<${Modal} title=${slug ? "Edit goal" : "New goal"} onClose=${closeDialog} wide=${true}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Cancel</button>
-      <button type="submit" form="goal-form" class="ok-btn primary" disabled=${!about.trim() || saving}>Save goal</button>`}>
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>
+      <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!about.trim() || saving}>Save goal</button>`}>
     <form id="goal-form" class="shell-form" onSubmit=${save}>
       ${slug && html`<label class="shell-field"><span class="ok-font-label">Title</span>
-        <input class="ok-input" value=${title} aria-label="Title" placeholder="The Taskmaster wrote it; correct it here" onInput=${(e) => setTitle(e.target.value)} /></label>`}
+        <input class="ork-field" value=${title} aria-label="Title" placeholder="The Taskmaster wrote it; correct it here" onInput=${(e) => setTitle(e.target.value)} /></label>`}
       <label class="shell-field"><span class="ok-font-label">Description</span>
-        <textarea class="ok-input" rows="5" autofocus value=${about} aria-label="Description" placeholder="A few lines: what you want to reach, and why"
+        <textarea class="ork-field" rows="5" autofocus value=${about} aria-label="Description" placeholder="A few lines: what you want to reach, and why"
           onInput=${(e) => setAbout(e.target.value)}></textarea></label>
       <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span>
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>

@@ -29,18 +29,18 @@ export function IdeaDialog({ goal: first = "" }) {
     if (t && goal) await act("ideas.add", { text: t, track: goal, priority, night: true });
   };
   return html`<${Modal} title="New idea" onClose=${close}
-    foot=${html`<button type="button" class="ok-btn primary" disabled=${!text.trim() || !goal || busy} onClick=${send}
+    foot=${html`<button type="button" class="ork-btn primary" disabled=${!text.trim() || !goal || busy} onClick=${send}
       title=${say("Add it: the Taskmaster drafts it at once, or tonight when its priority is Low")}>Add</button>`}>
     <div class="shell-form">
       <label class="shell-field"><span class="ok-font-label">Your idea</span>
-        <textarea class="ok-input" rows="4" autofocus value=${text} aria-label="Your idea" placeholder="Your idea, in a few words or a few lines"
+        <textarea class="ork-field" rows="4" autofocus value=${text} aria-label="Your idea" placeholder="Your idea, in a few words or a few lines"
           onInput=${(e) => setText(e.target.value)}
           onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}></textarea></label>
       <label class="shell-field"><span class="ok-font-label">Belongs to goal</span>
-        <select class="ok-input" aria-label="Goal" value=${goal} onChange=${(e) => { setGoal(e.target.value); setMine(""); }}>
+        <select class="ork-field" aria-label="Goal" value=${goal} onChange=${(e) => { setGoal(e.target.value); setMine(""); }}>
           ${goals.map((g) => html`<option key=${g.slug} value=${g.slug}>${g.title}</option>`)}</select></label>
       <label class="shell-field"><span class="ok-font-label">Priority</span>
-        <select class="ok-input" aria-label="Priority" value=${priority} onChange=${(e) => setMine(e.target.value)}>
+        <select class="ork-field" aria-label="Priority" value=${priority} onChange=${(e) => setMine(e.target.value)}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>
       <p class="ok-font-status ok-tone-muted">${say("High and Normal: the Taskmaster drafts it at once. Low: tonight. Closing this with text in it adds it to tonight's queue.")}</p>
     </div>

@@ -10,13 +10,13 @@ export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks yo
 const isUrl = (l) => /^[a-z][a-z0-9+.-]*:\/\//i.test(l);
 
 export function makeGoalSheet(core) {
-  const title = h("input", { class: "ok-input", type: "text", "aria-label": "Title", placeholder: "The Taskmaster writes it; correct it here", maxlength: "120" });
+  const title = h("input", { class: "ork-field", type: "text", "aria-label": "Title", placeholder: "The Taskmaster writes it; correct it here", maxlength: "120" });
   const titleField = field("Title", title);
-  const about = h("textarea", { class: "ok-input", rows: "5", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
+  const about = h("textarea", { class: "ork-field", rows: "5", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
   const priority = prioritySwitch();
   const hint = h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the title, the summary, what counts as done and the links.");
-  const save = h("button", { class: "ok-btn primary big", type: "submit", disabled: true }, "Save goal");
-  const cancel = h("button", { class: "ok-btn big", type: "button" }, "Cancel");
+  const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save goal");
+  const cancel = h("button", { class: "ork-btn big", type: "button" }, "Cancel");
   const form = h("form", { class: "sheet-form" }, titleField, field("Description", about),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(cancel, save));
   const sh = sheet("New goal", form);
@@ -62,10 +62,10 @@ export function makeGoalSheet(core) {
 /** The goal's screen: returns the nodes of its body (the preview puts them in). `act` is the preview's own (it flashes and reads again). */
 export function goalBody(g, core, act, asked, setAsked) {
   const words = GOAL_STATE[g.state];
-  const field_ = h("textarea", { class: "ok-input", id: "answer-field", rows: "2", maxlength: "20000", "aria-label": "Answer the Taskmaster", placeholder: "Answer the Taskmaster…" });
+  const field_ = h("textarea", { class: "ork-field", id: "answer-field", rows: "2", maxlength: "20000", "aria-label": "Answer the Taskmaster", placeholder: "Answer the Taskmaster…" });
   field_.value = asked;
   field_.addEventListener("input", () => setAsked(field_.value));
-  const send = h("button", { class: "ok-btn", type: "button" }, "Send");
+  const send = h("button", { class: "ork-btn", type: "button" }, "Send");
   send.addEventListener("click", async () => {
     const text = field_.value.trim();
     if (!text) return;

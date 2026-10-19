@@ -16,7 +16,7 @@ export function countWords(p) {
 export function makeProjects(core, ctx) {
   const chip = h("button", { class: "project-chip", type: "button", "aria-haspopup": "dialog" });
   const body = h("div", { class: "projects" });
-  const sh = sheet("Projects", body, foot(h("button", { class: "ok-btn primary big", type: "button", onclick: () => sh.close() }, "Done")));
+  const sh = sheet("Projects", body, foot(h("button", { class: "ork-btn primary big", type: "button", onclick: () => sh.close() }, "Done")));
   let list = null;
   let name = "";
   let seq = 0;

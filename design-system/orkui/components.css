@@ -1,0 +1,167 @@
+/* orkUI, look office: the components (docs: README.md, orkboard spec 40 §5). Read the tokens of tokens.css; nothing here has a raw
+   colour or a size outside the steps. Each control draws its look on ::before so the notched corners (clip-path) never cut the
+   control's own hit area: on the phone the box is 44 px and the look 40. */
+:root[data-look="office"] {
+  --ork-chev-down: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1IDMiPjxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSIxIiB5PSIxIiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjEiIGhlaWdodD0iMSIvPjxyZWN0IHg9IjMiIHk9IjEiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSI0IiB5PSIwIiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PC9zdmc+");
+  --ork-chev-up: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1IDMiPjxyZWN0IHg9IjAiIHk9IjIiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSIxIiB5PSIxIiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PHJlY3QgeD0iMiIgeT0iMCIgd2lkdGg9IjEiIGhlaWdodD0iMSIvPjxyZWN0IHg9IjMiIHk9IjEiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSI0IiB5PSIyIiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PC9zdmc+");
+  --ork-chev-right: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDUiPjxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSIxIiB5PSIxIiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjEiIGhlaWdodD0iMSIvPjxyZWN0IHg9IjEiIHk9IjMiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSIwIiB5PSI0IiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PC9zdmc+");
+  --ork-chev-left: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzIDUiPjxyZWN0IHg9IjIiIHk9IjAiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSIxIiB5PSIxIiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PHJlY3QgeD0iMCIgeT0iMiIgd2lkdGg9IjEiIGhlaWdodD0iMSIvPjxyZWN0IHg9IjEiIHk9IjMiIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz48cmVjdCB4PSIyIiB5PSI0IiB3aWR0aD0iMSIgaGVpZ2h0PSIxIi8+PC9zdmc+");
+  font: var(--ork-type-body);
+  font-synthesis: none;
+  font-variant-ligatures: none;
+  background: var(--ork-canvas);
+  color: var(--ork-ink);
+}
+:where(:root[data-look="office"]) :where(button, input, select, textarea) { font: inherit; }   /* no weight: a component's own face wins */
+.ork-num { font: 600 var(--ork-type-body); font-family: var(--ork-font-text); }
+
+/* --- Button: default · primary · danger · warning · quiet; rest · hover · pressed · focus · disabled ------------------------ */
+.ork-btn { --_bg: transparent; --_fg: var(--ork-ink); --_bd: var(--ork-edge); --_ring: var(--ork-ink); --_inset: 0px;
+  appearance: none; position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--ork-2); height: var(--ork-control); padding: 0 var(--ork-4); border: 0; background: none; color: var(--_fg);
+  font: var(--ork-type-button); letter-spacing: var(--ork-type-button-track, 0); white-space: nowrap; cursor: pointer; text-decoration: none; }
+.ork-btn::before { content: ""; position: absolute; inset: var(--_inset); z-index: -1; background: var(--_bg); border: var(--ork-line) solid var(--_bd);
+  clip-path: var(--ork-notch); box-sizing: border-box; }
+.ork-btn:hover:not(:disabled), .ork-btn.is-hover { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); --_ring: var(--ork-on-ink); }
+.ork-btn:active:not(:disabled), .ork-btn.is-pressed { --_bg: var(--ork-ink-muted); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink-muted); --_ring: var(--ork-on-ink); }
+.ork-btn:focus-visible, .ork-btn.is-focus { outline: 0; }
+.ork-btn:focus-visible::before, .ork-btn.is-focus::before { box-shadow: inset 0 0 0 2px var(--_ring); }
+.ork-btn.primary { --_bg: var(--ork-action); --_fg: var(--ork-on-ink); --_bd: var(--ork-action); --_ring: var(--ork-on-ink); }
+.ork-btn.primary:hover:not(:disabled), .ork-btn.primary.is-hover { --_bg: var(--ork-action-hi); --_bd: var(--ork-action-hi); }
+.ork-btn.primary:active:not(:disabled), .ork-btn.primary.is-pressed { --_bg: var(--ork-action-press); --_bd: var(--ork-action-press); }
+.ork-btn.danger { --_fg: var(--ork-danger); --_bd: var(--ork-danger); --_ring: var(--ork-danger); }
+.ork-btn.warning { --_fg: var(--ork-warning); --_bd: var(--ork-warning); --_ring: var(--ork-warning); }
+.ork-btn.danger:hover:not(:disabled), .ork-btn.danger.is-hover { --_bg: var(--ork-danger); --_fg: var(--ork-on-ink); --_ring: var(--ork-on-ink); }
+.ork-btn.warning:hover:not(:disabled), .ork-btn.warning.is-hover { --_bg: var(--ork-warning); --_fg: var(--ork-on-ink); --_ring: var(--ork-on-ink); }
+.ork-btn.danger:active:not(:disabled), .ork-btn.danger.is-pressed { --_bg: var(--ork-danger); --_fg: var(--ork-on-ink); --_bd: var(--ork-danger); }
+.ork-btn.warning:active:not(:disabled), .ork-btn.warning.is-pressed { --_bg: var(--ork-warning); --_fg: var(--ork-on-ink); --_bd: var(--ork-warning); }
+.ork-btn.danger:active:not(:disabled)::before, .ork-btn.danger.is-pressed::before, .ork-btn.warning:active:not(:disabled)::before, .ork-btn.warning.is-pressed::before {
+  box-shadow: inset 0 0 0 2px var(--ork-on-ink); }
+.ork-btn.quiet { --_bd: transparent; --_fg: var(--ork-ink-muted); text-decoration: underline; padding: 0 var(--ork-2); }
+.ork-btn.quiet:hover:not(:disabled), .ork-btn.quiet.is-hover { --_bg: transparent; --_fg: var(--ork-ink); --_bd: transparent; }
+.ork-btn.quiet:active:not(:disabled), .ork-btn.quiet.is-pressed { --_bg: transparent; --_fg: var(--ork-ink-muted); --_bd: transparent; }
+.ork-btn.quiet:focus-visible::before, .ork-btn.quiet.is-focus::before { --_ring: var(--ork-ink); }
+.ork-btn:disabled, .ork-btn.is-disabled { --_bg: transparent; --_fg: var(--ork-ink-faint); --_bd: var(--ork-ink-faint); cursor: default; }
+.ork-btn:disabled::before, .ork-btn.is-disabled::before { border-style: dashed; }
+.ork-btn.quiet:disabled, .ork-btn.quiet.is-disabled { text-decoration: none; }
+.ork-btn.quiet:disabled::before, .ork-btn.quiet.is-disabled::before { border-style: solid; border-color: transparent; }
+
+/* --- Field: input, select, textarea (square, 1 px edge, the caret a block) --------------------------------------------------- */
+.ork-field { appearance: none; -webkit-appearance: none; display: block; width: 100%; box-sizing: border-box; height: var(--ork-control);
+  padding: 0 var(--ork-4); border: var(--ork-line) solid var(--ork-edge); border-radius: 0; background: var(--ork-canvas); color: var(--ork-ink);
+  font: var(--ork-type-body); caret-shape: block; caret-color: var(--ork-ink); }
+textarea.ork-field { height: auto; min-height: calc(var(--ork-control) * 3); padding: var(--ork-3) var(--ork-4); resize: vertical; }
+.ork-field::placeholder { color: var(--ork-ink-faint); }
+.ork-field:focus { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.ork-field:disabled { border-style: dashed; border-color: var(--ork-ink-faint); color: var(--ork-ink-faint); }
+.ork-select { position: relative; display: block; }
+.ork-select > select { padding-right: var(--ork-8); }
+.ork-select::after { content: ""; position: absolute; right: var(--ork-4); top: 50%; width: 10px; height: 6px; transform: translateY(-50%); pointer-events: none;
+  background: var(--ork-ink); -webkit-mask: var(--ork-chev-down) center / 10px 6px no-repeat; mask: var(--ork-chev-down) center / 10px 6px no-repeat; }
+
+/* --- Arrows and icons: pixel marks, never typed glyphs ------------------------------------------------------------------------- */
+.ork-chev { display: inline-block; flex: none; width: 10px; height: 6px; margin-left: var(--ork-2); vertical-align: middle; background: currentColor;
+  -webkit-mask: var(--ork-chev-down) center / 10px 6px no-repeat; mask: var(--ork-chev-down) center / 10px 6px no-repeat; }
+.ork-chev.up { -webkit-mask-image: var(--ork-chev-up); mask-image: var(--ork-chev-up); }
+.ork-chev.right, .ork-chev.left { width: 6px; height: 10px; -webkit-mask-size: 6px 10px; mask-size: 6px 10px; }
+.ork-chev.right { -webkit-mask-image: var(--ork-chev-right); mask-image: var(--ork-chev-right); }
+.ork-chev.left { -webkit-mask-image: var(--ork-chev-left); mask-image: var(--ork-chev-left); }
+.ork-icon { flex: none; width: var(--ork-icon); height: var(--ork-icon); fill: currentColor; shape-rendering: crispEdges; vertical-align: middle; }
+
+/* --- Tabs, a pane's head, the key line, a divider ---------------------------------------------------------------------------- */
+.ork-tabs { display: flex; border-bottom: var(--ork-line) solid var(--ork-frame); }
+.ork-tab { appearance: none; border: 0; background: none; height: var(--ork-bar); padding: 0 var(--ork-6); color: var(--ork-ink-muted); cursor: pointer;
+  font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.ork-tab:hover { color: var(--ork-ink); background: var(--ork-raised); }
+.ork-tab[aria-selected="true"], .ork-tab.is-on { color: var(--ork-ink); background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.ork-tab:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.ork-head { display: flex; align-items: center; gap: var(--ork-4); min-height: var(--ork-bar); padding: 0 var(--ork-4); box-sizing: border-box;
+  border-bottom: var(--ork-line) solid var(--ork-frame); font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case);
+  letter-spacing: var(--ork-type-heading-track); color: var(--ork-ink); }
+.ork-keyline { display: flex; align-items: center; gap: var(--ork-6); height: var(--ork-keyline); padding: 0 var(--ork-4); box-sizing: border-box;
+  border-top: var(--ork-line) solid var(--ork-frame); color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.ork-kbd { color: var(--ork-ink); font: var(--ork-type-label); text-transform: none; letter-spacing: 0; }
+.ork-kbd::before { content: "["; }
+.ork-kbd::after { content: "]"; }
+.ork-split { height: 4px; background: repeating-linear-gradient(90deg, var(--ork-frame) 0 2px, transparent 2px 4px); cursor: row-resize; }
+.ork-split:hover, .ork-split:focus-visible { background: repeating-linear-gradient(90deg, var(--ork-ink) 0 2px, transparent 2px 4px); outline: 0; }
+
+/* --- Row and card: a hairline edge; selected is raised with a 2 px bar (never a white box); asks and fails ------------------ */
+.ork-row, .ork-card { display: block; box-sizing: border-box; padding: var(--ork-3) var(--ork-4); background: var(--ork-panel); color: var(--ork-ink);
+  border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); text-align: left; }
+.ork-row { min-height: var(--ork-row); }
+button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: inherit; width: 100%; }
+.ork-row:hover, .ork-card:hover { border-color: var(--ork-edge); }
+.ork-row.is-on, .ork-card.is-on, .ork-row[aria-selected="true"], .ork-card[aria-selected="true"] { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); }
+.ork-row:focus-visible, .ork-card:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.ork-row.asks, .ork-card.asks { border-color: var(--ork-alert); }
+.ork-row.fails, .ork-card.fails { border-color: var(--ork-danger); }
+
+/* --- Chip, count, section label --------------------------------------------------------------------------------------------- */
+.ork-chip, .ork-count { display: inline-flex; align-items: center; height: var(--ork-chip); padding: 0 var(--ork-3); box-sizing: border-box;
+  border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: var(--ork-type-label); color: var(--ork-ink); background: none; }
+.ork-count { min-width: 16px; justify-content: center; padding: 0 var(--ork-2); }
+.ork-count.on { background: var(--ork-action); border-color: var(--ork-action); color: var(--ork-on-ink); }
+.ork-label { display: flex; align-items: center; gap: var(--ork-3); color: var(--ork-ink-muted); font: var(--ork-type-label);
+  text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); }
+.ork-label::before { content: ""; width: 6px; height: 6px; background: currentColor; flex: none; }
+
+/* --- A race's head beside its word (races/: 24 x 22, @2x 48 x 44): the look's only raster art, whole pixels; a state goes beside
+   it in its signal colour, never onto it ------------------------------------------------------------------------------------- */
+.ork-race { display: inline-flex; align-items: center; gap: var(--ork-3); min-width: 0; max-width: 100%; vertical-align: middle; }
+.ork-race__head { flex: none; display: block; width: 24px; height: 22px; image-rendering: pixelated; }
+.ork-race.big .ork-race__head { width: 48px; height: 44px; }
+.ork-race__word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ork-race__tier { color: var(--ork-ink-muted); }
+
+/* --- Meters, pips and hatching: drawn, never typed ---------------------------------------------------------------------------- */
+.ork-meter, .ork-pips { display: inline-flex; gap: var(--ork-1); vertical-align: middle; }
+.ork-meter > i, .ork-pips > i { display: block; width: 8px; height: 8px; background: var(--ork-frame); }
+.ork-meter > i.on, .ork-pips > i.d { background: var(--ork-ink); }
+.ork-meter.alert > i.on { background: var(--ork-alert); }
+.ork-meter.danger > i.on { background: var(--ork-danger); }
+.ork-pips > i.w { background: var(--ork-ink); box-shadow: inset 0 0 0 2px var(--ork-canvas); }
+.ork-pips > i.f { background: var(--ork-danger); }
+.ork-pips > i.a { background: var(--ork-alert); }
+.ork-hatch { background: repeating-linear-gradient(45deg, var(--ork-frame) 0 2px, transparent 2px 6px); min-height: 14px; }
+
+/* --- Dialog, menu, toast ------------------------------------------------------------------------------------------------------- */
+.ork-scrim { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--ork-6); background: var(--ork-scrim); }
+.ork-dialog, .ork-menu { background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-double) double var(--ork-edge); clip-path: var(--ork-notch); box-sizing: border-box; }
+.ork-dialog { padding: var(--ork-5); max-width: 100%; }
+.ork-dialog__title { margin: 0 0 var(--ork-4); font: var(--ork-type-title); text-transform: var(--ork-type-title-case); letter-spacing: var(--ork-type-title-track); }
+.ork-menu { padding: var(--ork-2); min-width: 220px; }
+.ork-menu__item { display: flex; align-items: center; gap: var(--ork-3); width: 100%; min-height: var(--ork-row); padding: 0 var(--ork-4); box-sizing: border-box;
+  background: none; border: 0; color: var(--ork-ink); font: inherit; text-align: left; cursor: pointer; }
+.ork-menu__item::before { content: attr(data-k) ")"; min-width: 16px; color: var(--ork-ink-muted); font: var(--ork-type-button); }
+.ork-menu__item:hover, .ork-menu__item:focus-visible { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); outline: 0; }
+.ork-toast { display: inline-block; padding: var(--ork-2) var(--ork-4); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: var(--ork-type-body); }
+.ork-toast::before { content: "-- "; color: var(--ork-ink-muted); }
+.ork-toast::after { content: " --"; color: var(--ork-ink-muted); }
+
+/* --- The caret of a waiting screen, the ork of an empty one --------------------------------------------------------------------- */
+.ork-think::after { content: ""; display: inline-block; width: 7px; height: 13px; margin-left: var(--ork-2); vertical-align: -2px; background: var(--ork-ink);
+  animation: ork-blink 1s steps(1) infinite; }
+@keyframes ork-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ork-think::after { animation: none; } }
+.ork-empty { display: grid; place-content: center; justify-items: center; gap: var(--ork-5); min-height: 100%; text-align: center; color: var(--ork-ink-muted); }
+.ork-ork { margin: 0; text-align: left; white-space: pre; color: var(--ork-ink-muted); font: 400 12px/14px var(--ork-font-text); }
+
+/* --- The tab bar (the phone, and the desktop's narrow shell) ------------------------------------------------------------------ */
+.ork-tabbar { display: grid; grid-template-columns: repeat(3, 1fr); border-top: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas);
+  padding-bottom: env(safe-area-inset-bottom); }
+.ork-tabbar__tab { position: relative; appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--ork-1);
+  height: var(--ork-tabbar); border: 0; border-right: var(--ork-line) solid var(--ork-frame); background: none; color: var(--ork-ink-muted); cursor: pointer;
+  font: 500 12px/16px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }
+.ork-tabbar__tab:last-child { border-right: 0; }
+.ork-tabbar__tab[aria-selected="true"], .ork-tabbar__tab.is-on { background: var(--ork-raised); color: var(--ork-ink); box-shadow: inset 0 2px 0 var(--ork-ink); }
+.ork-tabbar__tab:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.ork-tabbar__tab .ork-count { position: absolute; top: var(--ork-2); left: calc(50% + 6px); }
+
+/* --- The phone: a control is 44 px to hit and 40 to see; a field and a row are 44 -------------------------------------------------- */
+@media (max-width: 1023px) {
+  .ork-btn { --_inset: 2px; height: auto; min-height: var(--ork-tap); padding: 0 var(--ork-5); }
+  .ork-btn.quiet { padding: 0 var(--ork-4); }
+  .ork-field { height: var(--ork-tap); font-size: 16px; }
+  .ork-row, .ork-card { padding: var(--ork-4); }
+}

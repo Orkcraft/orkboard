@@ -8,21 +8,21 @@ import { field, foot } from "./shell-forms.js";
 const LIMIT = 600;
 
 export function makeAgentSheet(core) {
-  const name = h("input", { class: "ok-input", type: "text", "aria-label": "Name", placeholder: "Docs scribe", maxlength: "40", required: true });
-  const model = h("select", { class: "ok-input", "aria-label": "Model" });
-  const many = h("select", { class: "ok-input", "aria-label": "At most at once" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => h("option", { value: String(n) }, String(n))));
+  const name = h("input", { class: "ork-field", type: "text", "aria-label": "Name", placeholder: "Docs scribe", maxlength: "40", required: true });
+  const model = h("select", { class: "ork-field", "aria-label": "Model" });
+  const many = h("select", { class: "ork-field", "aria-label": "At most at once" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => h("option", { value: String(n) }, String(n))));
   const modelHint = h("small", { class: "muted" }, "By Target: the task's own tier, moved by the Target");
-  const instruction = h("textarea", { class: "ok-input", rows: "5", "aria-label": "Instruction", placeholder: "Added to every task this agent does" });
+  const instruction = h("textarea", { class: "ork-field", rows: "5", "aria-label": "Instruction", placeholder: "Added to every task this agent does" });
   const counter = h("small", { class: "muted counter", "aria-live": "polite" });
   const longNote = h("p", { class: "warn", hidden: true }, "Only the first 600 characters go to the ork: shorten it");
   const takesBox = h("fieldset", { class: "field takes" });
   const note = h("p", { class: "muted", hidden: true });
-  const save = h("button", { class: "ok-btn primary big", type: "submit", disabled: true }, "Save agent");
-  const cancel = h("button", { class: "ok-btn big", type: "button" }, "Cancel");
+  const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save agent");
+  const cancel = h("button", { class: "ork-btn big", type: "button" }, "Cancel");
   const del = h("button", { class: "linkish", type: "button" }, "Delete…");
   const sureText = h("p", { class: "warn" });
-  const sureBtn = h("button", { class: "ok-btn danger big", type: "button" }, "Delete agent");
-  const keep = h("button", { class: "ok-btn big", type: "button" }, "Keep it");
+  const sureBtn = h("button", { class: "ork-btn danger big", type: "button" }, "Delete agent");
+  const keep = h("button", { class: "ork-btn big", type: "button" }, "Keep it");
   const sure = h("div", { class: "sure", hidden: true }, sureText, sureBtn, keep);
   const form = h("form", { class: "sheet-form" }, field("Name", name), field("Model", model), modelHint, field("At most at once", many), field("Instruction", instruction), counter, longNote, takesBox,
     note, h("div", {}, del), sure, foot(cancel, save));

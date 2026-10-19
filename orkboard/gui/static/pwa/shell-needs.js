@@ -2,10 +2,12 @@
 // line. A tap opens what it is about: the questions of a spec or a goal as one form in a sheet (a box per question, one Send), the plan
 // on its screen, the to-do's sheet (its why, its steps, then its one input: a secret, a choice, a confirm or a file), the goal. A proposal
 // is answered in its row: Take with a priority, No with a reason.
-import { h, sheet } from "./util.js";
+import { h, sheet, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 
-const ICONS = { goal: "🎯", asks: "❓", plan: "📋", todo: "☑️", failed: "⚠️", proposal: "💡", op: "☑️", op_failed: "⚠️", op_rules: "💡" };
+// What needs the person, by kind, as orkUI's pixel icon (as the desktop's js/orkui.js NEED_ICONS).
+const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb",
+  op: "checkbox", op_failed: "square-alert", op_rules: "sliders" };
 const MAX_FILE = 5 * 1024 * 1024;
 const isList = /^([-*+]|\d+[.)])\s+/;
 
@@ -36,9 +38,9 @@ export function makeNeeds(core, ctx, ops) {
     if (!got) return;
     const qs = isGoal ? got.questions || [] : questionsOf((got.sections || []).find((s) => s.name === "Open questions")?.text);
     if (!qs.length) { core.open(isGoal ? { kind: "goal", slug } : { kind: "idea", slug }); return; }
-    const boxes = qs.map((q, i) => h("textarea", { class: "ok-input", rows: "2", maxlength: "20000", "aria-label": `Answer ${i + 1}: ${q}`, placeholder: "Your answer, or leave it and the Taskmaster decides" }));
-    const send = h("button", { class: "ok-btn primary big", type: "submit" }, "Send");
-    const cancel = h("button", { class: "ok-btn big", type: "button", onclick: () => qSheet.close() }, "Cancel");
+    const boxes = qs.map((q, i) => h("textarea", { class: "ork-field", rows: "2", maxlength: "20000", "aria-label": `Answer ${i + 1}: ${q}`, placeholder: "Your answer, or leave it and the Taskmaster decides" }));
+    const send = h("button", { class: "ork-btn primary big", type: "submit" }, "Send");
+    const cancel = h("button", { class: "ork-btn big", type: "button", onclick: () => qSheet.close() }, "Cancel");
     qBody.replaceChildren(h("p", { class: "muted" }, n.title), ...qs.map((q, i) => field(`${i + 1}. ${q}`, boxes[i])), foot(cancel, send));
     qBody.onsubmit = async (e) => {
       e.preventDefault();
@@ -72,8 +74,8 @@ export function makeNeeds(core, ctx, ops) {
     if (t.why) kids.push(h("p", { class: "muted" }, t.why));
     if ((t.steps || []).length) kids.push(h("ol", { class: "steps" }, ...t.steps.map((s) => h("li", {}, s))));
     if (t.kind === "secret") {
-      const f = h("input", { class: "ok-input", type: "password", autocomplete: "off", "aria-label": `${t.title}: the value`, placeholder: "The value" });
-      const save = h("button", { class: "ok-btn primary big", type: "button", onclick: async () => {
+      const f = h("input", { class: "ork-field", type: "password", autocomplete: "off", "aria-label": `${t.title}: the value`, placeholder: "The value" });
+      const save = h("button", { class: "ork-btn primary big", type: "button", onclick: async () => {
         if (!f.value) return;
         save.disabled = true;
         const bad = await give(n.idea, t, { value: f.value }, true);
@@ -82,8 +84,8 @@ export function makeNeeds(core, ctx, ops) {
       } }, "Store it");
       kids.push(f, h("p", { class: "muted hint" }, "It goes to this computer’s secret store over the paired link, never into a file or to a model."), save);
     } else if (t.kind === "file") {
-      const pick = h("input", { class: "ok-input", type: "file", "aria-label": `${t.title}: the file`, ...((t.accept || []).length ? { accept: t.accept.join(",") } : {}) });
-      const save = h("button", { class: "ok-btn primary big", type: "button", disabled: true }, "Send the file");
+      const pick = h("input", { class: "ork-field", type: "file", "aria-label": `${t.title}: the file`, ...((t.accept || []).length ? { accept: t.accept.join(",") } : {}) });
+      const save = h("button", { class: "ork-btn primary big", type: "button", disabled: true }, "Send the file");
       pick.addEventListener("change", () => { save.disabled = !pick.files?.length; tell(""); });
       save.addEventListener("click", async () => {
         const f = pick.files?.[0];
@@ -95,10 +97,10 @@ export function makeNeeds(core, ctx, ops) {
       });
       kids.push(pick, h("p", { class: "muted hint" }, "At most 5 MB. It is kept on this computer, never in the repository or in a prompt."), save);
     } else if (t.kind === "choice") {
-      kids.push(h("div", { class: "answers" }, ...(t.choices || []).map((c) => h("button", { class: "ok-btn big", type: "button",
+      kids.push(h("div", { class: "answers" }, ...(t.choices || []).map((c) => h("button", { class: "ork-btn big", type: "button",
         onclick: async () => { const bad = await give(n.idea, t, { value: c }, true); if (bad) tell(bad); } }, c))));
     } else {
-      kids.push(h("button", { class: "ok-btn primary big", type: "button", onclick: async () => { const bad = await give(n.idea, t, {}, true); if (bad) tell(bad); } }, "Done"));
+      kids.push(h("button", { class: "ork-btn primary big", type: "button", onclick: async () => { const bad = await give(n.idea, t, {}, true); if (bad) tell(bad); } }, "Done"));
     }
     kids.push(say, h("p", { class: "muted" }, h("button", { class: "linkish", type: "button",
       onclick: () => { tSheet.close(); core.open({ kind: "plan", slug: n.idea, todo: t.id }); } }, "Open the plan")));
@@ -111,17 +113,17 @@ export function makeNeeds(core, ctx, ops) {
   function proposal(n) {
     const prio = prioritySwitch(`prio-${n.idea}`);
     prio.set(n.priority || "normal");
-    const reason = h("input", { class: "ok-input", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: "Why not (optional)" });
+    const reason = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: "Why not (optional)" });
     const act = async (take) => {
       const r = await core.call("ideas.proposal", { slug: n.idea, take, ...(take ? { priority: prio.get() } : reason.value.trim() ? { reason: reason.value.trim() } : {}) });
       if (r) core.refresh();
     };
     return h("div", { class: "card need need-proposal", "data-kind": "proposal", "data-idea": n.idea },
-      h("span", { class: "need-mark", "aria-hidden": "true" }, ICONS.proposal),
+      h("span", { class: "need-mark" }, icon(ICONS.proposal)),
       h("span", { class: "need-text" }, h("b", {}, n.title), n.text ? h("small", {}, n.text) : null,
         h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), prio.el),
-        h("div", { class: "row" }, h("button", { class: "ok-btn primary", type: "button", onclick: () => act(true) }, "Take"),
-          reason, h("button", { class: "ok-btn", type: "button", onclick: () => act(false) }, "No"))));
+        h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => act(true) }, "Take"),
+          reason, h("button", { class: "ork-btn", type: "button", onclick: () => act(false) }, "No"))));
   }
 
   function row(n) {
@@ -135,7 +137,7 @@ export function makeNeeds(core, ctx, ops) {
       else core.open({ kind: "idea", slug: n.idea });
     };
     return h("button", { class: `card need need-${n.kind}`, type: "button", "data-kind": n.kind, onclick: go },
-      h("span", { class: "need-mark", "aria-hidden": "true" }, ICONS[n.kind] || "•"),
+      h("span", { class: "need-mark" }, icon(ICONS[n.kind] || "flag")),
       h("span", { class: "need-text" }, h("b", {}, n.title), n.text ? h("small", {}, n.text) : null),
       h("span", { class: "chev", "aria-hidden": "true" }, "›"));
   }

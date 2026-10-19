@@ -5,6 +5,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { html, cls } from "../html.js";
+import { Chev } from "../orkui.js";
 import { command } from "../link.js";
 import { ask } from "../board/store.js";
 import { preview, showFile, leaving } from "./store.js";
@@ -47,7 +48,7 @@ function Rows({ dir, depth }) {
     <button role="treeitem" class=${cls("shell-tree__row", { "is-dir": e.dir, "is-secret": e.secret, "is-on": e.path === on })}
       style=${`padding-left:${depth * 14 + 8}px`} data-path=${e.path} aria-expanded=${e.dir ? expanded.value.has(e.path) : undefined}
       title=${e.secret ? `${e.name}: ${SECRET_HINT}` : e.path} onClick=${() => (e.dir ? toggle(e.path) : showFile(e.path))}>
-      <span class="shell-tree__mark" aria-hidden="true">${e.dir ? (expanded.value.has(e.path) ? "▾" : "▸") : ""}</span>${e.name}${e.dir ? "/" : ""}</button>
+      <span class="shell-tree__mark" aria-hidden="true">${e.dir ? html`<${Chev} dir=${expanded.value.has(e.path) ? "down" : "right"} />` : ""}</span>${e.name}${e.dir ? "/" : ""}</button>
     ${e.dir && expanded.value.has(e.path) && html`<ul role="group" class="shell-tree__list"><${Rows} dir=${e.path} depth=${depth + 1} /></ul>`}
   </li>`);
 }
@@ -95,12 +96,12 @@ export function FileView({ path }) {
   }
   const canEdit = f.kind === "markdown" || f.kind === "text";
   const head = html`<div class="shell-file__bar"><span class="ok-font-status ok-tone-muted">${sizeWords(f.size || 0)}</span>
-    ${canEdit && html`<button class="ok-btn" onClick=${() => setEditingNow(true)}>Edit</button>`}</div>`;
+    ${canEdit && html`<button class="ork-btn" onClick=${() => setEditingNow(true)}>Edit</button>`}</div>`;
   if (f.kind === "markdown") return html`${head}<div class="shell-md" data-kind="markdown" dangerouslySetInnerHTML=${{ __html: f.html || "" }}></div>`;
   if (f.kind === "text") return html`${head}<${Code} text=${f.text || ""} />`;
   if (f.kind === "secret") return html`<p class="ok-tone-muted" data-kind="secret">${path} ${SECRET_HINT}.</p>`;
   if (f.kind === "gone") return html`<p class="ok-tone-muted">That file cannot be shown.</p>`;
   return html`<div class="shell-binary" data-kind=${f.kind}><p>${f.kind === "large" ? "This file is larger than 1 MB" : "This is a binary file"}: ${sizeWords(f.size || 0)}.</p>
-    <p><button class="ok-btn" onClick=${() => command("files.reveal", { path }).catch(() => {})}>Open in the system</button></p>
+    <p><button class="ork-btn" onClick=${() => command("files.reveal", { path }).catch(() => {})}>Open in the system</button></p>
     <p class="ok-font-status ok-tone-muted">Opens it in the app your system uses for it.</p></div>`;
 }

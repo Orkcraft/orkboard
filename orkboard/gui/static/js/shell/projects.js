@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { computed } from "@preact/signals";
 import { html, cls } from "../html.js";
+import { Chev } from "../orkui.js";
 import { town, command, toast } from "../link.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { leaving } from "./store.js";
@@ -67,18 +68,18 @@ export function OpenFolderDialog() {
   };
   if (nogit) {
     return html`<${Modal} title="Start git here?" onClose=${closeDialog}
-      foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Not now</button>
-        <button type="button" class="ok-btn primary" onClick=${async () => { if (await startGit(nogit)) closeDialog(); }}>Start git here</button>`}>
+      foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Not now</button>
+        <button type="button" class="ork-btn primary" onClick=${async () => { if (await startGit(nogit)) closeDialog(); }}>Start git here</button>`}>
       <p>This folder has no git. The Board works on a repository, so its tasks need one.</p>
       <p class="ok-font-status ok-tone-muted">Start git here makes a first commit of the folder's files as they are, and changes nothing else.</p>
     <//>`;
   }
   return html`<${Modal} title="Open folder" onClose=${closeDialog}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Cancel</button>
-      <button type="submit" form="open-folder-form" class="ok-btn primary" disabled=${!path.trim() || busy}>Open folder</button>`}>
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>
+      <button type="submit" form="open-folder-form" class="ork-btn primary" disabled=${!path.trim() || busy}>Open folder</button>`}>
     <form id="open-folder-form" class="shell-form" onSubmit=${go}>
       <label class="shell-field"><span class="ok-font-label">Folder</span>
-        <input class="ok-input" autofocus value=${path} aria-label="Folder" placeholder="The path of a project's folder, such as ~/code/shop"
+        <input class="ork-field" autofocus value=${path} aria-label="Folder" placeholder="The path of a project's folder, such as ~/code/shop"
           onInput=${(e) => { setPath(e.target.value); setWhy(""); }} /></label>
       ${why && html`<p class="ok-tone-error" role="alert">${why}</p>`}
       <p class="ok-font-status ok-tone-muted">The folder becomes a project: its goals, ideas and tasks are kept in it, apart from your other projects.</p>
@@ -92,8 +93,8 @@ export function OpenFolderDialog() {
 export function CloseProjectDialog({ path, name, running }) {
   const [busy, setBusy] = useState(false);
   return html`<${Modal} title="Close project" onClose=${closeDialog}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Keep it open</button>
-      <button type="button" class="ok-btn danger" disabled=${busy} onClick=${async () => { setBusy(true); await closeProject(path, true); closeDialog(); }}>Stop them and close</button>`}>
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Keep it open</button>
+      <button type="button" class="ork-btn danger" disabled=${busy} onClick=${async () => { setBusy(true); await closeProject(path, true); closeDialog(); }}>Stop them and close</button>`}>
     <p>${running} task${running === 1 ? " is" : "s are"} running in ${name}.</p>
     <p class="ok-font-status ok-tone-muted">Stopping them ends their work; what they wrote so far stays in their branches.</p>
   <//>`;
@@ -114,8 +115,8 @@ export function ProjectSwitcher() {
   const pick = (fn) => () => { setOpen(false); fn(); };
   if (!projectsOn.value) return null;
   return html`<span class="shell-proj" ref=${box}>
-    <button class="ok-btn shell-proj__btn" aria-haspopup="menu" aria-expanded=${open} title=${cur?.path || ""}
-      onClick=${() => setOpen(!open)}><b>${cur ? cur.name : "No project"}</b> <span aria-hidden="true">▾</span></button>
+    <button class="ork-btn shell-proj__btn" aria-haspopup="menu" aria-expanded=${open} title=${cur?.path || ""}
+      onClick=${() => setOpen(!open)}><b>${cur ? cur.name : "No project"}</b><${Chev} /></button>
     ${open && html`<div class="shell-proj__menu" role="menu" aria-label="Projects">
       ${p.open.length > 0 && html`<div class="shell-proj__head ok-font-label">Open projects</div>`}
       ${p.open.map((o) => html`<button key=${o.path} role="menuitem" class=${cls("shell-menu__item shell-proj__one", { "is-on": o.path === p.current })}
@@ -138,7 +139,7 @@ export function StartScreen() {
   return html`<main class="shell-start" aria-label="Start">
     <h1>Open a project</h1>
     <p class="ok-tone-muted">A project is a repository's folder. Its goals, ideas and tasks are kept in it.</p>
-    <p><button class="ok-btn primary" onClick=${() => openDialog("open-folder")}>Open folder…</button>
+    <p><button class="ork-btn primary" onClick=${() => openDialog("open-folder")}>Open folder…</button>
       <span class="ok-tone-muted"> Ctrl+O</span></p>
     ${recent.length > 0 && html`<section class="shell-start__recent" aria-label="Recent"><h2 class="ok-font-label">Recent</h2>
       <ul>${recent.map((r) => html`<li key=${r.path}><button class="board-link" title=${r.path} onClick=${() => openFolder(r.path)}>${r.name}</button>

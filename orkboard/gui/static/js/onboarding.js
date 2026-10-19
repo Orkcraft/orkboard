@@ -53,11 +53,11 @@ function Head({ o, title, lead, tagline }) {
 
 function Foot({ back = true, onBack, skip = true, next, nextLabel = "Next", children }) {
   return html`<footer class="gui-onb__foot">
-    ${back && html`<button class="ok-btn" onClick=${onBack || (() => send("onboarding.back"))}>Back</button>`}
-    ${skip && html`<button class="ok-btn gui-onb__quiet" onClick=${() => send("onboarding.skip")}>
+    ${back && html`<button class="ork-btn" onClick=${onBack || (() => send("onboarding.back"))}>Back</button>`}
+    ${skip && html`<button class="ork-btn gui-onb__quiet" onClick=${() => send("onboarding.skip")}>
       ${town.value?.onboarding?.again ? "Cancel" : "Skip: empty town"}</button>`}
     <span class="gui-onb__spacer">${children}</span>
-    ${next && html`<button class="ok-btn primary" onClick=${next}>${nextLabel}</button>`}
+    ${next && html`<button class="ork-btn primary" onClick=${next}>${nextLabel}</button>`}
   </footer>`;
 }
 
@@ -74,14 +74,14 @@ function RequestTool() {
   return html`<${Dialog} title="Request a tool" onCancel=${close}
       meta="Which agent should orks be able to run on? Requests decide what the town learns next."
       actions=${html`<span class="gui-dialog__note">Opens a GitHub issue in your browser, filled in. Nothing is sent until you submit it there.</span>
-        <button class="ok-btn" onClick=${close}>Cancel</button>
-        <button class="ok-btn primary" disabled=${!f.name.trim()} onClick=${open}>Open the request</button>`}>
+        <button class="ork-btn" onClick=${close}>Cancel</button>
+        <button class="ork-btn primary" disabled=${!f.name.trim()} onClick=${open}>Open the request</button>`}>
     <label class="gui-field"><span class="ok-font-label">Tool name</span>
-      <input class="ok-input" value=${f.name} onInput=${field("name")} placeholder="Aider" /></label>
+      <input class="ork-field" value=${f.name} onInput=${field("name")} placeholder="Aider" /></label>
     <label class="gui-field"><span class="ok-font-label">Link (optional)</span>
-      <input class="ok-input" value=${f.link} onInput=${field("link")} placeholder="https://" /></label>
+      <input class="ork-field" value=${f.link} onInput=${field("link")} placeholder="https://" /></label>
     <label class="gui-field"><span class="ok-font-label">What would orks do with it? (optional)</span>
-      <textarea class="ok-input gui-textarea" rows="3" value=${f.note} onInput=${field("note")}></textarea></label>
+      <textarea class="ork-field gui-textarea" rows="3" value=${f.note} onInput=${field("note")}></textarea></label>
   </${Dialog}>`;
 }
 
@@ -93,10 +93,10 @@ function CheckCell({ r }) {
   if (c && c.state === "running") return html`<span class="ok-font-status ok-tone-muted" aria-live="polite">Checking…</span>`;
   if (c && c.state === "ok") {
     const secs = Math.max(1, Math.round(c.ms / 1000));
-    return html`<button class="ok-btn gui-onb__check is-ok" onClick=${run} aria-live="polite"
+    return html`<button class="ork-btn gui-onb__check is-ok" onClick=${run} aria-live="polite"
         title=${say(`Answered in ${secs} sec on its lightest model. Check again`)}>${`✓ ${secs} sec`}</button>`;
   }
-  return html`<button class="ok-btn gui-onb__check" onClick=${run}
+  return html`<button class="ork-btn gui-onb__check" onClick=${run}
     title=${say(`Send ${r.title} a short request to see that it answers`)}>${c ? "Check again" : "Check"}</button>`;
 }
 
@@ -124,7 +124,7 @@ function NoTools({ t }) {
     </div>
     <div class="gui-onb__line">
       <span class="ok-font-status ok-tone-muted">Installed one? Check again finds it, no restart needed.</span>
-      <button class="ok-btn primary" onClick=${() => send("onboarding.detect")}>Check again</button>
+      <button class="ork-btn primary" onClick=${() => send("onboarding.detect")}>Check again</button>
     </div>
     <div class="gui-onb__without">
       <div><span class="ok-font-label">Works without AI</span>
@@ -159,7 +159,7 @@ function ToolsStep({ o }) {
             ${r.version && html`<span class="ok-font-status ok-tone-muted">${r.version}</span>`}</span>
           <span class=${cls("ok-font-status", r.logged_in === false ? "ok-tone-wait" : "ok-tone-ok")}>
             ${r.logged_in === false ? say(`⚠ not logged in: ${r.login}`) : "✓ logged in"}</span>
-          <select class="ok-input" value=${r.billing} aria-label=${say(`How ${r.title} is paid`)}
+          <select class="ork-field" value=${r.billing} aria-label=${say(`How ${r.title} is paid`)}
               onChange=${(e) => set(r.id, { billing: e.target.value })}>
             <option value="subscription">Subscription</option><option value="api">API</option></select>
           <${CheckCell} r=${r} />
@@ -168,15 +168,15 @@ function ToolsStep({ o }) {
         </div>`)}
       </div>
       ${risking && html`<${Dialog} title=${say(`Turn on ${risking.title}?`)} text=${say(risking.risk)} warn onCancel=${() => setRisking(null)}
-        actions=${html`<button class="ok-btn" onClick=${() => setRisking(null)}>${say("Keep it off")}</button>
-          <button class="ok-btn danger" onClick=${() => { set(risking.id, { enabled: true, risk_read: true }); setRisking(null); }}>
+        actions=${html`<button class="ork-btn" onClick=${() => setRisking(null)}>${say("Keep it off")}</button>
+          <button class="ork-btn danger" onClick=${() => { set(risking.id, { enabled: true, risk_read: true }); setRisking(null); }}>
             ${say(`Turn on ${risking.title} at my own risk`)}</button>`} />`}
       <div class="gui-onb__line">
         <span class="ok-font-status ok-tone-muted">${[
           t.others.length ? say(`Also here: ${t.others.map((x) => x.title).join(", ")}. Orks can't run on these yet.`) : "",
           ...t.cli.map((x) => say(`${x.title}: install the CLI (${x.bin}) to run orks on it.`)),
           none ? "" : t.missing.length ? say(`Not found: ${t.missing.join(", ")}.`) : ""].filter(Boolean).join(" ")}</span>
-        <button class="ok-btn" onClick=${() => { asking.value = true; }}>Request a tool</button>
+        <button class="ork-btn" onClick=${() => { asking.value = true; }}>Request a tool</button>
       </div>
       ${!o.again && !none && !inFocus() && html`<label class="ok-check gui-onb__warder">
         <input type="checkbox" class="gui-onb__hide" checked=${t.warder} onChange=${() => send("onboarding.tools", { warder: !t.warder })} />
@@ -335,7 +335,7 @@ function TownFork() {
         <p class="gui-onb__lead ok-font-body ok-tone-muted">${say("Build your camp one building at a time with the Workchief. About 5 minutes, free, no model.")}</p>
       </div>
       <div class="gui-onb__fork-act">
-        <button class="ok-btn primary" onClick=${() => send("onboarding.town", { mission: true })}>
+        <button class="ork-btn primary" onClick=${() => send("onboarding.town", { mission: true })}>
           ${say("Start the tutorial")}
         </button>
       </div>
@@ -346,7 +346,7 @@ function TownFork() {
         <p class="gui-onb__lead ok-font-body ok-tone-muted">${say("Start with a ready town, or describe the one you want.")}</p>
       </div>
       <div class="gui-onb__fork-act">
-        <button class="ok-btn" onClick=${() => { townReady.value = true; }}>
+        <button class="ork-btn" onClick=${() => { townReady.value = true; }}>
           ${say("Get a ready town")}
         </button>
       </div>
@@ -368,14 +368,14 @@ function ReadyTowns({ o }) {
       <div class="gui-onb__how">
         <div><span class="ok-font-label">How it works</span><p class="ok-font-body">${it.summary || it.blurb}</p></div>
         <div class="gui-onb__choose">
-          <button class="ok-btn" onClick=${() => send("onboarding.town", { preset: it.id })}>${say("Use this town")}</button>
-          <button class="ok-btn" disabled=${!o.planner} title=${o.planner ? "" : say("No AI tool that can plan a town is on")}
+          <button class="ork-btn" onClick=${() => send("onboarding.town", { preset: it.id })}>${say("Use this town")}</button>
+          <button class="ork-btn" disabled=${!o.planner} title=${o.planner ? "" : say("No AI tool that can plan a town is on")}
             onClick=${() => send("onboarding.town", { custom: true })}>${say("Describe your town")}</button>
           ${!o.planner && html`<span class="ok-font-status ok-tone-muted">${say("No AI tool that can plan a town is on.")}</span>`}
         </div>
       </div>` : html`<p class="ok-font-body">${say("No ready town for this class yet.")}</p>
       <div class="gui-onb__choose">
-        <button class="ok-btn primary" disabled=${!o.planner} onClick=${() => send("onboarding.town", { custom: true })}>${say("Describe your town")}</button>
+        <button class="ork-btn primary" disabled=${!o.planner} onClick=${() => send("onboarding.town", { custom: true })}>${say("Describe your town")}</button>
         ${!o.planner && html`<span class="ok-font-status ok-tone-muted">${say("No AI tool that can plan a town is on.")}</span>`}
       </div>`}
     <${Foot} skip=${false} onBack=${() => { townReady.value = false; }} />
@@ -408,21 +408,21 @@ function SurveyStep({ o }) {
     <${Head} o=${o} title="What should your town do?"
       lead="One or two sentences are enough. The town planner draws it, and you watch it go up." />
     <label class="gui-onb__hide" for="gui-onb-words">What should your town do</label>
-    <textarea id="gui-onb-words" class="ok-input gui-textarea gui-onb__words" rows="3" value=${words}
+    <textarea id="gui-onb-words" class="ork-field gui-textarea gui-onb__words" rows="3" value=${words}
       onInput=${(e) => setWords(e.target.value)}></textarea>
     ${s.starters.length > 0 && html`<div class="gui-field"><span class="ok-font-label">Or start from one of these</span>
       <div class="gui-onb__starters">${s.starters.map((t) => html`<button key=${t} class="gui-onb__starter ok-font-body"
           onClick=${() => setWords(t)}>${t}</button>`)}</div></div>`}
     <div class="gui-field"><span class="ok-font-label">The planner will use</span>
       <div class="gui-onb__chips">
-        ${s.uses.map((u) => html`<button key=${u.id} class=${cls("ok-chip", { "is-on": !out.includes(u.id) })}
+        ${s.uses.map((u) => html`<button key=${u.id} class=${cls("ork-chip", { "is-on": !out.includes(u.id) })}
             aria-pressed=${!out.includes(u.id)} onClick=${() => flip(u.id)}>
           ${out.includes(u.id) ? "" : "✓ "}${u.title}${u.mcp ? " · MCP" : ""}</button>`)}
-        ${extra.map((t) => html`<button key=${t} class="ok-chip is-on" aria-pressed="true"
+        ${extra.map((t) => html`<button key=${t} class="ork-chip is-on" aria-pressed="true"
             onClick=${() => setExtra(extra.filter((x) => x !== t))}>✓ ${t}</button>`)}
         ${adding === null
-          ? html`<button class="ok-chip" onClick=${() => setAdding("")}>+ add</button>`
-          : html`<input class="ok-input gui-onb__add" value=${adding} placeholder="e.g. Notion" ref=${(el) => el && document.activeElement !== el && el.focus()}
+          ? html`<button class="ork-chip" onClick=${() => setAdding("")}>+ add</button>`
+          : html`<input class="ork-field gui-onb__add" value=${adding} placeholder="e.g. Notion" ref=${(el) => el && document.activeElement !== el && el.focus()}
               onInput=${(e) => setAdding(e.target.value)} onBlur=${add}
               onKeyDown=${(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") setAdding(null); }} />`}
       </div>
@@ -470,14 +470,14 @@ function Raising({ o }) {
       ${googleShown() && html`<div class="gui-onb__google">
         <h2 class="gui-onb__corner-title">Your Google account</h2>
         <p class="ok-font-status ok-tone-muted">Gmail for External listeners, your calendar for the Calendar, Drive for the Wiki: one sign-in of your own, about 6 minutes.</p>
-        <span><button class="ok-btn" onClick=${() => { googleOpen.value = true; }}>Connect Google</button></span>
+        <span><button class="ork-btn" onClick=${() => { googleOpen.value = true; }}>Connect Google</button></span>
       </div>`}
       ${ask && html`<label class="ok-check">
         <input type="checkbox" class="gui-onb__hide" checked=${share} onChange=${() => setShare(!share)} />
         <i>${share ? "✓" : ""}</i><span>${say("Share anonymous usage stats and crash reports")}</span></label>
         <p class="ok-font-status ok-tone-muted">${say(USAGE_WHAT)}</p>`}
       <div class="gui-onb__foot"><span class="ok-font-status ok-tone-muted">All of this changes any time in Settings.</span>
-        <span class="gui-onb__spacer"><button class="ok-btn primary" disabled=${!done} onClick=${open}>Open the town</button></span></div>
+        <span class="gui-onb__spacer"><button class="ork-btn primary" disabled=${!done} onClick=${open}>Open the town</button></span></div>
     </section>
   </div>`;
 }

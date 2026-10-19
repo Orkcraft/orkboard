@@ -11,12 +11,10 @@ const PROTOCOL = "orkcraft.v1";
 const API = 1;
 const IOS = "standalone" in navigator;  // only iOS Safari has navigator.standalone
 const STANDALONE = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const LIGHT = matchMedia("(prefers-color-scheme: light)");
 
 const app = document.getElementById("app");
 const show = (...kids) => app.replaceChildren(...kids);
 document.documentElement.dataset.look = "office";
-document.documentElement.dataset.theme = "office";
 document.documentElement.classList.add("focus-board");
 
 // -- what the address brings: a pairing code, a token for an iOS Home Screen app --------------------------
@@ -48,7 +46,7 @@ function unpaired(note = "") {
 // Opened from the desktop's QR code: it pairs at once, by the phone's kind as its name.
 function pairing(pairCode) {
   const msg = h("p", { class: "muted" }, "Pairing…");
-  const again = h("button", { class: "ok-btn", hidden: true, onclick: () => pair(pairCode, guessName(), msg, again) }, "Try again");
+  const again = h("button", { class: "ork-btn", hidden: true, onclick: () => pair(pairCode, guessName(), msg, again) }, "Try again");
   show(h("section", { class: "card" },
     h("h1", {}, "Pairing this phone"),
     h("p", {}, "It will see the board: goals and ideas, what needs you, the agents at work and the results to review. "
@@ -95,7 +93,7 @@ function homeScreen() {
     h("h1", {}, `Paired: ${device.name}`),
     h("p", {}, "Now add it to the Home Screen: Share → Add to Home Screen, then open Orkline from there."),
     h("p", { class: "muted" }, "Until then this page’s address holds the phone’s key: do not share it."),
-    h("button", { class: "ok-btn", onclick: () => connect() }, "Use it in Safari for now")));
+    h("button", { class: "ork-btn", onclick: () => connect() }, "Use it in Safari for now")));
 }
 
 // -- the socket ---------------------------------------------------------------------------------------
@@ -225,11 +223,6 @@ function flash(text) {
   setTimeout(() => line.remove(), 6000);
 }
 
-function tint() {
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", LIGHT.matches ? "#f4f4f4" : "#1a1813");
-}
-LIGHT.addEventListener?.("change", tint);
-tint();
 
 // `keptAt`: the board comes from this phone's storage (seen then), not from the socket.
 function render(s, keptAt = 0) {

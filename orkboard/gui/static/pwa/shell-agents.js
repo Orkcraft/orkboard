@@ -87,7 +87,7 @@ export function makeAgents(core) {
       if (!fresh(JSON.stringify([a, core.st.roles]))) return;
       if (!a) { el.replaceChildren(h("h2", {}, "Agents"), h("p", { class: "muted" }, "Loading…")); return; }
       el.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Agents"),
-        h("button", { class: "ok-btn primary", type: "button", onclick: () => sheetOf.open() }, "+ Add agent")),
+        h("button", { class: "ork-btn primary", type: "button", onclick: () => sheetOf.open() }, "+ Add agent")),
       ...a.roles.map((r) => (r.role === "taskmaster" ? taskmaster(r) : worker(r, a.done_today || []))));
     },
   };

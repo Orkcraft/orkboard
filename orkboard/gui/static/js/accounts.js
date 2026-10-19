@@ -25,7 +25,7 @@ const SAFETY = "Read-only for mail and Drive: nothing is sent, deleted or marked
   + "The sign-in is kept on this machine (the keychain, when there is one), never in the project.";
 
 function Link({ href, children }) {
-  return html`<a class="ok-btn" href=${href} target="_blank" rel="noopener">${children} ↗</a>`;
+  return html`<a class="ork-btn" href=${href} target="_blank" rel="noopener">${children} ↗</a>`;
 }
 
 function Step({ n, title, done, children }) {
@@ -40,12 +40,12 @@ function ClientForm({ a, setA }) {
   const save = () => command("google.client", f).then(setA, () => {});
   return html`<div class="gui-form">
     <label class="gui-field"><span class="ok-font-label">Client ID (or paste the whole JSON file)</span>
-      <input class="ok-input" value=${f.id} placeholder="1234-abc.apps.googleusercontent.com"
+      <input class="ork-field" value=${f.id} placeholder="1234-abc.apps.googleusercontent.com"
         onInput=${(e) => setF({ ...f, id: e.target.value })} /></label>
     ${!f.id.trim().startsWith("{") && html`<label class="gui-field"><span class="ok-font-label">Client secret</span>
-      <input class="ok-input" type="password" value=${f.secret} placeholder="GOCSPX-…" autocomplete="off"
+      <input class="ork-field" type="password" value=${f.secret} placeholder="GOCSPX-…" autocomplete="off"
         onInput=${(e) => setF({ ...f, secret: e.target.value })} /></label>`}
-    <span><button class="ok-btn primary" disabled=${!f.id.trim()} onClick=${save}>Save the client</button></span>
+    <span><button class="ork-btn primary" disabled=${!f.id.trim()} onClick=${save}>Save the client</button></span>
   </div>`;
 }
 
@@ -61,8 +61,8 @@ function SignIn({ a, setA }) {
     return html`<div class="gui-form">
       <p class="ok-font-body">${say("Waiting for Google… Finish the sign-in in the browser tab that opened.")}</p>
       <p class="ok-font-status ok-tone-muted">${say("Google will say it hasn't verified this app: it is your own client. Click Advanced, then Go to … (unsafe), and leave Gmail, Calendar and Drive ticked.")}</p>
-      <span><a class="ok-btn" href=${c.url} target="_blank" rel="noopener">${say("Open the sign-in again")} ↗</a>
-        <button class="ok-btn" onClick=${() => command("google.cancel").then(setA, () => {})}>Cancel</button></span>
+      <span><a class="ork-btn" href=${c.url} target="_blank" rel="noopener">${say("Open the sign-in again")} ↗</a>
+        <button class="ork-btn" onClick=${() => command("google.cancel").then(setA, () => {})}>Cancel</button></span>
     </div>`;
   }
   return html`<div class="gui-form">
@@ -71,7 +71,7 @@ function SignIn({ a, setA }) {
       <i>${parts.includes(id) ? "✓" : ""}</i><span><b>${name}</b>: ${say(what)}</span></label>`)}
     <p class="ok-font-status ok-tone-muted">${say("Google will say it hasn't verified this app: it is your own client. Click Advanced, then Go to … (unsafe).")}</p>
     ${c && c.state === "failed" && html`<p class="ok-font-status ok-tone-error">${c.error}</p>`}
-    <span><button class="ok-btn primary" disabled=${!parts.length} onClick=${go}>Sign in with Google</button></span>
+    <span><button class="ork-btn primary" disabled=${!parts.length} onClick=${go}>Sign in with Google</button></span>
   </div>`;
 }
 
@@ -89,7 +89,7 @@ function UseIt({ a, setA, account, onDone }) {
       <input type="checkbox" class="gui-onb__hide" checked=${parts.includes(id)} onChange=${() => flip(id)} />
       <i>${parts.includes(id) ? "✓" : ""}</i>
       <span><b>${NAME[id]}</b> → ${say(BUILDING[id])}${a.standing[id] ? "" : say(" (set up now: not in the town yet)")}</span></label>`)}
-    <span><button class="ok-btn primary" disabled=${!parts.length} onClick=${use}>Use it</button></span>
+    <span><button class="ork-btn primary" disabled=${!parts.length} onClick=${use}>Use it</button></span>
   </div>`;
 }
 
@@ -111,7 +111,7 @@ export function GoogleWizard() {
   const L = a.links;
   return html`<${Dialog} title=${say("Connect Google")} wide=${true} onCancel=${close}
       meta=${say("For your own Google account: about 6 minutes, once. You make a small client of your own in Google Cloud; Orkline has no server and sees nothing on the way.")}
-      actions=${html`<button class="ok-btn" onClick=${close}>${account ? "Later" : "Close"}</button>`}>
+      actions=${html`<button class="ork-btn" onClick=${close}>${account ? "Later" : "Close"}</button>`}>
     <ol class="gui-acc__steps">
       <${Step} n="1" title=${say("Make a project in Google Cloud")} done=${!!a.client}>
         <span class="ok-font-status ok-tone-muted">${say("Any name, e.g. Orkline. Free: no billing is needed.")}</span>
@@ -148,9 +148,9 @@ function Folder({ account, use, setA }) {
   return html`<span class="gui-acc__folder">
     <span class="ok-font-status">${say(`${use.title} reads ${use.folder ? "one folder of Drive" : "the whole Drive"}.`)}</span>
     ${list === null
-      ? html`<button class="ok-btn" onClick=${() => command("google.folders", { email: account.email }).then(setList, () => {})}>${say("Choose a folder")}</button>
-        ${use.folder && html`<button class="ok-btn" onClick=${() => pick("")}>${say("The whole Drive")}</button>`}`
-      : html`<select class="ok-input" aria-label=${say("A folder of My Drive")} onChange=${(e) => pick(e.target.value)}>
+      ? html`<button class="ork-btn" onClick=${() => command("google.folders", { email: account.email }).then(setList, () => {})}>${say("Choose a folder")}</button>
+        ${use.folder && html`<button class="ork-btn" onClick=${() => pick("")}>${say("The whole Drive")}</button>`}`
+      : html`<select class="ork-field" aria-label=${say("A folder of My Drive")} onChange=${(e) => pick(e.target.value)}>
           <option value="">${say("The whole Drive")}</option>
           ${list.map((f) => html`<option key=${f.id} value=${f.id} selected=${f.id === use.folder}>${f.name}</option>`)}
         </select>`}
@@ -167,13 +167,13 @@ function Account({ x, setA }) {
     <span class="ok-font-status ok-tone-muted">${x.parts.map((p) => NAME[p]).join(" · ")}</span>
     <span class="ok-font-status">${x.uses.length ? say(`Used by ${x.uses.map((u) => `${u.title} (${NAME[u.part]})`).join(", ")}`) : say("Not used by any building")}</span>
     ${x.uses.filter((u) => u.part === "drive").map((u) => html`<${Folder} key=${u.id} account=${x} use=${u} setA=${setA} />`)}
-    ${unused.length > 0 && html`<button class="ok-btn" onClick=${() => command("google.use", { email: x.email, parts: unused }).then(setA, () => {})}>
+    ${unused.length > 0 && html`<button class="ork-btn" onClick=${() => command("google.use", { email: x.email, parts: unused }).then(setA, () => {})}>
       ${say(`Use ${unused.map((p) => NAME[p]).join(", ")} in the town`)}</button>`}
-    <button class="ok-btn" onClick=${() => setAsking(true)}>Disconnect</button>
+    <button class="ork-btn" onClick=${() => setAsking(true)}>Disconnect</button>
     ${asking && html`<${Dialog} title=${say(`Disconnect ${x.email}?`)} warn=${true} onCancel=${() => setAsking(false)}
         text=${say("Google takes back Orkline's access to this account, and the sign-in is deleted from this machine. Buildings that used it say Sign in again until you connect it again.")}
-        actions=${html`<button class="ok-btn" onClick=${() => setAsking(false)}>Cancel</button>
-          <button class="ok-btn primary" onClick=${off}>Disconnect</button>`}>
+        actions=${html`<button class="ork-btn" onClick=${() => setAsking(false)}>Cancel</button>
+          <button class="ork-btn primary" onClick=${off}>Disconnect</button>`}>
       <label class="ok-check"><input type="checkbox" class="gui-onb__hide" checked=${detach} onChange=${() => setDetach(!detach)} />
         <i>${detach ? "✓" : ""}</i><span>${say("Also take it out of the buildings")}</span></label>
     </${Dialog}>`}
@@ -189,7 +189,7 @@ export function AccountsField() {
     ${a.accounts.length > 0 && html`<ul class="gui-phones__list">${a.accounts.map((x) => html`<${Account} key=${x.email} x=${x} setA=${setA} />`)}</ul>`}
     <p class="ok-font-status ok-tone-muted">${say(a.accounts.length ? SAFETY
       : "Your own Google account: Gmail for External listeners, your calendar for the Calendar, Drive for the Wiki. One sign-in, about 6 minutes.")}</p>
-    ${googleShown() && html`<span><button class="ok-btn" onClick=${() => { googleOpen.value = true; }}>${say(a.accounts.length ? "Connect another Google account" : "Connect Google")}</button>
-      ${a.client && !a.accounts.length && html` <button class="ok-btn" onClick=${() => command("google.forget_client").then(setA, () => {})}>${say("Forget the Google Cloud client")}</button>`}</span>`}
+    ${googleShown() && html`<span><button class="ork-btn" onClick=${() => { googleOpen.value = true; }}>${say(a.accounts.length ? "Connect another Google account" : "Connect Google")}</button>
+      ${a.client && !a.accounts.length && html` <button class="ork-btn" onClick=${() => command("google.forget_client").then(setA, () => {})}>${say("Forget the Google Cloud client")}</button>`}</span>`}
   </div>`;
 }

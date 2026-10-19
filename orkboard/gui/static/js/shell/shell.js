@@ -4,6 +4,7 @@
 // tabs, the preview on its own screen. Always Office's calm look; no camp. The preview is tabs, the Map first (spec 39).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
+import { TabMark } from "../orkui.js";
 import { town } from "../link.js";
 import { board } from "../board/store.js";
 import { TopBar } from "./topbar.js";
@@ -50,10 +51,10 @@ function Tabs() {
   const b = board.value, rv = review.value;
   const counts = { board: b ? b.needs_you.filter((n) => n.kind !== "proposal" && n.kind !== "op_rules").length : 0,
     agents: 0, review: rv ? rv.results.length : 0 };
-  return html`<nav class="shell-tabs" role="tablist" aria-label="Board, Agents, Review">
+  return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents, Review">
     ${[["board", "Board"], ["agents", "Agents"], ["review", "Review"]].map(([id, name]) => html`<button key=${id} role="tab"
-      aria-selected=${tab.value === id} class=${cls("shell-tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
-      ${name}${counts[id] > 0 && html`<span class="shell-count">${counts[id]}</span>`}</button>`)}
+      aria-selected=${tab.value === id} class=${cls("shell-tab ork-tabbar__tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
+      <${TabMark} tab=${id} />${name}${counts[id] > 0 && html`<span class="shell-count ork-count on">${counts[id]}</span>`}</button>`)}
   </nav>`;
 }
 
