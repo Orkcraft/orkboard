@@ -28,6 +28,9 @@ def test_the_app_is_a_plist_a_script_and_an_icon(tmp_path):
     assert icon[:4] == b"icns" and int.from_bytes(icon[4:8], "big") == len(icon) and icon[8:12] == b"ic09"
     assert icon.endswith(png)
     assert mac_app.make(tmp_path, "/opt/ork/python3", "/usr/bin") == app                      # made again in place
+    keep = {"CLAUDE_CONFIG_DIR": "/Users/me/.claude work", "ANTHROPIC_API_KEY": "sk-never"}   # a key is never written
+    text = (mac_app.make(tmp_path, "/p", "/usr/bin", keep=keep) / "Contents" / "MacOS" / "Orkboard").read_text(encoding="utf-8")
+    assert "export CLAUDE_CONFIG_DIR='/Users/me/.claude work'" in text and "sk-never" not in text
 
 
 def test_the_launcher_starts_orkboard_through_the_login_shell_with_its_path(tmp_path):
@@ -50,7 +53,7 @@ def test_make_app_is_a_macs(capsys, monkeypatch, tmp_path):
     assert "Mac app" in capsys.readouterr().err
     monkeypatch.setattr(mac_app.sys, "platform", "linux")
     assert board_host.main(["--make-app"]) == 1
-    monkeypatch.setattr(mac_app, "make", lambda folder, python, path: tmp_path / "Orkboard.app")
+    monkeypatch.setattr(mac_app, "make", lambda folder, python, path, keep=None: tmp_path / "Orkboard.app")
     assert mac_app.make_here(tmp_path, platform="darwin") == 0
     assert "Orkboard.app is made" in capsys.readouterr().out
 

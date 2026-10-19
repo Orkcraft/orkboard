@@ -5,6 +5,7 @@ import { html } from "../html.js";
 import { say, openLink } from "../link.js";
 import { goal, act, showDoc } from "./store.js";
 import { openDialog } from "./modals.js";
+import { ErrorLine } from "./errors.js";
 import { Questions } from "../board/ask.js";
 
 export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks you", ready: "ready", raw: "" };
@@ -19,7 +20,7 @@ export function GoalView() {
       <span class="board-size kit-well">${({ high: "High", normal: "Normal", low: "Low" })[g.priority]}</span>
       ${g.deadline && html`<span class="ok-tone-muted">by ${g.deadline}</span>`}
       <button class="ork-btn" onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div>
-    ${g.state_error && g.state === "raw" && html`<p class="ok-tone-wait" role="status">${g.state_error}</p>`}
+    ${g.state_error && g.state === "raw" && html`<${ErrorLine} text=${g.state_error} />`}
     <section class="shell-goal__sec" aria-label="Description"><h3 class="board-sub">Description</h3>
       <p class="shell-brief">${g.description || html`<span class="ok-tone-muted">No description yet.</span>`}</p></section>
     <section class="shell-goal__sec" aria-label="Summary"><h3 class="board-sub">Summary ${g.title_by === "keeper" && html`<span class="ok-tone-muted">· title by the Taskmaster</span>`}</h3>

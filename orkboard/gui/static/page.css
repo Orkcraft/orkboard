@@ -129,3 +129,10 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .gui-phones__name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 .gui-phones__one > .ork-btn { margin-left: auto; }
 .gui-you__qr, .gui-phones__qr { image-rendering: pixelated; }
+
+/* An error with Copy and Save logs beside it, and the right click's menu in the app's window (js/shell/errors.js). */
+.shell-error { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ork-2) var(--ork-4); }
+.shell-error > p { margin: 0; flex: 1 1 320px; min-width: 0; overflow-wrap: anywhere; }
+.shell-error__acts { flex: none; display: inline-flex; gap: var(--ork-2); }
+.shell-ctx { position: fixed; inset: 0; z-index: 120; }
+.shell-ctx__menu { position: fixed; }

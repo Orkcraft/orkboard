@@ -169,7 +169,7 @@ class Orkboard:
     def __init__(self, repo_root: Path | None = None, demo: bool = False, restore: bool = False) -> None:
         """`repo_root`: the folder opened and shown (refused in words: `ideas.IdeasError`); `restore`: the projects
         open when Orkboard last closed are opened again too (`orkboard` does it; a test's host has only its own)."""
-        from orkboard.gui import board_files, board_git, board_projects, folder_dialog, onboarding, ops, updates
+        from orkboard.gui import board_files, board_git, board_projects, folder_dialog, logs_save, onboarding, ops, updates
         self.demo = demo
         self.machine = settings.load()
         self.bus = b.Bus()
@@ -202,6 +202,7 @@ class Orkboard:
         self.commands.update(board_files.Files(self.projects).commands())
         self.commands.update(board_git.Git(self.projects).commands())
         self.commands.update(folder_dialog.commands())   # Open folder's system dialog (desktop only: not BoardPhone's)
+        self.commands.update(logs_save.commands(self))   # Save logs into the Downloads folder (desktop only, as well)
         self.ops = ops.Ops(self)                  # the person's, one per host: showing a project changes nothing of it
         self.commands.update(self.ops.commands())
         shown_board = self.commands["ideas.board"]
@@ -403,7 +404,8 @@ def show(host: Any, server: Any, thread: Any, browser: bool, title: str = "Orkli
         return
     if dress is not None:
         dress()
-    window = webview.create_window(title, server.url, width=SIZE[0], height=SIZE[1], min_size=(960, 600),
+    url = server.url + ("&" if "?" in server.url else "?") + "app=1"      # the page knows it is the app's window
+    window = webview.create_window(title, url, width=SIZE[0], height=SIZE[1], min_size=(960, 600),
                                    background_color="#141210")
     host.updates.quit = window.destroy
     if attach is not None:

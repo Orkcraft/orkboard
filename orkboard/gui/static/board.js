@@ -6,6 +6,7 @@ import { render } from "preact";
 import { html, cls, linked } from "./js/html.js";
 import { town, connect, openLink, copyText, toasts, dismiss, holdToast } from "./js/link.js";
 import { Onboarding } from "./js/onboarding.js";
+import { ContextMenu, onContextMenu, saveLogs } from "./js/shell/errors.js";
 import { watchErrors } from "./js/crashes.js";
 import { Shell } from "./js/shell/shell.js";
 
@@ -22,6 +23,8 @@ function Toasts() {
       <span class="ok-toast__mark">${MARK[x.severity] || "✓"}</span>
       <span class="gui-toast__text">${x.title ? html`<b>${x.title}</b> — ` : ""}${linked(x.message)}</span>
       <span class="gui-toast__acts">
+        ${(x.acts || []).map((a) => html`<button key=${a.label} class="ork-btn quiet" onClick=${() => { dismiss(x.id); a.run(); }}>${a.label}</button>`)}
+        ${x.severity === "error" && html`<button class="ork-btn quiet" onClick=${() => { dismiss(x.id); saveLogs(`${x.title ? x.title + " — " : ""}${x.message}`); }}>Save logs</button>`}
         <button class="gui-toolerr__close" title="Copy" aria-label="Copy" onClick=${() => copyText(`${x.title ? x.title + " — " : ""}${x.message}`)}>⧉</button>
         <button class="gui-toolerr__close" title="Close" aria-label="Close" onClick=${() => dismiss(x.id)}>×</button></span>
     </div>`)}
@@ -31,7 +34,7 @@ function Toasts() {
 function Board() {
   const t = town.value;
   if (!t) return html`<div class="gui-loading ok-font-body">Opening the board…</div>`;
-  return html`<div class="gui gui-board">${t.onboarding ? html`<${Onboarding} />` : html`<${Shell} />`}<${Toasts} /></div>`;
+  return html`<div class="gui gui-board">${t.onboarding ? html`<${Onboarding} />` : html`<${Shell} />`}<${Toasts} /><${ContextMenu} /></div>`;
 }
 
 // A link to another site opens in the browser, never in the app's own window.
@@ -47,6 +50,9 @@ document.documentElement.dataset.theme = "office";
 watchErrors();
 connect();
 render(html`<${Board} />`, document.getElementById("app"));
+
+// A right click in the app's window: Copy that line, Save logs with an error (js/shell/errors.js).
+document.addEventListener("contextmenu", onContextMenu);
 
 // Copy in a window whose shell has no Edit menu (a webview): Ctrl/⌘ + C puts the selected text on the clipboard itself.
 window.addEventListener("keydown", (e) => {

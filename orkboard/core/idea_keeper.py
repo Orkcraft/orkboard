@@ -567,9 +567,10 @@ def readiness(data: dict) -> None:
 
 
 def _why(e: Exception) -> str:
-    """An error as the idea's state keeps it (300 characters): an AI tool's failure in plain words with what to do."""
+    """An error as the idea's state keeps it (300 characters): an AI tool's failure in plain words, its own words and
+    what to do (tool_errors.PLAIN_CHARS)."""
     if isinstance(e, InterruptedError):
         return "stopped"
     if isinstance(e, tool_errors.ToolError):
-        return tool_errors.plainly(e)[:300]
+        return tool_errors.plainly(e)
     return (str(e) or type(e).__name__).strip()[:300]

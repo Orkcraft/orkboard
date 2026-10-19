@@ -31,9 +31,10 @@ export function say(text) {
   return String(text).replace(saying.re, (w) => saying.to.get(w) ?? w);
 }
 
-export function toast(message, severity = "information", title = "", timeout = null, tool = null) {
+/** A toast; `acts`: its buttons beside Copy and Close ([{label, run}], e.g. Show on the logs saved). */
+export function toast(message, severity = "information", title = "", timeout = null, tool = null, acts = null) {
   const id = nextId++;
-  toasts.value = [...toasts.value, { id, message, title, severity, tool }].slice(-5);
+  toasts.value = [...toasts.value, { id, message, title, severity, tool, acts }].slice(-5);
   const seconds = timeout || TOAST_S[severity] || 5;
   const gone = () => {                       // not while the pointer is on it or its text is being selected: it can be read and copied
     if (held.has(id) || selectedIn(id)) { setTimeout(gone, 1000); return; }
