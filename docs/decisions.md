@@ -329,7 +329,7 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    is held to 90 characters.
 3. **Denser by sizes:** desktop body 12/18, controls 24, bars 32, a 2 px space step; about 13 % shorter on the owner's
    screen (measured with a proportional face; mono's 12 is a little wider, so the Board's lines wrap a little more).
-   The phone keeps a thumb's targets by drawing 36 and hitting 44 (neighbours 8 px apart), body 14, one-line head, no
+   The phone keeps a thumb's targets by drawing 40 and hitting 44 (neighbours 4 px apart), body 16/22 (14 was tried: too small), one-line head, no
    emoji.
 4. **Icons are Pixelarticons** (MIT, a 24 px grid of whole pixels, drawn at 24 or 48 only; buttons carry words, not icons), a
    vendored sprite of the ones used; no emoji.
