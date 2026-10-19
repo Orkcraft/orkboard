@@ -7,6 +7,7 @@ import { makeGoalSheet, GOAL_STATE } from "./shell-goal.js";
 import { makeNeeds } from "./shell-needs.js";
 import { makeIdeas, BUSY } from "./shell-ideas.js";
 import { makeOps, OPS_VIEW } from "./shell-ops.js";
+import { makeMap, MAP_VIEW } from "./shell-map.js";
 import { PRIORITY_WORDS, TARGETS, targetWord } from "./shell-words.js";
 
 export { BUSY };
@@ -31,6 +32,26 @@ export function makeBoardTab(core, ctx) {
   const ops = makeOps(core, ctx);
   const needs = makeNeeds(core, ctx, ops);
   const ideas = makeIdeas(core, ctx, goalSheet);
+  const map = makeMap(core, goalSheet);
+  let mapRev;                                        // the board's rev the Map was read at
+
+  /** The Map is read again when the board's rev moves, not on a clock of its own (spec 39 §4.8). */
+  async function loadMap() {
+    const rev = st.board?.rev;
+    mapRev = rev;
+    const r = await ctx.send("ideas.map");
+    if (mapRev !== rev || st.view !== MAP_VIEW) return;
+    if (r.ok && r.result && !r.result.error) { st.map = r.result; st.mapError = ""; }
+    else st.mapError = r.error || r.result?.error || "Loading…";
+    core.draw();
+  }
+  function showMap() {
+    st.view = MAP_VIEW;
+    mapRev = undefined;
+    map.enter();
+    ctx.send("ideas.log", { event: "opened", what: "map", device: "phone" });
+    core.draw();
+  }
 
   // -- the Target: the Board's one setting (§1), in the header ------------------------------------------------------
   const picks = TARGETS.map(([id, word, line]) => {
@@ -53,15 +74,19 @@ export function makeBoardTab(core, ctx) {
       ...list.map((g) => h("option", { value: g.slug }, [g.title, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · "))),
       h("option", { value: "", disabled: true }, "──────────"), h("option", { value: OPS_VIEW }, "Operations"));
     pick.value = st.view === OPS_VIEW ? OPS_VIEW : st.track;
+    const inMap = st.view === MAP_VIEW;
     pick.addEventListener("change", () => {
-      st.view = pick.value === OPS_VIEW ? OPS_VIEW : "";
-      st.track = st.view ? "" : pick.value;
+      if (pick.value === OPS_VIEW) { st.view = OPS_VIEW; st.track = ""; }
+      else { if (st.view !== MAP_VIEW) st.view = ""; st.track = pick.value; }
       core.draw();
     });
     const kids = [h("div", { class: "row goal-pick" }, pick, st.view === OPS_VIEW
       ? h("button", { class: "ok-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…")
-      : h("button", { class: "ok-btn", type: "button", onclick: () => goalSheet.open() }, "New goal"))];
-    const g = st.view === OPS_VIEW ? null : list.find((x) => x.slug === st.track);
+      : h("button", { class: "ok-btn", type: "button", onclick: () => goalSheet.open() }, "New goal"),
+      st.view === OPS_VIEW ? null : inMap
+        ? h("button", { class: "ok-btn", type: "button", "aria-label": "Back to the Board", onclick: () => { st.view = ""; core.draw(); } }, "Board")
+        : h("button", { class: "ok-btn", type: "button", "aria-label": "Map: the goals, ideas and tasks on one screen", onclick: showMap }, "Map"))];
+    const g = st.view === OPS_VIEW || inMap ? null : list.find((x) => x.slug === st.track);
     if (g) {
       const line = String(g.summary || "").split("\n").find((l) => l.trim()) || (g.state === "reading" ? "The Taskmaster is reading the goal…" : "");
       kids.push(h("div", { class: "card goal-now", "data-goal": g.slug },
@@ -86,7 +111,7 @@ export function makeBoardTab(core, ctx) {
     ops,
     sheets: [goalSheet.el, ...ops.sheets, ...needs.sheets, ...ideas.sheets, targetSheet.el],
     draw() {
-      if (!fresh(JSON.stringify([st.board, st.track, st.view, st.ops, st.boardError]))) return;
+      if (!fresh(JSON.stringify([st.board, st.track, st.view, st.ops, st.boardError, st.map, st.mapError]))) return;
       const unpair = h("p", { class: "muted foot-line" }, h("button", { class: "linkish", type: "button", onclick: () => ctx.unpair() }, "Unpair this phone"));
       if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
         pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),
@@ -98,9 +123,11 @@ export function makeBoardTab(core, ctx) {
       target.replaceChildren(h("span", { class: "word" }, "Target:"), " ", h("b", {}, targetWord(st.board.target)));
       target.setAttribute("aria-label", `Target: ${targetWord(st.board.target)}`);
       const inOps = st.view === OPS_VIEW;
+      const inMap = st.view === MAP_VIEW;
+      if (inMap && mapRev !== st.board.rev) { if (mapRev === undefined) { st.map = null; st.mapError = ""; } loadMap(); }
       const gear = h("button", { class: "ok-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
-      pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board"), inOps ? gear : target), goalsBlock(),
-        ...(inOps ? ops.section() : [...needs.draw(), ...ideas.section()]), unpair);
+      pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, inMap ? "Map" : "Board"), inOps ? gear : target), goalsBlock(),
+        ...(inOps ? ops.section() : inMap ? map.section() : [...needs.draw(), ...ideas.section()]), unpair);
     },
   };
 }

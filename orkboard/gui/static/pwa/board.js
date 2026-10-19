@@ -59,8 +59,8 @@ export function makeBoard(ctx) {
    *  allows a device only a few commands a second, so the lines go out one at a time, a moment apart, behind the ones that matter. */
   const opened = [];
   let draining = 0;
-  function logOpened(what, ref) {
-    opened.push({ event: "opened", what, ref: String(ref || ""), device: "phone" });
+  function logOpened(what, ref, via = "") {
+    opened.push({ event: "opened", what, ref: String(ref || ""), device: "phone", ...(via ? { via } : {}) });
     if (!draining) draining = setTimeout(drain, 800);
   }
   async function drain() {
@@ -104,9 +104,9 @@ export function makeBoard(ctx) {
   }
 
   // -- the preview on its own screen: opened over the tab, Back (or the system gesture) to it -----------------------
-  function open(p) {
+  function open(p, via = "") {
     if (p.kind !== "doc") logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
-      p.kind === "goal" ? `goal:${p.slug}` : p.task ? `${p.slug}/${p.task}` : p.todo ? `${p.slug}/${p.todo}` : p.slug);
+      p.kind === "goal" ? `goal:${p.slug}` : p.task ? `${p.slug}/${p.task}` : p.todo ? `${p.slug}/${p.todo}` : p.slug, via);
     if (!st.preview) {
       try { history.pushState({ preview: true }, ""); pushed = true; } catch { pushed = false; }
     }
@@ -127,6 +127,8 @@ export function makeBoard(ctx) {
   function reset() {
     st.board = st.review = st.agents = st.roles = null;
     st.track = st.view = st.boardError = "";
+    st.map = null;
+    st.mapError = "";
   }
 
   // -- reading the town ------------------------------------------------------------------------------------------

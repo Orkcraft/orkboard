@@ -1,12 +1,12 @@
 // The app's worker (gui/pwa.py): the shell opens without the network, the town never does. Every file is
 // asked of the town first, so a new version arrives the next time it is reachable; the cache is only for
 // when it is not. The socket is never cached: what the town is comes live or not at all.
-const CACHE = "orkcraft-app-v23";
+const CACHE = "orkcraft-app-v24";
 // Orkboard's phone (pwa/board-app.js; docs/specs/37-board-and-line.md §4) keeps the shell's files only: no camp file
 // in its cache.
 const SHELL = ["./", "board-app.js", "util.js", "board.js", "shell-top.js", "shell-board.js", "shell-agents.js",
   "shell-review.js", "shell-preview.js", "shell-util.js", "shell-forms.js", "shell-goal.js", "shell-agent.js", "shell-words.js",
-  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-ops.js", "tokens.css", "components.css", "app.css",
+  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-ops.js", "shell-map.js", "tokens.css", "components.css", "app.css",
   "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "fonts/fonts.css",
   "fonts/titillium-web-latin-400-normal.woff2", "fonts/titillium-web-latin-600-normal.woff2"];
 const CACHE_PREFIXES = ["fonts/"];
