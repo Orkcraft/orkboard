@@ -326,7 +326,9 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         super()._decided(slug, task, decision, device, **more)
 
     def _role(self, task: dict) -> dict:
-        return roles.role_for(self.state_dir, str(task.get("kind") or ""))
+        """The role it runs as: the goal's team's pick in its plan (`role`), else its tag's in the project."""
+        return (roles.role(self.state_dir, str(task.get("role") or "")) if task.get("role") else None) \
+            or roles.role_for(self.state_dir, str(task.get("kind") or ""))
 
     def _rank_of(self, slug: str) -> Any:
         try:

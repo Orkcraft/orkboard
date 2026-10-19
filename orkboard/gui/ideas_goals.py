@@ -12,7 +12,7 @@ from typing import Any
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, idea_words, ideas, roles
+from orkboard.realm import event_log, goal_team, idea_words, ideas, library, roles
 
 
 DOC_CHARS = 100_000
@@ -63,7 +63,8 @@ class GoalsMixin:
         return {"track": track, "words": idea_words.words(texts, [g["title"], *(i["title"] for i in mine)])}
 
     def goal_save(self, args: dict) -> dict:
-        """`{"slug"?, "about", "priority", "title"?, "craft"?}`: a title typed is the person's (never rewritten); spec 34's
+        """`{"slug"?, "about", "priority", "title"?, "craft"?, "team"?}`: a team's agents of the library are made roles
+        of the project (realm/library.py), the person's own agents taken as they are: a title typed is the person's (never rewritten); spec 34's
         metrics, links and deadline are still taken and kept when given."""
         slug = _opt(args, "slug") or None
         about = args.get("about", "")
@@ -74,11 +75,22 @@ class GoalsMixin:
         if metrics is not None and not isinstance(metrics, list) or links is not None and not isinstance(links, list):
             raise IdeasError("Metrics and links are lists")
         deadline = args.get("deadline") if isinstance(args.get("deadline"), str) else None
+        team = None
+        if args.get("team") is not None:
+            try:
+                team = goal_team.clean(args.get("team"))
+            except ValueError as e:
+                raise IdeasError(str(e)) from None
+            if bad := [s for s in team if library.get(s) is None and roles.role(self.state_dir, s) is None]:
+                raise IdeasError(f"No agent {bad[0]!r}")
         got, new = ideas.save_goal(self.root(), slug, title[:ideas.TITLE_CHARS], about[:ideas.SECTION_CHARS],
                                    metrics, _opt(args, "priority") or "normal", links, deadline, _opt(args, "craft") or None)
+        if team is not None:
+            library.install(self.state_dir, [s for s in team if library.get(s) is not None])
+            goal_team.set_team(self.root(), got, team)
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
-                 priority=g["priority"])
+                 priority=g["priority"], craft=g["craft"], team=g["team"])
         self._read_goal(got)
         self.changed(f"goal:{got}")
         return {"slug": got}

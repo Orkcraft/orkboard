@@ -10,7 +10,7 @@ import { makeIdeas, BUSY } from "./shell-ideas.js";
 import { makeOps, OPS_VIEW } from "./shell-ops.js";
 import { makeMap, MAP_VIEW } from "./shell-map.js";
 import { PRIORITY_WORDS, TARGETS, targetWord } from "./shell-words.js";
-import { CRAFT_WORDS, goalHead } from "./shell-who.js";
+import { CRAFT_WORDS, goalMark } from "./shell-who.js";
 import { keptGoal } from "./shell-top.js";
 
 export { BUSY };
@@ -81,9 +81,10 @@ export function makeBoardTab(core, ctx) {
     const done = mine.filter((i) => i.state === "done").length, working = mine.filter((i) => i.state === "working").length;
     return h("div", { class: "card goal-now", "data-goal": g.slug },
       line ? h("p", { class: "goal-line" }, line) : null,
-      h("span", { class: "goal-meta" }, goalHead(g, true), h("span", { class: "craft-word" }, CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering),
+      h("span", { class: "goal-meta" }, goalMark(g, st.roles?.roles, true), h("span", { class: "craft-word" }, CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering),
         h("span", { class: `prio prio-${g.priority}` }, PRIORITY_WORDS[g.priority] || "Normal"),
         GOAL_STATE[g.state] ? h("span", { class: `state-word ${g.state === "reading" ? "work" : g.state}` }, GOAL_STATE[g.state]) : null),
+      (g.team || []).length ? h("p", { class: "goal-team muted" }, `Team: ${g.team.map((s) => (st.roles?.roles || []).find((r) => r.slug === s)?.name || s).join(", ")}`) : null,
       mine.length ? h("p", { class: "goal-progress muted" }, `${done} of ${mine.length} ideas done${working ? ` · ${working} working` : ""}`) : null,
       h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => core.open({ kind: "goal", slug: g.slug }) }, "Open"),
         h("button", { class: "ork-btn", type: "button", "aria-label": `Edit goal ${g.title}`, onclick: () => goalSheet.open(g.slug) }, "Edit")));
@@ -99,13 +100,13 @@ export function makeBoardTab(core, ctx) {
     el: pane,
     editGoal: (slug) => goalSheet.open(slug),
     ops,
-    sheets: [goalSheet.el, ...ops.sheets, ...ideas.sheets, targetSheet.el],
+    sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, targetSheet.el],
     showMap,
     fab: ideas.fab,
     /** New idea's button is on the Board of a goal (not Operations', nor the Map's). */
     fabOn: () => Boolean(st.board) && !st.view,
     draw() {
-      if (!fresh(JSON.stringify([st.board, st.track, st.view, st.ops, st.boardError, st.map, st.mapError]))) return;
+      if (!fresh(JSON.stringify([st.board, st.track, st.view, st.ops, st.boardError, st.map, st.mapError, st.roles?.roles?.length]))) return;
       const unpair = h("p", { class: "muted foot-line" }, h("button", { class: "linkish", type: "button", onclick: () => ctx.unpair() }, "Unpair this phone"));
       if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
         pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),

@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import event_log, idea_spend, idea_target, ideas, roles
+from orkboard.realm import event_log, idea_spend, idea_target, ideas, library, roles
 
 
 class RolesMixin:
@@ -19,11 +19,14 @@ class RolesMixin:
         return idea_target.target_of(self.board_settings())
 
     def _with_heads(self, plan: dict | None) -> dict | None:
-        """A plan as the page reads it: each task with the head of who does it (`head`: race and tier, realm/roles.py)."""
+        """A plan as the page reads it: each task with the head of who does it (`head`: race and tier, realm/roles.py) and
+        its tag in words (`tag`: the kind of work it is)."""
         if not plan:
             return plan
         target, read = self._target(), roles.known(self.state_dir)
-        return {**plan, "tasks": [{**t, "head": roles.task_head(self.state_dir, t, target, read)} for t in plan.get("tasks") or []]}
+        return {**plan, "tasks": [{**t, "head": roles.task_head(self.state_dir, t, target, read),
+                                   "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND])}
+                                  for t in plan.get("tasks") or []]}
 
     def _role_spend(self) -> dict[str, float]:
         """Today's cost of each role: the tasks it ran today, summed."""
@@ -40,7 +43,8 @@ class RolesMixin:
         return {"roles": mine, "kinds": [{"kind": k, "label": roles.KIND_LABELS[k], "role": kinds[k]} for k in roles.TASK_KINDS],
                 "models": roles.models(), "target": target,
                 "crafts": [{"craft": c, "label": roles.CRAFT_LABELS[c], "race": roles.RACES[c],
-                            "heads": {m["id"]: roles.head_tier(m["id"], target) for m in roles.models()}} for c in roles.CRAFTS]}
+                            "heads": {m["id"]: roles.head_tier(m["id"], target) for m in roles.models()}} for c in roles.CRAFTS],
+                "library": library.listed(), "suggested": library.SUGGESTED}
 
     def role_save(self, args: dict) -> dict:
         slug = _opt(args, "slug") or None
@@ -121,6 +125,7 @@ class RolesMixin:
                         {"idea": slug, "idea_title": titles.get(slug, title), "task": t.get("id"),
                          "title": t.get("title", ""), "state": state, "tier": t.get("tier", ""), "role": role,
                          "kind": t.get("kind") or roles.DEFAULT_KIND, "head": roles.task_head(self.state_dir, t, target, read),
+                         "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND]),
                          "note": t.get("note") or (t.get("error") if state == "failed" else "") or "",
                          # spec 35 §11.5: who started it, and whether it waits for the night
                          "by": "auto" if plan.get("passed_by") == "auto" else "person",

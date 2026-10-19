@@ -18,6 +18,7 @@ pytestmark = pytest.mark.browser
 
 from orkboard.gui import pairing, phone_tls  # noqa: E402
 from orkboard.gui.board_host import BoardPhone  # noqa: E402
+from orkboard.realm import library  # noqa: E402
 from tests.test_phones import _listening, _serve  # noqa: E402
 from tests.browser_kit import CHROMIUM, WAIT_MS, spki  # noqa: E402
 
@@ -52,12 +53,12 @@ class Stub:
                        "steps": [], "done": False}]
         self.plan = {"idea": "sync", "estimate": {"tasks": 5, "usd_low": 1.2, "usd_high": 3.5}, "passed_at": "x",
                      "todos": [{**self.todos[0], "for": ["k2", "k3"]}],
-                     "tasks": [task("k1", "Read the sync code", "merged"),
-                               task("k2", "Add the queue", "review", ["k1"], tests=GREEN, diff={"files": 14, "added": 320, "removed": 41}),
-                               task("k3", "Retry on a lost signal", "running", ["k2"]),
+                     "tasks": [task("k1", "Read the sync code", "merged", tag="Research"),
+                               task("k2", "Add the queue", "review", ["k1"], tests=GREEN, diff={"files": 14, "added": 320, "removed": 41}, tag="Code"),
+                               task("k3", "Retry on a lost signal", "running", ["k2"], tag="Code"),
                                task("k4", "Test it offline", "review", ["k3"], tests=RED, round=2, diff={"files": 3, "added": 12, "removed": 0},
-                                    conflict="conflicts with dev in a.py, b.py"),
-                               task("k5", "Write the notes", "waiting", ["k4"])]}
+                                    conflict="conflicts with dev in a.py, b.py", tag="Tests"),
+                               task("k5", "Write the notes", "waiting", ["k4"], tag="Text for people")]}   # tag: ideas_roles `_with_heads`
         self.ideas = {"sync": self.idea("sync", "Sync ideas between the phone and the town", "working", 0),
                       "dark": self.idea("dark", "Dark mode", "plan", 1, in_needs_you=True)}
         self.goals = {"general": self.goal("general", "General", "normal", "ready")}
@@ -135,7 +136,8 @@ class Stub:
             return {"roles": [{"instruction_long": "", "hand_model": False} | r | {"spend_today": 0} for r in self.roles.values()],
                     "kinds": [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()],
                     "models": [{"id": "", "label": "By Target"}, {"id": "elder", "label": "Elder · opus"},
-                               {"id": "warrior", "label": "Warrior · sonnet"}, {"id": "laborer", "label": "Laborer · haiku"}]}
+                               {"id": "warrior", "label": "Warrior · sonnet"}, {"id": "laborer", "label": "Laborer · haiku"}],
+                    "library": library.listed(), "suggested": library.SUGGESTED}                  # the host's own library
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -156,7 +158,8 @@ class Stub:
             old = self.goals.get(slug, {})
             self.goals[slug] = self.goal(slug, a.get("title") or old.get("title") or " ".join(about.split()[:3]), a["priority"], "reading", about=about,
                                          metrics=old.get("metrics", []), links=old.get("links", []), craft=a.get("craft", "engineering"),
-                                         race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft"), "peon"))
+                                         race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft"), "peon"),
+                                         team=a.get("team", old.get("team", [])))
             return self.bump({"slug": slug})
         if name == "ideas.goal":
             g = self.goals[a["slug"]]
@@ -313,6 +316,12 @@ async def _new_goal(page):
     """New goal: at the foot of the top bar's Goals sheet."""
     await page.locator(".board-bar .goal-chip").click()
     await page.get_by_role("dialog", name="Goals").get_by_role("button", name="New goal").click()
+
+
+async def _wizard(sheet, craft="engineering"):
+    """New goal's first two steps: a craft, and its team as suggested; the third, what it is for, is open after."""
+    await sheet.locator(f'.craft-tile[data-craft="{craft}"]').click()
+    await sheet.get_by_role("button", name="Next").click()
 
 
 async def _needs(page):
@@ -481,6 +490,7 @@ async def test_a_secret_todo_is_entered_over_the_paired_link_on_the_board(fake_r
         await page.get_by_role("tab", name="Board").click()
         await page.get_by_role("button", name="New idea", exact=True).click()                           # no goal yet: New goal opens first (spec 35 §3)
         goal = page.get_by_role("dialog", name="New goal")
+        await _wizard(goal)
         await goal.get_by_label("Description").fill("Offline first")
         await goal.get_by_role("button", name="Save goal").click()
         idea = page.get_by_role("dialog", name="New idea")                                              # … then New idea, with that goal
@@ -554,6 +564,7 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
             await sheet.wait_for(state="hidden", timeout=WAIT_MS)
         await _new_goal(page)                                                                           # the buttons are pinned at the foot
         sheet = page.get_by_role("dialog", name="New goal")
+        await sheet.locator('.craft-tile[data-craft="design"]').click()
         foot = await sheet.locator(".sheet-foot").bounding_box()
         assert foot["y"] + foot["height"] >= 844 - 2
         await page.keyboard.press("Escape")
@@ -564,20 +575,16 @@ async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_s
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _new_goal(page)
         sheet = page.get_by_role("dialog", name="New goal")
+        await _wizard(sheet, "marketing")                                                               # its craft, its team as suggested
         assert await sheet.get_by_role("button", name="Save goal").is_disabled()                        # a description is required
-        assert await sheet.get_by_label("Title").count() == 1 and not await sheet.get_by_label("Title").is_visible()   # no title to type on a new goal
+        assert await sheet.get_by_label("Title").count() == 0                                            # no title to type on a new goal
         assert await sheet.get_by_label("Metric 1: what is measured").count() == 0 and await sheet.get_by_label("Deadline").count() == 0
         await sheet.get_by_label("Description").fill("More people try Orkline.")
-        craft = sheet.get_by_label("Craft")
-        assert await craft.input_value() == "engineering"                                                # an ork's, unless picked
-        assert [" ".join((await o.text_content()).split()) for o in await craft.locator("option").all()] == [
-            "Engineering: an ork", "Design: an elf", "Data: a goblin", "Marketing: a gnome"]
-        await craft.select_option("marketing")
-        assert await sheet.locator(".craft-now img").get_attribute("src") == "races/gnome-laborer.png"   # the head it will wear
         await sheet.get_by_role("radio", name="High").click()
         await _shot(page, "phone-new-goal-390x844")
         await sheet.get_by_role("button", name="Save goal").click()
-        assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "craft": "marketing", "priority": "high"})
+        assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "craft": "marketing",
+                                                       "team": ["copywriter", "growth"], "priority": "high"})
         screen = page.locator(".screen")
         await screen.get_by_text("the Taskmaster is reading", exact=False).first.wait_for(timeout=WAIT_MS)      # the goal on its own screen: reading
         stub.goals["more-people-try"].update(title="Grow installs", state="asks", summary="Installs are the first step.\nMore lines.", questions=["Which channel first?"],

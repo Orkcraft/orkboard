@@ -328,6 +328,8 @@ async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_wh
         await page.locator(".board-bar .goal-chip").click()
         await page.get_by_role("dialog", name="Goals").get_by_role("button", name="New goal").click()
         sheet = page.get_by_role("dialog", name="New goal")
+        await sheet.locator('.craft-tile[data-craft="data"]').click()
+        await sheet.get_by_role("button", name="Next").click()
         assert "What is left: Claude 62 % · Antigravity 15 %" in await sheet.locator(".limits-note").inner_text()
         await page.keyboard.press("Escape")
         await page.locator(".idea-card", has_text="Offline mode").locator(".idea-open").click()

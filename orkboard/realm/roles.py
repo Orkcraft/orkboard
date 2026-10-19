@@ -41,8 +41,23 @@ from orkboard.realm import ideas
 
 TASKMASTER, GRUNT = "taskmaster", "grunt"
 BUILTIN = (TASKMASTER, GRUNT)
-TASK_KINDS = ("code", "tests", "docs", "text", "research")
-KIND_LABELS = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
+# A task's kind is its tag: the kind of work it is, what decides who of a goal's team does it (realm/library.py).
+TASK_KINDS = ("code", "tests", "docs", "text", "research", "review", "architecture", "design", "uikit", "a11y", "art",
+              "data", "query", "metrics", "experiment", "seo", "campaign", "community")
+KIND_LABELS = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research",
+               "review": "Review of a change", "architecture": "Architecture", "design": "Screens and flows",
+               "uikit": "UI kit", "a11y": "Accessibility", "art": "Pixel art", "data": "Data pipelines and tables",
+               "query": "Queries", "metrics": "Metrics", "experiment": "Experiments", "seo": "Search (SEO)",
+               "campaign": "Launch and campaigns", "community": "Community"}
+# What each kind is, for the Taskmaster's plan prompt.
+KIND_LINES = {"code": "the code a change needs", "tests": "tests only", "docs": "the repository's docs",
+              "text": "text for people: pages, posts, release notes", "research": "finding out, no change",
+              "review": "reading a change and saying what breaks", "architecture": "how a wide change is split and ordered",
+              "design": "flows and screens", "uikit": "components and tokens of the design system",
+              "a11y": "accessibility checks and fixes", "art": "pixel art: icons, heads, pictures",
+              "data": "events, tables and the jobs that fill them", "query": "queries for a report",
+              "metrics": "counting a goal's metrics", "experiment": "an A/B test", "seo": "search: pages found by their words",
+              "campaign": "a launch, its channels and what they bring", "community": "answers to people, what they ask"}
 DEFAULT_KIND = "code"
 MAX_PARALLEL = (1, 8)
 NAME_CHARS, INSTRUCTION_CHARS = 40, 600
@@ -134,7 +149,8 @@ def _read(state_dir: Path, slug: str) -> dict | None:
     return {"slug": slug, "name": page.get("name") or base["name"], "model": page.get("model", base["model"]),
             "max_parallel": min(max(mp, MAX_PARALLEL[0]), MAX_PARALLEL[1]), "instruction": for_prompt(body),
             "instruction_long": body if len(body) > INSTRUCTION_CHARS else "", "builtin": slug in BUILTIN,
-            "craft": _craft(page.get("craft"), slug)}
+            "craft": _craft(page.get("craft"), slug),
+            "takes": [k for k in (page.get("takes") or "").split(",") if k.strip() in TASK_KINDS]}
 
 
 def role(state_dir: Path, slug: str) -> dict | None:
@@ -162,7 +178,7 @@ def _craft(value: object, slug: str | None) -> str:
 
 def _write(state_dir: Path, r: dict) -> None:
     page = ideas.Page([("name", r["name"]), ("model", r["model"]), ("max_parallel", str(r["max_parallel"])),
-                       ("craft", r.get("craft") or DEFAULT_CRAFT)])
+                       ("craft", r.get("craft") or DEFAULT_CRAFT), *([("takes", ",".join(r["takes"]))] if r.get("takes") else [])])
     text = page.text() + (f"\n{r['instruction'].strip()}\n" if r["instruction"].strip() else "")
     ideas._write(_path(state_dir, r["slug"]), text)
 
@@ -204,7 +220,7 @@ def save(state_dir: Path, name: str, model: object, max_parallel: object, instru
             raise ValueError(f"There is an agent called {name} already")
         _write(state_dir, {"slug": slug, "name": name, "model": _model(model, slug, old),
                            "max_parallel": _clean_parallel(max_parallel), "instruction": text,
-                           "craft": craft or (old or {}).get("craft") or DEFAULT_CRAFT})
+                           "craft": craft or (old or {}).get("craft") or DEFAULT_CRAFT, "takes": (old or {}).get("takes") or []})
         if takes is not None and slug not in BUILTIN:
             _save_kinds(state_dir, {k: slug if k in takes else (GRUNT if r == slug else r)
                                     for k, r in kinds(state_dir).items()})
@@ -251,10 +267,31 @@ def set_kind(state_dir: Path, kind: str, slug: str) -> None:
         _save_kinds(state_dir, {**kinds(state_dir), kind: slug})
 
 
-def role_for(state_dir: Path, kind: str) -> dict:
-    """The role a task of this type runs as (a task without a known type is code)."""
+def install(state_dir: Path, slug: str, name: str, model: str, craft: str, instruction: str, takes: tuple[str, ...]) -> None:
+    """A role from the library (realm/library.py), its slug given: written once, never over one that is there."""
+    with LOCK:
+        if role(state_dir, slug) is not None or slug in BUILTIN:
+            return
+        _write(state_dir, {"slug": slug, "name": name, "model": model, "max_parallel": 2, "instruction": instruction,
+                           "craft": craft, "takes": [k for k in takes if k in TASK_KINDS]})
+
+
+def takes_of(r: dict, kinds_: dict[str, str]) -> set[str]:
+    """The kinds of work a role takes: its own (a library agent's `takes`) and the project's task types given to it."""
+    return set(r.get("takes") or []) | {k for k, s in kinds_.items() if s == r.get("slug")}
+
+
+def role_for(state_dir: Path, kind: str, team: list[str] | None = None) -> dict:
+    """The role a task of this kind runs as (a task without a known kind is code): in a goal with a `team`, the first
+    of the team whose own kinds hold it, then the first the project gives it to (Grunt's are every kind no one else
+    has, so Grunt never takes a kind a specialist of the team takes); else, and with no team, the project's role for
+    it (Grunt when none)."""
     kind = kind if kind in TASK_KINDS else DEFAULT_KIND
-    return role(state_dir, kinds(state_dir)[kind]) or role(state_dir, GRUNT)
+    kinds_ = kinds(state_dir)
+    members = [r for slug in team or [] if slug != TASKMASTER and (r := role(state_dir, slug)) is not None]
+    for r in [r for r in members if kind in (r.get("takes") or [])] + [r for r in members if kind in takes_of(r, kinds_)]:
+        return r
+    return role(state_dir, kinds_[kind]) or role(state_dir, GRUNT)
 
 
 def head_tier(model: str, target: str, task_tier: str = "warrior") -> str:

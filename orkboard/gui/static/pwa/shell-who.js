@@ -19,6 +19,13 @@ export function whoHead(head, small = false) {
 /** A goal's mark: the head of its craft's race, bare (a goal has no tier), its craft in words in its title. */
 export const goalHead = (g, small = false) => raceHead(g?.race || "peon", "laborer", { small, title: CRAFT_WORDS[g?.craft] || CRAFT_WORDS.engineering });
 
+/** A goal's mark: the heads of its team (at most three, its agents' as Agents draws them), else its craft's head. */
+export function goalMark(g, roleList = [], small = false) {
+  const heads = (g?.team || []).map((s) => roleList.find((r) => r.slug === s)?.head).filter(Boolean).slice(0, 3);
+  if (!heads.length) return goalHead(g, small);
+  return h("span", { class: "team-mark-heads" }, ...heads.map((hd) => whoHead(hd, small)));
+}
+
 /** A head beside its words: the tier, then the race and the craft, muted (orkUI's .ork-race). */
 export function who(head, small = false) {
   if (!head) return null;

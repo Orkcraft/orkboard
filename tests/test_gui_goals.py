@@ -183,9 +183,10 @@ def test_the_persons_drag_wins_over_the_keepers_place(host, model):
 def test_roles_are_made_edited_dropped_and_the_built_ins_refused(host):
     got = host.command("ideas.roles")
     assert [r["slug"] for r in got["roles"]] == ["taskmaster", "grunt"] and all(r["spend_today"] == 0 for r in got["roles"])
-    assert [(k["kind"], k["label"], k["role"]) for k in got["kinds"]] == [
+    assert [(k["kind"], k["label"], k["role"]) for k in got["kinds"]][:5] == [
         ("code", "Code", "grunt"), ("tests", "Tests", "grunt"), ("docs", "Docs", "grunt"),
         ("text", "Text for people", "grunt"), ("research", "Research", "grunt")]
+    assert [k["kind"] for k in got["kinds"]] == list(roles.TASK_KINDS) and all(k["role"] == "grunt" for k in got["kinds"])
     assert [m["id"] for m in got["models"]] == ["", "elder", "warrior", "laborer"]      # spec 36 §3: By Target, the tiers
     slug = host.command("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 2,
                                             "instruction": "Write plainly."})["slug"]

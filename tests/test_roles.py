@@ -41,7 +41,7 @@ def test_a_role_is_checked(tmp_path):
 
 
 def test_each_task_type_has_a_role_grunt_by_default_and_a_dropped_role_sends_them_back(tmp_path):
-    assert roles.TASK_KINDS == ("code", "tests", "docs", "text", "research")
+    assert roles.TASK_KINDS[:5] == ("code", "tests", "docs", "text", "research")                 # the tags a team splits by follow
     assert set(roles.kinds(tmp_path).values()) == {"grunt"}
     slug = roles.save(tmp_path, "Writer", "laborer", 2, "Plain words.")
     roles.set_kind(tmp_path, "docs", slug)

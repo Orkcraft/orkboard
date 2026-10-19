@@ -13,7 +13,7 @@ import pytest
 from orkboard.core import idea_keeper
 from orkboard.gui import ideas as gui_ideas
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import idea_secrets, ideas, jobs, tool_run
+from orkboard.realm import idea_secrets, ideas, jobs, roles, tool_run
 
 BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.plan", "ideas.start", "ideas.move",
                   "ideas.edit", "ideas.track_add", "ideas.track_set", "ideas.todo", "ideas.drop", "ideas.stop",
@@ -593,7 +593,7 @@ def test_roles_gain_their_types_week_and_hand_model_and_role_save_takes_types(ho
                                             "instruction": "Write plainly.", "kinds": ["docs", "text"]})["slug"]
     got = {r["slug"]: r for r in host.command("ideas.roles")["roles"]}
     assert got[slug]["kinds"] == ["docs", "text"] and got[slug]["model"] == "" and got[slug]["hand_model"] is False
-    assert got["grunt"]["kinds"] == ["code", "tests", "research"] and got["taskmaster"]["kinds"] == []
+    assert got["grunt"]["kinds"] == [k for k in roles.TASK_KINDS if k not in ("docs", "text")] and got["taskmaster"]["kinds"] == []
     assert got["taskmaster"]["week"] == {"spent": 0, "plans": 0, "first_time": 0, "finished": 0, "merged": 0}
     assert got[slug]["week"] is None                                                # no task of its finished yet
     assert next(k for k in host.command("ideas.roles")["kinds"] if k["kind"] == "docs")["role"] == slug

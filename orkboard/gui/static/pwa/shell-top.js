@@ -8,7 +8,7 @@ import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { makeProjects } from "./shell-projects.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
-import { CRAFT_WORDS, goalHead } from "./shell-who.js";
+import { CRAFT_WORDS, goalHead, goalMark } from "./shell-who.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { MAP_VIEW } from "./shell-map.js";
 
@@ -64,7 +64,7 @@ export function makeTop(core, ctx) {
     const row = (key, label, onclick, mark = null, line = null) => h("li", {}, h("button", { class: "goal-row", type: "button", "data-goal": key,
       "aria-current": key === now ? "true" : null, onclick }, mark, h("b", {}, label), line));
     goalList.replaceChildren(
-      ...goals().map((g) => row(g.slug, g.title, () => show(g.slug), goalHead(g),
+      ...goals().map((g) => row(g.slug, g.title, () => show(g.slug), goalMark(g, st.roles?.roles, (g.team || []).length > 1),
         h("small", { class: "muted" }, [CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · ")))),
       row(OPS_VIEW, "Operations", () => show("", OPS_VIEW)),
       row(MAP_VIEW, "Map", () => { show("", MAP_VIEW); core.showMap(); }, null, h("small", { class: "muted" }, "Every goal, its ideas and tasks on one screen")));
@@ -75,7 +75,7 @@ export function makeTop(core, ctx) {
     const word = st.view === OPS_VIEW ? "Operations" : st.view === MAP_VIEW ? "Map" : g ? g.title : st.board ? "No goal yet" : "";
     goalChip.hidden = !word;
     goalChip.replaceChildren(h("small", { class: "goal-chip__project" }, st.snap?.project || ""),
-      h("span", { class: "goal-chip__goal" }, ...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾")));
+      h("span", { class: "goal-chip__goal" }, ...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾")));   // the craft's head: the team's are on its card
     goalChip.setAttribute("aria-label", `Goal: ${word}. Choose another`);
   }
 

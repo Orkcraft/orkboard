@@ -7,6 +7,7 @@ import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
 import { CRAFT_WORDS, RACE_WORDS, goalHead } from "./shell-who.js";
 import { limitsNote } from "./shell-limits.js";
+import { makeNewGoal } from "./shell-goal-new.js";
 
 const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"]];   // realm/roles.py RACES
 
@@ -53,9 +54,12 @@ export function makeGoalSheet(core) {
     if (after) after(got.slug); else core.open({ kind: "goal", slug: got.slug });
   });
   sh.el.addEventListener("close", () => { then = null; });
+  const wizard = makeNewGoal(core);                    // a new goal: craft, team, what for (shell-goal-new.js)
   return {
     el: sh.el,
+    sheets: [sh.el, wizard.el],
     open(which = "", after = null) {
+      if (!which) { wizard.open(after); return; }
       slug = which;
       then = after;
       const g = which ? (core.st.board?.tracks || []).find((t) => t.slug === which) : null;

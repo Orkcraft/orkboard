@@ -1,15 +1,21 @@
 // New goal / Edit goal (docs/specs/35-goals-window.md §2): a description and a priority; the Taskmaster writes the rest. Edit
-// adds the Title, to correct the Taskmaster's. Saving sends the goal to the Taskmaster at once.
+// adds the Title, to correct the Taskmaster's. Saving sends the goal to the Taskmaster at once. A new goal is the three steps of
+// goalwizard.js: its craft, its team from the library, what it is for.
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say } from "../link.js";
 import { board, track } from "../board/store.js";
 import { act, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
+import { GoalWizard } from "./goalwizard.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
 
 export function GoalDialog({ slug = "", then = "" }) {
+  return slug ? html`<${GoalEdit} slug=${slug} then=${then} />` : html`<${GoalWizard} then=${then} />`;
+}
+
+function GoalEdit({ slug, then = "" }) {
   const g = slug ? board.value?.tracks.find((t) => t.slug === slug) : null;
   const [title, setTitle] = useState(g?.title || "");
   const [about, setAbout] = useState(g?.about || "");

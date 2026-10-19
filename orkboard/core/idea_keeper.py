@@ -41,7 +41,7 @@ from typing import Any, Callable
 from orkboard.core.idea_draft import DraftMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
-from orkboard.realm import event_log, idea_photos, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
+from orkboard.realm import event_log, goal_team, idea_photos, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -442,6 +442,17 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
             raise
         return True
 
+    def role_of(self, task: dict) -> dict:
+        """The role a task runs as: the one its plan gave it from the goal's team, else its tag's in the project."""
+        return (roles.role(self.state_dir, str(task.get("role") or "")) if task.get("role") else None) \
+            or roles.role_for(self.state_dir, str(task.get("kind") or ""))
+
+    def team_lines(self, team: list[str]) -> str:
+        """The goal's team for the plan prompt: who does which tags (a task of a tag no one takes goes to Grunt)."""
+        known = roles.kinds(self.state_dir)
+        rows = [f"{r['name']} ({', '.join(sorted(roles.takes_of(r, known))) or 'code'})" for s in team if (r := roles.role(self.state_dir, s))]
+        return ("\n- The goal's team, by the tags each does: " + "; ".join(rows) + ". Tag each task so one of them does it.") if rows else ""
+
     def plan_prompt(self, root: Path, slug: str) -> str:
         """§0's `plan` context: Gist, Done when, Out, Risks, Depends on; the goal's Summary."""
         page = ideas.idea_page(root, slug)
@@ -450,6 +461,8 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         parts.append(("Its goal's summary", goal["summary"] if goal else ""))
         context = idea_target.cut(parts, idea_target.CONTEXT["plan"])
         touches = [t for t in json.loads(page.get("touches") or "[]") if isinstance(t, str)] if page.get("touches", "").startswith("[") else []
+        kinds = "; ".join(f'"{k}" ({roles.KIND_LINES[k]})' for k in roles.TASK_KINDS)
+        team = self.team_lines(goal_team.team_of(root, page.get("track") or ideas.GENERAL))
         return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
 read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
 {idea_photos.prompt_lines(self.state_dir, slug)}
@@ -459,7 +472,7 @@ Rules:
 - At most {MAX_TASKS} tasks. Each is a brief another Claude session can do alone, in a worktree of the repository:
   what to change, where, and how it is tested; it names the Done when lines it proves. `after` only where a task
   needs another's result.
-- Each task's type (`kind`): "code", "tests", "docs", "text" (text for people), or "research"; ordinary work is "code".
+- Each task's tag (`kind`), the kind of work it is, one of: {kinds}. Ordinary work is "code".{team}
 - Each task's tier, its complexity: "elder" (hard design or a wide change), "warrior" (ordinary code), "laborer"
   (small, mechanical).
 - To-dos only for what a task cannot start without: a key ("secret": its title is the environment variable's name,
@@ -481,8 +494,11 @@ Answer with one JSON object and nothing else:
         try:
             text, *_rest = self.ask("plan", self.plan_prompt(root, slug))
             data = make_plan(slug, self.parse(text))
+            team = goal_team.for_idea(root, slug)
+            for t in data["tasks"]:                      # who of the goal's team does it, by its tag (none: the project's)
+                t["role"] = roles.role_for(self.state_dir, t["kind"], team)["slug"] if team else ""
             target = self.target()
-            runs = [idea_target.tier_of(idea_target.task_pick(t["tier"], target, str(roles.role_for(self.state_dir, t["kind"]).get("model") or ""))[0])
+            runs = [idea_target.tier_of(idea_target.task_pick(t["tier"], target, str(self.role_of(t).get("model") or ""))[0])
                     for t in data["tasks"]]
             data["estimate"] = estimate(data["tasks"], runs, idea_spend.tier_costs(self.state_dir))   # learned (spec 36 §6)
             ideas.save_plan(self.state_dir, slug, data)
