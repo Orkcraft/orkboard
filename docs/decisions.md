@@ -333,8 +333,11 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    emoji.
 4. **Icons are Pixelarticons** (MIT, a 24 px grid of whole pixels, drawn at 24 or 48 only; buttons carry words, not icons), a
    vendored sprite of the ones used; no emoji.
-5. **Colour is a signal and nothing else.** A grey scale; selected and primary are the inverted ink; no accent hue. The
-   signals (question, error, success, warning) keep their hues, with a mark or a word beside them.
+5. **Colour is a signal, except the one ork green of the primary action.** A grey scale; *selected* is the inverted ink; the
+   primary button is green (the owner's choice, a nod to the orks: `#6aa84f`, the phone's green kept). Green is kept apart:
+   the fill means *press this*, and green text or a ✓ means *this went well*, never a filled button. The signals (question,
+   error, success, warning) keep their hues, with a mark or a word beside them. Numbers on buttons are set in the text
+   face (the pixel *5* reads as an *S*).
 6. **Dark only for now.** Office's light variant (desktop and phone) is dropped from this form; it returns as a second
    palette if the testers ask.
 7. **Accessibility is a test, not a hope:** contrast computed from the tokens (text ≥ 4.5, edges ≥ 3), targets ≥ 24 px

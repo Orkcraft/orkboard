@@ -77,8 +77,8 @@ Orkline and needs nothing of theirs to test.
   spec 39 and may start at once.
 
 ## 2. Colour (`orkforms/office`, dark only)
-Monochrome: a grey scale and one accent that is the ink itself. **Colour means a signal** and nothing else (decisions
-§53.5): a question, an error, a success, a warning keep their hue. Light Office is not in this spec (§53.6).
+Monochrome: a grey scale, the ink as its highlight, and **one ork green for the primary action** (decisions §53.5). Apart
+from that **colour means a signal** and nothing else: a question, an error, a success, a warning keep their hue. Light Office is not in this spec (§53.6).
 
 | token | value | role |
 |---|---|---|
@@ -91,11 +91,14 @@ Monochrome: a grey scale and one accent that is the ink itself. **Colour means a
 | `--of-ink-muted` | `#9a9a9a` | secondary text (≥ 6.5 : 1) |
 | `--of-ink-faint` | `#858585` | placeholders, disabled, meta (≥ 4.5 : 1 on the panel; was `#7a7a7a`, 3.8) |
 | `--of-on-ink` | `#0b0b0b` | text on an inked ground (the selected, the primary) |
+| `--of-action` · `--of-action-hi` · `--of-action-press` | `#6aa84f` · `#7fbf5f` · `#58903f` | the primary button's ground at rest, hover, pressed (the ork green of today's phone; `--of-on-ink` on them 6.9 · 8.9 · 5.1 : 1; on the panel 6.6 · 8.6 · 4.9) |
 | `--of-danger` · `--of-alert` · `--of-success` | `#f5806e` · `#f0d050` · `#86c062` | the signals; unchanged from today's Office (7.4 · 12.4 · 8.7 : 1 on the panel) |
 
-- **Two tokens complete the signals:** `--of-warning` is the alert hue (`#f0d050`, one yellow for a question and a
-  warning, as today's Office has it) and `--of-ink-hi` (`#ffffff`) is the primary button's hover. There is no `info`
-  hue (ink) and no `hot` red (Camp's fire): a failing thing is `--of-danger`.
+- **`--of-warning`** is the alert hue (`#f0d050`, one yellow for a question and a warning, as today's Office has it).
+  There is no `info` hue (ink) and no `hot` red (Camp's fire): a failing thing is `--of-danger`.
+- **Green is two things, kept apart:** `--of-action` fills the primary button and nothing else (never text, never a
+  mark, never a meter); `--of-success` is text, a ✓ and nothing filled (never a button's ground). So a green fill always
+  means *press this*, and green text or a tick always means *this went well*.
 
 **Button states** (the contract for `.of-btn`; edge 1 px; contrasts computed against the panel, text on a filled ground
 against `--of-on-ink`; every pair ≥ 4.5 : 1, edges ≥ 3 : 1):
@@ -103,7 +106,7 @@ against `--of-on-ink`; every pair ≥ 4.5 : 1, edges ≥ 3 : 1):
 | variant | rest | hover | pressed | disabled |
 |---|---|---|---|---|
 | **default** | edge `--of-edge`, text `--of-ink`, no ground (15.4 : 1) | ground `--of-ink`, text `--of-on-ink` (16.1) | ground `--of-ink-muted`, text `--of-on-ink` (7.0) | dashed edge `--of-ink-faint`, text `--of-ink-faint` (5.1), no hover |
-| **primary** (the action) | ground `--of-ink`, text `--of-on-ink` (16.1) | ground `--of-ink-hi`, text `--of-on-ink` | ground `--of-ink-muted`, text `--of-on-ink` | as default's disabled (a primary that cannot act stops being filled) |
+| **primary** (the action, ork green) | ground and edge `--of-action`, text `--of-on-ink` (6.9) | ground `--of-action-hi`, text `--of-on-ink` (8.9) | ground `--of-action-press`, text `--of-on-ink` (5.1) | as default's disabled (a primary that cannot act stops being filled) |
 | **danger** (stops or deletes: *Stop all*, *Delete*) | edge and text `--of-danger` (7.4) | ground `--of-danger`, text `--of-on-ink` (7.7) | as hover, plus an inset 2 px `--of-on-ink` ring | as default's |
 | **warning** (spends money or risks work: the ones that say so plainly) | edge and text `--of-warning` (12.4) | ground `--of-warning`, text `--of-on-ink` (13.0) | as hover, plus the ring | as default's |
 | **quiet** | no edge, underlined pixel text `--of-ink-muted` (6.7) | text `--of-ink` | text `--of-ink-muted` | text `--of-ink-faint`, no underline |
@@ -113,10 +116,11 @@ the state's own look. **Success has no button:** it is a mark (✓) and text in 
 of a meter that is fine. Outside buttons: a card that **asks** has a 1 px `--of-alert` edge, one that **fails** a
 `--of-danger` edge; a limit's meter takes `--of-alert` past 80 % and `--of-danger` past 95 %.
 
-- **Selected is inverted:** ink ground, `--of-on-ink` text (16 : 1). The primary button is the same. No gold, no green.
+- **Selected is inverted:** ink ground, `--of-on-ink` text (16 : 1), on a row, a card or a tab; the primary button is not
+  that (it is green), so *selected* and *press this* never look alike.
 - **Focus** is a 2 px ring drawn **inside** the control (`box-shadow: inset 0 0 0 2px var(--of-ink)`): the corners are
   notched with `clip-path` (§4), which clips an `outline`.
-- Links are ink, underlined; there is no accent hue for them.
+- Links are ink, underlined; there is no hue for them.
 - A signal is never the only carrier of its meaning: a mark or a word goes with it (✓ ✗ ! in text, an icon in a row),
   as today (Office's rule: success ✓, warning ⚠, danger ✗).
 
@@ -151,7 +155,7 @@ The scale (desktop; px are CSS px; the phone's in §8):
 Rules: the pixel face is **never below 12 px and always at whole pixels** (`font-size` an integer, no `em`/`%` of a
 fractional size, no `transform: scale`); `font-synthesis: none` (Pixelify has one weight: emphasis is the inverted
 ground, a mark or the caps, never a faux bold); `font-variant-ligatures: none` on the pixel face (its *fi* is drawn as
-an *A*); the text face is monospaced, so its numbers already align. The body is set on the root
+an *A*); the text face is monospaced, so its numbers already align. **Numbers and amounts are never set in the pixel face** (its *5* reads as an *S*: *Spend $5* looked like *Spend $S*): a button that carries one wraps it in the text face (`<span class="of-num">$5</span>`), and the words stay pixel. The body is set on the root
 (`html { font: var(--of-type-body) }`): nothing is left to the browser's 16. A heading or a button never carries text a
 person wrote (a goal's title is body text, not a heading), so a Cyrillic title is never set in Pixelify.
 
@@ -236,7 +240,7 @@ sizes in `rem`).
   - `tokens.json` of a form has every token of §2–§4 under the names of this file; `tokens.css` is exactly what the
     generator makes of it (as `design-system/tokens.css` is);
   - **contrast, computed from the values:** `--of-ink`, `-muted`, `-faint` on canvas, panel and raised ≥ 4.5 : 1;
-    `--of-edge` on each ground ≥ 3 : 1; each signal on the panel ≥ 4.5 : 1; every cell of the button-state table (§2) in its own pair ≥ 4.5 : 1 (edges ≥ 3 : 1); `--of-on-ink` on `--of-ink` ≥ 7 : 1;
+    `--of-edge` on each ground ≥ 3 : 1; each signal on the panel ≥ 4.5 : 1; every cell of the button-state table (§2) and the three action grounds in their own pairs ≥ 4.5 : 1 (edges ≥ 3 : 1); `--of-on-ink` on `--of-ink` ≥ 7 : 1;
   - no radius token above 0, no space or size outside the steps, no pixel size below 12 or fractional, the families
     named in `fonts/`, each font file present, `fonts.css` names only files that exist, the licences in `NOTICE` (Plex, Pixelify, Pixelarticons); every icon the sprite names exists in it and is drawn from the upstream file unchanged; the generator is deterministic (twice the same bytes);
   - the legacy roles of §1 are all defined, to colours of the form;
@@ -251,6 +255,8 @@ sizes in `rem`).
     block is at most 90 characters wide;
   - `body` is 12/18; no visible text under 11 px, no pixel text under 12; every button, field and tab ≥ 24 px high; the
     top bar and a pane's head 32; panes keep their widths; no horizontal scroll;
+  - in a button, a heading and a tab no digit is in the pixel face (the number sits in an `.of-num` span in the text face);
+  a primary button's ground is `--of-action`, and nothing else on the page is filled with it;
   - icons are 24 or 48 px (never another size) and take their text's colour;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
     `--of-ink` inside the box); the selected row is inverted; an asking card has the alert edge;
