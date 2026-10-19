@@ -207,3 +207,18 @@
 .map-goal__heads { display: inline-flex; gap: 2px; }
 .map-card__checks { color: var(--ork-ink-muted); }
 .map-card__checks.is-passed { color: var(--ork-success); }
+/* Needs you as its own tab (today.js): a row with Later beside it; questions answered in their row. */
+.board-need-row { display: flex; align-items: stretch; gap: var(--ork-2); }
+.board-need-row > .board-need { flex: 1; min-width: 0; }
+.board-need__later { flex: none; align-self: center; }
+.board-quick { cursor: default; }
+.board-quick .board-need__text { gap: var(--ork-3); }
+.board-quick__q { display: flex; flex-direction: column; gap: var(--ork-2); }
+.board-quick__answers { flex-wrap: wrap; }
+.board-quick__answer[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }
+.board-list.is-later { opacity: .7; }
+/* The goal shown (tracks.js): its party's heads, its line, its party in words, how far its ideas are. */
+.board-goal { padding: var(--ork-3) 0; }
+.board-goal__heads { display: inline-flex; gap: var(--ork-2); }
+.board-goal p { margin: 0; }
+.board-goal__progress { display: flex; align-items: center; gap: var(--ork-3); color: var(--ork-ink-muted); }

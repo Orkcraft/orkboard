@@ -76,7 +76,7 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             dlg.get_by_role("button", name="Next").click()
             dlg.get_by_label("Description").fill("More people try Orkline.")
             dlg.get_by_role("button", name="Save goal").click()
-            pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)      # the keeper's question: Needs you
+            pg.locator(".shell-goal").get_by_role("region", name="Team").wait_for(timeout=WAIT_MS)
             g = next(t for t in board.command("ideas.board")["tracks"] if t["team"])
             assert (g["craft"], g["leader"]["slug"], g["team"]) == ("marketing", "growth", ["copywriter", "seo", "editor"])
             made = {r["slug"]: r for r in board.command("ideas.roles")["roles"]}
@@ -84,6 +84,8 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             team = pg.locator(".shell-goal").get_by_role("region", name="Team")                 # the goal's screen says its team
             team.wait_for(timeout=WAIT_MS)
             assert "Copywriter" in team.inner_text() and "Growth" in team.inner_text()
+            pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()              # the keeper's question: Needs you, a tab of its own
+            pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)
             assert "Which channel first?" in pg.locator(".board-need[data-kind=goal]").inner_text()
             assert any(n["kind"] == "goal" for n in board.command("ideas.board")["needs_you"])
             assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")

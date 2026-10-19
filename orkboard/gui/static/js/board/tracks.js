@@ -1,11 +1,15 @@
-// The goal select and the ideas (docs/specs/35-goals-window.md §11.1, §11.3): a select of the goals with New goal and the Target
-// chip; a chosen goal shows its Summary's first line, Open and Edit, and filters Needs you and the ideas. Ideas are one row each —
-// title, priority mark, state in words, actions; they drag to reorder, and a click opens the idea's spec in the preview.
-import { useState } from "preact/hooks";
+// The goal shown and its ideas (docs/specs/35-goals-window.md §11.1, §11.3), as the phone's Board (pwa/shell-board.js): one goal at a
+// time — the one this computer showed last in the project, else the first —, picked in a select with New goal and the Target chip.
+// Its card: its party's heads (the leader's first, decisions §53), its Summary's first line, its craft, priority and state, who leads
+// it and who is in its party, how far its ideas are, Open and Edit. Then its ideas, one row each — title, priority mark, state in
+// words, actions; they drag to reorder, and a click opens the idea's spec in the preview. Needs you is a tab of its own (today.js).
+import { useEffect, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { say, town } from "../link.js";
+import { WhoHead, CRAFT_WORDS } from "../orkui.js";
 import { board, track, stateWords, goalList, hhmm, PRIORITY_WORDS, OPS } from "./store.js";
-import { act as run, preview, showIdea, showGoal } from "../shell/store.js";
+import { act as run, preview, showIdea, showGoal, roles } from "../shell/store.js";
+import { currentProject } from "../shell/projects.js";
 import { openDialog } from "../shell/modals.js";
 import { TargetChip } from "./target.js";
 import { NewMenu } from "./ops.js";
@@ -17,22 +21,56 @@ const takes = (e) => e.dataTransfer.types.includes(DRAG);
 const GOAL_WORDS = { reading: "reading", asks: "asks you", ready: "ready" };
 const firstLine = (text) => String(text || "").split("\n").map((l) => l.trim()).find(Boolean) || "";
 
+// -- the goal this computer showed last, by project ------------------------------------------------------------------
+const GOAL_KEPT = "orkboard.goal";                    // {project: goal slug}
+const projectKey = () => currentProject.value?.path || "";
+const keptGoal = () => { try { return (JSON.parse(localStorage.getItem(GOAL_KEPT)) || {})[projectKey()] || ""; } catch { return ""; } };
+function keepGoal(slug) {
+  try { localStorage.setItem(GOAL_KEPT, JSON.stringify({ ...(JSON.parse(localStorage.getItem(GOAL_KEPT)) || {}), [projectKey()]: slug })); } catch { /* this run only */ }
+}
+
+/** Who leads a goal, as a sentence starts with it: its leader by name, else the Taskmaster. */
+export const leaderOf = (g) => (g?.leader?.slug && g.leader.slug !== "taskmaster" ? g.leader.name : say("the Taskmaster"));
+
+/** The goal's card: its party's heads, its line, its craft · priority · state, its party in words, how far its ideas are. */
+function GoalCard({ g }) {
+  const mine = (board.value?.ideas || []).filter((i) => i.track === g.slug);
+  const done = mine.filter((i) => i.state === "done").length, working = mine.filter((i) => i.state === "working").length;
+  const known = roles.value?.roles || [];
+  const party = (g.team || []).map((s) => known.find((r) => r.slug === s)).filter(Boolean);
+  const heads = [g.leader, ...party].filter((x) => x?.head);
+  const state = g.state === "reading" ? `${leaderOf(g)} is reading` : say(GOAL_WORDS[g.state] || "");
+  const led = g.leader?.name || "Taskmaster";
+  return html`<div class="board-goals__one board-goal" data-state=${g.state} data-goal=${g.slug}>
+    ${heads.length > 0 && html`<span class="board-goal__heads" aria-hidden="true">${heads.map((x) => html`<${WhoHead} key=${x.slug} head=${x.head} small />`)}</span>`}
+    <p class="board-goals__line">${firstLine(g.summary) || html`<span class="ok-tone-muted">${g.state === "reading" ? `${leaderOf(g)} is reading the goal…` : "No summary yet."}</span>`}</p>
+    <p class="board-goal__meta ok-font-status ok-tone-muted">${[CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering, PRIORITY_WORDS[g.priority] || "Normal", state].filter(Boolean).join(" · ")}</p>
+    <p class="board-goal__party ok-font-status ok-tone-muted">Led by ${led}${party.length ? ` · ${party.map((r) => r.name).join(", ")}` : ""}</p>
+    ${mine.length > 0 && html`<p class="board-goal__progress ok-font-status" aria-label="How far its ideas are">
+      <span class="ork-meter" aria-hidden="true">${mine.slice(0, 10).map((_, n) => html`<i key=${n} class=${n < Math.round((done / mine.length) * Math.min(mine.length, 10)) ? "on" : ""}></i>`)}</span>
+      ${done} of ${mine.length} ideas done${working ? ` · ${working} working` : ""}</p>`}
+    ${g.verdict && html`<p class=${`board-goal__verdict ok-font-status ${g.verdict.met ? "ok-tone-ok" : "ok-tone-error"}`}>${g.verdict.met ? `Accepted by ${g.verdict.by}` : `Not met yet, says ${g.verdict.by}`}</p>`}
+    <div class="board-row"><button class="ork-btn" aria-label=${`Open goal ${g.title}`} onClick=${() => showGoal(g.slug, { via: "board" })}>Open</button>
+      <button class="ork-btn" aria-label=${`Edit goal ${g.title}`} onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div></div>`;
+}
+
 export function Goals() {
   const goals = goalList();
   const g = goals.find((x) => x.slug === track.value);
   const inOps = track.value === OPS;
+  // One goal is always shown (no All goals): the one kept for this project, else the first.
+  const want = inOps || g ? track.value : (goals.find((x) => x.slug === keptGoal()) || goals[0])?.slug || "";
+  useEffect(() => { if (want !== track.value) track.value = want; }, [want]);
+  useEffect(() => { if (g) keepGoal(g.slug); }, [g?.slug]);
   return html`<div class="board-goals" aria-label="Goals">
     <div class="board-row board-goals__bar">
-      <select class="ork-field board-goals__select" aria-label="Goal" value=${track.value} onChange=${(e) => { track.value = e.target.value; }}>
-        <option value="">All goals</option>
+      <select class="ork-field board-goals__select" aria-label="Goal" value=${want} onChange=${(e) => { track.value = e.target.value; }}>
+        ${!goals.length && html`<option value="">No goal yet</option>`}
         ${goals.map((x) => html`<option key=${x.slug} value=${x.slug}>${x.title} · ${PRIORITY_WORDS[x.priority] || "Normal"}${GOAL_WORDS[x.state] ? ` · ${say(GOAL_WORDS[x.state])}` : ""}</option>`)}
         ${town.value?.ops_rev !== undefined && html`<option disabled>──────────</option><option value=${OPS}>Operations</option>`}</select>
       <button class="ork-btn" onClick=${() => openDialog("goal")}>New goal</button>
       ${inOps ? html`<${NewMenu} />` : html`<${TargetChip} />`}</div>
-    ${g && html`<div class="board-goals__one" data-state=${g.state}>
-      <p class="board-goals__line">${firstLine(g.summary) || html`<span class="ok-tone-muted">${g.state === "reading" ? "Reading the goal…" : "No summary yet."}</span>`}</p>
-      <div class="board-row"><button class="ork-btn" aria-label=${`Open goal ${g.title}`} onClick=${() => showGoal(g.slug, { via: "board" })}>Open</button>
-        <button class="ork-btn" aria-label=${`Edit goal ${g.title}`} onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div></div>`}
+    ${g && html`<${GoalCard} g=${g} />`}
   </div>`;
 }
 

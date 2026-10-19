@@ -15,7 +15,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import SHOTS, StubHost, _calls, _sent, box  # noqa: E402
+from tests.test_shell_browser import _show_goal, SHOTS, StubHost, _calls, _sent, box  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -116,6 +116,7 @@ def _open(gui, host=None, viewport=None, init="", ready=".map-card"):
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url)
     pg.wait_for_selector(ready, timeout=WAIT_MS)
+    _show_goal(pg)                                    # the Board shows one goal: most of the stub's ideas are Ship sync's
     return pg, host, errors
 
 
@@ -220,10 +221,10 @@ def test_a_goal_folds_and_stays_folded_after_a_reload(mapped):
     pg.locator(".map-card[data-slug=sync]").wait_for(timeout=WAIT_MS)
 
 
-def test_the_goal_select_shows_only_that_goals_section(mapped):
+def test_the_map_shows_every_goal_whatever_goal_the_board_shows(mapped):
     pg, host = mapped
     pg.get_by_label("Goal", exact=True).select_option("grow")
-    assert pg.locator(".map-goal").count() == 1 and pg.locator(".map-goal").get_attribute("data-goal") == "grow"
+    assert pg.locator(".map-goal").count() == 2                                       # the Map is the view of them all (the Board shows one)
 
 
 def test_tasks_unfold_in_waves_and_the_map_asks_again_when_the_board_moves(mapped):
@@ -441,6 +442,7 @@ def test_at_1000_px_no_strip_the_preview_full_screen_back_closes_it_and_the_map_
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url)
     try:
+        _show_goal(pg)
         pg.wait_for_selector(".board-card", timeout=WAIT_MS)
         assert pg.locator(".shell-tabstrip").is_hidden() and pg.locator(".shell-preview").is_hidden()
         pg.locator(".board-card", has_text="Dark mode").click()

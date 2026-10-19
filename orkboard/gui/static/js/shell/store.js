@@ -13,7 +13,7 @@ export const detail = signal(null);        // the preview's own data: {task} (id
 export const goal = signal(null);          // ideas.goal of the goal in the preview
 export const roles = signal(null);         // ideas.roles: the agents, the task types and their agent, the models
 export const tab = signal("board");        // the narrow layout's tab (below 1 024 px the shell is the phone's layout)
-export const leftTab = signal("board");    // the left column's tab (spec 37 §8): "board" | "files"
+export const leftTab = signal("board");    // the left column's tab (spec 37 §8): "board" | "needs" | "files"
 export const editing = signal(null);       // the file open in the editor: {path, dirty, save()}, null when none is
 
 // The preview's tabs (docs/specs/39-map.md §3): the Map first and pinned, every other thing in a tab of its own. A click opens

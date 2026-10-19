@@ -92,7 +92,8 @@ class StubHost:
         out = [base | {"kind": "todo", "idea": "sync", "title": "Sync ideas between the phone and the town", "text": "API_KEY", "blocks": True, "todo": todo},
                base | {"kind": "plan", "idea": "export", "title": "Export notes", "text": "Plan ready · 3 tasks"},
                base | {"kind": "asks", "idea": "search", "title": "Search the notes", "text": "Which fields count?"},
-               base | {"kind": "goal", "idea": "", "goal": "grow", "title": "Grow installs", "text": "Which channel first?", "priority": "high"},
+               base | {"kind": "goal", "idea": "", "goal": "grow", "title": "Grow installs", "text": "Which channel first?", "priority": "high",
+                       "questions": self.goals.get("grow", {}).get("questions", [])},
                base | {"kind": "proposal", "idea": "tags", "goal": "grow", "title": "Tag the notes", "text": "Tags make a long list findable."}]
         gone = set(self.proposals) | set(self.asked)            # answered: out of the list
         return [n for n in out if (n["idea"] or n["goal"]) not in gone]
@@ -332,9 +333,27 @@ def _open(gui, viewport=None, host=None, ready=".shell-card", query=""):
     return pg, host, errors
 
 
+def _show_goal(pg, slug="ship-sync"):
+    """The Board shows one goal (as the phone's): this one, picked in its select (and kept, as the person's last)."""
+    pg.locator(f'.board-goals__select option[value="{slug}"]').wait_for(state="attached", timeout=WAIT_MS)
+    pg.get_by_label("Goal", exact=True).select_option(slug)
+
+
+def _needs(pg):
+    """Needs you: its tab, beside the Board's."""
+    pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
+    pg.locator(".board-today").wait_for(timeout=WAIT_MS)
+
+
+def _board(pg):
+    """The Board's tab, back from Needs you."""
+    pg.locator(".shell-board").get_by_role("tab", name="Board").click()
+
+
 @pytest.fixture
 def shell(gui):
     pg, host, errors = _open(gui)
+    _show_goal(pg)                                    # most of the stub's ideas are Ship sync's
     yield pg, host
     pg.close()
     assert not errors, "\n".join(errors)
@@ -424,6 +443,7 @@ def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(s
     assert pg.locator(".shell-preview .board-sec").count() == len(SECTIONS)
     assert "Spec" in pg.locator(".shell-preview > header").inner_text()
 
+    _needs(pg)
     pg.locator(".board-need[data-kind=todo]").click()                              # a to-do → its dialog; from it the plan, scrolled to it
     pg.get_by_role("dialog", name="API_KEY").get_by_role("button", name="What waits for it").click()
     target = pg.locator(".shell-preview .board-plan__todo.is-target")
@@ -530,7 +550,7 @@ def test_the_board_drops_an_idea_and_lists_it_with_its_state_in_words(shell):
     pg.get_by_label("Your idea").fill("Offline sync")
     pg.get_by_role("button", name="Add", exact=True).click()
     pg.locator(".board-card", has_text="Offline sync").wait_for(timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.add", {"text": "Offline sync", "track": "grow", "priority": "high"}))      # the first goal by priority
+    assert _sent(pg, host, ("ideas.add", {"text": "Offline sync", "track": "ship-sync", "priority": "normal"}))      # the goal shown
 
 
 def test_below_1024_the_phones_layout_three_tabs_and_the_preview_on_its_own_screen(gui):
@@ -672,9 +692,11 @@ def test_new_idea_needs_a_goal_a_priority_and_one_button_and_a_closed_dialog_goe
     dlg = pg.get_by_role("dialog", name="New idea")
     assert dlg.get_by_role("button", name="Add", exact=True).is_disabled() and dlg.get_by_role("button", name="Later").count() == 0
     assert dlg.get_by_label("Goal", exact=True).locator("option").all_inner_texts() == ["Grow installs", "Ship sync"]     # by priority; no General
-    assert dlg.get_by_label("Priority", exact=True).input_value() == "high"                          # the first goal's priority
+    assert dlg.get_by_label("Goal", exact=True).input_value() == "ship-sync"                         # the goal shown
+    assert dlg.get_by_label("Priority", exact=True).input_value() == "normal"                        # its priority
+    dlg.get_by_label("Goal", exact=True).select_option("grow")
+    assert dlg.get_by_label("Priority", exact=True).input_value() == "high"                          # follows the goal until the person picks one
     dlg.get_by_label("Goal", exact=True).select_option("ship-sync")
-    assert dlg.get_by_label("Priority", exact=True).input_value() == "normal"                        # follows the goal until the person picks one
     dlg.get_by_label("Your idea").fill("Dark mode please")
     dlg.get_by_label("Priority", exact=True).select_option("high")
     dlg.get_by_role("button", name="Add", exact=True).click()
@@ -684,7 +706,7 @@ def test_new_idea_needs_a_goal_a_priority_and_one_button_and_a_closed_dialog_goe
     pg.get_by_label("Your idea").fill("Later idea")
     pg.get_by_role("button", name="Close", exact=True).click()
     pg.locator(".board-card", has_text="Later idea").wait_for(timeout=WAIT_MS)
-    assert adds(host)[-1] == {"text": "Later idea", "track": "grow", "priority": "high", "night": True}
+    assert adds(host)[-1] == {"text": "Later idea", "track": "ship-sync", "priority": "normal", "night": True}
     pg.get_by_role("button", name="New idea").click()                                               # closed empty: nothing
     pg.get_by_role("dialog", name="New idea").wait_for(timeout=WAIT_MS)
     before = len(adds(host))
@@ -715,25 +737,62 @@ def test_with_no_goal_yet_new_idea_opens_new_goal_first_and_then_itself_with_tha
     assert idea.get_by_label("Goal", exact=True).input_value() == "make-notes"
 
 
-def test_the_goal_select_filters_needs_you_and_the_ideas_and_shows_the_summary_open_and_edit(shell):
+def test_the_board_shows_one_goal_its_card_its_party_and_its_ideas_and_the_goal_is_kept(gui):
+    host = StubHost()
+    host.goals["ship-sync"].update(craft="engineering", leader=host.leader("architect"), team=["tester", "reviewer"])
+    for slug, name, craft, tier in (("tester", "Tester", "engineering", "laborer"), ("reviewer", "Reviewer", "engineering", "elder")):
+        host.roles[slug] = {"slug": slug, "name": name, "model": tier, "max_parallel": 2, "instruction": "", "builtin": False,
+                            "craft": craft, "head": {"craft": craft, "race": "peon", "tier": tier}}
+    pg, host, errors = _open(gui, host=host)
+    try:
+        sel = pg.get_by_label("Goal", exact=True)
+        pg.locator('.board-goals__select option[value="grow"]').wait_for(state="attached", timeout=WAIT_MS)
+        assert "All goals" not in sel.locator("option").all_inner_texts()                               # one goal at a time
+        assert sel.input_value() == "grow"                                                                # none kept yet: the first by priority
+        assert pg.locator(".board-card").count() == 0 and "More people try Orkline." in pg.locator(".board-goal").inner_text()
+        sel.select_option("ship-sync")
+        card = pg.locator(".board-goal")
+        assert card.locator(".board-goals__line").inner_text() == "Sync is the first thing a second device needs."
+        assert "Led by Architect · Tester, Reviewer" in card.inner_text()                                 # its party: the leader first
+        assert card.locator("img.ork-race__head").count() == 3
+        assert "0 of 5 ideas done · 1 working" in card.inner_text()                                       # how far its ideas are
+        assert pg.locator(".board-card", has_text="Dark mode").count() == 1
+        if os.environ.get("ORKCRAFT_SHOTS"):
+            SHOTS.mkdir(parents=True, exist_ok=True)
+            pg.screenshot(path=str(SHOTS / "desktop-board-goal-1440x900.png"))
+        pg.get_by_role("button", name="Open goal Ship sync").click()
+        pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)
+        assert _sent(pg, host, ("ideas.goal", {"slug": "ship-sync"}))
+        pg.reload()                                                                                       # the goal shown is kept
+        pg.locator('.board-goals__select option[value="grow"]').wait_for(state="attached", timeout=WAIT_MS)
+        assert pg.get_by_label("Goal", exact=True).input_value() == "ship-sync"
+        pg.get_by_role("button", name="Edit goal Ship sync").click()
+        assert pg.get_by_role("dialog", name="Edit goal").is_visible()
+        pg.keyboard.press("Escape")
+    finally:
+        pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_edit_goal_changes_the_party_and_sends_it_only_when_changed(shell):
     pg, host = shell
-    assert pg.locator(".board-need:not(.board-proposal)").count() == 4 and pg.locator(".board-proposal").count() == 1      # all goals: one list
-    assert pg.locator(".board-goals__select option").all_inner_texts()[0] == "All goals"
-    assert pg.locator(".board-card", has_text="Dark mode").count() == 1
-    pg.get_by_label("Goal", exact=True).select_option("grow")
-    assert pg.locator(".board-need:not(.board-proposal)").count() == 1 and "Grow installs" in pg.locator(".board-need").first.inner_text()
-    assert pg.locator(".board-proposal").count() == 1
-    assert pg.locator(".board-card").count() == 0                                                    # the ideas of the other goal are filtered out
-    assert "More people try Orkline." in pg.locator(".board-goals__one").inner_text()                # the Summary's first line
-    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
-    assert pg.locator(".board-goals__line").inner_text() == "Sync is the first thing a second device needs."
-    assert pg.locator(".board-card", has_text="Dark mode").count() == 1 and pg.locator(".board-proposal").count() == 0
-    pg.get_by_role("button", name="Open goal Ship sync").click()
-    pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.goal", {"slug": "ship-sync"}))
+    host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
+    host.bump({})
     pg.get_by_role("button", name="Edit goal Ship sync").click()
-    assert pg.get_by_role("dialog", name="Edit goal").is_visible()
-    pg.keyboard.press("Escape")
+    dlg = pg.get_by_role("dialog", name="Edit goal")
+    party = dlg.get_by_role("group", name="Party")
+    assert "led by Architect · builds: Grunt · checks: Reviewer" in party.inner_text()
+    party.get_by_role("button", name="Change the party").click()
+    party.get_by_role("button", name="Take in: Product manager").click()                              # another leader
+    party.get_by_role("button", name="Take in: Tester").click()
+    party.get_by_label("Every idea: Reviewer").check()
+    if os.environ.get("ORKCRAFT_SHOTS"):
+        SHOTS.mkdir(parents=True, exist_ok=True)
+        pg.screenshot(path=str(SHOTS / "desktop-edit-goal-party-1440x900.png"))
+    dlg.get_by_role("button", name="Save goal").click()
+    pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
+    got = _calls(pg, host, "ideas.goal_save")[-1]
+    assert (got["leader"], got["team"], got["every"]) == ("product-manager", ["grunt", "reviewer", "tester"], ["reviewer"])
 
 
 def test_the_target_chip_shows_and_sets_the_boards_one_target(shell):
@@ -790,13 +849,17 @@ def test_a_high_idea_shows_a_spinner_and_stop_leaves_it_stopped_a_low_one_waits_
         pg.screenshot(path=str(SHOTS / "desktop-board-rows-1440x900.png"))
 
 
-def test_needs_you_is_one_list_the_questions_one_form_and_a_proposal_is_answered_in_its_row(shell):
+def test_needs_you_is_a_tab_of_every_goal_s_rows_the_questions_one_form_and_a_proposal_is_answered_in_its_row(shell):
     pg, host = shell
+    assert pg.locator(".board-today").count() == 0                                                  # not on the Board: a tab of its own
+    assert "4" in pg.locator(".shell-board").get_by_role("tab", name="Needs you").inner_text()     # a proposal is no count
+    assert "export" not in pg.locator(".board-ideas").inner_text().lower() and "Search the notes" not in pg.locator(".board-ideas").inner_text()    # each idea in one place
+    _needs(pg)
     kinds = pg.locator(".board-need, .board-proposal").evaluate_all("els => els.map(e => e.dataset.kind)")
     assert kinds == ["todo", "plan", "asks", "goal", "proposal"]                                    # the host's order; proposals last
     assert "Sync ideas between the phone and the town" in pg.locator(".board-need").first.inner_text() and "API_KEY" in pg.locator(".board-need").first.inner_text()
-    assert "export" not in pg.locator(".board-ideas").inner_text().lower() and "Search the notes" not in pg.locator(".board-ideas").inner_text()    # each idea in one place
-    pg.locator(".board-need[data-kind=asks]").click()                                              # the spec's questions: a box each, one Send
+    assert "A spec asks · Ship sync" in pg.locator(".board-need[data-kind=asks]").inner_text()      # every goal's: each row says its goal
+    pg.get_by_role("button", name="More: Search the notes").click()                                # the spec's questions: a box each, one Send
     dlg = pg.get_by_role("dialog", name="Questions: Search the notes")
     dlg.get_by_label("Answer 2: Do tags count?").wait_for(timeout=WAIT_MS)
     assert dlg.get_by_role("button", name="Send").count() == 1
@@ -808,7 +871,7 @@ def test_needs_you_is_one_list_the_questions_one_form_and_a_proposal_is_answered
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.answer", {"slug": "search", "answers": ["title and text", "yes"]}))
     pg.wait_for_function("() => document.querySelectorAll('.board-need[data-kind=asks]').length === 0", timeout=WAIT_MS)
-    pg.locator(".board-need[data-kind=goal]").click()                                              # a goal that asks
+    pg.get_by_role("button", name="More: Grow installs").click()                                   # a goal that asks
     pg.get_by_role("dialog", name="Questions: Grow installs").get_by_label("Answer 1: Which channel first?").fill("npm")
     pg.get_by_role("dialog").get_by_role("button", name="Send").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
@@ -821,8 +884,32 @@ def test_needs_you_is_one_list_the_questions_one_form_and_a_proposal_is_answered
     assert _sent(pg, host, ("ideas.proposal", {"slug": "tags", "take": True, "priority": "low"}))
 
 
+def test_a_question_with_likely_answers_is_answered_in_its_row_and_later_puts_a_row_away(shell):
+    pg, host = shell
+    host.goals["grow"]["questions"] = ["Which channel first? (npm / the forum)"]
+    host.bump({})
+    _needs(pg)
+    row = pg.locator(".board-need[data-kind=goal]")
+    row.get_by_role("button", name="the forum").wait_for(timeout=WAIT_MS)
+    assert row.get_by_role("button", name="Send: Grow installs").is_disabled()
+    row.get_by_role("button", name="the forum").click()
+    if os.environ.get("ORKCRAFT_SHOTS"):
+        SHOTS.mkdir(parents=True, exist_ok=True)
+        pg.screenshot(path=str(SHOTS / "desktop-needs-you-1440x900.png"))
+    row.get_by_role("button", name="Send: Grow installs").click()
+    assert _sent(pg, host, ("ideas.answer", {"slug": "grow", "answers": ["the forum"], "goal": True}))
+    tab = pg.locator(".shell-board").get_by_role("tab", name="Needs you")
+    before = tab.inner_text()
+    pg.get_by_role("button", name="Later: Export notes").click()                                    # put away here; nothing is sent
+    pg.locator(".board-need[data-kind=plan]").wait_for(state="detached", timeout=WAIT_MS)
+    assert tab.inner_text() != before
+    pg.get_by_role("button", name="Put away for later (1): show").click()
+    assert pg.locator(".board-list.is-later .board-need[data-kind=plan]").count() == 1
+
+
 def test_a_proposal_declined_with_a_reason_or_without(shell):
     pg, host = shell
+    _needs(pg)
     prop = pg.locator(".board-proposal")
     prop.get_by_role("button", name="No: Tag the notes").click()
     prop.get_by_label("Why not: Tag the notes").fill("not now")
@@ -875,6 +962,7 @@ def test_in_the_apps_window_a_right_click_copies_any_line_and_saves_logs_with_an
     host = StubHost()
     host.ideas["offline"]["state_error"] = "Claude Code is not signed in, or its sign-in has expired."
     pg, host, errors = _open(gui, host=host, query="&app=1")
+    _show_goal(pg)
     pg.context.grant_permissions(["clipboard-read", "clipboard-write"])
     card = pg.locator(".board-card", has_text="Offline mode")
     card.click(button="right")
@@ -902,6 +990,7 @@ def test_in_a_browser_a_right_click_is_the_browsers_own(shell):
 
 def test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its_steps_too(shell, tmp_path):
     pg, host = shell
+    _needs(pg)
     pg.locator(".board-need[data-kind=todo]").click()                                               # steps on any kind: a secret has them too
     dlg = pg.get_by_role("dialog", name="API_KEY")
     assert "The sync service needs it" in dlg.inner_text() and dlg.locator("ol li").all_inner_texts() == ["Open the console", "Copy the key"]

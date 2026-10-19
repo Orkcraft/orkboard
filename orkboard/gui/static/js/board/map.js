@@ -6,7 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Chev, WhoHead } from "../orkui.js";
-import { track, PRIORITY_WORDS, OPS } from "./store.js";
+import { PRIORITY_WORDS } from "./store.js";
 import { mapData, mapSince, mapFolded, mapUi, mapView, preview, showIdea } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { TASK_STATE, nodeView, tiersOf, wavesOf, curve, spentWords, goalState } from "./maplayout.js";
@@ -119,7 +119,7 @@ export function MapView() {
   const el = useRef();
   useLayoutEffect(() => { if (el.current) el.current.scrollTop = mapView.top; }, []);       // the Map keeps its scroll when its tab comes back
   if (!m) return html`<p class="ok-tone-muted map-note">Reading the Map…</p>`;
-  const goals = m.goals.filter((g) => !track.value || track.value === OPS || g.slug === track.value);
+  const goals = m.goals;                               // every goal: the Map is the view of them all (the Board shows one), as the phone's
   const titles = Object.fromEntries(m.nodes.map((n) => [n.slug, n.title]));
   const goalOf = Object.fromEntries(m.nodes.map((n) => [n.slug, n.goal]));
   return html`<div class="map" ref=${el} aria-label="Map" onScroll=${(e) => { mapView.top = e.currentTarget.scrollTop; }}>

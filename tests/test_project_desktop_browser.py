@@ -93,6 +93,7 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
     def body(pg, host):
         pg.locator(".shell-proj__btn").wait_for(timeout=WAIT_MS)
         assert pg.locator(".shell-proj__btn").inner_text().startswith("shop")
+        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()                    # Needs you: a tab of its own
         pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)
         pg.keyboard.press("Control+o")                                              # Open folder…, as an IDE
         dlg = pg.get_by_role("dialog", name="Open folder")
@@ -103,6 +104,8 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
         dlg.get_by_role("button", name="Open folder").click()
         dlg.wait_for(state="detached", timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
+        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
+        pg.locator(".board-today").wait_for(timeout=WAIT_MS)
         assert pg.locator(".board-need[data-kind=goal]").count() == 0               # shop's goal is not seen in blog
         pg.locator(".shell-proj__btn").click()
         rows = pg.locator(".shell-proj__one")
@@ -111,6 +114,7 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
         assert "needs you 1" in shop_row.inner_text()                               # the counts, live
         shop_row.click()
         pg.locator(".shell-proj__btn").filter(has_text="shop").wait_for(timeout=WAIT_MS)
+        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
         pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)
         assert host.command("projects.list")["current"] == str(shop.resolve())
     _run(world, body)
