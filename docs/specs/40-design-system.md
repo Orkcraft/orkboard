@@ -288,7 +288,13 @@ shape characters), without a screen reader reading them out, and in the form's c
    ears, two slits for eyes, two tusks), read from the mark's own 12 × 9 grid of cells, **each cell two characters wide and one
    line high** (so a cell stays square): crown `^^`, head and ears `##`, tusks `||`, the eyes left open or marked. ASCII
    only, 24 columns × 9 lines, monochrome, in the text face at 12/14 (`white-space: pre`, `aria-hidden`), `--of-ink-muted`;
-   it stands over the screen's own sentence, whose words stay as they are. Five files in `office/ascii/`, one per state,
+   **on an empty screen it is centred, not left at the top:** the ork over the screen's own sentence (whose words stay as
+   they are) is one block, centred on both axes in the free area of its pane (`display: grid; place-content: center;
+   justify-items: center; text-align: center`; the `<pre>` is centred as a whole box and its lines stay left-aligned, so the
+   art keeps its shape); a pane's head and its actions stay at the top and the block centres in what is left under them;
+   on the phone it centres between the head and the tab bar. A block taller than the free area stops centring and scrolls from
+   its top, so nothing is cut off. An ork that stands with other content (a list with one empty section: the Board's *Ideas*
+   under *Needs you*) is not an empty screen: it is not drawn there, the section keeps its sentence. Five files in `office/ascii/`, one per state,
    all the same size so a screen's layout does not jump when its ork changes. Faces read the file by name; the art is not
    copied into a template.
 
@@ -386,7 +392,9 @@ shape characters), without a screen reader reading them out, and in the form's c
     still under reduced motion; the key line lists only keys that work in the current context and each listed key does what
     it says; a menu's letters are unique and a letter activates its item (and does nothing while a field is focused);
   - each `office/ascii/*.txt` is ASCII only, exactly 9 lines, none longer than 24 columns, and the five are the same size;
-    the empty states show their ork (`aria-hidden`, the same lines as the file) with their own sentence; an `@ o ? * +` mark
+    the empty states show their ork (`aria-hidden`, the same lines as the file) with their own sentence, the block's centre
+    within 8 px of the free area's centre on both axes (desktop panes and the phone), and no ork inside a section of a pane that has
+    other content; an `@ o ? * +` mark
     is `aria-hidden` and its word is present; no pip, meter or hatch is a typed glyph;
   - icons are 24 or 48 px (never another size) and take their text's colour;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
