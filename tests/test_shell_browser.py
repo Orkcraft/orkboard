@@ -50,6 +50,8 @@ def make_plan():
                       task("k5", "Write the notes", "waiting", ["k4"])]}
 
 
+SAVED = "/home/me/Downloads/orkboard-logs-2026-10-19-120000.zip"            # what logs.save answers
+
 class StubHost:
     """What part A's commands answer, in the shapes of §5; every change bumps `ideas_rev` and pushes a snapshot."""
 
@@ -257,6 +259,8 @@ class StubHost:
         if name == "onboarding.close":
             self.onboarding = None
             return self.bump({})
+        if name == "logs.save":
+            return {"path": SAVED, "name": SAVED.rsplit("/", 1)[1], "folder": SAVED.rsplit("/", 1)[0]}
         return {"ok": True}
 
     def bump(self, result):
@@ -296,7 +300,7 @@ def _calls(pg, host, name, at_least=1, ms=WAIT_MS) -> list[dict]:
     return [a for n, a in host.log if n == name]
 
 
-def _open(gui, viewport=None, host=None, ready=".shell-card"):
+def _open(gui, viewport=None, host=None, ready=".shell-card", query=""):
     server, browser = gui
     host = host or StubHost()
     pg = browser.new_page(viewport=viewport or {"width": 1440, "height": 900})
@@ -304,7 +308,7 @@ def _open(gui, viewport=None, host=None, ready=".shell-card"):
     pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
     pg.on("console", lambda m: m.type == "error" and errors.append(f"console: {m.text}"))
     pg.route_web_socket("**/ws*", host.on_socket)
-    pg.goto(server.url)
+    pg.goto(server.url + query)
     if ready:
         pg.wait_for_selector(ready, timeout=WAIT_MS)
     return pg, host, errors
@@ -365,9 +369,14 @@ def test_the_top_bar_limits_spend_stop_all_and_the_push_switch(shell):
     assert label.is_visible() and not pg.get_by_role("checkbox", name="Push after merging").is_checked()
     pg.get_by_text("Push after merging (sends your code to origin)").click()
     assert _sent(pg, host, ("ideas.into", {"push": True}))
-    links = pg.locator(".shell-modal a[download]")                              # the day's logs, today and the last 7 days
-    assert links.all_inner_texts() == ["Today", "The last 7 days"]
-    assert "/api/analytics?days=1" in links.nth(0).get_attribute("href") and "days=7" in links.nth(1).get_attribute("href")
+    logs = pg.locator(".shell-gear__logs .ork-btn")                             # the day's logs, today and the last 7 days,
+    assert logs.all_inner_texts() == ["Today", "The last 7 days"]                # saved in Downloads (a window downloads nothing)
+    logs.nth(1).click()
+    assert _sent(pg, host, ("logs.save", {"said": "", "days": 7}))
+    saved = pg.locator(".ok-toast", has_text="Logs saved: " + SAVED)
+    saved.wait_for(timeout=WAIT_MS)
+    saved.get_by_role("button", name="Show").click()
+    assert _sent(pg, host, ("logs.show", {"path": SAVED}))
 
 
 def test_agents_resize_hide_and_remember(shell, gui):
@@ -783,12 +792,44 @@ def test_a_draft_the_tool_failed_says_why_in_the_spec_and_offers_try_again(shell
     why = "Claude Code is not signed in, or its sign-in has expired. Claude Code said: Not logged in · Please run /login"
     host.ideas["offline"]["state_error"] = why
     pg.locator(".board-card", has_text="Offline mode").click()
-    alert = pg.locator(".shell-preview .board-ideaview > p[role=alert]")
+    alert = pg.locator(".shell-preview .board-ideaview > .shell-error > p[role=alert]")
     alert.wait_for(timeout=WAIT_MS)
     assert alert.inner_text() == why and pg.locator(".ok-toast", has_text="not signed in").count() == 0
+    pg.locator(".shell-preview .shell-error").get_by_role("button", name="Save logs").click()   # the words go with the logs
+    assert _sent(pg, host, ("logs.save", {"said": why, "days": 1}))
     assert "drafts it tonight" not in pg.locator(".shell-preview").inner_text()
     pg.locator(".shell-preview").get_by_role("button", name="Try again").click()
     assert _sent(pg, host, ("ideas.queue", {"slug": "offline", "queue": "now"}))
+
+
+def test_in_the_apps_window_a_right_click_copies_any_line_and_saves_logs_with_an_error(gui):
+    # the owner's 19 October: any line of the page copied, an error with the day's logs
+    host = StubHost()
+    host.ideas["offline"]["state_error"] = "Claude Code is not signed in, or its sign-in has expired."
+    pg, host, errors = _open(gui, host=host, query="&app=1")
+    pg.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    card = pg.locator(".board-card", has_text="Offline mode")
+    card.click(button="right")
+    menu = pg.get_by_role("menu", name="Copy")
+    menu.get_by_role("menuitem", name="Copy").click()
+    assert menu.count() == 0 and "Offline mode" in pg.evaluate("navigator.clipboard.readText()")
+    card.click()
+    alert = pg.locator(".shell-preview .shell-error > p[role=alert]")
+    alert.wait_for(timeout=WAIT_MS)
+    alert.click(button="right")
+    menu.get_by_role("menuitem", name="Save logs with it").click()
+    assert _sent(pg, host, ("logs.save", {"said": "Claude Code is not signed in, or its sign-in has expired.", "days": 1}))
+    pg.locator(".board-card", has_text="Dark mode").click(button="right")
+    pg.keyboard.press("Escape")                                                 # Esc closes the menu, not the tab under it
+    assert menu.count() == 0 and alert.is_visible()
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_in_a_browser_a_right_click_is_the_browsers_own(shell):
+    pg, host = shell
+    pg.locator(".board-card", has_text="Offline mode").click(button="right")
+    assert pg.get_by_role("menu", name="Copy").count() == 0
 
 
 def test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its_steps_too(shell, tmp_path):

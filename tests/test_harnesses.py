@@ -86,6 +86,23 @@ def test_claude_says_why_it_failed_from_its_envelope():
     assert str(err) == "claude exited with 1: Not logged in · Please run /login" and err.kind == "login"
 
 
+def test_a_refused_claude_sign_in_says_what_is_different_here():
+    # the owner's 19 October: "not signed in", while claude starts in the terminal
+    from orkboard.realm import tool_errors
+    no = tool_errors.claude_sign_in("Not logged in · Please run /login", env={})
+    assert "Orkline runs it with another config folder (CLAUDE_CONFIG_DIR) or another claude" in no and "Save logs" in no
+    key = tool_errors.claude_sign_in("Invalid API key · Fix external API key", env={"ANTHROPIC_API_KEY": "sk-x"})
+    assert key.startswith("ANTHROPIC_API_KEY is set where Orkline runs, and claude -p uses it before your sign-in")
+    assert "sk-x" not in key
+    assert tool_errors.claude_sign_in("Login expired · Please run /login", env={}) == "Sign in again in a terminal: claude, then /login."
+    err = tool_errors.ToolError("claude", "Not logged in · Please run /login", 1)
+    line = tool_errors.plainly(err)
+    assert line.startswith("Claude Code is not signed in, or its sign-in has expired. Claude Code said: Not logged in")
+    assert line.endswith("Else sign in in a terminal: claude, then /login.")
+    long = tool_errors.plainly(tool_errors.ToolError("claude", "Not logged in " + "x" * 2000, 1))
+    assert len(long) <= tool_errors.PLAIN_CHARS and "…" in long and long.endswith("then /login.")   # its words cut, the step kept
+
+
 def test_cursor_reads_its_result_line():
     out = _lines({"type": "system", "subtype": "init", "session_id": "c-1", "model": "Auto"},
                  {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "hi"}]},

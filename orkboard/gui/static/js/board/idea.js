@@ -8,6 +8,7 @@ import { say } from "../link.js";
 import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
 import { Stages } from "./stages.js";
 import { act as run, showTask, showIdea, closePreview } from "../shell/store.js";
+import { ErrorLine } from "../shell/errors.js";
 
 // Section → [colour role, line icon, kit icon]. The role is a design-system token in board.css (`[data-sec]`); the line
 // icon (16px) is Office's, the kit's pixel icon (tools/ui_kit.py) Camp's.
@@ -125,7 +126,7 @@ function Actions({ p }) {
     ${plan && html`<${Plan} plan=${plan} />`}
     ${s === "plan" && e && html`<button class="ork-btn primary" onClick=${() => run("ideas.start", { slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
     ${s === "working" && html`<button class="ork-btn danger" onClick=${() => run("ideas.stop", { slug })}>Stop</button>`}
-    ${s === "failed" && html`<p class="ok-tone-error" role="alert">${plan?.tasks.find((k) => k.error)?.error || "It stopped and needs you."}</p>
+    ${s === "failed" && html`<${ErrorLine} text=${plan?.tasks.find((k) => k.error)?.error || "It stopped and needs you."} />
       <button class="ork-btn primary" onClick=${() => run("ideas.start", { slug })}>Start again</button>`}
   </div>`;
 }
@@ -155,7 +156,7 @@ export function IdeaView({ p }) {
         <select class="ork-field" aria-label="Priority of this idea" value=${row.priority}
           onChange=${(e) => run("ideas.edit", { slug: p.slug, priority: e.target.value })}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
-    ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<p class="ok-tone-error" role="alert">${p.state_error}</p>`}
+    ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<${ErrorLine} text=${p.state_error} />`}
     <${Actions} p=${p} />
     <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>
     <${Say} p=${p} section=${section} setSection=${setSection} />

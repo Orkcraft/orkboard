@@ -5,9 +5,8 @@ import { review, act } from "./store.js";
 import { board } from "../board/store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { currentProject } from "./projects.js";
+import { saveLogs } from "./errors.js";
 
-/** The analytics zip of the last `days` days (gui/server.py `/api/analytics`): the model calls, the event log, each idea's plan and logs. */
-const logsHref = (days) => `/api/analytics?days=${days}&t=${encodeURIComponent(new URLSearchParams(location.search).get("t") || "")}`;
 
 /** "01:00-07:00" → ["01:00", "07:00"]. */
 const window_ = (night) => (/^\d\d:\d\d-\d\d:\d\d$/.test(night || "") ? night.split("-") : ["01:00", "07:00"]);
@@ -35,7 +34,9 @@ export function SettingsDialog() {
       <div class="shell-field"><span class="ok-font-label">Your phone</span>
         <span><button type="button" class="ork-btn" onClick=${() => openDialog("pair")}>Pair a phone</button></span></div>
       <div class="shell-gear__logs"><span class="ok-font-label">Download today's logs</span>
-        <a class="ork-btn" href=${logsHref(1)} download>Today</a><a class="ork-btn" href=${logsHref(7)} download>The last 7 days</a></div>
+        <button type="button" class="ork-btn" onClick=${() => saveLogs("", 1)}>Today</button>
+        <button type="button" class="ork-btn" onClick=${() => saveLogs("", 7)}>The last 7 days</button></div>
+      <p class="ok-font-status ok-tone-muted">Saved in your Downloads folder: every model call with what went in and came out, and where Orkline runs.</p>
       <p class="ok-font-status ok-tone-muted">What you did and what the orks did, on this machine only. Off by default. The colours follow your system's light or dark setting.</p>
     </div>
   <//>`;

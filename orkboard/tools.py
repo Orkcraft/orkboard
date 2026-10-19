@@ -73,6 +73,29 @@ def _bin(tool_id: str) -> str:
     return h.bin if h else tool_id
 
 
+AUTH_KEYS = ("loggedIn", "authMethod", "apiProvider", "configDirectory", "subscriptionType", "apiKeySource")
+
+
+def claude_auth(path: str, run: Callable = subprocess.run, env: dict | None = None) -> dict:
+    """`claude auth status` as this process sees it (no model call): its exit code (0 signed in) and what it says of
+    the sign-in, only the keys that name no person (`AUTH_KEYS`: the method, the config folder…); {} when it cannot run."""
+    try:
+        out = run([path, "auth", "status"], capture_output=True, text=True, timeout=VERSION_TIMEOUT_S,
+                  env=dict(os.environ) if env is None else env)
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    got: dict = {"code": out.returncode}
+    try:
+        data = json.loads(out.stdout or "")
+    except ValueError:
+        data = None
+    if isinstance(data, dict):
+        got.update({k: data[k] for k in AUTH_KEYS if k in data})
+    elif (out.stdout or out.stderr or "").strip():
+        got["said"] = (out.stdout or out.stderr).strip().splitlines()[0][:200]
+    return got
+
+
 def _version(path: str, run: Callable) -> str:
     try:
         out = run([path, "--version"], capture_output=True, text=True, timeout=VERSION_TIMEOUT_S)

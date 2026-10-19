@@ -4,7 +4,8 @@ however it was started, is named Orkboard in the menu bar and the Dock, with its
 
 The bundle is a launcher, not a copy: its one script starts the installed Orkboard (the Python it was made with) on
 the last project, through the person's login shell and with the PATH it was made with, since an app opened from the
-Dock gets neither (and without them no AI tool, git or brew is found). Its output goes to ~/Library/Logs/Orkboard.log.
+Dock gets neither (and without them no AI tool, git or brew is found), and where Claude Code and Codex keep their
+sign-in when the terminal sets it (`KEPT`). Its output goes to ~/Library/Logs/Orkboard.log.
 Made again after a reinstall moves Orkboard's Python; an update of Orkboard itself needs nothing.
 
     make(Path.home() / "Applications", sys.executable, os.environ["PATH"])   # → …/Orkboard.app
@@ -25,6 +26,9 @@ NAME = "Orkboard"
 BUNDLE_ID = "works.ork.orkboard"
 INSTALL = "orkboard[gui] @ git+https://github.com/orkWorks/orkBoard"
 ICON = Path(__file__).resolve().parent / "static" / "pwa" / "icon-512.png"
+# Where an AI tool keeps its sign-in, when the terminal sets it: the app gets the same (Claude Code's sign-in is kept per
+# CLAUDE_CONFIG_DIR, its Keychain entry too, so without it an app opened from the Dock finds none). Never a key.
+KEPT = ("CLAUDE_CONFIG_DIR", "CODEX_HOME")
 
 
 def icns(png: bytes) -> bytes:
@@ -42,14 +46,18 @@ def info_plist() -> bytes:
     })
 
 
-def launcher(python: str, path: str) -> str:
-    """The bundle's script: Orkboard through the login shell (its profile's PATH and settings) with `path` before it."""
+def launcher(python: str, path: str, keep: dict[str, str] | None = None) -> str:
+    """The bundle's script: Orkboard through the login shell (its profile's PATH and settings) with `path` before it, and
+    `keep` (KEPT: where a tool keeps its sign-in, as the terminal it was made in had it) exported."""
     run = " ".join(shlex.quote(a) for a in (python, "-m", "orkboard.gui.board_host"))
+    kept = [f"export {k}={shlex.quote(v)}" for k, v in sorted((keep or {}).items()) if k in KEPT and v]
     return "\n".join([
         "#!/bin/sh",
         "# Orkboard.app, made by `orkboard --make-app`: Orkboard on the last project, in its own window.",
         "# An app opened from the Dock has neither the shell's PATH nor its settings, so both are given here.",
         f"export PATH={shlex.quote(path)}\"${{PATH:+:$PATH}}\"",
+        "export ORKBOARD_FROM=app                 # its logs say so (realm/diagnostics.py)",
+        *kept,
         'mkdir -p "$HOME/Library/Logs"',
         '# the person\'s own shell when it reads `"$@"` as sh does (fish does not), else a Mac\'s own zsh',
         'case "${SHELL:-}" in */bash|*/zsh|*/sh|*/ksh) login="$SHELL" ;; *) login=/bin/zsh ;; esac',
@@ -58,7 +66,7 @@ def launcher(python: str, path: str) -> str:
     ])
 
 
-def make(folder: Path, python: str, path: str, icon: Path = ICON) -> Path:
+def make(folder: Path, python: str, path: str, icon: Path = ICON, keep: dict[str, str] | None = None) -> Path:
     """Orkboard.app in `folder` (made again in place when it is there): its plist, its script and its icon."""
     app = Path(folder).expanduser() / f"{NAME}.app"
     contents = app / "Contents"
@@ -66,7 +74,7 @@ def make(folder: Path, python: str, path: str, icon: Path = ICON) -> Path:
     (contents / "Resources").mkdir(parents=True, exist_ok=True)
     (contents / "Info.plist").write_bytes(info_plist())
     script = contents / "MacOS" / NAME
-    script.write_text(launcher(python, path), encoding="utf-8")
+    script.write_text(launcher(python, path, keep), encoding="utf-8")
     script.chmod(0o755)
     (contents / "Resources" / f"{NAME}.icns").write_bytes(icns(Path(icon).read_bytes()))
     return app
@@ -77,7 +85,8 @@ def make_here(folder: Path | None = None, platform: str = sys.platform) -> int:
     if platform != "darwin":
         sys.stderr.write("orkboard: Orkboard.app is a Mac app; here Orkboard opens with `orkboard`\n")
         return 1
-    app = make(folder or Path.home() / "Applications", sys.executable, os.environ.get("PATH", ""))
+    app = make(folder or Path.home() / "Applications", sys.executable, os.environ.get("PATH", ""),
+               keep={k: os.environ[k] for k in KEPT if os.environ.get(k)})
     print(f"{app} is made: open Orkboard from the Dock, Launchpad or Spotlight.")
     try:
         import webview  # noqa: F401
