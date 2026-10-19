@@ -785,3 +785,30 @@ p { margin: 0 0 8px; }
 .need-op { border-left: 4px solid var(--warning); }
 .need-op_failed { border-left: 4px solid var(--danger); }
 .need-op_rules { border-left: 4px solid var(--action); }
+
+/* spec 39 C: the Map on the phone — a goal's ideas as rows. The marks differ by shape, not by colour alone (spec 39 §4.3):
+   needs your hand = a heavier frame and ●; working = the spinner; waits = dashed; done = filled; proposed = dotted. */
+.map-goal { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-4); min-width: 0; }
+.map-goal h3 { margin: 0; overflow-wrap: anywhere; }
+.map-goal-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; font-size: 0.875rem; color: var(--muted); }
+.map-done-when summary { min-height: var(--tap-min); display: flex; align-items: center; cursor: pointer; overflow-wrap: anywhere; }
+.map-done-when ul { margin: 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
+.map-row { background: var(--panel); border: 1px solid var(--frame); border-radius: var(--radius-lg); min-width: 0; }
+.map-row.needs-hand { border: 3px solid var(--frame-strong); }
+.map-row.is-waiting { border-style: dashed; }
+.map-row.is-proposed { border-style: dotted; }
+.map-row.state-done { background: var(--inset); }
+.map-open { all: unset; box-sizing: border-box; width: 100%; min-height: var(--tap-min); padding: var(--space-3); cursor: pointer; display: flex;
+  flex-direction: column; gap: var(--space-1); }
+.map-open:focus-visible { outline: 2px solid var(--frame-focus); outline-offset: 2px; }
+.map-top { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.map-dots { flex: none; letter-spacing: 1px; color: var(--muted); }
+.map-row .idea-meta { flex-wrap: wrap; }
+.map-hand { font-weight: 700; color: var(--ink); }
+.map-why, .map-after { color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
+.map-mark, .map-new { border: 1px solid var(--frame-strong); border-radius: var(--radius-full); padding: 0 var(--space-2); font-size: 0.75rem; }
+.map-new { font-weight: 700; }
+.map-pips { display: inline-flex; gap: var(--space-1); align-items: center; }
+.pip { box-sizing: border-box; width: var(--space-3); height: var(--space-3); border-radius: var(--radius-full); border: 2px solid var(--frame-strong); background: transparent; }
+.pip-done { background: var(--ink); border-color: var(--ink); }
+.pip-work { border-width: 3px; border-style: double; }

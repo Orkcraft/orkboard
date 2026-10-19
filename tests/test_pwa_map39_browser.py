@@ -37,14 +37,19 @@ MAP = {"goals": [{"slug": "ship", "title": "Ship v1", "priority": "high", "state
        "nodes": NODES, "edges": [{"from": "tables", "to": "sync"}], "rev": "1"}
 
 
+ANSWER: dict = {}                                    # what `ideas.map` answers in a test; the full Map by default
+
+
 @pytest.fixture(autouse=True)
 def _map(monkeypatch):
+    ANSWER.clear()
+    ANSWER.update(MAP)
     real = Stub.commands
 
     def commands(self):
         def fake(a):
             self.calls.append(("ideas.map", {}))
-            return MAP
+            return dict(ANSWER)
         return {**real(self), "ideas.map": fake}
     monkeypatch.setattr(Stub, "commands", commands)
 
@@ -73,6 +78,11 @@ async def test_the_map_button_opens_the_map_and_a_tap_opens_the_idea(fake_repo, 
         assert "working 1/3" in text and "after Build the tables" in text
         assert await sync.locator(".pip").count() == 3 and await sync.locator(".pip-done").count() == 1 and await sync.locator(".pip-work").count() == 1
         assert "tonight" in await rows.nth(2).inner_text()
+        css = "(el) => { const c = getComputedStyle(el); return [c.borderTopWidth, c.borderTopStyle]; }"
+        assert await first.evaluate(css) == ["3px", "solid"]                      # needs your hand: the heavier frame
+        assert await rows.nth(2).evaluate(css) == ["1px", "dashed"]               # waits: dashed
+        for i in range(4):                                                         # tap targets of at least 44 px
+            assert (await rows.nth(i).locator(".map-open").bounding_box())["height"] >= 44
         await goal.get_by_text("Done (1)").click()
         await goal.get_by_text("Old cleanup").wait_for(timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
@@ -85,3 +95,25 @@ async def test_the_map_button_opens_the_map_and_a_tap_opens_the_idea(fake_repo, 
         await page.locator(".goal-pick").get_by_role("button", name="Board").click()
         await page.locator(".pane-head h2", has_text="Board").wait_for(timeout=WAIT_MS)
         assert await page.locator(".map-goal").count() == 0
+
+
+@pytest.mark.asyncio
+async def test_no_project_open_says_open_a_folder_first(fake_repo, monkeypatch):
+    ANSWER.clear()
+    ANSWER["error"] = "Open a folder first"
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await page.locator(".goal-pick").get_by_role("button", name="Map").click()
+        await page.get_by_text("Open a folder first").wait_for(timeout=WAIT_MS)
+        assert await page.locator(".map-goal").count() == 0
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_project_with_no_goal_says_no_goals_yet_with_new_goal(fake_repo, monkeypatch):
+    ANSWER.update(goals=[], nodes=[], edges=[])
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await page.locator(".goal-pick").get_by_role("button", name="Map").click()
+        await page.get_by_text("No goals yet.").wait_for(timeout=WAIT_MS)
+        await page.locator(".pane").get_by_role("button", name="New goal").last.click()
+        await page.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)
+        assert await page.evaluate(NO_SCROLL)
