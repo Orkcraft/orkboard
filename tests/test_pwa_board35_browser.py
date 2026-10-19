@@ -4,14 +4,24 @@ questions as one form, the ideas' rows by state, the spec's Stages, a file to-do
 scroll of the page. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
 
+import asyncio
 import base64
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
+
+
+async def _until(page, expr, ok, timeout=5.0):
+    """`expr` read on the page until `ok` says so (the page's CSP refuses wait_for_function's eval)."""
+    for _ in range(int(timeout * 20)):
+        if ok(await page.evaluate(expr)):
+            return True
+        await asyncio.sleep(0.05)
+    return False
 
 
 def _two_goals(stub: Stub) -> None:
@@ -59,11 +69,10 @@ async def test_the_goal_select_filters_needs_you_and_the_ideas_and_a_chosen_goal
         stub.extra_needs = [{"kind": "proposal", "idea": "p1", "goal": "docs", "title": "A docs page", "text": "Why: it helps", "priority": "low", "blocks": False, "at": ""}]
         stub.ideas["p1"] = stub.idea("p1", "A docs page", "proposed", 7, track="docs", in_needs_you=True)
         stub.bump({})
-        pick = page.locator(".goal-pick select")
         await page.locator(".need-proposal").wait_for(timeout=WAIT_MS)
-        assert await pick.input_value() == "" and "All goals" in await pick.inner_text()
+        assert "All goals" in await page.locator(".board-bar .goal-chip").inner_text()
         assert await page.locator(".idea-card", has_text="Offline mode").count() == 1 and await page.locator(".idea-card", has_text="Write the guide").count() == 1
-        await pick.select_option("ship")
+        await _pick_goal(page, "ship")
         await page.locator(".need-proposal").wait_for(state="detached", timeout=WAIT_MS)                # a docs proposal: not under Ship v1
         assert await page.locator(".idea-card", has_text="Write the guide").count() == 0 and await page.locator(".idea-card", has_text="Offline mode").count() == 1
         now = page.locator(".goal-now")
@@ -74,7 +83,7 @@ async def test_the_goal_select_filters_needs_you_and_the_ideas_and_a_chosen_goal
         await now.get_by_role("button", name="Open", exact=True).click()
         await page.locator(".screen").get_by_text("Ship v1").first.wait_for(timeout=WAIT_MS)
         await page.get_by_role("button", name="Back", exact=True).click()
-        await pick.select_option("")
+        await _pick_goal(page, "")
         await page.locator(".need-proposal").wait_for(timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
 
@@ -215,4 +224,37 @@ async def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(fake_re
         assert "waits for dark mode · same files" in (await agents.locator(".chip", has_text="Test it offline").inner_text()).lower()
         assert "by itself" not in await agents.locator(".chip", has_text="Add the queue").inner_text()
         await _shot(page, "phone-agents-chips-390x844")
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_top_bar_names_the_project_and_the_goal_with_its_craft_s_head_and_slides_away_scrolling_down(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        _two_goals(stub)
+        stub.goals["ship"].update(craft="design", race="elf")
+        for n in range(14):
+            stub.ideas[f"i{n}"] = stub.idea(f"i{n}", f"Idea number {n}", "raw", 10 + n, track="ship", queue="night")
+        stub.bump({})
+        await page.locator(".idea-card", has_text="Idea number 13").wait_for(timeout=WAIT_MS)
+        bar = page.locator(".board-bar")
+        await bar.locator(".goal-chip").click()
+        rows = page.get_by_role("dialog", name="Goals").locator(".goal-row")
+        assert [" ".join(t.split()) for t in await rows.all_inner_texts()] == [
+            "All goals", "Ship v1 Design · High · ready", "Docs Engineering · Low · ready", "Operations"]
+        await _shot(page, "phone-goals-390x844")
+        await page.keyboard.press("Escape")
+        await _pick_goal(page, "ship")
+        chip = bar.locator(".goal-chip")
+        assert "Ship v1" in await chip.inner_text() and await chip.get_attribute("aria-label") == "Goal: Ship v1. Choose another"
+        assert await chip.locator("img").get_attribute("src") == "races/elf-laborer.png"                 # the goal's craft, its race's head
+        assert await chip.locator("img").get_attribute("title") == "Design"
+        assert await bar.locator(".project-chip").is_visible()                                            # project / goal, one line
+        assert (await bar.bounding_box())["height"] < 80
+        assert "Design" in await page.locator(".goal-now").inner_text()
+        away = "(() => { const b = document.querySelector('.board-bar'); return [b.classList.contains('is-away'), b.getBoundingClientRect().bottom]; })()"
+        await page.mouse.wheel(0, 600)
+        assert await _until(page, away, lambda v: v[0] and v[1] <= 1)                                  # scrolling down: it slides away
+        await page.mouse.wheel(0, -200)
+        assert await _until(page, away, lambda v: not v[0] and v[1] > 40)                              # scrolling up brings it back
+        await _shot(page, "phone-top-bar-goal-390x844")
         assert await page.evaluate(NO_SCROLL)

@@ -16,6 +16,9 @@ export function whoHead(head, small = false) {
   return head ? raceHead(head.race, head.tier, { small, title: headWords(head) }) : null;
 }
 
+/** A goal's mark: the head of its craft's race, bare (a goal has no tier), its craft in words in its title. */
+export const goalHead = (g, small = false) => raceHead(g?.race || "peon", "laborer", { small, title: CRAFT_WORDS[g?.craft] || CRAFT_WORDS.engineering });
+
 /** A head beside its words: the tier, then the race and the craft, muted (orkUI's .ork-race). */
 export function who(head, small = false) {
   if (!head) return null;

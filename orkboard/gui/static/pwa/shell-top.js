@@ -1,14 +1,21 @@
-// The phone's top bar (docs/specs/33-v1-shell.md §6): Orkline · what is left of the AI tools as one chip — the smallest
-// of all of them, a tap opens each tool's windows with when they reset — · today's Spend · Stop all · the gear (Push after
-// merging). Roles only: warning at 20 % or less left, danger at 5 % or less.
+// The phone's top bar (docs/specs/33-v1-shell.md §6), one line: the project / the goal shown — its craft's head (decisions §53), a tap
+// picks another goal, All goals or Operations — · what is left of the AI tools as one chip — the smallest of all of them, a tap opens each
+// tool's windows with when they reset — · the gear: today's Spend, Stop all and the settings (Push after merging). It slides away as the
+// page scrolls down and comes back as it scrolls up. Roles only: warning at 20 % or less left, danger at 5 % or less.
 import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { makeProjects } from "./shell-projects.js";
+import { PRIORITY_WORDS } from "./shell-words.js";
+import { CRAFT_WORDS, goalHead } from "./shell-who.js";
+import { OPS_VIEW } from "./shell-ops.js";
+import { MAP_VIEW } from "./shell-map.js";
 
 const MARKS = { claude: "✱", agy: "∩", codex: "◇", hermes: "☿", pi: "π", cursor: "▷" };
 export const WARN = 0.2, DANGER = 0.05;
 const pct = (left) => `${Math.round(left * 100)} %`;
 export const levelOf = (left) => (left <= DANGER ? "is-danger" : left <= WARN ? "is-warn" : "");
+const GOAL_SHORT = { reading: "reading", asks: "asks you", ready: "ready" };
+const SLIDE_PX = 6;                       // a scroll this far down hides the bar, this far up brings it back
 
 /** "resets at 18:00", or with the day when it is not today. */
 export function resetWords(iso, now = new Date()) {
@@ -20,20 +27,61 @@ export function resetWords(iso, now = new Date()) {
 
 /** `core`: the board's frame (board.js). Returns {el, sheets, render(snapshot), drawGear()}. */
 export function makeTop(core, ctx) {
-  const title = h("h1", {}, "Orkline");
+  const st = core.st;
   const chip = h("button", { class: "limit-chip", type: "button", hidden: true, "aria-haspopup": "dialog" });
   const spend = h("p", { class: "board-spend muted" });
   const projects = makeProjects(core, ctx);
+  const goalChip = h("button", { class: "goal-chip", type: "button", "aria-haspopup": "dialog" });
   const stop = h("button", { class: "ork-btn danger board-stop", type: "button" }, "Stop all");
   const gear = h("button", { class: "ork-btn gear", type: "button", "aria-label": "Settings" }, icon("sliders"));
-  const el = h("header", { class: "board-bar" }, h("div", { class: "board-name" }, title, projects.chip), chip, stop, gear, spend);
+  const el = h("header", { class: "board-bar" },
+    h("div", { class: "board-name" }, projects.chip, h("span", { class: "muted", "aria-hidden": "true" }, "/"), goalChip), chip, gear);
+
+  // -- the goal shown: a sheet of the goals (their heads, priority and state), All goals, Operations, and New goal ----------
+  const goalList = h("ul", { class: "goal-list" });
+  const goalsSheet = sheet("Goals", goalList, foot(h("button", { class: "ork-btn primary big", type: "button",
+    onclick: () => { goalsSheet.close(); core.editGoal(""); } }, "New goal")));
+  const goals = () => (st.board?.tracks || []).filter((t) => t.slug !== "general");
+  function show(track, view = "") {
+    goalsSheet.close();
+    st.track = track;
+    st.view = view || (st.view === MAP_VIEW ? MAP_VIEW : "");
+    core.draw();
+    window.scrollTo(0, 0);
+  }
+  function drawGoals() {
+    const now = st.view === OPS_VIEW ? OPS_VIEW : st.track;
+    const row = (key, label, onclick, mark = null, line = null) => h("li", {}, h("button", { class: "goal-row", type: "button", "data-goal": key,
+      "aria-current": key === now ? "true" : null, onclick }, mark, h("b", {}, label), line));
+    goalList.replaceChildren(row("", "All goals", () => show("")),
+      ...goals().map((g) => row(g.slug, g.title, () => show(g.slug), goalHead(g),
+        h("small", { class: "muted" }, [CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · ")))),
+      row(OPS_VIEW, "Operations", () => show("", OPS_VIEW)));
+  }
+  goalChip.addEventListener("click", () => { drawGoals(); goalsSheet.open(); });
+  function drawChip() {
+    const g = goals().find((x) => x.slug === st.track);
+    const word = st.view === OPS_VIEW ? "Operations" : g ? g.title : st.board ? "All goals" : "";
+    goalChip.hidden = !word;
+    goalChip.replaceChildren(...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾"));
+    goalChip.setAttribute("aria-label", `Goal: ${word}. Choose another`);
+  }
+
+  // Slides away as the page scrolls down, back as it scrolls up (or near the top); never while a screen is open over the tab.
+  let lastY = window.scrollY;
+  window.addEventListener("scroll", () => {
+    const y = window.scrollY;
+    if (Math.abs(y - lastY) < SLIDE_PX) return;
+    el.classList.toggle("is-away", y > lastY && y > el.offsetHeight);
+    lastY = y;
+  }, { passive: true });
 
   // Stop all: a tap asks first (the confirm is a sheet whose button sits away from this one), as the town's does.
   const really = h("button", { class: "ork-btn danger", type: "button" }, "Stop every ork");
   const stopSheet = sheet("Stop all",
     h("p", {}, "Every ork at work stops now, and every idea's tasks with them: their sessions are interrupted and their processes ended."),
     really);
-  stop.addEventListener("click", () => stopSheet.open());
+  stop.addEventListener("click", () => { gearSheet.close(); stopSheet.open(); });
   really.addEventListener("click", async () => {
     stopSheet.close();
     const r = await ctx.send("halt");
@@ -76,7 +124,7 @@ export function makeTop(core, ctx) {
   const autoBox = h("input", { type: "checkbox", id: "autostart" });
   const nightFrom = h("input", { class: "ork-field", type: "time", "aria-label": "Night from" });
   const nightTo = h("input", { class: "ork-field", type: "time", "aria-label": "Night to" });
-  const gearSheet = sheet("Settings",
+  const gearSheet = sheet("Settings", spend, h("div", { class: "row" }, stop),
     h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
     h("label", { class: "check-line", for: "autostart" }, autoBox, h("span", {}, "Start plans by themselves")),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Night"), h("div", { class: "row night-row" }, nightFrom, h("span", {}, "to"), nightTo)),
@@ -103,7 +151,13 @@ export function makeTop(core, ctx) {
 
   return {
     el,
-    sheets: [...projects.sheets, stopSheet.el, limitsSheet.el, gearSheet.el, pairSheet.el],
+    /** The goal shown, drawn again with the Board (st.track, st.view). */
+    draw() {
+      drawChip();
+      if (goalsSheet.el.open) drawGoals();
+      if (window.scrollY <= el.offsetHeight) el.classList.remove("is-away");     // back at the top: always there
+    },
+    sheets: [...projects.sheets, goalsSheet.el, stopSheet.el, limitsSheet.el, gearSheet.el, pairSheet.el],
     render(s, rev) {
       projects.render(s, rev);
       const gold = s.hud?.show_gold ? s.hud.gold : "";

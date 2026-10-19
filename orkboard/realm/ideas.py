@@ -32,6 +32,7 @@ from orkboard.realm.idea_page import (  # noqa: F401  (re-exported: the names ca
 TRACK_SECTIONS = ("Description", "Summary", "Metrics", "Open questions")
 OLD_TRACK_SECTIONS = ("About", "Success criteria")      # a goal written before spec 34 keeps them, read as Description
 PRIORITIES = ("high", "normal", "low")
+CRAFTS = ("engineering", "design", "data", "marketing")   # a goal's craft, its race's head (roles.CRAFTS: roles imports this)
 GOAL_STATES = ("raw", "reading", "asks", "ready")
 MAX_METRICS, MAX_LINKS = 12, 12
 KEEPER_METRICS, KEEPER_LINKS = 3, 8   # what the keeper writes of a goal (spec 35 §2)
@@ -142,7 +143,7 @@ def _track(slug: str, page: Page, count: int = 0) -> dict:
             "metrics_by": _metrics_by(page),
             "criteria": items(page.section("Success criteria")), "deadline": page.get("deadline"),
             "order": _int(page.get("order")), "count": count, "priority": _priority(page.get("priority")),
-            "metrics": _metrics(page), "summary": page.section("Summary"),
+            "craft": page.get("craft") if page.get("craft") in CRAFTS else CRAFTS[0], "metrics": _metrics(page), "summary": page.section("Summary"),
             "links": _links(page),
             "questions": items(page.section("Open questions"))}
 
@@ -213,17 +214,21 @@ def _metric_lines(metrics: list[dict]) -> str:
 
 
 def save_goal(root: Path, slug: str | None, title: str = "", about: str = "", metrics: object = None,
-              priority: str = "normal", links: object = None, deadline: str | None = None) -> tuple[str, bool]:
+              priority: str = "normal", links: object = None, deadline: str | None = None,
+              craft: str | None = None) -> tuple[str, bool]:
     """A goal made or edited (spec 35 §2): (its slug, whether it is new). The person writes its Description and
     Priority, and on Edit may correct its Title: a title they type is theirs (`title_by: person`) and the keeper never
     rewrites it; without one the keeper writes it (`title_by: keeper`). Spec 34's metrics, links and deadline are still
-    taken and kept when given; left out (None), what is there stays. What the keeper wrote is kept."""
+    taken and kept when given; left out (None), what is there stays. What the keeper wrote is kept. Its craft (decisions
+    §53) is the person's: engineering when new, kept when left out."""
     title = " ".join(str(title or "").split())[:TITLE_CHARS]
     about = str(about or "").strip()
     if metrics is not None and not isinstance(metrics, (list, tuple)) or links is not None and not isinstance(links, (list, tuple)):
         raise ValueError("Metrics and links are lists")
     if str(priority or "normal").lower() not in PRIORITIES:
         raise ValueError("Priority is High, Normal or Low")
+    if craft is not None and craft not in CRAFTS:
+        raise ValueError("Craft is Engineering, Design, Data or Marketing")
     deadline = _date(deadline) if deadline is not None else None
     if not slug and not title and not about:
         raise ValueError("A goal needs a description, or at least a title")
@@ -243,6 +248,8 @@ def save_goal(root: Path, slug: str | None, title: str = "", about: str = "", me
             page.set("title", page.title)
             page.set("title_by", "keeper")
         page.set("priority", _priority(priority))
+        if craft is not None or new:
+            page.set("craft", craft or CRAFTS[0])
         if deadline is not None:
             page.set("deadline", deadline)
         elif new:

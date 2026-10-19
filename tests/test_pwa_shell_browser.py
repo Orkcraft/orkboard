@@ -155,7 +155,8 @@ class Stub:
             slug = a.get("slug") or "-".join(about.lower().replace(".", "").split()[:3])
             old = self.goals.get(slug, {})
             self.goals[slug] = self.goal(slug, a.get("title") or old.get("title") or " ".join(about.split()[:3]), a["priority"], "reading", about=about,
-                                         metrics=old.get("metrics", []), links=old.get("links", []))
+                                         metrics=old.get("metrics", []), links=old.get("links", []), craft=a.get("craft", "engineering"),
+                                         race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft"), "peon"))
             return self.bump({"slug": slug})
         if name == "ideas.goal":
             g = self.goals[a["slug"]]
@@ -282,6 +283,32 @@ async def _called(stub, name, args=None, timeout=5.0):
     return False
 
 
+async def _pick_goal(page, slug):
+    """The goal shown, picked in the top bar: its chip opens the Goals sheet, a row shows that goal ("" All goals, "ops" Operations)."""
+    await page.locator(".board-bar .goal-chip").click()
+    sheet = page.get_by_role("dialog", name="Goals")
+    await sheet.locator(f'.goal-row[data-goal="{slug}"]').click()
+    await sheet.wait_for(state="hidden", timeout=WAIT_MS)
+
+
+async def _goal_row(page, slug):
+    """The goal's row in the top bar's Goals sheet, read and the sheet put back (its text: craft · priority · state)."""
+    await page.locator(".board-bar .goal-chip").click()
+    sheet = page.get_by_role("dialog", name="Goals")
+    row = sheet.locator(f'.goal-row[data-goal="{slug}"]')
+    await row.wait_for(timeout=WAIT_MS)
+    text = await row.inner_text()
+    await page.keyboard.press("Escape")
+    await sheet.wait_for(state="hidden", timeout=WAIT_MS)
+    return text
+
+
+async def _stop_all(page):
+    """Stop all, in the gear's sheet."""
+    await page.locator(".board-bar").get_by_role("button", name="Settings").click()
+    await page.get_by_role("dialog", name="Settings").get_by_role("button", name="Stop all").click()
+
+
 NO_SCROLL = "document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390"
 SMALL = """() => [...document.querySelectorAll('.board button, .board input, .board textarea, .screen button, .screen input')]
     .filter((b) => b.offsetParent && !b.closest('[hidden]') && !b.matches('.sec-head *')).map((b) => [b.textContent || b.getAttribute('aria-label'), b.getBoundingClientRect().height])
@@ -296,7 +323,8 @@ async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, m
         assert await page.evaluate("document.documentElement.dataset.look") == "office"        # the phone's look is camp: not here
         assert await page.locator(".dock, .camp, .grid, .head").count() == 0
         top = page.locator(".board-bar")
-        assert "Stop all" in await top.inner_text() and await top.get_by_role("button", name="Settings").is_visible()
+        assert await top.get_by_role("button", name="Settings").is_visible() and "Stop all" not in await top.inner_text()   # one line: the gear holds it
+        assert "All goals" in await top.locator(".goal-chip").inner_text()
         chip = top.locator(".limit-chip")
         assert "15 %" in await chip.inner_text() and "is-warn" in await chip.get_attribute("class")      # the smallest of all tools
         await chip.click()
@@ -319,7 +347,7 @@ async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, m
             assert await page.evaluate(NO_SCROLL)
         await tabs.get_by_role("tab").nth(0).click()
         assert await page.evaluate(SMALL) == []
-        await page.get_by_role("button", name="Stop all").click()
+        await _stop_all(page)
         await page.get_by_role("button", name="Stop every ork").click()
         await page.get_by_role("dialog", name="Stop all").wait_for(state="hidden", timeout=WAIT_MS)
 
@@ -462,11 +490,13 @@ def _adds(stub):
 
 
 @pytest.mark.asyncio
-async def test_the_top_bar_shows_spend_whole_and_no_band_sits_above_it(fake_repo, monkeypatch):
+async def test_the_top_bar_is_one_line_with_no_band_above_it_and_the_gear_shows_spend_whole(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         bar = await page.locator(".board-bar").bounding_box()
         assert bar["y"] == 0 and bar["x"] == 0 and bar["width"] == 390                                  # no empty band above it
-        spend = page.locator(".board-spend")
+        assert bar["height"] < 80                                                                       # one line
+        await page.locator(".board-bar").get_by_role("button", name="Settings").click()
+        spend = page.get_by_role("dialog", name="Settings").locator(".board-spend")
         text = await spend.inner_text()
         assert "Spend today" in text and "…" not in text and "..." not in text                          # the whole of today's spend
         assert await spend.evaluate("e => e.scrollWidth <= e.clientWidth + 1 && getComputedStyle(e).textOverflow !== 'ellipsis'")
@@ -479,11 +509,12 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")           # New idea needs a goal (spec 35 §3)
         stub.bump({})
         await page.get_by_role("button", name="New idea", exact=True).wait_for(timeout=WAIT_MS)
-        await page.locator(".goal-pick option[value=ship]").wait_for(state="attached", timeout=WAIT_MS)
+        await _goal_row(page, "ship")
         opens = [("New goal", lambda: page.get_by_role("button", name="New goal", exact=True).click()),
                  ("New idea", lambda: page.get_by_role("button", name="New idea", exact=True).click()),
                  ("Settings", lambda: page.get_by_role("button", name="Settings").click()),
-                 ("Stop all", lambda: page.get_by_role("button", name="Stop all").click())]
+                 ("Goals", lambda: page.locator(".board-bar .goal-chip").click()),
+                 ("Stop all", lambda: _stop_all(page))]
         for name, opener in opens:
             await opener()
             sheet = page.get_by_role("dialog", name=name)
@@ -512,10 +543,16 @@ async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_s
         assert await sheet.get_by_label("Title").count() == 1 and not await sheet.get_by_label("Title").is_visible()   # no title to type on a new goal
         assert await sheet.get_by_label("Metric 1: what is measured").count() == 0 and await sheet.get_by_label("Deadline").count() == 0
         await sheet.get_by_label("Description").fill("More people try Orkline.")
+        craft = sheet.get_by_label("Craft")
+        assert await craft.input_value() == "engineering"                                                # an ork's, unless picked
+        assert [" ".join((await o.text_content()).split()) for o in await craft.locator("option").all()] == [
+            "Engineering: an ork", "Design: an elf", "Data: a goblin", "Marketing: a gnome"]
+        await craft.select_option("marketing")
+        assert await sheet.locator(".craft-now img").get_attribute("src") == "races/gnome-laborer.png"   # the head it will wear
         await sheet.get_by_role("radio", name="High").click()
         await _shot(page, "phone-new-goal-390x844")
         await sheet.get_by_role("button", name="Save goal").click()
-        assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "priority": "high"})
+        assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "craft": "marketing", "priority": "high"})
         screen = page.locator(".screen")
         await screen.get_by_text("the Taskmaster is reading", exact=False).first.wait_for(timeout=WAIT_MS)      # the goal on its own screen: reading
         stub.goals["more-people-try"].update(title="Grow installs", state="asks", summary="Installs are the first step.\nMore lines.", questions=["Which channel first?"],
@@ -538,11 +575,13 @@ async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_s
         assert await sheet.get_by_label("Description").input_value() == "More people try Orkline."
         await sheet.get_by_label("Title").fill("Grow weekly installs")
         await sheet.get_by_role("button", name="Save goal").click()
-        assert await _called(stub, "ideas.goal_save", {"slug": "more-people-try", "about": "More people try Orkline.", "priority": "high", "title": "Grow weekly installs"})
+        assert await _called(stub, "ideas.goal_save", {"slug": "more-people-try", "about": "More people try Orkline.", "craft": "marketing", "priority": "high",
+                                                       "title": "Grow weekly installs"})
+        await screen.get_by_text("Grow weekly installs").first.wait_for(timeout=WAIT_MS)                # saved: the goal's screen again
         await page.get_by_role("button", name="Back", exact=True).click()
-        option = page.locator(".goal-pick option", has_text="Grow weekly installs")                      # the goal select: title · priority · state in words
-        text = await option.inner_text()
-        assert "High" in text and "reading" in text
+        await screen.wait_for(state="hidden", timeout=WAIT_MS)
+        text = await _goal_row(page, "more-people-try")                                                 # the top bar's goals: title, craft · priority · state
+        assert "Grow weekly installs" in text and "Marketing · High · reading" in text
         assert await page.evaluate(NO_SCROLL)
 
 
@@ -552,7 +591,7 @@ async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_clo
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready")
         stub.goals["docs"] = stub.goal("docs", "Docs", "low", "ready")
         stub.bump({})
-        await page.locator(".goal-pick option[value=docs]").wait_for(state="attached", timeout=WAIT_MS)
+        await _goal_row(page, "docs")
         await page.get_by_role("button", name="New idea", exact=True).click()
         sheet = page.get_by_role("dialog", name="New idea")
         assert await sheet.get_by_label("Goal").input_value() == "ship"                                 # the first by priority; General is not listed

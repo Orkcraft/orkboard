@@ -1,6 +1,6 @@
 // The v1 shell on a phone (docs/specs/33-v1-shell.md §6, §8; decisions §45.2): the one face when the compact snapshot's `focus` is
-// "board". Three tabs at the foot — Board · Agents · Review, each with its count when it is not zero — under a top bar (what is
-// left of the AI tools, Spend, Stop all, the gear). An idea's spec, a plan, a task or a result's code opens on its own full
+// "board". Three tabs at the foot — Board · Agents · Review, each with its count when it is not zero — under a top bar of one line (the
+// project / the goal shown, what is left of the AI tools, the gear with Spend and Stop all). An idea's spec, a plan, a task or a result's code opens on its own full
 // screen over the tab, with Back (and the system back gesture) to the tab it came from and its actions pinned at the bottom.
 // It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's
 // `ideas_rev` changes (and every POLL_MS while the Taskmaster or a task works). Always Office's calm look.
@@ -97,6 +97,7 @@ export function makeBoard(ctx) {
   }
 
   function drawAll() {
+    top.draw();
     boardTab.draw();
     agents.draw();
     review.draw();

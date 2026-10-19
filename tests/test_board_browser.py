@@ -123,7 +123,8 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 tabs = [await b.get_attribute("aria-label") for b in await page.locator(".board-tabs").get_by_role("tab").all()]
                 assert [t.split(",")[0] for t in tabs] == ["Board", "Agents", "Review"]
                 await page.get_by_text("Which channel first?").first.wait_for(timeout=WAIT_MS)   # the goal's question, as on the desktop
-                assert "Stop all" in await page.locator(".board-bar").inner_text()
+                bar = page.locator(".board-bar")                                                 # one line: the project / the goal, the limits, the gear
+                assert await bar.locator(".goal-chip").is_visible() and await bar.get_by_role("button", name="Settings").is_visible()
                 assert await page.evaluate("document.documentElement.dataset.look") == "office"
                 assert await page.locator(".dock, .camp, .grid, .head").count() == 0
                 assert await page.evaluate("document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390")
