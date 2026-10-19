@@ -1,11 +1,13 @@
 // The Map on the phone (docs/specs/39-map.md §5): a tree does not fit 390 px, so the same data is a list. Each goal is a section (its
 // head, then its ideas in tier order); an idea is a row with its tier as dots, its title, its words (`rowState`, the Board's row), its
 // pips, its marks and the ideas it comes after. A tap opens the idea's screen, as from the Board. Done ideas nothing waits on are folded
-// at the goal's foot; *new* marks what changed since the Map was last shown on this phone (kept here, for itself).
+// at the goal's foot; *new* marks what changed since the Map was last shown on this phone (kept here, for itself). A goal says its team
+// (its agents' heads, the checkers' checks: realm/idea_checks.py), an idea how many of its checks passed.
 import { h } from "./util.js";
 import { rowState } from "./shell-ideas.js";
 import { GOAL_STATE } from "./shell-goal.js";
 import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
+import { whoHead } from "./shell-who.js";
 
 export const MAP_VIEW = "map";
 
@@ -57,6 +59,22 @@ export function makeMap(core, goalSheet) {
       ...tasks.map((t) => h("i", { class: `pip pip-${t.state === "merged" ? "done" : t.state === "running" || t.state === "testing" ? "work" : "wait"}` })));
   }
 
+  /** "checks 1/2": how many of the checks that apply to an idea passed. */
+  function checksMark(checks) {
+    const on = (checks || []).filter((c) => c.applies);
+    if (!on.length) return null;
+    const passed = on.filter((c) => c.state === "passed").length;
+    return h("span", { class: `map-mark map-checks${passed === on.length ? " is-passed" : ""}`,
+      "aria-label": `Checks: ${passed} of ${on.length} passed: ${on.map((c) => c.name).join(", ")}` }, `checks ${passed}/${on.length}`);
+  }
+
+  /** A goal's team: its agents' heads, then their names, the checkers' marked. */
+  function teamLine(team) {
+    if (!(team || []).length) return null;
+    const words = team.map((t) => `${t.name}${t.every ? " (checks every idea)" : t.checks ? " (checks)" : ""}`).join(", ");
+    return h("p", { class: "map-team muted" }, h("span", { class: "team-mark-heads" }, ...team.map((t) => whoHead(t.head, true))), ` Team: ${words}`);
+  }
+
   function row(node, top, titleOf) {
     const s = rowState(node, titleOf);
     const why = waitsWords(node);
@@ -74,6 +92,7 @@ export function makeMap(core, goalSheet) {
           node.by_itself ? h("span", { class: "map-mark" }, "by itself") : null,
           node.estimate ? h("span", { class: "map-mark" }, `≈$${node.estimate.usd_low.toFixed(2)}–${node.estimate.usd_high.toFixed(2)}`) : null,
           isNew ? h("span", { class: "map-new" }, "new") : null,
+          checksMark(node.checks),
           pips(node)),
         after.length ? h("span", { class: "map-after" }, `after ${after.join(", ")}`) : null));
   }
@@ -89,6 +108,7 @@ export function makeMap(core, goalSheet) {
       h("p", { class: "map-goal-meta" }, h("span", { class: `prio prio-${goal.priority}` }, PRIORITY_WORDS[goal.priority] || "Normal"),
         GOAL_STATE[goal.state] ? h("span", { class: `state-word ${goal.state === "reading" ? "work" : goal.state}` }, GOAL_STATE[goal.state]) : null,
         h("span", {}, `${goal.done} of ${goal.ideas} done`), h("span", {}, money)),
+      teamLine(goal.team),
       (goal.done_when || []).length ? h("details", { class: "map-done-when" }, h("summary", {}, `Done when · ${goal.done_when[0]}`),
         h("ul", {}, ...goal.done_when.map((l) => h("li", {}, l)))) : null,
       shown.length ? h("ol", { class: "ideas map-ideas" }, ...shown.map((n) => row(n, top, titleOf))) : h("p", { class: "muted" }, "No ideas in this goal yet."),

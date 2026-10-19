@@ -492,3 +492,5 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .check-chip.is-passed .ork-icon { color: var(--ork-success); width: 12px; height: 12px; }
 .checks-line > .field-label { flex: 1 0 100%; }
 .check-chip b { display: inline-flex; align-items: center; gap: var(--ork-2); }
+.map-team { margin: 0; font: var(--ork-type-caption); }
+.map-checks.is-passed { color: var(--ork-success); }

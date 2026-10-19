@@ -3,7 +3,8 @@
 // the browser), the Open questions with a box to answer — the same talk as an idea's, on the goal.
 import { html } from "../html.js";
 import { say, openLink } from "../link.js";
-import { goal, act, showDoc } from "./store.js";
+import { goal, act, showDoc, roles } from "./store.js";
+import { WhoHead } from "../orkui.js";
 import { openDialog } from "./modals.js";
 import { ErrorLine } from "./errors.js";
 import { Questions } from "../board/ask.js";
@@ -23,6 +24,13 @@ export function GoalView() {
     ${g.state_error && g.state === "raw" && html`<${ErrorLine} text=${g.state_error} />`}
     <section class="shell-goal__sec" aria-label="Description"><h3 class="board-sub">Description</h3>
       <p class="shell-brief">${g.description || html`<span class="ok-tone-muted">No description yet.</span>`}</p></section>
+    ${(g.team || []).length > 0 && html`<section class="shell-goal__sec" aria-label="Team"><h3 class="board-sub">Team</h3>
+      <ul class="shell-goal__team">${g.team.map((s) => {
+        const r = (roles.value?.roles || []).find((x) => x.slug === s);
+        const check = (roles.value?.library || []).find((a) => a.id === s)?.check;
+        return html`<li key=${s}>${r?.head && html`<${WhoHead} head=${r.head} small />`} <b>${r?.name || s}</b>
+          ${check && html` <span class="ok-tone-muted">· checks ${(g.every || []).includes(s) ? "every idea" : check.applies}</span>`}</li>`;
+      })}</ul></section>`}
     <section class="shell-goal__sec" aria-label="Summary"><h3 class="board-sub">Summary ${g.title_by === "keeper" && html`<span class="ok-tone-muted">· title by the Taskmaster</span>`}</h3>
       <p class="shell-brief">${g.summary || html`<span class="ok-tone-muted">${g.state === "reading" ? say("The Taskmaster is reading the goal…") : "Not written yet."}</span>`}</p></section>
     <section class="shell-goal__sec" aria-label="Metrics"><h3 class="board-sub">Metrics ${g.metrics_by === "keeper" && html`<span class="ok-tone-muted">· by the Taskmaster</span>`}</h3>

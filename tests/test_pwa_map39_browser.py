@@ -34,12 +34,14 @@ NODES = [
     node("plan-me", "Draft the pricing page", 1, "plan", needs_you="plan", waits={"kind": "you", "ref": "plan-me", "title": "", "until": ""}),
     node("tables", "Build the tables", 1, "done", progress={"done": 2, "total": 2}, tasks=_tasks("merged", "merged")),
     node("night", "Write the changelog", 1, "raw", queue="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}),
-    node("sync", "Sync between phone and town", 2, "working", depends_on=["tables"], progress={"done": 1, "total": 3},
+    node("sync", "Sync between phone and town", 2, "working", depends_on=["tables"], checks=[{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed"},
+                            {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": True, "why": "", "state": "running"}], progress={"done": 1, "total": 3},
          tasks=_tasks("merged", "running", "waiting")),
     node("old", "Old cleanup", 1, "done", folded=True),
 ]
 MAP = {"goals": [{"slug": "ship", "title": "Ship v1", "priority": "high", "state": "ready", "done_when": ["Tests pass", "Docs read"],
-                  "ideas": 5, "done": 2, "usd": 12.4}],
+                  "ideas": 5, "done": 2, "usd": 12.4, "team": [{"slug": "product-designer", "name": "Product designer", "head": {"craft": "design", "race": "elf", "tier": "elder"}, "checks": False, "every": False},
+                  {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "checks": True, "every": True}]}],
        "nodes": NODES, "edges": [{"from": "tables", "to": "sync"}], "rev": "1"}
 
 
@@ -121,4 +123,17 @@ async def test_a_project_with_no_goal_says_no_goals_yet_with_new_goal(fake_repo,
         await page.get_by_text("No goals yet.").wait_for(timeout=WAIT_MS)
         await page.locator(".pane").get_by_role("button", name="New goal").last.click()
         await page.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_phone_map_says_a_goal_s_team_and_an_idea_s_checks(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        team = page.locator('.map-goal[data-goal="ship"] .map-team')
+        await team.wait_for(timeout=WAIT_MS)
+        assert "Team: Product designer, Reviewer (checks every idea)" in await team.inner_text()
+        mark = page.locator('.map-row[data-slug="sync"] .map-checks')
+        assert await mark.inner_text() == "checks 1/2"
+        await _shot(page, "phone-map-team-390x844")
         assert await page.evaluate(NO_SCROLL)

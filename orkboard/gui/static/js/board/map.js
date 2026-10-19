@@ -1,6 +1,8 @@
 // The Map (docs/specs/39-map.md §4): the preview's first tab. A section per goal; its ideas as a tree, tiers from top to bottom
 // (an idea under the ideas it depends on, a line between them), each a card with its words, its tasks as pips and its marks.
 // A view of `ideas.map`: it changes nothing, its one action is open. Words of a node's state are the Board row's (`rowOf`).
+// A goal says its team (its agents' heads; the checkers' checks, realm/idea_checks.py), an idea how many of its checks passed,
+// a task its tag.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Chev, WhoHead } from "../orkui.js";
@@ -16,6 +18,23 @@ const toggle = (key, id) => {
 
 const pipState = (s) => (s === "merged" ? "done" : s === "running" || s === "testing" ? "working" : "open");
 
+/** "checks 1/2": how many of the checks that apply to an idea passed; the names and states in its title. */
+function checksMark(checks) {
+  const on = (checks || []).filter((c) => c.applies);
+  if (!on.length) return null;
+  const passed = on.filter((c) => c.state === "passed").length;
+  const words = on.map((c) => `${c.name}: ${c.state === "passed" ? "passed" : TASK_STATE[c.state] || "to come"}`).join(" · ");
+  return html`<span class=${cls("map-card__checks", { "is-passed": passed === on.length })} title=${words} aria-label=${`Checks: ${passed} of ${on.length} passed. ${words}`}>checks ${passed}/${on.length}</span>`;
+}
+
+/** A goal's team: its agents' heads, the checkers' marked, each one's name in words beside. */
+function Team({ team }) {
+  if (!(team || []).length) return null;
+  const words = team.map((t) => `${t.name}${t.every ? " (checks every idea)" : t.checks ? " (checks)" : ""}`).join(", ");
+  return html`<p class="map-goal__team ok-font-status ok-tone-muted" aria-label=${`Team: ${words}`}>
+    <span class="map-goal__heads">${team.map((t) => html`<${WhoHead} key=${t.slug} head=${t.head} small />`)}</span> Team: ${words}</p>`;
+}
+
 function Node({ n, titles, since }) {
   const v = nodeView(n, titles);
   const open = mapUi.value.tasks.includes(n.slug);
@@ -29,12 +48,12 @@ function Node({ n, titles, since }) {
       <span class="map-card__words">
         ${v.needs && html`<span class="map-card__needs" aria-hidden="true">●</span> `}${v.spin && html`<span class="shell-spin" aria-hidden="true">↻</span> `}<span>${v.needs && !v.words.includes(v.needs) ? `${v.words} · ${v.needs}` : v.words}</span>${v.wait && html` <span class="map-card__wait">· ${v.wait}</span>`}
         ${fresh && html` <span class="map-card__new">new</span>`}</span>
-      <span class="map-card__marks">${n.by_itself && html`<span>by itself</span>`}${v.cost && html`<span>${v.cost}</span>`}</span>
+      <span class="map-card__marks">${n.by_itself && html`<span>by itself</span>`}${v.cost && html`<span>${v.cost}</span>`}${checksMark(n.checks)}</span>
     </button>
     ${n.tasks.length > 0 && html`<button class="map-pips" aria-expanded=${open} aria-label=${`Tasks of ${n.title}`} onClick=${() => toggle("tasks", n.slug)}>
       ${n.tasks.map((t) => html`<i key=${t.id} class="map-pip" data-pip=${pipState(t.state)} aria-hidden="true"></i>`)}<span>Tasks</span></button>`}
     ${open && html`<div class="map-tasks" aria-label=${`Tasks of ${n.title}`}>${wavesOf(n.tasks).map((wave, i) => html`<div key=${i} class="map-wave" data-wave=${i + 1}>
-      ${wave.map((t) => html`<p key=${t.id} class="map-task" data-state=${t.state}><${WhoHead} head=${t.head} small /><code>${t.id}</code> ${t.title} · ${TASK_STATE[t.state] || t.state}</p>`)}</div>`)}</div>`}
+      ${wave.map((t) => html`<p key=${t.id} class="map-task" data-state=${t.state}><${WhoHead} head=${t.head} small /><code>${t.id}</code> ${t.title} · ${t.tag ? `${t.tag} · ` : ""}${TASK_STATE[t.state] || t.state}</p>`)}</div>`)}</div>`}
   </li>`;
 }
 
@@ -83,7 +102,7 @@ function Goal({ g, nodes, edges, titles, since }) {
       <span class="map-goal__count">${g.done} of ${g.ideas} done</span>
       <span class="map-goal__usd ok-tone-muted">${spentWords(g.usd)}</span>
     </header>
-    ${!folded && html`${lines.length > 0 && html`<p class="map-goal__when ok-font-status ok-tone-muted">done when ${lines[0]}${lines.length > 1 && !more ? html` <button class="board-link" onClick=${() => toggle("more", g.slug)}>and ${lines.length - 1} more</button>` : ""}
+    ${!folded && html`<${Team} team=${g.team} />${lines.length > 0 && html`<p class="map-goal__when ok-font-status ok-tone-muted">done when ${lines[0]}${lines.length > 1 && !more ? html` <button class="board-link" onClick=${() => toggle("more", g.slug)}>and ${lines.length - 1} more</button>` : ""}
       ${more ? lines.slice(1).map((l) => html`<br />done when ${l}`) : ""}</p>`}
       ${nodes.some((n) => !n.folded) ? html`<${Tree} nodes=${nodes} edges=${edges} titles=${titles} since=${since} />` : html`<p class="ok-tone-muted">No open idea in this goal.</p>`}
       ${done.length > 0 && html`<div class="map-done">

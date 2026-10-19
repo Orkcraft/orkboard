@@ -202,3 +202,8 @@
 .board-check.is-passed { border-color: var(--ork-success); }
 .board-check .ork-icon { color: var(--ork-success); width: 12px; height: 12px; }
 .board-checks > .ok-font-label { flex: 1 0 100%; }
+/* -- the Map: a goal's team, an idea's checks (map.js) -- */
+.map-goal__team { display: flex; align-items: center; gap: var(--ork-3); margin: var(--ork-2) 0; }
+.map-goal__heads { display: inline-flex; gap: 2px; }
+.map-card__checks { color: var(--ork-ink-muted); }
+.map-card__checks.is-passed { color: var(--ork-success); }
