@@ -2,7 +2,7 @@
 
 Orkline's Board on its own: a project's goals and ideas, their specs and plans, the agents at work and the results to review, on the desktop and on a paired phone.
 
-Install it from git: `uv tool install git+https://github.com/Orkcraft/orkboard`
+Install it with [orkGet](https://github.com/orkWorks/orkGet)'s installer (macOS and Linux): `curl -fsSL https://orkcraft.dev/install.sh | sh -s -- --product orkboard`, or from git: `uv tool install git+https://github.com/Orkcraft/orkboard`. `orkboard update` updates it; `orkboard usage on|off|status` is the one answer to anonymous usage stats and crash reports, for Orkline too.
 
 Run `orkboard` in a project's folder (`orkboard --browser` opens it in the browser instead of a window).
 

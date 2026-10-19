@@ -92,6 +92,8 @@ def isolated_layout_file(tmp_path: Path, tmp_path_factory: pytest.TempPathFactor
     monkeypatch.setenv("ORKCRAFT_LIMITS", "0")
     monkeypatch.setenv("ORKCRAFT_MODEL_LIST", "0")
     monkeypatch.setenv("ORKCRAFT_NO_UPDATE", "1")
+    monkeypatch.setenv("ORKCRAFT_NO_USAGE", "1")         # no usage stats or crash report leaves a test (test_crashes.py opts in)
+    monkeypatch.setenv("ORKCRAFT_CRASH_DIR", str(tmp_path / "crashes"))   # crash files stay the test's own
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-home"))   # never this machine's Claude Code plugins
     # No real agent CLI and no real gh, even on a machine that has them: a run a test does not fake finds no tool,
     # as on CI (tests/test_no_real_tools.py).

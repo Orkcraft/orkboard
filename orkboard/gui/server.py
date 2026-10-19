@@ -135,7 +135,7 @@ class Server:
             return None
 
     def capture(self, e: BaseException, where: str, **kw) -> None:
-        """An error the server caught, to the host's crash reports (Orkline's, core/crashes.py), when it keeps them."""
+        """An error the server caught, to the host's crash reports (core/crashes.py), when it keeps them."""
         capture = getattr(self.host, "capture", None)
         if capture is not None:
             capture(e, where, **kw)

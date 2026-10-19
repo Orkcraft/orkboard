@@ -4,7 +4,8 @@ host `orkboard` serves, built without the town.
     board = BoardHost(repo_root, owner, bus=…, toast=…, call=…, budget_ok=…, limits=…, day_logs=…, wiki_of=…)
     ideas = Ideas(board)                   # gui/ideas.py and its mixins use only what BoardHost has
 
-    host = Orkboard(repo_root)             # the Board's own host: Ideas, Stop all, phones, updates, the first screen
+    host = Orkboard(repo_root)             # the Board's own host: Ideas, Stop all, phones, updates, the first screen,
+                                           # the usage stats and the crash reports (core/usage.py, core/crashes.py)
     Server(host).start_thread()            # gui/server.py serves it as it serves Orkline's (gui/host.py)
     main([])                               # `orkboard` (and `orkboard board`): in a window, else the browser
 
@@ -25,7 +26,7 @@ from typing import Any, Callable
 
 from orkboard import __version__, settings
 from orkboard.core import bus as b
-from orkboard.core import treasury, updates as core_updates
+from orkboard.core import crashes, treasury, usage, updates as core_updates
 from orkboard.core.board_limits import BoardLimits
 from orkboard.realm import analytics, call_log, day_log, event_log, halt
 from orkboard.sources import telemetry
@@ -155,7 +156,9 @@ class Orkboard:
     """The Board's own host (spec 37 §4, §8): the open projects (gui/board_projects.py, one Board each, one shown) and
     the Board's commands (`ideas.*`, to the shown one), the Files pane (`files.*`) and its Git section (`git.*`), Stop
     all (`halt`, every project's), pairing a phone (`phones.*`, added by the server), updates, `link.open`,
-    `crash.window` and the onboarding's first screen (trust, the AI tools found); no class, no Mission 1, no town.
+    `crash.window` (the page's errors, to the crash reports) and the onboarding's first screen (trust, the AI tools
+    found); no class, no Mission 1, no town. The usage stats and the crash reports are orkGet's (core/usage.py,
+    core/crashes.py): nothing leaves the machine until the operator says yes, one answer for every product.
     The page is `static/board.js`, the phone's `pwa/board-app.js`.
 
     What is the host's is built once per host, beside the projects: the AI tools' limits, this run's spend, the
@@ -190,10 +193,14 @@ class Orkboard:
         self.commands: dict[str, Callable[[dict], Any]] = {
             "halt": self._halt,
             "link.open": open_link,
-            "crash.window": lambda a: None,           # the crash reporter is Orkline's (core/crashes.py)
+            "crash.window": self._crash_window,
             "mobile.hello": self._hello,
             "mobile.snapshot": self._mobile_snapshot,
         }
+        # Anonymous usage stats, only when the operator said yes (core/usage.py, orkGet's docs/usage.md); crash
+        # reports with the same answer (core/crashes.py), the page's own errors too
+        self.usage = usage.Usage(self.machine, face="gui", demo=demo)
+        self.crashes = crashes.install(self.machine, face="gui", demo=demo)
         self.updates = updates.Updates(self)
         self.commands.update(self.updates.commands())
         self.onboarding = onboarding.Onboarding(self)
@@ -209,6 +216,7 @@ class Orkboard:
             self.projects.restore()
         if repo_root is not None:
             self.projects.open(repo_root)
+        self.usage.track("app_opened", face="gui", tools=[t for t, c in self.machine.tools.items() if c.enabled])
 
     # -- the shown project -----------------------------------------------------------------------------------
 
@@ -338,6 +346,7 @@ class Orkboard:
                 pass
         self.limits.tick(now)
         self.updates.tick(now)
+        self.usage.tick(now)
         self.projects.tick(now)           # every open project's Board: showing another stops nothing
         self.ops.tick(now)
 
@@ -345,6 +354,18 @@ class Orkboard:
         self.ops.close()
         self.projects.close_all()
         call_log.keep_days(None)
+        self.usage.close()
+        self.crashes.close()
+
+    # -- the crash reports (core/crashes.py) ------------------------------------------------------------------
+
+    def capture(self, e: BaseException, where: str, **kw: Any) -> None:
+        """An error the server caught (gui/server.py): to this run's crash reports."""
+        crashes.capture(e, where, **kw)
+
+    def _crash_window(self, args: dict) -> None:
+        """`crash.window`: an error of the page (js/crashes.js), by its frames in Orkboard's own scripts."""
+        self.crashes.capture_window(str(args.get("message", ""))[:2000], str(args.get("stack", ""))[:8000])
 
     # -- the page's commands ---------------------------------------------------------------------------------
 
@@ -464,8 +485,13 @@ def start_folder(folder: Path | None, machine: settings.MachineSettings) -> Path
 def main(argv: list[str] | None = None) -> int:
     """`orkboard [board] [<folder>] [--repo DIR] [--browser] [--port N]`: Orkboard on that folder; without one the last
     shown project, else the one it was started in, else the start screen. `board` is the old habit of
-    `orkcraft board`, and changes nothing."""
+    `orkcraft board`, and changes nothing. `orkboard usage …` and `orkboard update …` open no window
+    (orkboard/commands.py); a folder of that name opens as `orkboard ./usage`."""
+    from orkboard import commands
     from orkboard.realm import project_folder
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in commands.WORDS:
+        return commands.main(argv)
     parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: goals, ideas, agents, review")
     parser.add_argument("words", nargs="*", metavar="folder", help="The project's folder to open")
     parser.add_argument("--version", action="version", version=f"Orkboard {__version__}")

@@ -48,9 +48,10 @@ version = { attr = "orkboard.__version__" }
 include = ["orkboard*"]
 
 [tool.setuptools.package-data]
-# design/system links to design-system/: a wheel carries the files themselves.
+# design/system links to design-system/: a wheel carries the files themselves. orkget/: orkGet's copy, its stamp,
+# schemas and installer with it (orkboard/product.py).
 orkboard = ["schemas/*.json", "design/*.json", "design/buildings/*.json", "design/agents/*.md", "design/system/**/*",
-            "gui/static/**/*", "ops_templates/**/*"]
+            "gui/static/**/*", "ops_templates/**/*", "orkget/ORKGET.json", "orkget/schemas/*.json", "orkget/install.sh"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
