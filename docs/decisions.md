@@ -311,3 +311,30 @@ ranks (*working 2/5*), a plan's estimate its cost, the night's proposals the ski
 4. **Measured:** the Map's opens per day, the first screen opened each morning, the share of ideas opened from it
    (`opened` gains `via`).
 A view of existing data: an improvement of v1's existing mechanics (§27); the Camp skin waits as §50.8 says. Spec 39.
+
+## 53. Orkforms: the design system gets a name and a first form, `orkforms/office`: denser, monochrome, a pixel face for buttons and headings (19 October, the owner)
+
+Why: the owner asked for the elements to be smaller and the look more minimal, monochrome, with a nod to game
+interfaces. The audit (spec 40 §0) found the product drawn twice (a grey Office on the desktop, a brown one on the
+phone), text at the browser's default 16 px beside 13 px controls, an Office type scale that nothing reads, and 3.4–3.8 : 1
+for `--ink-comment`. Tuning Office in place would have kept the two palettes and Camp's shapes in one file. So:
+1. **Orkforms is the design system, a form is a member.** `orkforms/office` first, `orkforms/game` later (Camp's
+   successor); the same token names and component classes in each, a form changing the values and the layers. Switched by
+   `data-forms` on the root. Camp's themes and Orkline stay untouched until `orkforms/game` and Orkline's own spec take
+   them over.
+2. **Three faces, each for one job:** Pixelify Sans for **buttons and headings only**, IBM Plex Sans for everything a person
+   reads or wrote, IBM Plex Mono for code. The pixel face never below 12 px, at whole pixels, no ligatures, no faux bold;
+   it never sets what a person wrote (its Cyrillic is weak). Plex was chosen from seven candidates on a Russian and
+   English sample; it also fixes the missing Cyrillic of the shipped mono face.
+3. **Denser by sizes, not by shrinking the type:** desktop body 13/18, controls 24, bars 32, a 2 px space step; about 13 %
+   shorter on the owner's screen. The phone keeps a thumb's targets by drawing 36 and hitting 44 (neighbours 8 px
+   apart), body 15, one-line head, no emoji.
+4. **Colour is a signal and nothing else.** A grey scale; selected and primary are the inverted ink; no accent hue. The
+   signals (question, error, success, warning) keep their hues, with a mark or a word beside them.
+5. **Dark only for now.** Office's light variant (desktop and phone) is dropped from this form; it returns as a second
+   palette if the testers ask.
+6. **Accessibility is a test, not a hope:** contrast computed from the tokens (text ≥ 4.5, edges ≥ 3), targets ≥ 24 px
+   everywhere (WCAG 2.2 AA), focus drawn inside the notched corners, the system's text size followed on the phone.
+7. **Built after spec 39** (its B and C own the stylesheets this changes): A the system, B the desktop, C the phone.
+   Orkline adopts it by its own spec; until then its frozen copy and Office stay as they are (decisions §50).
+A change of looks, not of mechanics: no label, command or datum changes. Spec 40.
