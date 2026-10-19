@@ -14,7 +14,9 @@ other way round**: nothing here imports Orkline's package (`orkcraft`).
   of a project, and switching between them loses nothing: `~/.config/orkcraft/`, `<project>/.orkcraft/`,
   `.orkcraft.json`, `orkcraft.toml`, the `ORKCRAFT_*` variables, the keychain's `orkcraft-ideas`, the phone's
   `orkcraft.v1` and its `orkcraft-app-v*` cache. Only the package is `orkboard`.
-- **One look, Office** (calm, monochrome, no sprites): the page and the phone are always drawn in it.
+- **One look, orkUI's office** (dark, monochrome, colour a signal; its only pictures the races' heads, small: an accent,
+  never a picture): the page and the phone are always drawn in it (docs/specs/40-design-system.md). The pixel face is for
+  headings and buttons, never for a person's words.
 - **Orks by their orkish names, everything else by what it does**: the Taskmaster, a Grunt; the Board, Review, Agents,
   Stop all. Never the other way round: no ork gets a job title, no window a camp name.
   `orkboard/realm/lexicon.py` `TERMS` is the glossary: a new concept gets its one word there, and new code writes that
@@ -40,6 +42,11 @@ other way round**: nothing here imports Orkline's package (`orkcraft`).
   keeps its frozen copy of these modules (the testers' week, spec 37 §9), a fix the testers need is made here first and
   in Orkline the same day, this repository's commit named in Orkline's.
 - The rules a model gets for a UI document are `design/ui.py` `RULES`.
+- **The design system is orkUI** (github.com/orkWorks/orkUI): `design-system/orkui` is its copy, stamped and never edited
+  here; a change to the look is made in orkUI, then copied (`python -m orkboard.design.orkui <orkUI>`). Orkboard's sheets
+  read orkUI's tokens and carry no colour, font or corner of their own (`tests/test_design_system.py`).
+- **An agent's craft is its race** (decisions §53): an ork engineers, an elf designs, a goblin minds the data, a gnome
+  markets; its tier is the gear on its head. Taskmaster and the Grunts are orks.
 
 ## Alpha: merge fast, with the critical tests
 

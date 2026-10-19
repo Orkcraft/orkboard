@@ -311,3 +311,35 @@ ranks (*working 2/5*), a plan's estimate its cost, the night's proposals the ski
 4. **Measured:** the Map's opens per day, the first screen opened each morning, the share of ideas opened from it
    (`opened` gains `via`).
 A view of existing data: an improvement of v1's existing mechanics (§27); the Camp skin waits as §50.8 says. Spec 39.
+
+## 53. Orkboard is drawn in orkUI; an agent's craft is its race, its tier the gear on its head (19 October, the owner)
+
+Why: the page and the phone were drawn in the old design system's Office theme on top of Orkline's twelve Camp sheets
+(the town, the yards, the kit), with its warm browns, a gold accent and four faces; orkUI (github.com/orkWorks/orkUI) is
+now the design system of orkWorks' products, its first look *office*. And Agents said who works only in words: a role's
+name and a model, never what kind of work it does. The owner: rebuild Orkboard on the new design system, and show an
+agent's role and tier with the mascots, **orks the engineers, elves design, goblins data, gnomes marketing**. So:
+1. **One look, orkUI's office**: dark, monochrome, dense; IBM Plex Mono for text, Pixelify Sans for headings and
+   buttons; nothing round; selected raised with a 2 px ink bar; every arrow and icon a pixel mark. orkUI owns its tokens
+   (`--ork-*`) and components (`.ork-*`); Orkboard's sheets read them and carry no colour, font or corner of their own.
+2. **A copy, never edited here**: `design-system/orkui` is orkUI's `office/` with its licence, stamped in `ORKUI.json`
+   (orkUI's version, commit, every file's hash) and refreshed by `python -m orkboard.design.orkui <orkUI>`. A copy, not
+   a git submodule: the wheel, `uv tool install` and CI need nothing more than this repository. A change to the look is
+   made in orkUI first.
+3. **What leaves**: the old tokens, components and kit with their four faces; the twelve Camp sheets the page loaded;
+   the phone's light Office (office is dark only), its fence, tiles and dock. The Camp skin stays Orkline's (§50.5).
+4. **The pixel face never for a person's words**: a goal's or an idea's title, an agent's name, a Markdown heading, a
+   file's name stay in the text face; headings, labels, buttons and tabs are the pixel face's.
+5. **Colour means a signal** (danger, alert, success), except the one ork green of the primary action and the muted
+   heads of the races; waiting is not a signal (`wait` reads as muted ink).
+6. **An agent's craft is its race**: a role is engineering, design, data or marketing (`craft` in its file), drawn as
+   orkUI's head of an ork, an elf, a goblin or a gnome. Taskmaster and the Grunts are orks, always (CLAUDE.md: orks by
+   their orkish names); a role written before crafts is engineering. orkUI's knight and lich wait for a craft of their own.
+7. **Its tier is the gear on its head**: a novice bare, a seasoned in iron, a veteran hooded. A role wears its own tier
+   (or its hand-set model's); By Target, the tier the Target gives it now; a task, the tier it ran at (before it ran, the
+   tier it will run at). The tiers are said in today's words everywhere, the model list too (*Veteran · opus*).
+8. **A head is an accent, never a picture** (the owner): 24 × 22 beside an agent's name, 12 × 11 (a pixel a cell) in a
+   chip, a plan's task, the Map's tasks, a task's Tier line; its words beside it or in its title. The Agents tab is an
+   ork's head; a goal's mark is a flag.
+An improvement of v1's existing mechanics (§27): the look and the words of what is there, one new field (`craft`).
+Spec 40.
