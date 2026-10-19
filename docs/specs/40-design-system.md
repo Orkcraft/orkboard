@@ -180,7 +180,7 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
   words, not an icon (`+`, `▾` are typed characters in the pixel face), so the 24 px icons stand in rows, heads, tabs and
   the empty states, where a row is 28 and a bar 32. A subset is vendored in `office/icons/` as one sprite `icons.svg`
   (only the icons a face uses) with the MIT text; a face names an icon by its Pixelarticons name.
-  The first set (`goal` → `target`, `idea` → `lightbulb`, `task` → `checkbox`, `agent` → `robot`, `review` → `eye`,
+  The first set (`goal` → `flag`, `idea` → `lightbulb`, `task` → `checkbox`, `agent` → `robot`, `review` → `eye`,
   `stop` → `stop`, `settings` → `sliders`, `project` → `folder`, `file` → `file`, `add` → `plus`, `close` → `close`,
   `expand` → `chevron-down`, `warning` → `warning-diamond`, `error` → `square-alert`, `done` → `check`, `map` → `map`,
   `night` → `moon`, `cost` → `coins`, `phone` → `phone`, `edit` → `pencil`, `delete` → `trash`, `run` → `play`,
@@ -221,16 +221,16 @@ inverted; that nothing is an emoji. The text is part A's, added next to the Camp
 ## 8. The phone (C)
 The phone is the same form with a thumb's sizes; it follows the system's text size (`html { font: -apple-system-body }`,
 sizes in `rem`).
-- **Type:** body 14/20 (text; 7.8 px a character, about 45 on the 366 px a line has), caption 12/16, pixel heading 14/16, pixel button 14/16; a field's text 16
+- **Type:** body 16/22 (text; 9.6 px a character, about 38 on the 366 px a line has: the owner found 14 too small), caption 13/18, pixel heading 16/20, pixel button 16/20; a field's text 16
   (iOS zooms in on less); the pixel face still at whole pixels at the default size (it scales with the system's setting
   and the page is checked at 100 % and 130 %).
-- **Targets:** a control is **36 px** drawn and **44 px** to hit: its `::after` reaches 4 px beyond on each side
-  (`position: relative`), and neighbours are at least 8 px apart so the hit areas never overlap. A list row is 44 px. A
+- **Targets:** a control is **40 px** drawn and **44 px** to hit: its hit area reaches 2 px beyond on each side
+  (`position: relative`), and neighbours are at least 4 px apart so the hit areas never overlap. A list row is 44 px. A
   text link's target is its row, 44 px. Nothing smaller than 24 × 24 anywhere (WCAG 2.5.8), and the primary action of a
   screen is a full 44 px.
-- **The notch must not cut the hit area.** `clip-path` also clips what a finger can hit, so a control's 4 px `::after` would
-  be cut off. On the phone a control is therefore a 44 px-high box (a transparent 4 px frame in its own `padding`/`border`
-  zone, the target being the box) with the 36 px look drawn inside it by `background-clip: content-box` and the notch cut
+- **The notch must not cut the hit area.** `clip-path` also clips what a finger can hit, so a control's extension would
+  be cut off. On the phone a control is therefore a 44 px-high box (a transparent 2 px frame in its own `padding`/`border`
+  zone, the target being the box) with the 40 px look drawn inside it by `background-clip: content-box` and the notch cut
   by corner gradients or a `border-image`, not by `clip-path`; the desktop (controls ≥ 24 px, no extension) keeps `clip-path`.
   The browser test for §9 C asserts the hit area, not the look.
 - **Space:** card padding 8 (was 12), gaps 6–8, the page's side padding 12, the tab bar 40 + the safe area.
@@ -267,8 +267,8 @@ sizes in `rem`).
     `--of-ink` inside the box); the selected row is inverted; an asking card has the alert edge;
   - the old Office's files (`office.css`) and Camp's are not requested; a screenshot to `docs/design/img/v1/` when
     `ORKCRAFT_SHOTS` is set (before and after kept in the PR).
-- **C** at 390 × 844, at the system text size 100 % and 130 %: every control ≥ 36 px drawn, and its hit area (an
-  `elementFromPoint` 4 px outside its box) is itself; no two hit areas overlap; rows ≥ 44; the head is one line; the
+- **C** at 390 × 844, at the system text size 100 % and 130 %: every control ≥ 40 px drawn, and its hit area (an
+  `elementFromPoint` 2 px outside its box) is itself; no two hit areas overlap; rows ≥ 44; the head is one line; the
   pixel face at whole pixels at both sizes; no emoji; no horizontal scroll; the service worker caches the new files.
 - All: `tests/test_gui_wording.py` (the labels are as they were), the critical tests (CLAUDE.md "Alpha").
 
