@@ -13,11 +13,20 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import idea_risk, idea_spend, idea_target, ideas, roles
+from orkboard.realm import idea_checks, idea_risk, idea_spend, idea_target, ideas, roles
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
 _AFTER = re.compile(r"after (\d{1,2}:\d{2})")
+
+
+def list_of_dicts(text: object) -> list[dict]:
+    """A page field that holds a JSON list of objects (`checks`)."""
+    try:
+        got = json.loads(text) if str(text or "").strip() else []
+    except ValueError:
+        return []
+    return [x for x in got if isinstance(x, dict)] if isinstance(got, list) else []
 
 
 def list_of(text: object) -> list[str]:
@@ -171,7 +180,13 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
         tier = _tiers(order, {s: [d for d in depends[s] if d in inside] for s in order})
         spent = idea_spend.of_goal(state_dir, g["slug"], order)["usd"]
         gst = goal_state_of(g["slug"])
+        by_slug = read[0]
+        checks = idea_checks.of_team(state_dir, g.get("team") or [], g.get("every") or [])
+        checkers = {c["by"] for c in checks}
+        team = [{"slug": s, "name": by_slug[s]["name"], "head": roles.head(by_slug[s], target), "checks": s in checkers,
+                 "every": s in (g.get("every") or [])} for s in g.get("team") or [] if s in by_slug]
         goals.append({"slug": g["slug"], "title": g["title"], "priority": g["priority"], "state": gst["state"],
+                      "craft": g.get("craft") or roles.DEFAULT_CRAFT, "race": roles.RACES.get(g.get("craft"), "peon"), "team": team,
                       "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2)})
@@ -192,7 +207,10 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                     "progress": r["progress"],
                     "tasks": [{"id": t.get("id"), "title": t.get("title") or "", "state": t.get("state") or "waiting",
                                "after": list(t.get("after") or []), "tier": t.get("tier") or "",
-                               "head": roles.task_head(state_dir, t, target, read)} for t in tasks],
+                               "head": roles.task_head(state_dir, t, target, read),
+                               "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND])} for t in tasks],
+                    "checks": idea_checks.status(idea_checks.kept(list_of_dicts(page.get("checks")) if page else [], checks),
+                                                 checks, tasks) if checks else [],
                     "estimate": {"usd_low": est.get("usd_low"), "usd_high": est.get("usd_high")}
                     if isinstance(est, dict) and plan and not started else None,
                     "by_itself": bool(plan) and plan.get("passed_by") == "auto",

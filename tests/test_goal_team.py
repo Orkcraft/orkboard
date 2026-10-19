@@ -185,3 +185,21 @@ def test_a_check_s_status_is_its_task_s_passed_once_merged_and_none_where_it_doe
              {"id": "k3", "kind": "tests", "state": "running"}]
     assert [(s["by"], s["state"]) for s in idea_checks.status(kept, checks, tasks)] == [
         ("reviewer", "passed"), ("seo", ""), ("tester", "running")]
+
+
+def test_the_map_s_goal_carries_its_team_and_its_ideas_their_checks(host):
+    from orkboard.realm import idea_checks
+    goal = host.command("ideas.goal_save", {"about": "A settings screen.", "craft": "design", "every": ["reviewer"],
+                                            "team": ["product-designer", "accessibility-reviewer", "reviewer"]})["slug"]
+    _wait(host, goal, goal=True)
+    slug = host.command("ideas.add", {"text": "Dark mode", "track": goal, "night": True})["slug"]
+    ideas.set_meta(host.ideas.root(), slug, checks=json.dumps([{"by": "accessibility-reviewer", "applies": False, "why": "No screen"}]))
+    m = host.command("ideas.map", {})
+    g = next(x for x in m["goals"] if x["slug"] == goal)
+    assert (g["craft"], g["race"]) == ("design", "elf")
+    assert [(t["slug"], t["name"], t["head"]["race"], t["checks"], t["every"]) for t in g["team"]] == [
+        ("product-designer", "Product designer", "elf", False, False), ("accessibility-reviewer", "Accessibility reviewer", "elf", True, False),
+        ("reviewer", "Reviewer", "peon", True, True)]
+    node = next(n for n in m["nodes"] if n["slug"] == slug)
+    assert [(c["by"], c["applies"], c["state"]) for c in node["checks"]] == [("accessibility-reviewer", False, ""), ("reviewer", True, "")]
+    assert idea_checks.DONE == ("merged",)

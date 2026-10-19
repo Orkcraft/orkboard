@@ -164,7 +164,7 @@ def test_tasks_estimate_and_by_itself(host):
     assert n[fresh]["estimate"] == {"usd_low": 0.4, "usd_high": 1.2} and n[fresh]["by_itself"] is True
     assert n[begun]["estimate"] is None and n[begun]["by_itself"] is False and n[begun]["progress"] == {"done": 1, "total": 2}
     assert n[begun]["tasks"][1] == {"id": "k2", "title": "Task k2", "state": "running", "after": ["k1"], "tier": "warrior",
-                                     "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}      # who does it: a Grunt
+                                     "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tag": "Code"}   # who does it: a Grunt; its tag
     assert n[none]["tasks"] == [] and n[none]["estimate"] is None and n[none]["by_itself"] is False
 
 

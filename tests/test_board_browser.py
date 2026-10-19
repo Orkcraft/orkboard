@@ -81,6 +81,9 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             assert (g["craft"], g["team"]) == ("marketing", ["copywriter", "growth"])
             made = {r["slug"]: r for r in board.command("ideas.roles")["roles"]}
             assert made["copywriter"]["craft"] == "marketing" and made["growth"]["takes"] == ["campaign"]   # the team's agents: the project's roles
+            team = pg.locator(".shell-goal").get_by_role("region", name="Team")                 # the goal's screen says its team
+            team.wait_for(timeout=WAIT_MS)
+            assert "Copywriter" in team.inner_text() and "Growth" in team.inner_text()
             assert "Which channel first?" in pg.locator(".board-need[data-kind=goal]").inner_text()
             assert any(n["kind"] == "goal" for n in board.command("ideas.board")["needs_you"])
             assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")

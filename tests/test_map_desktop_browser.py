@@ -8,13 +8,14 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import os
 
 import pytest
 
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import StubHost, _calls, _sent, box  # noqa: E402
+from tests.test_shell_browser import SHOTS, StubHost, _calls, _sent, box  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -61,7 +62,8 @@ class MapHost(StubHost):
             node("export", "ship-sync", "Export notes", "done", 1, folded=True, progress={"done": 3, "total": 3}),
             node("tags", "grow", "Tag the notes", "proposed", 1, needs_you="proposal", waits={"kind": "you", "ref": "", "title": "", "until": ""}),
             node("growth", "grow", "Grow the list", "ready", 2, depends_on=["tags"], waits_on=["tags"],
-                 waits={"kind": "idea", "ref": "tags", "title": "Tag the notes", "until": ""}),
+                 waits={"kind": "idea", "ref": "tags", "title": "Tag the notes", "until": ""}, checks=[{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed"},
+                            {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": True, "why": "", "state": "running"}]),
         ]
         self.edges = [{"from": "sync", "to": "dark"}, {"from": "tags", "to": "growth"}]
 
@@ -73,7 +75,8 @@ class MapHost(StubHost):
 
     def map_doc(self):
         goals = [{"slug": "grow", "title": "Grow installs", "priority": "high", "state": "ready", "done_when": ["weekly installs", "stars"],
-                  "ideas": 2, "done": 0, "usd": None},
+                  "ideas": 2, "done": 0, "usd": None, "team": [{"slug": "product-designer", "name": "Product designer", "head": {"craft": "design", "race": "elf", "tier": "elder"}, "checks": False, "every": False},
+                           {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "checks": True, "every": True}]},
                  {"slug": "ship-sync", "title": "Ship sync", "priority": "normal", "state": "ready", "done_when": ["sync works offline"],
                   "ideas": 4, "done": 1, "usd": 12.4}]
         return {"goals": goals, "nodes": sorted(self.nodes, key=lambda n: (n["goal"] != "grow", n["tier"])), "edges": self.edges, "rev": self.rev}
@@ -479,3 +482,18 @@ def test_an_idea_opened_from_the_board_or_needs_you_says_where_it_was_opened_fro
     if need.count() and need.get_attribute("data-kind") in ("plan", "failed", "proposal", None):
         need.click()
         assert opened_via("needs")
+
+
+def test_a_goal_says_its_team_and_an_idea_how_many_of_its_checks_passed(mapped):
+    pg, host = mapped
+    goal = pg.locator('.map-goal[data-goal="grow"]')
+    team = goal.locator(".map-goal__team")
+    team.wait_for(timeout=WAIT_MS)
+    assert "Team: Product designer, Reviewer (checks every idea)" in team.inner_text()
+    assert team.locator("img.ork-race__head").count() == 2
+    mark = goal.locator('.map-card[data-slug="growth"] .map-card__checks')
+    assert mark.inner_text() == "checks 1/2" and "Accessibility reviewer: working" in mark.get_attribute("title")
+    assert pg.locator('.map-goal[data-goal="ship-sync"] .map-goal__team').count() == 0               # no team, no line
+    if os.environ.get("ORKCRAFT_SHOTS"):
+        SHOTS.mkdir(parents=True, exist_ok=True)
+        pg.screenshot(path=str(SHOTS / "desktop-map-team-1440x900.png"))
