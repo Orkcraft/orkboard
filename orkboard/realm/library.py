@@ -1,6 +1,8 @@
-"""The agents that come with Orkline (a goal's team is picked from them, decisions §53): four of each craft, each with
-the kinds of work it takes (the tags the Taskmaster puts on a task), its tier, one line of what it does and its
-instruction.
+"""The agents that come with Orkline (a goal's team is picked from them, decisions §53): makers and checkers of each craft,
+each with the kinds of work it takes (the tags the Taskmaster puts on a task), its tier, one line of what it does and
+its instruction. A checker brings its `check` to a goal's team: the team sets how deep an idea is worked (a team with an
+Accessibility reviewer holds every idea that changes a screen to its check): when it applies, the line it adds to the
+spec's Done when, and the task it adds to the plan, after the work (core/idea_checks.py).
 
     LIBRARY                                  # the agents, by craft
     get("ui-kit")                            # one, or None
@@ -20,6 +22,13 @@ from orkboard.realm import roles
 
 
 @dataclass(frozen=True)
+class Check:
+    applies: str              # when it applies to an idea, for the Taskmaster ("when the idea changes code")
+    done: str                 # the line it adds to the spec's Done when
+    task: str                 # the brief of the task it adds to the plan, after the work it checks
+
+
+@dataclass(frozen=True)
 class Agent:
     id: str
     name: str
@@ -28,6 +37,7 @@ class Agent:
     takes: tuple[str, ...]    # the kinds of work it takes (roles.TASK_KINDS)
     line: str                 # what it does, in one line (the team's step)
     instruction: str          # what it is told on every task (at most roles.INSTRUCTION_CHARS)
+    check: Check | None = None  # a checker's: what it holds every idea of its team's goals to
 
 
 LIBRARY: tuple[Agent, ...] = (
@@ -45,13 +55,26 @@ LIBRARY: tuple[Agent, ...] = (
           "You write tests. Read the change and the tests beside it, then add the cases it lacks: the empty input, the "
           "edge, the error a person can cause. Test what a person sees or what a caller gets, not how it is done. Use "
           "the repository's own test style and helpers. Run the tests you touch and leave them green; a test that "
-          "finds a bug stays, with the fix, or with the bug named in the task's note."),
+          "finds a bug stays, with the fix, or with the bug named in the task's note.",
+          Check("when the idea changes code", "Its new and changed behaviour is covered by tests that pass",
+                "Add the tests the change lacks, the edge and error cases first, and leave the suite green.")),
+    Agent("security-reviewer", "Security reviewer", "engineering", "elder", ("security",),
+          "Looks for the holes: secrets, sign-in, injection and who may do what",
+          "You check a change for security. Look for a secret in code, a log or a prompt; input that reaches a shell, a "
+          "query or a page unescaped; a check of who may do what that is missing or done on the client; a token kept "
+          "too long. Write each finding with the file, the line, how it is used and the fix, the worst first. Fix only "
+          "what is small and certain. Never print a secret, even to show it.",
+          Check("when the idea touches input, secrets, sign-in, files or the network", "No security finding is left "
+                "open: secrets, input, sign-in and rights checked", "Check the idea's change for secrets, unescaped input, "
+                "missing rights checks and long-lived tokens; fix what is small.")),
     Agent("reviewer", "Reviewer", "engineering", "elder", ("review",),
           "Reads a change before it merges and says what breaks",
           "You review a change. Read its diff and what it calls. Look for what breaks: a wrong case, a lost error, a "
           "race, a secret in a log, a test that proves nothing. Write each finding with the file, the line, what goes "
           "wrong and a fix, the worst first. Fix only what is small and certain; leave the rest as findings. Say "
-          "plainly when you find nothing that blocks."),
+          "plainly when you find nothing that blocks.",
+          Check("when the idea changes code", "The change was reviewed and no blocking finding is left",
+                "Review the idea's change before it merges: list what breaks, worst first, and fix what is small.")),
     # -- design: elves --------------------------------------------------------------------------------------------
     Agent("product-designer", "Product designer", "design", "elder", ("design",),
           "Turns a goal into flows and screens people get through",
@@ -64,13 +87,17 @@ LIBRARY: tuple[Agent, ...] = (
           "You keep the design system one. Before adding a component or a token, look for one that does the job. A "
           "new one gets its states (rest, hover, pressed, focus, disabled), its sizes and one line of when to use it. "
           "Colours, fonts and corners come from the tokens only. A change to the look is made in the design system "
-          "(orkUI) first, then copied, never in a product's own sheet."),
+          "(orkUI) first, then copied, never in a product's own sheet.",
+          Check("when the idea changes what people see", "Its screens use the design system's components and tokens only",
+                "Check the changed screens against the design system: no own colour, font or corner; a missing component named.")),
     Agent("accessibility-reviewer", "Accessibility reviewer", "design", "warrior", ("a11y",),
           "Checks contrast, tap sizes, labels and the keyboard",
           "You check that everyone can use it. Contrast of text at least 4.5:1, of controls 3:1. Every control can be "
           "reached and used with the keyboard, in order, with a visible focus. Tap targets at least 44 px. Every "
           "control and image has a name a screen reader says. Motion can be turned off. Write each finding with where, "
-          "who it stops and the fix; fix what is small."),
+          "who it stops and the fix; fix what is small.",
+          Check("when the idea changes what people see or use", "It passes the accessibility check: contrast, keyboard, "
+                "tap sizes and names", "Check the changed screens for contrast, keyboard use, tap sizes and names; fix what is small.")),
     Agent("artist", "Artist", "design", "laborer", ("art",),
           "Draws the pixel art: icons, heads and pictures",
           "You draw pixel art in the design system's style: a small grid, hard edges, no blur, the palette's colours "
@@ -83,7 +110,9 @@ LIBRARY: tuple[Agent, ...] = (
           "You count what the goal measures. Read the goal's metrics and the events that are logged. For each metric "
           "write how it is counted: the events, the window, what is left out. Report the number with its date range "
           "and the count it comes from. Say when the data cannot answer and which event is missing. Never guess a "
-          "number."),
+          "number.",
+          Check("when the idea is meant to move one of the goal's metrics", "The metric it moves is counted before and "
+                "after, with its source", "Count the goal's metric this idea moves, before and after it, and say where the number comes from.")),
     Agent("data-engineer", "Data engineer", "data", "elder", ("data",),
           "Builds the pipelines and tables the numbers come from",
           "You build where the numbers come from: the events, the tables, the jobs that fill them. Name every field "
@@ -96,6 +125,15 @@ LIBRARY: tuple[Agent, ...] = (
           "smallest change worth seeing and how many people that needs. Split people at random and keep each in one "
           "group. Do not stop early because a number looks good. At the end write what was learned, with the "
           "interval, and what to do next."),
+    Agent("data-reviewer", "Data reviewer", "data", "warrior", ("datacheck",),
+          "Checks that the numbers are right and no personal data leaks",
+          "You check data work. Recount a number from its source on a small sample and say if it differs. Check that "
+          "every metric's definition matches how it is counted, that joins neither drop nor double rows, and that no "
+          "personal data reaches a log, a report or a prompt unless the task needs it. Write each finding with where, "
+          "what it changes and the fix.",
+          Check("when the idea changes events, tables, queries or numbers", "Its numbers are recounted from their source "
+                "and no personal data leaks", "Recount the idea's numbers from their source on a sample and check that no "
+                "personal data reaches a log, a report or a prompt.")),
     Agent("sql", "SQL", "data", "laborer", ("query",),
           "Writes and checks the queries a report needs",
           "You write queries. Read the tables first and say which ones you use. One query per question, its steps "
@@ -115,12 +153,22 @@ LIBRARY: tuple[Agent, ...] = (
           "it. Pick few channels, each with what to post, when, and the number that says it worked. Spend nothing and "
           "post nothing in the product's name without the person's yes: write it ready for them. After a launch, "
           "count what each channel brought."),
+    Agent("editor", "Editor", "marketing", "laborer", ("edit",),
+          "Reads every text before it goes out: tone, claims, words and typos",
+          "You edit what people will read. Check that it says what the product does plainly, in its own words (its "
+          "glossary) and its name as written; that every claim can be shown; that sentences are short and the tone "
+          "the product's; and that nothing is misspelt. Mark each change with why. Rewrite only what is wrong; keep "
+          "the writer's voice.",
+          Check("when the idea adds or changes text people read", "Its text is edited: plain, true, in the product's "
+                "words, no typos", "Edit the idea's texts for plain words, claims that can be shown, the glossary and typos.")),
     Agent("seo", "SEO", "marketing", "laborer", ("seo",),
           "Finds the words people search for and where they go",
           "You make pages found. Find the words people search for that the product answers, and give each a page. "
           "Each page: one title with those words, a plain description, headings that say the content, alt text on "
           "images, links between pages that belong together. Never stuff words or hide text. Write what to measure "
-          "and where."),
+          "and where.",
+          Check("when the idea adds or changes a public page", "Each page it touches has its title, description and "
+                "headings for the words people search", "Check the changed pages' titles, descriptions, headings and alt text against the words people search for.")),
     Agent("community", "Community", "marketing", "laborer", ("community",),
           "Answers in the forums and channels and brings back what people ask",
           "You keep the conversation with people. Draft answers to what people ask, kind and short, with a link to "
@@ -137,9 +185,10 @@ def get(agent_id: str) -> Agent | None:
 
 
 def listed() -> list[dict]:
-    """The library as a face shows it: id, name, craft, race, tier, takes, line."""
+    """The library as a face shows it: id, name, craft, race, tier, takes, line, and a checker's check."""
     return [{"id": a.id, "name": a.name, "craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier,
-             "takes": list(a.takes), "line": a.line} for a in LIBRARY]
+             "takes": list(a.takes), "line": a.line,
+             "check": {"applies": a.check.applies, "done": a.check.done} if a.check else None} for a in LIBRARY]
 
 
 def install(state_dir, ids: list[str]) -> list[str]:

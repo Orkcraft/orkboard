@@ -18,7 +18,7 @@ pytestmark = pytest.mark.browser
 
 from orkboard.gui import pairing, phone_tls  # noqa: E402
 from orkboard.gui.board_host import BoardPhone  # noqa: E402
-from orkboard.realm import library  # noqa: E402
+from orkboard.realm import library, plans  # noqa: E402
 from tests.test_phones import _listening, _serve  # noqa: E402
 from tests.browser_kit import CHROMIUM, WAIT_MS, spki  # noqa: E402
 
@@ -48,6 +48,7 @@ class Stub:
         self.into, self.push = "dev", False
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
         self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
+        self.checks: list[dict] = []                      # the idea's checks (realm/idea_checks.py `status`), the sync idea's
         self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
         self.todos = [{"idea": "sync", "id": "t1", "title": "API_KEY", "kind": "secret", "why": "The sync service needs it", "choices": [],
                        "steps": [], "done": False}]
@@ -116,7 +117,8 @@ class Stub:
             i = self.ideas[a["slug"]]
             return {"slug": i["slug"], "title": i["title"], "track": "general", "state": i["state"], "size": "M",
                     "sections": [{"name": n, "thesis": f"{n} in one line", "text": f"{n} in one line\nAnd the {n} at length."} for n in SECTIONS],
-                    "talk": [], "plan": copy.deepcopy(self.plan) if a["slug"] == "sync" else None, "busy": False}
+                    "talk": [], "plan": copy.deepcopy(self.plan) if a["slug"] == "sync" else None, "busy": False,
+                    "checks": copy.deepcopy(self.checks) if a["slug"] == "sync" else []}
         if name == "ideas.review_list":
             return {"into": self.into, "push": self.push, "branches": ["dev", "main"], "results": self.results()}
         if name == "ideas.agents":
@@ -137,7 +139,7 @@ class Stub:
                     "kinds": [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()],
                     "models": [{"id": "", "label": "By Target"}, {"id": "elder", "label": "Elder · opus"},
                                {"id": "warrior", "label": "Warrior · sonnet"}, {"id": "laborer", "label": "Laborer · haiku"}],
-                    "library": library.listed(), "suggested": library.SUGGESTED}                  # the host's own library
+                    "library": library.listed(), "suggested": library.SUGGESTED, "tier_costs": dict(plans.DEFAULT_COST)}                  # the host's own library
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -584,7 +586,7 @@ async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_s
         await _shot(page, "phone-new-goal-390x844")
         await sheet.get_by_role("button", name="Save goal").click()
         assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "craft": "marketing",
-                                                       "team": ["copywriter", "growth"], "priority": "high"})
+                                                       "team": ["copywriter", "growth"], "every": [], "priority": "high"})
         screen = page.locator(".screen")
         await screen.get_by_text("the Taskmaster is reading", exact=False).first.wait_for(timeout=WAIT_MS)      # the goal on its own screen: reading
         stub.goals["more-people-try"].update(title="Grow installs", state="asks", summary="Installs are the first step.\nMore lines.", questions=["Which channel first?"],

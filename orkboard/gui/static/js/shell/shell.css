@@ -332,3 +332,7 @@
 .shell-team-mark { grid-area: mark; justify-self: end; color: var(--ork-ink-muted); }
 .shell-team-row[aria-pressed="true"] .shell-team-mark { color: var(--ork-action); }
 .shell-team-craft { margin: var(--ork-4) 0 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
+.shell-check-badge { margin-left: var(--ork-2); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
+.shell-checks { display: flex; flex-direction: column; gap: var(--ork-3); margin-top: var(--ork-4); }
+.shell-check-row { display: grid; grid-template-columns: 12px 1fr auto; gap: var(--ork-3); align-items: center; }
+.shell-check-every { display: inline-flex; align-items: center; gap: var(--ork-2); white-space: nowrap; }

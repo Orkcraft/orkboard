@@ -2,7 +2,7 @@
 // (scrolled to a to-do, said what it unblocks), a task (brief, state, log) or a result's code (commits, then the files, each
 // patch folded and scrolling sideways inside its own box — the page never does). Back (and the system back gesture) returns
 // to the tab it came from; its actions sit in a bar pinned at the bottom.
-import { h } from "./util.js";
+import { h, icon } from "./util.js";
 import { steady } from "./shell-util.js";
 import { stateWords } from "./shell-board.js";
 import { resultActions, factsOf, mergeReason } from "./shell-review.js";
@@ -140,6 +140,15 @@ export function makePreview(core, ctx) {
     return h("div", { class: "plan card" }, h("h3", {}, "The plan"), ...kids);
   }
 
+  /** The checks the goal's team holds this idea to (realm/idea_checks.py): passed, its task's state, or why it does not apply. */
+  function checksLine(checks) {
+    if (!(checks || []).length) return null;
+    const words = (c) => (!c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : c.state ? TASK_WORDS[c.state] || c.state : "in the plan to come");
+    return h("div", { class: "checks-line", role: "list", "aria-label": "Checks" }, h("span", { class: "field-label" }, "Checks"),
+      ...checks.map((c) => h("span", { class: `check-chip${c.applies ? "" : " is-off"}${c.state === "passed" ? " is-passed" : ""}`, role: "listitem" },
+        h("b", {}, c.state === "passed" ? icon("check") : null, c.name), h("small", {}, words(c)))));
+  }
+
   // why the Taskmaster's last step on it failed (a failed plan says its own under its button)
   const stateError = (p) => (["reading", "planning", "failed"].includes(p.state) ? "" : p.state_error || "");
 
@@ -149,6 +158,7 @@ export function makePreview(core, ctx) {
     body.replaceChildren(...[
       h("p", { class: "muted" }, [p.size ? `Size ${p.size} · ` : "", stateWords({ state: p.state, progress: { done: (p.plan?.tasks || []).filter((t) => t.state === "merged").length, total: (p.plan?.tasks || []).length } })].join("")),
       stateError(p) ? h("p", { class: "warn", role: "alert" }, stateError(p)) : null,
+      checksLine(p.checks),
       ...(p.sections || []).map(sectionBlock),
       p.plan && ["plan", "working", "failed", "done"].includes(p.state) ? planList(p.plan, p) : null,
       talk.length ? h("h3", {}, "The talk") : null,

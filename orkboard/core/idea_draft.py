@@ -18,7 +18,7 @@ import json
 import time
 from pathlib import Path
 
-from orkboard.realm import event_log, idea_photos, idea_risk, idea_target, ideas
+from orkboard.realm import event_log, goal_team, idea_checks, idea_photos, idea_risk, idea_target, ideas, roles
 
 OTHERS = 40                        # of the other goals' ideas not done, the most the draft is given
 MAX_DONE, MAX_OUT, MAX_TOUCHES, MAX_DEPENDS = 5, 3, 30, 8
@@ -95,6 +95,27 @@ class DraftMixin:
         self._start(slug, "drafting", lambda: self.draft_one(slug))
         return True
 
+    def team_checks(self, root: Path, slug: str) -> list[dict]:
+        """The checks of the idea's goal's team (realm/idea_checks.py): what the team holds the idea to."""
+        return idea_checks.of_team(self.state_dir, goal_team.for_idea(root, slug), goal_team.every_for_idea(root, slug))
+
+    def idea_checks(self, root: Path, slug: str) -> list[dict]:
+        """What the idea's draft said of its team's checks (the page's `checks`); every check applies when it said none."""
+        page = ideas.idea_page(root, slug)
+        said = ideas._json_list(page.get("checks")) if page is not None else []
+        return idea_checks.kept(said, self.team_checks(root, slug))
+
+    def role_of(self, task: dict) -> dict:
+        """The role a task runs as: the one its plan gave it from the goal's team, else its tag's in the project."""
+        return (roles.role(self.state_dir, str(task.get("role") or "")) if task.get("role") else None) \
+            or roles.role_for(self.state_dir, str(task.get("kind") or ""))
+
+    def team_lines(self, team: list[str]) -> str:
+        """The goal's team for the plan prompt: who does which tags (a task of a tag no one takes goes to Grunt)."""
+        known = roles.kinds(self.state_dir)
+        rows = [f"{r['name']} ({', '.join(sorted(roles.takes_of(r, known))) or 'code'})" for s in team if (r := roles.role(self.state_dir, s))]
+        return ("\n- The goal's team, by the tags each does: " + "; ".join(rows) + ". Tag each task so one of them does it.") if rows else ""
+
     def draft_prompt(self, root: Path, slug: str) -> str:
         """§0's `draft` context: its goal's Summary and Metrics, the goal's links as paths, the titles of the goal's other
         ideas and of the other goals' open ideas (≤ 40), the person's text."""
@@ -113,6 +134,8 @@ class DraftMixin:
         metrics = "\n".join(f"- {m['name']}" + (f" → {m['target']}" if m.get("target") else "")
                             + (f" (counted: {m['how']})" if m.get("how") else "") for m in (g or {}).get("metrics") or [])
         links = [x for x in (g or {}).get("links") or [] if "://" not in x]
+        checks = self.team_checks(root, slug)
+        checks_json = ',\n "checks": [{"by": "<a check\'s id>", "applies": true, "why": "when it does not apply: why, in one line"}]' if checks else ""
         context = idea_target.cut([("The idea, in the person's words", page.section("Gist")),
                                    ("Its goal's summary", (g or {}).get("summary", "")), ("Its goal's metrics", metrics),
                                    ("Its goal's links (paths)", "\n".join(f"- {x}" for x in links)),
@@ -121,7 +144,7 @@ class DraftMixin:
         return f"""You are the keeper of this project's Task board. A person wrote an idea under the goal
 {(g or {}).get('title', track)}: write its spec straight away. You may read the repository (read only).
 {self.reads("draft", links)}
-{idea_photos.prompt_lines(self.state_dir, slug)}
+{idea_photos.prompt_lines(self.state_dir, slug)}{idea_checks.draft_lines(checks)}
 {context}Answer with one JSON object and nothing else:
 {{"title": "a short title",
  "gist": "the idea rewritten clearly: its first line one sentence, the thesis; then a few lines if needed",
@@ -135,7 +158,7 @@ class DraftMixin:
  "depends_on": ["the slugs of listed ideas, of any goal, that must be done first"],
  "size": "S, M or L",
  "before": "the slug of the goal's idea this one should stand before, or empty",
- "questions": ["zero to three questions the person must answer before it can be planned, all at once, each ending with its likely answers: (one / other)"]}}
+ "questions": ["zero to three questions the person must answer before it can be planned, all at once, each ending with its likely answers: (one / other)"]{checks_json}}}
 """
 
     def draft_one(self, slug: str) -> None:
@@ -257,7 +280,11 @@ Section names: {", ".join(names)}."""
             sections["Gist"] = gist
         if why := w(answer.get("why"), ideas.SECTION_CHARS):
             sections["Why"] = why
-        if done := ss(answer.get("done_when"), MAX_DONE):
+        checks = self.team_checks(root, slug)
+        kept_checks = idea_checks.kept(answer.get("checks"), checks)
+        done = ss(answer.get("done_when"), MAX_DONE)
+        done += [c["done"] for c in checks for k in kept_checks if k["by"] == c["by"] and k["applies"] and c["done"] not in done]
+        if done:                                     # a check that applies: its line, whether the draft wrote it or not
             sections["Done when"] = kw._bullets(done)
         sections["Out"] = kw._bullets(ss(answer.get("out"), MAX_OUT))
         risks = answer.get("risks") if isinstance(answer.get("risks"), dict) else {}
@@ -276,7 +303,8 @@ Section names: {", ".join(names)}."""
         ideas.update(root, slug, sections)
         meta: dict[str, str] = {"risk_model": idea_risk.level(answer.get("risk")),
                                 "touches": json.dumps(ss(answer.get("touches"), MAX_TOUCHES, 200), ensure_ascii=False),
-                                "depends_on": json.dumps(depends, ensure_ascii=False)}
+                                "depends_on": json.dumps(depends, ensure_ascii=False),
+                                "checks": json.dumps(kept_checks)}
         size = w(answer.get("size"), 2).upper()
         if size in ideas.SIZES:
             meta["size"] = size

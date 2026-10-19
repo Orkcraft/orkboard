@@ -1,8 +1,10 @@
 // New goal on the phone in three steps, one sheet: 1. its craft —
 // four tiles, the race's head on each (decisions §53), and Mixed —; 2. its team — the agents of the library that craft suggests, as
 // seats, a tap takes one in or out, any craft's from the library (Mixed: the whole library, by craft, none taken); the Taskmaster is in
-// every team —; 3. what it is for — the description, the priority, what is left of the AI tools —, Save goal. A task goes to the one
-// of the team who does its kind of work, whatever the goal's craft; a Mixed goal's craft is its team's most.
+// every team —; 3. what it is for — the description, the priority, the team's checks (each checker's, where it applies or on every
+// idea, and what it adds to an idea), what is left of the AI tools —, Save goal. A task goes to the one of the team who does its kind
+// of work, whatever the goal's craft; a Mixed goal's craft is its team's most. The team sets how deep an idea is worked: a checker's
+// check adds its line to the spec's Done when and its task to the plan (realm/idea_checks.py).
 import { h, sheet, head, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "./shell-who.js";
@@ -19,7 +21,7 @@ const suggested = (core) => core.st.roles?.suggested ?? 2;  // the library's fir
 
 /** `core`: the board's frame. Returns {el, open(after)}; `after(slug)` instead of opening the goal's screen. */
 export function makeNewGoal(core) {
-  let step = 1, craft = "", team = [], more = false, then = null;
+  let step = 1, craft = "", team = [], every = [], more = false, then = null;
   const body = h("div", { class: "goal-steps" });
   const sh = sheet("New goal", body);
   const about = h("textarea", { class: "ork-field", rows: "5", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
@@ -49,7 +51,8 @@ export function makeNewGoal(core) {
       "aria-label": `${on ? "Take out" : "Take in"}: ${a.name}`, onclick: () => {
         team = on ? team.filter((x) => x !== a.id) : team.length < SEATS ? [...team, a.id] : team;
         draw();
-      } }, head(RACE[a.craft], a.tier), h("b", {}, a.name), h("small", { class: "muted" }, `${TIER_WORDS[a.tier]} ${RACE_WORDS[RACE[a.craft]]} · ${a.line}`),
+      } }, head(RACE[a.craft], a.tier), h("b", {}, a.name, a.check ? h("span", { class: "check-badge" }, "checks") : null),
+      h("small", { class: "muted" }, `${TIER_WORDS[a.tier]} ${RACE_WORDS[RACE[a.craft]]} · ${a.line}`),
       h("span", { class: "team-mark", "aria-hidden": "true" }, icon(on ? "check" : "plus")));
   }
 
@@ -77,7 +80,8 @@ export function makeNewGoal(core) {
     about.oninput = () => { save.disabled = !about.value.trim(); };
     save.addEventListener("click", async () => {
       save.disabled = true;
-      const got = await core.call("ideas.goal_save", { about: about.value.trim(), craft: craftOf(), team, priority: priority.get() });
+      const got = await core.call("ideas.goal_save", { about: about.value.trim(), craft: craftOf(), team, every: every.filter((id) => team.includes(id)),
+        priority: priority.get() });
       save.disabled = false;
       if (!got?.slug) return;
       const after = then;
@@ -91,7 +95,26 @@ export function makeNewGoal(core) {
     return [h("p", { class: "muted" }, h("span", {}, `${craft === MIXED ? `Mixed, mostly ${CRAFT_WORDS[craftOf()]}` : CRAFT_WORDS[craft]} · `), heads),
       field("Description", about), h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el),
       h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the title, the summary, what counts as done and the links."),
-      limitsNote(core.st.snap), foot(back(), save)].filter(Boolean);
+      checksBlock(), limitsNote(core.st.snap), foot(back(), save)].filter(Boolean);
+  }
+
+  /** The team's checks: each checker's, where it applies or on every idea, and what a check adds to an idea, in dollars. */
+  function checksBlock() {
+    const costs = core.st.roles?.tier_costs || {};
+    const checkers = team.map((id) => library(core).find((a) => a.id === id)).filter((a) => a?.check);
+    if (!checkers.length) return h("p", { class: "muted hint" }, "No checker in the team: an idea is done when its own Done when lines are.");
+    const priced = checkers.every((a) => Number(costs[a.tier]) > 0);       // no price known: no number said
+    const usd = (n) => (priced ? ` · ≈ $${Number(n).toFixed(2)}` : "");
+    const total = checkers.reduce((sum, a) => sum + Number(costs[a.tier] || 0), 0);
+    return h("div", { class: "checks-block", role: "group", "aria-label": "Checks" }, h("h3", {}, "Checks"),
+      h("p", { class: "muted" }, `How deep each idea is worked: every check adds a line to its Done when and a task to its plan${priced ? `, ≈ $${total.toFixed(2)} an idea they all apply to` : ""}.`),
+      ...checkers.map((a) => {
+        const box = h("input", { type: "checkbox", "aria-label": `Every idea: ${a.name}`, ...(every.includes(a.id) ? { checked: true } : {}) });
+        box.addEventListener("change", () => { every = box.checked ? [...every, a.id] : every.filter((x) => x !== a.id); });
+        return h("div", { class: "check-row" }, head(RACE[a.craft], a.tier, { small: true }),
+          h("span", { class: "check-text" }, h("b", {}, a.name), h("small", { class: "muted" }, `${a.check.done} · applies ${a.check.applies}${usd(costs[a.tier])}`)),
+          h("label", { class: "check-every" }, box, h("span", {}, "Every idea")));
+      }));
   }
 
   /** The goal's craft: the one picked, or a Mixed team's most (the first in the team on a tie). */
@@ -109,7 +132,7 @@ export function makeNewGoal(core) {
   return {
     el: sh.el,
     open(after = null) {
-      step = 1; craft = ""; team = []; more = false; then = after;
+      step = 1; craft = ""; team = []; every = []; more = false; then = after;
       about.value = "";
       priority.set("normal");
       draw();

@@ -476,3 +476,19 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .craft-tile .craft-heads .ork-race__head { width: 24px; height: 22px; }
 .team-mark-heads { display: inline-flex; gap: 2px; }
 .goal-team { margin: 0; font: var(--ork-type-caption); }
+
+/* -- a team's checks (realm/idea_checks.py): the checker's badge, the goal's Checks block, the spec's Checks line ---------------- */
+.check-badge { margin-left: var(--ork-2); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
+.checks-block { display: flex; flex-direction: column; gap: var(--ork-3); }
+.checks-block h3 { margin: 0; }
+.check-row { display: grid; grid-template-columns: 12px 1fr auto; gap: var(--ork-3); align-items: center; }
+.check-text { display: flex; flex-direction: column; min-width: 0; }
+.check-every { display: inline-flex; align-items: center; gap: var(--ork-2); min-height: var(--ork-tap); font: var(--ork-type-caption); white-space: nowrap; }
+.checks-line { display: flex; flex-wrap: wrap; gap: var(--ork-3); align-items: center; }
+.check-chip { display: inline-flex; flex-direction: column; padding: var(--ork-2) var(--ork-3); border: var(--ork-line) solid var(--ork-edge); }
+.check-chip small { color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.check-chip.is-off { border-style: dashed; border-color: var(--ork-frame); }
+.check-chip.is-passed { border-color: var(--ork-success); }
+.check-chip.is-passed .ork-icon { color: var(--ork-success); width: 12px; height: 12px; }
+.checks-line > .field-label { flex: 1 0 100%; }
+.check-chip b { display: inline-flex; align-items: center; gap: var(--ork-2); }

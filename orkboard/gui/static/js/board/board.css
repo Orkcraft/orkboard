@@ -193,3 +193,12 @@
 .map-task[data-state="failed"] { color: var(--ork-danger); }
 .map-done { display: flex; flex-direction: column; gap: var(--ork-4); align-items: flex-start; }
 .map-done__btn { color: var(--ork-ink-muted); }
+
+/* -- the checks a goal's team holds an idea to (idea.js Checks; realm/idea_checks.py) -- */
+.board-checks { display: flex; flex-wrap: wrap; gap: var(--ork-3); align-items: center; margin: var(--ork-3) 0; }
+.board-check { display: inline-flex; flex-direction: column; padding: var(--ork-2) var(--ork-3); border: var(--ork-line) solid var(--ork-edge); }
+.board-check small { color: var(--ork-ink-muted); }
+.board-check.is-off { border-style: dashed; border-color: var(--ork-frame); }
+.board-check.is-passed { border-color: var(--ork-success); }
+.board-check .ork-icon { color: var(--ork-success); width: 12px; height: 12px; }
+.board-checks > .ok-font-label { flex: 1 0 100%; }
