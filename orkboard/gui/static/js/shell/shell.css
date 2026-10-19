@@ -304,3 +304,31 @@
 .board-stages__task > .ork-race__head { align-self: center; }
 .map-task > .ork-race__head { display: inline-block; margin-right: var(--ork-2); vertical-align: -1px; }
 .board-stages__task > .ork-race__head { display: inline-block; vertical-align: -1px; }
+
+/* -- New goal in three steps (goalwizard.js): the steps, the craft's tiles, the team's seats and rows, as on the phone ------------- */
+.shell-steps { list-style: none; margin: 0 0 var(--ork-5); padding: 0; display: flex; gap: var(--ork-3); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.shell-steps li { flex: 1 1 0; padding-bottom: var(--ork-2); color: var(--ork-ink-faint); box-shadow: inset 0 -2px 0 var(--ork-frame); }
+.shell-steps li.is-done { color: var(--ork-ink-muted); box-shadow: inset 0 -2px 0 var(--ork-ink-muted); }
+.shell-steps li.is-on { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.shell-craft-tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--ork-4); }
+.shell-craft-tile { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-2);
+  padding: var(--ork-5); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); }
+.shell-craft-tile > .ork-race__head { width: 48px; height: 44px; image-rendering: pixelated; }
+.shell-craft-tile b { font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); }
+.shell-craft-tile.mixed { grid-column: 1 / -1; }
+.shell-craft-tile:hover, .shell-team-row:hover { background: var(--ork-raised); }
+.shell-craft-tile:focus-visible, .shell-team-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.shell-craft-heads { display: inline-flex; gap: var(--ork-2); }
+.shell-team-seats { display: flex; gap: var(--ork-3); }
+.shell-team-seat { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: var(--ork-line) solid var(--ork-edge); }
+.shell-team-seat.is-empty { border-style: dashed; border-color: var(--ork-frame); }
+.shell-team-seat.is-keeper { background: var(--ork-raised); }
+.shell-team-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 24px 1fr 28px;
+  grid-template-areas: "head name mark" "head line mark"; column-gap: var(--ork-4); align-items: center; padding: var(--ork-3) 0;
+  border-bottom: var(--ork-line) solid var(--ork-frame); }
+.shell-team-row > img { grid-area: head; }
+.shell-team-row > b { grid-area: name; }
+.shell-team-row > small { grid-area: line; }
+.shell-team-mark { grid-area: mark; justify-self: end; color: var(--ork-ink-muted); }
+.shell-team-row[aria-pressed="true"] .shell-team-mark { color: var(--ork-action); }
+.shell-team-craft { margin: var(--ork-4) 0 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }

@@ -1,4 +1,4 @@
-"""New goal in three steps on the phone (shell-goal-new.js, a mock of the team's flow): its craft, its team from the library,
+"""New goal in three steps on the phone (shell-goal-new.js): its craft, its team from the library (the host's, realm/library.py),
 what it is for. The Board is the stub's (tests/test_pwa_shell_browser.py)."""
 from __future__ import annotations
 
@@ -58,3 +58,27 @@ async def test_a_mixed_goal_starts_empty_with_the_whole_library_by_craft_and_is_
         await sheet.get_by_role("button", name="Save goal").click()
         assert await _called(stub, "ideas.goal_save", {"about": "Launch the beta: the build and its page.", "craft": "marketing",
                                                        "team": ["grunt", "copywriter", "seo"], "priority": "normal"})
+
+
+@pytest.mark.asyncio
+async def test_the_goal_s_card_wears_its_team_s_heads_and_names_them_and_the_top_bar_its_craft_s_head(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        from orkboard.realm import library
+        for a in (library.get("product-designer"), library.get("accessibility-reviewer"), library.get("analyst")):
+            race = {"design": "elf", "data": "goblin"}[a.craft]
+            stub.roles[a.id] = {"slug": a.id, "name": a.name, "model": a.tier, "max_parallel": 2, "instruction": a.instruction,
+                                "builtin": False, "craft": a.craft, "head": {"craft": a.craft, "race": race, "tier": a.tier}}
+        stub.goals["land"] = stub.goal("land", "Landing page", "high", "ready", craft="design", race="elf",
+                                       team=["product-designer", "accessibility-reviewer", "analyst"])
+        stub.bump({})
+        await page.locator(".board-bar .goal-chip").click()
+        await page.get_by_role("dialog", name="Goals").locator('.goal-row[data-goal="land"]').click()
+        chip, card = page.locator(".board-bar .goal-chip"), page.locator(".goal-now")
+        await card.locator(".team-mark-heads img").nth(2).wait_for(timeout=WAIT_MS)
+        assert [await i.get_attribute("src") for i in await card.locator(".team-mark-heads img").all()] == [
+            "races/elf-elder.png", "races/elf-warrior.png", "races/goblin-warrior.png"]
+        assert await chip.locator("img").get_attribute("src") == "races/elf-laborer.png"                # the bar: the craft's one head
+        assert "Team: Product designer, Accessibility reviewer, Analyst" in await page.locator(".goal-now").inner_text()
+        await _shot(page, "phone-goal-team-board-390x844")
+        await page.locator(".idea-card").first.wait_for(state="attached", timeout=WAIT_MS) if await page.locator(".idea-card").count() else None
+        assert await page.evaluate(NO_SCROLL)

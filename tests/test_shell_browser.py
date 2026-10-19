@@ -14,6 +14,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
+from orkboard.realm import library  # noqa: E402
 
 _TODAY = dt.date.today().isoformat()                 # a reset today reads "resets at 18:00", whatever the day
 _IN_TWO_DAYS = (dt.date.today() + dt.timedelta(days=2)).isoformat()
@@ -160,7 +161,8 @@ class StubHost:
         if name == "ideas.roles":
             return {"roles": [r | {"spend_today": 0} for r in self.roles.values()], "kinds": self.kind_list(),
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
-                               {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}]}
+                               {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],
+                    "library": library.listed(), "suggested": library.SUGGESTED}
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -564,6 +566,15 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
     pg, host = shell
     pg.get_by_role("button", name="New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
+    assert dlg.locator(".shell-craft-tile").count() == 5                                            # 1. its craft: four and Mixed
+    dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # 2. its team: the craft's first two
+    assert dlg.get_by_role("button", name="Take out: Product designer").is_visible()
+    dlg.get_by_role("button", name="+ From the library: the other crafts' agents").click()
+    dlg.get_by_role("button", name="Take in: Analyst").click()
+    if os.environ.get("ORKCRAFT_SHOTS"):
+        SHOTS.mkdir(parents=True, exist_ok=True)
+        pg.screenshot(path=str(SHOTS / "desktop-new-goal-team-1440x900.png"))
+    dlg.get_by_role("button", name="Next").click()                                                  # 3. what it is for
     assert dlg.is_visible() and dlg.get_by_role("button", name="Save goal").is_disabled()           # a description is required
     assert dlg.get_by_label("Title").count() == 0 and dlg.get_by_label("Deadline").count() == 0     # nothing else is asked
     assert dlg.get_by_label("Metric 1: what is measured").count() == 0 and dlg.get_by_label("Link 1", exact=True).count() == 0
@@ -574,7 +585,8 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
         pg.screenshot(path=str(SHOTS / "desktop-new-goal-1440x900.png"))
     dlg.get_by_role("button", name="Save goal").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "priority": "high"}
+    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "craft": "design",
+                                                      "team": ["product-designer", "ui-kit", "analyst"], "priority": "high"}
     pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)                                             # the goal opens in the preview
     assert "drafting" in pg.locator(".board-state", has_text="reading").first.inner_text() or "reading" in pg.locator(".shell-goal").inner_text()
     assert "reading" in pg.locator(".board-goals__select option:checked").inner_text()
@@ -643,6 +655,8 @@ def test_with_no_goal_yet_new_idea_opens_new_goal_first_and_then_itself_with_tha
     pg.wait_for_function("() => document.querySelectorAll('.board-goals__select option').length === 1", timeout=WAIT_MS)
     pg.get_by_role("button", name="New idea").click()
     dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
+    dlg.get_by_role("button", name="Next").click()
     dlg.get_by_label("Description").fill("Make notes searchable.")
     dlg.get_by_role("button", name="Save goal").click()
     idea = pg.get_by_role("dialog", name="New idea")

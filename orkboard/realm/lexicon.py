@@ -144,6 +144,9 @@ TERMS: tuple[Term, ...] = (
     # an agent's craft, drawn as the head of its race in orkUI (realm/roles.py CRAFTS, RACES; decisions §53): the race says
     # what the agent does, the gear on its head its tier (a novice bare, a seasoned in iron, a veteran hooded)
     _t("craft", "craft", "crafts"),
+    _t("team", "team", "teams"),                                   # a goal's agents, picked from the library (realm/goal_team.py)
+    _t("library", "library"),                                      # the agents that come with Orkline (realm/library.py)
+    _t("tag", "tag", "tags"),                                      # a task's kind of work: who of the team does it (roles.TASK_KINDS)
     _t("craft.engineering", "Engineering"),                        # an ork: the Taskmaster, the Grunts, a role of code
     _t("craft.design", "Design"),                                  # an elf
     _t("craft.data", "Data"),                                      # a goblin

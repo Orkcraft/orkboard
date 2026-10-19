@@ -474,3 +474,5 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .craft-heads { display: inline-flex; gap: var(--ork-2); }
 .team-craft { margin: var(--ork-3) 0 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
 .craft-tile .craft-heads .ork-race__head { width: 24px; height: 22px; }
+.team-mark-heads { display: inline-flex; gap: 2px; }
+.goal-team { margin: 0; font: var(--ork-type-caption); }
