@@ -20,19 +20,21 @@ async def test_new_goal_picks_a_craft_then_its_team_from_the_library_then_what_i
         await sheet.locator('.craft-tile[data-craft="design"]').click()                                  # 2. the team: the craft's agents in it
         rows = sheet.locator(".team-row")
         await rows.first.wait_for(timeout=WAIT_MS)
-        assert [await r.get_attribute("aria-pressed") for r in await rows.all()] == ["true", "true"]
+        assert [await r.get_attribute("aria-pressed") for r in await rows.all()] == ["true", "true", "false", "false"]   # four of the craft, two in
         assert await sheet.locator(".team-seat:not(.is-empty):not(.is-keeper)").count() == 2
         await sheet.get_by_role("button", name="+ From the library: the other crafts' agents").click()
         await sheet.get_by_role("button", name="Take in: Analyst").click()
-        await sheet.get_by_role("button", name="Take out: UX writer").click()
-        assert await sheet.locator(".team-seat:not(.is-empty):not(.is-keeper)").count() == 2
+        await sheet.get_by_role("button", name="Take out: Design system designer").click()
+        await sheet.get_by_role("button", name="Take in: Accessibility reviewer").click()
+        assert await sheet.locator(".team-seat:not(.is-empty):not(.is-keeper)").count() == 3
+        await sheet.locator(".team-seats").scroll_into_view_if_needed()
         await _shot(page, "phone-goal-2-team-390x844")
         await sheet.get_by_role("button", name="Next").click()                                           # 3. what it is for
         await sheet.get_by_label("Description").fill("A landing page that says what Orkline does in one screen.")
         await _shot(page, "phone-goal-3-what-390x844")
         await sheet.get_by_role("button", name="Save goal").click()
         assert await _called(stub, "ideas.goal_save", {"about": "A landing page that says what Orkline does in one screen.", "craft": "design",
-                                                       "team": ["ui-designer", "analyst"], "priority": "normal"})
+                                                       "team": ["product-designer", "analyst", "accessibility-reviewer"], "priority": "normal"})
         assert await page.evaluate(NO_SCROLL)
 
 
@@ -44,6 +46,7 @@ async def test_a_mixed_goal_starts_empty_with_the_whole_library_by_craft_and_is_
         await sheet.locator('.craft-tile[data-craft="mixed"]').click()
         await sheet.locator(".team-craft").first.wait_for(timeout=WAIT_MS)
         assert [t.lower() for t in await sheet.locator(".team-craft").all_inner_texts()] == ["engineering", "design", "data", "marketing"]
+        assert await sheet.locator(".team-row").count() == 16                                            # four of each craft
         assert await sheet.locator('.team-row[aria-pressed="true"]').count() == 0                       # none taken: each is picked
         assert await sheet.get_by_role("button", name="Next").is_disabled()
         for name in ("Grunt", "Copywriter", "SEO"):

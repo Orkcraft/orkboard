@@ -16,13 +16,21 @@ const SEATS = 5;                                       // a team's seats, the Ta
 // The library: agents that come with Orkline, each with what it does (a mock: the host's roles take their place).
 export const LIBRARY = [
   { id: "grunt", name: "Grunt", craft: "engineering", tier: "warrior", line: "Writes the code a task asks for, with its tests" },
+  { id: "architect", name: "Architect", craft: "engineering", tier: "elder", line: "Splits a wide change into steps and keeps the modules apart" },
+  { id: "tester", name: "Tester", craft: "engineering", tier: "laborer", line: "Writes the tests a change lacks and finds the cases that break it" },
   { id: "reviewer", name: "Reviewer", craft: "engineering", tier: "elder", line: "Reads a change before it merges and says what breaks" },
-  { id: "ui-designer", name: "UI designer", craft: "design", tier: "warrior", line: "Lays out screens in orkUI and checks them at phone width" },
-  { id: "ux-writer", name: "UX writer", craft: "design", tier: "laborer", line: "Writes the labels, hints and errors people read" },
+  { id: "product-designer", name: "Product designer", craft: "design", tier: "elder", line: "Turns a goal into flows and screens people get through" },
+  { id: "design-system-designer", name: "Design system designer", craft: "design", tier: "warrior", line: "Keeps the components and tokens one: adds what is missing in orkUI" },
+  { id: "accessibility-reviewer", name: "Accessibility reviewer", craft: "design", tier: "warrior", line: "Checks contrast, tap sizes, labels and the keyboard" },
+  { id: "artist", name: "Artist", craft: "design", tier: "laborer", line: "Draws the pixel art: icons, heads and pictures" },
   { id: "analyst", name: "Analyst", craft: "data", tier: "warrior", line: "Turns the event log into the goal's metrics" },
+  { id: "data-engineer", name: "Data engineer", craft: "data", tier: "elder", line: "Builds the pipelines and tables the numbers come from" },
+  { id: "experimenter", name: "Experimenter", craft: "data", tier: "warrior", line: "Sets up an A/B test and says when it is decided" },
   { id: "sql", name: "SQL", craft: "data", tier: "laborer", line: "Writes and checks the queries a report needs" },
   { id: "copywriter", name: "Copywriter", craft: "marketing", tier: "warrior", line: "Writes the pages and posts, in the product's voice" },
+  { id: "growth", name: "Growth", craft: "marketing", tier: "elder", line: "Plans the launch and the channels, and counts what they bring" },
   { id: "seo", name: "SEO", craft: "marketing", tier: "laborer", line: "Finds the words people search for and where they go" },
+  { id: "community", name: "Community", craft: "marketing", tier: "laborer", line: "Answers in the forums and channels and brings back what people ask" },
 ];
 const SUGGESTED = 2;
 const MIXED = "mixed";                                   // the library's first ones of the goal's craft come in the team at once
