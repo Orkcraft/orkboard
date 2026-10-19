@@ -80,7 +80,7 @@ async def test_the_dialog_is_a_sheet_with_by_target_a_counter_and_takes_that_mov
         assert await sheet.get_by_role("button", name="Save agent").is_disabled()
         await sheet.get_by_label("Instruction").fill("Write plainly.")
         await sheet.get_by_role("button", name="Save agent").click()
-        assert await _called(stub, "ideas.role_save", {"name": "Docs scribe", "model": "", "max_parallel": 2, "instruction": "Write plainly.", "kinds": ["docs"]})
+        assert await _called(stub, "ideas.role_save", {"name": "Docs scribe", "model": "", "max_parallel": 2, "instruction": "Write plainly.", "kinds": ["docs"], "craft": "engineering"})
         await agents.locator(".role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
         assert "Takes: docs" in await agents.locator(".role[data-slug='docs-scribe']").inner_text()
         assert "docs" not in (await agents.locator(".role[data-role='grunt']").inner_text()).split("Takes:")[1].split("\n")[0]   # Grunt's block no longer says it

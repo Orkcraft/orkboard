@@ -1,30 +1,35 @@
-// Add agent / Edit agent on the phone, a sheet (docs/specs/34-v1-round-2.md §3; spec 36 §3, §5): a name, a model (By Target, or a tier),
+// Add agent / Edit agent on the phone, a sheet (docs/specs/34-v1-round-2.md §3; spec 36 §3, §5): a name, its craft (the race of its head,
+// decisions §53; Taskmaster and Grunt are orks), a model (By Target, or a tier: the gear on its head),
 // how many may work at once, an instruction of at most 600 characters added to every task prompt of that agent, and the task types it
 // takes. An agent of your own can be deleted (its task types go back to Grunt, said first); Taskmaster and Grunt can be edited, not
 // deleted; Grunt's types are shown, not editable, and the Taskmaster takes none. `assign`: a task type a new agent starts with.
 import { h, sheet } from "./util.js";
 import { field, foot } from "./shell-forms.js";
+import { who, CRAFT_WORDS, RACE_WORDS } from "./shell-who.js";
 
 const LIMIT = 600;
 
 export function makeAgentSheet(core) {
-  const name = h("input", { class: "ok-input", type: "text", "aria-label": "Name", placeholder: "Docs scribe", maxlength: "40", required: true });
-  const model = h("select", { class: "ok-input", "aria-label": "Model" });
-  const many = h("select", { class: "ok-input", "aria-label": "At most at once" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => h("option", { value: String(n) }, String(n))));
+  const name = h("input", { class: "ork-field", type: "text", "aria-label": "Name", placeholder: "Docs scribe", maxlength: "40", required: true });
+  const craft = h("select", { class: "ork-field", "aria-label": "Craft" });
+  const craftHint = h("small", { class: "muted" });
+  const whoNow = h("div", { class: "craft-now", "aria-live": "polite" });
+  const model = h("select", { class: "ork-field", "aria-label": "Model" });
+  const many = h("select", { class: "ork-field", "aria-label": "At most at once" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => h("option", { value: String(n) }, String(n))));
   const modelHint = h("small", { class: "muted" }, "By Target: the task's own tier, moved by the Target");
-  const instruction = h("textarea", { class: "ok-input", rows: "5", "aria-label": "Instruction", placeholder: "Added to every task this agent does" });
+  const instruction = h("textarea", { class: "ork-field", rows: "5", "aria-label": "Instruction", placeholder: "Added to every task this agent does" });
   const counter = h("small", { class: "muted counter", "aria-live": "polite" });
   const longNote = h("p", { class: "warn", hidden: true }, "Only the first 600 characters go to the ork: shorten it");
   const takesBox = h("fieldset", { class: "field takes" });
   const note = h("p", { class: "muted", hidden: true });
-  const save = h("button", { class: "ok-btn primary big", type: "submit", disabled: true }, "Save agent");
-  const cancel = h("button", { class: "ok-btn big", type: "button" }, "Cancel");
+  const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save agent");
+  const cancel = h("button", { class: "ork-btn big", type: "button" }, "Cancel");
   const del = h("button", { class: "linkish", type: "button" }, "Delete…");
   const sureText = h("p", { class: "warn" });
-  const sureBtn = h("button", { class: "ok-btn danger big", type: "button" }, "Delete agent");
-  const keep = h("button", { class: "ok-btn big", type: "button" }, "Keep it");
+  const sureBtn = h("button", { class: "ork-btn danger big", type: "button" }, "Delete agent");
+  const keep = h("button", { class: "ork-btn big", type: "button" }, "Keep it");
   const sure = h("div", { class: "sure", hidden: true }, sureText, sureBtn, keep);
-  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Model", model), modelHint, field("At most at once", many), field("Instruction", instruction), counter, longNote, takesBox,
+  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Craft", craft), craftHint, whoNow, field("Model", model), modelHint, field("At most at once", many), field("Instruction", instruction), counter, longNote, takesBox,
     note, h("div", {}, del), sure, foot(cancel, save));
   const sh = sheet("Add agent", form);
   let slug = "", assign = "";
@@ -35,6 +40,13 @@ export function makeAgentSheet(core) {
     counter.classList.toggle("warn", n > LIMIT);
     save.disabled = !ok();
   };
+  /** The head the agent will wear: its craft's race at the tier its model gives under the Target (ideas.roles `crafts`). */
+  const drawWho = () => {
+    const c = (core.st.roles?.crafts || []).find((x) => x.craft === craft.value);
+    whoNow.replaceChildren(c ? who({ craft: c.craft, race: c.race, tier: c.heads?.[model.value] || "warrior" }) : "");
+  };
+  craft.addEventListener("change", drawWho);
+  model.addEventListener("change", drawWho);
   name.addEventListener("input", count);
   instruction.addEventListener("input", count);
   cancel.addEventListener("click", () => sh.close());
@@ -53,7 +65,7 @@ export function makeAgentSheet(core) {
     e.preventDefault();
     if (!name.value.trim()) return;
     save.disabled = true;
-    const kinds = slug === "grunt" || slug === "taskmaster" ? {} : { kinds: [...takesBox.querySelectorAll("input:checked")].map((i) => i.value) };
+    const kinds = slug === "grunt" || slug === "taskmaster" ? {} : { kinds: [...takesBox.querySelectorAll("input:checked")].map((i) => i.value), craft: craft.value };
     const got = await core.call("ideas.role_save", { ...(slug ? { slug } : {}), name: name.value.trim(), model: model.value, max_parallel: Number(many.value),
       instruction: instruction.value, ...kinds });
     save.disabled = !ok();
@@ -84,6 +96,12 @@ export function makeAgentSheet(core) {
       const hand = r?.hand_model ? [{ id: r.model, label: `${r.model} (set by hand)` }] : [];
       model.replaceChildren(...[...(data?.models || []), ...hand].filter((m) => m.id || r?.slug !== "taskmaster").map((m) => h("option", { value: m.id }, m.label)));
       model.value = r ? r.model : "";
+      const crafts = data?.crafts?.length ? data.crafts : [{ craft: "engineering", label: "Engineering", race: "peon" }];
+      craft.replaceChildren(...crafts.map((c) => h("option", { value: c.craft }, `${CRAFT_WORDS[c.craft] || c.label}: ${/^[aeiou]/.test(RACE_WORDS[c.race]) ? "an" : "a"} ${RACE_WORDS[c.race]}`)));
+      craft.value = r?.craft || "engineering";
+      craft.disabled = r?.slug === "taskmaster" || r?.slug === "grunt";
+      craftHint.textContent = craft.disabled ? "Taskmaster and Grunt are orks: engineering" : "Its head on Agents: the race says the craft, the gear the tier";
+      drawWho();
       modelHint.hidden = r?.slug === "taskmaster";
       many.value = String(r?.max_parallel || 2);
       instruction.value = r?.instruction_long || r?.instruction || "";

@@ -1,7 +1,7 @@
 // The phone's top bar (docs/specs/33-v1-shell.md §6): Orkline · what is left of the AI tools as one chip — the smallest
 // of all of them, a tap opens each tool's windows with when they reset — · today's Spend · Stop all · the gear (Push after
 // merging). Roles only: warning at 20 % or less left, danger at 5 % or less.
-import { h, sheet } from "./util.js";
+import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { makeProjects } from "./shell-projects.js";
 
@@ -24,12 +24,12 @@ export function makeTop(core, ctx) {
   const chip = h("button", { class: "limit-chip", type: "button", hidden: true, "aria-haspopup": "dialog" });
   const spend = h("p", { class: "board-spend muted" });
   const projects = makeProjects(core, ctx);
-  const stop = h("button", { class: "ok-btn danger board-stop", type: "button" }, "Stop all");
-  const gear = h("button", { class: "ok-btn gear", type: "button", "aria-label": "Settings" }, "⚙");
+  const stop = h("button", { class: "ork-btn danger board-stop", type: "button" }, "Stop all");
+  const gear = h("button", { class: "ork-btn gear", type: "button", "aria-label": "Settings" }, icon("sliders"));
   const el = h("header", { class: "board-bar" }, h("div", { class: "board-name" }, title, projects.chip), chip, stop, gear, spend);
 
   // Stop all: a tap asks first (the confirm is a sheet whose button sits away from this one), as the town's does.
-  const really = h("button", { class: "ok-btn danger", type: "button" }, "Stop every ork");
+  const really = h("button", { class: "ork-btn danger", type: "button" }, "Stop every ork");
   const stopSheet = sheet("Stop all",
     h("p", {}, "Every ork at work stops now, and every idea's tasks with them: their sessions are interrupted and their processes ended."),
     really);
@@ -70,22 +70,22 @@ export function makeTop(core, ctx) {
       h("li", {}, "On the same Wi-Fi as the computer."),
       h("li", {}, "Anywhere on your tailnet, when Tailscale runs on the computer and the phone."),
       h("li", {}, "Away from home? Install Tailscale on the computer and the phone.")),
-    foot(h("button", { class: "ok-btn primary big", type: "button", onclick: () => pairSheet.close() }, "Done")));
+    foot(h("button", { class: "ork-btn primary big", type: "button", onclick: () => pairSheet.close() }, "Done")));
   const pushBox = h("input", { type: "checkbox", id: "push-after" });
   // The Board's two settings (spec 35 §5, §7, §11): plans start by themselves (on), and the night's hours.
   const autoBox = h("input", { type: "checkbox", id: "autostart" });
-  const nightFrom = h("input", { class: "ok-input", type: "time", "aria-label": "Night from" });
-  const nightTo = h("input", { class: "ok-input", type: "time", "aria-label": "Night to" });
+  const nightFrom = h("input", { class: "ork-field", type: "time", "aria-label": "Night from" });
+  const nightTo = h("input", { class: "ork-field", type: "time", "aria-label": "Night to" });
   const gearSheet = sheet("Settings",
     h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
     h("label", { class: "check-line", for: "autostart" }, autoBox, h("span", {}, "Start plans by themselves")),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Night"), h("div", { class: "row night-row" }, nightFrom, h("span", {}, "to"), nightTo)),
     h("h3", {}, "Your phone"),
-    h("div", { class: "row" }, h("button", { class: "ok-btn", type: "button", onclick: () => pairSheet.open() }, "Pair a phone")),
+    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => pairSheet.open() }, "Pair a phone")),
     h("h3", {}, "Download today's logs"),
-    h("div", { class: "row" }, h("button", { class: "ok-btn", type: "button", onclick: () => download(1) }, "Today"),
-      h("button", { class: "ok-btn", type: "button", onclick: () => download(7) }, "The last 7 days")),
-    h("p", { class: "muted" }, "What you did and what the orks did, kept on the computer. Off by default. The colours follow your phone's light or dark setting."));
+    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => download(1) }, "Today"),
+      h("button", { class: "ork-btn", type: "button", onclick: () => download(7) }, "The last 7 days")),
+    h("p", { class: "muted" }, "What you did and what the orks did, kept on the computer. Off by default."));
   gear.addEventListener("click", () => {
     pushBox.checked = Boolean(core.st.review?.push);
     autoBox.checked = core.st.board?.autostart !== false;

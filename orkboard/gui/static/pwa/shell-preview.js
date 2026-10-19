@@ -9,6 +9,7 @@ import { resultActions, factsOf, mergeReason } from "./shell-review.js";
 import { gruntWords } from "./shell-agents.js";
 import { goalBody } from "./shell-goal.js";
 import { heldWords } from "./shell-words.js";
+import { who, whoHead, headWords, TIER_WORDS } from "./shell-who.js";
 
 const TALK_SHOWN = 6;
 const LOG_MS = 5000;
@@ -43,7 +44,7 @@ export function unblocks(todo) {
 
 export function makePreview(core, ctx) {
   const st = core.st;
-  const back = h("button", { class: "ok-btn back", type: "button", "aria-label": "Back", onclick: () => core.back() }, "‹ Back");
+  const back = h("button", { class: "ork-btn back", type: "button", "aria-label": "Back", onclick: () => core.back() }, "‹ Back");
   const title = h("h2", { class: "screen-title" });
   const body = h("div", { class: "screen-body" });
   const bar = h("div", { class: "screen-bar" });
@@ -97,17 +98,17 @@ export function makePreview(core, ctx) {
         h("span", { class: "chev", "aria-hidden": "true" }, on ? "⌃" : "⌄")));
     if (on) {
       block.append(h("div", { class: "sec-text" }, more ? h("p", {}, s.text) : null,
-        h("button", { class: "ok-btn", type: "button", onclick: () => { section = s.name; draw(); document.getElementById("ask-field")?.focus(); } }, `Ask about ${s.name}`)));
+        h("button", { class: "ork-btn", type: "button", onclick: () => { section = s.name; draw(); document.getElementById("ask-field")?.focus(); } }, `Ask about ${s.name}`)));
     }
     return block;
   }
 
   function askBox(p) {
-    const field = h("textarea", { class: "ok-input", id: "ask-field", rows: "2", maxlength: "20000", "aria-label": "Ask or answer the Taskmaster",
+    const field = h("textarea", { class: "ork-field", id: "ask-field", rows: "2", maxlength: "20000", "aria-label": "Ask or answer the Taskmaster",
       placeholder: section ? `About ${section}…` : "Ask or answer the Taskmaster…" });
     field.value = asked;
     field.addEventListener("input", () => { asked = field.value; });
-    const send = h("button", { class: "ok-btn", type: "button" }, "Send");
+    const send = h("button", { class: "ork-btn", type: "button" }, "Send");
     send.addEventListener("click", async () => {
       const text = field.value.trim();
       if (!text) return;
@@ -124,9 +125,9 @@ export function makePreview(core, ctx) {
 
   function planList(plan, p, todo = "") {
     const byId = new Map((plan.tasks || []).map((t) => [t.id, t]));
-    const kids = [h("ul", { class: "tasks" }, ...(plan.tasks || []).map((t) => h("li", { class: `task t-${t.state}` },
-      h("button", { class: "linkish task-title", type: "button", onclick: () => core.open({ kind: "task", slug: p.slug, task: t.id }) }, t.title),
-      h("small", { class: "muted" }, [t.tier, (t.after || []).length ? `after ${t.after.map((a) => byId.get(a)?.title || a).join(", ")}` : "",
+    const kids = [h("ul", { class: "tasks" }, ...(plan.tasks || []).map((t) => h("li", { class: `task t-${t.state}`, title: headWords(t.head) || null },
+      h("button", { class: "linkish task-title", type: "button", onclick: () => core.open({ kind: "task", slug: p.slug, task: t.id }) }, whoHead(t.head, true), t.title),
+      h("small", { class: "muted" }, [t.head ? TIER_WORDS[t.head.tier] : t.tier, (t.after || []).length ? `after ${t.after.map((a) => byId.get(a)?.title || a).join(", ")}` : "",
         TASK_WORDS[t.state] && p.state !== "plan" ? TASK_WORDS[t.state] : "", t.state === "held" && t.note ? heldWords(t.note, t.waits_title) : "",
         t.commit ? `commit ${t.commit.slice(0, 7)}` : "", t.state === "failed" && t.error ? t.error : ""].filter(Boolean).join(" · ")))))];
     if ((plan.todos || []).length) {
@@ -151,7 +152,7 @@ export function makePreview(core, ctx) {
       askBox(p),
       h("p", { class: "muted" }, h("button", { class: "linkish", type: "button", onclick: () => dropIdea(p) }, "Delete this idea…"))].filter(Boolean));
     const n = p.plan?.estimate?.tasks ?? (p.plan?.tasks || []).length;
-    const btn = (label, onclick, cls = "primary") => h("button", { class: `ok-btn ${cls} big`, type: "button", onclick }, label);
+    const btn = (label, onclick, cls = "primary") => h("button", { class: `ork-btn ${cls} big`, type: "button", onclick }, label);
     const slug = p.slug;
     switch (p.state) {
       case "ready": case "asks": return [btn("Take it to work", () => act("ideas.plan", { slug }, "The Taskmaster is planning.").then(() => read(cur)))];
@@ -178,7 +179,7 @@ export function makePreview(core, ctx) {
     body.replaceChildren(planList(p.plan, p, cur.todo));
     requestAnimationFrame(() => body.querySelector(".plan-todo.is-target")?.scrollIntoView({ block: "center" }));
     const n = p.plan.estimate?.tasks ?? (p.plan.tasks || []).length;
-    return p.state === "plan" ? [h("button", { class: "ok-btn primary big", type: "button",
+    return p.state === "plan" ? [h("button", { class: "ork-btn primary big", type: "button",
       onclick: () => act("ideas.start", { slug: p.slug }, "Started.").then(() => read(cur)) }, `Start · ${n} tasks · ${price(p.plan.estimate)}`)] : [];
   }
 
@@ -186,7 +187,7 @@ export function makePreview(core, ctx) {
   function goalScreen(g, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Goal "), g.title);
     body.replaceChildren(...goalBody(g, core, act, asked, (v) => { asked = v; }));
-    return [h("button", { class: "ok-btn big", type: "button", onclick: () => core.editGoal(g.slug) }, "Edit goal")];
+    return [h("button", { class: "ork-btn big", type: "button", onclick: () => core.editGoal(g.slug) }, "Edit goal")];
   }
   // A Markdown file is read as the page renders it (the host's `html`, raw HTML already off); the rest as plain text.
   function docText(d, cur) {
@@ -212,13 +213,13 @@ export function makePreview(core, ctx) {
       h("dl", { class: "facts" },
         h("dt", {}, "State"), h("dd", { "data-state": t.state }, TASK_WORDS[t.state] || t.state, t.note ? h("small", { class: "muted" }, ` ${t.state === "held" ? heldWords(t.note, t.waits_title) : t.note}`) : null),
         h("dt", {}, "Idea"), h("dd", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "idea", slug: t.idea }) }, t.idea_title)),
-        h("dt", {}, "Tier"), h("dd", {}, t.tier), h("dt", {}, "Branch"), h("dd", {}, h("code", {}, t.branch || "—")),
+        h("dt", {}, "Tier"), h("dd", {}, t.head ? who(t.head, true) : t.tier), h("dt", {}, "Branch"), h("dd", {}, h("code", {}, t.branch || "—")),
         h("dt", {}, "Round"), h("dd", {}, String(t.round || 1)), h("dt", {}, "Spend"), h("dd", {}, t.cost != null ? `$${Number(t.cost).toFixed(2)}` : "—")),
       t.error ? h("p", { class: "warn", role: "alert" }, t.error) : null,
       h("h3", {}, "Brief"), h("p", { class: "brief" }, t.brief), h("h3", {}, "Log"), log].filter(Boolean));
     requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
-    if (live) return [h("button", { class: "ok-btn danger big", type: "button", onclick: () => act("ideas.stop_task", { slug: t.idea, task: t.id }, "Stopped.").then(() => read(cur)) }, "Stop")];
-    if (t.state === "review") return [h("button", { class: "ok-btn primary big", type: "button", onclick: () => core.open({ kind: "result", slug: t.idea, task: t.id }) }, "Open the result")];
+    if (live) return [h("button", { class: "ork-btn danger big", type: "button", onclick: () => act("ideas.stop_task", { slug: t.idea, task: t.id }, "Stopped.").then(() => read(cur)) }, "Stop")];
+    if (t.state === "review") return [h("button", { class: "ork-btn primary big", type: "button", onclick: () => core.open({ kind: "result", slug: t.idea, task: t.id }) }, "Open the result")];
     return [];
   }
 

@@ -47,13 +47,13 @@ export function Editor({ file, onSaved, onCancel, onReload }) {
   };
   return html`<div class="shell-edit">
     <div class="shell-edit__bar">
-      <button class="ok-btn primary" disabled=${saving || !dirty} onClick=${save}>Save <span class="ok-tone-muted">Ctrl+S</span></button>
-      <button class="ok-btn" onClick=${onCancel}>Cancel</button>
+      <button class="ork-btn primary" disabled=${saving || !dirty} onClick=${save}>Save <span class="ok-tone-muted">Ctrl+S</span></button>
+      <button class="ork-btn" onClick=${onCancel}>Cancel</button>
       ${dirty && html`<span class="ok-font-status ok-tone-muted">Unsaved changes</span>`}
     </div>
     ${why && html`<div class="shell-edit__why ok-tone-error" role="alert"><span>${why}</span>
-      ${why === CHANGED && html`<button class="ok-btn" onClick=${onReload}>Reload</button>
-        <button class="ok-btn" onClick=${() => copyText(text)}>Copy my text</button>`}</div>`}
+      ${why === CHANGED && html`<button class="ork-btn" onClick=${onReload}>Reload</button>
+        <button class="ork-btn" onClick=${() => copyText(text)}>Copy my text</button>`}</div>`}
     <textarea class="shell-edit__text" aria-label="Editor" spellcheck="false" autofocus value=${text} onKeyDown=${key}
       onInput=${(e) => setText(e.target.value)}></textarea>
   </div>`;
@@ -64,9 +64,9 @@ export function LeaveDialog({ then }) {
   const [busy, setBusy] = useState(false);
   const file = editing.value;
   return html`<${Modal} title="Unsaved changes" onClose=${closeDialog}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Keep editing</button>
-      <button type="button" class="ok-btn danger" disabled=${busy} onClick=${() => { editing.value = null; closeDialog(); then(); }}>Discard changes</button>
-      <button type="button" class="ok-btn primary" disabled=${busy} onClick=${async () => {
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Keep editing</button>
+      <button type="button" class="ork-btn danger" disabled=${busy} onClick=${() => { editing.value = null; closeDialog(); then(); }}>Discard changes</button>
+      <button type="button" class="ork-btn primary" disabled=${busy} onClick=${async () => {
         setBusy(true);
         const ok = await file?.save();
         setBusy(false);

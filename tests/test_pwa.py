@@ -53,10 +53,14 @@ def test_the_app_is_its_own_files_and_nothing_else():
         assert _split(pwa.serve("GET", path))[0].startswith("HTTP/1.1 404"), path
     assert _split(pwa.serve("POST", "/app/"))[0].startswith("HTTP/1.1 405")
     assert "Location: /app/" in _split(pwa.serve("GET", "/app"))[0]
-    head, body = _split(pwa.serve("GET", "/app/fonts/titillium-web-latin-400-normal.woff2"))   # the desktop's faces
+    head, body = _split(pwa.serve("GET", "/app/fonts/ibm-plex-mono-latin-400-normal.woff2"))   # orkUI's faces, as the desktop's
     assert "Content-Type: font/woff2" in head and body[:4] == b"wOF2"
-    assert b"New Rocker" in _split(pwa.serve("GET", "/app/fonts/fonts.css"))[1]
-    assert _split(pwa.serve("GET", "/app/fonts/OFL-Titillium-Web.txt"))[0].startswith("HTTP/1.1 404")
+    faces = _split(pwa.serve("GET", "/app/fonts.css"))[1]
+    assert b"IBM Plex Mono" in faces and b"Pixelify Sans" in faces
+    assert _split(pwa.serve("GET", "/app/fonts/OFL-IBM-Plex-Mono.txt"))[0].startswith("HTTP/1.1 404")
+    head, body = _split(pwa.serve("GET", "/app/races/elf-elder.png"))                         # orkUI's race heads
+    assert "Content-Type: image/png" in head and body[:8] == b"\x89PNG\r\n\x1a\n"
+    assert "image/svg+xml" in _split(pwa.serve("GET", "/app/icons/icons.svg"))[0]              # orkUI's pixel icons
     head, body = _split(pwa.serve("HEAD", "/app/app.css"))
     assert head.startswith("HTTP/1.1 200") and body == b""
 
@@ -253,24 +257,23 @@ def _rules(css: str) -> list[tuple[str, str]]:
 
 
 def test_the_phone_wears_the_design_system_and_no_camp_file():
-    """The app's page loads the desktop's design system (tokens.css, components.css, the same files); every picture
-    a rule of app.css draws in Office, the phone's only look in Orkboard, is served, and Camp's (the fence round a
-    window, v4's kit, the HUD's resources: Orkline's) never is."""
+    """The app's page loads orkUI (fonts.css, tokens.css, components.css: the desktop's files, design-system/orkui) in its
+    office look; every picture a rule of app.css draws is served, no rule of it is Camp's, and Camp's pictures (the fence
+    round a window, v4's kit, the HUD's resources: Orkline's) never are."""
     from orkboard.design import tokens
 
     head, body = _split(pwa.serve("GET", "/app/"))
-    assert b'href="tokens.css"' in body and b'href="components.css"' in body
+    assert b'data-look="office"' in body
+    for name in ("fonts.css", "tokens.css", "components.css"):
+        assert f'href="{name}"'.encode() in body, name
     for name in pwa.STYLES:
         head, body = _split(pwa.serve("GET", f"/app/{name}"))
-        assert "text/css" in head and body == (tokens.SYSTEM / name).read_bytes(), name
+        assert "text/css" in head and body == (tokens.ORKUI / name).read_bytes(), name
     rules = _rules((pwa.ROOT / "app.css").read_text())
-    office = [body for sel, body in rules if not all(CAMP.match(part.strip()) for part in sel.split(","))]
-    for url in sorted({u for body in office for u in re.findall(r'url\("([^"]+)"\)', body)}):
+    assert not [sel for sel, _body in rules if any(CAMP.match(part.strip()) for part in sel.split(","))]
+    for url in sorted({u for _sel, body in rules for u in re.findall(r'url\("([^"]+)"\)', body)}):
         assert _split(pwa.serve("GET", f"/app/{url}"))[0].startswith("HTTP/1.1 200"), url
-    camp = {u for sel, body in rules if all(CAMP.match(part.strip()) for part in sel.split(","))
-            for u in re.findall(r'url\("([^"]+)"\)', body)}
-    assert camp, "the scan reads Camp's rules"
-    for url in sorted(camp) + ["icons/res-gold.png", "camp/ork-walk.png", "sprites/forge.png", "v3/manifest.json"]:
+    for url in ["fence/row.png", "icons/res-gold.png", "camp/ork-walk.png", "sprites/forge.png", "v3/manifest.json"]:
         assert _split(pwa.serve("GET", f"/app/{url}"))[0].startswith("HTTP/1.1 404"), url
 
 
@@ -357,14 +360,15 @@ def test_the_workers_install_fills_its_cache_past_the_http_cache():
 
 def test_service_worker_names_cache_version_and_cache_first_prefixes():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert "orkcraft-app-v24" in sw
+    assert "orkcraft-app-v25" in sw
     prefixes = sw[sw.index("CACHE_PREFIXES = ["):sw.index("];", sw.index("CACHE_PREFIXES = ["))]
     assert set(re.findall(r'"([^"]+)"', prefixes)) == set(pwa.CACHE_PREFIXES) == {"fonts/"}
 
 
 def test_cache_control_headers_for_cache_first_and_shell():
-    head_cf, _ = _split(pwa.serve("GET", "/app/fonts/titillium-web-latin-400-normal.woff2"))
-    assert "Cache-Control: public, max-age=31536000, immutable" in head_cf
+    for path in ("/app/fonts/ibm-plex-mono-latin-400-normal.woff2", "/app/races/peon-warrior.png"):
+        head_cf, _ = _split(pwa.serve("GET", path))
+        assert "Cache-Control: public, max-age=31536000, immutable" in head_cf, path
     head_shell, _ = _split(pwa.serve("GET", "/app/board-app.js"))
     assert "Cache-Control: no-cache" in head_shell
     head_html, _ = _split(pwa.serve("GET", "/app/"))

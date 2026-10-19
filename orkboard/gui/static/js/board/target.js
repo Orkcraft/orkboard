@@ -18,7 +18,7 @@ export function TargetChip() {
   const word = (TARGETS.find(([id]) => id === now) || TARGETS[1])[1];
   const pick = async (id) => { setOpen(false); if (id !== now) await act("ideas.board_set", { target: id }); };
   return html`<div class="board-target">
-    <button type="button" class="ok-btn board-target__chip" aria-haspopup="menu" aria-expanded=${open}
+    <button type="button" class="ork-btn board-target__chip" aria-haspopup="menu" aria-expanded=${open}
       title=${say("The Target picks every step's model and reasoning")} onClick=${() => setOpen(!open)}>Target: ${word}</button>
     ${open && html`<div class="board-target__menu kit-well" role="menu" aria-label="Target"
       onKeyDown=${(e) => { if (e.key === "Escape") { e.stopPropagation(); setOpen(false); } }}>

@@ -8,7 +8,7 @@ how many may work at once; each task type is given one role.
     set_kind(state_dir, "docs", "docs-scribe")
     role_for(state_dir, "docs")            # the role a task of that type runs as
 
-One small file per role, `<state_dir>/roles/<slug>.md` (front matter `name, model, max_parallel`; the body is the
+One small file per role, `<state_dir>/roles/<slug>.md` (front matter `name, model, max_parallel, craft`; the body is the
 instruction), so it is seen and undone by hand; the types' roles are `<state_dir>/roles/kinds.json`. **Taskmaster**
 (the keeper) and **Grunt** (the default worker) exist by themselves: they can be edited, not deleted.
 
@@ -18,6 +18,14 @@ laborer`); the Taskmaster picks a tier only. A file that names another model (wr
 and runs it (`hand_set`). An instruction is at most 600 characters; a longer one in its file goes to the ork cut at
 its last sentence end (`instruction`, the file's whole text in `instruction_long`) until the person saves. An agent
 takes its task types (`save(..., takes=[...])`); Grunt takes what no other agent takes.
+
+A role's **craft** is what its work is (decisions §53): engineering, design, data or marketing; the page draws it as the
+head of its race in orkUI (an ork, an elf, a goblin, a gnome: `RACES`), wearing its tier's gear (`head_tier`). Taskmaster
+and Grunt are orks: engineering, always. A file without a craft is engineering.
+
+    head(r, "balance")                     # {"craft": "design", "race": "elf", "tier": "elder"}: the head a role wears
+    task_head(state_dir, task, "thrift")   # the head of the role a task runs (or will run) as, at the tier it runs at
+    known(state_dir)                       # (roles by slug, kinds): read once, handed to many task_head calls
 
 No face, no model.
 """
@@ -40,9 +48,13 @@ MAX_PARALLEL = (1, 8)
 NAME_CHARS, INSTRUCTION_CHARS = 40, 600
 READ_CHARS = 4000                  # of an instruction written before spec 36, the most a read keeps
 TIERS = ("elder", "warrior", "laborer")
+CRAFTS = ("engineering", "design", "data", "marketing")
+CRAFT_LABELS = {"engineering": "Engineering", "design": "Design", "data": "Data", "marketing": "Marketing"}
+RACES = {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome"}   # orkUI's race ids: ork, elf, goblin, gnome
+DEFAULT_CRAFT = "engineering"                    # the orks': Taskmaster's, Grunt's and every role's written before crafts
 _DEFAULTS = {
-    TASKMASTER: {"name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": ""},
-    GRUNT: {"name": "Grunt", "model": "", "max_parallel": 8, "instruction": ""},
+    TASKMASTER: {"name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "craft": DEFAULT_CRAFT},
+    GRUNT: {"name": "Grunt", "model": "", "max_parallel": 8, "instruction": "", "craft": DEFAULT_CRAFT},
 }
 LOCK = threading.RLock()
 
@@ -52,12 +64,13 @@ def folder(state_dir: Path) -> Path:
 
 
 def models(current: str = "") -> list[dict]:
-    """What a role may run on: {"id", "label"} — By Target, then the three tiers with the harness's model small;
+    """What a role may run on: {"id", "label"} — By Target, then the three tiers in today's words (Veteran, Seasoned,
+    Novice: realm/lexicon.py) with the harness's model small;
     `current`, a model set by hand in a role's file, as one more option for that role."""
-    from orkboard.realm import harnesses
+    from orkboard.realm import harnesses, tiers
     h = harnesses.get("claude")
     out = [{"id": "", "label": "By Target"}]
-    out += [{"id": t, "label": t.capitalize() + (f" · {h.models[t]}" if h and t in h.models else "")} for t in TIERS]
+    out += [{"id": t, "label": tiers.TIER_LABELS[t] + (f" · {h.models[t]}" if h and t in h.models else "")} for t in TIERS]
     if current and current not in TIERS:
         out.append({"id": current, "label": f"{current} (set by hand)"})
     return out
@@ -112,7 +125,7 @@ def _read(state_dir: Path, slug: str) -> dict | None:
     except (OSError, ValueError):
         return None
     page = ideas.parse(text)
-    base = _DEFAULTS.get(slug, {"name": slug, "model": "", "max_parallel": 1, "instruction": ""})
+    base = _DEFAULTS.get(slug, {"name": slug, "model": "", "max_parallel": 1, "instruction": "", "craft": DEFAULT_CRAFT})
     try:
         mp = int(page.get("max_parallel") or base["max_parallel"])
     except ValueError:
@@ -120,7 +133,8 @@ def _read(state_dir: Path, slug: str) -> dict | None:
     body = (text[m.end():] if (m := ideas._FENCE.match(text)) else text).strip()[:READ_CHARS]
     return {"slug": slug, "name": page.get("name") or base["name"], "model": page.get("model", base["model"]),
             "max_parallel": min(max(mp, MAX_PARALLEL[0]), MAX_PARALLEL[1]), "instruction": for_prompt(body),
-            "instruction_long": body if len(body) > INSTRUCTION_CHARS else "", "builtin": slug in BUILTIN}
+            "instruction_long": body if len(body) > INSTRUCTION_CHARS else "", "builtin": slug in BUILTIN,
+            "craft": _craft(page.get("craft"), slug)}
 
 
 def role(state_dir: Path, slug: str) -> dict | None:
@@ -140,17 +154,25 @@ def roles(state_dir: Path) -> list[dict]:
     return out + sorted(mine, key=lambda r: (r["name"].lower(), r["slug"]))
 
 
+def _craft(value: object, slug: str | None) -> str:
+    """A role's craft as read: one of CRAFTS; the built-in two's, and anything unknown, engineering."""
+    value = str(value or "").strip().lower()
+    return value if value in CRAFTS and slug not in BUILTIN else DEFAULT_CRAFT
+
+
 def _write(state_dir: Path, r: dict) -> None:
-    page = ideas.Page([("name", r["name"]), ("model", r["model"]), ("max_parallel", str(r["max_parallel"]))])
+    page = ideas.Page([("name", r["name"]), ("model", r["model"]), ("max_parallel", str(r["max_parallel"])),
+                       ("craft", r.get("craft") or DEFAULT_CRAFT)])
     text = page.text() + (f"\n{r['instruction'].strip()}\n" if r["instruction"].strip() else "")
     ideas._write(_path(state_dir, r["slug"]), text)
 
 
 def save(state_dir: Path, name: str, model: object, max_parallel: object, instruction: object = "",
-         slug: str | None = None, takes: list[str] | None = None) -> str:
+         slug: str | None = None, takes: list[str] | None = None, craft: str | None = None) -> str:
     """A role made or edited. A new one keeps the name it is given; the built-in two keep their names too (editable).
     `takes`: the task types it takes (a type another agent had moves here, one unticked goes back to Grunt); None
-    leaves them as they are. Grunt takes what no other agent takes and the Taskmaster takes none: refused."""
+    leaves them as they are. Grunt takes what no other agent takes and the Taskmaster takes none: refused. `craft`: one
+    of CRAFTS (None keeps the role's, a new one's is engineering); Taskmaster and Grunt are orks, engineering only."""
     name = " ".join(str(name or "").split())[:NAME_CHARS]
     if not name:
         raise ValueError("An agent needs a name")
@@ -162,6 +184,10 @@ def save(state_dir: Path, name: str, model: object, max_parallel: object, instru
                          else "The Taskmaster plans, it does not do tasks: pick a Grunt or an agent of your own")
     if bad := [k for k in takes or [] if k not in TASK_KINDS]:
         raise ValueError(f"No task type {bad[0]!r}")
+    if craft is not None and craft not in CRAFTS:
+        raise ValueError("A craft is engineering, design, data or marketing")
+    if craft not in (None, DEFAULT_CRAFT) and slug in BUILTIN:
+        raise ValueError("Taskmaster and Grunt are orks: their craft is engineering")
     with LOCK:
         old = None
         if slug:
@@ -177,7 +203,8 @@ def save(state_dir: Path, name: str, model: object, max_parallel: object, instru
         if any(r["name"].lower() == name.lower() and r["slug"] != slug for r in roles(state_dir)):
             raise ValueError(f"There is an agent called {name} already")
         _write(state_dir, {"slug": slug, "name": name, "model": _model(model, slug, old),
-                           "max_parallel": _clean_parallel(max_parallel), "instruction": text})
+                           "max_parallel": _clean_parallel(max_parallel), "instruction": text,
+                           "craft": craft or (old or {}).get("craft") or DEFAULT_CRAFT})
         if takes is not None and slug not in BUILTIN:
             _save_kinds(state_dir, {k: slug if k in takes else (GRUNT if r == slug else r)
                                     for k, r in kinds(state_dir).items()})
@@ -228,6 +255,38 @@ def role_for(state_dir: Path, kind: str) -> dict:
     """The role a task of this type runs as (a task without a known type is code)."""
     kind = kind if kind in TASK_KINDS else DEFAULT_KIND
     return role(state_dir, kinds(state_dir)[kind]) or role(state_dir, GRUNT)
+
+
+def head_tier(model: str, target: str, task_tier: str = "warrior") -> str:
+    """The tier a role's head wears for a task of `task_tier` under the Target: a role on a tier, that tier; a model set
+    by hand, that model's tier; By Target, the task's tier shifted by the Target (a middle task's when no task is named:
+    thrift a novice, balance a seasoned, quality a veteran)."""
+    from orkboard.realm import idea_target
+    return idea_target.tier_of(idea_target.task_pick(task_tier or "warrior", target, str(model or ""))[0])
+
+
+def head(r: dict, target: str, task_tier: str = "warrior") -> dict:
+    """The head the page draws for a role: {"craft", "race", "tier"} (orkUI races/<race>-<tier>.png)."""
+    craft = r.get("craft") if r.get("craft") in CRAFTS else DEFAULT_CRAFT
+    return {"craft": craft, "race": RACES[craft], "tier": head_tier(str(r.get("model") or ""), target, task_tier)}
+
+
+def known(state_dir: Path) -> tuple[dict[str, dict], dict[str, str]]:
+    """The roles by slug and the task types' roles, read once for many `task_head`s."""
+    return {r["slug"]: r for r in roles(state_dir)}, kinds(state_dir)
+
+
+def task_head(state_dir: Path, task: dict, target: str, read: tuple[dict, dict] | None = None) -> dict:
+    """The head of who does a task: the role it ran as (its type's role before it ran), at the tier it ran at (before it
+    ran, the tier it will run at: its planned tier shifted by the Target, a role's own model winning). `read`: `known()`."""
+    by_slug, kinds_ = read or known(state_dir)
+    kind = str(task.get("kind") or "")
+    slug = str(task.get("role") or "") or kinds_.get(kind if kind in TASK_KINDS else DEFAULT_KIND, GRUNT)
+    r = by_slug.get(slug) or by_slug.get(GRUNT) or role(state_dir, GRUNT)
+    got = head(r, target, str(task.get("tier") or "warrior"))
+    if task.get("ran_tier") in TIERS:
+        got["tier"] = task["ran_tier"]
+    return got
 
 
 def spend_today(tasks: list[tuple[str, dict]]) -> dict[str, float]:

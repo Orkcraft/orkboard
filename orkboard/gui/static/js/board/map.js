@@ -3,6 +3,7 @@
 // A view of `ideas.map`: it changes nothing, its one action is open. Words of a node's state are the Board row's (`rowOf`).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
+import { Chev, WhoHead } from "../orkui.js";
 import { track, PRIORITY_WORDS, OPS } from "./store.js";
 import { mapData, mapSince, mapFolded, mapUi, mapView, preview, showIdea } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
@@ -33,7 +34,7 @@ function Node({ n, titles, since }) {
     ${n.tasks.length > 0 && html`<button class="map-pips" aria-expanded=${open} aria-label=${`Tasks of ${n.title}`} onClick=${() => toggle("tasks", n.slug)}>
       ${n.tasks.map((t) => html`<i key=${t.id} class="map-pip" data-pip=${pipState(t.state)} aria-hidden="true"></i>`)}<span>Tasks</span></button>`}
     ${open && html`<div class="map-tasks" aria-label=${`Tasks of ${n.title}`}>${wavesOf(n.tasks).map((wave, i) => html`<div key=${i} class="map-wave" data-wave=${i + 1}>
-      ${wave.map((t) => html`<p key=${t.id} class="map-task" data-state=${t.state}><code>${t.id}</code> ${t.title} · ${TASK_STATE[t.state] || t.state}</p>`)}</div>`)}</div>`}
+      ${wave.map((t) => html`<p key=${t.id} class="map-task" data-state=${t.state}><${WhoHead} head=${t.head} small /><code>${t.id}</code> ${t.title} · ${TASK_STATE[t.state] || t.state}</p>`)}</div>`)}</div>`}
   </li>`;
 }
 
@@ -75,7 +76,7 @@ function Goal({ g, nodes, edges, titles, since }) {
   const fold = () => { mapFolded.value = folded ? mapFolded.value.filter((x) => x !== g.slug) : [...mapFolded.value, g.slug]; };
   return html`<section class="map-goal" aria-label=${g.title} data-goal=${g.slug} data-folded=${folded}>
     <header class="map-goal__head">
-      <button class="map-fold" aria-expanded=${!folded} aria-label=${`${folded ? "Unfold" : "Fold"} ${g.title}`} onClick=${fold}>${folded ? "▸" : "▾"}</button>
+      <button class="map-fold" aria-expanded=${!folded} aria-label=${`${folded ? "Unfold" : "Fold"} ${g.title}`} onClick=${fold}><${Chev} dir=${folded ? "right" : "down"} /></button>
       <h3 class="map-goal__title">${g.title}</h3>
       <span class="board-prio" data-priority=${g.priority}>${PRIORITY_WORDS[g.priority] || "Normal"}</span>
       <span class="map-goal__state ok-tone-muted">${goalState(g.state)}</span>
@@ -100,7 +101,7 @@ export function MapView() {
   const titles = Object.fromEntries(m.nodes.map((n) => [n.slug, n.title]));
   const goalOf = Object.fromEntries(m.nodes.map((n) => [n.slug, n.goal]));
   return html`<div class="map" ref=${el} aria-label="Map" onScroll=${(e) => { mapView.top = e.currentTarget.scrollTop; }}>
-    ${!m.goals.length ? html`<div class="shell-empty"><p>No goals yet</p><p><button class="ok-btn primary" onClick=${() => openDialog("goal")}>New goal</button></p></div>`
+    ${!m.goals.length ? html`<div class="shell-empty"><p>No goals yet</p><p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New goal</button></p></div>`
       : goals.map((g) => html`<${Goal} key=${g.slug} g=${g} nodes=${m.nodes.filter((n) => n.goal === g.slug)}
         edges=${m.edges.filter((e) => goalOf[e.to] === g.slug)} titles=${titles} since=${since} />`)}
   </div>`;

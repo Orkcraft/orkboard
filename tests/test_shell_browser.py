@@ -443,13 +443,13 @@ def test_merge_is_off_on_red_with_its_reason_and_send_back_needs_a_line(shell):
     line = red.get_by_label("What to fix, in one line")
     assert line.input_value().startswith("Resolve the conflict with dev")
     line.fill("")
-    assert red.locator(".shell-actions__line .ok-btn.primary").is_disabled()      # the line is required
+    assert red.locator(".shell-actions__line .ork-btn.primary").is_disabled()      # the line is required
     line.fill("Rebase and keep both queues")
-    red.locator(".shell-actions__line .ok-btn.primary").click()
+    red.locator(".shell-actions__line .ork-btn.primary").click()
     assert _sent(pg, host, ("ideas.back", {"slug": "sync", "task": "k4", "why": "Rebase and keep both queues"}))
 
     green.get_by_role("button", name="Send back").click()
-    assert green.locator(".shell-actions__line .ok-btn.primary").is_disabled()
+    assert green.locator(".shell-actions__line .ork-btn.primary").is_disabled()
     green.get_by_role("button", name="Merge into dev").click()
     assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k2"}))
     pg.locator(".shell-card").first.wait_for(state="detached", timeout=WAIT_MS) if pg.locator(".shell-card").count() else None
@@ -464,13 +464,13 @@ def test_drop_asks_first_and_merge_into_changes_the_branch(shell):
     pg.get_by_role("dialog").get_by_role("button", name="Keep it").click()
     assert pg.get_by_role("dialog").count() == 0 and ("ideas.drop_task", {"slug": "sync", "task": "k2"}) not in host.log
     assert card.get_by_role("button", name="Drop…").evaluate("e => e === document.activeElement")     # the focus went back
-    pg.get_by_role("button", name="Merge into dev ▾").click()
+    pg.locator(".shell-into").get_by_role("button", name="Merge into dev").click()
     assert pg.get_by_role("menuitemradio").count() == 2
     pg.get_by_role("menuitem", name="New branch…").click()
     pg.get_by_label("Name of the new branch").fill("next")
     pg.get_by_role("button", name="Make it").click()
     assert _sent(pg, host, ("ideas.into", {"branch": "next"}))
-    pg.get_by_role("button", name="Merge into next ▾").wait_for(timeout=WAIT_MS)
+    pg.locator(".shell-into").get_by_role("button", name="Merge into next").wait_for(timeout=WAIT_MS)
 
 
 def test_esc_closes_the_preview_and_arrows_move_through_the_review_cards(shell):
@@ -505,7 +505,7 @@ def test_below_1024_the_phones_layout_three_tabs_and_the_preview_on_its_own_scre
     pg, host, errors = _open(gui, {"width": 900, "height": 800}, ready=".shell-tabs")
     try:
         tabs = pg.locator(".shell-tabs")
-        assert tabs.get_by_role("tab", name="Review").inner_text().replace("\n", "") == "Review2"
+        assert tabs.get_by_role("tab", name="Review").text_content().replace("\n", "").strip() == "Review2"
         assert pg.locator(".shell-review").is_hidden() and pg.locator(".shell-board").is_visible()
         tabs.get_by_role("tab", name="Review").click()
         assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "tab", "ref": "review", "device": "desktop"}))
@@ -527,7 +527,7 @@ def test_the_first_start_shows_the_first_screen_then_opens_the_shell(gui):
                                       "logged_in": True, "login": "", "check": None, "risk": ""}]}}
     pg, host, errors = _open(gui, host=StubHost(onboarding=onboarding), ready=".gui-onb__card")
     try:
-        card = pg.locator(".gui-onb__card").inner_text()
+        card = pg.locator(".gui-onb__card").text_content()                          # its title is in capitals on the page
         assert "Your AI tools" in card and "Claude Code" in card
         for gone in ("Who are you", "Mission", "Skip: empty town", "Security reviewer"):
             assert gone not in pg.locator(".gui-onb").inner_text()
@@ -694,7 +694,7 @@ def test_a_high_idea_shows_a_spinner_and_stop_leaves_it_stopped_a_low_one_waits_
     assert _sent(pg, host, ("ideas.queue", {"slug": "fast-one", "queue": "night"}))
     low = pg.locator(".board-card-row", has_text="Offline mode")                                    # a Low one: tonight, Process now and Delete
     assert "tonight" in low.inner_text()
-    assert [b.inner_text() for b in low.locator(".board-card__acts .ok-btn").all()] == ["Process now", "Delete"]
+    assert [b.inner_text() for b in low.locator(".board-card__acts .ork-btn").all()] == ["Process now", "Delete"]
     low.get_by_role("button", name="Process now: Offline mode").click()
     assert _sent(pg, host, ("ideas.queue", {"slug": "offline", "queue": "now"}))
     row.get_by_role("button", name="Delete: Fast one").click()                                      # Delete asks first
@@ -860,12 +860,12 @@ def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
     dlg.get_by_label("Instruction").fill("Write plainly.")
     dlg.get_by_role("button", name="Save agent").click()
     pg.locator(".shell-role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": []}))
+    assert _sent(pg, host, ("ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": [], "craft": "engineering"}))
     pg.get_by_role("button", name="Edit Docs scribe").click()                                       # a type given in its dialog (Takes)
     pg.get_by_role("dialog", name="Edit agent").get_by_label("Docs").check()
     pg.get_by_role("button", name="Save agent").click()
     pg.get_by_role("dialog").wait_for(state="detached", timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.role_save", {"slug": "docs-scribe", "name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": ["docs"]}))
+    assert _sent(pg, host, ("ideas.role_save", {"slug": "docs-scribe", "name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.", "kinds": ["docs"], "craft": "engineering"}))
     pg.get_by_role("button", name="Edit Docs scribe").click()                                        # Edit, then Delete says what moves back
     dlg = pg.get_by_role("dialog", name="Edit agent")
     assert dlg.get_by_label("Instruction").input_value() == "Write plainly."
@@ -894,7 +894,7 @@ def test_every_dialog_has_a_dimmed_backdrop_an_opaque_panel_and_closes_on_esc(sh
              ("New idea", lambda: pg.get_by_role("button", name="New idea").click()),
              ("Add agent", lambda: pg.get_by_role("button", name="+ Add agent").click()),
              ("Settings", lambda: pg.get_by_role("button", name="Settings").click()),
-             ("Merge into", lambda: pg.get_by_role("button", name="Merge into dev ▾").click()),
+             ("Merge into", lambda: pg.locator(".shell-into").get_by_role("button", name="Merge into dev").click()),
              ("Drop this result?", lambda: pg.locator(".shell-card", has_text="Add the queue").get_by_role("button", name="Drop…").click())]
     for name, opener in opens:
         opener()

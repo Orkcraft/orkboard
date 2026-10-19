@@ -338,7 +338,7 @@ async def test_an_idea_a_todo_a_chip_and_a_result_each_open_on_their_own_screen_
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "dark", "device": "phone"})
         await page.get_by_role("button", name="Back", exact=True).click()
         await page.locator(".screen").wait_for(state="hidden", timeout=WAIT_MS)
-        assert (await page.locator(".board-tab.is-active").inner_text()).startswith("Board")                     # back on the tab it came from
+        assert (await page.locator(".board-tab.is-active").text_content()).startswith("Board")                     # back on the tab it came from
 
         await page.locator(".need-todo", has_text="API_KEY").click()                                  # a to-do → its sheet → the plan, scrolled to it
         await page.get_by_role("dialog", name="To-do").get_by_role("button", name="Open the plan").click()
@@ -357,7 +357,7 @@ async def test_an_idea_a_todo_a_chip_and_a_result_each_open_on_their_own_screen_
         await page.locator(".screen-bar").get_by_role("button", name="Stop").click()
         assert await _called(stub, "ideas.stop_task", {"slug": "sync", "task": "k3"})
         await page.get_by_role("button", name="Back", exact=True).click()
-        assert (await page.locator(".board-tab.is-active").inner_text()).startswith("Agents")
+        assert (await page.locator(".board-tab.is-active").text_content()).startswith("Agents")
 
 
 @pytest.mark.asyncio
@@ -373,13 +373,13 @@ async def test_review_merge_is_off_on_red_send_back_needs_a_line_and_a_patch_scr
         line = red.get_by_label("What to fix, in one line")
         assert (await line.input_value()).startswith("Resolve the conflict with dev")
         await line.fill("")
-        assert await red.locator(".back-line .ok-btn.primary").is_disabled()
+        assert await red.locator(".back-line .ork-btn.primary").is_disabled()
         await line.fill("Rebase and keep both queues")
-        await red.locator(".back-line .ok-btn.primary").click()
+        await red.locator(".back-line .ork-btn.primary").click()
         assert await _called(stub, "ideas.back", {"slug": "sync", "task": "k4", "why": "Rebase and keep both queues"})
         await page.locator(".result", has_text="Test it offline").wait_for(state="detached", timeout=WAIT_MS)
 
-        await page.get_by_role("button", name="Merge into dev ▾").click()                              # Merge into ▾: the branches
+        await page.locator(".ork-btn.into").click()                              # Merge into ▾: the branches
         sheet = page.get_by_role("dialog", name="Merge into")
         await sheet.get_by_role("radio", name="main").click()
         assert await _called(stub, "ideas.into", {"branch": "main"})
@@ -444,7 +444,7 @@ async def test_the_gear_downloads_the_days_logs_on_the_phone_and_tabs_are_logged
         await page.get_by_role("button", name="Settings").click()
         sheet = page.get_by_role("dialog", name="Settings")
         await sheet.wait_for(timeout=WAIT_MS)
-        assert "Download today's logs" in await sheet.inner_text()
+        assert "Download today's logs" in await sheet.text_content()                          # a heading: in capitals on the page
         async with page.expect_download() as got:
             await sheet.get_by_role("button", name="Today", exact=True).click()
         download = await got.value
@@ -610,7 +610,7 @@ async def test_agents_add_an_agent_give_it_a_task_type_edit_and_delete_it(fake_r
         await sheet.get_by_label("Docs", exact=True).check()                                            # a type given in the dialog (spec 36 §3)
         await sheet.get_by_role("button", name="Save agent").click()
         assert await _called(stub, "ideas.role_save", {"name": "Docs scribe", "model": "laborer", "max_parallel": 3, "instruction": "Write plainly.",
-                                                        "kinds": ["docs"]})
+                                                        "kinds": ["docs"], "craft": "engineering"})
         await agents.locator(".role[data-slug='docs-scribe']").wait_for(timeout=WAIT_MS)
         assert "Takes: docs" in await agents.locator(".role[data-slug='docs-scribe']").inner_text()
         await agents.get_by_role("button", name="Edit Docs scribe").click()

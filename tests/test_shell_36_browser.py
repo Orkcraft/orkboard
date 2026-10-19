@@ -136,7 +136,7 @@ def test_the_dialog_lists_by_target_and_the_tiers_counts_the_instruction_and_mov
     dlg.get_by_role("button", name="Save agent").click()
     pg.locator(".shell-role[data-slug='reader']").wait_for(timeout=WAIT_MS)
     saved = next(a for n, a in host.log if n == "ideas.role_save")
-    assert saved == {"name": "Reader", "model": "", "max_parallel": 2, "instruction": "Write plainly.", "kinds": ["research"]}
+    assert saved == {"name": "Reader", "model": "", "max_parallel": 2, "instruction": "Write plainly.", "kinds": ["research"], "craft": "engineering"}
     pg.get_by_role("button", name="Edit Grunts").click()                                              # Grunt's block no longer says research
     grunt = pg.get_by_role("dialog", name="Edit agent")
     grunt.get_by_label("Name").wait_for(timeout=WAIT_MS)

@@ -53,7 +53,7 @@ export function SwitchDialog({ branch, work }) {
     } catch (err) { setWhy(err.message || ""); } finally { setBusy(false); }
   };
   return html`<${Modal} title="Switch branch" onClose=${closeDialog}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Cancel</button>`}>
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>`}>
     <div class="shell-form">
       <p>You are on <code>${branch || "no branch"}</code>.</p>
       ${list === null ? html`<p class="ok-tone-muted">Reading the branches…</p>`
@@ -111,7 +111,7 @@ export function GitSection() {
   if (noGit || s.nogit) {
     return html`<section class="shell-git" aria-label="Git"><h3 class="board-sub">Git</h3>
       <p class="ok-tone-muted">This folder has no git.</p>
-      <p><button class="ok-btn" onClick=${async () => { if (await startGit(currentProject.value?.path)) resetGit(); }}>Start git here</button></p>
+      <p><button class="ork-btn" onClick=${async () => { if (await startGit(currentProject.value?.path)) resetGit(); }}>Start git here</button></p>
       <p class="ok-font-status ok-tone-muted">Makes a first commit of the folder's files as they are.</p></section>`;
   }
   const isWork = s.work_branch && s.branch === s.work_branch;
@@ -129,13 +129,13 @@ export function GitSection() {
       <span class="shell-git__st ok-tone-muted">${STATUS_WORDS[f.status] || f.status}</span>
       <span class="shell-file__n"><span class="is-add">+${f.added}</span> <span class="is-del">−${f.removed}</span></span></li>`)}</ul>`}
     ${files.length > 0 && html`<form class="shell-git__commit" onSubmit=${commit}>
-      <input class="ok-input" aria-label="Commit message" placeholder="What changed" value=${message} onInput=${(e) => setMessage(e.target.value)} />
-      <button type="submit" class="ok-btn primary" disabled=${!tick.length || !message.trim() || !!busy}>Commit${tick.length ? ` ${tick.length} file${tick.length === 1 ? "" : "s"}` : ""}</button></form>`}
+      <input class="ork-field" aria-label="Commit message" placeholder="What changed" value=${message} onInput=${(e) => setMessage(e.target.value)} />
+      <button type="submit" class="ork-btn primary" disabled=${!tick.length || !message.trim() || !!busy}>Commit${tick.length ? ` ${tick.length} file${tick.length === 1 ? "" : "s"}` : ""}</button></form>`}
     ${why && html`<p class="ok-tone-error" role="alert">${why}</p>`}
     ${s.last && html`<p class=${cls("ok-font-status", s.last.ok ? "ok-tone-muted" : "ok-tone-error")} data-git="last" role=${s.last.ok ? "status" : "alert"}>${s.last.said}</p>`}
     <div class="shell-git__sync">
-      <button class="ok-btn" disabled=${!!busy} aria-busy=${busy === "pull"} title="Brings in what origin has, when it fast-forwards" onClick=${() => run("pull")}>${busy === "pull" ? "Pulling…" : "Pull"}</button>
-      <button class="ok-btn" disabled=${!!busy} aria-busy=${busy === "push"} title="Sends your code to origin" onClick=${() => run("push")}>${busy === "push" ? "Pushing…" : "Push"}</button>
+      <button class="ork-btn" disabled=${!!busy} aria-busy=${busy === "pull"} title="Brings in what origin has, when it fast-forwards" onClick=${() => run("pull")}>${busy === "pull" ? "Pulling…" : "Pull"}</button>
+      <button class="ork-btn" disabled=${!!busy} aria-busy=${busy === "push"} title="Sends your code to origin" onClick=${() => run("push")}>${busy === "push" ? "Pushing…" : "Push"}</button>
       <button class="shell-quiet" onClick=${loadStatus}>Refresh</button></div>
     <p class="ok-font-status ok-tone-muted">Push sends your code to origin, only when you press it. Pull only fast-forwards.</p>
   </section>`;

@@ -13,10 +13,10 @@ const keep = (name, values) => { try { if (values) localStorage.setItem(KEEP + n
 
 /** A field of a template's form: text, a box (long) or a select (choice); `hint` is its placeholder. */
 export function Field({ f, value, onInput, label = f.label }) {
-  const common = { class: "ok-input", "aria-label": label, value, placeholder: f.hint || "", onInput: (e) => onInput(e.target.value) };
+  const common = { class: "ork-field", "aria-label": label, value, placeholder: f.hint || "", onInput: (e) => onInput(e.target.value) };
   return html`<label class="shell-field" data-field=${f.name}><span class="ok-font-label">${label}${f.required ? " *" : ""}</span>
     ${f.type === "long" ? html`<textarea ...${common} rows="4"></textarea>`
-      : f.type === "choice" ? html`<select class="ok-input" aria-label=${label} value=${value} onChange=${(e) => onInput(e.target.value)}>
+      : f.type === "choice" ? html`<select class="ork-field" aria-label=${label} value=${value} onChange=${(e) => onInput(e.target.value)}>
         ${f.required || !f.default ? html`<option value="">—</option>` : null}
         ${(f.options || []).map((o) => html`<option key=${o} value=${o}>${o}</option>`)}</select>`
       : html`<input ...${common} />`}</label>`;
@@ -49,7 +49,7 @@ export function OpFormDialog({ template }) {
     refreshOps();
   };
   return html`<${Modal} title=${t.title} onClose=${close} wide=${true}
-    foot=${html`<button type="submit" form="op-form" class="ok-btn primary" disabled=${missing || busy}
+    foot=${html`<button type="submit" form="op-form" class="ork-btn primary" disabled=${missing || busy}
       title=${`Adds it to Operations: it is prepared at once, then it waits at your check`}>Add</button>`}>
     <form id="op-form" class="shell-form" data-template=${template} onSubmit=${add}>
       ${t.fields.map((f, n) => html`<${Field} key=${f.name} f=${f} value=${values[f.name] ?? ""} onInput=${(v) => setValues({ ...values, [f.name]: v })} />`)}
@@ -68,7 +68,7 @@ export function OpSettingsDialog() {
   const needed = Object.entries(o?.servers_needed || {});
   const number = (key, lo, hi, label, after) => html`<label class="board-row" data-setting=${key}>
     <span>${label}</span>
-    <input class="ok-input board-num" type="number" min=${lo} max=${hi} value=${typed[key] ?? s[key]} aria-label=${after}
+    <input class="ork-field board-num" type="number" min=${lo} max=${hi} value=${typed[key] ?? s[key]} aria-label=${after}
       onInput=${(e) => setTyped({ ...typed, [key]: e.target.value })}
       onChange=${(e) => {
         const n = Number(e.target.value);
@@ -76,7 +76,7 @@ export function OpSettingsDialog() {
         if (Number.isInteger(n) && n >= lo && n <= hi) set({ [key]: n }).then(done); else done();
       }} />
     ${key === "trust_after" ? html`<span>clean checks</span>` : html`<span>a day</span>`}</label>`;
-  return html`<${Modal} title="Operations settings" onClose=${closeDialog} foot=${html`<button type="button" class="ok-btn primary" onClick=${closeDialog}>Done</button>`}>
+  return html`<${Modal} title="Operations settings" onClose=${closeDialog} foot=${html`<button type="button" class="ork-btn primary" onClick=${closeDialog}>Done</button>`}>
     <div class="shell-form">
       <div class="shell-field" role="group" aria-label="Target"><span class="ok-font-label">Target</span>
         <div class="shell-seg">${TARGETS.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${s.target === id ? " is-on" : ""}`}>
@@ -91,7 +91,7 @@ export function OpSettingsDialog() {
         const now = s.servers?.[key] || "";
         const list = servers || [];
         return html`<label class="shell-field" key=${key} data-server=${key}><span class="ok-font-label">${word} server</span>
-          <select class="ok-input" aria-label=${`${word} server`} value=${now} onChange=${(e) => set({ servers: { [key]: e.target.value } })}>
+          <select class="ork-field" aria-label=${`${word} server`} value=${now} onChange=${(e) => set({ servers: { [key]: e.target.value } })}>
             <option value="">not connected</option>
             ${[...new Set([...(now ? [now] : []), ...list])].map((n) => html`<option key=${n} value=${n}>${n}</option>`)}</select></label>`;
       })}
@@ -113,11 +113,11 @@ export function OpRulesDialog({ template }) {
     if (got) closeDialog();
   };
   return html`<${Modal} title=${`Rules: ${t?.title || template}`} onClose=${closeDialog} wide=${true}
-    foot=${html`<button type="button" class="ok-btn" onClick=${closeDialog}>Cancel</button>
-      <button type="button" class="ok-btn primary" disabled=${text === null || busy || (text || "").length > 4000} onClick=${save}>Save the rules</button>`}>
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>
+      <button type="button" class="ork-btn primary" disabled=${text === null || busy || (text || "").length > 4000} onClick=${save}>Save the rules</button>`}>
     <div class="shell-form">
       <label class="shell-field"><span class="ok-font-label">Rules</span>
-        <textarea class="ok-input" rows="10" aria-label="Rules" value=${text ?? ""} disabled=${text === null} placeholder="One rule a line, such as: Always put the epic in the title"
+        <textarea class="ork-field" rows="10" aria-label="Rules" value=${text ?? ""} disabled=${text === null} placeholder="One rule a line, such as: Always put the epic in the title"
           onInput=${(e) => setText(e.target.value)}></textarea></label>
       <p class="ok-font-status ok-tone-muted">${(text || "").length} of 4000 characters. Every call of this template reads its rules. Saving changes only the rules, not whether it goes by itself.</p>
     </div>

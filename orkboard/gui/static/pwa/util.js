@@ -12,6 +12,26 @@ export function h(tag, attrs = {}, ...kids) {
   return el;
 }
 
+/** One of orkUI's pixel icons (icons/icons.svg, beside the app's files): an SVG that uses its symbol, in the text's colour. */
+export function icon(name) {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "ork-icon");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS(NS, "use");
+  use.setAttribute("href", `icons/icons.svg#${name}`);
+  svg.append(use);
+  return svg;
+}
+
+/** A race's head (orkUI races/ beside the app's files), pixelated: 24 x 22 (its @2x for a sharp screen), or `small` 12 x 11, a pixel a
+ *  cell, an accent in a line of text. A head is an accent, never a picture to look at. */
+export function head(race, tier = "laborer", { small = false, title = "" } = {}) {
+  const src = `races/${race}-${tier}`;
+  return h("img", { class: `ork-race__head${small ? " small" : ""}`, src: `${src}.png`, srcset: small ? null : `${src}@2x.png 2x`,
+    width: small ? 12 : 24, height: small ? 11 : 22, alt: "", title: title || null, draggable: "false" });
+}
+
 export const KEY = "orkcraft.device";   // {id, token, name}: this browser's pairing with the town
 
 // The last town the phone saw, kept on this phone only, to show greyed "as of" while the town cannot be reached
@@ -77,7 +97,7 @@ export function guessName() {
 /** A sheet that rises from the screen's foot: a modal <dialog> (Esc and the backdrop close it), its title and
  *  Close at the top, `body` under them. `{el, open, close, title(text)}`. */
 export function sheet(title, ...body) {
-  const shut = h("button", { class: "ok-btn", type: "button" }, "Close");
+  const shut = h("button", { class: "ork-btn", type: "button" }, "Close");
   const head = h("h2", {}, title);
   const el = h("dialog", { class: "sheet", "aria-label": title }, h("div", { class: "sheet-in" },
     h("div", { class: "sheet-head" }, head, shut), ...body));

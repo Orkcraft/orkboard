@@ -20,14 +20,14 @@ export function PairDialog() {
   const forget = (id) => command("phones.forget", { id }).then(setInfo, () => {});
   const tail = offer?.tail_address || info?.tail_address, wifi = offer?.address || info?.address;
   return html`<${Modal} title="Pair a phone" onClose=${closeDialog} wide=${true}
-    foot=${html`<button type="button" class="ok-btn" onClick=${() => openDialog("settings")}>← Settings</button>
-      <button type="button" class="ok-btn primary" onClick=${closeDialog}>Done</button>`}>
+    foot=${html`<button type="button" class="ork-btn" onClick=${() => openDialog("settings")}>← Settings</button>
+      <button type="button" class="ork-btn primary" onClick=${closeDialog}>Done</button>`}>
     <div class="shell-pair">
       <div class="shell-pair__code" aria-live="polite">
         ${offer ? html`<${PairQr} pairing=${pairing} /><span class="ok-font-status shell-pair__left">The code is good for ${left} s, once.</span>
-            <button type="button" class="ok-btn" onClick=${cancel}>Cancel the code</button>`
+            <button type="button" class="ork-btn" onClick=${cancel}>Cancel the code</button>`
           : html`<p class="ok-font-status">${paired ? say(`Paired: ${paired}.`) : "No code is showing."}</p>
-            <button type="button" class="ok-btn primary" onClick=${pair}>${paired ? "Pair another phone" : "Show a code"}</button>`}
+            <button type="button" class="ork-btn primary" onClick=${pair}>${paired ? "Pair another phone" : "Show a code"}</button>`}
       </div>
       <div class="shell-pair__how">
         ${step?.lines?.length > 0 && offer && html`<ol class="shell-pair__steps">${step.lines.map((l, n) => html`<li key=${n} class="ok-font-status">${linked(l)}</li>`)}</ol>`}
@@ -42,7 +42,7 @@ export function PairDialog() {
         ${info?.phones?.length ? html`<ul class="gui-phones__list">${info.phones.map((d) => html`<li key=${d.id} class="gui-phones__one">
           <span class="gui-phones__name">${d.name}</span>
           <span class="ok-font-status ok-tone-muted">${(info.open || []).includes(d.id) ? "connected now" : `last seen ${when(d.seen)}`}</span>
-          <button type="button" class="ok-btn" title="Its token stops working at once" onClick=${() => forget(d.id)}>Forget</button></li>`)}</ul>`
+          <button type="button" class="ork-btn" title="Its token stops working at once" onClick=${() => forget(d.id)}>Forget</button></li>`)}</ul>`
           : html`<p class="ok-font-status ok-tone-muted">No phone is paired yet.</p>`}
       </div>
     </div>

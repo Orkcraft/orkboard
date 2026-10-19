@@ -33,14 +33,14 @@ export function makeIdeas(core, ctx, goalSheet) {
   const tracks = () => (st.board?.tracks || []).filter((t) => t.slug !== "general");
 
   // -- New idea: the text, its goal, its priority; Add. Closing the sheet with text in it adds it to tonight's queue, never lost. -----
-  const field_ = h("textarea", { class: "ok-input", rows: "5", maxlength: "20000", enterkeyhint: "done", "aria-label": "The idea", placeholder: "An idea…" });
-  const goalPick = h("select", { class: "ok-input", "aria-label": "Goal" });
+  const field_ = h("textarea", { class: "ork-field", rows: "5", maxlength: "20000", enterkeyhint: "done", "aria-label": "The idea", placeholder: "An idea…" });
+  const goalPick = h("select", { class: "ork-field", "aria-label": "Goal" });
   const priority = prioritySwitch("idea-priority");
   let touched = false;                               // the person chose the priority: a goal change leaves it
   priority.el.addEventListener("change", () => { touched = true; });
   goalPick.addEventListener("change", () => { if (!touched) priority.set(tracks().find((t) => t.slug === goalPick.value)?.priority || "normal"); });
   const hint = h("p", { class: "muted hint" }, "High and Normal are drafted at once; Low waits for the night. Closing this with text in it keeps the idea for tonight. Speak it with the keyboard’s microphone.");
-  const add = h("button", { class: "ok-btn primary big", type: "button" }, "Add");
+  const add = h("button", { class: "ork-btn primary big", type: "button" }, "Add");
   const addSheet = sheet("New idea", field("The idea", field_), field("Goal", goalPick),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(add));
   let saved = false;                                 // a button saved it: closing the sheet after it saves nothing more
@@ -91,8 +91,8 @@ export function makeIdeas(core, ctx, goalSheet) {
   // -- Delete asks first, on a sheet --------------------------------------------------------------------------------
   let doomed = null;
   const doomText = h("p", {});
-  const sure = h("button", { class: "ok-btn danger big", type: "button" }, "Delete");
-  const dropSheet = sheet("Delete this idea?", doomText, foot(h("button", { class: "ok-btn big", type: "button", onclick: () => dropSheet.close() }, "Keep it"), sure));
+  const sure = h("button", { class: "ork-btn danger big", type: "button" }, "Delete");
+  const dropSheet = sheet("Delete this idea?", doomText, foot(h("button", { class: "ork-btn big", type: "button", onclick: () => dropSheet.close() }, "Keep it"), sure));
   sure.addEventListener("click", async () => {
     dropSheet.close();
     if (doomed && await core.call("ideas.drop", { slug: doomed.slug })) core.refresh();
@@ -101,7 +101,7 @@ export function makeIdeas(core, ctx, goalSheet) {
   // -- one row each ---------------------------------------------------------------------------------------------------
   const run = async (name, args) => { if (await core.call(name, args)) core.refresh(); };
   function actions(idea) {
-    const btn = (label, onclick, cls = "") => h("button", { class: `ok-btn ${cls}`.trim(), type: "button", "aria-label": `${label}: ${idea.title}`, onclick }, label);
+    const btn = (label, onclick, cls = "") => h("button", { class: `ork-btn ${cls}`.trim(), type: "button", "aria-label": `${label}: ${idea.title}`, onclick }, label);
     const del = btn("Delete", () => { doomed = idea; doomText.textContent = `“${idea.title}” and its page are removed.`; dropSheet.open(); });
     const now = btn("Process now", () => run("ideas.queue", { slug: idea.slug, queue: "now" }), "now");
     if (idea.state === "raw" || idea.state === "ready") {
@@ -184,7 +184,7 @@ export function makeIdeas(core, ctx, goalSheet) {
     const open_ = mine.filter((i) => i.state !== "done"), done = mine.filter((i) => i.state === "done");
     const list = h("ol", { class: "ideas" }, ...open_.map(card));
     wireDrag(list);
-    return [h("div", { class: "section-head" }, h("h3", {}, "Ideas"), h("button", { class: "ok-btn primary", type: "button", onclick: openNew }, "New idea")),
+    return [h("div", { class: "section-head" }, h("h3", {}, "Ideas"), h("button", { class: "ork-btn primary", type: "button", onclick: openNew }, "New idea")),
       open_.length ? list : h("p", { class: "muted" }, "No ideas here yet. Drop one with New idea: it costs nothing, the Taskmaster drafts it."),
       done.length ? h("details", { class: "done-ideas" }, h("summary", {}, `Done (${done.length})`), h("ol", { class: "ideas" }, ...done.map(card))) : null].filter(Boolean);
   }

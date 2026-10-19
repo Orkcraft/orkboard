@@ -16,7 +16,7 @@ export function SettingsDialog() {
   const push = !!review.value?.push;
   const b = board.value;
   const [from, to] = window_(b?.night);
-  return html`<${Modal} title="Settings" onClose=${closeDialog} foot=${html`<button type="button" class="ok-btn primary" onClick=${closeDialog}>Done</button>`}>
+  return html`<${Modal} title="Settings" onClose=${closeDialog} foot=${html`<button type="button" class="ork-btn primary" onClick=${closeDialog}>Done</button>`}>
     <div class="shell-form">
       ${currentProject.value && html`<p class="ok-font-status ok-tone-muted" data-settings="project">The Board's settings are for this project: ${currentProject.value.name}.</p>`}
       <label class="ok-check">
@@ -28,14 +28,14 @@ export function SettingsDialog() {
           <i>${b.autostart ? "✓" : ""}</i><span>Start plans by themselves</span></label>
         <span class="ok-font-status ok-tone-muted">Low-risk plans start alone; the rest wait for you.</span>
         <div class="board-row"><span class="ok-font-label">Night</span>
-          <input class="ok-input" type="time" value=${from} aria-label="Night from" onChange=${(e) => e.target.value && act("ideas.board_set", { night: `${e.target.value}-${to}` })} />
+          <input class="ork-field" type="time" value=${from} aria-label="Night from" onChange=${(e) => e.target.value && act("ideas.board_set", { night: `${e.target.value}-${to}` })} />
           <span aria-hidden="true">–</span>
-          <input class="ok-input" type="time" value=${to} aria-label="Night to" onChange=${(e) => e.target.value && act("ideas.board_set", { night: `${from}-${e.target.value}` })} /></div>
+          <input class="ork-field" type="time" value=${to} aria-label="Night to" onChange=${(e) => e.target.value && act("ideas.board_set", { night: `${from}-${e.target.value}` })} /></div>
         <span class="ok-font-status ok-tone-muted">The low work, the refresh and the proposals wait for the night (your machine's time).</span></div>`}
       <div class="shell-field"><span class="ok-font-label">Your phone</span>
-        <span><button type="button" class="ok-btn" onClick=${() => openDialog("pair")}>Pair a phone</button></span></div>
+        <span><button type="button" class="ork-btn" onClick=${() => openDialog("pair")}>Pair a phone</button></span></div>
       <div class="shell-gear__logs"><span class="ok-font-label">Download today's logs</span>
-        <a class="ok-btn" href=${logsHref(1)} download>Today</a><a class="ok-btn" href=${logsHref(7)} download>The last 7 days</a></div>
+        <a class="ork-btn" href=${logsHref(1)} download>Today</a><a class="ork-btn" href=${logsHref(7)} download>The last 7 days</a></div>
       <p class="ok-font-status ok-tone-muted">What you did and what the orks did, on this machine only. Off by default. The colours follow your system's light or dark setting.</p>
     </div>
   <//>`;

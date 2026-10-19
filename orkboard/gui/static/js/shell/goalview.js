@@ -18,7 +18,7 @@ export function GoalView() {
     <div class="board-bar"><span class="board-state" data-state=${g.state}>${say(words || "not read yet")}</span>
       <span class="board-size kit-well">${({ high: "High", normal: "Normal", low: "Low" })[g.priority]}</span>
       ${g.deadline && html`<span class="ok-tone-muted">by ${g.deadline}</span>`}
-      <button class="ok-btn" onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div>
+      <button class="ork-btn" onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div>
     ${g.error && g.state === "raw" && html`<p class="ok-tone-wait" role="status">${g.error}</p>`}
     <section class="shell-goal__sec" aria-label="Description"><h3 class="board-sub">Description</h3>
       <p class="shell-brief">${g.description || html`<span class="ok-tone-muted">No description yet.</span>`}</p></section>

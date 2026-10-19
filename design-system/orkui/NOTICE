@@ -1,0 +1,14 @@
+orkUI
+Copyright 2026 orkWorks
+
+This product is licensed under the Apache License, Version 2.0 (LICENSE).
+
+The names orkWorks, orkLine, orkBoard and orkUI, and the ork mark (the organisation's pixel ork and the ASCII orks drawn
+from it in office/ascii/), are not licensed: the Apache License grants no right to use them as trade names or marks.
+
+This product bundles the following, each under its own licence:
+
+- IBM Plex Mono, Copyright 2017 IBM Corp., SIL Open Font License 1.1 (office/fonts/OFL-IBM-Plex-Mono.txt).
+- Pixelify Sans, Copyright 2021 The Pixelify Sans Project Authors, SIL Open Font License 1.1 (office/fonts/OFL-Pixelify-Sans.txt).
+- Pixelarticons, Copyright (c) 2019 Gerrit Halfmann, MIT License (office/icons/LICENSE-pixelarticons.txt): the files in
+  office/icons/src/ (but chevron-*.svg, which are this project's own), copied unchanged, and the sprite built from them.

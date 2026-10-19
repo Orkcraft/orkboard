@@ -4,6 +4,7 @@
 // actions stay pinned at its foot. Below 1 024 px there is no strip: the active tab is the screen, with Back.
 import { useEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
+import { Who } from "../orkui.js";
 import { page } from "../board/store.js";
 import { IdeaView, PlanView } from "../board/idea.js";
 import { MapView } from "../board/map.js";
@@ -31,15 +32,15 @@ function Task({ d }) {
     <dl class="shell-facts">
       <dt>State</dt><dd data-state=${t.state}>${TASK_STATE[t.state] || t.state}${t.note ? html` <span class="ok-tone-muted">${t.note}</span>` : ""}</dd>
       <dt>Idea</dt><dd><button class="board-link" onClick=${() => showIdea(t.idea)}>${t.idea_title}</button></dd>
-      <dt>Tier</dt><dd>${t.tier}</dd>
+      <dt>Tier</dt><dd>${t.head ? html`<${Who} head=${t.head} small />` : t.tier}</dd>
       <dt>Branch</dt><dd><code>${t.branch || "—"}</code></dd>
       <dt>Round</dt><dd>${t.round || 1}</dd>
       <dt>Spend</dt><dd>${t.cost != null ? `$${t.cost.toFixed(2)}` : "—"}</dd>
     </dl>
     ${t.error && html`<p class="ok-tone-error" role="alert">${t.error}</p>`}
     <h3 class="board-sub">Brief</h3><p class="shell-brief">${t.brief}</p>
-    ${t.state === "review" && html`<p><button class="ok-btn primary" onClick=${() => showResult(t.idea, t.id)}>Open the result</button></p>`}
-    ${live && html`<p><button class="ok-btn danger" onClick=${() => act("ideas.stop_task", { slug: t.idea, task: t.id })}>Stop</button></p>`}
+    ${t.state === "review" && html`<p><button class="ork-btn primary" onClick=${() => showResult(t.idea, t.id)}>Open the result</button></p>`}
+    ${live && html`<p><button class="ork-btn danger" onClick=${() => act("ideas.stop_task", { slug: t.idea, task: t.id })}>Stop</button></p>`}
     <h3 class="board-sub">Log</h3>
     <pre class="shell-log" ref=${ref} aria-label="Log">${t.log || "Nothing logged yet."}</pre>
   </div>`;
@@ -106,11 +107,11 @@ export function Preview() {
   useEffect(() => { if (p && dirty) keepTab(id); }, [id, dirty]);                                 // an edit in the passing tab keeps it
   return html`<section class=${cls("shell-preview", { "is-open": !!p || mapShown.value })} aria-label="Preview">
     <${TabStrip} />
-    <div class="shell-pane__head shell-narrowhead"><button class="ok-btn shell-back" aria-label="Back" onClick=${() => closePreview()}>← Back</button>
+    <div class="shell-pane__head shell-narrowhead"><button class="ork-btn shell-back" aria-label="Back" onClick=${() => closePreview()}>← Back</button>
       <h2 title=${title}>${p ? html`<span class="ok-tone-muted">${kindWords(p.kind)}</span> ${title || "…"}${sub ? html` <span class="ok-tone-muted">· ${sub}</span>` : ""}` : "Map"}</h2></div>
     <div class=${cls("shell-preview__body", { "is-map": !p })}>
       ${!p ? html`<${MapView} />`
-        : gone ? html`<div class="shell-empty"><p>${gone}</p><p><button class="ok-btn" onClick=${() => closePreview()}>Close</button></p></div>`
+        : gone ? html`<div class="shell-empty"><p>${gone}</p><p><button class="ork-btn" onClick=${() => closePreview()}>Close</button></p></div>`
         : p.kind === "idea" ? (pg ? html`<${IdeaView} p=${pg} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "plan" ? (pg ? html`<${PlanView} p=${pg} todo=${p.todo} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "goal" ? html`<${GoalView} />`

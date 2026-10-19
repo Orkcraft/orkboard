@@ -70,7 +70,7 @@ export function makeBoardTab(core, ctx) {
   // -- goals (§11.1): a select with New goal beside it; a chosen goal shows its summary's first line, Open and Edit ------
   function goalsBlock() {
     const list = goals();
-    const pick = h("select", { class: "ok-input", "aria-label": "Goal" }, h("option", { value: "" }, "All goals"),
+    const pick = h("select", { class: "ork-field", "aria-label": "Goal" }, h("option", { value: "" }, "All goals"),
       ...list.map((g) => h("option", { value: g.slug }, [g.title, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · "))),
       h("option", { value: "", disabled: true }, "──────────"), h("option", { value: OPS_VIEW }, "Operations"));
     pick.value = st.view === OPS_VIEW ? OPS_VIEW : st.track;
@@ -81,11 +81,11 @@ export function makeBoardTab(core, ctx) {
       core.draw();
     });
     const kids = [h("div", { class: "row goal-pick" }, pick, st.view === OPS_VIEW
-      ? h("button", { class: "ok-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…")
-      : h("button", { class: "ok-btn", type: "button", onclick: () => goalSheet.open() }, "New goal"),
+      ? h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…")
+      : h("button", { class: "ork-btn", type: "button", onclick: () => goalSheet.open() }, "New goal"),
       st.view === OPS_VIEW ? null : inMap
-        ? h("button", { class: "ok-btn", type: "button", "aria-label": "Back to the Board", onclick: () => { st.view = ""; core.draw(); } }, "Board")
-        : h("button", { class: "ok-btn", type: "button", "aria-label": "Map: the goals, ideas and tasks on one screen", onclick: showMap }, "Map"))];
+        ? h("button", { class: "ork-btn", type: "button", "aria-label": "Back to the Board", onclick: () => { st.view = ""; core.draw(); } }, "Board")
+        : h("button", { class: "ork-btn", type: "button", "aria-label": "Map: the goals, ideas and tasks on one screen", onclick: showMap }, "Map"))];
     const g = st.view === OPS_VIEW || inMap ? null : list.find((x) => x.slug === st.track);
     if (g) {
       const line = String(g.summary || "").split("\n").find((l) => l.trim()) || (g.state === "reading" ? "The Taskmaster is reading the goal…" : "");
@@ -93,16 +93,16 @@ export function makeBoardTab(core, ctx) {
         line ? h("p", { class: "goal-line" }, line) : null,
         h("span", { class: "goal-meta" }, h("span", { class: `prio prio-${g.priority}` }, PRIORITY_WORDS[g.priority] || "Normal"),
           GOAL_STATE[g.state] ? h("span", { class: `state-word ${g.state === "reading" ? "work" : g.state}` }, GOAL_STATE[g.state]) : null),
-        h("div", { class: "row" }, h("button", { class: "ok-btn", type: "button", onclick: () => core.open({ kind: "goal", slug: g.slug }) }, "Open"),
-          h("button", { class: "ok-btn", type: "button", "aria-label": `Edit goal ${g.title}`, onclick: () => goalSheet.open(g.slug) }, "Edit"))));
+        h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => core.open({ kind: "goal", slug: g.slug }) }, "Open"),
+          h("button", { class: "ork-btn", type: "button", "aria-label": `Edit goal ${g.title}`, onclick: () => goalSheet.open(g.slug) }, "Edit"))));
     }
     return h("div", { class: "goals" }, h("h3", {}, "Goals"), ...kids);
   }
 
   /** The New… and Settings buttons beside Operations' heading, with no project open. */
   function opsButtons() {
-    return h("div", { class: "row" }, h("button", { class: "ok-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…"),
-      h("button", { class: "ok-btn", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings"));
+    return h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…"),
+      h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings"));
   }
 
   return {
@@ -125,7 +125,7 @@ export function makeBoardTab(core, ctx) {
       const inOps = st.view === OPS_VIEW;
       const inMap = st.view === MAP_VIEW;
       if (inMap && mapRev !== st.board.rev) { if (mapRev === undefined) { st.map = null; st.mapError = ""; } loadMap(); }
-      const gear = h("button", { class: "ok-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
+      const gear = h("button", { class: "ork-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
       pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, inMap ? "Map" : "Board"), inOps ? gear : target), goalsBlock(),
         ...(inOps ? ops.section() : inMap ? map.section() : [...needs.draw(), ...ideas.section()]), unpair);
     },

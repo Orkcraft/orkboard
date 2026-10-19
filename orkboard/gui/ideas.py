@@ -278,7 +278,7 @@ class Ideas(LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixin, BoardMix
                 "state": st["state"], "size": page.get("size") if page.get("size") in ideas.SIZES else "",
                 "sections": [{"name": n, "thesis": ideas.thesis(page.section(n)), "text": page.section(n)}
                              for n in names],
-                "talk": ideas.talk(self.state_dir, slug), "plan": ideas.plan(self.state_dir, slug),
+                "talk": ideas.talk(self.state_dir, slug), "plan": self._with_heads(ideas.plan(self.state_dir, slug)),
                 "busy": bool(self.keeper.busy(slug)) or st["state"] in ("reading", "planning"),
                 "error": st.get("error", ""), "proposed_track": page.get("proposed_track")}
 

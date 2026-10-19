@@ -16,10 +16,10 @@ export function Questions({ questions, onSend, busy = false }) {
   };
   return html`<form class="board-questions" id="board-questions" onSubmit=${send}>
     ${questions.map((q, n) => html`<label key=${n} class="shell-field"><span class="ok-font-label">${q}</span>
-      <textarea class="ok-input" rows="2" autofocus=${n === 0} value=${answers[n] || ""} aria-label=${`Answer ${n + 1}: ${q}`}
+      <textarea class="ork-field" rows="2" autofocus=${n === 0} value=${answers[n] || ""} aria-label=${`Answer ${n + 1}: ${q}`}
         onInput=${(e) => setAnswers(answers.map((a, i) => (i === n ? e.target.value : a)))}
         onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send(e); }}></textarea></label>`)}
-    <div class="board-row"><button type="submit" class="ok-btn primary" disabled=${sending || busy}>Send</button>
+    <div class="board-row"><button type="submit" class="ork-btn primary" disabled=${sending || busy}>Send</button>
       <span class="ok-font-status ok-tone-muted">${say("The Taskmaster reads all your answers at once and asks nothing more.")}</span></div>
   </form>`;
 }

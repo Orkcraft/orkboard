@@ -1,0 +1,131 @@
+/* The page beyond the shell's own sheets (js/shell/shell.css, js/board/board.css), in orkUI's office look
+   (design-system/orkui, docs/specs/40-design-system.md): the page itself, the toasts, the first screen (the AI tools found),
+   the dialog of js/dialog.js, a checkbox, a select's chevron, the paired phones. orkUI's tokens and components only: no raw
+   colour, nothing round; every arrow a pixel mark. */
+
+html, body, #app { height: 100%; margin: 0; }
+body { overflow: hidden; user-select: text; -webkit-user-select: text; }
+button { color: inherit; }
+.gui { height: 100%; }
+.gui-loading { display: grid; place-items: center; height: 100%; color: var(--ork-ink-muted); }
+.gui-link { border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.gui-scrolls[data-more="below"] { mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); }
+.gui-scrolls[data-more="above"] { mask-image: linear-gradient(to top, #000 calc(100% - 40px), transparent); }
+.gui-scrolls[data-more="above below"] { mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+code, pre, kbd { font-family: var(--ork-font-code); }
+
+/* A select of orkUI's fields without its wrapper: the look's own chevron, drawn in five whole pixels of ink. */
+select.ork-field { padding-right: var(--ork-8); cursor: pointer;
+  background-image: linear-gradient(var(--ork-ink) 0 0), linear-gradient(var(--ork-ink) 0 0), linear-gradient(var(--ork-ink) 0 0),
+    linear-gradient(var(--ork-ink) 0 0), linear-gradient(var(--ork-ink) 0 0);
+  background-position: right 18px top calc(50% - 2px), right 16px top 50%, right 14px top calc(50% + 2px), right 12px top 50%,
+    right 10px top calc(50% - 2px);
+  background-size: 2px 2px; background-repeat: no-repeat; background-color: var(--ork-canvas); }
+select.ork-field:disabled { background-image: none; }
+select.ork-field option { background: var(--ork-panel); color: var(--ork-ink); }
+textarea.ork-field { line-height: 18px; }
+
+/* A checkbox as the look draws one: a square edge, a whole ink square inside when it is on. The native box (its input) or
+   an old one's mark (`.ok-check` with a hidden input and an <i>). */
+input[type="checkbox"] { appearance: none; -webkit-appearance: none; flex: none; width: 16px; height: 16px; margin: 0; box-sizing: border-box;
+  border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); cursor: pointer; vertical-align: -3px; }
+input[type="checkbox"]:checked { background: var(--ork-ink); box-shadow: inset 0 0 0 3px var(--ork-canvas); }
+input[type="checkbox"]:focus-visible { outline: 0; box-shadow: 0 0 0 2px var(--ork-ink); }
+input[type="checkbox"]:checked:focus-visible { box-shadow: inset 0 0 0 3px var(--ork-canvas), 0 0 0 2px var(--ork-ink); }
+input[type="checkbox"]:disabled { border-style: dashed; border-color: var(--ork-ink-faint); cursor: default; }
+input[type="radio"] { accent-color: var(--ork-ink); }
+.ok-check { display: inline-flex; align-items: center; gap: var(--ork-3); color: var(--ork-ink); cursor: pointer; }
+.ok-check i { flex: none; width: 16px; height: 16px; box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas);
+  font-size: 0; font-style: normal; }
+.ok-check i:not(:empty) { background: var(--ork-ink); box-shadow: inset 0 0 0 3px var(--ork-canvas); }
+.ok-check:focus-within i { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
+.gui-onb__hide { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+
+/* -- the toasts: over the page's foot, at its right; their mark in the signal's colour ------------------------------------- */
+.gui-toasts { position: fixed; right: var(--ork-6); bottom: var(--ork-6); z-index: 110; display: flex; flex-direction: column; align-items: flex-end;
+  gap: var(--ork-3); max-width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+.gui-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: var(--ork-3); width: 100%; box-sizing: border-box;
+  padding: var(--ork-3) var(--ork-4); background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge);
+  clip-path: var(--ork-notch); font: var(--ork-type-body); user-select: text; -webkit-user-select: text; }
+.gui-toast.is-warn { border-color: var(--ork-alert); }
+.gui-toast.is-error { border-color: var(--ork-danger); }
+.ok-toast__mark { flex: none; font-weight: 600; }
+.gui-toast.is-ok .ok-toast__mark { color: var(--ork-success); }
+.gui-toast.is-warn .ok-toast__mark { color: var(--ork-alert); }
+.gui-toast.is-error .ok-toast__mark { color: var(--ork-danger); }
+.gui-toast__text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; cursor: text; }
+.gui-toast__acts { flex: none; display: inline-flex; gap: var(--ork-1); align-self: flex-start; }
+.gui-toolerr__close { border: 0; background: none; padding: 0 var(--ork-1); color: var(--ork-ink-muted); font: inherit; cursor: pointer; }
+.gui-toolerr__close:hover, .gui-toolerr__close:focus-visible { color: var(--ork-ink); outline: 0; }
+
+/* -- the dialog of js/dialog.js (a tool's request, a risky tool's warning): orkUI's dialog on its scrim ---------------------- */
+.gui-modal { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: var(--ork-6); background: var(--ork-scrim); }
+.gui-dialog { display: flex; flex-direction: column; gap: var(--ork-4); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+.gui-dialog.is-wide { width: min(680px, calc(100vw - 32px)); }
+.gui-dialog.is-warn { border-color: var(--ork-alert); }
+.gui-dialog > .ork-dialog__title { margin: 0; }
+.gui-dialog__meta { margin: 0; color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.gui-dialog__body { display: flex; flex-direction: column; gap: var(--ork-4); min-height: 0; overflow: auto; }
+.gui-dialog__body:empty { display: none; }
+.gui-dialog__text { margin: 0; }
+.gui-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ork-3); }
+.gui-wait { display: flex; align-items: center; gap: var(--ork-3); }
+.gui-wait__glass::after { content: ""; display: inline-block; width: 7px; height: 13px; background: var(--ork-ink); animation: ork-blink 1s steps(1) infinite; }
+.gui-wait__what { flex: 1; min-width: 0; }
+.gui-wait__time { flex: none; color: var(--ork-ink-muted); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .gui-wait__glass::after { animation: none; } }
+
+/* An AI tool's mark: its plain sign (the SVG), never Camp's sprite. */
+.gui-toolmark { display: inline-flex; align-items: center; vertical-align: -3px; }
+.gui-toolmark > img { display: none; }
+.gui-toolmark__svg { display: inline; }
+.gui-type-icon { flex: none; fill: none; stroke: currentColor; stroke-width: 1.4; color: var(--ork-ink-muted); }
+
+/* -- the first screen (js/onboarding.js, Orkboard's step: the AI tools found) --------------------------------------------- */
+.gui-onb { position: fixed; inset: 0; z-index: 30; overflow: auto; display: flex; flex-direction: column; align-items: center; gap: var(--ork-6);
+  padding: var(--ork-8) var(--ork-6); box-sizing: border-box; background: var(--ork-canvas); color: var(--ork-ink); }
+.gui-onb__brand img { height: 32px; display: block; }
+.gui-onb__card { width: min(880px, 100%); box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-6); padding: var(--ork-8);
+  background: var(--ork-panel); border: var(--ork-double) double var(--ork-edge); clip-path: var(--ork-notch); }
+.gui-onb__head { display: flex; flex-direction: column; gap: var(--ork-3); }
+.gui-onb__title { margin: 0; font: var(--ork-type-title); text-transform: var(--ork-type-title-case); letter-spacing: var(--ork-type-title-track); }
+.gui-onb__lead { margin: 0; max-width: 70ch; }
+.gui-onb__tagline { color: var(--ork-ink); }
+.gui-onb__foot { display: flex; align-items: center; gap: var(--ork-4); flex-wrap: wrap; }
+.gui-onb__spacer { flex: 1; display: flex; justify-content: flex-end; }
+.gui-onb__quiet { color: var(--ork-ink-muted); }
+.gui-onb__line { display: flex; align-items: center; gap: var(--ork-4); flex-wrap: wrap; }
+.gui-onb__line .ok-font-status { flex: 1; min-width: 240px; }
+.gui-onb__table { display: flex; flex-direction: column; border: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas); }
+.gui-onb__row { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 220px) 140px 112px; gap: var(--ork-4); align-items: center;
+  min-height: var(--ork-row); padding: var(--ork-2) var(--ork-4); border-top: var(--ork-line) solid var(--ork-frame); }
+.gui-onb__row:first-child { border-top: 0; }
+.gui-onb__row.is-head { min-height: var(--ork-row); color: var(--ork-ink-muted); }
+.gui-onb__row.is-off { color: var(--ork-ink-muted); }
+.gui-onb__tool { display: inline-flex; align-items: center; gap: var(--ork-3); min-width: 0; font-weight: 600; }
+.gui-onb__checked { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: var(--ork-2) var(--ork-3); }
+.gui-onb__checked details { flex-basis: 100%; }
+.gui-onb__checked pre { margin: var(--ork-2) 0 0; white-space: pre-wrap; max-height: 120px; overflow: auto; }
+.gui-onb__none { display: flex; flex-direction: column; gap: var(--ork-6); }
+.gui-onb__none > p { margin: 0; max-width: 70ch; }
+.gui-onb__cmds { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.gui-onb__cmds code { overflow-wrap: anywhere; user-select: all; }
+.gui-onb__row.is-get { grid-template-columns: 160px minmax(0, 1fr); }
+.gui-onb__without { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ork-6); }
+.gui-onb__without p { margin: var(--ork-2) 0 0; }
+.gui-onb__over { position: fixed; inset: auto var(--ork-6) var(--ork-6) var(--ork-6); z-index: 25; display: flex; justify-content: center; pointer-events: none; }
+.gui-onb__setup { pointer-events: auto; display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-5); background: var(--ork-panel);
+  border: var(--ork-double) double var(--ork-edge); }
+@media (max-width: 720px) {
+  .gui-onb__row { grid-template-columns: 24px minmax(0, 1fr); }
+  .gui-onb__row > :nth-child(n + 3) { grid-column: 2; }
+  .gui-onb__without, .gui-onb__row.is-get { grid-template-columns: minmax(0, 1fr); }
+  .gui-onb__checked { grid-column: 1 / -1; }
+}
+
+/* -- the paired phones (js/shell/pair.js) ----------------------------------------------------------------------------- */
+.gui-phones__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
+.gui-phones__one { display: flex; align-items: center; gap: var(--ork-3); flex-wrap: wrap; }
+.gui-phones__name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.gui-phones__one > .ork-btn { margin-left: auto; }
+.gui-you__qr, .gui-phones__qr { image-rendering: pixelated; }

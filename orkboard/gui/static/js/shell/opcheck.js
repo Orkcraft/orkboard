@@ -26,9 +26,9 @@ export function OpCheckDialog({ op }) {
   };
   if (r.state === "failed") {
     return html`<${Modal} title=${`Failed: ${t.title}`} onClose=${closeDialog}
-      foot=${html`<button type="button" class="ok-btn" disabled=${busy} onClick=${() => go("ops.drop", {})}>Drop</button>
-        <button type="button" class="ok-btn" disabled=${busy} title="Adds a new operation with the same form" onClick=${() => go("ops.again", {})}>Add again</button>
-        ${r.acted === false && html`<button type="button" class="ok-btn primary" disabled=${busy} onClick=${() => go("ops.retry", {})}>Try again</button>`}`}>
+      foot=${html`<button type="button" class="ork-btn" disabled=${busy} onClick=${() => go("ops.drop", {})}>Drop</button>
+        <button type="button" class="ork-btn" disabled=${busy} title="Adds a new operation with the same form" onClick=${() => go("ops.again", {})}>Add again</button>
+        ${r.acted === false && html`<button type="button" class="ork-btn primary" disabled=${busy} onClick=${() => go("ops.retry", {})}>Try again</button>`}`}>
       <div class="shell-form" data-op=${r.id}>
         <p class="ok-tone-error" role="alert">${r.why || "It failed"}</p>
         ${r.acted !== false && html`<p class="ok-font-status ok-tone-muted">It may have been done: look in the tool before you add it again.</p>`}
@@ -48,8 +48,8 @@ export function OpCheckDialog({ op }) {
   });
   const hasAt = t.fields.filter((f) => f.at), noAt = t.fields.filter((f) => !f.at);
   return html`<${Modal} title=${t.title} onClose=${closeDialog} wide=${true}
-    foot=${html`<button type="button" class="ok-btn danger" disabled=${busy} title="Throws it away: nothing is done" onClick=${() => go("ops.drop", {})}>Drop</button>
-      <button type="button" class="ok-btn primary" data-act=${again ? "prepare" : "act"} disabled=${busy}
+    foot=${html`<button type="button" class="ork-btn danger" disabled=${busy} title="Throws it away: nothing is done" onClick=${() => go("ops.drop", {})}>Drop</button>
+      <button type="button" class="ork-btn primary" data-act=${again ? "prepare" : "act"} disabled=${busy}
         title=${again ? "Prepares it again with the form as changed; nothing is done yet" : `${t.act_label}: this is done at once`}
         onClick=${() => go(again ? "ops.prepare" : "ops.act", sent())}>${again ? "Prepare again" : t.act_label}</button>`}>
     <div class="shell-form board-check" data-op=${r.id}>

@@ -20,9 +20,9 @@ export function listEditor({ label, one, cols, add, plain = false }) {
   let n = 0;
   const addRow = (value) => {
     n += 1;
-    const inputs = cols.map((c) => h("input", { class: `ok-input${c.grow === false ? " narrow" : ""}`, type: "text", value: plain ? String(value ?? "") : String(value?.[c.key] ?? ""),
+    const inputs = cols.map((c) => h("input", { class: `ork-field${c.grow === false ? " narrow" : ""}`, type: "text", value: plain ? String(value ?? "") : String(value?.[c.key] ?? ""),
       placeholder: c.placeholder, "aria-label": c.aria ? `${one} ${n}: ${c.aria}` : `${one} ${n}`, "data-key": c.key, maxlength: "300" }));
-    const gone = h("button", { class: "ok-btn", type: "button", "aria-label": `Remove ${one.toLowerCase()} ${n}` }, "−");
+    const gone = h("button", { class: "ork-btn", type: "button", "aria-label": `Remove ${one.toLowerCase()} ${n}` }, "−");
     const row = h("div", { class: "list-row" }, ...inputs, gone);
     gone.addEventListener("click", () => { row.remove(); if (!rows.children.length) addRow(); });
     rows.append(row);

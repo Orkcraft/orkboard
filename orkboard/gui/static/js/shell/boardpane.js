@@ -25,7 +25,7 @@ export function BoardPane() {
     </header>` : html`<header class="shell-pane__head"><h2>Board</h2></header>`}
     <div class="shell-pane__body">
       ${on === "files" ? html`<${FilesPane} />`
-        : b ? html`<button class="ok-btn shell-mapbtn" title="Your goals, ideas and tasks on one screen" onClick=${openMap}>Map</button><${Goals} />${track.value === OPS ? html`<${Operations} />` : html`<${Today} /><${Ideas} />`}` : html`<p class="ok-tone-muted">Opening the board…</p>`}
+        : b ? html`<button class="ork-btn shell-mapbtn" title="Your goals, ideas and tasks on one screen" onClick=${openMap}>Map</button><${Goals} />${track.value === OPS ? html`<${Operations} />` : html`<${Today} /><${Ideas} />`}` : html`<p class="ok-tone-muted">Opening the board…</p>`}
     </div>
   </section>`;
 }

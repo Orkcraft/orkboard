@@ -1,26 +1,27 @@
-"""The design tokens (`tokens.json`, docs/design-system.md): roles for fonts, colours and space.
+"""The design tokens (`tokens.json`, docs/specs/40-design-system.md): roles for fonts, colours and space.
 
-A building's UI document names roles only (`"font": "status"`, `"tone": "fire"`). A face maps a
-role to what it can draw: the TUI to a text style and a hex colour, the GUI to the design system's
-own tokens (`design-system/`, linked here as `system/`): a type style per look, a colour token.
+A building's UI document names roles only (`"font": "status"`, `"tone": "fire"`). A face maps a role to what it can
+draw: the TUI to a text style and a hex colour, the page to orkUI's own tokens (`design-system/orkui/`, the copy
+design/orkui.py keeps; linked here as `system/orkui/`): a type style, a colour token. orkUI has one look, office.
 
-    tokens.FONTS                 # ("title", "heading", "body", "mono", "status", "label", "number")
-    tokens.font("status")        # {"about": ..., "tui": ""}
+    tokens.FONTS                     # ("title", "heading", "body", "mono", "status", "label", "number")
+    tokens.font("status")            # {"about": ..., "tui": ""}
     tokens.color("fire", "office")   # the TUI's hex
-    tokens.style("title", "camp")    # "camp-heading": a type style of design-system/tokens.json
-    tokens.css_var("fire")           # "--alert": a colour token of design-system/tokens.json
-    tokens.roles_css()               # the role classes the GUI's panes wear (.ok-font-status, .ok-tone-fire)
-    tokens.system_css()              # design-system/tokens.css as tokens.json says (python -m orkboard.design.tokens)
+    tokens.style("title")            # "title": a type style of orkUI's tokens.json (--ork-type-title)
+    tokens.css_var("fire")           # "--ork-alert": a colour token of orkUI's tokens.css
+    tokens.roles_css()               # the role classes the page's panes wear (.ok-font-status, .ok-tone-fire)
 """
 from __future__ import annotations
 
 import functools
 import json
+import re
 from pathlib import Path
 
 PATH = Path(__file__).with_name("tokens.json")
-SYSTEM = Path(__file__).with_name("system")       # → design-system/: the GUI's tokens, CSS, fonts, sprites
-THEMES = ("camp", "office")
+SYSTEM = Path(__file__).with_name("system")       # → design-system/: orkUI's copy and the ork mark
+ORKUI = SYSTEM / "orkui"                          # orkUI's office look (design/orkui.py)
+THEMES = ("camp", "office")                       # the TUI's colour sets (tokens.json `colors`)
 
 
 def assets_dir() -> Path:
@@ -35,17 +36,6 @@ def assets_dir() -> Path:
     return Path(base) / "orkcraft" / "assets"
 
 
-def camp_kit() -> list[str]:
-    """The sprites of the new Camp's kit this machine has (`design-system/sprites/camp/`, docs/design/design-system-v2.md
-    §11), as paths under `camp/`, the machine's own pictures among them: the GUI draws a piece once it is there and a
-    placeholder until then, so it never asks for a file that is not (js/cover.js)."""
-    found: set[str] = set()
-    for root in (SYSTEM / "sprites" / "camp", assets_dir() / "sprites" / "camp"):
-        if root.is_dir():
-            found |= {f.relative_to(root).as_posix() for f in root.rglob("*.png") if f.is_file()}
-    return sorted(found)
-
-
 @functools.lru_cache(maxsize=1)
 def load() -> dict:
     return json.loads(PATH.read_text(encoding="utf-8"))
@@ -53,17 +43,14 @@ def load() -> dict:
 
 @functools.lru_cache(maxsize=1)
 def system() -> dict:
-    """design-system/tokens.json: the source of truth for every colour and type style the GUI draws."""
-    return json.loads((SYSTEM / "tokens.json").read_text(encoding="utf-8"))
+    """orkUI's tokens.json: the source of truth for every colour and type style the page draws."""
+    return json.loads((ORKUI / "tokens.json").read_text(encoding="utf-8"))
 
 
-def _styles() -> dict[str, dict]:
-    """Every type style of the design system by name, with its family (`camp-title` → display, …)."""
-    out = {}
-    for group in system()["type"]["groups"]:
-        for st in group["styles"]:
-            out[st["name"]] = {"family": group["family"], **st}
-    return out
+@functools.lru_cache(maxsize=1)
+def _declared() -> frozenset[str]:
+    """Every custom property orkUI's tokens.css declares (`--ork-ink`, and the old role names it keeps, `--road`)."""
+    return frozenset(re.findall(r"^\s*(--[\w-]+):", (ORKUI / "tokens.css").read_text(encoding="utf-8"), re.M))
 
 
 def _fonts() -> tuple[str, ...]:
@@ -82,9 +69,9 @@ def font(role: str) -> dict:
     return dict(load()["fonts"][role])
 
 
-def style(role: str, look: str) -> str:
-    """The design system's type style a font role wears in a look (`camp` or `office`)."""
-    return load()["gui"]["fonts"][role][look]
+def style(role: str) -> str:
+    """orkUI's type style a font role wears (`title`, `body`, `caption`, …: `--ork-type-<style>`)."""
+    return load()["gui"]["fonts"][role]
 
 
 def color(role: str, theme: str) -> str:
@@ -92,11 +79,8 @@ def color(role: str, theme: str) -> str:
 
 
 def css_var(tone: str) -> str:
-    """The design system's colour token of a colour role, as a CSS variable (`fire` → `--alert`)."""
+    """orkUI's colour token of a colour role, as a CSS variable (`fire` → `--ork-alert`)."""
     return "--" + load()["gui"]["colors"][tone]
-
-
-UPPERCASE = ("camp-label", "office-heading")     # tokens.json says so in their usage, not as a field
 
 
 def _css_class(name: str) -> str:
@@ -104,49 +88,18 @@ def _css_class(name: str) -> str:
 
 
 def roles_css() -> str:
-    """The CSS of the roles a UI document names: `.ok-font-<role>` per look and `.ok-tone-<role>`, all
-    read from the design system's tokens, so a pane never carries a value of its own."""
-    styles, lines = _styles(), ["/* Generated by orkboard.design.tokens.roles_css() from design-system/tokens.json. */"]
-    looks = {"camp": ':root, [data-theme^="camp"]', "office": '[data-theme="office"]'}
-    for look, scope in looks.items():
-        for role in FONTS:
-            st = styles[style(role, look)]
-            decl = [f"font-family: var(--font-{st['family']})", f"font-size: {st['fontSize']}",
-                    f"line-height: {st['lineHeight']}", f"font-weight: {st['fontWeight']}"]
-            # Every declaration is written in both looks, so Office never inherits Camp's.
-            decl.append(f"letter-spacing: {st.get('letterSpacing') or 'normal'}")
-            upper = st.get("textTransform") == "uppercase" or st["name"] in UPPERCASE
-            decl.append(f"text-transform: {'uppercase' if upper else 'none'}")
-            decl.append(f"font-variant-numeric: {'tabular-nums' if st['name'] == 'camp-number' else 'normal'}")
-            selector = ", ".join(f"{s.strip()} .ok-font-{role}" for s in scope.split(","))
-            lines.append(f"{selector} {{ {'; '.join(decl)}; }}")
+    """The CSS of the roles a UI document names: `.ok-font-<role>` and `.ok-tone-<role>`, all read from orkUI's
+    tokens, so a pane never carries a value of its own."""
+    lines = ["/* Generated by orkboard.design.tokens.roles_css() from orkUI's tokens (design-system/orkui). */"]
+    for role in FONTS:
+        st = style(role)
+        decl = [f"font: var(--ork-type-{st})", f"text-transform: var(--ork-type-{st}-case)",
+                f"letter-spacing: var(--ork-type-{st}-track)",
+                f"font-variant-numeric: {'tabular-nums' if role == 'number' else 'normal'}"]
+        lines.append(f".ok-font-{role} {{ {'; '.join(decl)}; }}")
     for tone in TONES:
         lines.append(f".ok-tone-{_css_class(tone)} {{ color: var({css_var(tone)}); }}")
     return "\n".join(lines) + "\n"
-
-
-def system_css() -> str:
-    """design-system/tokens.css, written from design-system/tokens.json: one block of colours and shadows per theme,
-    then the sizes, the motion values and the families. A token is changed in the JSON, then
-    `python -m orkboard.design.tokens` writes the CSS."""
-    data = system()
-    themes = [t["id"] for t in data["color"]["themes"]]
-    out = ["/* Generated from tokens.json. Set data-theme on a root element: " + ", ".join(themes[:-1])
-           + f" or {themes[-1]}. */", ""]
-    for theme in themes:
-        out.append((':root, [data-theme="camp"]' if theme == "camp" else f'[data-theme="{theme}"]') + " {")
-        out += [f"  --{t['name']}: {t['value'][theme]};" for t in data["color"]["tokens"] + data["shadow"]["tokens"]]
-        out += ["}", ""]
-    out.append(":root {")
-    for group in ("spacing", "radius", "border", "size", "motion"):
-        out += [f"  --{t['name']}: {t['value']};" for t in data[group]["tokens"]]
-    out += [f"  --font-{k}: {v};" for k, v in data["type"]["families"].items()]
-    # v3: each type style as a `font` shorthand (`font: var(--type-camp-body)`), so a new component names a style
-    for group in data["type"]["groups"]:
-        for st in group["styles"]:
-            family = st.get("family", group["family"])
-            out.append(f"  --type-{st['name']}: {st['fontWeight']} {st['fontSize']}/{st['lineHeight']} var(--font-{family});")
-    return "\n".join(out) + "\n}\n"
 
 
 def space(step: int, unit: str = "px") -> int:
@@ -155,26 +108,18 @@ def space(step: int, unit: str = "px") -> int:
 
 
 def problems() -> list[str]:
-    """What is wrong with tokens.json itself: every theme has every colour role, every font names a
-    family every theme has. (The tests run it; a hand edit of the file is checked the same way.)"""
+    """What is wrong with tokens.json itself: every theme has every colour role, every font role names a type style
+    of orkUI and every colour role a colour orkUI's tokens.css declares. (The tests run it.)"""
     data, out = load(), []
     for theme in THEMES:
         missing = set(TONES) - set(data["colors"].get(theme, {}))
         if missing:
             out.append(f"colors.{theme}: no {sorted(missing)}")
-    # The GUI's map onto the design system: every role has a style and a colour token there.
-    gui, styles = data["gui"], _styles()
-    colours = {c["name"] for c in system()["color"]["tokens"]}
+    gui, styles = data["gui"], set(system()["type"])
     for role in FONTS:
-        for look in THEMES:
-            name = gui["fonts"].get(role, {}).get(look)
-            if name not in styles:
-                out.append(f"gui.fonts.{role}.{look}: no type style {name!r} in design-system/tokens.json")
+        if gui["fonts"].get(role) not in styles:
+            out.append(f"gui.fonts.{role}: no type style {gui['fonts'].get(role)!r} in orkUI's tokens.json")
     for tone in TONES:
-        if gui["colors"].get(tone) not in colours:
-            out.append(f"gui.colors.{tone}: no colour token {gui['colors'].get(tone)!r} in design-system/tokens.json")
+        if "--" + str(gui["colors"].get(tone)) not in _declared():
+            out.append(f"gui.colors.{tone}: no colour token {gui['colors'].get(tone)!r} in orkUI's tokens.css")
     return out
-
-
-if __name__ == "__main__":
-    (SYSTEM / "tokens.css").write_text(system_css(), encoding="utf-8")
