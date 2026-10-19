@@ -91,7 +91,27 @@ Monochrome: a grey scale and one accent that is the ink itself. **Colour means a
 | `--of-ink-muted` | `#9a9a9a` | secondary text (≥ 6.5 : 1) |
 | `--of-ink-faint` | `#858585` | placeholders, disabled, meta (≥ 4.5 : 1 on the panel; was `#7a7a7a`, 3.8) |
 | `--of-on-ink` | `#0b0b0b` | text on an inked ground (the selected, the primary) |
-| `--of-danger` · `--of-alert` · `--of-success` | `#f5806e` · `#f0d050` · `#86c062` | the signals; unchanged from today's Office |
+| `--of-danger` · `--of-alert` · `--of-success` | `#f5806e` · `#f0d050` · `#86c062` | the signals; unchanged from today's Office (7.4 · 12.4 · 8.7 : 1 on the panel) |
+
+- **Two tokens complete the signals:** `--of-warning` is the alert hue (`#f0d050`, one yellow for a question and a
+  warning, as today's Office has it) and `--of-ink-hi` (`#ffffff`) is the primary button's hover. There is no `info`
+  hue (ink) and no `hot` red (Camp's fire): a failing thing is `--of-danger`.
+
+**Button states** (the contract for `.of-btn`; edge 1 px; contrasts computed against the panel, text on a filled ground
+against `--of-on-ink`; every pair ≥ 4.5 : 1, edges ≥ 3 : 1):
+
+| variant | rest | hover | pressed | disabled |
+|---|---|---|---|---|
+| **default** | edge `--of-edge`, text `--of-ink`, no ground (15.4 : 1) | ground `--of-ink`, text `--of-on-ink` (16.1) | ground `--of-ink-muted`, text `--of-on-ink` (7.0) | dashed edge `--of-ink-faint`, text `--of-ink-faint` (5.1), no hover |
+| **primary** (the action) | ground `--of-ink`, text `--of-on-ink` (16.1) | ground `--of-ink-hi`, text `--of-on-ink` | ground `--of-ink-muted`, text `--of-on-ink` | as default's disabled (a primary that cannot act stops being filled) |
+| **danger** (stops or deletes: *Stop all*, *Delete*) | edge and text `--of-danger` (7.4) | ground `--of-danger`, text `--of-on-ink` (7.7) | as hover, plus an inset 2 px `--of-on-ink` ring | as default's |
+| **warning** (spends money or risks work: the ones that say so plainly) | edge and text `--of-warning` (12.4) | ground `--of-warning`, text `--of-on-ink` (13.0) | as hover, plus the ring | as default's |
+| **quiet** | no edge, underlined pixel text `--of-ink-muted` (6.7) | text `--of-ink` | text `--of-ink-muted` | text `--of-ink-faint`, no underline |
+
+Every variant, in every state, shows **focus** as the inset 2 px `--of-ink` ring (on a filled ground, `--of-on-ink`), over
+the state's own look. **Success has no button:** it is a mark (✓) and text in `--of-success` (8.7 : 1) and the filled cells
+of a meter that is fine. Outside buttons: a card that **asks** has a 1 px `--of-alert` edge, one that **fails** a
+`--of-danger` edge; a limit's meter takes `--of-alert` past 80 % and `--of-danger` past 95 %.
 
 - **Selected is inverted:** ink ground, `--of-on-ink` text (16 : 1). The primary button is the same. No gold, no green.
 - **Focus** is a 2 px ring drawn **inside** the control (`box-shadow: inset 0 0 0 2px var(--of-ink)`): the corners are
@@ -164,8 +184,7 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
 - **Key hints** `[K]` in the text face, 11 px, muted; **prefixes** `>` for the product's name and `▪` before a label.
 
 ## 5. Components (`components.css`, in this order)
-`.of-btn` (default: 1 px `--of-edge`, no ground; hover and pressed: inverted; **primary**: inverted at rest; **danger**:
-`--of-danger` edge and text; **quiet**: no edge, underlined pixel text; disabled: dashed edge, `--of-ink-faint`) ·
+`.of-btn` (variants default · primary · danger · warning · quiet, each in rest · hover · pressed · focus · disabled: the table in §2) ·
 `.of-field` (input, select, textarea: 1 px `--of-edge`, `--of-canvas` ground, text face 12, focus inset ring and caret) ·
 `.of-tabs` / `.of-tab` (pixel caps, the active one inverted) · `.of-head` (a pane's head, 32 px, a hairline under) ·
 `.of-row` / `.of-card` (a hairline edge; selected inverted; **asks**: a 1 px `--of-alert` edge, **fails**: `--of-danger`)
@@ -217,7 +236,7 @@ sizes in `rem`).
   - `tokens.json` of a form has every token of §2–§4 under the names of this file; `tokens.css` is exactly what the
     generator makes of it (as `design-system/tokens.css` is);
   - **contrast, computed from the values:** `--of-ink`, `-muted`, `-faint` on canvas, panel and raised ≥ 4.5 : 1;
-    `--of-edge` on each ground ≥ 3 : 1; each signal on the panel ≥ 4.5 : 1; `--of-on-ink` on `--of-ink` ≥ 7 : 1;
+    `--of-edge` on each ground ≥ 3 : 1; each signal on the panel ≥ 4.5 : 1; every cell of the button-state table (§2) in its own pair ≥ 4.5 : 1 (edges ≥ 3 : 1); `--of-on-ink` on `--of-ink` ≥ 7 : 1;
   - no radius token above 0, no space or size outside the steps, no pixel size below 12 or fractional, the families
     named in `fonts/`, each font file present, `fonts.css` names only files that exist, the licences in `NOTICE` (Plex, Pixelify, Pixelarticons); every icon the sprite names exists in it and is drawn from the upstream file unchanged; the generator is deterministic (twice the same bytes);
   - the legacy roles of §1 are all defined, to colours of the form;
