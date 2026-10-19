@@ -291,3 +291,23 @@ before it goes and no memory of how the person wants it. So:
 6. **The template is the contract of a source:** when External listeners come (§50.4), a mail that came in fills the
    same form; what a source starts keeps the reserve (spec 35 §6).
 A new mechanic before the testers' numbers: the owner's named exception to §27 (as §45.8 and §50.10). Spec 38.
+
+## 52. The Map: a project's work on one screen; the preview becomes tabs; the skill tree is Camp's skin (19 October, the owner)
+
+Why: since spec 35 plans start by themselves and work goes on at night, and since spec 37 D several projects are open at
+once; the Board still shows work as lists (Needs you, a goal's ideas, an idea's Stages). The owner wants to see a
+project's goals, ideas and tasks and their links on one screen, as an RPG's skill tree (Diablo). The metaphor fits
+the data, not only the look: a goal is a tree, an idea a skill, `depends_on` its prerequisite, a plan's tasks its
+ranks (*working 2/5*), a plan's estimate its cost, the night's proposals the skills offered. So:
+1. **The Map is a view, not a mechanic.** Read from what the Board holds (the pages, `plan.json`, the claims, the
+   ledger) by `realm/board_map.py`; it changes nothing; its one action is *open*. Not a graph editor (§50.3): its shape
+   is the goals and the ideas' `depends_on` as they are written. Named by what it does: *Map* (`TERMS` `board_map`).
+2. **The preview becomes tabs**, as an IDE's (§50.10): the Map's tab first and pinned, every other thing in a tab that
+   closes; one passing tab that a click replaces and an edit or a double-click keeps (VS Code's preview tabs); at most
+   12; each project's tabs kept per device.
+3. **The skill tree is Orkline Camp's skin over the same `ideas.map`** (§50.1, §50.5, §50.6): Camp's art, its *learn*
+   the person's own Start, no points that open or move work. After the testers' numbers, or as §45.11's screenshot in
+   place of the town's: cheaper art, and it shows the core.
+4. **Measured:** the Map's opens per day, the first screen opened each morning, the share of ideas opened from it
+   (`opened` gains `via`).
+A view of existing data: an improvement of v1's existing mechanics (§27); the Camp skin waits as §50.8 says. Spec 39.
