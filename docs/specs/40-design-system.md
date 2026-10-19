@@ -10,7 +10,8 @@ on the warrior tier) · **Review:** full · P1 · **Not before spec 39 B and C a
 `pwa/*`; this spec changes the same stylesheets).
 
 **What it is, and is not:** a set of tokens and components, with the faces' stylesheets moved onto them. It changes
-how things are drawn and sized, never what they say, do or cost: no label, no command, no data changes. Camp's themes
+how things are drawn and sized, never what they say or cost: no label, no command, no data changes. The one new behaviour is
+the letters on menu items (§8a.4). Camp's themes
 (`camp`, `camp-ice`, `camp-void`) and Orkline's Office stay as they are; Orkline moves to Orkforms by its own spec.
 
 Three parts, one branch each, in this order; **this file is the contract** (names, values, files); the rest is the

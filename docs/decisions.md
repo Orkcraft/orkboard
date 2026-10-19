@@ -354,4 +354,4 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    orks as one-character marks (Taskmaster `@`, Grunt `o`, idea `?`, goal `*`, task `+`; never alone, never the only
    carrier of the word), and a small ASCII ork in the empty states. Left out: CRT effects, box-drawing characters in text, a
    character-cell layout grid.
-A change of looks, not of mechanics: no label, command or datum changes. Spec 40.
+A change of looks, not of mechanics: no label, command or datum changes (but the menu letters of item 10). Spec 40.
