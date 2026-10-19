@@ -2,6 +2,7 @@
 the agents' roles and the task types, each with its event. The model call is stubbed (`jobs.run_read`)."""
 from __future__ import annotations
 
+import base64
 import json
 import sys
 import time
@@ -10,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import event_log, ideas, jobs, roles
+from orkboard.realm import event_log, idea_photos, ideas, jobs, roles
 
 NEW_COMMANDS = {"ideas.goal_save", "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_drop",
                 "ideas.kind_set", "ideas.doc"}
@@ -273,3 +274,42 @@ def test_a_goal_has_a_craft_its_race_s_head_engineering_when_new_and_kept_when_l
     with pytest.raises(CommandError, match="Craft is"):
         host.command("ideas.goal_save", {"slug": plain, "about": "Faster tests.", "craft": "alchemy"})
     assert ideas.CRAFTS == roles.CRAFTS
+
+
+PNG = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"\x00" * 32).decode()
+JPEG = base64.b64encode(b"\xff\xd8\xff\xe0" + b"\x00" * 32).decode()
+
+
+def test_photos_go_with_an_idea_beside_its_state_and_the_taskmaster_reads_them_first(host, model):
+    """New idea's photos (realm/idea_photos.py): kept in the idea's state folder, named in the draft's and the plan's
+    prompts as paths in the repository; a bad one refuses the idea whole, and deleting the idea deletes them."""
+    root = host.ideas.root()
+    goal = ideas.add_track(root, "Ship v1")
+    for bad, why in (([{"data": base64.b64encode(b"not an image").decode()}], "JPEG, a PNG or a WebP"),
+                     ([{"data": "@@@"}], "did not arrive whole"), ([{"data": JPEG}] * 5, "At most 4 photos")):
+        with pytest.raises(CommandError, match=why):
+            host.command("ideas.add", {"text": "Cut off", "track": goal, "night": True, "photos": bad})
+    assert ideas.ideas(root, goal) == []                                                     # nothing half made
+    slug = host.command("ideas.add", {"text": "The login screen is cut off", "track": goal, "night": True,
+                                      "photos": [{"data": JPEG}, {"data": PNG}]})["slug"]
+    assert idea_photos.listed(host.ideas.state_dir, slug) == [f".orkcraft/ideas/{slug}/photos/1.jpg", f".orkcraft/ideas/{slug}/photos/2.png"]
+    assert (idea_photos.folder(host.ideas.state_dir, slug) / "1.jpg").read_bytes()[:3] == b"\xff\xd8\xff"
+    prompt = host.ideas.keeper.draft_prompt(root, slug)
+    assert "read each one first" in prompt and f"- .orkcraft/ideas/{slug}/photos/2.png" in prompt
+    assert f".orkcraft/ideas/{slug}/photos/1.jpg" in host.ideas.keeper.plan_prompt(root, slug)
+    assert _events(host, "idea_added")[-1]["photos"] == 2
+    host.command("ideas.drop", {"slug": slug})
+    assert idea_photos.listed(host.ideas.state_dir, slug) == []
+
+
+def test_the_words_of_a_goal_complete_new_idea_titles_first_then_its_terms(host):
+    root = host.ideas.root()
+    slug = ideas.save_goal(root, None, "Offline first", "The phone keeps working offline: the SyncQueue in sync_queue.py holds edits.")[0]
+    host.command("ideas.add", {"text": "Queue the edits while offline", "track": slug, "night": True})
+    got = host.command("ideas.words", {"track": slug})
+    assert got["track"] == slug and got["words"][0] == "Offline first"
+    assert "offline" in got["words"] and "SyncQueue" in got["words"] and "sync_queue.py" in got["words"]
+    assert "while" not in got["words"] and "the" not in got["words"]
+    assert BoardPhone.allowed(host, "ideas.words", {"track": slug})                         # the phone asks for them
+    with pytest.raises(CommandError, match="That goal is gone"):
+        host.command("ideas.words", {"track": "nope"})

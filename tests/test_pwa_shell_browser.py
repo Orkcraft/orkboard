@@ -81,7 +81,7 @@ class Stub:
     def commands(self) -> dict:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
-                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend")
+                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -190,6 +190,9 @@ class Stub:
         if name == "ideas.todo":
             self.todos[0]["done"] = a["done"]
             return self.bump({"ok": True})
+        if name == "ideas.words":
+            g = self.goals.get(a["track"], {})
+            return {"track": a["track"], "words": [g.get("title", ""), "Offline mode", "offline", "SyncQueue", "sync_queue.py"]}
         if name == "ideas.add":
             assert a.get("track") and a["track"] != "general", "An idea needs a goal"
             slug = a["text"].lower().replace(" ", "-")
@@ -225,7 +228,8 @@ class Stub:
 
 
 @asynccontextmanager
-async def _phone(repo: Path, monkeypatch):
+async def _phone(repo: Path, monkeypatch, init: str = ""):
+    """The phone paired with a served Orkboard whose Board is the stub's; `init`: a script run before the app's (a browser API stood in)."""
     stub = Stub()
     real = BoardPhone.phone_snapshot
 
@@ -254,6 +258,8 @@ async def _phone(repo: Path, monkeypatch):
                 pytest.skip(f"no Chromium for Playwright here: {e}")
             try:
                 ctx = await browser.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, has_touch=True, ignore_https_errors=True)
+                if init:
+                    await ctx.add_init_script(init)
                 page = await ctx.new_page()
                 errors: list[str] = []
                 page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))

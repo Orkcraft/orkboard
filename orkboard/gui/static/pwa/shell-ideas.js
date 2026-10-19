@@ -1,9 +1,10 @@
-// The ideas on the phone (docs/specs/35-goals-window.md §3, §11.3): New idea in a sheet — the text, the goal and the priority, one button,
-// Add — and one row per idea: its title, its priority as a mark, its state in words, and its actions. An idea that is in Needs you is
+// The ideas on the phone (docs/specs/35-goals-window.md §3, §11.3): New idea in a sheet — the text (with the goal's words to complete with,
+// Photo and Speak: shell-idea-field.js), the goal and the priority, one button, Add — and one row per idea: its title, its priority as a mark, its state in words, and its actions. An idea that is in Needs you is
 // not listed here; the done ones are folded at the end.
 import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
+import { makeIdeaField } from "./shell-idea-field.js";
 
 const HOLD_MS = 450;                    // a card held this long can be dragged
 const RANK = { high: 0, normal: 1, low: 2 };
@@ -38,10 +39,15 @@ export function makeIdeas(core, ctx, goalSheet) {
   const priority = prioritySwitch("idea-priority");
   let touched = false;                               // the person chose the priority: a goal change leaves it
   priority.el.addEventListener("change", () => { touched = true; });
-  goalPick.addEventListener("change", () => { if (!touched) priority.set(tracks().find((t) => t.slug === goalPick.value)?.priority || "normal"); });
-  const hint = h("p", { class: "muted hint" }, "High and Normal are drafted at once; Low waits for the night. Closing this with text in it keeps the idea for tonight. Speak it with the keyboard’s microphone.");
+  const more = makeIdeaField(ctx, field_);
+  goalPick.addEventListener("change", () => {
+    if (!touched) priority.set(tracks().find((t) => t.slug === goalPick.value)?.priority || "normal");
+    more.track(goalPick.value);
+  });
+  const hint = h("p", { class: "muted hint" }, "High and Normal are drafted at once; Low waits for the night. Closing this with text in it keeps the idea for tonight."
+    + (more.speaks ? "" : " Speak it with the keyboard’s microphone."));
   const add = h("button", { class: "ork-btn primary big", type: "button" }, "Add");
-  const addSheet = sheet("New idea", field("The idea", field_), field("Goal", goalPick),
+  const addSheet = sheet("New idea", field("The idea", field_), more.el, field("Goal", goalPick),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(add));
   let saved = false;                                 // a button saved it: closing the sheet after it saves nothing more
   async function drop(night) {
@@ -50,18 +56,22 @@ export function makeIdeas(core, ctx, goalSheet) {
     saved = true;
     add.disabled = true;
     const short = text.length > 40 ? `${text.slice(0, 40)}…` : text;
-    const args = { text, track: goalPick.value, priority: priority.get(), ...(night ? { night: true } : {}) };
+    more.stop();
+    const photos = more.photos();
+    const args = { text, track: goalPick.value, priority: priority.get(), ...(night ? { night: true } : {}), ...(photos.length ? { photos } : {}) };
     const r = await ctx.deliver("ideas.add", args, `the idea “${short}”`);
     add.disabled = false;
     if (!r.ok || r.result?.error) { saved = false; ctx.flash(r.error || r.result?.error); return null; }
     field_.value = "";
+    more.reset();
     return r;
   }
   add.addEventListener("click", async () => {
     const r = await drop(false);
     if (!r) return;
     addSheet.close();
-    ctx.flash(r.kept ? "No signal: the idea is kept and goes when the town answers."
+    ctx.flash(r.kept ? (r.unphotographed ? "No signal: the idea is kept and goes when the town answers, without its photos (no room for them on this phone)."
+      : "No signal: the idea is kept and goes when the town answers.")
       : r.result?.queue === "night" ? "Kept for tonight." : "Added: the Taskmaster drafts it now.");
     if (!r.kept) core.refresh();
   });
@@ -79,6 +89,8 @@ export function makeIdeas(core, ctx, goalSheet) {
     const on = list.find((t) => t.slug === (goal || st.track)) || list[0];
     goalPick.value = on.slug;
     priority.set(on.priority || "normal");
+    more.reset();
+    more.track(on.slug);
     addSheet.open();
     field_.focus();
   }

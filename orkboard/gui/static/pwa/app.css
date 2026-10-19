@@ -393,3 +393,18 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .craft-pick { align-items: center; flex-wrap: nowrap; margin-top: 0; }
 .craft-pick .ork-field { flex: 1 1 auto; min-width: 0; }
 .goal-meta .craft-word { color: var(--ork-ink-muted); }
+
+/* -- New idea's field (shell-idea-field.js): the goal's words to complete with, Photo and Speak, the photos ---------------------- */
+.idea-field-more { display: flex; flex-direction: column; gap: var(--ork-3); margin-top: calc(-1 * var(--ork-2)); }
+.idea-words { display: flex; gap: var(--ork-3); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--ork-1); }
+.idea-words[hidden], .idea-photos[hidden] { display: none; }
+.word-chip { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-height: var(--ork-tap); padding: 0 var(--ork-4); display: inline-flex;
+  align-items: center; border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); font: var(--ork-type-caption);
+  white-space: nowrap; }
+.word-chip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.idea-tools { margin-top: 0; }
+.idea-tools .ork-btn.is-on { color: var(--ork-danger); box-shadow: inset 0 -2px 0 var(--ork-danger); }
+.idea-photos { display: flex; gap: var(--ork-3); flex-wrap: wrap; }
+.idea-photo { position: relative; width: 72px; height: 72px; border: var(--ork-line) solid var(--ork-edge); }
+.idea-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.idea-photo .ork-btn { position: absolute; top: 0; right: 0; min-width: var(--ork-tap); min-height: var(--ork-tap); padding: 0; background: var(--ork-panel); }

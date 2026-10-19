@@ -32,7 +32,7 @@ from typing import Any, Callable
 
 from orkboard import settings
 from orkboard.core import idea_keeper
-from orkboard.realm import event_log, idea_secrets, ideas, wiki
+from orkboard.realm import event_log, idea_photos, idea_secrets, ideas, wiki
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _str, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_goals import GoalsMixin
@@ -286,7 +286,8 @@ class Ideas(LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixin, BoardMix
 
     def add(self, args: dict) -> dict:
         """An idea: a text, its goal (never General: that is the system's) and a priority (default the goal's). High
-        and Normal are drafted at once, Low and a closed dialog's (`night`) wait for the night (spec 35 §3)."""
+        and Normal are drafted at once, Low and a closed dialog's (`night`) wait for the night (spec 35 §3). `photos`
+        (the phone's, base64) are kept beside it for the Taskmaster to read (realm/idea_photos.py)."""
         text = _text(args, "text", ideas.SECTION_CHARS)
         track = _opt(args, "track")
         goals = {t["slug"]: t for t in ideas.tracks(self.root(), make=False)}
@@ -297,11 +298,17 @@ class Ideas(LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixin, BoardMix
         priority = _opt(args, "priority").lower() or goals[track]["priority"]
         if priority not in ideas.PRIORITIES:
             raise IdeasError("Priority is High, Normal or Low")
+        try:
+            photos = idea_photos.decode(args.get("photos"))
+        except ValueError as e:
+            raise IdeasError(str(e)) from None
         queue = "night" if priority == "low" or args.get("night") is True else "now"
         slug = ideas.add_idea(self.root(), text, track, self.state_dir, priority, queue)
+        for raw in photos:
+            idea_photos.put(self.state_dir, slug, raw)
         ideas.add_turn(self.state_dir, slug, "you", text, "Gist")     # the person's own words, kept
         self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
-                 priority=priority, queue=queue)
+                 priority=priority, queue=queue, photos=len(photos))
         out = {"slug": slug, "queue": queue}
         if queue == "now":                      # drafted at once, in the background (held in a spent window)
             try:
@@ -491,6 +498,7 @@ class Ideas(LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixin, BoardMix
                  "ideas.merge": self.merge, "ideas.back": self.back, "ideas.drop_task": self.drop_task,
                  "ideas.stop_task": self.stop_task, "ideas.agents": self.agents, "ideas.task": self.task,
                  "ideas.into": self.into, "ideas.log": self.log, "ideas.logs": self.logs, "ideas.goal_save": self.goal_save,
+                 "ideas.words": self.words,
                  "ideas.goal": self.goal, "ideas.read_now": self.read_now, "ideas.doc": self.doc, "ideas.roles": self.roles,
                  "ideas.role_save": self.role_save, "ideas.role_drop": self.role_drop, "ideas.kind_set": self.kind_set,
                  "ideas.queue": self.queue, "ideas.read_stop": self.read_stop, "ideas.start_now": self.start_now,

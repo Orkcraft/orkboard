@@ -41,7 +41,7 @@ from typing import Any, Callable
 from orkboard.core.idea_draft import DraftMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
-from orkboard.realm import event_log, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
+from orkboard.realm import event_log, idea_photos, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -452,7 +452,7 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         touches = [t for t in json.loads(page.get("touches") or "[]") if isinstance(t, str)] if page.get("touches", "").startswith("[") else []
         return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
 read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
-
+{idea_photos.prompt_lines(self.state_dir, slug)}
 The spec: {page.title}
 {context}
 Rules:

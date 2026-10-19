@@ -1,5 +1,5 @@
 """A goal by dialog (spec 34 §1, §4; spec 35 §2: a description and a priority, the keeper writes the rest), as
-`gui/ideas.py`'s `Ideas` has it: `ideas.goal_save`, `ideas.goal`, `ideas.read_now`.
+`gui/ideas.py`'s `Ideas` has it: `ideas.goal_save`, `ideas.goal`, `ideas.read_now`, `ideas.words` (New idea's completion).
 
 Saving a goal sends it to the keeper at once (core/idea_goals.py); a goal's state (`reading` → `asks` | `ready`) lives
 beside its page (`<state_dir>/goals/<slug>/`). Split from ideas.py to keep it under ~600 lines.
@@ -12,7 +12,7 @@ from typing import Any
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, ideas, roles
+from orkboard.realm import event_log, idea_words, ideas, roles
 
 
 DOC_CHARS = 100_000
@@ -48,6 +48,19 @@ class GoalsMixin:
                 "sections": [{"name": n, "text": page.section(n)} for n in ideas.TRACK_SECTIONS],
                 "talk": ideas.talk(self.state_dir, slug, goal=True),
                 "busy": bool(self.keeper.busy_goal(slug)) or st["state"] == "reading"}
+
+    def words(self, args: dict) -> dict:
+        """`{"track"}`: the words New idea completes with (realm/idea_words.py): the goal's title and its ideas' titles,
+        then the words of its description, summary, metrics, questions and its ideas' theses, the most used first."""
+        root = self.root()
+        track = _opt(args, "track")
+        g = next((t for t in ideas.tracks(root, make=False) if t["slug"] == track), None)
+        if g is None:
+            raise IdeasError("That goal is gone")
+        mine = ideas.ideas(root, track)
+        texts = [g["title"], g["about"], g["summary"], *(m["name"] for m in g["metrics"]), *g["questions"],
+                 *(f"{i['title']}\n{i.get('thesis') or ''}" for i in mine)]
+        return {"track": track, "words": idea_words.words(texts, [g["title"], *(i["title"] for i in mine)])}
 
     def goal_save(self, args: dict) -> dict:
         """`{"slug"?, "about", "priority", "title"?, "craft"?}`: a title typed is the person's (never rewritten); spec 34's

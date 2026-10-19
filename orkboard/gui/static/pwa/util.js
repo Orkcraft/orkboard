@@ -48,10 +48,11 @@ export const kept = {
 const OUTBOX = "orkcraft.outbox";
 export const outbox = {
   all() { try { return JSON.parse(localStorage.getItem(OUTBOX)) || []; } catch { return []; } },
+  /** False when this phone had no room to keep it. */
   add(item) {
     const all = outbox.all();
     all.push({ ...item, key: randomId() });
-    try { localStorage.setItem(OUTBOX, JSON.stringify(all.slice(-50))); } catch { /* this run only */ }
+    try { localStorage.setItem(OUTBOX, JSON.stringify(all.slice(-50))); return true; } catch { return false; }
   },
   remove(key) {
     try { localStorage.setItem(OUTBOX, JSON.stringify(outbox.all().filter((x) => x.key !== key))); } catch { /* kept */ }
