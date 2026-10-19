@@ -181,6 +181,8 @@ def read(root: Path, since: str = "", until: str = "") -> list[dict]:
         at = str(row.get("at") or "")
         if (since and at < since) or (until and at >= until):
             continue
+        if row["event"] == OPENED:
+            row.setdefault("via", "")           # a line from before spec 39
         rows.append(row)
     return rows
 
