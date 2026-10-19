@@ -249,13 +249,13 @@
 .map-goal__when { margin: 0; }
 .map-fold { background: none; border: 0; padding: 0 var(--space-1); color: var(--ink-muted); cursor: pointer; font: inherit; }
 .map-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: var(--space-2); }
-.map-tree { position: relative; width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: 36px; padding: var(--space-1); box-sizing: border-box; }
+.map-tree { position: relative; width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: calc(var(--space-4) * 2); padding: var(--space-1); box-sizing: border-box; }
 .map-lines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .map-lines path { fill: none; stroke: var(--frame-strong); stroke-width: 1.5; }
 .map-tier, .map-done__list { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--space-4); align-items: flex-start; }
 .map-done__list { flex-wrap: wrap; }
 .map-node { position: relative; z-index: 1; width: 220px; flex: none; display: flex; flex-direction: column; gap: var(--space-1); }
-.map-card { position: relative; width: 220px; height: 72px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px 22px; text-align: left; overflow: hidden;
+.map-card { position: relative; width: 220px; height: 72px; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-2) 22px; text-align: left; overflow: hidden;
   background: var(--panel); color: var(--ink); border: 1px solid var(--frame-strong); border-radius: var(--radius-sm, 0); font: inherit; font-size: .85em; line-height: 1.25; cursor: pointer; }
 .map-card:hover { border-color: var(--frame-focus); }
 .map-card.is-on { border-color: var(--frame-focus); background: var(--selection); }
