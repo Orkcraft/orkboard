@@ -4,7 +4,7 @@
 // screen over the tab, with Back (and the system back gesture) to the tab it came from and its actions pinned at the bottom.
 // It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's
 // `ideas_rev` changes (and every POLL_MS while the Taskmaster or a task works). Always Office's calm look.
-import { h, icon, head } from "./util.js";
+import { h, icon } from "./util.js";
 import { makeTop } from "./shell-top.js";
 import { makeBoardTab, BUSY } from "./shell-board.js";
 import { makeAgents } from "./shell-agents.js";
@@ -13,7 +13,7 @@ import { makePreview } from "./shell-preview.js";
 
 const POLL_MS = 10000;
 const TABS = [["board", "Board"], ["agents", "Agents"], ["review", "Review"]];
-const MARKS = { board: () => icon("list-box"), agents: () => head("peon"), review: () => icon("eye") };   // Agents: an ork, the mascot
+const MARKS = { board: () => icon("list-box"), agents: () => icon("robot"), review: () => icon("eye") };   // a head says a craft, not every agent
 const LIVE = new Set(["running", "testing"]);
 
 export { stateWords } from "./shell-board.js";
