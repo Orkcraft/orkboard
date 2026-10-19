@@ -1,25 +1,20 @@
-// The preview, the centre (docs/specs/33-v1-shell.md §6): one thing at a time — an idea's spec (29a's sections view), an
-// idea's plan (scrolled to a to-do, said what it unblocks), a task (its brief, state and log) or a result's code
-// (commits, then the files changed, each patch folded). A result's actions stay pinned at its foot.
+// The preview, the centre (docs/specs/33-v1-shell.md §6, spec 39 §3): tabs — the Map first and pinned, then one tab per thing
+// opened: an idea's spec (29a's sections view), an idea's plan (scrolled to a to-do, said what it unblocks), a task (its brief,
+// state and log), a result's code (commits, then the files changed, each patch folded), a goal, a document, a file. A result's
+// actions stay pinned at its foot. Below 1 024 px there is no strip: the active tab is the screen, with Back.
 import { useEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { board, page } from "../board/store.js";
+import { page } from "../board/store.js";
 import { IdeaView, PlanView } from "../board/idea.js";
-import { preview, detail, review, goal, act, closePreview, showIdea, showGoal, showResult, refreshShell } from "./store.js";
+import { MapView } from "../board/map.js";
+import { TASK_STATE } from "../board/maplayout.js";
+import { preview, detail, review, goal, editing, active, mapShown, goneWords, kindWords, keepTab, setTabTitle, act, closePreview, showIdea, showResult, showGoal, refreshShell } from "./store.js";
+import { TabStrip } from "./tabs.js";
 import { ResultActions, testsWords, changesWords, isRed } from "./review.js";
 import { GoalView } from "./goalview.js";
 import { File } from "./diffview.js";
 import { FileView } from "./files.js";
 import { GitDiffView } from "./gitpane.js";
-
-const TASK_STATE = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "at Review", merged: "merged",
-  failed: "needs you", held: "held" };
-
-function Empty() {
-  const need = board.value?.needs_you?.[0];
-  return html`<div class="shell-empty"><p>Open an idea, a task or a result.</p>
-    ${need && html`<p class="ok-tone-muted">First on your list: <button class="board-link" onClick=${() => (need.goal ? showGoal(need.goal) : showIdea(need.idea))}>${need.title}</button> — ${need.text}</p>`}</div>`;
-}
 
 function Task({ d }) {
   const t = d?.task;
@@ -93,18 +88,29 @@ function Doc({ d, p }) {
       : html`<p class="ok-tone-muted">That document cannot be shown.</p>`}</div>`;
 }
 
+/** What a tab shows as its title, "" until its thing is read. */
+function titleOf(p, d, pg) {
+  if (p.kind === "task" || p.kind === "result") return d?.task?.title || "";
+  if (p.kind === "goal") return goal.value?.title || "";
+  if (p.kind === "doc" || p.kind === "file" || p.kind === "gitdiff") return p.path;
+  return pg?.title || "";
+}
+
 export function Preview() {
-  const p = preview.value, pg = page.value, d = detail.value;
-  const title = !p ? "" : p.kind === "task" || p.kind === "result" ? (d?.task?.title || "…") : p.kind === "goal" ? (goal.value?.title || "…")
-    : p.kind === "doc" || p.kind === "file" || p.kind === "gitdiff" ? p.path : (pg?.title || "…");
-  const kind = { idea: "Spec", plan: "Plan", task: "Task", result: "Code", goal: "Goal", doc: "Document", file: "File", gitdiff: "Changes" }[p?.kind] || "";
+  const p = preview.value, pg = page.value, d = detail.value, id = active.value;
+  const gone = p ? goneWords(p) : "";
+  const title = p ? titleOf(p, d, pg) : "";
   const sub = (p?.kind === "task" || p?.kind === "result") ? d?.task?.idea_title : "";
-  return html`<section class=${cls("shell-preview", { "is-open": !!p })} aria-label="Preview">
-    ${p && html`<header class="shell-pane__head"><button class="ok-btn shell-back" aria-label="Back" onClick=${closePreview}>← Back</button>
-      <h2 title=${title}><span class="ok-tone-muted">${kind}</span> ${title}${sub ? html` <span class="ok-tone-muted">· ${sub}</span>` : ""}</h2>
-      <button class="ok-btn shell-close" aria-label="Close the preview (Esc)" onClick=${closePreview}>Close</button></header>`}
-    <div class="shell-preview__body">
-      ${!p ? html`<${Empty} />`
+  const dirty = !!editing.value?.dirty;
+  useEffect(() => { if (p && title && !gone) setTabTitle(id, title); }, [id, title, gone]);     // the strip names an inactive tab by the last title read
+  useEffect(() => { if (p && dirty) keepTab(id); }, [id, dirty]);                                 // an edit in the passing tab keeps it
+  return html`<section class=${cls("shell-preview", { "is-open": !!p || mapShown.value })} aria-label="Preview">
+    <${TabStrip} />
+    <div class="shell-pane__head shell-narrowhead"><button class="ok-btn shell-back" aria-label="Back" onClick=${() => closePreview()}>← Back</button>
+      <h2 title=${title}>${p ? html`<span class="ok-tone-muted">${kindWords(p.kind)}</span> ${title || "…"}${sub ? html` <span class="ok-tone-muted">· ${sub}</span>` : ""}` : "Map"}</h2></div>
+    <div class=${cls("shell-preview__body", { "is-map": !p })}>
+      ${!p ? html`<${MapView} />`
+        : gone ? html`<div class="shell-empty"><p>${gone}</p><p><button class="ok-btn" onClick=${() => closePreview()}>Close</button></p></div>`
         : p.kind === "idea" ? (pg ? html`<${IdeaView} p=${pg} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "plan" ? (pg ? html`<${PlanView} p=${pg} todo=${p.todo} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "goal" ? html`<${GoalView} />`

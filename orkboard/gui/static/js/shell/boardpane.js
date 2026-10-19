@@ -9,7 +9,7 @@ import { Today } from "../board/today.js";
 import { Goals, Ideas } from "../board/tracks.js";
 import { Operations } from "../board/ops.js";
 import { FilesPane } from "./files.js";
-import { leftTab, refreshShell } from "./store.js";
+import { leftTab, refreshShell, openMap } from "./store.js";
 import { projectsOn } from "./projects.js";
 
 export function BoardPane() {
@@ -25,7 +25,7 @@ export function BoardPane() {
     </header>` : html`<header class="shell-pane__head"><h2>Board</h2></header>`}
     <div class="shell-pane__body">
       ${on === "files" ? html`<${FilesPane} />`
-        : b ? html`<${Goals} />${track.value === OPS ? html`<${Operations} />` : html`<${Today} /><${Ideas} />`}` : html`<p class="ok-tone-muted">Opening the board…</p>`}
+        : b ? html`<button class="ok-btn shell-mapbtn" title="Your goals, ideas and tasks on one screen" onClick=${openMap}>Map</button><${Goals} />${track.value === OPS ? html`<${Operations} />` : html`<${Today} /><${Ideas} />`}` : html`<p class="ok-tone-muted">Opening the board…</p>`}
     </div>
   </section>`;
 }

@@ -1,7 +1,7 @@
 // The v1 shell (docs/specs/33-v1-shell.md §7): one screen, as an IDE. The Board on the left, Review on the right, the preview
 // in the centre and Agents under it as VS Code's terminal (its top edge dragged to resize, Ctrl+J hides it; the height and
 // the hidden state are kept in localStorage when there is one). Below 1 024 px wide the same panes are the phone's three
-// tabs, the preview on its own screen. Always Office's calm look; no camp, no map.
+// tabs, the preview on its own screen. Always Office's calm look; no camp. The preview is tabs, the Map first (spec 39).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { town } from "../link.js";
@@ -16,7 +16,7 @@ import { StartScreen, currentProject, projectsOn } from "./projects.js";
 import { resetFiles } from "./files.js";
 import { resetGit } from "./gitpane.js";
 import { openDialog } from "./modals.js";
-import { preview, review, tab, agentsLayout, setLayout, refreshShell, closePreview, busy, logOpened, resetForProject } from "./store.js";
+import { preview, review, tab, agentsLayout, setLayout, refreshShell, closePreview, busy, logOpened, resetForProject, mapShown } from "./store.js";
 
 const sheet = new URL("./shell.css", import.meta.url).href;
 const boardSheet = new URL("../board/board.css", import.meta.url).href;
@@ -52,7 +52,7 @@ function Tabs() {
     agents: 0, review: rv ? rv.results.length : 0 };
   return html`<nav class="shell-tabs" role="tablist" aria-label="Board, Agents, Review">
     ${[["board", "Board"], ["agents", "Agents"], ["review", "Review"]].map(([id, name]) => html`<button key=${id} role="tab"
-      aria-selected=${tab.value === id} class=${cls("shell-tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview(); logOpened("tab", id); }}>
+      aria-selected=${tab.value === id} class=${cls("shell-tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
       ${name}${counts[id] > 0 && html`<span class="shell-count">${counts[id]}</span>`}</button>`)}
   </nav>`;
 }
@@ -64,8 +64,8 @@ export function Shell() {
   const { h, hidden } = agentsLayout.value;
   const project = projectsOn.value ? currentProject.value?.path || "" : "-";   // "-": Orkline's one fixed project
   // Another project is shown: nothing of the last one stays (its Board, its tree, its git, its preview).
-  const was = useRef(project);
-  if (was.current !== project) { was.current = project; resetForProject(); resetFiles(); resetGit(); }
+  const was = useRef(null);
+  if (was.current !== project) { was.current = project; resetForProject(project); resetFiles(); resetGit(); }
   // Fresh when the town says the ideas changed, and every 10 s while a model or a task runs.
   useEffect(() => { if (project) refreshShell(); }, [t.ideas_rev, project]);
   useEffect(() => {
@@ -80,7 +80,7 @@ export function Shell() {
       } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {   // as VS Code's panel
         e.preventDefault();
         setLayout({ hidden: !agentsLayout.value.hidden });
-      } else if (e.key === "Escape" && preview.value && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
+      } else if (e.key === "Escape" && (preview.value || mapShown.value) && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
         closePreview();
       }
     };

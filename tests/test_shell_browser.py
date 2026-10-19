@@ -331,8 +331,8 @@ def test_three_columns_agents_under_the_preview_and_no_camp(shell):
     assert pg.evaluate("document.documentElement.dataset.look") == "office"                   # the person's look is camp: not here
     for gone in (".gui-hud", ".gui-camp", ".gui-town", ".gui-foot", ".gui-warchief__face", "[data-look=camp]"):
         assert pg.locator(gone).count() == 0, gone
-    assert pg.locator(".shell-preview").inner_text().startswith("") and "Open an idea, a task or a result" in pg.locator(".shell-preview").inner_text()
-    assert "Sync ideas between the phone and the town" in pg.locator(".shell-preview").inner_text()   # the first Needs you item
+    assert pg.get_by_role("tab", name="Map").get_attribute("aria-selected") == "true"        # the Map takes the place of the empty text (spec 39 §3.1)
+    assert "Open an idea, a task or a result" not in pg.locator(".shell-preview").inner_text()
     assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
@@ -397,7 +397,7 @@ def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(s
     target = pg.locator(".shell-preview .board-plan__todo.is-target")
     target.wait_for(timeout=WAIT_MS)
     assert "tasks k2 and k3 wait for it" in target.inner_text()
-    assert pg.locator(".shell-preview > header").inner_text().startswith("Plan")
+    assert "Plan" in pg.locator(".shell-preview > header").inner_text() and pg.get_by_role("tab", name="Plan", exact=False).count() == 1
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "todo", "ref": "sync/t1", "device": "desktop"}))
 
     pg.locator(".shell-chip", has_text="Retry on a lost signal").click()          # a chip → the task: brief, log, Stop
@@ -478,7 +478,8 @@ def test_esc_closes_the_preview_and_arrows_move_through_the_review_cards(shell):
     pg.locator(".board-card", has_text="Dark mode").click()
     pg.locator(".shell-preview .board-sec").first.wait_for(timeout=WAIT_MS)
     pg.keyboard.press("Escape")
-    pg.locator(".shell-empty").wait_for(timeout=WAIT_MS)
+    pg.locator(".shell-preview .board-sec").first.wait_for(state="detached", timeout=WAIT_MS)      # the tab closes: the Map is shown
+    assert pg.get_by_role("tab", name="Map").get_attribute("aria-selected") == "true"
     first = pg.locator(".shell-card").nth(0)
     first.focus()
     pg.keyboard.press("ArrowDown")
