@@ -104,7 +104,7 @@ def test_the_agents_dialog_picks_the_craft_and_shows_the_head_it_will_wear(races
     dialog = pg.get_by_role("dialog", name="Add agent")
     craft = dialog.get_by_label("Craft")
     assert [" ".join(o.text_content().split()) for o in craft.locator("option").all()] == [
-        "Engineering: an ork", "Design: an elf", "Data: a goblin", "Marketing: a gnome"]
+        "Engineering: an ork", "Design: an elf", "Data: a goblin", "Marketing: a gnome", "Product: a lich"]
     who = dialog.locator(".shell-agent__who img.ork-race__head")
     assert _src(who).endswith("races/peon-warrior.png")                             # a new agent: an ork, By Target
     craft.select_option("design")

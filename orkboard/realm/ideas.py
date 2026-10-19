@@ -32,7 +32,7 @@ from orkboard.realm.idea_page import (  # noqa: F401  (re-exported: the names ca
 TRACK_SECTIONS = ("Description", "Summary", "Metrics", "Open questions")
 OLD_TRACK_SECTIONS = ("About", "Success criteria")      # a goal written before spec 34 keeps them, read as Description
 PRIORITIES = ("high", "normal", "low")
-CRAFTS = ("engineering", "design", "data", "marketing")   # a goal's craft, its race's head (roles.CRAFTS: roles imports this)
+CRAFTS = ("engineering", "design", "data", "marketing", "product")   # a goal's craft, its race's head (roles.CRAFTS: roles imports this)
 GOAL_STATES = ("raw", "reading", "asks", "ready")
 MAX_METRICS, MAX_LINKS = 12, 12
 KEEPER_METRICS, KEEPER_LINKS = 3, 8   # what the keeper writes of a goal (spec 35 §2)
@@ -143,7 +143,7 @@ def _track(slug: str, page: Page, count: int = 0) -> dict:
             "metrics_by": _metrics_by(page),
             "criteria": items(page.section("Success criteria")), "deadline": page.get("deadline"),
             "order": _int(page.get("order")), "count": count, "priority": _priority(page.get("priority")),
-            "craft": page.get("craft") if page.get("craft") in CRAFTS else CRAFTS[0], "team": _json_list(page.get("team")), "every": _json_list(page.get("team_every")), "metrics": _metrics(page), "summary": page.section("Summary"),
+            "craft": page.get("craft") if page.get("craft") in CRAFTS else CRAFTS[0], "team": _json_list(page.get("team")), "every": _json_list(page.get("team_every")), "leader": page.get("leader") or "", "metrics": _metrics(page), "summary": page.section("Summary"),
             "links": _links(page),
             "questions": items(page.section("Open questions"))}
 

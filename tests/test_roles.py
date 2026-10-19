@@ -126,7 +126,7 @@ def test_an_agent_takes_its_task_types(tmp_path):
 
 
 def test_a_roles_craft_is_its_race_engineering_by_default_and_the_built_in_two_are_orks(tmp_path):
-    assert roles.RACES == {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome"}
+    assert roles.RACES == {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome", "product": "lich"}   # product: undead
     slug = roles.save(tmp_path, "Layout", "elder", 1, "", craft="design")
     assert "craft: design" in (tmp_path / "roles" / f"{slug}.md").read_text() and roles.role(tmp_path, slug)["craft"] == "design"
     assert roles.save(tmp_path, "Layout", "warrior", 1, "", slug) == slug and roles.role(tmp_path, slug)["craft"] == "design"   # kept

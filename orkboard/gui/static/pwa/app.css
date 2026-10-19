@@ -459,7 +459,10 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .team-seats { display: flex; gap: var(--ork-3); }
 .team-seat { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; border: var(--ork-line) solid var(--ork-edge); }
 .team-seat.is-empty { border-style: dashed; border-color: var(--ork-frame); }
-.team-seat.is-keeper { background: var(--ork-raised); }
+.team-seat.is-lead { background: var(--ork-raised); }
+.party-band { display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-3) 0; border-top: var(--ork-line) solid var(--ork-edge); }
+.band-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ork-3); }
+.band-head h3 { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
 .team-list { display: flex; flex-direction: column; }
 .team-row { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 24px 1fr 32px; grid-template-areas: "head name mark" "head line mark";
   column-gap: var(--ork-4); align-items: center; min-height: var(--ork-tap); padding: var(--ork-3) 0; border-bottom: var(--ork-line) solid var(--ork-frame); }
@@ -470,7 +473,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .team-row[aria-pressed="true"] .team-mark { color: var(--ork-action); }
 .team-heads { display: inline-flex; gap: var(--ork-2); vertical-align: middle; }
 .goal-steps { display: flex; flex-direction: column; gap: var(--ork-5); }
-.craft-tile.mixed { grid-column: 1 / -1; min-height: 0; }
+.craft-tile.mixed { min-height: 0; }
 .craft-heads { display: inline-flex; gap: var(--ork-2); }
 .team-craft { margin: var(--ork-3) 0 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
 .craft-tile .craft-heads .ork-race__head { width: 24px; height: 22px; }
@@ -494,3 +497,11 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .check-chip b { display: inline-flex; align-items: center; gap: var(--ork-2); }
 .map-team { margin: 0; font: var(--ork-type-caption); }
 .map-checks.is-passed { color: var(--ork-success); }
+/* A goal's verdict (shell-goal.js): met or not, each metric's status, the next ideas; on the Map, one word. */
+.verdict-line.is-met b, .verdict-word.is-met, .verdict-metrics .status-met b { color: var(--ork-success); }
+.verdict-line.is-not b, .verdict-word.is-not, .verdict-metrics .status-not-met b { color: var(--ork-alert); }
+.verdict-metrics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
+.verdict-metrics small { display: block; }
+.verdict-next { display: flex; flex-direction: column; gap: var(--ork-2); }
+.verdict-next h4 { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
+.verdict-next .row { justify-content: space-between; align-items: center; }

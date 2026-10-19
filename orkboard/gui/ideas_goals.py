@@ -12,7 +12,7 @@ from typing import Any
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, goal_team, idea_words, ideas, library, roles
+from orkboard.realm import event_log, goal_team, goal_verdict, idea_words, ideas, library, roles
 
 
 DOC_CHARS = 100_000
@@ -35,7 +35,10 @@ class GoalsMixin:
     def _goal_row(self, g: dict) -> dict:
         """A goal as the board lists it: its fields, its state in the keeper's words."""
         st = self.goal_state(g["slug"])
-        return {**g, "race": roles.RACES[g["craft"]], "state": st["state"], "state_error": st["error"], "ideas": g["count"]}
+        lead = roles.role(self.state_dir, g.get("leader") or roles.TASKMASTER) or roles.role(self.state_dir, roles.TASKMASTER)
+        return {**g, "race": roles.RACES[g["craft"]], "state": st["state"], "state_error": st["error"], "ideas": g["count"],
+                "leader": {"slug": lead["slug"], "name": lead["name"], "head": roles.head(lead, self._target())},
+                "verdict": goal_verdict.read(self.state_dir, g["slug"])}
 
     def goal(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)
@@ -62,8 +65,19 @@ class GoalsMixin:
                  *(f"{i['title']}\n{i.get('thesis') or ''}" for i in mine)]
         return {"track": track, "words": idea_words.words(texts, [g["title"], *(i["title"] for i in mine)])}
 
+    def goal_accept(self, args: dict) -> dict:
+        """`{"slug"}`: the goal's leader accepts it against its metrics now (its verdict: realm/goal_verdict.py)."""
+        slug = _text(args, "slug", 100)
+        try:
+            self.keeper.accept_goal(slug)
+        except idea_keeper.KeeperError as e:
+            raise IdeasError(str(e)) from None
+        self.changed(f"goal:{slug}")
+        return {"ok": True}
+
     def goal_save(self, args: dict) -> dict:
-        """`{"slug"?, "about", "priority", "title"?, "craft"?, "team"?, "every"?}`: a team's agents of the library are made
+        """`{"slug"?, "about", "priority", "title"?, "craft"?, "team"?, "every"?, "leader"?}`: a party (realm/goal_team.py:
+        a leader, builders and checkers in their seats); its agents of the library are made
         roles of the project (realm/library.py), the person's own agents taken as they are; `every`: the team's checkers
         whose check applies to every idea, not only where it applies (realm/idea_checks.py): a title typed is the person's (never rewritten); spec 34's
         metrics, links and deadline are still taken and kept when given."""
@@ -84,15 +98,24 @@ class GoalsMixin:
                 raise IdeasError(str(e)) from None
             if bad := [s for s in team if library.get(s) is None and roles.role(self.state_dir, s) is None]:
                 raise IdeasError(f"No agent {bad[0]!r}")
+        leader = _opt(args, "leader") or None
+        if leader is not None and library.get(leader) is None:
+            raise IdeasError(f"No agent {leader!r}")
+        if why := goal_team.seats(team or [], leader or ""):
+            raise IdeasError(why)
         got, new = ideas.save_goal(self.root(), slug, title[:ideas.TITLE_CHARS], about[:ideas.SECTION_CHARS],
                                    metrics, _opt(args, "priority") or "normal", links, deadline, _opt(args, "craft") or None)
         if team is not None:
             library.install(self.state_dir, [s for s in team if library.get(s) is not None])
             every = args.get("every") if isinstance(args.get("every"), list) else []
-            goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)])
+            goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)], leader)
+        elif leader is not None:
+            goal_team.set_team(self.root(), got, goal_team.team_of(self.root(), got), goal_team.every_of(self.root(), got), leader)
+        if leader:
+            library.install(self.state_dir, [leader])
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
-                 priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"])
+                 priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER)
         self._read_goal(got)
         self.changed(f"goal:{got}")
         return {"slug": got}

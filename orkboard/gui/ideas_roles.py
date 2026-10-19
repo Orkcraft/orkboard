@@ -44,7 +44,8 @@ class RolesMixin:
                 "models": roles.models(), "target": target,
                 "crafts": [{"craft": c, "label": roles.CRAFT_LABELS[c], "race": roles.RACES[c],
                             "heads": {m["id"]: roles.head_tier(m["id"], target) for m in roles.models()}} for c in roles.CRAFTS],
-                "library": library.listed(), "suggested": library.SUGGESTED,
+                "library": library.listed(), "suggested": library.SUGGESTED, "seats": library.SEATS,
+                "parties": library.parties(),
                 "tier_costs": idea_spend.tier_costs(self.state_dir)}   # $ a task per tier: what a check adds to an idea
 
     def role_save(self, args: dict) -> dict:

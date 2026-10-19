@@ -616,7 +616,7 @@ def test_an_agents_craft_is_saved_and_every_role_says_the_head_it_wears(host):
     assert mine[slug]["craft"] == "design" and mine[slug]["head"] == {"craft": "design", "race": "elf", "tier": "elder"}
     assert mine["grunt"]["head"] == {"craft": "engineering", "race": "peon", "tier": "warrior"}          # By Target, balance
     assert [(c["craft"], c["race"]) for c in got["crafts"]] == [("engineering", "peon"), ("design", "elf"), ("data", "goblin"),
-                                                               ("marketing", "gnome")]
+                                                               ("marketing", "gnome"), ("product", "lich")]
     assert got["crafts"][2]["heads"] == {"": "warrior", "elder": "elder", "warrior": "warrior", "laborer": "laborer"}
     host.command("ideas.role_save", {"slug": slug, "name": "Layout", "model": "elder", "max_parallel": 1})
     assert {r["slug"]: r for r in host.command("ideas.roles")["roles"]}[slug]["craft"] == "design"             # kept when not sent

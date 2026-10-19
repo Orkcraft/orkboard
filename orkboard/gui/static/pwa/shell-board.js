@@ -5,7 +5,7 @@
 // this paired link (29a).
 import { h, sheet } from "./util.js";
 import { steady } from "./shell-util.js";
-import { makeGoalSheet, GOAL_STATE } from "./shell-goal.js";
+import { makeGoalSheet, goalState } from "./shell-goal.js";
 import { makeIdeas, BUSY } from "./shell-ideas.js";
 import { makeOps, OPS_VIEW } from "./shell-ops.js";
 import { makeMap, MAP_VIEW } from "./shell-map.js";
@@ -76,14 +76,14 @@ export function makeBoardTab(core, ctx) {
       return h("div", { class: "card goal-now" }, h("p", {}, "No goal yet. A goal says what the ideas are for; the Taskmaster reads it first."),
         h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open() }, "New goal")));
     }
-    const line = String(g.summary || "").split("\n").find((l) => l.trim()) || (g.state === "reading" ? "The Taskmaster is reading the goal…" : "");
+    const line = String(g.summary || "").split("\n").find((l) => l.trim()) || (g.state === "reading" ? `${g.leader?.name && g.leader.slug !== "taskmaster" ? g.leader.name : "The Taskmaster"} is reading the goal…` : "");
     const mine = (st.board.ideas || []).filter((i) => i.track === g.slug);
     const done = mine.filter((i) => i.state === "done").length, working = mine.filter((i) => i.state === "working").length;
     return h("div", { class: "card goal-now", "data-goal": g.slug },
       line ? h("p", { class: "goal-line" }, line) : null,
       h("span", { class: "goal-meta" }, goalMark(g, st.roles?.roles, true), h("span", { class: "craft-word" }, CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering),
         h("span", { class: `prio prio-${g.priority}` }, PRIORITY_WORDS[g.priority] || "Normal"),
-        GOAL_STATE[g.state] ? h("span", { class: `state-word ${g.state === "reading" ? "work" : g.state}` }, GOAL_STATE[g.state]) : null),
+        goalState(g) ? h("span", { class: `state-word ${g.state === "reading" ? "work" : g.state}` }, goalState(g)) : null),
       (g.team || []).length ? h("p", { class: "goal-team muted" }, `Team: ${g.team.map((s) => (st.roles?.roles || []).find((r) => r.slug === s)?.name || s).join(", ")}`) : null,
       mine.length ? h("p", { class: "goal-progress muted" }, `${done} of ${mine.length} ideas done${working ? ` · ${working} working` : ""}`) : null,
       h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => core.open({ kind: "goal", slug: g.slug }) }, "Open"),

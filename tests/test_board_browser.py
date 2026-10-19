@@ -72,13 +72,13 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             assert pg.locator(".gui-hud, .gui-camp, .gui-town, .gui-foot").count() == 0
             pg.get_by_role("region", name="Board").get_by_role("button", name="New goal").click()
             dlg = pg.get_by_role("dialog", name="New goal")
-            dlg.locator('.shell-craft-tile[data-craft="marketing"]').click()          # its craft, its team as the library suggests
+            dlg.locator('.shell-craft-tile[data-craft="marketing"]').click()          # its craft, its party as the library has it
             dlg.get_by_role("button", name="Next").click()
             dlg.get_by_label("Description").fill("More people try Orkline.")
             dlg.get_by_role("button", name="Save goal").click()
             pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)      # the keeper's question: Needs you
             g = next(t for t in board.command("ideas.board")["tracks"] if t["team"])
-            assert (g["craft"], g["team"]) == ("marketing", ["copywriter", "growth"])
+            assert (g["craft"], g["leader"]["slug"], g["team"]) == ("marketing", "growth", ["copywriter", "seo", "editor"])
             made = {r["slug"]: r for r in board.command("ideas.roles")["roles"]}
             assert made["copywriter"]["craft"] == "marketing" and made["growth"]["takes"] == ["campaign"]   # the team's agents: the project's roles
             team = pg.locator(".shell-goal").get_by_role("region", name="Team")                 # the goal's screen says its team

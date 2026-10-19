@@ -315,14 +315,17 @@
   padding: var(--ork-5); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); }
 .shell-craft-tile > .ork-race__head { width: 48px; height: 44px; image-rendering: pixelated; }
 .shell-craft-tile b { font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); }
-.shell-craft-tile.mixed { grid-column: 1 / -1; }
 .shell-craft-tile:hover, .shell-team-row:hover { background: var(--ork-raised); }
 .shell-craft-tile:focus-visible, .shell-team-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .shell-craft-heads { display: inline-flex; gap: var(--ork-2); }
 .shell-team-seats { display: flex; gap: var(--ork-3); }
 .shell-team-seat { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: var(--ork-line) solid var(--ork-edge); }
 .shell-team-seat.is-empty { border-style: dashed; border-color: var(--ork-frame); }
-.shell-team-seat.is-keeper { background: var(--ork-raised); }
+.shell-team-seat.is-lead { background: var(--ork-raised); }
+.shell-party-band { display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-3) 0; border-top: var(--ork-line) solid var(--ork-edge); }
+.shell-band-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ork-3); }
+.shell-band-head h3 { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.shell-team-list { display: flex; flex-direction: column; }
 .shell-team-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 24px 1fr 28px;
   grid-template-areas: "head name mark" "head line mark"; column-gap: var(--ork-4); align-items: center; padding: var(--ork-3) 0;
   border-bottom: var(--ork-line) solid var(--ork-frame); }
@@ -337,3 +340,7 @@
 .shell-check-row { display: grid; grid-template-columns: 12px 1fr auto; gap: var(--ork-3); align-items: center; }
 .shell-check-every { display: inline-flex; align-items: center; gap: var(--ork-2); white-space: nowrap; }
 .shell-goal__team { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
+/* A goal's verdict (goalview.js): the next ideas, each with Add as idea; the button that asks its leader to accept it. */
+.shell-goal__next { display: flex; flex-direction: column; gap: var(--ork-2); }
+.shell-goal__next-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-3); }
+.shell-goal__acts { display: flex; gap: var(--ork-3); }

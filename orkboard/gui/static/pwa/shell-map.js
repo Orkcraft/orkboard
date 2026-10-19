@@ -5,7 +5,7 @@
 // (its agents' heads, the checkers' checks: realm/idea_checks.py), an idea how many of its checks passed.
 import { h } from "./util.js";
 import { rowState } from "./shell-ideas.js";
-import { GOAL_STATE } from "./shell-goal.js";
+import { goalState } from "./shell-goal.js";
 import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
 import { whoHead } from "./shell-who.js";
 
@@ -69,10 +69,12 @@ export function makeMap(core, goalSheet) {
   }
 
   /** A goal's team: its agents' heads, then their names, the checkers' marked. */
-  function teamLine(team) {
-    if (!(team || []).length) return null;
-    const words = team.map((t) => `${t.name}${t.every ? " (checks every idea)" : t.checks ? " (checks)" : ""}`).join(", ");
-    return h("p", { class: "map-team muted" }, h("span", { class: "team-mark-heads" }, ...team.map((t) => whoHead(t.head, true))), ` Team: ${words}`);
+  /** The goal's party: its leader, then its builders and checkers (a checker says so). */
+  function teamLine(team, leader) {
+    if (!(team || []).length && !leader) return null;
+    const words = (team || []).map((t) => `${t.name}${t.every ? " (checks every idea)" : t.checks ? " (checks)" : ""}`).join(", ");
+    return h("p", { class: "map-team muted" }, h("span", { class: "team-mark-heads" }, ...[leader, ...(team || [])].filter(Boolean).map((t) => whoHead(t.head, true))),
+      leader ? ` Led by ${leader.name}${words ? ` · ${words}` : ""}` : ` Team: ${words}`);
   }
 
   function row(node, top, titleOf) {
@@ -106,9 +108,10 @@ export function makeMap(core, goalSheet) {
     return h("section", { class: "map-goal", "data-goal": goal.slug, "aria-label": goal.title },
       h("h3", {}, goal.title),
       h("p", { class: "map-goal-meta" }, h("span", { class: `prio prio-${goal.priority}` }, PRIORITY_WORDS[goal.priority] || "Normal"),
-        GOAL_STATE[goal.state] ? h("span", { class: `state-word ${goal.state === "reading" ? "work" : goal.state}` }, GOAL_STATE[goal.state]) : null,
-        h("span", {}, `${goal.done} of ${goal.ideas} done`), h("span", {}, money)),
-      teamLine(goal.team),
+        goalState(goal) ? h("span", { class: `state-word ${goal.state === "reading" ? "work" : goal.state}` }, goalState(goal)) : null,
+        h("span", {}, `${goal.done} of ${goal.ideas} done`), h("span", {}, money),
+        goal.verdict ? h("span", { class: `verdict-word ${goal.verdict.met ? "is-met" : "is-not"}` }, goal.verdict.met ? `accepted by ${goal.verdict.by}` : `not met, says ${goal.verdict.by}`) : null),
+      teamLine(goal.team, goal.leader),
       (goal.done_when || []).length ? h("details", { class: "map-done-when" }, h("summary", {}, `Done when · ${goal.done_when[0]}`),
         h("ul", {}, ...goal.done_when.map((l) => h("li", {}, l)))) : null,
       shown.length ? h("ol", { class: "ideas map-ideas" }, ...shown.map((n) => row(n, top, titleOf))) : h("p", { class: "muted" }, "No ideas in this goal yet."),

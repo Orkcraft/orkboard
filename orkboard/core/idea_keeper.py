@@ -41,6 +41,7 @@ from typing import Any, Callable
 from orkboard.core.idea_draft import DraftMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
+from orkboard.core.idea_lead import LeadMixin
 from orkboard.realm import event_log, goal_team, idea_checks, idea_photos, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
@@ -91,7 +92,7 @@ def _iso(at: float) -> str:
     return dt.datetime.fromtimestamp(at).isoformat(timespec="seconds")
 
 
-class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
+class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
     def __init__(self, repo_root: Path, state_dir: Path, wiki_root: Callable[[], Path],
                  settings: Callable[[], dict], publish: Callable[[str], None] = lambda slug: None,
                  demo: bool = False, budget_ok: Callable[[], bool] = lambda: True,
@@ -139,8 +140,10 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
         return idea_target.target_of(self.settings())
 
     def pick(self, step: str) -> tuple[str, str] | None:
-        """The (model or tier, effort) a keeper step runs on: by the Target, the Taskmaster's own model winning."""
-        return idea_target.keeper_pick(step, self.target(), self.taskmaster())
+        """The (model or tier, effort) a keeper step runs on: by the Target, its goal's leader's own model (else the
+        Taskmaster's) winning."""
+        lead = self.leader()
+        return idea_target.keeper_pick(step, self.target(), (lead.get("model") or idea_target.TIER_ROLE) if lead else self.taskmaster())
 
     def ask(self, step: str, prompt: str, tools: bool = True) -> tuple[str, Any, Any, str]:
         """One model call on a step, measured; a run stopped meanwhile (its own cancel or Stop all) raises
@@ -148,6 +151,8 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin):
         got = self.pick(step)
         if got is None:
             raise KeeperError(f"The Target {self.target()} makes no {step} call")
+        if lead := self.leader():                    # the goal's leader: its voice and instruction first
+            prompt = self.voice(lead) + prompt
         self._tls.picked, self._tls.tools, self._tls.usage, self._tls.capped = got, tools, None, False
         self._tls.measure = {"step": step, "prompt_chars": len(prompt), "tokens": None, "cost": None}
         try:
@@ -451,7 +456,10 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         context = idea_target.cut(parts, idea_target.CONTEXT["plan"])
         touches = [t for t in json.loads(page.get("touches") or "[]") if isinstance(t, str)] if page.get("touches", "").startswith("[") else []
         kinds = "; ".join(f'"{k}" ({roles.KIND_LINES[k]})' for k in roles.TASK_KINDS)
-        team = self.team_lines(goal_team.team_of(root, page.get("track") or ideas.GENERAL))
+        party = goal_team.team_of(root, page.get("track") or ideas.GENERAL)
+        if party:                                    # the leader does the tags it takes when no builder does
+            party = [*party, goal_team.leader_of(root, page.get("track") or ideas.GENERAL)]
+        team = self.team_lines([s for s in dict.fromkeys(party) if s != roles.TASKMASTER])
         checks = idea_checks.plan_lines(self.idea_checks(root, slug), self.team_checks(root, slug))
         return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
 read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
@@ -486,6 +494,8 @@ Answer with one JSON object and nothing else:
             data = make_plan(slug, self.parse(text))
             data["tasks"] = idea_checks.with_check_tasks(data["tasks"], self.idea_checks(root, slug), self.team_checks(root, slug), _task)
             team = goal_team.for_idea(root, slug)
+            if team and (lead := goal_team.leader_of(root, ideas.idea_page(root, slug).get("track") or "")) not in team:
+                team = [*team, lead]                     # the leader does the tags it takes when no builder does
             for t in data["tasks"]:                      # who of the goal's team does it, by its tag (none: the project's)
                 t["role"] = roles.role_for(self.state_dir, t["kind"], team)["slug"] if team else ""
             target = self.target()

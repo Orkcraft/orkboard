@@ -101,6 +101,15 @@ class StubHost:
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": order, "count": 0, "priority": priority,
                 "metrics": [], "links": [], "summary": "", "questions": [], "state": state, "state_error": "", **more}
 
+    @staticmethod
+    def leader(slug):
+        """A goal's leader as the host serves it (gui/ideas_goals.py `_goal_row`): None when not said."""
+        from orkboard.realm import library, roles
+        a = library.get(slug or "")
+        if a is None:
+            return None
+        return {"slug": a.id, "name": a.name, "head": {"craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier}}
+
     def kind_list(self):
         names = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
         return [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()]
@@ -165,7 +174,7 @@ class StubHost:
             return {"roles": [r | {"spend_today": 0} for r in self.roles.values()], "kinds": self.kind_list(),
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
                                {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],
-                    "library": library.listed(), "suggested": library.SUGGESTED, "tier_costs": dict(plans.DEFAULT_COST)}
+                    "library": library.listed(), "suggested": library.SUGGESTED, "seats": library.SEATS, "parties": library.parties(), "tier_costs": dict(plans.DEFAULT_COST)}
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -185,11 +194,15 @@ class StubHost:
             old = self.goals.get(slug, {})
             title = a.get("title") or old.get("title") or a["about"][:30]
             self.goals[slug] = self.goal(slug, title, a["priority"], "reading", about=a["about"], summary=old.get("summary", ""),
-                                         title_by="person" if a.get("title") else old.get("title_by", "keeper"))
+                                         title_by="person" if a.get("title") else old.get("title_by", "keeper"),
+                                         leader=self.leader(a.get("leader")) or old.get("leader"))
             return self.bump({"slug": slug})
+        if name == "ideas.goal_accept":
+            self.goals[a["slug"]]["busy"] = True
+            return self.bump({"ok": True})
         if name == "ideas.goal":
             g = self.goals[a["slug"]]
-            return g | {"description": g["about"], "talk": [], "busy": g["state"] == "reading", "sections": []}
+            return g | {"description": g["about"], "talk": [], "busy": g.get("busy") or g["state"] == "reading", "sections": []}
         if name == "ideas.queue":
             self.ideas[a["slug"]].update(queue=a["queue"], state="reading" if a["queue"] == "now" else "raw")
             return self.bump({"ok": True})
@@ -569,19 +582,25 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
     pg, host = shell
     pg.get_by_role("button", name="New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
-    assert dlg.locator(".shell-craft-tile").count() == 5                                            # 1. its craft: four and Mixed
-    dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # 2. its team: the craft's first two
-    assert dlg.get_by_role("button", name="Take out: Product designer").is_visible()
-    dlg.get_by_role("button", name="+ From the library: the other crafts' agents").click()
-    dlg.get_by_role("button", name="Take in: Analyst").click()
+    assert dlg.locator(".shell-craft-tile").count() == 6                                            # 1. its craft: five and Mixed
+    dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # 2. its party: the craft's, in three bands
+    leads, builds = dlg.get_by_role("region", name="Leads"), dlg.get_by_role("region", name="Builds")
+    assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "product-designer"
+    assert builds.locator(".shell-team-seat:not(.is-empty)").count() == 2 and builds.locator(".shell-team-seat").count() == 3
+    dlg.get_by_role("button", name="Take in: Analyst").click()                                      # another leader
+    dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # the third builder
+    dlg.get_by_role("button", name="Take in: Grunt").click()                                        # a fourth: no seat
+    assert builds.locator(".shell-team-seat:not(.is-empty)").count() == 3
+    assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "analyst"
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
         pg.screenshot(path=str(SHOTS / "desktop-new-goal-team-1440x900.png"))
     dlg.get_by_role("button", name="Next").click()                                                  # 3. what it is for
     assert dlg.is_visible() and dlg.get_by_role("button", name="Save goal").is_disabled()           # a description is required
-    checks = dlg.get_by_role("group", name="Checks")                                                # the team's checkers, what they add
-    assert "Design system designer" in checks.inner_text() and "Analyst" in checks.inner_text() and "Product designer" not in checks.inner_text()
-    checks.get_by_label("Every idea: Analyst").check()
+    assert "led by Analyst" in dlg.inner_text()
+    checks = dlg.get_by_role("group", name="Checks")                                                # the party's checkers, what they add
+    assert "Accessibility reviewer" in checks.inner_text() and "Analyst" not in checks.inner_text()
+    checks.get_by_label("Every idea: Accessibility reviewer").check()
     assert dlg.get_by_label("Title").count() == 0 and dlg.get_by_label("Deadline").count() == 0     # nothing else is asked
     assert dlg.get_by_label("Metric 1: what is measured").count() == 0 and dlg.get_by_label("Link 1", exact=True).count() == 0
     dlg.get_by_label("Description").fill("More people try Orkline.")
@@ -591,8 +610,9 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
         pg.screenshot(path=str(SHOTS / "desktop-new-goal-1440x900.png"))
     dlg.get_by_role("button", name="Save goal").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "craft": "design",
-                                                      "team": ["product-designer", "ui-kit", "analyst"], "every": ["analyst"], "priority": "high"}
+    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "craft": "design", "leader": "analyst",
+                                                      "team": ["ui-kit", "artist", "accessibility-reviewer", "copywriter"],
+                                                      "every": ["accessibility-reviewer"], "priority": "high"}
     pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)                                             # the goal opens in the preview
     assert "drafting" in pg.locator(".board-state", has_text="reading").first.inner_text() or "reading" in pg.locator(".shell-goal").inner_text()
     assert "reading" in pg.locator(".board-goals__select option:checked").inner_text()
@@ -619,6 +639,31 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
     pg.get_by_role("dialog", name="Edit goal").get_by_role("button", name="Save goal").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     assert _calls(pg, host, "ideas.goal_save", 3)[-1]["title"] == "Grow weekly installs"
+
+
+def test_a_goal_whose_ideas_are_done_is_accepted_by_its_leader_and_its_next_ideas_are_added(shell):
+    pg, host = shell
+    host.goals["land"] = host.goal("land", "Landing page", "high", "ready", order=3, leader=host.leader("growth"),
+                                   metrics=[{"name": "weekly installs", "target": "50", "how": "npm"}])
+    host.ideas["page"] = host.idea("page", "The landing page", "done", 7, track="land")
+    host.bump({})
+    pg.get_by_label("Goal", exact=True).select_option("land")
+    pg.get_by_role("button", name="Open goal Landing page").click()
+    verdict = pg.locator(".shell-goal").get_by_role("region", name="Verdict")
+    verdict.get_by_role("button", name="Ask Growth to accept").click()
+    assert _sent(pg, host, ("ideas.goal_accept", {"slug": "land"}))
+    assert "Growth" in pg.locator(".shell-goal").get_by_role("region", name="Team").inner_text()      # the leader, first in the party
+    host.goals["land"].update(busy=False, verdict={"met": False, "by": "Growth", "verdict": "Installs are at 30 a week, not 50.",
+                                                    "metrics": [{"name": "weekly installs", "status": "not met", "why": "30 a week on npm"}],
+                                                    "next": ["A post on the forum"]})
+    host.bump({})
+    verdict.get_by_text("Not met yet").wait_for(timeout=WAIT_MS)
+    assert "30 a week on npm" in verdict.inner_text() and "by Growth" in verdict.inner_text()
+    if os.environ.get("ORKCRAFT_SHOTS"):
+        SHOTS.mkdir(parents=True, exist_ok=True)
+        pg.screenshot(path=str(SHOTS / "desktop-goal-verdict-1440x900.png"))
+    verdict.get_by_role("button", name="Add as idea: A post on the forum").click()
+    assert _sent(pg, host, ("ideas.add", {"text": "A post on the forum", "track": "land", "priority": "normal"}))
 
 
 def test_new_idea_needs_a_goal_a_priority_and_one_button_and_a_closed_dialog_goes_to_the_night(shell):

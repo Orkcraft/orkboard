@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import idea_checks, idea_risk, idea_spend, idea_target, ideas, roles
+from orkboard.realm import goal_verdict, idea_checks, idea_risk, idea_spend, idea_target, ideas, roles
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
@@ -185,8 +185,12 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
         checkers = {c["by"] for c in checks}
         team = [{"slug": s, "name": by_slug[s]["name"], "head": roles.head(by_slug[s], target), "checks": s in checkers,
                  "every": s in (g.get("every") or [])} for s in g.get("team") or [] if s in by_slug]
+        lead = by_slug.get(g.get("leader") or roles.TASKMASTER) or by_slug.get(roles.TASKMASTER)
+        verdict = goal_verdict.read(state_dir, g["slug"])
         goals.append({"slug": g["slug"], "title": g["title"], "priority": g["priority"], "state": gst["state"],
                       "craft": g.get("craft") or roles.DEFAULT_CRAFT, "race": roles.RACES.get(g.get("craft"), "peon"), "team": team,
+                      "leader": {"slug": lead["slug"], "name": lead["name"], "head": roles.head(lead, target)} if lead else None,
+                      "verdict": {"met": verdict.get("met") is True, "by": verdict.get("by") or ""} if verdict else None,
                       "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2)})

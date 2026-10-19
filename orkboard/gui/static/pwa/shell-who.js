@@ -5,8 +5,8 @@ import { h, head as raceHead } from "./util.js";
 
 // The words of a head, as realm/lexicon.py says them (tier.*, race.*, craft.*; tests/test_design_system.py keeps them so).
 export const TIER_WORDS = { elder: "Veteran", warrior: "Seasoned", laborer: "Novice" };
-export const RACE_WORDS = { peon: "ork", elf: "elf", goblin: "goblin", gnome: "gnome" };
-export const CRAFT_WORDS = { engineering: "Engineering", design: "Design", data: "Data", marketing: "Marketing" };
+export const RACE_WORDS = { peon: "ork", elf: "elf", goblin: "goblin", gnome: "gnome", lich: "lich" };
+export const CRAFT_WORDS = { engineering: "Engineering", design: "Design", data: "Data", marketing: "Marketing", product: "Product" };
 
 /** "Seasoned elf · Design": what a head says, in words. */
 export const headWords = (head) => (head ? `${TIER_WORDS[head.tier] || ""} ${RACE_WORDS[head.race] || ""} · ${CRAFT_WORDS[head.craft] || ""}` : "");
@@ -17,12 +17,15 @@ export function whoHead(head, small = false) {
 }
 
 /** A goal's mark: the head of its craft's race, bare (a goal has no tier), its craft in words in its title. */
-export const goalHead = (g, small = false) => raceHead(g?.race || "peon", "laborer", { small, title: CRAFT_WORDS[g?.craft] || CRAFT_WORDS.engineering });
+/** A goal's head: its leader's (decisions §53), else its craft's. */
+export const goalHead = (g, small = false) => (g?.leader?.head ? raceHead(g.leader.head.race, g.leader.head.tier, { small, title: `Led by ${g.leader.name}` })
+  : raceHead(g?.race || "peon", "laborer", { small, title: CRAFT_WORDS[g?.craft] || CRAFT_WORDS.engineering }));
 
-/** A goal's mark: the heads of its team (at most three, its agents' as Agents draws them), else its craft's head. */
+/** A goal's mark: its leader's head, then its party's (at most four, as Agents draws them), else its craft's head. */
 export function goalMark(g, roleList = [], small = false) {
-  const heads = (g?.team || []).map((s) => roleList.find((r) => r.slug === s)?.head).filter(Boolean).slice(0, 3);
-  if (!heads.length) return goalHead(g, small);
+  const party = (g?.team || []).map((s) => roleList.find((r) => r.slug === s)?.head).filter(Boolean);
+  const heads = [...(g?.leader?.head ? [g.leader.head] : []), ...party].slice(0, 4);
+  if (!party.length) return goalHead(g, small);
   return h("span", { class: "team-mark-heads" }, ...heads.map((hd) => whoHead(hd, small)));
 }
 

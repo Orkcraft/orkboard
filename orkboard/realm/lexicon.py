@@ -153,11 +153,16 @@ TERMS: tuple[Term, ...] = (
     _t("craft.design", "Design"),                                  # an elf
     _t("craft.data", "Data"),                                      # a goblin
     _t("craft.marketing", "Marketing"),                            # a gnome
+    _t("craft.product", "Product"),                                # the undead: a lich (a mummy in Orkline 0.2, until orkUI draws one)
     _t("race", "race", "races"),                                   # orkUI's heads (races/<race>-<tier>.png)
     _t("race.peon", "ork", "orks"),                                # orkUI's id for the ork's head is the site's class, peon
     _t("race.elf", "elf", "elves"),
     _t("race.goblin", "goblin", "goblins"),
     _t("race.gnome", "gnome", "gnomes"),
+    _t("race.lich", "lich", "liches"),
+    _t("leader", "leader", "leaders"),                             # a goal's party's: its steps run as it (core/idea_lead.py)
+    _t("party", "party", "parties"),                               # a goal's leader, builders and checkers (realm/goal_team.py)
+    _t("verdict", "verdict", "verdicts"),                          # a goal accepted, or not, against its metrics (realm/goal_verdict.py)
     _t("task_kind", "task type", "task types"),                    # code · tests · docs · text for people · research
     _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)

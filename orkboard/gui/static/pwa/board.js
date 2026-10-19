@@ -43,6 +43,7 @@ export function makeBoard(ctx) {
     editGoal(slug) { boardTab.editGoal(slug); },
     showMap() { boardTab.showMap(); },
     draw() { drawAll(); },
+    flash(text) { ctx.flash(text); },
   };
 
   const top = makeTop(core, ctx);

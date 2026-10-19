@@ -29,24 +29,26 @@ def _wait(host, slug="", goal=False):
         time.sleep(0.01)
 
 
-def test_the_library_is_makers_and_checkers_of_each_craft_each_with_its_kinds_and_an_instruction_within_the_limit():
-    by_craft = {c: [a for a in library.LIBRARY if a.craft == c] for c in roles.CRAFTS}
-    assert {c: len(v) for c, v in by_craft.items()} == {"engineering": 5, "design": 4, "data": 5, "marketing": 5}
-    checkers = {c: [a.name for a in v if a.check] for c, v in by_craft.items()}
-    assert checkers == {"engineering": ["Tester", "Security reviewer", "Reviewer"], "design": ["Design system designer", "Accessibility reviewer"],
-                        "data": ["Analyst", "Data reviewer"], "marketing": ["Editor", "SEO"]}   # each craft has its checks
-    assert [a.name for a in by_craft["design"]] == ["Product designer", "Design system designer", "Accessibility reviewer", "Artist"]
+def test_the_library_is_leaders_builders_and_checkers_each_with_its_kinds_and_an_instruction_within_the_limit():
+    by_band = {b: [a.name for a in library.LIBRARY if a.band == b] for b in ("lead", "build", "check")}
+    assert by_band["lead"] == ["Taskmaster", "Product manager", "Architect", "Product designer", "Analyst", "Growth"]
+    assert by_band["check"] == ["Security reviewer", "Reviewer", "Accessibility reviewer", "Data reviewer", "Editor"]
+    assert all((a.check is not None) == (a.band == "check") for a in library.LIBRARY)       # a check is a checker's
+    assert library.get("product-manager").craft == "product" and roles.RACES["product"] == "lich"   # undead, for now
+    for craft, (lead, builds, checks) in library.PARTIES.items():                         # a craft's party fits its seats
+        assert library.get(lead).band == "lead" and all(library.get(s).band == "build" for s in builds), craft
+        assert all(library.get(s).band == "check" for s in checks) and len(builds) <= 3 and len(checks) <= 2, craft
     assert len({a.id for a in library.LIBRARY}) == len(library.LIBRARY) and library.get("grunt").id in roles.BUILTIN
     for a in library.LIBRARY:
         assert a.tier in roles.TIERS and a.takes and set(a.takes) <= set(roles.TASK_KINDS), a.id
         assert len(a.instruction) <= roles.INSTRUCTION_CHARS and roles.for_prompt(a.instruction) == a.instruction, a.id
-        assert a.id == "grunt" or a.instruction.endswith((".", "!", "?")), a.id
+        assert a.id in roles.BUILTIN or a.instruction.endswith((".", "!", "?")), a.id      # the built-in two keep their own
         said = f"{a.name} {a.line} {a.instruction}"
         assert not re.search(r"\borcs?\b|orchestrat", said, re.I), a.id          # CLAUDE.md: ork, orkestration
         if a.check:
             assert a.check.applies.startswith("when ") and a.check.done[0].isupper() and a.check.task.endswith("."), a.id
     every = {k for a in library.LIBRARY for k in a.takes}
-    assert every == set(roles.TASK_KINDS) - {"docs", "research"}                     # docs and research stay the project's (Grunt)
+    assert every == set(roles.TASK_KINDS) - {"docs"}                                 # docs stay the project's (Grunt)
     assert set(roles.KIND_LABELS) == set(roles.KIND_LINES) == set(roles.TASK_KINDS)
 
 
@@ -63,25 +65,32 @@ def test_a_team_routes_each_kind_to_its_specialist_and_the_rest_to_grunt(tmp_pat
 
 
 def test_goal_save_with_a_team_makes_its_agents_keeps_the_team_and_never_overwrites_an_agent(host):
-    slug = host.command("ideas.goal_save", {"about": "A landing page that sells.", "craft": "design",
-                                            "team": ["product-designer", "analyst", "taskmaster"]})["slug"]
+    slug = host.command("ideas.goal_save", {"about": "A landing page that sells.", "craft": "design", "leader": "product-designer",
+                                            "team": ["ui-kit", "accessibility-reviewer", "taskmaster"]})["slug"]
     _wait(host, slug, goal=True)
     g = next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == slug)
-    assert g["team"] == ["product-designer", "analyst"]                              # the Taskmaster plans for every team
+    assert g["team"] == ["ui-kit", "accessibility-reviewer"] and g["leader"]["slug"] == "product-designer"   # the leader leads, not in the team
+    assert g["leader"]["head"]["race"] == "elf" and g["verdict"] is None
     pd = roles.role(host.ideas.state_dir, "product-designer")
     assert pd["name"] == "Product designer" and pd["craft"] == "design" and pd["model"] == "elder" and pd["takes"] == ["design"]
     assert pd["instruction"] == library.get("product-designer").instruction
     host.command("ideas.role_save", {"slug": "product-designer", "name": "Product designer", "model": "", "max_parallel": 1,
                                      "instruction": "Mine now."})
-    host.command("ideas.goal_save", {"about": "Another page.", "craft": "design", "team": ["product-designer"]})
+    host.command("ideas.goal_save", {"about": "Another page.", "craft": "design", "leader": "product-designer", "team": []})
     assert roles.role(host.ideas.state_dir, "product-designer")["instruction"] == "Mine now."   # the person's edit stays
     assert roles.role(host.ideas.state_dir, "product-designer")["takes"] == ["design"]
     with pytest.raises(CommandError, match="No agent 'wizard'"):
         host.command("ideas.goal_save", {"about": "x", "team": ["wizard"]})
-    with pytest.raises(CommandError, match="at most 5"):
-        host.command("ideas.goal_save", {"about": "x", "team": [a.id for a in library.LIBRARY[:6]]})
+    with pytest.raises(CommandError, match="at most 3 builders"):
+        host.command("ideas.goal_save", {"about": "x", "team": ["grunt", "tester", "sql", "seo"]})
+    with pytest.raises(CommandError, match="at most 2 checkers"):
+        host.command("ideas.goal_save", {"about": "x", "team": ["reviewer", "editor", "data-reviewer"]})
+    with pytest.raises(CommandError, match="does not lead"):
+        host.command("ideas.goal_save", {"about": "x", "leader": "grunt", "team": []})
+    with pytest.raises(CommandError, match="A leader leads"):
+        host.command("ideas.goal_save", {"about": "x", "team": ["architect"]})
     got = host.command("ideas.roles")
-    assert len(got["library"]) == len(library.LIBRARY) == 19 and got["suggested"] == 2
+    assert len(got["library"]) == len(library.LIBRARY) == 21 and got["suggested"] == 2
     artist = next(a for a in got["library"] if a["id"] == "artist")
     assert {"craft": "design", "race": "elf", "tier": "laborer", "takes": ["art"], "check": None}.items() <= artist.items()
     a11y = next(a for a in got["library"] if a["id"] == "accessibility-reviewer")
@@ -105,8 +114,8 @@ def test_the_plan_tags_each_task_and_gives_it_to_the_team_member_who_does_that_k
 
     monkeypatch.setattr(jobs, "run_read", run_read)
     host.command("ideas.board_set", {"autostart": False})
-    goal = host.command("ideas.goal_save", {"about": "A landing page.", "craft": "design",
-                                            "team": ["grunt", "product-designer", "accessibility-reviewer"]})["slug"]
+    goal = host.command("ideas.goal_save", {"about": "A landing page.", "craft": "design", "leader": "product-designer",
+                                            "team": ["grunt", "accessibility-reviewer"]})["slug"]
     _wait(host, goal, goal=True)
     slug = host.command("ideas.add", {"text": "The hero section", "track": goal, "night": True})["slug"]
     host.command("ideas.read_now", {"slug": slug})
@@ -123,7 +132,7 @@ def test_the_plan_tags_each_task_and_gives_it_to_the_team_member_who_does_that_k
     assert [t["head"]["race"] for t in tasks] == ["elf", "elf", "peon", "peon"]
     from orkboard.core.idea_runner import IdeaRunner
     assert IdeaRunner._role(host.ideas.keeper, tasks[0])["slug"] == "product-designer"
-    assert goal_team.for_idea(host.ideas.root(), slug) == ["grunt", "product-designer", "accessibility-reviewer"]
+    assert goal_team.for_idea(host.ideas.root(), slug) == ["grunt", "accessibility-reviewer"]
     assert ideas.state(host.ideas.state_dir, slug)["state"] == "plan"
 
 
@@ -176,21 +185,21 @@ def test_the_team_s_checks_go_in_the_spec_and_the_plan_where_they_apply_and_ever
 
 def test_a_check_s_status_is_its_task_s_passed_once_merged_and_none_where_it_does_not_apply(tmp_path):
     from orkboard.realm import idea_checks
-    checks = idea_checks.of_team(tmp_path, ["grunt", "reviewer", "seo", "tester"], every=["tester"])
-    assert [c["by"] for c in checks] == ["reviewer", "seo", "tester"] and [c["every"] for c in checks] == [False, False, True]
-    kept = idea_checks.kept([{"by": "seo", "applies": False, "why": "No page"}, {"by": "tester", "applies": False}], checks)
-    assert kept == [{"by": "reviewer", "applies": True, "why": ""}, {"by": "seo", "applies": False, "why": "No page"},
-                    {"by": "tester", "applies": True, "why": ""}]                    # left out: applies; every idea: always
+    checks = idea_checks.of_team(tmp_path, ["grunt", "reviewer", "editor", "security-reviewer"], every=["security-reviewer"])
+    assert [c["by"] for c in checks] == ["reviewer", "editor", "security-reviewer"] and [c["every"] for c in checks] == [False, False, True]
+    kept = idea_checks.kept([{"by": "editor", "applies": False, "why": "No text"}, {"by": "security-reviewer", "applies": False}], checks)
+    assert kept == [{"by": "reviewer", "applies": True, "why": ""}, {"by": "editor", "applies": False, "why": "No text"},
+                    {"by": "security-reviewer", "applies": True, "why": ""}]         # left out: applies; every idea: always
     tasks = [{"id": "k1", "kind": "code", "state": "merged"}, {"id": "k2", "kind": "review", "state": "merged"},
-             {"id": "k3", "kind": "tests", "state": "running"}]
+             {"id": "k3", "kind": "security", "state": "running"}]
     assert [(s["by"], s["state"]) for s in idea_checks.status(kept, checks, tasks)] == [
-        ("reviewer", "passed"), ("seo", ""), ("tester", "running")]
+        ("reviewer", "passed"), ("editor", ""), ("security-reviewer", "running")]
 
 
 def test_the_map_s_goal_carries_its_team_and_its_ideas_their_checks(host):
     from orkboard.realm import idea_checks
     goal = host.command("ideas.goal_save", {"about": "A settings screen.", "craft": "design", "every": ["reviewer"],
-                                            "team": ["product-designer", "accessibility-reviewer", "reviewer"]})["slug"]
+                                            "leader": "product-designer", "team": ["accessibility-reviewer", "reviewer"]})["slug"]
     _wait(host, goal, goal=True)
     slug = host.command("ideas.add", {"text": "Dark mode", "track": goal, "night": True})["slug"]
     ideas.set_meta(host.ideas.root(), slug, checks=json.dumps([{"by": "accessibility-reviewer", "applies": False, "why": "No screen"}]))
@@ -198,8 +207,69 @@ def test_the_map_s_goal_carries_its_team_and_its_ideas_their_checks(host):
     g = next(x for x in m["goals"] if x["slug"] == goal)
     assert (g["craft"], g["race"]) == ("design", "elf")
     assert [(t["slug"], t["name"], t["head"]["race"], t["checks"], t["every"]) for t in g["team"]] == [
-        ("product-designer", "Product designer", "elf", False, False), ("accessibility-reviewer", "Accessibility reviewer", "elf", True, False),
-        ("reviewer", "Reviewer", "peon", True, True)]
+        ("accessibility-reviewer", "Accessibility reviewer", "elf", True, False), ("reviewer", "Reviewer", "peon", True, True)]
     node = next(n for n in m["nodes"] if n["slug"] == slug)
     assert [(c["by"], c["applies"], c["state"]) for c in node["checks"]] == [("accessibility-reviewer", False, ""), ("reviewer", True, "")]
     assert idea_checks.DONE == ("merged",)
+
+
+def test_a_goal_s_steps_run_as_its_leader_its_voice_and_model_and_the_taskmaster_leads_by_default(host, monkeypatch):
+    from orkboard.realm import harnesses
+    seen = []
+
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
+        seen.append({"prompt": prompt, "model": model})
+        if "saved a goal" in prompt:
+            return json.dumps({"summary": "ok", "questions": [], "metrics": [{"name": "weekly reports", "how": "count"}]}), 0.1, 10, "s"
+        return json.dumps({"gist": "A report.", "why": "", "size": "S", "priority": "normal", "before": "", "questions": []}), 0.1, 10, "s"
+
+    monkeypatch.setattr(jobs, "run_read", run_read)
+    led = host.command("ideas.goal_save", {"about": "Weekly numbers.", "craft": "data", "leader": "analyst", "team": ["sql"]})["slug"]
+    _wait(host, led, goal=True)
+    assert seen[-1]["prompt"].startswith("You are Analyst, the leader of this goal's party")
+    assert library.get("analyst").instruction in seen[-1]["prompt"]
+    assert seen[-1]["model"] == harnesses.get("claude").pick("warrior")                  # the Analyst's tier, not the Taskmaster's
+    idea = host.command("ideas.add", {"text": "A weekly report", "track": led, "night": True})["slug"]
+    host.command("ideas.read_now", {"slug": idea})
+    _wait(host, idea)
+    draft = next(c["prompt"] for c in seen if "write its spec" in c["prompt"])
+    assert draft.startswith("You are Analyst")                                         # the idea's draft: its goal's leader's
+    plain = host.command("ideas.goal_save", {"about": "Faster tests."})["slug"]          # no leader picked: the Taskmaster's
+    _wait(host, plain, goal=True)
+    assert seen[-1]["prompt"].startswith("You are the keeper") and seen[-1]["model"] == harnesses.get("claude").pick("elder")
+    g = next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == plain)
+    assert g["leader"]["slug"] == "taskmaster" and g["leader"]["name"] == "Taskmaster"
+
+
+def test_the_leader_accepts_the_goal_when_its_last_idea_is_done_and_when_asked(host, monkeypatch):
+    seen = []
+
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
+        seen.append(prompt)
+        if "accept the goal or" in prompt:
+            return json.dumps({"met": False, "verdict": "Reports ship, but nobody reads them yet.",
+                               "metrics": [{"name": "weekly reports", "status": "not met", "why": "0 opened"}, {"name": "x", "status": "odd"}],
+                               "next": ["Mail the report every Monday"]}), 0.1, 10, "s"
+        return json.dumps({"summary": "ok", "questions": [], "metrics": [{"name": "weekly reports", "target": "10 opened"}]}), 0.1, 10, "s"
+
+    monkeypatch.setattr(jobs, "run_read", run_read)
+    goal = host.command("ideas.goal_save", {"about": "Weekly numbers.", "craft": "product", "leader": "product-manager", "team": []})["slug"]
+    _wait(host, goal, goal=True)
+    a = ideas.add_idea(host.ideas.root(), "A weekly report", goal, host.ideas.state_dir)
+    ideas.save_state(host.ideas.state_dir, a, state="working")
+    host.ideas._state_event(a)                                                          # seen working …
+    ideas.save_state(host.ideas.state_dir, a, state="done")
+    host.ideas._state_event(a)                                                          # … then done: the goal's last
+    _wait(host, goal, goal=True)
+    prompt = next(p for p in seen if "accept the goal or" in p)
+    assert prompt.startswith("You are Product manager") and "weekly reports → 10 opened" in prompt and "A weekly report" in prompt
+    g = next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == goal)
+    v = g["verdict"]
+    assert v["met"] is False and v["by"] == "Product manager" and v["next"] == ["Mail the report every Monday"]
+    assert v["metrics"] == [{"name": "weekly reports", "status": "not met", "why": "0 opened"}, {"name": "x", "status": "unknown", "why": ""}]
+    from orkboard.realm import event_log
+    from pathlib import Path
+    assert [e for e in event_log.read(Path(host.repo_root)) if e["event"] == "goal_accepted"][-1]["met"] is False
+    assert host.command("ideas.goal_accept", {"slug": goal}) == {"ok": True}           # asked again, from the goal
+    _wait(host, goal, goal=True)
+    assert sum(1 for p in seen if "accept the goal or" in p) == 2

@@ -28,11 +28,13 @@ function checksMark(checks) {
 }
 
 /** A goal's team: its agents' heads, the checkers' marked, each one's name in words beside. */
-function Team({ team }) {
-  if (!(team || []).length) return null;
-  const words = team.map((t) => `${t.name}${t.every ? " (checks every idea)" : t.checks ? " (checks)" : ""}`).join(", ");
-  return html`<p class="map-goal__team ok-font-status ok-tone-muted" aria-label=${`Team: ${words}`}>
-    <span class="map-goal__heads">${team.map((t) => html`<${WhoHead} key=${t.slug} head=${t.head} small />`)}</span> Team: ${words}</p>`;
+/** The goal's party: its leader, then its builders and checkers (a checker says so). */
+function Team({ team, leader }) {
+  if (!(team || []).length && !leader) return null;
+  const words = (team || []).map((t) => `${t.name}${t.every ? " (checks every idea)" : t.checks ? " (checks)" : ""}`).join(", ");
+  const line = leader ? `Led by ${leader.name}${words ? ` · ${words}` : ""}` : `Team: ${words}`;
+  return html`<p class="map-goal__team ok-font-status ok-tone-muted" aria-label=${line}>
+    <span class="map-goal__heads">${[leader, ...(team || [])].filter(Boolean).map((t) => html`<${WhoHead} key=${t.slug} head=${t.head} small />`)}</span> ${line}</p>`;
 }
 
 function Node({ n, titles, since }) {
@@ -101,8 +103,9 @@ function Goal({ g, nodes, edges, titles, since }) {
       <span class="map-goal__state ok-tone-muted">${goalState(g.state)}</span>
       <span class="map-goal__count">${g.done} of ${g.ideas} done</span>
       <span class="map-goal__usd ok-tone-muted">${spentWords(g.usd)}</span>
+      ${g.verdict && html`<span class=${`map-goal__verdict ${g.verdict.met ? "ok-tone-ok" : "ok-tone-error"}`}>${g.verdict.met ? `accepted by ${g.verdict.by}` : `not met, says ${g.verdict.by}`}</span>`}
     </header>
-    ${!folded && html`<${Team} team=${g.team} />${lines.length > 0 && html`<p class="map-goal__when ok-font-status ok-tone-muted">done when ${lines[0]}${lines.length > 1 && !more ? html` <button class="board-link" onClick=${() => toggle("more", g.slug)}>and ${lines.length - 1} more</button>` : ""}
+    ${!folded && html`<${Team} team=${g.team} leader=${g.leader} />${lines.length > 0 && html`<p class="map-goal__when ok-font-status ok-tone-muted">done when ${lines[0]}${lines.length > 1 && !more ? html` <button class="board-link" onClick=${() => toggle("more", g.slug)}>and ${lines.length - 1} more</button>` : ""}
       ${more ? lines.slice(1).map((l) => html`<br />done when ${l}`) : ""}</p>`}
       ${nodes.some((n) => !n.folded) ? html`<${Tree} nodes=${nodes} edges=${edges} titles=${titles} since=${since} />` : html`<p class="ok-tone-muted">No open idea in this goal.</p>`}
       ${done.length > 0 && html`<div class="map-done">

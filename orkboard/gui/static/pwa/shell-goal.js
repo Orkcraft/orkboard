@@ -9,10 +9,18 @@ import { CRAFT_WORDS, RACE_WORDS, goalHead } from "./shell-who.js";
 import { limitsNote } from "./shell-limits.js";
 import { makeNewGoal } from "./shell-goal-new.js";
 
-const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"]];   // realm/roles.py RACES
+const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"], ["product", "lich"]];   // realm/roles.py RACES
 
 export { PRIORITY_WORDS };
 export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks you", ready: "ready" };
+/** Who leads a goal (its party's leader: the Taskmaster when none, realm/goal_team.py). */
+export const leaderName = (g) => g?.leader?.name || "Taskmaster";
+/** A goal's state in words, its leader's name in them. */
+export function goalState(g) {
+  if (g?.state === "reading") return `${g?.leader?.name && g.leader.slug !== "taskmaster" ? g.leader.name : "the Taskmaster"} is reading`;
+  return GOAL_STATE[g?.state] || "";
+}
+const STATUS_WORDS = { met: "met", "not met": "not met", unknown: "unknown" };
 const isUrl = (l) => /^[a-z][a-z0-9+.-]*:\/\//i.test(l);
 
 export function makeGoalSheet(core) {
@@ -78,10 +86,11 @@ export function makeGoalSheet(core) {
   };
 }
 
-/** The goal's screen: returns the nodes of its body (the preview puts them in). `act` is the preview's own (it flashes and reads again). */
+/** The goal's screen: returns the nodes of its body (the preview puts them in). `act` is the preview's own (it flashes and reads again).
+ * Its leader speaks in it: reads the goal, answers, and, when the goal's ideas are done, accepts it against its metrics (the verdict). */
 export function goalBody(g, core, act, asked, setAsked) {
-  const words = GOAL_STATE[g.state];
-  const field_ = h("textarea", { class: "ork-field", id: "answer-field", rows: "2", maxlength: "20000", "aria-label": "Answer the Taskmaster", placeholder: "Answer the Taskmaster…" });
+  const words = goalState(g), lead = leaderName(g), the = g?.leader?.slug && g.leader.slug !== "taskmaster" ? lead : `The ${lead}`;
+  const field_ = h("textarea", { class: "ork-field", id: "answer-field", rows: "2", maxlength: "20000", "aria-label": `Answer ${lead}`, placeholder: `Answer ${lead}…` });
   field_.value = asked;
   field_.addEventListener("input", () => setAsked(field_.value));
   const send = h("button", { class: "ork-btn", type: "button" }, "Send");
@@ -89,7 +98,7 @@ export function goalBody(g, core, act, asked, setAsked) {
     const text = field_.value.trim();
     if (!text) return;
     send.disabled = true;
-    const r = await act("ideas.say", { slug: g.slug, text, goal: true }, "Sent: the Taskmaster answers in a moment.");
+    const r = await act("ideas.say", { slug: g.slug, text, goal: true }, `Sent: ${lead} answers in a moment.`);
     send.disabled = false;
     if (r) { setAsked(""); field_.value = ""; }
   });
@@ -97,17 +106,45 @@ export function goalBody(g, core, act, asked, setAsked) {
   return [
     h("p", { class: "muted" }, [words || "not read yet", PRIORITY_WORDS[g.priority], g.deadline ? `by ${g.deadline}` : ""].filter(Boolean).join(" · ")),
     g.state_error && g.state === "raw" ? h("p", { class: "warn" }, g.state_error) : null,
+    g.state_error && g.state !== "raw" && /^Not accepted/.test(g.state_error) ? h("p", { class: "warn" }, g.state_error) : null,
+    verdictSec(g, core, act, sec, lead),
     sec("Description", h("p", { class: "brief" }, g.description || "No description yet.")),
-    sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? "The Taskmaster is reading the goal…" : "Not written yet."))),
+    sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? `${the} is reading the goal…` : "Not written yet."))),
     sec("Metrics", g.metrics.length ? h("div", { class: "metrics" }, ...g.metrics.map((m) => h("div", { class: "card metric" }, h("b", {}, m.name),
       h("small", {}, `Target: ${m.target || "—"}`), h("small", { class: "muted" }, m.how ? `Counted: ${m.how}` : "How it is counted: not said yet")))) : h("p", { class: "muted" }, "No metric yet.")),
     sec("Links", g.links.length ? h("ul", { class: "links" }, ...g.links.map((l) => h("li", {}, isUrl(l)
       ? h("a", { href: l, target: "_blank", rel: "noopener noreferrer" }, l)
       : h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "doc", slug: g.slug, path: l }) }, l)))) : h("p", { class: "muted" }, "No link.")),
     sec("Open questions", g.questions.length ? h("ul", { class: "links" }, ...g.questions.map((q) => h("li", {}, q)))
-      : h("p", { class: "muted" }, g.state === "ready" ? "The Taskmaster has no question." : "No question yet."),
+      : h("p", { class: "muted" }, g.state === "ready" ? `${the} has no question.` : "No question yet."),
     h("div", { class: "ask" }, h("div", { class: "row" }, field_, send))),
     (g.talk || []).length ? h("div", { class: "talk" }, ...g.talk.slice(-6).map((t) => h("div", { class: `turn ${t.who}` },
-      h("span", { class: "who" }, t.who === "you" ? "You" : "The Taskmaster"), h("p", {}, t.text)))) : null,
+      h("span", { class: "who" }, t.who === "you" ? "You" : the), h("p", {}, t.text)))) : null,
   ].filter(Boolean);
+}
+
+/** The goal's verdict: met or not, each metric's status and why, the next ideas (each added with a tap); and the button that
+ * asks the leader to accept the goal — once its ideas are all done, or again after a verdict. */
+function verdictSec(g, core, act, sec, lead) {
+  const mine = (core.st.board?.ideas || []).filter((i) => i.track === g.slug);
+  const done = mine.length > 0 && mine.every((i) => i.state === "done");
+  const v = g.verdict;
+  if (!v && !done) return null;
+  const accepting = g.busy && g.state !== "reading";
+  const ask = h("button", { class: `ork-btn${v ? "" : " primary"}`, type: "button", disabled: accepting,
+    onclick: () => act("ideas.goal_accept", { slug: g.slug }, `${lead} is accepting the goal.`) }, v ? `Ask ${lead} again` : `Ask ${lead} to accept`);
+  if (!v) {
+    return sec("Verdict", h("p", { class: "muted" }, accepting ? `${lead} is accepting the goal against its metrics…`
+      : `Its ideas are done: ${lead} accepts the goal against its metrics, not against the work done.`), h("div", { class: "row" }, ask));
+  }
+  const add = (text) => act("ideas.add", { text, track: g.slug, priority: "normal" }, "Added: drafted now.");
+  return sec("Verdict",
+    h("p", { class: `verdict-line ${v.met ? "is-met" : "is-not"}` }, h("b", {}, v.met ? "Goal met" : "Not met yet"), ` · by ${v.by || lead}`),
+    v.verdict ? h("p", { class: "brief" }, v.verdict) : null,
+    v.metrics?.length ? h("ul", { class: "verdict-metrics", "aria-label": "Metrics, as accepted" }, ...v.metrics.map((m) => h("li", { class: `status-${m.status.replace(" ", "-")}` },
+      h("b", {}, m.name), ` · ${STATUS_WORDS[m.status] || m.status}`, m.why ? h("small", { class: "muted" }, m.why) : null))) : null,
+    v.next?.length ? h("div", { class: "verdict-next", role: "group", "aria-label": "Next ideas" }, h("h4", {}, "Next ideas"),
+      ...v.next.map((x) => h("div", { class: "row" }, h("span", {}, x),
+        h("button", { class: "ork-btn", type: "button", "aria-label": `Add as idea: ${x}`, onclick: () => add(x) }, "Add as idea")))) : null,
+    h("div", { class: "row" }, ask));
 }

@@ -66,9 +66,10 @@ MAX_PARALLEL = (1, 8)
 NAME_CHARS, INSTRUCTION_CHARS = 40, 600
 READ_CHARS = 4000                  # of an instruction written before spec 36, the most a read keeps
 TIERS = ("elder", "warrior", "laborer")
-CRAFTS = ("engineering", "design", "data", "marketing")
-CRAFT_LABELS = {"engineering": "Engineering", "design": "Design", "data": "Data", "marketing": "Marketing"}
-RACES = {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome"}   # orkUI's race ids: ork, elf, goblin, gnome
+CRAFTS = ("engineering", "design", "data", "marketing", "product")
+CRAFT_LABELS = {"engineering": "Engineering", "design": "Design", "data": "Data", "marketing": "Marketing", "product": "Product"}
+# orkUI's race ids: ork, elf, goblin, gnome; product is the undead's (a mummy in Orkline 0.2: a lich until orkUI draws one)
+RACES = {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome", "product": "lich"}
 DEFAULT_CRAFT = "engineering"                    # the orks': Taskmaster's, Grunt's and every role's written before crafts
 _DEFAULTS = {
     TASKMASTER: {"name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "craft": DEFAULT_CRAFT},

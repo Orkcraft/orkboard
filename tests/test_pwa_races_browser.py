@@ -60,7 +60,7 @@ async def test_the_agents_sheet_picks_the_craft_and_shows_the_head_it_will_wear(
         await sheet.get_by_label("Name").fill("Counter")
         craft = sheet.get_by_label("Craft")
         assert [" ".join((await o.text_content()).split()) for o in await craft.locator("option").all()] == [
-            "Engineering: an ork", "Design: an elf", "Data: a goblin", "Marketing: a gnome"]
+            "Engineering: an ork", "Design: an elf", "Data: a goblin", "Marketing: a gnome", "Product: a lich"]
         await craft.select_option("data")
         await sheet.get_by_label("Model").select_option("laborer")
         assert await sheet.locator(".craft-now img.ork-race__head").get_attribute("src") == "races/goblin-laborer.png"

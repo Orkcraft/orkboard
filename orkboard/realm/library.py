@@ -38,9 +38,19 @@ class Agent:
     line: str                 # what it does, in one line (the team's step)
     instruction: str          # what it is told on every task (at most roles.INSTRUCTION_CHARS)
     check: Check | None = None  # a checker's: what it holds every idea of its team's goals to
+    band: str = "build"       # its band in a goal's party: "lead" (plans: the goal's steps run as it), "build", "check"
 
 
 LIBRARY: tuple[Agent, ...] = (
+    # -- leads of any goal: the Taskmaster (an ork, the built-in one) and the Product manager (undead: a lich for now) -----
+    Agent("taskmaster", "Taskmaster", "engineering", "elder", ("code",),
+          "Leads any goal: drafts its ideas, asks, plans, and accepts the goal against its metrics", "", band="lead"),
+    Agent("product-manager", "Product manager", "product", "elder", ("research",),
+          "Leads a product goal: who it is for, the metric it moves, what it leaves out",
+          "You lead a product goal. For every idea say who it is for and the problem it solves for them, the goal's "
+          "metric it moves and by how much you expect, and what it leaves out. Prefer the smallest idea that can show "
+          "the metric move. Write Done when lines a person can check by using the product, not by reading code. When "
+          "the ideas are done, judge the goal by its metrics, not by the work done.", band="lead"),
     # -- engineering: orks ----------------------------------------------------------------------------------------
     Agent("grunt", "Grunt", "engineering", "warrior", ("code", "tests"),
           "Writes the code a task asks for, with its tests", ""),
@@ -49,15 +59,13 @@ LIBRARY: tuple[Agent, ...] = (
           "You shape the change before it is written. Read the modules it touches and the rules of the repository "
           "(CLAUDE.md). Keep each module to one job and the imports one way. Write the plan in the task's own file: "
           "the modules, what moves where, the order of the steps, and what each step is tested by. Change code only "
-          "where the task says to; split a module before it grows past ~600 lines."),
+          "where the task says to; split a module before it grows past ~600 lines.", band="lead"),
     Agent("tester", "Tester", "engineering", "laborer", ("tests",),
           "Writes the tests a change lacks and finds the cases that break it",
           "You write tests. Read the change and the tests beside it, then add the cases it lacks: the empty input, the "
           "edge, the error a person can cause. Test what a person sees or what a caller gets, not how it is done. Use "
           "the repository's own test style and helpers. Run the tests you touch and leave them green; a test that "
-          "finds a bug stays, with the fix, or with the bug named in the task's note.",
-          Check("when the idea changes code", "Its new and changed behaviour is covered by tests that pass",
-                "Add the tests the change lacks, the edge and error cases first, and leave the suite green.")),
+          "finds a bug stays, with the fix, or with the bug named in the task's note."),
     Agent("security-reviewer", "Security reviewer", "engineering", "elder", ("security",),
           "Looks for the holes: secrets, sign-in, injection and who may do what",
           "You check a change for security. Look for a secret in code, a log or a prompt; input that reaches a shell, a "
@@ -66,7 +74,7 @@ LIBRARY: tuple[Agent, ...] = (
           "what is small and certain. Never print a secret, even to show it.",
           Check("when the idea touches input, secrets, sign-in, files or the network", "No security finding is left "
                 "open: secrets, input, sign-in and rights checked", "Check the idea's change for secrets, unescaped input, "
-                "missing rights checks and long-lived tokens; fix what is small.")),
+                "missing rights checks and long-lived tokens; fix what is small."), band="check"),
     Agent("reviewer", "Reviewer", "engineering", "elder", ("review",),
           "Reads a change before it merges and says what breaks",
           "You review a change. Read its diff and what it calls. Look for what breaks: a wrong case, a lost error, a "
@@ -74,22 +82,20 @@ LIBRARY: tuple[Agent, ...] = (
           "wrong and a fix, the worst first. Fix only what is small and certain; leave the rest as findings. Say "
           "plainly when you find nothing that blocks.",
           Check("when the idea changes code", "The change was reviewed and no blocking finding is left",
-                "Review the idea's change before it merges: list what breaks, worst first, and fix what is small.")),
+                "Review the idea's change before it merges: list what breaks, worst first, and fix what is small."), band="check"),
     # -- design: elves --------------------------------------------------------------------------------------------
     Agent("product-designer", "Product designer", "design", "elder", ("design",),
           "Turns a goal into flows and screens people get through",
           "You design what people do. Start from the goal and who it is for: write the flow step by step, then each "
           "screen with what is on it and why, at phone width first. Use the design system's components and words "
           "(orkUI); name a component that is missing instead of drawing one. Every label says plainly what happens. "
-          "Keep the screens in the task's file as text the next task can build from."),
+          "Keep the screens in the task's file as text the next task can build from.", band="lead"),
     Agent("ui-kit", "Design system designer", "design", "warrior", ("uikit",),
           "Keeps the components and tokens one: adds what is missing to the kit",
           "You keep the design system one. Before adding a component or a token, look for one that does the job. A "
           "new one gets its states (rest, hover, pressed, focus, disabled), its sizes and one line of when to use it. "
           "Colours, fonts and corners come from the tokens only. A change to the look is made in the design system "
-          "(orkUI) first, then copied, never in a product's own sheet.",
-          Check("when the idea changes what people see", "Its screens use the design system's components and tokens only",
-                "Check the changed screens against the design system: no own colour, font or corner; a missing component named.")),
+          "(orkUI) first, then copied, never in a product's own sheet."),
     Agent("accessibility-reviewer", "Accessibility reviewer", "design", "warrior", ("a11y",),
           "Checks contrast, tap sizes, labels and the keyboard",
           "You check that everyone can use it. Contrast of text at least 4.5:1, of controls 3:1. Every control can be "
@@ -97,7 +103,7 @@ LIBRARY: tuple[Agent, ...] = (
           "control and image has a name a screen reader says. Motion can be turned off. Write each finding with where, "
           "who it stops and the fix; fix what is small.",
           Check("when the idea changes what people see or use", "It passes the accessibility check: contrast, keyboard, "
-                "tap sizes and names", "Check the changed screens for contrast, keyboard use, tap sizes and names; fix what is small.")),
+                "tap sizes and names", "Check the changed screens for contrast, keyboard use, tap sizes and names; fix what is small."), band="check"),
     Agent("artist", "Artist", "design", "laborer", ("art",),
           "Draws the pixel art: icons, heads and pictures",
           "You draw pixel art in the design system's style: a small grid, hard edges, no blur, the palette's colours "
@@ -110,9 +116,7 @@ LIBRARY: tuple[Agent, ...] = (
           "You count what the goal measures. Read the goal's metrics and the events that are logged. For each metric "
           "write how it is counted: the events, the window, what is left out. Report the number with its date range "
           "and the count it comes from. Say when the data cannot answer and which event is missing. Never guess a "
-          "number.",
-          Check("when the idea is meant to move one of the goal's metrics", "The metric it moves is counted before and "
-                "after, with its source", "Count the goal's metric this idea moves, before and after it, and say where the number comes from.")),
+          "number.", band="lead"),
     Agent("data-engineer", "Data engineer", "data", "elder", ("data",),
           "Builds the pipelines and tables the numbers come from",
           "You build where the numbers come from: the events, the tables, the jobs that fill them. Name every field "
@@ -133,7 +137,7 @@ LIBRARY: tuple[Agent, ...] = (
           "what it changes and the fix.",
           Check("when the idea changes events, tables, queries or numbers", "Its numbers are recounted from their source "
                 "and no personal data leaks", "Recount the idea's numbers from their source on a sample and check that no "
-                "personal data reaches a log, a report or a prompt.")),
+                "personal data reaches a log, a report or a prompt."), band="check"),
     Agent("sql", "SQL", "data", "laborer", ("query",),
           "Writes and checks the queries a report needs",
           "You write queries. Read the tables first and say which ones you use. One query per question, its steps "
@@ -152,7 +156,7 @@ LIBRARY: tuple[Agent, ...] = (
           "You plan how people find the product. Name who it is for, where they are and what would make them try "
           "it. Pick few channels, each with what to post, when, and the number that says it worked. Spend nothing and "
           "post nothing in the product's name without the person's yes: write it ready for them. After a launch, "
-          "count what each channel brought."),
+          "count what each channel brought.", band="lead"),
     Agent("editor", "Editor", "marketing", "laborer", ("edit",),
           "Reads every text before it goes out: tone, claims, words and typos",
           "You edit what people will read. Check that it says what the product does plainly, in its own words (its "
@@ -160,15 +164,13 @@ LIBRARY: tuple[Agent, ...] = (
           "the product's; and that nothing is misspelt. Mark each change with why. Rewrite only what is wrong; keep "
           "the writer's voice.",
           Check("when the idea adds or changes text people read", "Its text is edited: plain, true, in the product's "
-                "words, no typos", "Edit the idea's texts for plain words, claims that can be shown, the glossary and typos.")),
+                "words, no typos", "Edit the idea's texts for plain words, claims that can be shown, the glossary and typos."), band="check"),
     Agent("seo", "SEO", "marketing", "laborer", ("seo",),
           "Finds the words people search for and where they go",
           "You make pages found. Find the words people search for that the product answers, and give each a page. "
           "Each page: one title with those words, a plain description, headings that say the content, alt text on "
           "images, links between pages that belong together. Never stuff words or hide text. Write what to measure "
-          "and where.",
-          Check("when the idea adds or changes a public page", "Each page it touches has its title, description and "
-                "headings for the words people search", "Check the changed pages' titles, descriptions, headings and alt text against the words people search for.")),
+          "and where."),
     Agent("community", "Community", "marketing", "laborer", ("community",),
           "Answers in the forums and channels and brings back what people ask",
           "You keep the conversation with people. Draft answers to what people ask, kind and short, with a link to "
@@ -177,7 +179,20 @@ LIBRARY: tuple[Agent, ...] = (
 )
 
 BY_ID = {a.id: a for a in LIBRARY}
-SUGGESTED = 2                                # the first ones of a goal's craft come in its team at once
+SUGGESTED = 2                                # (kept for older faces) the first builders of a goal's craft
+SEATS = {"lead": 1, "build": 3, "check": 2}  # a goal's party: at most one leader, three builders, two checkers
+# The party a goal of each craft starts with: its leader, its builders, its checkers (Mixed: the Taskmaster alone).
+PARTIES = {"engineering": ("architect", ("grunt", "tester"), ("reviewer",)),
+           "design": ("product-designer", ("ui-kit", "artist"), ("accessibility-reviewer",)),
+           "data": ("analyst", ("data-engineer", "sql"), ("data-reviewer",)),
+           "marketing": ("growth", ("copywriter", "seo"), ("editor",)),
+           "product": ("product-manager", ("grunt", "copywriter"), ("reviewer",)),
+           "mixed": ("taskmaster", (), ())}
+
+
+def parties() -> dict:
+    """The parties as a face reads them: {craft: {lead, build, check}}."""
+    return {c: {"lead": p[0], "build": list(p[1]), "check": list(p[2])} for c, p in PARTIES.items()}
 
 
 def get(agent_id: str) -> Agent | None:
@@ -186,7 +201,7 @@ def get(agent_id: str) -> Agent | None:
 
 def listed() -> list[dict]:
     """The library as a face shows it: id, name, craft, race, tier, takes, line, and a checker's check."""
-    return [{"id": a.id, "name": a.name, "craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier,
+    return [{"id": a.id, "name": a.name, "craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier, "band": a.band,
              "takes": list(a.takes), "line": a.line,
              "check": {"applies": a.check.applies, "done": a.check.done} if a.check else None} for a in LIBRARY]
 

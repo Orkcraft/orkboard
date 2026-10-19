@@ -80,10 +80,19 @@ class Stub:
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": 0, "count": 2, "priority": priority, "metrics": [],
                 "links": [], "summary": "", "questions": [], "state": state, "error": "", **more}
 
+    @staticmethod
+    def leader(slug):
+        """A goal's leader as the host serves it (gui/ideas_goals.py `_goal_row`): None when not said."""
+        from orkboard.realm import library, roles
+        a = library.get(slug or "")
+        if a is None:
+            return None
+        return {"slug": a.id, "name": a.name, "head": {"craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier}}
+
     def commands(self) -> dict:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
-                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words")
+                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -139,7 +148,7 @@ class Stub:
                     "kinds": [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()],
                     "models": [{"id": "", "label": "By Target"}, {"id": "elder", "label": "Elder · opus"},
                                {"id": "warrior", "label": "Warrior · sonnet"}, {"id": "laborer", "label": "Laborer · haiku"}],
-                    "library": library.listed(), "suggested": library.SUGGESTED, "tier_costs": dict(plans.DEFAULT_COST)}                  # the host's own library
+                    "library": library.listed(), "suggested": library.SUGGESTED, "seats": library.SEATS, "parties": library.parties(), "tier_costs": dict(plans.DEFAULT_COST)}                  # the host's own library
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -161,11 +170,14 @@ class Stub:
             self.goals[slug] = self.goal(slug, a.get("title") or old.get("title") or " ".join(about.split()[:3]), a["priority"], "reading", about=about,
                                          metrics=old.get("metrics", []), links=old.get("links", []), craft=a.get("craft", "engineering"),
                                          race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft"), "peon"),
-                                         team=a.get("team", old.get("team", [])))
+                                         team=a.get("team", old.get("team", [])), leader=self.leader(a.get("leader")) or old.get("leader"))
             return self.bump({"slug": slug})
+        if name == "ideas.goal_accept":
+            self.goals[a["slug"]]["busy"] = True
+            return self.bump({"ok": True})
         if name == "ideas.goal":
             g = self.goals[a["slug"]]
-            return g | {"description": g["about"], "talk": [], "busy": g["state"] == "reading", "sections": []}
+            return g | {"description": g["about"], "talk": [], "busy": g.get("busy") or g["state"] == "reading", "sections": []}
         if name == "ideas.read_now":
             self.ideas[a["slug"]]["state"] = "ready"
             return self.bump({"ok": True})
@@ -585,10 +597,10 @@ async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_s
         await sheet.get_by_role("radio", name="High").click()
         await _shot(page, "phone-new-goal-390x844")
         await sheet.get_by_role("button", name="Save goal").click()
-        assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "craft": "marketing",
-                                                       "team": ["copywriter", "growth"], "every": [], "priority": "high"})
+        assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "craft": "marketing", "leader": "growth",
+                                                       "team": ["copywriter", "seo", "editor"], "every": [], "priority": "high"})
         screen = page.locator(".screen")
-        await screen.get_by_text("the Taskmaster is reading", exact=False).first.wait_for(timeout=WAIT_MS)      # the goal on its own screen: reading
+        await screen.get_by_text("Growth is reading", exact=False).first.wait_for(timeout=WAIT_MS)      # the goal on its own screen: its leader reads it
         stub.goals["more-people-try"].update(title="Grow installs", state="asks", summary="Installs are the first step.\nMore lines.", questions=["Which channel first?"],
                                              links=["docs/plan.md", "https://example.com/post"],
                                              metrics=[{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}])
@@ -596,7 +608,7 @@ async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_s
         await screen.get_by_text("Installs are the first step.").first.wait_for(timeout=WAIT_MS)
         text = await screen.inner_text()
         assert "npm downloads, per week" in text and "Which channel first?" in text and "asks you" in text
-        await screen.get_by_label("Answer the Taskmaster").fill("npm first")
+        await screen.get_by_label("Answer Growth").fill("npm first")
         await screen.get_by_role("button", name="Send", exact=True).click()
         assert await _called(stub, "ideas.say", {"slug": "more-people-try", "text": "npm first", "goal": True})
         await screen.get_by_role("button", name="docs/plan.md").click()                                 # a repository path opens on a screen
