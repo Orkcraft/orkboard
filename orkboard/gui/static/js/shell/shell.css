@@ -16,6 +16,7 @@
 .shell-limit { position: relative; font-variant-numeric: tabular-nums; cursor: default; padding: var(--ork-1) var(--ork-3); }
 .shell-limit.is-warn { color: var(--ork-warning); }
 .shell-limit.is-danger { color: var(--ork-danger); font-weight: 700; }
+.shell-limit.is-unread { color: var(--ork-ink-muted); }
 .shell-pop { display: none; position: absolute; top: 100%; left: 0; z-index: 30; min-width: 220px; flex-direction: column; gap: var(--ork-2); padding: var(--ork-3) var(--ork-4);
   background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-double) double var(--ork-edge); font-weight: 400; white-space: nowrap; }
 .shell-limit:hover > .shell-pop, .shell-limit:focus > .shell-pop, .shell-limit:focus-within > .shell-pop { display: flex; }

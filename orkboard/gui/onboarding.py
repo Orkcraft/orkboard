@@ -226,7 +226,10 @@ class Onboarding:
                 self.picked[tid] = settings.ToolChoice(enabled=on, billing=billing)
         if isinstance(args.get("warder"), bool):
             self.warder = args["warder"]
-        return self._go(TOOLS) if args.get("next") else self.snapshot()
+        if args.get("next"):
+            return self._go(TOOLS)
+        self.host.on_change()             # the page draws its rows from the state pushed, not from this reply
+        return self.snapshot()
 
     def request(self, args: dict) -> dict:
         """A tool the orks cannot run on yet: a filled-in GitHub issue for the browser. Nothing is sent from here."""

@@ -35,7 +35,7 @@ class GoalsMixin:
     def _goal_row(self, g: dict) -> dict:
         """A goal as the board lists it: its fields, its state in the keeper's words."""
         st = self.goal_state(g["slug"])
-        return {**g, "state": st["state"], "error": st["error"], "ideas": g["count"]}
+        return {**g, "state": st["state"], "state_error": st["error"], "ideas": g["count"]}
 
     def goal(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)

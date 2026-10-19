@@ -110,17 +110,26 @@ export function makeTop(core, ctx) {
       spend.replaceChildren(...(gold ? [h("span", { class: "word" }, "Spend today"), " ", h("b", {}, gold)] : []));
       spend.hidden = !gold;
       const tools = (s.limits || []).filter((l) => typeof l.left === "number");
-      chip.hidden = !tools.length;
-      if (!tools.length) return;
-      const worst = tools.reduce((a, b) => (b.left < a.left ? b : a));
-      chip.className = `limit-chip ${levelOf(worst.left)}`.trim();
-      chip.replaceChildren(h("span", { "aria-hidden": "true" }, MARKS[worst.provider] || worst.name[0]), " ", h("b", {}, pct(worst.left)),
-        levelOf(worst.left) ? h("span", { "aria-hidden": "true" }, " ⚠") : null);
-      chip.setAttribute("aria-label", `${worst.name}: ${pct(worst.left)} left`);
+      const unread = (s.limits || []).filter((l) => typeof l.left !== "number" && l.error);   // turned on, not read: never missing without a word
+      chip.hidden = !tools.length && !unread.length;
+      if (chip.hidden) return;
+      if (tools.length) {
+        const worst = tools.reduce((a, b) => (b.left < a.left ? b : a));
+        chip.className = `limit-chip ${levelOf(worst.left)}`.trim();
+        chip.replaceChildren(h("span", { "aria-hidden": "true" }, MARKS[worst.provider] || worst.name[0]), " ", h("b", {}, pct(worst.left)),
+          levelOf(worst.left) ? h("span", { "aria-hidden": "true" }, " ⚠") : null);
+        chip.setAttribute("aria-label", `${worst.name}: ${pct(worst.left)} left`);
+      } else {
+        chip.className = "limit-chip";
+        chip.replaceChildren(h("span", { "aria-hidden": "true" }, MARKS[unread[0].provider] || unread[0].name[0]), " ", h("b", {}, "?"));
+        chip.setAttribute("aria-label", `${unread[0].name}: limits not read`);
+      }
       limitsBody.replaceChildren(...tools.map((l) => h("div", { class: `limit ${levelOf(l.left)}`.trim() },
         h("b", {}, `${MARKS[l.provider] || ""} ${l.name} · ${pct(l.left)}`),
         ...(l.rows || []).map((r) => h("div", { class: "limit-row" }, h("span", {}, r.window), h("b", {}, pct(r.left)),
-          h("span", { class: "muted" }, resetWords(r.reset)))))));
+          h("span", { class: "muted" }, resetWords(r.reset)))))),
+        ...unread.map((l) => h("div", { class: "limit" }, h("b", {}, `${MARKS[l.provider] || ""} ${l.name} · limits not read`),
+          h("div", { class: "muted" }, l.error))));
     },
   };
 }

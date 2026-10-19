@@ -7,9 +7,10 @@ registry that wires them to a `Harness` stays in realm/harnesses.py, which re-ex
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
-from orkboard.realm.harness_tools import EFFORTS, _HELP, _model, cli_has, effort_supported  # noqa: F401
+from orkboard.realm.harness_tools import EFFORTS, _HELP, _model, cli_has, effort_supported, json_lines  # noqa: F401
 
 
 # Claude Code ---------------------------------------------------------------------------------------
@@ -45,6 +46,26 @@ def _claude_call(h, prompt, workdir, model, allow):
     return [h.bin, "-p", prompt, "--output-format", "stream-json", "--verbose",
             *(["--allowedTools", ",".join(allow)] if allow else []), "--disallowedTools", CLAUDE_NO_TOOLS, *_model("--model", model),
             *_claude_mcp()]
+
+
+def claude_error(stdout: str) -> str:
+    """Why a run of Claude Code failed, from its result envelope (`--output-format json`, or stream-json's last
+    `result` event): its own words ("Not logged in · Please run /login") when it is an error, else "". The envelope
+    puts `is_error` and `result` after `usage`, so a line cut from the raw JSON never says why."""
+    try:
+        events = [json.loads(stdout.strip())]
+    except ValueError:
+        events = json_lines(stdout)
+    for event in reversed(events):
+        if not isinstance(event, dict) or event.get("type", "result") != "result":
+            continue
+        subtype = str(event.get("subtype") or "")
+        if event.get("is_error") is True or subtype.startswith("error"):
+            for key in ("result", "error"):
+                if isinstance(event.get(key), str) and event[key].strip():
+                    return event[key].strip()
+            return subtype or str(event.get("terminal_reason") or "") or "error"
+    return ""
 
 
 def _claude_read_dirs(dirs: list[str]) -> list[str]:

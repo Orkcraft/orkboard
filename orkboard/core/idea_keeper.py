@@ -41,7 +41,7 @@ from typing import Any, Callable
 from orkboard.core.idea_draft import DraftMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
-from orkboard.realm import event_log, idea_spend, idea_target, ideas, plans, roles, status
+from orkboard.realm import event_log, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -567,6 +567,9 @@ def readiness(data: dict) -> None:
 
 
 def _why(e: Exception) -> str:
+    """An error as the idea's state keeps it (300 characters): an AI tool's failure in plain words with what to do."""
     if isinstance(e, InterruptedError):
         return "stopped"
+    if isinstance(e, tool_errors.ToolError):
+        return tool_errors.plainly(e)[:300]
     return (str(e) or type(e).__name__).strip()[:300]

@@ -2,6 +2,7 @@
 
     raise ToolError("claude", why, code=1)    # a run of a tool failed (str(): "claude exited with 1: …")
     tool_errors.classify(text, code)          # "missing" | "login" | "limit" | "network" | "other"
+    tool_errors.plainly(err)                  # the failure in one line for a page: what happened, what to do, its words
     tool_errors.report(err, enabled, main)    # what the failure says on the bus (core: Town.tool_failed)
 
 A face shows the report as a toast: "<Tool> hit an error", the line, and Switch to another tool that is
@@ -127,6 +128,14 @@ def what_to_do(err: ToolError) -> str:
     if err.kind == LIMIT:
         return "Wait a few minutes, or switch to another tool."
     return ""
+
+
+def plainly(err: ToolError) -> str:
+    """The failure in one plain line for a page: what happened, the step to take, and the tool's own words
+    ("Claude Code is not signed in, or its sign-in has expired. Sign in again in a terminal: … Claude Code said: …")."""
+    title = harnesses.title(err.harness)
+    said = f"{title} said: {err.detail}" if err.detail else ""
+    return " ".join(x for x in (LINES[err.kind].format(tool=title), what_to_do(err), said) if x)
 
 
 def report(err: ToolError, enabled: Iterable[str], main: str, where: str = "",

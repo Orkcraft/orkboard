@@ -139,11 +139,15 @@ export function makePreview(core, ctx) {
     return h("div", { class: "plan card" }, h("h3", {}, "The plan"), ...kids);
   }
 
+  // why the Taskmaster's last step on it failed (a failed plan says its own under its button)
+  const stateError = (p) => (["reading", "planning", "failed"].includes(p.state) ? "" : p.state_error || "");
+
   function ideaScreen(p, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Spec "), p.title);
     const talk = (p.talk || []).slice(-TALK_SHOWN);
     body.replaceChildren(...[
       h("p", { class: "muted" }, [p.size ? `Size ${p.size} · ` : "", stateWords({ state: p.state, progress: { done: (p.plan?.tasks || []).filter((t) => t.state === "merged").length, total: (p.plan?.tasks || []).length } })].join("")),
+      stateError(p) ? h("p", { class: "warn", role: "alert" }, stateError(p)) : null,
       ...(p.sections || []).map(sectionBlock),
       p.plan && ["plan", "working", "failed", "done"].includes(p.state) ? planList(p.plan, p) : null,
       talk.length ? h("h3", {}, "The talk") : null,
@@ -160,7 +164,7 @@ export function makePreview(core, ctx) {
         return [btn(`Start · ${n} tasks · ${price(p.plan?.estimate)}`, () => act("ideas.start", { slug }, "Started.").then(() => read(cur)))];
       case "working": return [btn("Stop", () => act("ideas.stop", { slug }, "Stopped.").then(() => read(cur)), "danger")];
       case "failed": {
-        const why = p.error || (p.plan?.tasks || []).find((t) => t.state === "failed")?.error || "";
+        const why = p.state_error || (p.plan?.tasks || []).find((t) => t.state === "failed")?.error || "";
         return [why ? h("p", { class: "warn" }, why) : null, btn("Start again", () => act("ideas.start", { slug }, "Started again.").then(() => read(cur)))];
       }
       default: return [];

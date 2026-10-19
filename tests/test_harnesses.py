@@ -69,6 +69,23 @@ def test_pi_sums_its_messages_and_their_price():
     assert read[read.index("-e") + 1].endswith("orkcraft.ts")                         # the Warder rides along
 
 
+def test_claude_says_why_it_failed_from_its_envelope():
+    # the owner's 19 October: a draft said only `claude exited with 1: {"duration_api_ms":0,…`; the envelope puts
+    # is_error and result after usage, so a line cut from the raw JSON never says why
+    env = {"duration_api_ms": 0, "stop_reason": "stop_sequence", "session_id": "s-1", "total_cost_usd": 0,
+           "usage": {"input_tokens": 0, "output_tokens": 0}, "type": "result", "is_error": True, "num_turns": 1,
+           "subtype": "success", "result": "Not logged in · Please run /login"}
+    out = json.dumps(env)
+    assert harnesses.claude_error(out) == "Not logged in · Please run /login"
+    assert harnesses.claude_error(_lines({"type": "system", "subtype": "init"}, env)) == env["result"]   # stream-json
+    assert harnesses.claude_error(json.dumps({**env, "is_error": False})) == ""
+    assert harnesses.claude_error(json.dumps({"type": "result", "subtype": "error_max_turns", "is_error": True})) \
+        == "error_max_turns"
+    assert harnesses.claude_error("error: unknown option '--nope'") == ""          # its stderr says it then
+    err = tool_run.failure("claude", 1, out, "")
+    assert str(err) == "claude exited with 1: Not logged in · Please run /login" and err.kind == "login"
+
+
 def test_cursor_reads_its_result_line():
     out = _lines({"type": "system", "subtype": "init", "session_id": "c-1", "model": "Auto"},
                  {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "hi"}]},

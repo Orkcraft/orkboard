@@ -234,7 +234,8 @@ async def _phone(repo: Path, monkeypatch):
                 "review_count": len(stub.results()),
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
                             "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
-                           {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]}]}
+                           {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]},
+                           {"provider": "codex", "name": "Codex", "left": None, "error": "Not logged in", "rows": []}]}   # turned on, not read
     monkeypatch.setattr(BoardPhone, "phone_snapshot", staticmethod(snap))   # the stub's commands are the Board's: a phone's
     # A script taps faster than a person, and each change of the Board costs the phone four commands to draw again: the
     # limit of a few a second (gui/pairing.py, tests/test_phones.py) is not what these tests check.
@@ -302,6 +303,7 @@ async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, m
         sheet = page.get_by_role("dialog", name="What is left")
         await sheet.wait_for(timeout=WAIT_MS)
         assert "Claude" in await sheet.inner_text() and "resets at 18:00" in await sheet.inner_text()
+        assert "Codex · limits not read" in await sheet.inner_text() and "Not logged in" in await sheet.inner_text()
         await sheet.get_by_role("button", name="Close").click()
         await page.get_by_role("heading", name="Needs you").wait_for(timeout=WAIT_MS)
         await _shot(page, "phone-board-390x844")

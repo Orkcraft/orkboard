@@ -280,7 +280,7 @@ class Ideas(LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixin, BoardMix
                              for n in names],
                 "talk": ideas.talk(self.state_dir, slug), "plan": self._with_heads(ideas.plan(self.state_dir, slug)),
                 "busy": bool(self.keeper.busy(slug)) or st["state"] in ("reading", "planning"),
-                "error": st.get("error", ""), "proposed_track": page.get("proposed_track")}
+                "state_error": st.get("error", ""), "proposed_track": page.get("proposed_track")}
 
     # -- writing -------------------------------------------------------------------------------------------
 
