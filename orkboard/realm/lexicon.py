@@ -142,6 +142,7 @@ TERMS: tuple[Term, ...] = (
     _t("steward_goal", "Target", "", "Goal"),                      # the Steward's setting: what the retros improve it towards (spec 32)
     _t("agent", "agent", "agents"),                                # a role: a model, an instruction, a limit (realm/roles.py, spec 34)
     _t("task_kind", "task type", "task types"),                    # code · tests · docs · text for people · research
+    _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)
     _t("proposal", "proposal", "proposals"),                       # an idea the keeper proposes at night, for the morning (spec 35 §8)
     _t("scribble", "note", "notes", "scribble", "scribbles"),       # an idea or a note on the board

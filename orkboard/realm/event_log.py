@@ -63,7 +63,7 @@ RESULT_DECIDED = "result_decided"  # idea, task, round, decision, why, into, pus
 TASK_STOPPED = "task_stopped"     # idea, task, device
 STOP_ALL = "stop_all"             # count, device
 INTO_CHANGED = "into_changed"     # branch, push, device
-OPENED = "opened"                 # what (idea · plan · todo · task · result · tab), ref, device
+OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map), ref, via (map · board · needs · agents · review; old lines ""), device
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
 GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device

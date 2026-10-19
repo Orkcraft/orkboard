@@ -14,18 +14,10 @@ from typing import Any
 from orkboard import settings
 from orkboard.core import idea_keeper, idea_night
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import event_log, idea_risk, idea_secrets, ideas
+from orkboard.realm import board_map, event_log, idea_risk, idea_secrets, ideas
 from orkboard.realm.idea_git import BoardTree
 
 NEEDS_IDEA = ("asks", "plan", "failed", "proposed")
-
-
-def _list(text: str) -> list[str]:
-    try:
-        got = json.loads(text) if str(text or "").strip() else []
-    except ValueError:
-        return []
-    return [str(x) for x in got if isinstance(x, str)] if isinstance(got, list) else []
 
 
 class BoardMixin:
@@ -129,59 +121,16 @@ class BoardMixin:
         for i in found:
             slug, st = i["slug"], states[i["slug"]]
             plan, page = ideas.plan(self.state_dir, slug), ideas.idea_page(root, slug)
-            tasks = (plan or {}).get("tasks") or []
             asks = ideas.items(page.section("Open questions")) if page else []
-            depends = _list(page.get("depends_on")) if page else []
             mine = self._idea_needs(i, st, plan, asks, root)
             needs += mine
-            rows.append({"slug": slug, "title": i["title"], "track": i["track"], "order": i["order"],
-                         "state": st["state"], "size": i["size"], "thesis": i["thesis"], "asks": len(asks),
-                         "priority": i["priority"],
-                         "progress": {"done": sum(1 for t in tasks if t.get("state") == "merged"), "total": len(tasks)},
-                         "updated": ideas.touched_at(root, self.state_dir, slug),
-                         "queue": ideas.queue_of(st), "held_until": st["held_until"],
-                         "risk": idea_risk.level(page.get("risk")) if page and page.get("risk") else "",
-                         "risk_triggers": _list(page.get("risk_triggers")) if page else [],
-                         "depends_on": depends,
-                         "waits_on": [d for d in depends if states.get(d, {}).get("state") != "done"],
-                         "start_at": str((plan or {}).get("start_at") or ""),
-                         "in_needs_you": any(n["kind"] in ("asks", "plan", "proposal") for n in mine)})
+            rows.append(board_map.row(root, self.state_dir, i, st, plan, page, asks, states, mine))
         return {"tracks": goals, "ideas": rows, "needs_you": sort_needs(needs), **self.board_settings(),
                 "rev": self.rev, "demo": bool(self.host.demo)}
 
     def _idea_needs(self, i: dict, st: dict, plan: dict | None, asks: list[str], root) -> list[dict]:
-        """What of one idea needs the person (§10): its questions, its plan waiting, its to-dos, a failure, a proposal."""
-        slug, state = i["slug"], st["state"]
-        base = {"idea": slug, "goal": i["track"], "title": i["title"], "priority": i["priority"], "blocks": False,
-                "at": ideas.touched_at(root, self.state_dir, slug)}
-        tasks = (plan or {}).get("tasks") or []
-        out = []
-        if state == "asks":
-            out.append({**base, "kind": "asks", "text": asks[0] if asks else "The keeper asks you"})
-        if state == "plan" and plan and not plan.get("passed_at"):
-            out.append({**base, "kind": "plan", "text": "Plan ready" + (f" · {len(tasks)} tasks" if tasks else ""),
-                        "at": str(plan.get("made_at") or base["at"])})
-        if state == "proposed":
-            out.append({**base, "kind": "proposal", "text": ideas.thesis(
-                (ideas.idea_page(root, slug) or ideas.Page()).section("Gist")) or "The keeper proposes this"})
-        if state == "failed":
-            out.append({**base, "kind": "failed", "text": st.get("error") or "Something failed"})
-        merged = {t.get("id") for t in tasks if t.get("state") == "merged"}
-        if state == "working":
-            for t in tasks:
-                if t.get("state") == "failed":
-                    out.append({**base, "kind": "failed", "blocks": True, "text": f"{t.get('title', '')}: {t.get('error') or 'failed'}",
-                                "at": str(t.get("finished") or base["at"])})
-        if plan and state in ("plan", "working", "failed"):
-            for td in plan.get("todos") or []:
-                if td.get("done"):
-                    continue
-                waits = [t for t in tasks if t.get("id") in (td.get("for") or []) and t.get("state") != "merged"
-                         and set(t.get("after") or []) <= merged]
-                out.append({**base, "kind": "todo", "text": td.get("title") or "", "blocks": state == "working" and bool(waits),
-                            "at": str(plan.get("made_at") or base["at"]),
-                            "todo": {k: td.get(k) for k in ("id", "title", "kind", "why", "choices", "steps", "accept", "done")}})
-        return out
+        """What of one idea needs the person (§10): realm/board_map.py, which the Map reads too."""
+        return board_map.idea_needs(root, self.state_dir, i, st, plan, asks)
 
     # -- who passes the plan (§5) ----------------------------------------------------------------------------
 
