@@ -80,17 +80,21 @@ Monochrome: a grey scale and one accent that is the ink itself. **Colour means a
   as today (Office's rule: success ✓, warning ⚠, danger ✗).
 
 ## 3. Type
-Three families, all OFL, all with Cyrillic, shipped in `fonts/` (≈ 136 kB, woff2, latin and cyrillic subsets):
+Two families, both OFL, both with Cyrillic, shipped in `fonts/` (≈ 59 kB, woff2, latin and cyrillic subsets):
 
 | role | family | files | used for |
 |---|---|---|---|
 | **pixel** `--of-font-pixel` | Pixelify Sans 500 | as in `design-system/fonts/` (moved by copy) | **buttons and headings only** (§53.2) |
-| **text** `--of-font-text` | IBM Plex Sans 400, 600 | `ibm-plex-sans-{latin,cyrillic}-{400,600}-normal.woff2` | everything a person reads or wrote |
-| **code** `--of-font-code` | IBM Plex Mono 400, 600 | `ibm-plex-mono-{latin,cyrillic}-{400,600}-normal.woff2` | logs, diffs, paths, the terminal |
+| **text** `--of-font-text` | IBM Plex Mono 400, 600 | `ibm-plex-mono-{latin,cyrillic}-{400,600}-normal.woff2` | **everything else**: what a person reads or wrote, and code, logs, diffs, paths |
 
-Plex Sans was picked from seven (Inter, Onest, Golos Text, Commissioner, JetBrains Mono, Plex Mono) on a Russian and
-English sample: squared forms that sit beside a pixel face, the narrowest, so the densest. Plex Mono replaces JetBrains
-Mono in this form because the shipped JetBrains subset has no Cyrillic. A different text face later is one token.
+One monospaced face for all text (the owner's choice, decisions §53.2): beside the pixel face it reads as one terminal-like
+voice, and it has a real 600 for emphasis. It was picked from seven faces on a Russian and English sample (Plex Sans,
+Inter, Onest, Golos Text, Commissioner, JetBrains Mono, Plex Mono); the shipped JetBrains Mono subset has no Cyrillic, Plex
+Mono has. `--of-font-code` is an alias of `--of-font-text` in this form, so a form with a proportional text face (the
+game's, later) changes the value, not the faces' code. The cost is width: Plex Mono is 0.6 em a character (7.2 px at 12 px)
+against about 0.5 for a proportional face, so the same pane holds about 15 % fewer characters; the sizes below start from
+that (body 12, not 13), and a block of prose is held to **90 characters** (`max-width: 90ch`) so a wide preview does not
+make a line too long to read.
 
 The scale (desktop; px are CSS px; the phone's in §8):
 
@@ -100,15 +104,13 @@ The scale (desktop; px are CSS px; the phone's in §8):
 | `--of-type-heading` | pixel | 14/16, caps, 0.04em | a pane's head, a tab, the product's name |
 | `--of-type-label` | pixel | 12/16, caps, 0.06em | a section's label, a role's name (Needs you, Taskmaster) |
 | `--of-type-button` | pixel | 13/16 | a button, a chip's action |
-| `--of-type-body` | text 400 | 13/18 | prose, a row's title (600 for the strong) |
-| `--of-type-caption` | text 400 | 12/16 | a row's second line, a hint |
-| `--of-type-small` | text 400 | 11/14 | meta only (a time, a count); never the only place a fact is |
-| `--of-type-code` | code 400 | 12/16 | logs, diffs, paths |
+| `--of-type-body` | text 400 | 12/18 | prose, a row's title (600 for the strong), code, logs, diffs, paths |
+| `--of-type-caption` | text 400 | 11/16 | a row's second line, a hint, meta (a time, a count); never the only place a fact is |
 
 Rules: the pixel face is **never below 12 px and always at whole pixels** (`font-size` an integer, no `em`/`%` of a
 fractional size, no `transform: scale`); `font-synthesis: none` (Pixelify has one weight: emphasis is the inverted
 ground, a mark or the caps, never a faux bold); `font-variant-ligatures: none` on the pixel face (its *fi* is drawn as
-an *A*); numbers use `font-variant-numeric: tabular-nums` in the text face. The body is set on the root
+an *A*); the text face is monospaced, so its numbers already align. The body is set on the root
 (`html { font: var(--of-type-body) }`): nothing is left to the browser's 16. A heading or a button never carries text a
 person wrote (a goal's title is body text, not a heading), so a Cyrillic title is never set in Pixelify.
 
@@ -128,12 +130,12 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
   `prefers-reduced-motion`.
 - **Icons:** 16 px grid, 2 px stroke, `stroke-linecap: square`, `stroke-linejoin: miter`, `currentColor`, no fill, no
   emoji anywhere in a face (the rule of Office stands, now tested: §9).
-- **Key hints** `[K]` in the code face, 11 px, muted; **prefixes** `>` for the product's name and `▪` before a label.
+- **Key hints** `[K]` in the text face, 11 px, muted; **prefixes** `>` for the product's name and `▪` before a label.
 
 ## 5. Components (`components.css`, in this order)
 `.of-btn` (default: 1 px `--of-edge`, no ground; hover and pressed: inverted; **primary**: inverted at rest; **danger**:
 `--of-danger` edge and text; **quiet**: no edge, underlined pixel text; disabled: dashed edge, `--of-ink-faint`) ·
-`.of-field` (input, select, textarea: 1 px `--of-edge`, `--of-canvas` ground, text face 13, focus inset ring and caret) ·
+`.of-field` (input, select, textarea: 1 px `--of-edge`, `--of-canvas` ground, text face 12, focus inset ring and caret) ·
 `.of-tabs` / `.of-tab` (pixel caps, the active one inverted) · `.of-head` (a pane's head, 32 px, a hairline under) ·
 `.of-row` / `.of-card` (a hairline edge; selected inverted; **asks**: a 1 px `--of-alert` edge, **fails**: `--of-danger`)
 · `.of-chip` and `.of-count` (20 px, pixel label, 1 px edge) · `.of-label` (a section's label with its `▪`) ·
@@ -157,14 +159,15 @@ inverted; that nothing is an emoji. The text is part A's, added next to the Camp
 - `shell.css`, `board.css`: sizes and colours become `--of-*`; the `em` sizes go; the `data-look="camp"` blocks of
   `board.css` stay (Orkline's frozen copy reads them) and are marked as not Orkboard's.
 - The result at 1 440 × 900, measured on the prototype: the top bar 43 → 32, a pane's head 40 → 32, a button 26 → 24, a
-  Needs-you card 73 → ~68, the left pane's content about **13 % shorter**, all text one scale.
+  Needs-you card 73 → ~68, the left pane's content about **13 % shorter**, all text one scale. (That prototype set the text in a proportional 13/18; in Plex Mono 12/18 the heights are the same and the lines wrap a little more, so B
+  re-measures and the PR carries the real before/after.)
 - Every inline size and colour in `js/shell/*`, `js/board/*` becomes a class or a token; the goal icon is an SVG
   (`js/icons.js`).
 
 ## 8. The phone (C)
 The phone is the same form with a thumb's sizes; it follows the system's text size (`html { font: -apple-system-body }`,
 sizes in `rem`).
-- **Type:** body 15/20 (text), caption 13/18, small 12/16, pixel heading 14/16, pixel button 14/16; a field's text 16
+- **Type:** body 14/20 (text; 7.8 px a character, about 45 on the 366 px a line has), caption 12/16, pixel heading 14/16, pixel button 14/16; a field's text 16
   (iOS zooms in on less); the pixel face still at whole pixels at the default size (it scales with the system's setting
   and the page is checked at 100 % and 130 %).
 - **Targets:** a control is **36 px** drawn and **44 px** to hit: its `::after` reaches 4 px beyond on each side
@@ -189,9 +192,10 @@ sizes in `rem`).
   - the legacy roles of §1 are all defined, to colours of the form;
   - `RULES` names the form's roles; `tests/test_architecture.py` still holds (`orkboard/design` has no face).
 - **B** browser tests at 1 440 × 900 (`test_board_browser.py` and the others, kept green):
-  - computed styles: a button, a tab and a pane's head are in the pixel face; a row, a card, a field, a paragraph are in
-    Plex Sans; a log and a diff in Plex Mono; `document.fonts` has all three loaded, no request leaves the host for a font;
-  - `body` is 13/18; no visible text under 11 px, no pixel text under 12; every button, field and tab ≥ 24 px high; the
+  - computed styles: a button, a tab and a pane's head are in the pixel face; a row, a card, a field, a paragraph, a log
+    and a diff are in Plex Mono; `document.fonts` has both faces loaded, no request leaves the host for a font; a prose
+    block is at most 90 characters wide;
+  - `body` is 12/18; no visible text under 11 px, no pixel text under 12; every button, field and tab ≥ 24 px high; the
     top bar and a pane's head 32; panes keep their widths; no horizontal scroll;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
     `--of-ink` inside the box); the selected row is inverted; an asking card has the alert edge;

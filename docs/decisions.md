@@ -322,13 +322,15 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    successor); the same token names and component classes in each, a form changing the values and the layers. Switched by
    `data-forms` on the root. Camp's themes and Orkline stay untouched until `orkforms/game` and Orkline's own spec take
    them over.
-2. **Three faces, each for one job:** Pixelify Sans for **buttons and headings only**, IBM Plex Sans for everything a person
-   reads or wrote, IBM Plex Mono for code. The pixel face never below 12 px, at whole pixels, no ligatures, no faux bold;
-   it never sets what a person wrote (its Cyrillic is weak). Plex was chosen from seven candidates on a Russian and
-   English sample; it also fixes the missing Cyrillic of the shipped mono face.
-3. **Denser by sizes, not by shrinking the type:** desktop body 13/18, controls 24, bars 32, a 2 px space step; about 13 %
-   shorter on the owner's screen. The phone keeps a thumb's targets by drawing 36 and hitting 44 (neighbours 8 px
-   apart), body 15, one-line head, no emoji.
+2. **Two faces: pixel for buttons and headings, Plex Mono for everything else** (the owner's choice: one monospaced
+   voice beside the pixel one, a real 600 for emphasis). The pixel face never below 12 px, at whole pixels, no
+   ligatures, no faux bold; it never sets what a person wrote (its Cyrillic is weak). Plex Mono has Cyrillic (the
+   shipped JetBrains subset has none). The cost is width, about 15 % fewer characters a line, so the body is 12, and prose
+   is held to 90 characters.
+3. **Denser by sizes:** desktop body 12/18, controls 24, bars 32, a 2 px space step; about 13 % shorter on the owner's
+   screen (measured with a proportional face; mono's 12 is a little wider, so the Board's lines wrap a little more).
+   The phone keeps a thumb's targets by drawing 36 and hitting 44 (neighbours 8 px apart), body 14, one-line head, no
+   emoji.
 4. **Colour is a signal and nothing else.** A grey scale; selected and primary are the inverted ink; no accent hue. The
    signals (question, error, success, warning) keep their hues, with a mark or a word beside them.
 5. **Dark only for now.** Office's light variant (desktop and phone) is dropped from this form; it returns as a second
