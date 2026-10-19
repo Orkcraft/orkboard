@@ -6,7 +6,7 @@ const CACHE = "orkcraft-app-v29";
 // in its cache; orkUI's styles and faces (docs/specs/40-design-system.md), its race heads as they are drawn.
 const SHELL = ["./", "board-app.js", "util.js", "board.js", "shell-top.js", "shell-board.js", "shell-agents.js",
   "shell-review.js", "shell-preview.js", "shell-util.js", "shell-forms.js", "shell-goal.js", "shell-agent.js", "shell-words.js",
-  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-ops.js", "shell-map.js", "shell-who.js", "shell-idea-field.js", "shell-limits.js", "fonts.css", "tokens.css", "components.css",
+  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-ops.js", "shell-map.js", "shell-who.js", "shell-idea-field.js", "shell-limits.js", "shell-goal-new.js", "fonts.css", "tokens.css", "components.css",
   "icons/icons.svg", "app.css", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png",
   "fonts/ibm-plex-mono-latin-400-normal.woff2", "fonts/ibm-plex-mono-latin-600-normal.woff2", "fonts/pixelify-sans-latin-500-normal.woff2"];
 const CACHE_PREFIXES = ["fonts/"];
