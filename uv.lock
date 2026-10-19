@@ -361,6 +361,7 @@ source = { editable = "." }
 dependencies = [
     { name = "jsonschema" },
     { name = "markdown-it-py" },
+    { name = "pywebview", marker = "sys_platform == 'darwin'" },
     { name = "segno" },
     { name = "websockets" },
 ]
@@ -392,6 +393,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3" },
+    { name = "pywebview", marker = "sys_platform == 'darwin'", specifier = ">=5.0" },
     { name = "pywebview", marker = "extra == 'gui'", specifier = ">=5.0" },
     { name = "segno", specifier = ">=1.5" },
     { name = "segno", marker = "extra == 'dev'", specifier = ">=1.5" },

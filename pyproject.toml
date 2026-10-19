@@ -26,12 +26,14 @@ dependencies = [
     "markdown-it-py>=3.0",       # the page renders Markdown (gui/markdown.py)
     "websockets>=13.0",          # the page's server (gui/server.py) and the phone's listener (gui/phones.py)
     "segno>=1.5",                # the QR code a phone pairs with (gui/phones.py): pure Python, never left out
+    "pywebview>=5.0; sys_platform == 'darwin'",   # a Mac opens Orkboard in its own window, never the browser by default
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=1.0", "pytest-xdist>=3", "cryptography>=41", "segno>=1.5", "websockets>=13.0"]
 browser = ["playwright>=1.45"]              # the browser tests (pytest -m browser)
-# the window of its own (without it Orkboard opens in the browser); a phone's TLS certificate (gui/phone_tls.py)
+# the window of its own elsewhere than a Mac (without it Orkboard opens in the browser); a phone's TLS certificate
+# (gui/phone_tls.py)
 gui = ["pywebview>=5.0", "cryptography>=41"]
 
 [project.urls]

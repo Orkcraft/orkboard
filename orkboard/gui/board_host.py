@@ -169,7 +169,7 @@ class Orkboard:
     def __init__(self, repo_root: Path | None = None, demo: bool = False, restore: bool = False) -> None:
         """`repo_root`: the folder opened and shown (refused in words: `ideas.IdeasError`); `restore`: the projects
         open when Orkboard last closed are opened again too (`orkboard` does it; a test's host has only its own)."""
-        from orkboard.gui import board_files, board_git, board_projects, onboarding, ops, updates
+        from orkboard.gui import board_files, board_git, board_projects, folder_dialog, onboarding, ops, updates
         self.demo = demo
         self.machine = settings.load()
         self.bus = b.Bus()
@@ -201,6 +201,7 @@ class Orkboard:
         self.commands.update(self.projects.commands())
         self.commands.update(board_files.Files(self.projects).commands())
         self.commands.update(board_git.Git(self.projects).commands())
+        self.commands.update(folder_dialog.commands())   # Open folder's system dialog (desktop only: not BoardPhone's)
         self.ops = ops.Ops(self)                  # the person's, one per host: showing a project changes nothing of it
         self.commands.update(self.ops.commands())
         shown_board = self.commands["ideas.board"]
@@ -384,9 +385,10 @@ def toolkit() -> bool:
 
 def show(host: Any, server: Any, thread: Any, browser: bool, title: str = "Orkline",
          toolkit: Callable[[], bool] = toolkit, attach: Callable[[Any], None] | None = None,
-         stop: Callable[[], None] = lambda: None) -> None:
+         stop: Callable[[], None] = lambda: None, dress: Callable[[], None] | None = None) -> None:
     """The served page in a window of its own (pywebview), else the browser (`browser`, no toolkit, no pywebview);
-    returns when it closed. `attach(window)`: what the window offers the page (Orkline's folder dialog)."""
+    returns when it closed. `attach(window)`: what the window offers the page (a folder dialog); `dress()`: the app's
+    name and icon, called only when a window opens (a Mac's menu bar and Dock: gui/mac_app.py)."""
     if not browser and not toolkit():
         sys.stderr.write("orkline: no window here (GTK or Qt for Python is not installed); opening the browser\n")
         browser = True
@@ -399,6 +401,8 @@ def show(host: Any, server: Any, thread: Any, browser: bool, title: str = "Orkli
     if browser:
         _in_browser(host, server, thread, stop)
         return
+    if dress is not None:
+        dress()
     window = webview.create_window(title, server.url, width=SIZE[0], height=SIZE[1], min_size=(960, 600),
                                    background_color="#141210")
     host.updates.quit = window.destroy
@@ -437,11 +441,12 @@ def _stop(server: Any, thread: Any, stop: Callable[[], None]) -> None:
 def run(repo_root: Path | None, browser: bool = False, port: int = 0, demo: bool = False) -> int:
     """Orkboard on `repo_root` (None: the start screen), the projects open when it last closed opened again, until
     its window closes; `core.updates.RESTART` when it closed on an update it installed."""
+    from orkboard.gui import folder_dialog, mac_app
     from orkboard.gui.server import Server
     host = Orkboard(repo_root, demo=demo, restore=True)
     server = Server(host, port)
     thread = server.start_thread()
-    show(host, server, thread, browser)
+    show(host, server, thread, browser, attach=folder_dialog.attach, dress=mac_app.dress)
     return core_updates.RESTART if host.updates.restart_wanted else 0
 
 
@@ -464,7 +469,7 @@ def start_folder(folder: Path | None, machine: settings.MachineSettings) -> Path
 def main(argv: list[str] | None = None) -> int:
     """`orkboard [board] [<folder>] [--repo DIR] [--browser] [--port N]`: Orkboard on that folder; without one the last
     shown project, else the one it was started in, else the start screen. `board` is the old habit of
-    `orkcraft board`, and changes nothing."""
+    `orkcraft board`, and changes nothing. `orkboard --make-app`: Orkboard.app in ~/Applications (gui/mac_app.py)."""
     from orkboard.realm import project_folder
     parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: goals, ideas, agents, review")
     parser.add_argument("words", nargs="*", metavar="folder", help="The project's folder to open")
@@ -472,7 +477,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=None, help="Path to project root (as a folder named)")
     parser.add_argument("--browser", action="store_true", help="Open it in the browser instead of a window")
     parser.add_argument("--port", type=int, default=0, help="Port on 127.0.0.1 (default: any free one)")
+    parser.add_argument("--make-app", action="store_true",
+                        help="Put Orkboard.app in ~/Applications (a Mac): Orkboard from the Dock, Launchpad and Spotlight")
     args = parser.parse_args(argv)
+    if args.make_app:
+        from orkboard.gui import mac_app
+        return mac_app.make_here()
     words = list(args.words)
     if words and words[0] == "board":                     # `orkboard board`: the same
         words.pop(0)

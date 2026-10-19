@@ -50,11 +50,29 @@ export async function startGit(path) {
   } catch { return false; }
 }
 
+const PICK_POLL_MS = 300;
+
+/** The system's folder dialog (gui/folder_dialog.py): the host opens it, the page asks what came of it while `alive`.
+ *  {state: "done", path} | {state: "none"} (cancelled) | {state: "error", why} (no dialog here: the path is typed). */
+export async function chooseFolder(start, alive) {
+  let token;
+  try { ({ token } = await command("folders.pick", { start })); } catch { return { state: "error", why: "" }; }
+  while (alive.current) {
+    await new Promise((r) => setTimeout(r, PICK_POLL_MS));
+    let got;
+    try { got = await command("folders.picked", { token }); } catch { return { state: "error", why: "" }; }
+    if (got?.state !== "open") return got || { state: "error", why: "" };
+  }
+  return { state: "none" };
+}
+
 export function OpenFolderDialog() {
   const [path, setPath] = useState("");
   const [why, setWhy] = useState("");
   const [busy, setBusy] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [nogit, setNogit] = useState("");        // the folder just opened that has no git
+  const alive = useRef(true);
   const recent = projectList.value.recent;
   const go = async (e, p = path) => {
     e?.preventDefault();
@@ -66,6 +84,19 @@ export function OpenFolderDialog() {
     if (got.git === false) { setNogit(p.trim()); return; }
     closeDialog();
   };
+  // As an IDE's Open Folder: the system's dialog at once (quiet when there is none here), Choose… to open it again;
+  // the folder chosen opens, and the path can still be typed or a recent one taken.
+  const choose = async (quiet = false) => {
+    if (choosing) return;
+    setChoosing(true);
+    setWhy("");
+    const got = await chooseFolder(path.trim(), alive);
+    if (!alive.current) return;
+    setChoosing(false);
+    if (got.state === "done" && got.path) { setPath(got.path); go(null, got.path); }
+    else if (got.state === "error" && got.why && !quiet) setWhy(got.why);
+  };
+  useEffect(() => { choose(true); return () => { alive.current = false; }; }, []);
   if (nogit) {
     return html`<${Modal} title="Start git here?" onClose=${closeDialog}
       foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Not now</button>
@@ -78,9 +109,11 @@ export function OpenFolderDialog() {
     foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>
       <button type="submit" form="open-folder-form" class="ork-btn primary" disabled=${!path.trim() || busy}>Open folder</button>`}>
     <form id="open-folder-form" class="shell-form" onSubmit=${go}>
-      <label class="shell-field"><span class="ok-font-label">Folder</span>
-        <input class="ork-field" autofocus value=${path} aria-label="Folder" placeholder="The path of a project's folder, such as ~/code/shop"
-          onInput=${(e) => { setPath(e.target.value); setWhy(""); }} /></label>
+      <div class="shell-field"><label class="ok-font-label" for="open-folder-path">Folder</label>
+        <div class="shell-pick"><input id="open-folder-path" class="ork-field" autofocus value=${path} aria-label="Folder"
+          placeholder="The path of a project's folder, such as ~/code/shop" onInput=${(e) => { setPath(e.target.value); setWhy(""); }} />
+          <button type="button" class="ork-btn" disabled=${choosing || busy} onClick=${() => choose()}>Choose…</button></div>
+        ${choosing && html`<p class="ok-font-status ok-tone-muted" role="status">Choose the folder in the dialog that opened, or type its path.</p>`}</div>
       ${why && html`<p class="ok-tone-error" role="alert">${why}</p>`}
       <p class="ok-font-status ok-tone-muted">The folder becomes a project: its goals, ideas and tasks are kept in it, apart from your other projects.</p>
       ${recent.length > 0 && html`<div class="shell-field" role="group" aria-label="Recent"><span class="ok-font-label">Recent</span>

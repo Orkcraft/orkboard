@@ -13,6 +13,7 @@ import pytest
 
 playwright = pytest.importorskip("playwright.sync_api")
 
+from orkboard.gui import folder_dialog  # noqa: E402
 from orkboard.gui.board_host import Orkboard  # noqa: E402
 from orkboard.gui.server import Server  # noqa: E402
 from orkboard.realm import jobs  # noqa: E402
@@ -44,6 +45,7 @@ def world(tmp_path, monkeypatch):
                        "ORKCRAFT_LIMITS": "0", "ORKCRAFT_NO_UPDATE": "1", "XDG_CONFIG_HOME": tmp_path / "config"}.items():
         monkeypatch.setenv(key, str(value))
     monkeypatch.setattr(jobs, "run_read", lambda *a, **k: (json.dumps(GOAL), 0.01, 10, "s-1"))
+    monkeypatch.setattr(folder_dialog, "native", lambda begin="": None)          # Open folder's system dialog: cancelled
     shop = _repo(tmp_path / "shop", {"README.md": "# Shop\n\nSells **things**.\n", "src/app.py": "import os\n\nprint('hello')\n",
                                      ".env": "TOKEN=abc\n", ".gitignore": "build/\n", "build/out.js": "x\n"})
     blog = _repo(tmp_path / "blog", {"README.md": "# Blog\n"})
@@ -111,6 +113,43 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
         pg.locator(".shell-proj__btn").filter(has_text="shop").wait_for(timeout=WAIT_MS)
         pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)
         assert host.command("projects.list")["current"] == str(shop.resolve())
+    _run(world, body)
+
+
+def test_open_folder_opens_the_systems_dialog_and_the_folder_chosen_opens(world, monkeypatch):
+    # the owner's 19 October: a project's folder chosen in the system's picker, not typed
+    host, shop, blog = world
+    asked = []
+    monkeypatch.setattr(folder_dialog, "native", lambda begin="": asked.append(begin) or str(blog))
+
+    def body(pg, host):
+        pg.locator(".shell-proj__btn").wait_for(timeout=WAIT_MS)
+        pg.keyboard.press("Control+o")                                              # the dialog at once, as an IDE's
+        pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
+        assert pg.get_by_role("dialog", name="Open folder").count() == 0 and asked == [""]
+    _run(world, body)
+
+
+def test_with_no_dialog_here_the_path_is_typed_and_choose_says_why(world, monkeypatch):
+    host, shop, blog = world
+
+    def none(begin=""):
+        raise folder_dialog.Unavailable("No folder dialog on this computer: type the folder's path.")
+    monkeypatch.setattr(folder_dialog, "native", none)
+
+    def body(pg, host):
+        pg.keyboard.press("Control+o")
+        dlg = pg.get_by_role("dialog", name="Open folder")
+        choose = dlg.get_by_role("button", name="Choose…")
+        choose.wait_for(timeout=WAIT_MS)
+        pg.wait_for_function("() => !document.querySelector('[role=dialog] button[disabled]:not([type=submit])')", timeout=WAIT_MS)
+        assert dlg.locator("[role=alert]").count() == 0                            # at once: quiet
+        choose.click()
+        dlg.locator("[role=alert]").wait_for(timeout=WAIT_MS)
+        assert "type the folder's path" in dlg.locator("[role=alert]").inner_text()
+        dlg.get_by_label("Folder").fill(str(blog))
+        dlg.get_by_role("button", name="Open folder").click()
+        pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
     _run(world, body)
 
 
