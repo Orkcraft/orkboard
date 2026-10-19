@@ -71,7 +71,7 @@ for a gear; Needs you's kinds as icons, **a goal a flag**.
   title (*Seasoned elf · Design*). The tiers are said as the lexicon says them, the model list too (*Veteran · opus*).
 - **The agent's dialog and sheet** pick the craft (*Engineering: an ork*, *Design: an elf*, *Data: a goblin*,
   *Marketing: a gnome*; disabled for the built-in two) and show the head the agent will wear with the model picked.
-- **The Agents tab** is an ork's head (the peon, a novice) in the tab bar, as the other tabs' icons.
+- **The Agents tab** is orkUI's robot icon, as the other tabs' icons: a head says a craft, so the tab that holds every agent wears none.
 
 ## 7. The page (A)
 `index.html` loads orkUI's `fonts.css`, `tokens.css`, `components.css`, `/roles.css`, xterm's sheet and `page.css` (the

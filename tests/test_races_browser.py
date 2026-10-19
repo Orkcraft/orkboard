@@ -1,6 +1,6 @@
 """Who does a task, as orkUI draws it (decisions §53, docs/specs/40-design-system.md §6): on Agents each agent wears the head of
 its craft's race (an ork engineers, an elf designs, a goblin minds the data, a gnome markets) in its tier's gear, each chip the
-head of who runs it, small: a head is an accent, not a picture; the agent's dialog picks the craft and shows the head it will wear; the Agents tab is an ork. The desktop
+head of who runs it, small: a head is an accent, not a picture; the agent's dialog picks the craft and shows the head it will wear; the Agents tab is orkUI's robot. The desktop
 at 1 440 × 900 and 800 wide, the phone at 390 × 844, against the stubs of the shell's tests with the host's heads
 (realm/roles.py `head`). Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
@@ -119,13 +119,12 @@ def test_the_agents_dialog_picks_the_craft_and_shows_the_head_it_will_wear(races
     assert dialog.get_by_label("Craft").is_disabled() and "orks" in dialog.inner_text()   # Taskmaster and Grunt are orks
 
 
-def test_below_1024_the_agents_tab_is_an_ork(gui):
+def test_below_1024_the_agents_tab_is_a_robot(gui):
     pg, host, errors = _open(gui, viewport={"width": 800, "height": 900}, host=StubRaces(), ready=".shell-tabs")
     try:
         tab = pg.get_by_role("tab", name="Agents")
-        assert _src(tab.locator("img.ork-race__head")).endswith("/ds/orkui/races/peon-laborer.png")
+        assert tab.locator("img").count() == 0 and tab.locator("svg.ork-icon use").get_attribute("href").endswith("#robot")
         assert pg.get_by_role("tab", name="Board").locator("svg.ork-icon use").get_attribute("href").endswith("#list-box")
-        assert _drawn(pg, ".shell-tabs img")
     finally:
         pg.close()
     assert not errors, "\n".join(errors)

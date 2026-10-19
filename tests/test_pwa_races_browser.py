@@ -25,11 +25,12 @@ async def _drawn(page, selector):
 
 
 @pytest.mark.asyncio
-async def test_agents_wear_their_races_the_cards_their_runners_and_the_tab_is_an_ork(fake_repo, monkeypatch):
+async def test_agents_wear_their_races_the_cards_their_runners_and_the_tab_is_a_robot(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _with_heads(stub)
         tab = page.get_by_role("tab", name="Agents")
-        assert (await tab.locator("img.ork-race__head").get_attribute("src")) == "races/peon-laborer.png"
+        assert await tab.locator("img").count() == 0                                                      # a head says a craft: the tab is orkUI's robot
+        assert (await tab.locator("svg.ork-icon use").get_attribute("href")).endswith("#robot")
         await tab.click()
         agents = page.locator(".agents")
         await agents.locator(".role[data-slug=layout]").wait_for(timeout=WAIT_MS)

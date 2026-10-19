@@ -25,9 +25,9 @@ export function Head({ race, tier = "laborer", small = false, title = "" }) {
     width=${small ? 12 : 24} height=${small ? 11 : 22} alt="" title=${title || undefined} draggable="false" />`;
 }
 
-/** The tabs' marks: the Board a list, Agents an ork (the mascot, orkUI's peon), Review an eye. */
+/** The tabs' marks, orkUI's pixel icons: the Board a list, Agents a robot (a head says a craft, not every agent), Review an eye. */
 export function TabMark({ tab }) {
-  return tab === "agents" ? html`<${Head} race="peon" />` : html`<${Icon} name=${tab === "board" ? "list-box" : "eye"} />`;
+  return html`<${Icon} name=${{ board: "list-box", agents: "robot" }[tab] || "eye"} />`;
 }
 
 /** What needs the person, by kind, as orkUI's icon (Needs you, desktop and phone alike). */
