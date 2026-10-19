@@ -20,7 +20,7 @@ builder's choice inside its files. Wording: CLAUDE.md (labels say plainly what h
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
-| **A0. The system, in its own repository** | `spec/40-orkforms` in **`orkworks/orkforms`** (new, §1a) | §2–§6, §8a, §9 (A0) | in the new repository: `office/` (`ascii/ork.txt`, `tokens.json`, generated `tokens.css`, `components.css`, `fonts/` with the OFL texts, `preview.html` the gallery, `README.md`), `tools/build_tokens.py` (the generator, standard library only), `tests/test_orkforms.py`, `NOTICE`, `CHANGELOG.md`, tag `v0.1.0` |
+| **A0. The system, in its own repository** | `spec/40-orkforms` in **`orkworks/orkforms`** (new, §1a) | §2–§6, §8a, §9 (A0) | in the new repository: `office/` (`ascii/*.txt` (five orks), `tokens.json`, generated `tokens.css`, `components.css`, `fonts/` with the OFL texts, `preview.html` the gallery, `README.md`), `tools/build_tokens.py` (the generator, standard library only), `tests/test_orkforms.py`, `NOTICE`, `CHANGELOG.md`, tag `v0.1.0` |
 | **A1. Orkboard takes it** | `spec/40-submodule` | §1a, §6, §9 (A1) | `.gitmodules` and the submodule `design-system/orkforms` (pinned at `v0.1.0`), `pyproject.toml` (`package-data`: the wheel carries the files), `orkboard/design/tokens.py` (reads the form's tokens; it generates only Camp's), `orkboard/design/ui.py` (`RULES`), new `tests/test_orkforms_pin.py` |
 | **B. Desktop** | `spec/40-desktop` | §7, §8a | `gui/static/index.html`, `gui/static/js/shell/shell.css`, `gui/static/js/board/board.css`, the inline sizes and colours in `js/shell/*`, `js/board/*`, `js/icons.js`; `gui/static/office.css` leaves Orkboard's page; `tests/test_board_browser.py` and the desktop browser tests |
 | **C. Phone** | `spec/40-phone` | §8, §8a | `gui/static/pwa/app.css`, `pwa/index.html`, `pwa/shell-*.js` (the emoji, the header), `pwa/sw.js` (cache version) with `tests/test_pwa.py`'s pinned version, `gui/pwa.py` (what it serves), the phone browser tests |
@@ -284,19 +284,78 @@ shape characters), without a screen reader reading them out, and in the form's c
    name in Agents, the Map's nodes and Review's lines. **A mark never stands alone:** its word is beside it or in its
    `aria-label`, and the glyph is `aria-hidden` (the word is the glossary's, `realm/lexicon.py`; no new word). The legend is
    in the form's README and in `RULES`.
-6. **The ork in empty states.** A screen with nothing to show (the Board with no idea, Review with nothing waiting, Agents
-   with no task) shows this, in the text face at 12/14 (`white-space: pre`, `aria-hidden`), muted, over the screen's own
-   sentence (the words stay as they are):
+6. **The ork, from the organisation's mark.** The art is the GitHub organisation's pixel ork (a crown of three points, stepped
+   ears, two slits for eyes, two tusks), read from the mark's own 12 × 9 grid of cells, **each cell two characters wide and one
+   line high** (so a cell stays square): crown `^^`, head and ears `##`, tusks `||`, the eyes left open or marked. ASCII
+   only, 24 columns × 9 lines, monochrome, in the text face at 12/14 (`white-space: pre`, `aria-hidden`), `--of-ink-muted`;
+   it stands over the screen's own sentence, whose words stay as they are. Five files in `office/ascii/`, one per state,
+   all the same size so a screen's layout does not jump when its ork changes. Faces read the file by name; the art is not
+   copied into a template.
+
+   `ork.txt`, the default, for a screen with nothing to show (the Board with no idea, Review with nothing waiting, Agents
+   with no task, a first start):
 ```
-   _______
-  /       \
- | (o) (o) |
- |    v    |
-  \ |V_V| /
-   '-----'
+      ^^  ^^^^  ^^
+      ^^^^^^^^^^^^
+      ############
+##  ################  ##
+########################
+  ####    ####    ####
+    ################
+    ##||########||##
+    ##||########||##
 ```
-   The art is `office/ascii/ork.txt` (UTF-8, 6 lines, 11 columns, ASCII only), one file the faces read; a second ork (asleep,
-   for the night) can follow. No sprite, no image.
+   `ork-asleep.txt` (eyes `--`, a `z`): the work is held for the night, or an idea waits for its `start_at`.
+```
+      ^^  ^^^^  ^^    Z
+      ^^^^^^^^^^^^  z
+      ############
+##  ################  ##
+########################
+  ####----####----####
+    ################
+    ##||########||##
+    ##||########||##
+```
+   `ork-asks.txt` (eyes `oo`, `?`): the first thing on the list is a question to the person (the preview's empty text *First
+   on your list: …*, a goal's question).
+```
+      ^^  ^^^^  ^^  ?
+      ^^^^^^^^^^^^     ?
+      ############
+##  ################  ##
+########################
+  ####oooo####oooo####
+    ################
+    ##||########||##
+    ##||########||##
+```
+   `ork-failed.txt` (eyes `xx`, `!`): a screen whose only content is a failure (a run that failed with nothing else open).
+```
+      ^^  ^^^^  ^^  !
+      ^^^^^^^^^^^^
+      ############
+##  ################  ##
+########################
+  ####xxxx####xxxx####
+    ################
+    ##||########||##
+    ##||########||##
+```
+   `ork-working.txt` (eyes `==`, `...`): a Grunt or the Taskmaster is working and there is nothing to read yet.
+```
+      ^^  ^^^^  ^^
+      ^^^^^^^^^^^^  ...
+      ############  ..
+##  ################  ##
+########################
+  ####====####====####
+    ################
+    ##||########||##
+    ##||########||##
+```
+   A state's ork never replaces its sentence or its colour: the signal is the screen's own (the alert edge, the danger text).
+   The earlier set (a face with goggles and a cap) was drawn from the old logo and is dropped; no sprite, no image.
 
 ## 9. Tests (A, and the faces' B and C)
 - **A0** `tests/test_orkforms.py` in `orkworks/orkforms` (its gate; Orkboard's critical tests add `test_orkforms_pin.py`):
@@ -326,7 +385,8 @@ shape characters), without a screen reader reading them out, and in the form's c
   - a dialog and a menu have a double 3 px border; a focused field has `caret-shape: block`; a waiting screen's block is
     still under reduced motion; the key line lists only keys that work in the current context and each listed key does what
     it says; a menu's letters are unique and a letter activates its item (and does nothing while a field is focused);
-  - the empty states show the ork (`aria-hidden`, the same lines as `ork.txt`) with their own sentence; an `@ o ? * +` mark
+  - each `office/ascii/*.txt` is ASCII only, exactly 9 lines, none longer than 24 columns, and the five are the same size;
+    the empty states show their ork (`aria-hidden`, the same lines as the file) with their own sentence; an `@ o ? * +` mark
     is `aria-hidden` and its word is present; no pip, meter or hatch is a typed glyph;
   - icons are 24 or 48 px (never another size) and take their text's colour;
   - no emoji in the page's text (a range check of the text nodes); a focused control shows its inset ring (a pixel of
