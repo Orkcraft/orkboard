@@ -5,8 +5,8 @@ desktop in a grey Office, the phone in a warm brown one; text at the browser's d
 a type scale in `tokens.json` that nothing reads. The owner wants the elements smaller, the look more minimal and
 monochrome, and a reference to game interfaces through pixel type. This spec gives that look its own design system,
 **Orkforms**, whose first member is **`orkforms/office`**: the default look of Office mode. A second member,
-`orkforms/game`, follows later and is not designed here. **Builds:** Claude (A on the warrior tier; B and C on the
-warrior tier) · **Review:** full · P1 · **Not before spec 39 B and C are merged** (they own `js/shell/*`, `js/board/*`,
+`orkforms/game`, follows later and is not designed here. **Builds:** Claude (A0 and A1 on the warrior tier; B and C
+on the warrior tier) · **Review:** full · P1 · **Not before spec 39 B and C are merged** (they own `js/shell/*`, `js/board/*`,
 `pwa/*`; this spec changes the same stylesheets).
 
 **What it is, and is not:** a set of tokens and components, with the faces' stylesheets moved onto them. It changes
@@ -19,7 +19,8 @@ builder's choice inside its files. Wording: CLAUDE.md (labels say plainly what h
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
-| **A. The system** | `spec/40-orkforms` | §2–§6, §9 | new `design-system/orkforms/office/` (`tokens.json`, generated `tokens.css`, `components.css`, `fonts/`, `README.md`), new `design-system/orkforms/README.md`, `orkboard/design/tokens.py` (reads and generates it), `orkboard/design/ui.py` (`RULES`), `NOTICE` (the fonts), new `tests/test_orkforms.py`, new `design-system/orkforms/office/preview.html` (the gallery) |
+| **A0. The system, in its own repository** | `spec/40-orkforms` in **`orkworks/orkforms`** (new, §1a) | §2–§6, §9 (A0) | in the new repository: `office/` (`tokens.json`, generated `tokens.css`, `components.css`, `fonts/` with the OFL texts, `preview.html` the gallery, `README.md`), `tools/build_tokens.py` (the generator, standard library only), `tests/test_orkforms.py`, `NOTICE`, `CHANGELOG.md`, tag `v0.1.0` |
+| **A1. Orkboard takes it** | `spec/40-submodule` | §1a, §6, §9 (A1) | `.gitmodules` and the submodule `design-system/orkforms` (pinned at `v0.1.0`), `pyproject.toml` (`package-data`: the wheel carries the files), `orkboard/design/tokens.py` (reads the form's tokens; it generates only Camp's), `orkboard/design/ui.py` (`RULES`), new `tests/test_orkforms_pin.py` |
 | **B. Desktop** | `spec/40-desktop` | §7 | `gui/static/index.html`, `gui/static/js/shell/shell.css`, `gui/static/js/board/board.css`, the inline sizes and colours in `js/shell/*`, `js/board/*`, `js/icons.js`; `gui/static/office.css` leaves Orkboard's page; `tests/test_board_browser.py` and the desktop browser tests |
 | **C. Phone** | `spec/40-phone` | §8 | `gui/static/pwa/app.css`, `pwa/index.html`, `pwa/shell-*.js` (the emoji, the header), `pwa/sw.js` (cache version) with `tests/test_pwa.py`'s pinned version, `gui/pwa.py` (what it serves), the phone browser tests |
 
@@ -48,12 +49,32 @@ B and C branch from A once A is pushed; they touch no file of each other's.
   scale's steps; a form changes their values, adds or removes a layer (the game has sprites; Office has none). So a face
   is written once and the look switches by one attribute.
 - **The switch** is `data-forms="office"` on the root. Orkboard's page and phone always carry it. A form's stylesheets
-  live in `design-system/orkforms/<form>/` and are served as `/ds/orkforms/<form>/…` (the route `/ds/` exists).
+  live in the `orkforms` repository (§1a), at `<form>/` in it, and in Orkboard at `design-system/orkforms/<form>/`, served as
+  `/ds/orkforms/<form>/…` (the route `/ds/` exists).
 - **Legacy roles keep working.** `tokens.css` of a form also sets the old role names (`--canvas`, `--panel`, `--ink`,
   `--frame`, `--action`, `--danger`, …) under `[data-forms="office"]`, so shared components and old rules that read a role
   take the new colours with no change; new code reads `--of-*`. A role the form does not use is set to the nearest
   one, never left to Camp's.
 - Camp's tokens stay in `design-system/tokens.json` and `tokens.css`, untouched, for Orkline.
+
+## 1a. Its own repository (decisions §53.8)
+Orkforms is shared by Orkboard and Orkline, so it is a repository of its own, **`orkworks/orkforms`** (the owner's
+organisation, renamed from `orkcraft`; Orkboard's own remote keeps working through GitHub's redirect and is not
+renamed here). It holds, and only it holds: each form's tokens, stylesheets, fonts and gallery; the generator of
+`tokens.css`; the tests of the system itself (§9 A0: contrast, steps, fonts, licences). It imports nothing of Orkboard or
+Orkline and needs nothing of theirs to test.
+- **A git submodule, pinned.** Orkboard mounts it at `design-system/orkforms`; a consumer names a tag (`v0.1.0`), moves it
+  by its own commit, and so a change to the system reaches a face only when its owner takes it. Orkline does the same by
+  its own spec; its frozen copy is not touched (decisions §50). A fix the testers need is made in `orkforms` first, tagged,
+  and taken by each face the same day.
+- **Orkboard keeps** the engine's side: `design/tokens.py` (reads the tokens), `design/ui.py` `RULES` (what a model is told,
+  §6), and the faces' stylesheets that use the system. Camp's themes, sprites and logo stay in `design-system/` as they are;
+  `orkforms/game` takes them over by its own spec.
+- **Build and release:** `pip install` and the wheel need the submodule checked out (`pyproject.toml` `package-data` lists
+  `design-system/orkforms/**`); CI and the cloud sessions clone with `--recurse-submodules`. A tag in `orkforms` is made
+  only when its tests pass; `CHANGELOG.md` says what a face must do to take it.
+- **Order:** A0 (the repository, its first form, `v0.1.0`) → A1 (Orkboard mounts it) → B and C. A0 collides with nothing in
+  spec 39 and may start at once.
 
 ## 2. Colour (`orkforms/office`, dark only)
 Monochrome: a grey scale and one accent that is the ink itself. **Colour means a signal** and nothing else (decisions
@@ -182,15 +203,19 @@ sizes in `rem`).
 - Measured on the prototype: about 10 % less height before the head's rework, the head's two lines more after it.
 
 ## 9. Tests (A, and the faces' B and C)
-- **A** `tests/test_orkforms.py` (critical, with `test_architecture.py`):
+- **A0** `tests/test_orkforms.py` in `orkworks/orkforms` (its gate; Orkboard's critical tests add `test_orkforms_pin.py`):
   - `tokens.json` of a form has every token of §2–§4 under the names of this file; `tokens.css` is exactly what the
     generator makes of it (as `design-system/tokens.css` is);
   - **contrast, computed from the values:** `--of-ink`, `-muted`, `-faint` on canvas, panel and raised ≥ 4.5 : 1;
     `--of-edge` on each ground ≥ 3 : 1; each signal on the panel ≥ 4.5 : 1; `--of-on-ink` on `--of-ink` ≥ 7 : 1;
   - no radius token above 0, no space or size outside the steps, no pixel size below 12 or fractional, the families
-    named in `fonts/`, each font file present, `fonts.css` names only files that exist, the licences in `NOTICE`;
+    named in `fonts/`, each font file present, `fonts.css` names only files that exist, the licences in `NOTICE`; the generator is deterministic (twice the same bytes);
   - the legacy roles of §1 are all defined, to colours of the form;
-  - `RULES` names the form's roles; `tests/test_architecture.py` still holds (`orkboard/design` has no face).
+- **A1** `tests/test_orkforms_pin.py` (critical): the submodule is mounted at `design-system/orkforms` and `.gitmodules`
+  names `orkworks/orkforms`; its commit is a tag (not a branch head); `tokens.css` there equals what the repository's
+  generator makes of its `tokens.json`; `/ds/orkforms/office/tokens.css` is served by the host; the wheel's `package-data`
+  lists the files; `RULES` names the form's roles; `tests/test_architecture.py` still holds (`orkboard/design` has no face,
+  nothing of Orkboard is imported by the submodule's tools).
 - **B** browser tests at 1 440 × 900 (`test_board_browser.py` and the others, kept green):
   - computed styles: a button, a tab and a pane's head are in the pixel face; a row, a card, a field, a paragraph, a log
     and a diff are in Plex Mono; `document.fonts` has both faces loaded, no request leaves the host for a font; a prose

@@ -339,4 +339,9 @@ for `--ink-comment`. Tuning Office in place would have kept the two palettes and
    everywhere (WCAG 2.2 AA), focus drawn inside the notched corners, the system's text size followed on the phone.
 7. **Built after spec 39** (its B and C own the stylesheets this changes): A the system, B the desktop, C the phone.
    Orkline adopts it by its own spec; until then its frozen copy and Office stay as they are (decisions §50).
+8. **Orkforms is a repository of its own, `orkworks/orkforms`, mounted as a pinned git submodule** by Orkboard
+   (`design-system/orkforms`) and, by its own spec, by Orkline: the system changes where both can use it, each face
+   moves the pin when it chooses. A submodule rather than a package or a synced copy: the alpha has one owner and needs to
+   change the system and see it the same day; a package (versioned releases) waits for a consumer outside the
+   organisation. Camp's themes stay in Orkboard's `design-system/` until `orkforms/game`.
 A change of looks, not of mechanics: no label, command or datum changes. Spec 40.
