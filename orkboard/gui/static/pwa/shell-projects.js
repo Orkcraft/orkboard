@@ -63,7 +63,7 @@ export function makeProjects(core, ctx) {
     sheets: [sh.el],
     render(s, rev) {
       name = s.project || "";
-      chip.replaceChildren(h("span", { class: "word" }, "Project"), " ", h("b", {}, name || "None open"));
+      chip.replaceChildren(h("b", {}, name || "No project"));
       chip.setAttribute("aria-label", name ? `Project ${name}: choose another` : "No project open");
       if (rev !== undefined) load();
     },

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser

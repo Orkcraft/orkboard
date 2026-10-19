@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from orkboard.gui.board_host import BoardPhone
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -176,17 +176,18 @@ def _ops(monkeypatch):
 
 
 async def _ops_view(page):
-    await page.locator(".goal-pick select").wait_for(timeout=WAIT_MS)
-    await page.locator(".goal-pick select").select_option("ops")
+    await page.locator(".board-bar .goal-chip").wait_for(timeout=WAIT_MS)
+    await _pick_goal(page, "ops")
 
 
 @pytest.mark.asyncio
-async def test_operations_is_in_the_select_new_lists_the_templates_and_the_form_adds_one(fake_repo, monkeypatch, _ops):
+async def test_operations_is_among_the_goals_new_lists_the_templates_and_the_form_adds_one(fake_repo, monkeypatch, _ops):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        select = page.locator(".goal-pick select")
-        await select.wait_for(timeout=WAIT_MS)
-        assert (await select.locator("option").all_inner_texts())[-1] == "Operations"
-        await select.select_option("ops")
+        await page.locator(".board-bar .goal-chip").click()
+        rows = page.get_by_role("dialog", name="Goals").locator(".goal-row")
+        await rows.first.wait_for(timeout=WAIT_MS)
+        assert (await rows.all_inner_texts())[-1] == "Operations"
+        await rows.last.click()
         assert await page.get_by_role("heading", name="Needs you").count() == 0 and await page.locator(".target-chip").count() == 0
         await page.get_by_role("button", name="Operations settings").wait_for(timeout=WAIT_MS)
         await page.get_by_role("button", name="New…").click()
@@ -314,7 +315,7 @@ async def test_needs_you_holds_the_op_rows_in_every_goal_and_a_proposal_is_taken
         ops.add_run(state="failed", why="Jira said no", acted=False)
         ops.templates[0]["proposal"] = {"lines": ["Titles start with a verb.", "Name the epic."], "why": "", "op": "op1", "at": ""}
         ops.changed()
-        await page.locator(".goal-pick select").select_option("ship")                                # another goal: Operations' rows stay
+        await _pick_goal(page, "ship")                                # another goal: Operations' rows stay
         kinds = page.locator(".need[data-kind], .need-op, .need-op_failed, .need-op_rules")
         await page.locator(".need-op").wait_for(timeout=WAIT_MS)
         assert await page.locator(".need-op_failed").inner_text() and "Jira said no" in await page.locator(".need-op_failed").inner_text()
@@ -365,9 +366,7 @@ async def test_a_held_run_says_why_the_limits_or_the_days_spend_cap(fake_repo, m
         cap = _ops["ops"].add_run(template="email-reply", state="held", held_until="2026-10-19T00:00:00",
                                   why="waits: the day's spend cap is reached")
         _ops["ops"].changed()
-        select = page.locator(".goal-pick select")
-        await select.wait_for(timeout=WAIT_MS)
-        await select.select_option("ops")
+        await _ops_view(page)
         row = page.locator(f".ops-run-row[data-op={limits['id']}]")
         await row.wait_for(timeout=WAIT_MS)
         assert "waits for limits · after 18:00" in await row.inner_text()

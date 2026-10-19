@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -70,7 +70,7 @@ async def test_a_linked_spec_opens_read_only_rendered_with_no_edit_or_git_contro
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready", links=[SPEC])
         stub.bump({})
         await page.locator(".goal-now, .goal-pick").first.wait_for(timeout=WAIT_MS)
-        await page.locator(".goal-pick select").select_option("ship")
+        await _pick_goal(page, "ship")
         await page.locator(".goal-now").get_by_role("button", name="Open", exact=True).click()
         await page.locator(".screen").get_by_role("button", name=SPEC).click()
         doc = page.locator(".screen .md.doc")

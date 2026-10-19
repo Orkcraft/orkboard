@@ -12,7 +12,7 @@ from typing import Any
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, ideas
+from orkboard.realm import event_log, ideas, roles
 
 
 DOC_CHARS = 100_000
@@ -35,7 +35,7 @@ class GoalsMixin:
     def _goal_row(self, g: dict) -> dict:
         """A goal as the board lists it: its fields, its state in the keeper's words."""
         st = self.goal_state(g["slug"])
-        return {**g, "state": st["state"], "state_error": st["error"], "ideas": g["count"]}
+        return {**g, "race": roles.RACES[g["craft"]], "state": st["state"], "state_error": st["error"], "ideas": g["count"]}
 
     def goal(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)
@@ -50,7 +50,7 @@ class GoalsMixin:
                 "busy": bool(self.keeper.busy_goal(slug)) or st["state"] == "reading"}
 
     def goal_save(self, args: dict) -> dict:
-        """`{"slug"?, "about", "priority", "title"?}`: a title typed is the person's (never rewritten); spec 34's
+        """`{"slug"?, "about", "priority", "title"?, "craft"?}`: a title typed is the person's (never rewritten); spec 34's
         metrics, links and deadline are still taken and kept when given."""
         slug = _opt(args, "slug") or None
         about = args.get("about", "")
@@ -62,7 +62,7 @@ class GoalsMixin:
             raise IdeasError("Metrics and links are lists")
         deadline = args.get("deadline") if isinstance(args.get("deadline"), str) else None
         got, new = ideas.save_goal(self.root(), slug, title[:ideas.TITLE_CHARS], about[:ideas.SECTION_CHARS],
-                                   metrics, _opt(args, "priority") or "normal", links, deadline)
+                                   metrics, _opt(args, "priority") or "normal", links, deadline, _opt(args, "craft") or None)
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
                  priority=g["priority"])

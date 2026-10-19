@@ -1,9 +1,13 @@
-// A goal on the phone (docs/specs/35-goals-window.md §2, §11): the New goal / Edit goal sheet — a description and a priority, and on Edit
+// A goal on the phone (docs/specs/35-goals-window.md §2, §11): the New goal / Edit goal sheet — a description, its craft (the head of its race
+// marks the goal in the top bar, decisions §53) and a priority, and on Edit
 // the title too (to correct the Taskmaster's) — and the goal's own screen (its Description, the Taskmaster's Summary, the Metrics, the
 // Links, the Open questions with a box to answer). Saving sends the goal to the Taskmaster at once; it writes the rest.
 import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
+import { CRAFT_WORDS, RACE_WORDS, goalHead } from "./shell-who.js";
+
+const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"]];   // realm/roles.py RACES
 
 export { PRIORITY_WORDS };
 export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks you", ready: "ready" };
@@ -13,11 +17,17 @@ export function makeGoalSheet(core) {
   const title = h("input", { class: "ork-field", type: "text", "aria-label": "Title", placeholder: "The Taskmaster writes it; correct it here", maxlength: "120" });
   const titleField = field("Title", title);
   const about = h("textarea", { class: "ork-field", rows: "5", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
+  const craft = h("select", { class: "ork-field", "aria-label": "Craft" },
+    ...CRAFTS.map(([c, race]) => h("option", { value: c }, `${CRAFT_WORDS[c]}: ${/^[aeiou]/.test(RACE_WORDS[race]) ? "an" : "a"} ${RACE_WORDS[race]}`)));
+  const craftNow = h("span", { class: "craft-now", "aria-hidden": "true" });
+  const drawCraft = () => craftNow.replaceChildren(goalHead({ craft: craft.value, race: Object.fromEntries(CRAFTS)[craft.value] }));
+  craft.addEventListener("change", drawCraft);
   const priority = prioritySwitch();
   const hint = h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the title, the summary, what counts as done and the links.");
   const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save goal");
   const cancel = h("button", { class: "ork-btn big", type: "button" }, "Cancel");
   const form = h("form", { class: "sheet-form" }, titleField, field("Description", about),
+    field("Craft", h("div", { class: "row craft-pick" }, craftNow, craft), "Its head marks the goal in the top bar"),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(cancel, save));
   const sh = sheet("New goal", form);
   let slug = "";
@@ -28,7 +38,7 @@ export function makeGoalSheet(core) {
     e.preventDefault();
     if (!about.value.trim()) return;
     save.disabled = true;
-    const args = { ...(slug ? { slug } : {}), about: about.value.trim(), priority: priority.get() };
+    const args = { ...(slug ? { slug } : {}), about: about.value.trim(), craft: craft.value, priority: priority.get() };
     if (slug && title.value.trim()) args.title = title.value.trim();
     const got = await core.call("ideas.goal_save", args);
     save.disabled = !about.value.trim();
@@ -52,6 +62,8 @@ export function makeGoalSheet(core) {
       title.value = g?.title || "";
       about.value = g?.about || "";
       priority.set(g?.priority || "normal");
+      craft.value = g?.craft || "engineering";
+      drawCraft();
       save.disabled = !about.value.trim();
       sh.open();
       about.focus();

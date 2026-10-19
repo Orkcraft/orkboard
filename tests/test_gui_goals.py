@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import event_log, ideas, jobs
+from orkboard.realm import event_log, ideas, jobs, roles
 
 NEW_COMMANDS = {"ideas.goal_save", "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_drop",
                 "ideas.kind_set", "ideas.doc"}
@@ -254,3 +254,22 @@ def test_a_linked_document_is_read_from_the_repository_or_the_wiki_only(host):
     for bad in ("../outside.md", "/etc/passwd", "nope.md", "https://example.com/x"):
         with pytest.raises(CommandError):
             host.command("ideas.doc", {"path": bad})
+
+
+def test_a_goal_has_a_craft_its_race_s_head_engineering_when_new_and_kept_when_left_out(host, model):
+    """A goal's craft (decisions §53): the person's pick on the phone, its race beside it; engineering by default, an
+    unknown one refused, and an edit that leaves it out keeps it (the desktop's dialog does not send it)."""
+    slug = host.command("ideas.goal_save", {"about": "A landing page that sells.", "craft": "design"})["slug"]
+    _wait(host, slug, goal=True)
+    g = next(t for t in host.command("ideas.board", {})["tracks"] if t["slug"] == slug)
+    assert (g["craft"], g["race"]) == ("design", "elf")
+    host.command("ideas.goal_save", {"slug": slug, "about": "A landing page that sells well."})
+    _wait(host, slug, goal=True)
+    assert next(t for t in host.command("ideas.board", {})["tracks"] if t["slug"] == slug)["craft"] == "design"
+    plain = host.command("ideas.goal_save", {"about": "Faster tests."})["slug"]
+    _wait(host, plain, goal=True)
+    g = next(t for t in host.command("ideas.board", {})["tracks"] if t["slug"] == plain)
+    assert (g["craft"], g["race"]) == ("engineering", "peon")
+    with pytest.raises(CommandError, match="Craft is"):
+        host.command("ideas.goal_save", {"slug": plain, "about": "Faster tests.", "craft": "alchemy"})
+    assert ideas.CRAFTS == roles.CRAFTS
