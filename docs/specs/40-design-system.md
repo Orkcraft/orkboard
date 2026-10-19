@@ -192,7 +192,7 @@ person wrote (a goal's title is body text, not a heading), so a Cyrillic title i
 ## 5. Components (`components.css`, in this order)
 `.of-btn` (variants default · primary · danger · warning · quiet, each in rest · hover · pressed · focus · disabled: the table in §2) ·
 `.of-field` (input, select, textarea: 1 px `--of-edge`, `--of-canvas` ground, text face 12, focus inset ring and caret) ·
-`.of-tabs` / `.of-tab` (pixel caps, the active one inverted) · `.of-head` (a pane's head, 32 px, a hairline under) ·
+`.of-tabs` / `.of-tab` (pixel caps, the active one inverted) · `.of-tabbar` (§8) · `.of-head` (a pane's head, 32 px, a hairline under) ·
 `.of-row` / `.of-card` (a hairline edge; selected inverted; **asks**: a 1 px `--of-alert` edge, **fails**: `--of-danger`)
 · `.of-chip` and `.of-count` (20 px, pixel label, 1 px edge) · `.of-label` (a section's label with its `▪`) ·
 `.of-meter` · `.of-dialog` (+ `.of-scrim`) · `.of-menu` · `.of-toast` · `.of-kbd` · `.of-split` (a pane divider: a 4 px
@@ -235,6 +235,12 @@ sizes in `rem`).
   zone, the target being the box) with the 40 px look drawn inside it by `background-clip: content-box` and the notch cut
   by corner gradients or a `border-image`, not by `clip-path`; the desktop (controls ≥ 24 px, no extension) keeps `clip-path`.
   The browser test for §9 C asserts the hit area, not the look.
+- **The tab bar** (`.of-tabbar`, Board · Agents · Review): three equal cells across the foot, each an icon over its word: the
+  24 px icon (`board` → `list-box`, `agents` → `robot`, `review` → `eye`) and the word in the pixel face, 12/16 caps (the
+  floor of the pixel face), 56 px high and the safe area under it, the whole cell the target, cells split by a hairline,
+  a hairline over the bar. The active cell is inverted (ink ground, `--of-on-ink` icon and word); the others are
+  `--of-ink-muted` (6.7 : 1). The icon never stands without its word. A count (Board's *3*) is a notched square, 16 px,
+  on the icon's top right corner, in `--of-action`. The desktop's narrow shell (under 1 024 px) uses the same bar.
 - **Space:** card padding 8 (was 12), gaps 6–8, the page's side padding 12, the tab bar 40 + the safe area.
 - **The head** becomes one line (the product's name, the project, Stop all, the settings, the spend as a count beside
   them) in place of three; Stop all stays a full-size 44 px control (it is a safety control).
@@ -270,7 +276,7 @@ sizes in `rem`).
     `--of-ink` inside the box); the selected row is inverted; an asking card has the alert edge;
   - the old Office's files (`office.css`) and Camp's are not requested; a screenshot to `docs/design/img/v1/` when
     `ORKCRAFT_SHOTS` is set (before and after kept in the PR).
-- **C** at 390 × 844, at the system text size 100 % and 130 %: every control ≥ 40 px drawn, and its hit area (an
+- **C** at 390 × 844, at the system text size 100 % and 130 %: the tab bar's three cells 56 px high, each with its icon (24 px) and word, one active; every control ≥ 40 px drawn, and its hit area (an
   `elementFromPoint` 2 px outside its box) is itself; no two hit areas overlap; rows ≥ 44; the head is one line; the
   pixel face at whole pixels at both sizes; no emoji; no horizontal scroll; the service worker caches the new files.
 - All: `tests/test_gui_wording.py` (the labels are as they were), the critical tests (CLAUDE.md "Alpha").
