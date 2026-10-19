@@ -311,3 +311,68 @@ ranks (*working 2/5*), a plan's estimate its cost, the night's proposals the ski
 4. **Measured:** the Map's opens per day, the first screen opened each morning, the share of ideas opened from it
    (`opened` gains `via`).
 A view of existing data: an improvement of v1's existing mechanics (§27); the Camp skin waits as §50.8 says. Spec 39.
+
+## 53. Two jobs, one product for now: the Board says what and when, a process says how; one engine per project (19 October, draft: the PM, for the owner)
+
+**Draft:** the PM's answer to the owner's question of 19 October; nothing here is decided until the owner says so.
+When it is, this line goes and the heading names who decided.
+
+Why: the owner's thought (19 October): split Orkboard and Orkline further, on the same base. Orkboard would show a
+project's goals, ideas and tasks on the Map with their links, their dependencies and a timeline of the work; Orkline
+would show the processes that repeat. The jobs are truly two, and the names fit them: a board plans, a line produces.
+Orkline's town is a factory, and a factory is about flow, as its score is (less wood per result, the-score.md). But
+§50.1 splits the products by context (Orkboard at work, in Office; Orkline in the evening, with Camp), and this split
+crosses it: both jobs are needed in both contexts. Two decisions of the last two days show it: Operations (§51), the
+most repeating work there is, went into Orkboard because the owner needs it at work every day; the skill tree, a skin
+of the Map, went to Orkline's Camp (§52.3). So:
+1. **Two jobs, named.**
+   - **What and when** (the Board): the goals, the ideas and their tasks, `depends_on`, the Map (§52), and when the
+     work will be done (item 5).
+   - **How, again and again** (a **process**): work done the same way each time, as a loop of stations (§50.3): the
+     Board's own loop (the draft, the plan, the orks, the gate, Review), a staged process such as BMAD
+     (process-lines.md), Operations' templates (§51), the sources (§50.4), the night. Its questions are not a plan's:
+     how many go through, what one costs, how many go by themselves, where they wait.
+   Repeating is a property of *how*, not a kind of work: every idea on the Map goes down some process.
+2. **A job is a screen; the product stays by its context.** Until the testers' numbers (item 9): Orkline stays the
+   whole (it imports Orkboard and shows its Map), and the processes become its own screen beside the Map; Orkboard
+   stays the owner's lab in Office, with the Board, the Map and Operations. One person, one project, the same data:
+   two modes, not two apps to go between. `TERMS` gets the process's word when its screen is specified, not before.
+3. **One item, one id, both ways.** A process puts an idea into a goal (§50.4) and an idea is worked by a process, so
+   every item crosses both jobs. The Map says where a node is in its process (*on BMAD · at PM*), the process says
+   the goal and the idea of each item in it, and each opens the other. Nothing is copied between them.
+4. **One engine per project, whatever face is open.** Today the clock that runs the keeper and the runner is the
+   face's host (Orkboard's `gui/ideas.py`: `ideas.tick` from the host's clock), and nothing stops Orkboard and
+   Orkline from both opening one project: two clocks would start the same work twice, and `.orkcraft/claims.json` is
+   read and written whole with no lock between the two (the last writer wins). Operations is the person's, so the
+   same holds for `~/.config/orkcraft/ops/`, and its rule that nothing outward is done twice (§51.3) rests on it. So,
+   first: a lock per project and one for the person's Operations; a second face that finds one held opens the
+   project to read and says so in plain words. Later, when the faces are two for real: the engine runs on its own
+   and every face is its client. The lock fixes a risk that is there today; it is not a new mechanic.
+5. **The timeline is worked out, never drawn.** Agents' work waits on the limits' windows, the night, the reserve
+   and the person's Review, so dates typed by hand would be wrong at once and would make the Map a second job
+   (audience.md §2a: a look is a break, not a second job). The forecast comes from what the Board holds (`start_at`,
+   `held_until`, the night, the windows, a plan's estimate, how long like tasks took); the history from the event
+   log. First as a lane on the Map, no new thing to keep. No date and no dependency is edited on the Map: it stays a
+   view (§52.1), not a graph editor (§50.3).
+6. **A process keeps the loop as its unit** (§50.3): it is made from a template (a BMAD line, an Operations
+   template) and changed by adding a station, never drawn as a free graph: a free graph is what scares the first
+   audience off n8n.
+7. **Operations stays where it is.** Its engine is engine code and stays in Orkboard's modules (CLAUDE.md); seen as
+   a process (its templates, how many went by themselves, where they wait, what one costs), it is the processes'
+   screen later, reading the same `ops/`. Spec 38 is not changed.
+8. **The direction stays:** Orkline imports Orkboard, never the other way round (§50.2). A shared base package of its
+   own comes only if both become public products; until then it is a third repository to keep for nothing.
+9. **What the testers' week says, and what it decides.** The Map's use (§52.4); Operations' use (operations added a
+   day, the share done by themselves); and one question to every tester: *is there work in your own project, not at
+   your day job, that you do the same way again and again?* Repeating work lives mostly at the day job (a task in
+   Jira, a mail to answer), where employers keep personal tools out (audience.md §1); a side project in the evening
+   is mostly work done once. So: if about half the testers name such work, the two jobs may become two products, and
+   that is decided then. If not, the processes stay a screen of Orkline, and Orkline is not narrowed to them: that
+   would give its first audience the job it needs least, and drift towards the content factories audience.md §1
+   found weaker.
+10. **Not now:** no timeline, no processes' screen, no split of the products before the testers' numbers (§50.8,
+    §27). Now: this decision, the lock (item 4), and the Map's measures as spec 39 has them.
+
+**Open for the owner:** a. which product is public if the two become two (§50.1 keeps Orkboard unpublished; §37.2's
+public name is Orkline); b. the bar of item 9 (half the testers is the PM's guess); c. the process's word in `TERMS`.
+Product split and order; no new mechanic before the testers (§27), the lock aside (a fix of today's risk). No spec yet.
