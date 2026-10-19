@@ -15,7 +15,7 @@ async def test_new_goal_picks_a_craft_then_its_team_from_the_library_then_what_i
         await _new_goal(page)
         sheet = page.get_by_role("dialog", name="New goal")
         tiles = sheet.locator(".craft-tile")
-        assert await tiles.count() == 4
+        assert await tiles.count() == 5                                                                  # four crafts and Mixed
         await _shot(page, "phone-goal-1-craft-390x844")
         await sheet.locator('.craft-tile[data-craft="design"]').click()                                  # 2. the team: the craft's agents in it
         rows = sheet.locator(".team-row")
@@ -34,3 +34,24 @@ async def test_new_goal_picks_a_craft_then_its_team_from_the_library_then_what_i
         assert await _called(stub, "ideas.goal_save", {"about": "A landing page that says what Orkline does in one screen.", "craft": "design",
                                                        "team": ["ui-designer", "analyst"], "priority": "normal"})
         assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_mixed_goal_starts_empty_with_the_whole_library_by_craft_and_is_its_team_s_most(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _new_goal(page)
+        sheet = page.get_by_role("dialog", name="New goal")
+        await sheet.locator('.craft-tile[data-craft="mixed"]').click()
+        await sheet.locator(".team-craft").first.wait_for(timeout=WAIT_MS)
+        assert [t.lower() for t in await sheet.locator(".team-craft").all_inner_texts()] == ["engineering", "design", "data", "marketing"]
+        assert await sheet.locator('.team-row[aria-pressed="true"]').count() == 0                       # none taken: each is picked
+        assert await sheet.get_by_role("button", name="Next").is_disabled()
+        for name in ("Grunt", "Copywriter", "SEO"):
+            await sheet.get_by_role("button", name=f"Take in: {name}").click()
+        await _shot(page, "phone-goal-2-mixed-390x844")
+        await sheet.get_by_role("button", name="Next").click()
+        assert "Mixed, mostly Marketing" in await sheet.inner_text()
+        await sheet.get_by_label("Description").fill("Launch the beta: the build and its page.")
+        await sheet.get_by_role("button", name="Save goal").click()
+        assert await _called(stub, "ideas.goal_save", {"about": "Launch the beta: the build and its page.", "craft": "marketing",
+                                                       "team": ["grunt", "copywriter", "seo"], "priority": "normal"})
