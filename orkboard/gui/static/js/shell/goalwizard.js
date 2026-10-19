@@ -52,7 +52,7 @@ export function GoalWizard({ then = "" }) {
     if (a.band === "lead") { setLeader(leader === a.id ? TASKMASTER : a.id); return; }
     if (team.includes(a.id)) setTeam(team.filter((x) => x !== a.id));
     else if (inBand(a.band).length < seats[a.band]) setTeam([...team, a.id]);
-    else toast(`${BANDS.find((b) => b[0] === a.band)[1]} has ${seats[a.band]} seats: take one out first.`);
+    else toast(`${BANDS.find((b) => b[0] === a.band)[1]} has ${seats[a.band]} seats: take one out first.`, "warning");
   };
   const craftOf = () => {
     if (craft !== MIXED) return craft;
