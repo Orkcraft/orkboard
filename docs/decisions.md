@@ -482,3 +482,31 @@ browser by themselves and take the answer back without a terminal (checked on 20
 4. **The work waits for it instead of failing**: what ran by itself (a task, a draft, an operation's run) is held for the
    sign-in, as a spent window holds it, and goes on by itself once the tool is signed in; at most a day.
 Improvements of v1's existing mechanics (§27): the same failure, the same hold, with the tool's own sign-in. Spec 45.
+
+## 59. A goal's trail: its party asks with its leader, its leader lays out its ideas as proposals, the desktop catches up with the phone (20 October, the owner)
+
+Why: the owner, after the phone's round 3 and a look at the desktop. A goal is read and asks its questions, then its
+Map is a flag with nothing on the way to it: its ideas come one by one from the person, or two a night (balance) from
+the proposals, never more than three waiting. Its party (§56) is picked for the goal and says nothing until the work:
+the goal is read by its leader alone, whatever its designer or its reviewer would have asked. And the desktop is behind
+the phone: New goal is a plain button under the goal's select (the owner could not find it), three steps where the
+phone has one sheet; what waits for an answer hides in a tab behind the Board while Review, not a signal (§54.1), keeps
+a column of its own; the Map has no button. So:
+1. **The party asks with its leader, in the one round** (spec 35 §0 stands): in balance each member's view is in the
+   leader's read (no call more); in quality each member asks first, by itself, without tools, cheaply; the leader keeps
+   at most three questions (five in quality), each with the head of who asks. Not every agent asking its own: up to six
+   reads of the repository a goal and eighteen questions, which the person would answer with *Let the Taskmaster
+   decide*; a trail is as good as the person's answers, not as the number of askers.
+2. **The leader lays out the goal's trail** once its questions are answered: up to 3 · 5 · 7 ideas by the Target, in
+   their order with what each waits for, as **proposals**: no spec, no draft, no money until the person takes them;
+   *Take all* drafts them one at a time. A checker's check is an idea of its own only where the work it checks needs
+   one. By itself only for a goal with at most two ideas; *Lay out ideas* on the goal's screen any time after.
+3. **An idea the person adds joins the trail**: its draft says which of the goal's ideas not drafted yet wait for it, and
+   which proposal does the same thing; nothing is removed on a model's guess.
+4. **The desktop catches up**: New goal on the Map's head and in the goal's select, on one sheet; Needs you, with Review
+   under it, is the right column (Board · Files on the left; below 1 024 px the phone's three tabs); the Map's one
+   action. Not the phone's top bar and drawer: the desktop has the room.
+5. **Measured**: the trail's ideas taken, turned down (and why) and merged within 14 days; the members' questions
+   against the leader's, by how they are answered (§54.7's research); what a goal costs to read and lay out, by Target.
+Improvements of v1's existing mechanics (§27): the goal's read, the night's proposals, the draft, the Map, and the
+phone's look on the desktop; two keeper steps (`ask`, in quality only; `trail`), no new setting. Spec 46.
