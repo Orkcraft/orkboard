@@ -11,7 +11,10 @@
   background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); }
 .shell-top__brand { font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); color: var(--ork-ink); }
 .shell-top__spacer { flex: 1; }
-.shell-top__spend { font-variant-numeric: tabular-nums; }
+.shell-top__spend { all: unset; box-sizing: border-box; cursor: pointer; font-variant-numeric: tabular-nums; padding: 0 var(--ork-2); }
+.shell-top__spend:hover, .shell-top__spend:focus-visible { outline: 0; box-shadow: inset 0 0 0 var(--ork-line) var(--ork-edge); }
+.week { display: flex; flex-direction: column; gap: var(--ork-3); }
+.week p { margin: 0; overflow-wrap: anywhere; }
 .shell-limits { display: inline-flex; gap: var(--ork-5); }
 .shell-limit { position: relative; font-variant-numeric: tabular-nums; cursor: default; padding: var(--ork-1) var(--ork-3); }
 .shell-limit.is-warn { color: var(--ork-warning); }

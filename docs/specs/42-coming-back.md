@@ -486,3 +486,8 @@ only if the pusher's tick cannot ride the host's), `gui/static/pwa/util.js` (A, 
 ### E. The way to by itself
 - `after_check` and `after_rules` take an optional `today` (default: the machine's date), as `after_alone` does. A template that is already by itself keeps its day when a check it stopped at passes (`after_check` sets `alone_since` and `done_alone` only on the check that makes it go by itself). `op_runs.trust` reads `""` and 0 for a template that checks with you, whatever the file says.
 - Two existing assertions of `tests/test_op_runs.py` that compared a whole trust dict gained the two new keys; nothing else of them changed.
+
+### F. This week
+- `board_week.nights(root, settings, now, n)` and `this_week(...)` take the **project's folder** as `root` (where the event log is), as `board_recap.build` does; `this_week` also takes `ops_base` (Operations' folder, whose `spend.jsonl` is its ledger; `ideas.week_work` passes `op_runs.root()`) and `into`. `idea_spend` gained `between_file` for it.
+- `ops_usd` is `0.0` when Operations spent nothing and the face leaves a zero out as it leaves a null; with nothing priced in either, line 1 is not said. With no result in the week, line 2 says *No results in dev in the last 7 days*.
+- On the phone *New idea* presses the Board's own button (`.fab`) after the sheet closes, so New idea opens with the goal the Board shows.

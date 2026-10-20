@@ -2,9 +2,12 @@
 // device's last look (js/shell/look.js). An `.ork-card` with its head in the pixel face and its lines in the text face, each only
 // when it has something to say; it covers nothing (no backdrop, no dialog) and one press closes it. A view of what the Board
 // holds: its links open an idea, a goal or Needs you, and change nothing.
+import { useEffect, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { cards, closeCard } from "../shell/look.js";
-import { showIdea, showGoal, showNeeds } from "../shell/store.js";
+import { showIdea, showGoal, showNeeds, logOpened } from "../shell/store.js";
+import { Modal, closeDialog, openDialog } from "../shell/modals.js";
+import { ask, goalList, track } from "./store.js";
 
 const SHOWN = 5;                                     // ideas named under the results, then *and 3 more*
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -65,4 +68,41 @@ export function Cards() {
     <${Recap} r=${c.data} />
     <footer class="away__foot"><button type="button" class="ork-btn quiet" onClick=${closeCard}>Close</button></footer>
   </section>`;
+}
+
+/** *≈$46 of work at API prices in this project, ≈$3 in Operations: not your bill*: a part that is null (or nothing) is left out. */
+export function weekMoney(w) {
+  const dollars = (usd) => `≈$${usd < 1 ? usd.toFixed(2) : Math.round(usd)}`;
+  const mine = w.usd > 0 ? w.usd : 0, ops = w.ops_usd > 0 ? w.ops_usd : 0;
+  if (!mine && !ops) return "";
+  if (mine && ops) return `${dollars(mine)} of work at API prices in this project, ${dollars(ops)} in Operations: not your bill`;
+  return `${dollars(mine || ops)} of work at API prices in ${mine ? "this project" : "Operations"}: not your bill`;
+}
+
+/** *12 results in dev, 10 the first time · ≈$3.84 a result*. */
+export function weekResults(w) {
+  if (!w.merged) return `No results in ${w.into || "dev"} in the last 7 days`;
+  return `${resultsWords({ tasks: w.merged, first_time: w.first_time }, w.into || "dev")}${w.usd_per_merged != null ? ` · ≈$${w.usd_per_merged.toFixed(2)} a result` : ""}`;
+}
+
+/** *The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running*: parts at 0 left out. */
+export function weekNights(n) {
+  const parts = [n.worked && `${n.worked} with work done`, n.idle && `${n.idle} with none`, n.off && `${n.off} Orkline was not running`].filter(Boolean);
+  return parts.length ? `The last 7 nights: ${parts.join(", ")}` : "";
+}
+
+/** This week (spec 42 §6): the work of the last seven days, at API prices, beside today's spend. Reads `ideas.week_work` when opened. */
+export function WeekDialog() {
+  const [w, setW] = useState(null);
+  useEffect(() => { ask("ideas.week_work").then((got) => { if (got) setW(got); }); logOpened("week", "this"); }, []);
+  const newIdea = () => { closeDialog(); if (goalList().length) openDialog("idea", track.value ? { goal: track.value } : {}); else openDialog("goal", { then: "idea" }); };
+  return html`<${Modal} title="This week" onClose=${closeDialog} foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Close</button>`}>
+    ${!w ? html`<p class="ok-tone-muted">Reading the week…</p>` : html`<div class="week">
+      ${weekMoney(w) && html`<p class="week__usd">${weekMoney(w)}</p>`}
+      <p class="week__results">${weekResults(w)}</p>
+      ${weekNights(w.nights) && html`<p class="week__nights">${weekNights(w.nights)}</p>`}
+      ${w.night_on && (w.tonight > 0 ? html`<p class="week__tonight">Tonight: ${w.tonight} wait</p>`
+        : html`<p class="week__tonight">Nothing waits for tonight · <button type="button" class="board-link" onClick=${newIdea}>New idea</button></p>`)}
+    </div>`}
+  <//>`;
 }

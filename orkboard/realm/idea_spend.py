@@ -249,11 +249,9 @@ def _all_lines(state_dir: Path) -> list[dict]:
     return rows
 
 
-def between(state_dir: Path, since: dt.datetime, now: dt.datetime) -> float | None:
-    """The $ of every ledger line whose `at` is in `[since, now)` (the ledgers' `at` is local and naive: read as local
-    time); None when every such line is unpriced, 0.0 when there is none (docs/specs/42-coming-back.md §1.1)."""
+def _in(rows: list[dict], since: dt.datetime, now: dt.datetime) -> float | None:
     got = []
-    for r in _all_lines(state_dir):
+    for r in rows:
         try:
             at = dt.datetime.fromisoformat(str(r.get("at") or ""))
         except ValueError:
@@ -262,6 +260,17 @@ def between(state_dir: Path, since: dt.datetime, now: dt.datetime) -> float | No
             got.append(r)
     total = usd(got)
     return None if total is None else float(total)
+
+
+def between(state_dir: Path, since: dt.datetime, now: dt.datetime) -> float | None:
+    """The $ of every ledger line whose `at` is in `[since, now)` (the ledgers' `at` is local and naive: read as local
+    time); None when every such line is unpriced, 0.0 when there is none (docs/specs/42-coming-back.md §1.1)."""
+    return _in(_all_lines(state_dir), since, now)
+
+
+def between_file(path: Path, since: dt.datetime, now: dt.datetime) -> float | None:
+    """The same over one ledger file (Operations', `ops/spend.jsonl`)."""
+    return _in(read(path), since, now)
 
 
 def _finished(state_dir: Path, gone: list[dict]) -> dict[tuple[str, str], dict]:
