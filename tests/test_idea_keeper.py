@@ -127,7 +127,7 @@ def test_a_failed_turn_is_said_in_the_talk(keeper):
 
 def test_the_plan_is_strict_and_estimated(keeper):
     slug = ideas.add_idea(keeper.root, "export csv", state_dir=keeper.state)
-    tasks = [{"id": "a", "title": "Writer", "brief": "Write rows", "tier": "warrior"},
+    tasks = [{"id": "a", "title": "Writer", "short": "CSV writer", "brief": "Write rows", "tier": "warrior"},
              {"id": "b", "title": "Button", "brief": "Add a button", "tier": "laborer", "after": ["a", "zzz"]},
              {"id": "c", "title": "no brief"},
              {"id": "d", "title": "Hard", "brief": "Think", "tier": "god"}]
@@ -143,6 +143,7 @@ def test_the_plan_is_strict_and_estimated(keeper):
     ids = [t["id"] for t in plan["tasks"]]
     assert ids == [f"k{n}" for n in range(1, 9)]                       # at most 8, renamed
     assert plan["tasks"][1]["after"] == ["k1"] and plan["tasks"][2]["tier"] == "warrior"
+    assert [t["short"] for t in plan["tasks"][:2]] == ["CSV writer", "Button"]      # the plan's, else its title's (spec 41 §3)
     assert [t["title"] for t in plan["todos"]] == ["API_KEY", "Delimiter"]
     assert plan["todos"][0] == {"id": "t1", "title": "API_KEY", "kind": "secret", "why": "to call it", "choices": [],
                                 "steps": [], "for": ["k2"], "done": False, "value": None}

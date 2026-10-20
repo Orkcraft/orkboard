@@ -162,3 +162,17 @@ def test_a_goal_written_before_spec_34_is_read_and_saved_as_description(tmp_path
     assert "About" not in names and names[0] == "Description" and "Success criteria" in names
     (g,) = [t for t in ideas.tracks(tmp_path) if t["slug"] == slug]
     assert g["about"] == "Now described." and g["priority"] == "low" and g["links"] == ["a/b.md"]
+
+
+def test_a_goal_has_a_short_name_from_its_words_then_the_reading_unless_the_person_titled_it(root):
+    # spec 41 §3
+    slug, _new = ideas.save_goal(root, None, about="Давай сделаем оплату картой. Stripe first.")
+    g = next(t for t in ideas.tracks(root) if t["slug"] == slug)
+    assert g["short"] == "Сделаем оплату картой"
+    ideas.write_goal_reading(root, slug, "Summary.", {}, [], title="Card payments with Stripe", short="Card payments")
+    assert next(t for t in ideas.tracks(root) if t["slug"] == slug)["short"] == "Card payments"
+    ideas.save_goal(root, slug, title="Pay by card", about="Payments.")
+    ideas.write_goal_reading(root, slug, "Summary.", {}, [], title="Another title", short="Another")
+    assert next(t for t in ideas.tracks(root) if t["slug"] == slug)["short"] == "Pay by card"     # the person's title
+    idea = ideas.add_idea(root, "Let's export the runs to CSV please", slug)
+    assert next(i for i in ideas.ideas(root) if i["slug"] == idea)["short"] == "Export the runs to CSV"

@@ -43,6 +43,7 @@ from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
 from orkboard.core.idea_lead import LeadMixin
 from orkboard.realm import event_log, goal_team, idea_checks, idea_lens, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
+from orkboard.realm.idea_words import short_of, short_said
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
 HARNESS = "claude"
@@ -153,6 +154,8 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
             raise KeeperError(f"The Target {self.target()} makes no {step} call")
         if lead := self.leader():                    # the goal's leader: its voice and instruction first
             prompt = self.voice(lead) + prompt
+        elif told := str((roles.role(self.state_dir, roles.TASKMASTER) or {}).get("instruction") or "").strip():
+            prompt = f"{told}\n\n{prompt}"            # the person's words for the Taskmaster (spec 41 §8)
         self._tls.picked, self._tls.tools, self._tls.usage, self._tls.capped = got, tools, None, False
         self._tls.measure = {"step": step, "prompt_chars": len(prompt), "tokens": None, "cost": None}
         try:
@@ -480,7 +483,8 @@ Rules:
   plans need none. `for`: the tasks that wait for it.
 
 Answer with one JSON object and nothing else:
-{{"tasks": [{{"id": "k1", "title": "…", "brief": "…", "kind": "code", "tier": "warrior", "after": []}}],
+{{"tasks": [{{"id": "k1", "title": "…", "short": "two or three words, 24 characters at most", "brief": "…", "kind": "code",
+             "tier": "warrior", "after": []}}],
  "todos": [{{"id": "t1", "title": "…", "kind": "confirm", "why": "…", "choices": [], "steps": [], "accept": [], "for": ["k1"]}}]}}
 """
 
@@ -516,8 +520,9 @@ Answer with one JSON object and nothing else:
 
 
 def _task(tid: str, title: str, brief: str, kind: str, tier: str, after: list[str]) -> dict:
-    """A task of a plan as plan.json keeps it, waiting."""
-    return {"id": tid, "title": title, "brief": brief, "kind": kind, "tier": tier, "after": after, "state": "waiting",
+    """A task of a plan as plan.json keeps it, waiting; its short name by code (the plan's answer may give its own)."""
+    return {"id": tid, "title": title, "short": short_of(title),
+            "brief": brief, "kind": kind, "tier": tier, "after": after, "state": "waiting",
             "branch": "", "commit": "", "session": "", "cost": None, "tokens": None, "started": "", "finished": "",
             "error": "", "note": ""}
 
@@ -540,7 +545,8 @@ def make_plan(slug: str, answer: dict | None, made_at: str = "") -> dict:
         names[_words(raw.get("id"), 20) or tid] = tid
         tier = raw.get("tier") if raw.get("tier") in TIERS else "warrior"
         kind = raw.get("kind") if raw.get("kind") in roles.TASK_KINDS else roles.DEFAULT_KIND
-        tasks.append(_task(tid, title, brief, kind, tier, list(dict.fromkeys(after))))
+        tasks.append({**_task(tid, title, brief, kind, tier, list(dict.fromkeys(after))),
+                      "short": short_said(raw.get("short"), title)})
     if not tasks:
         raise KeeperError("the plan had no task")
     todos: list[dict] = []

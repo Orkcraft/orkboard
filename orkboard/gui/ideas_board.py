@@ -13,8 +13,8 @@ from typing import Any
 
 from orkboard import settings
 from orkboard.core import idea_keeper, idea_night
-from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import board_map, event_log, idea_risk, idea_secrets, ideas
+from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text, _via
+from orkboard.realm import board_map, event_log, idea_questions, idea_risk, idea_secrets, ideas
 from orkboard.realm.idea_git import BoardTree
 
 NEEDS_IDEA = ("asks", "plan", "failed", "proposed")
@@ -187,7 +187,8 @@ class BoardMixin:
                 p.pop("stopped", None)
             ideas.edit_plan(self.state_dir, slug, passing)
             self._ev(event_log.PLAN_PASSED, args, idea=slug, tasks=len(plan.get("tasks") or []), seconds=self._since(plan.get("made_at")),
-                     by=by, risk=idea_risk.level(page.get("risk")) if page else "", priority=page.get("priority") if page else "")
+                     by=by, risk=idea_risk.level(page.get("risk")) if page else "", priority=page.get("priority") if page else "",
+                     **({"via": _via(args)} if args is not None else {}))
         elif by == "person" and plan.get("start_at"):
             ideas.edit_plan(self.state_dir, slug, lambda p: p.update(start_at=None))
         if night:
@@ -215,6 +216,7 @@ class BoardMixin:
         if not plan or plan.get("start_at") != "night":
             raise IdeasError("This plan does not wait for the night")
         ideas.edit_plan(self.state_dir, slug, lambda p: p.update(start_at=None))
+        self._ev(event_log.PLAN_STARTED_NOW, args, idea=slug, via=_via(args))
         runner = self.runner(need=True)
         if ideas.state(self.state_dir, slug)["state"] == "plan":
             ideas.save_state(self.state_dir, slug, state="working", error="")
@@ -242,6 +244,7 @@ class BoardMixin:
             if self._state(slug)["state"] != "raw":
                 raise IdeasError("Only a new idea waits for the night")
             ideas.save_state(self.state_dir, slug, queue="night", held_until="", error="")
+        self._ev(event_log.IDEA_QUEUED, args, idea=slug, queue=q, via=_via(args))
         self.changed(slug)
         return {"ok": True}
 
@@ -256,22 +259,29 @@ class BoardMixin:
     # -- one round of questions (§0), a file to-do's file (§9) ---------------------------------------------------
 
     def answer(self, args: dict) -> dict:
-        """The questions of a spec (or of a goal, `goal: true`) answered together, in their order: one round (§0)."""
+        """The questions of a spec (or of a goal, `goal: true`) answered together, in their order: one round (§0).
+        `decide: true` (spec 41 §9, Let the Taskmaster decide): each answered with its recommended choice."""
         slug = _text(args, "slug", 100)
-        answers = args.get("answers")
+        decide = args.get("decide") is True
+        answers = args.get("answers", [] if decide else None)
         if not isinstance(answers, list) or not all(isinstance(a, str) for a in answers):
             raise IdeasError("answers are a list of text")
         if args.get("goal") is True:
             g = next((t for t in ideas.tracks(self.root(), make=False) if t["slug"] == slug), None)
             if g is None:
                 raise IdeasError("That goal is gone")
+            if decide:
+                answers = idea_questions.picks(g["questions"])
             said = "\n".join(f"{q} — {(answers[n] if n < len(answers) else '').strip() or '(no answer: decide)'}"
                              for n, q in enumerate(g["questions"]))      # a phone's quick answer may answer one
             self.keeper.read_goal(slug, said, answered=True)
+            how = idea_questions.tally(g["questions"], [] if decide else answers)
+            self._ev(event_log.GOAL_ANSWERED, args, goal=slug, answers=sum(1 for a in answers if a.strip()),
+                     decided=decide, **how)
             self._what[f"goal:{slug}"] = "answered"
             self.changed(f"goal:{slug}")
             return {"ok": True}
-        self.keeper.answer(slug, answers)
+        self.keeper.answer(slug, answers, decide)
         self._what[slug] = "answered"
         self.changed(slug)
         return {"ok": True}

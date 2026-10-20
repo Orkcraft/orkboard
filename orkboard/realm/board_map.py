@@ -13,7 +13,8 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_verdict, idea_checks, idea_risk, idea_spend, idea_target, ideas, roles
+from orkboard.realm import goal_verdict, idea_checks, idea_questions, idea_risk, idea_spend, idea_target, ideas, roles
+from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
@@ -46,7 +47,9 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
     tasks = (plan or {}).get("tasks") or []
     out = []
     if state == "asks":
-        out.append({**base, "kind": "asks", "text": asks[0] if asks else "The keeper asks you", "questions": asks[:5]})
+        asked = [idea_questions.parse(q) for q in asks[:5]]
+        out.append({**base, "kind": "asks", "text": asked[0]["ask"] if asked else "The keeper asks you", "questions": asks[:5],
+                    "asked": asked})
     if state == "plan" and plan and not plan.get("passed_at"):
         out.append({**base, "kind": "plan", "text": "Plan ready" + (f" · {len(tasks)} tasks" if tasks else ""),
                     "at": str(plan.get("made_at") or base["at"])})
@@ -73,13 +76,18 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
     return out
 
 
+def task_short(t: dict) -> str:
+    """A task's short name: the plan's, else made from its title (a plan of before spec 41)."""
+    return str(t.get("short") or "") or short_of(str(t.get("title") or ""))
+
+
 def row(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, page: ideas.Page | None, asks: list[str],
         states: dict[str, dict], mine: list[dict]) -> dict:
     """An idea as `ideas.board` lists it: the state and what words it (queue, held_until, start_at, progress, waits_on)."""
     slug = i["slug"]
     tasks = (plan or {}).get("tasks") or []
     depends = list_of(page.get("depends_on")) if page else []
-    return {"slug": slug, "title": i["title"], "track": i["track"], "order": i["order"],
+    return {"slug": slug, "title": i["title"], "short": i["short"], "track": i["track"], "order": i["order"],
             "state": st["state"], "size": i["size"], "thesis": i["thesis"], "asks": len(asks),
             "priority": i["priority"],
             "progress": {"done": sum(1 for t in tasks if t.get("state") == "merged"), "total": len(tasks)},
@@ -187,7 +195,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                  "every": s in (g.get("every") or [])} for s in g.get("team") or [] if s in by_slug]
         lead = by_slug.get(g.get("leader") or roles.TASKMASTER) or by_slug.get(roles.TASKMASTER)
         verdict = goal_verdict.read(state_dir, g["slug"])
-        goals.append({"slug": g["slug"], "title": g["title"], "priority": g["priority"], "state": gst["state"],
+        goals.append({"slug": g["slug"], "title": g["title"], "short": g["short"], "priority": g["priority"], "state": gst["state"],
                       "craft": g.get("craft") or roles.DEFAULT_CRAFT, "race": roles.RACES.get(g.get("craft"), "peon"), "team": team,
                       "leader": {"slug": lead["slug"], "name": lead["name"], "head": roles.head(lead, target)} if lead else None,
                       "verdict": {"met": verdict.get("met") is True, "by": verdict.get("by") or ""} if verdict else None,
@@ -203,13 +211,13 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             r = row(root, state_dir, i, st, plan, page, asks, states, needs)
             started = any(t.get("state") not in (None, "waiting", "ready", "held") for t in tasks)
             est = (plan or {}).get("estimate")
-            node = {"slug": slug, "goal": g["slug"], "title": i["title"], "state": r["state"], "queue": r["queue"],
+            node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
                     "held_until": r["held_until"], "start_at": r["start_at"], "priority": r["priority"], "size": r["size"],
                     "risk": r["risk"], "tier": tier[slug], "depends_on": r["depends_on"], "waits_on": r["waits_on"],
                     "waits": None, "needs_you": next((k for k in NEEDS if any(n["kind"] == k for n in needs)), "")
                     if r["state"] != "done" else "",
                     "progress": r["progress"],
-                    "tasks": [{"id": t.get("id"), "title": t.get("title") or "", "state": t.get("state") or "waiting",
+                    "tasks": [{"id": t.get("id"), "title": t.get("title") or "", "short": task_short(t), "state": t.get("state") or "waiting",
                                "after": list(t.get("after") or []), "tier": t.get("tier") or "",
                                "head": roles.task_head(state_dir, t, target, read),
                                "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND])} for t in tasks],

@@ -149,6 +149,11 @@ def test_needs_you_names_the_kind(host):
     assert (n[asks]["needs_you"], n[proposed]["needs_you"], n[failed]["needs_you"], n[todo]["needs_you"]) == \
         ("asks", "proposal", "failed", "todo")
     assert all(n[s]["waits"]["kind"] == "you" for s in (asks, proposed, failed, todo))
+    # spec 41 §9: an asking idea's row carries each question's choices, pick and why; its line is the ask alone
+    ideas.set_section(root, asks, "Open questions", "- Which store first? (**App Store** / Google Play) — iPhone first")
+    row = next(r for r in host.command("ideas.board")["needs_you"] if r.get("idea") == asks)
+    assert row["text"] == "Which store first?" and row["asked"] == [
+        {"ask": "Which store first?", "choices": ["App Store", "Google Play"], "pick": 0, "why": "iPhone first"}]
 
 
 def test_tasks_estimate_and_by_itself(host):
@@ -163,7 +168,7 @@ def test_tasks_estimate_and_by_itself(host):
     n = {x["slug"]: x for x in host.command("ideas.map", {})["nodes"]}
     assert n[fresh]["estimate"] == {"usd_low": 0.4, "usd_high": 1.2} and n[fresh]["by_itself"] is True
     assert n[begun]["estimate"] is None and n[begun]["by_itself"] is False and n[begun]["progress"] == {"done": 1, "total": 2}
-    assert n[begun]["tasks"][1] == {"id": "k2", "title": "Task k2", "state": "running", "after": ["k1"], "tier": "warrior",
+    assert n[begun]["tasks"][1] == {"id": "k2", "title": "Task k2", "short": "Task k2", "state": "running", "after": ["k1"], "tier": "warrior",
                                      "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tag": "Code"}   # who does it: a Grunt; its tag
     assert n[none]["tasks"] == [] and n[none]["estimate"] is None and n[none]["by_itself"] is False
 

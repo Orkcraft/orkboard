@@ -76,8 +76,8 @@ function putAway(n) {
 
 /** A question and its likely answers: "Which store first? (App Store / Google Play)" → {ask: "Which store first?", choices: [...]}. */
 export function choicesOf(q) {
-  const m = String(q || "").match(/^(.*?)\s*\(([^()]*\/[^()]*)\)\s*([?.!]?)\s*$/);
-  const choices = m ? m[2].split("/").map((c) => c.trim()).filter(Boolean) : [];
+  const m = String(q || "").match(/^(.*?)\s*\(([^()]*\/[^()]*)\)\s*([?.!]?)\s*(?:[—–]\s*.*)?$/);   // "— why" after it (spec 41 §9)
+  const choices = m ? m[2].split("/").map((c) => c.trim().replace(/^\*\*(.+)\*\*$/, "$1")).filter(Boolean) : [];
   if (!m || choices.length < 2 || choices.length > 4 || choices.some((c) => c.length > 40)) return { ask: String(q || ""), choices: [] };
   return { ask: `${m[1].trim()}${m[3] && !/[?.!]$/.test(m[1].trim()) ? m[3] : ""}`, choices };
 }

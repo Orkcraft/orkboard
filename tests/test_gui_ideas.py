@@ -19,7 +19,8 @@ BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.
                   "ideas.edit", "ideas.track_add", "ideas.track_set", "ideas.todo", "ideas.drop", "ideas.stop",
                   "ideas.review_list", "ideas.diff", "ideas.merge", "ideas.back", "ideas.drop_task",
                   "ideas.stop_task", "ideas.agents", "ideas.task", "ideas.into", "ideas.log", "ideas.logs", "ideas.goal_save",
-                  "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_drop", "ideas.kind_set"}
+                  "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_add", "ideas.role_drop",
+                  "ideas.kind_set"}
 
 
 @pytest.fixture
@@ -70,7 +71,7 @@ def test_drop_an_idea_and_read_the_board_and_its_page(host):
     (i,) = board["ideas"]
     assert i["slug"] == slug and i["state"] == "raw" and i["thesis"] == "Dark mode" and i["track"] == "first-goal"
     assert i["progress"] == {"done": 0, "total": 0} and i["updated"]
-    assert set(i) == {"slug", "title", "track", "order", "state", "size", "thesis", "asks", "progress", "updated",
+    assert set(i) == {"slug", "title", "short", "track", "order", "state", "size", "thesis", "asks", "progress", "updated",
                       "priority",                 # spec 34 §4: ideas gain a priority
                       "queue", "held_until", "risk", "risk_triggers", "depends_on", "waits_on", "start_at",
                       "in_needs_you"}             # spec 35 §12
@@ -356,7 +357,7 @@ def test_agents_shows_the_taskmaster_and_a_chip_per_live_task(host):
     got = host.command("ideas.agents")
     tm, grunts = got["roles"][:2]
     assert tm["state"] == "waiting" and tm["waits_on"]["idea"] == other and "asking idea" in tm["waits_on"]["text"]
-    assert tm["chips"] == [{"idea": other, "title": "asking idea", "state": "waiting"}]
+    assert tm["chips"] == [{"idea": other, "title": "asking idea", "short": "Asking idea", "state": "waiting"}]
     (chip,) = grunts["chips"]
     assert chip["state"] == "review" and chip["task"] == "k1" and chip["idea"] == slug and chip["tier"] == "warrior"
     assert chip["head"] == {"craft": "engineering", "race": "peon", "tier": "warrior"}            # a Grunt, an ork (decisions §53)
@@ -488,9 +489,10 @@ def test_the_keepers_states_and_the_plan_are_logged_and_a_secret_never(host, mon
     host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "value": "s3cr3t-value"})
     (done,) = _events(host, "todo_done")
     assert done["todo"] == "t1" and done["kind"] == "secret" and done["seconds"] is not None
-    host.command("ideas.start", {"slug": slug})
+    host.command("ideas.start", {"slug": slug, "via": "map"})
     (passed,) = _events(host, "plan_passed")
     assert passed["idea"] == slug and passed["tasks"] == 1 and passed["seconds"] is not None
+    assert passed["via"] == "map"                                               # spec 41 §4: Start on the Map
     host.command("halt")
     (stop,) = _events(host, "stop_all")
     assert stop["device"] == "desktop"

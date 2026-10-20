@@ -96,6 +96,21 @@ def test_the_draft_writes_its_sections_and_front_matter_and_drops_unknown_or_cyc
     assert "The table lives in src/app.py." in first["prompt"] and "a table of runs please" in first["prompt"]
 
 
+def test_a_draft_gives_the_idea_its_short_name_or_code_makes_one(keeper):
+    # spec 41 §3: the person's text gives one at once; the draft its own, when it fits
+    slug = ideas.add_idea(keeper.root, "Давай сделаем таблицу прогонов в настройках", keeper.goal, keeper.state)
+    assert ideas.idea_page(keeper.root, slug).get("short") == "Сделаем таблицу прогонов"
+    keeper.call = Model(draft={**DRAFT, "short": "Runs table"}, plan=PLAN)
+    keeper.draft_one(slug)
+    assert ideas.idea_page(keeper.root, slug).get("short") == "Runs table"
+    assert next(i for i in ideas.ideas(keeper.root) if i["slug"] == slug)["short"] == "Runs table"
+    other = ideas.add_idea(keeper.root, "another", keeper.goal, keeper.state)
+    keeper.call = Model(draft={**DRAFT, "short": "a short name far longer than it may be"}, plan=PLAN)
+    keeper.draft_one(other)
+    assert ideas.idea_page(keeper.root, other).get("short") == "The table"         # its title's
+    assert '"short": "its name in two or three words, 24 characters at most"' in keeper.call.asked[0]["prompt"]
+
+
 def test_no_question_makes_the_plan_at_once_with_its_stages_and_risk(keeper):
     slug = ideas.add_idea(keeper.root, "a table", keeper.goal, keeper.state)
     keeper.call = model = Model(draft=DRAFT, plan=PLAN)
@@ -131,6 +146,38 @@ def test_questions_go_to_asks_and_one_round_of_answers_writes_the_rest_then_the_
     assert ideas.state(keeper.state, slug)["state"] == "plan"
     (e,) = _events(keeper, "idea_answered")
     assert e["idea"] == slug and e["answers"] == 1 and e["step"] == "answer" and e["cost"] is None
+    assert e["typed"] == 1 and e["picked"] == 0 and e["decided"] is False
+
+
+def test_a_question_comes_with_its_pick_and_let_the_taskmaster_decide_takes_them(keeper):
+    # spec 41 §9: the page's line says the pick in bold; deciding answers each with it, Decisions say whose pick it was
+    slug = ideas.add_idea(keeper.root, "a table", keeper.goal, keeper.state)
+    keeper.call = model = Model(draft={**DRAFT, "questions": [
+        {"ask": "Which columns?", "choices": ["All five", "Name and state"], "pick": 0, "why": "the runs page shows five"},
+        {"ask": "Sorted how?", "choices": ["Newest first", "By name"], "pick": 7},
+        "Anything else? (yes / no)"]}, plan=PLAN, answer={"sections": {}, "decisions": [], "assumed": []})
+    keeper.draft_one(slug)
+    page = ideas.idea_page(keeper.root, slug)
+    assert ideas.items(page.section("Open questions")) == [
+        "Which columns? (**All five** / Name and state) — the runs page shows five",
+        "Sorted how? (Newest first / By name)", "Anything else? (yes / no)"]
+    assert "only what changes the plan" in model.asked[0]["prompt"]
+    keeper.answer(slug, [], decide=True)
+    _wait(keeper, slug)
+    ask = model.asked[1]["prompt"]
+    assert "the runs page shows five\n  All five" in ask and "Sorted how? (Newest first / By name)\n  (no answer: decide)" in ask
+    decisions = ideas.idea_page(keeper.root, slug).section("Decisions")
+    assert "Which columns? — All five (the Taskmaster's pick)" in decisions and "Sorted how?" not in decisions
+    assert "Left to the Taskmaster" in ideas.talk(keeper.state, slug)[-1]["text"]
+    (e,) = _events(keeper, "idea_answered")
+    assert e["decided"] is True and e["answers"] == 1
+
+
+def test_the_persons_answers_are_told_apart_by_the_choices_they_took():
+    from orkboard.realm import idea_questions
+    lines = ["Which? (**a** / b)", "When? (now / later)", "Why?"]
+    assert idea_questions.tally(lines, ["a", "Later", "because"]) == {"picked": 2, "recommended": 1, "typed": 1}
+    assert idea_questions.picks(lines) == ["a", "", ""]
 
 
 def test_every_call_stays_within_its_cap_and_holds_only_its_parts(keeper):

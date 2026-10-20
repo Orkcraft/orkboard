@@ -6,13 +6,14 @@ beside its page (`<state_dir>/goals/<slug>/`). Split from ideas.py to keep it un
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, goal_team, goal_verdict, idea_words, ideas, library, roles
+from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, roles
 
 
 DOC_CHARS = 100_000
@@ -82,10 +83,11 @@ class GoalsMixin:
         whose check applies to every idea, not only where it applies (realm/idea_checks.py): a title typed is the person's (never rewritten); spec 34's
         metrics, links and deadline are still taken and kept when given."""
         slug = _opt(args, "slug") or None
-        about = args.get("about", "")
+        about = args.get("about", None if slug else "")          # a goal that exists keeps what is left out (spec 41 §7)
         title = args.get("title", "")
-        if not isinstance(about, str) or not isinstance(title, str):
+        if about is not None and not isinstance(about, str) or not isinstance(title, str):
             raise IdeasError("about is not text")
+        before = next((t for t in ideas.tracks(self.root(), make=False) if t["slug"] == slug), None) if slug else None
         metrics, links = args.get("metrics"), args.get("links")
         if metrics is not None and not isinstance(metrics, list) or links is not None and not isinstance(links, list):
             raise IdeasError("Metrics and links are lists")
@@ -103,8 +105,10 @@ class GoalsMixin:
             raise IdeasError(f"No agent {leader!r}")
         if why := goal_team.seats(team or [], leader or ""):
             raise IdeasError(why)
-        got, new = ideas.save_goal(self.root(), slug, title[:ideas.TITLE_CHARS], about[:ideas.SECTION_CHARS],
-                                   metrics, _opt(args, "priority") or "normal", links, deadline, _opt(args, "craft") or None)
+        got, new = ideas.save_goal(self.root(), slug, title[:ideas.TITLE_CHARS],
+                                   about[:ideas.SECTION_CHARS] if about is not None else None, metrics,
+                                   _opt(args, "priority") or (None if slug else "normal"), links, deadline,
+                                   _opt(args, "craft") or None)
         if team is not None:
             library.install(self.state_dir, [s for s in team if library.get(s) is not None])
             every = args.get("every") if isinstance(args.get("every"), list) else []
@@ -116,7 +120,8 @@ class GoalsMixin:
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
                  priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER)
-        self._read_goal(got)
+        if new or before is None or _what_it_says(before) != _what_it_says(g):
+            self._read_goal(got)                      # a save of its party alone reads nothing again (spec 41 §7)
         self.changed(f"goal:{got}")
         return {"slug": got}
 
@@ -182,9 +187,17 @@ class GoalsMixin:
         out = []
         for g in goals:
             if g["state"] == "asks":
+                asked = [idea_questions.parse(q) for q in g["questions"][:5]]
                 out.append({"idea": "", "goal": g["slug"], "kind": "goal", "title": g["title"],
-                            "text": g["questions"][0] if g["questions"] else "The keeper asks you about this goal",
-                            "questions": g["questions"][:5],
+                            "text": asked[0]["ask"] if asked else "The keeper asks you about this goal",
+                            "questions": g["questions"][:5], "asked": asked,
                             "priority": g["priority"], "blocks": False,
                             "at": ideas.goal_state(self.state_dir, g["slug"])["read_time"]})
         return out
+
+
+def _what_it_says(g: dict) -> tuple:
+    """What a goal says, which the keeper reads: its words, title, priority, craft, metrics, links and deadline (not
+    its party)."""
+    return (g["about"], g["title"], g["priority"], g["craft"], json.dumps(g["metrics"], sort_keys=True), g["links"],
+            g["deadline"])

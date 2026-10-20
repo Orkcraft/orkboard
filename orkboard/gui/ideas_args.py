@@ -11,6 +11,11 @@ def _device(args: dict) -> str:
     return "phone" if args.get("device") == "phone" else "desktop"
 
 
+def _via(args: dict) -> str:
+    """Where the person pressed it (spec 41 §4): "map" (the Map's button), else "idea" (the idea's screen)."""
+    return "map" if args.get("via") == "map" else "idea"
+
+
 def _str(args: dict, key: str, limit: int) -> str:
     value = args.get(key, "")
     if not isinstance(value, str):

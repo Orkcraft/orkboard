@@ -70,6 +70,16 @@ CRAFTS = ("engineering", "design", "data", "marketing", "product")
 CRAFT_LABELS = {"engineering": "Engineering", "design": "Design", "data": "Data", "marketing": "Marketing", "product": "Product"}
 # orkUI's race ids: ork, elf, goblin, gnome; product is the undead's (a mummy in Orkline 0.2: a lich until orkUI draws one)
 RACES = {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome", "product": "lich"}
+# What the built-in two are told already, beside the field that adds to it (spec 41 §8): their prompts are Orkboard's own.
+TOLD = {
+    TASKMASTER: "Each of its steps (reading a goal, drafting an idea's spec, taking your answers, planning, the night's "
+                "proposals) has its own prompt in Orkboard, with only what that step needs. What you write here goes "
+                "before each step it runs; a goal's leader, where it has one, runs that goal's steps in its place.",
+    GRUNT: "Every task's prompt says where it works (its own git worktree and branch), where the idea's spec is, its "
+           "task and the tasks before it, the names of the secrets it may use, and that the gate then runs the critical "
+           "tests and those of what it touched. Claude Code reads the project's CLAUDE.md itself. What you write here "
+           "goes first.",
+}
 DEFAULT_CRAFT = "engineering"                    # the orks': Taskmaster's, Grunt's and every role's written before crafts
 _DEFAULTS = {
     TASKMASTER: {"name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "craft": DEFAULT_CRAFT},

@@ -1,6 +1,8 @@
 """Agents: the roles and the task type of each (spec 34 §3, §4), as `gui/ideas.py`'s `Ideas` has them:
-`ideas.agents`, `ideas.roles`, `ideas.role_save`, `ideas.role_drop`, `ideas.kind_set`; what each costs and how often it
-gets it right (spec 36 §2: each role's `week`), and `ideas.spend`, an idea's or a goal's money by stage.
+`ideas.agents`, `ideas.roles`, `ideas.role_save`, `ideas.role_add` (one of the library's), `ideas.role_drop`,
+`ideas.kind_set`; what each costs and how often it gets it right (spec 36 §2: each role's `week`; spec 41 §8: about what a
+task of it costs, `usd_task`), what the built-in two are told already (`told`), and `ideas.spend`, an idea's or a goal's
+money by stage.
 
 A role is a small file in the repository's `.orkcraft/roles/` (realm/roles.py); the runner runs a task as its type's
 role (core/idea_runner.py). Each role, each chip, carries the head the page draws for it (`head`: its craft's race at the
@@ -11,7 +13,8 @@ from __future__ import annotations
 import datetime as dt
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import event_log, idea_spend, idea_target, ideas, library, roles
+from orkboard.realm import board_map, event_log, idea_spend, idea_target, ideas, library, roles
+from orkboard.realm.idea_words import short_of
 
 
 class RolesMixin:
@@ -33,20 +36,35 @@ class RolesMixin:
         pairs = [(str(t.get("role") or roles.GRUNT), t) for _s, _title, plan in self._plans() for t in plan.get("tasks") or []]
         return roles.spend_today(pairs)
 
+    def _usd_task(self, r: dict, week: dict, costs: dict, target: str) -> float | None:
+        """About what a task of this agent costs (spec 41 §8): its week's spend by its tasks that ended, from
+        `idea_spend.TOO_FEW` of them on; else a task's at its head's tier. None for the Taskmaster (its cost is its
+        steps) and while nothing is priced."""
+        if r["slug"] == roles.TASKMASTER:
+            return None
+        mine = week.get(r["slug"]) or {}
+        if mine.get("spent") is not None and int(mine.get("finished") or 0) >= idea_spend.TOO_FEW:
+            return round(float(mine["spent"]) / int(mine["finished"]), 2)
+        usd = costs.get(roles.head(r, target)["tier"])
+        return round(float(usd), 2) if usd is not None else None
+
     def roles(self, args: dict) -> dict:
         spent, week, kinds = self._role_spend(), idea_spend.by_role(self.state_dir), roles.kinds(self.state_dir)
-        target = self._target()
+        target, costs = self._target(), idea_spend.tier_costs(self.state_dir)
         mine = [{**r, "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]),
                  "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r),
-                 "head": roles.head(r, target)}
+                 "head": roles.head(r, target), "usd_task": self._usd_task(r, week, costs, target),
+                 **({"told": roles.TOLD[r["slug"]]} if r["slug"] in roles.TOLD else {})}
                 for r in roles.roles(self.state_dir)]
+        have = {r["slug"] for r in mine}
         return {"roles": mine, "kinds": [{"kind": k, "label": roles.KIND_LABELS[k], "role": kinds[k]} for k in roles.TASK_KINDS],
                 "models": roles.models(), "target": target,
                 "crafts": [{"craft": c, "label": roles.CRAFT_LABELS[c], "race": roles.RACES[c],
                             "heads": {m["id"]: roles.head_tier(m["id"], target) for m in roles.models()}} for c in roles.CRAFTS],
-                "library": library.listed(), "suggested": library.SUGGESTED, "seats": library.SEATS,
+                "library": [{**a, "installed": a["id"] in have} for a in library.listed()],
+                "suggested": library.SUGGESTED, "seats": library.SEATS,
                 "parties": library.parties(),
-                "tier_costs": idea_spend.tier_costs(self.state_dir)}   # $ a task per tier: what a check adds to an idea
+                "tier_costs": costs}                     # $ a task per tier: what a check adds to an idea
 
     def role_save(self, args: dict) -> dict:
         slug = _opt(args, "slug") or None
@@ -65,6 +83,21 @@ class RolesMixin:
         idea_spend.forget()
         self._ev(event_log.ROLE_SAVED, args, role=got, model=r["model"], max_parallel=r["max_parallel"], new=slug is None, craft=r["craft"],
                  kinds=[k for k, v in roles.kinds(self.state_dir).items() if v == got], instruction_chars=len(instruction.strip()))
+        self.changed("")
+        return {"slug": got}
+
+    def role_add(self, args: dict) -> dict:
+        """An agent of the library made a role of this project (spec 41 §8, Add agent → From the library)."""
+        agent = _text(args, "id", 100)
+        if library.get(agent) is None:
+            raise IdeasError(f"No agent {agent!r} in the library")
+        if roles.role(self.state_dir, agent) is not None:
+            raise IdeasError(f"{library.get(agent).name} is already this project's")
+        (got,) = library.install(self.state_dir, [agent])
+        r = roles.role(self.state_dir, got)
+        self._ev(event_log.ROLE_SAVED, args, role=got, model=r["model"], max_parallel=r["max_parallel"], new=True, craft=r["craft"],
+                 kinds=[k for k, v in roles.kinds(self.state_dir).items() if v == got], instruction_chars=len(r["instruction"]),
+                 library=True)
         self.changed("")
         return {"slug": got}
 
@@ -98,18 +131,19 @@ class RolesMixin:
         person's own — each with a chip per live task of the types it has."""
         board = self.board(make=False)
         titles = {i["slug"]: i["title"] for i in board["ideas"]}
+        shorts = {i["slug"]: i["short"] for i in board["ideas"]}
         chips, waits, mode = [], None, "waiting"
         for i in board["ideas"]:
             busy = self.keeper.busy(i["slug"])
             if i["state"] in ("reading", "planning") or busy:
                 state = "planning" if i["state"] == "planning" else ("reading" if i["state"] == "reading" else "talking")
-                chips.append({"idea": i["slug"], "title": i["title"], "state": state})
+                chips.append({"idea": i["slug"], "title": i["title"], "short": i["short"], "state": state})
             elif i["state"] == "asks":
-                chips.append({"idea": i["slug"], "title": i["title"], "state": "waiting"})
+                chips.append({"idea": i["slug"], "title": i["title"], "short": i["short"], "state": "waiting"})
                 waits = waits or {"idea": i["slug"], "text": f"waiting for your answers on “{i['title']}”"}
         for g in board["tracks"]:
             if self.keeper.busy_goal(g["slug"]):
-                chips.append({"idea": "", "goal": g["slug"], "title": g["title"], "state": "reading"})
+                chips.append({"idea": "", "goal": g["slug"], "title": g["title"], "short": g["short"], "state": "reading"})
         for rank in ("planning", "reading", "talking"):
             if any(c["state"] == rank for c in chips):
                 mode = rank
@@ -124,8 +158,9 @@ class RolesMixin:
                     done.append({"idea": slug, "task": t.get("id"), "title": t.get("title", ""), "role": role})
                 elif state in ("running", "testing", "review", "ready", "held", "failed"):
                     by_role.setdefault(role, []).append(
-                        {"idea": slug, "idea_title": titles.get(slug, title), "task": t.get("id"),
-                         "title": t.get("title", ""), "state": state, "tier": t.get("tier", ""), "role": role,
+                        {"idea": slug, "idea_title": titles.get(slug, title),
+                         "idea_short": shorts.get(slug) or short_of(title), "task": t.get("id"),
+                         "title": t.get("title", ""), "short": board_map.task_short(t), "state": state, "tier": t.get("tier", ""), "role": role,
                          "kind": t.get("kind") or roles.DEFAULT_KIND, "head": roles.task_head(self.state_dir, t, target, read),
                          "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND]),
                          "note": t.get("note") or (t.get("error") if state == "failed" else "") or "",
@@ -133,10 +168,12 @@ class RolesMixin:
                          "by": "auto" if plan.get("passed_by") == "auto" else "person",
                          "night": plan.get("start_at") == "night" and not t.get("started")})
         spent, week, out = self._role_spend(), idea_spend.by_role(self.state_dir), []
+        costs = idea_spend.tier_costs(self.state_dir)
         for r in roles.roles(self.state_dir):
             block = {"role": r["slug"], "name": "Grunts" if r["slug"] == roles.GRUNT and r["name"] == "Grunt" else r["name"],
                      "model": r["model"], "max_parallel": r["max_parallel"], "builtin": r["builtin"],
-                     "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]), "head": roles.head(r, target)}
+                     "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]), "head": roles.head(r, target),
+                     "usd_task": self._usd_task(r, week, costs, target)}
             if r["slug"] == roles.TASKMASTER:
                 out.append({**block, "state": mode, "waits_on": waits, "chips": chips})
             else:

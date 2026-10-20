@@ -322,10 +322,31 @@ def test_needs_you_carries_every_question_with_its_likely_answers_and_one_answer
     model.answers["goal"] = {"summary": "Installs first.", "questions": ["Which channel first? (npm / brew)", "Which week?"], "metrics": []}
     slug = host.command("ideas.goal_save", GOAL)["slug"]
     _wait(host, slug, goal=True)
-    assert "each ending with its likely answers: (one / other)" in model.seen[0]["prompt"]
+    assert '"choices": ["two to four likely answers, each at most 40 characters"]' in model.seen[0]["prompt"]
     row = next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "goal")
-    assert row["questions"] == ["Which channel first? (npm / brew)", "Which week?"] and row["text"] == "Which channel first? (npm / brew)"
+    assert row["questions"] == ["Which channel first? (npm / brew)", "Which week?"] and row["text"] == "Which channel first?"
+    assert row["asked"] == [{"ask": "Which channel first?", "choices": ["npm", "brew"], "pick": None, "why": ""},
+                            {"ask": "Which week?", "choices": [], "pick": None, "why": ""}]     # a plain string of before
     host.command("ideas.answer", {"slug": slug, "answers": ["npm"], "goal": True})
     _wait(host, slug, goal=True)
     said = model.seen[-1]["prompt"]
     assert "Which channel first? (npm / brew) — npm" in said and "Which week? — (no answer: decide)" in said
+
+
+def test_a_goals_question_comes_with_its_answer_picked_and_may_be_left_to_the_taskmaster(host, model):
+    # spec 41 §9: the choices, the pick and why from the model's answer; the page's line says the pick in bold
+    model.answers["goal"] = {"summary": "Installs first.", "metrics": [], "questions": [
+        {"ask": "Which channel first?", "choices": ["npm", "brew"], "pick": 1, "why": "most testers are on a Mac"},
+        {"ask": "Which week?", "choices": ["this", "next"], "pick": "next", "why": ""},
+        {"ask": "Bad choices?", "choices": ["a/b", "c"], "pick": 0}]}
+    slug = host.command("ideas.goal_save", GOAL)["slug"]
+    _wait(host, slug, goal=True)
+    row = next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "goal")
+    assert row["questions"][0] == "Which channel first? (npm / **brew**) — most testers are on a Mac"
+    assert [q["pick"] for q in row["asked"]] == [1, 1, None] and row["asked"][2] == {"ask": "Bad choices?", "choices": [], "pick": None, "why": ""}
+    host.command("ideas.answer", {"slug": slug, "decide": True, "goal": True})
+    _wait(host, slug, goal=True)
+    said = model.seen[-1]["prompt"]
+    assert "— brew" in said and "Which week? (this / **next**) — next" in said and "Bad choices? — (no answer: decide)" in said
+    got = _events(host, "goal_answered")[-1]
+    assert got["decided"] is True and got["answers"] == 2 and got["recommended"] == 0

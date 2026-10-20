@@ -185,8 +185,10 @@ def test_a_low_safe_plan_starts_at_night_and_start_now_clears_it(host, model, ru
     assert plan["start_at"] == "night" and plan["passed_by"] == "auto" and runner.started == []
     row = next(i for i in host.command("ideas.board")["ideas"] if i["slug"] == slug)
     assert row["start_at"] == "night" and row["state"] == "plan" and not row["in_needs_you"]
-    host.command("ideas.start_now", {"slug": slug})
+    host.command("ideas.start_now", {"slug": slug, "via": "map"})
     assert ideas.plan(host.ideas.state_dir, slug)["start_at"] is None and runner.started == [slug]
+    assert [(e["idea"], e["via"]) for e in _events(host, "plan_started_now")] == [(slug, "map")]       # spec 41 §4
+    assert "via" not in _events(host, "plan_passed")[-1]                       # passed by the board: no press
     with pytest.raises(CommandError, match="does not wait for the night"):
         host.command("ideas.start_now", {"slug": slug})
 
@@ -239,8 +241,9 @@ def test_queue_read_stop_and_board_set(host, model, runner):
     assert ideas.state(host.ideas.state_dir, slug)["queue"] == "hold"
     host.command("ideas.queue", {"slug": slug, "queue": "night"})
     assert ideas.state(host.ideas.state_dir, slug)["queue"] == "night"
-    host.command("ideas.queue", {"slug": slug, "queue": "now"})
+    host.command("ideas.queue", {"slug": slug, "queue": "now", "via": "map"})
     _wait(host, slug)
+    assert [(e["queue"], e["via"]) for e in _events(host, "idea_queued")] == [("night", "idea"), ("now", "map")]   # spec 41 §4
     assert ideas.state(host.ideas.state_dir, slug)["state"] != "raw"
     got = host.command("ideas.board_set", {"target": "quality", "night": "22:00-05:00", "device": "phone"})
     assert got == {"target": "quality", "autostart": True, "night": "22:00-05:00"}

@@ -1,7 +1,10 @@
-"""The words New idea completes with (the phone's idea field): a goal's own terms, from what is written about it.
+"""The words New idea completes with (the phone's idea field): a goal's own terms, from what is written about it; and
+a short name (docs/specs/41-phone-round-3.md §3): an idea's, a goal's or a task's name that fits its chip.
 
     words(["Ship the offline mode: the SyncQueue …", …], phrases=["Offline mode", …])
         # ["Offline mode", "SyncQueue", "offline", …]: the phrases first, then the words, the most used first
+    short_of("Давай сделаем тёмную тему в настройках")      # "Сделаем тёмную тему"
+    short_said("Dark mode", "Add a dark mode toggle")     # the model's short name when it fits, else short_of(title)
 
 A word is one of at least MIN_CHARS letters, or a name of the code (`sync_queue`, `docs/plan.md`, `SyncQueue`), in
 any script; the common words of English and Russian are left out. The same word in other cases is one, written as
@@ -65,3 +68,57 @@ def words(texts: list[str], phrases: list[str] = (), limit: int = MAX_WORDS) -> 
             seen.add(low)
             out.append(min(forms[low].items(), key=lambda f: (-f[1], f[0] != low))[0])      # a tie: as in a sentence's middle
     return out[:limit]
+
+
+# -- a short name (spec 41 §3) ---------------------------------------------------------------------------------------
+
+SHORT_CHARS = 24
+SHORT_WORDS = 4                       # the most a model's short name may have
+# What a request starts with before what it asks for: left out of a short name (lower case, the longest first).
+ASKING = ("i would like to", "i'd like to", "we need to", "we should", "i want to", "could we", "can we", "let's",
+          "let us", "please", "maybe", "хотелось бы", "может быть", "пожалуйста", "давайте", "давай", "нужно", "надо",
+          "хочу", "может", "можно")
+# What a short name never ends with: it reads as cut in a sentence's middle.
+_DANGLING = frozenset("""a an the to of in on at by for from with and or but as into
+и в во на с со к ко по о об у для из от до а но или же""".split())
+_SENTENCE_END = re.compile(r"[.!?…:;](?=\s|$)|\n")
+_LEAD = re.compile(r"^[\s\-–—*#>\"'«“(\[]+")
+
+
+def _drop_asking(text: str) -> str:
+    """`text` without the asking words at its start ("Давай, может, сделаем …" → "сделаем …")."""
+    while True:
+        low = text.lower()
+        hit = next((a for a in ASKING if low.startswith(a) and (len(low) == len(a) or not low[len(a)].isalnum())), "")
+        if not hit:
+            return text
+        text = text[len(hit):].lstrip(" ,.!—–-")
+
+
+def short_of(text: str, limit: int = SHORT_CHARS) -> str:
+    """A name of at most `limit` characters from `text`, no model: its first sentence (Markdown's marks left out), the
+    asking words at its start left out, its first letter in capital (a name of the code as it is written), cut at a
+    word's end (no "…") and never on a word that leaves it dangling; a first word longer than `limit` gives its file's
+    name when it is a path, else is cut. "" only for a text with no words."""
+    plain = str(text or "").replace("*", "").replace("`", "")
+    first = _SENTENCE_END.split(_LEAD.sub("", plain).strip(), 1)[0]
+    words = _drop_asking(" ".join(first.split())).split() or " ".join(plain.split()).split()
+    if not words:
+        return ""
+    out: list[str] = []
+    for w in words:
+        if len(" ".join([*out, w])) > limit:
+            break
+        out.append(w)
+    while len(out) > 1 and out[-1].lower().strip(",") in _DANGLING:
+        out.pop()
+    name = " ".join(out).rstrip(",;:—–-") if out else words[0].rstrip("/").rsplit("/", 1)[-1][:limit]
+    return name if _CODE.search(name.split()[0]) else name[:1].upper() + name[1:]
+
+
+def short_said(said: object, title: str, limit: int = SHORT_CHARS) -> str:
+    """A model's short name, strictly: at most `limit` characters and SHORT_WORDS words; else `short_of(title)`."""
+    name = " ".join(str(said or "").split()) if isinstance(said, str) else ""
+    if name and len(name) <= limit and len(name.split()) <= SHORT_WORDS:
+        return name
+    return short_of(title, limit)

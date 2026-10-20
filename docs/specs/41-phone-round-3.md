@@ -132,7 +132,8 @@ changed.
 - **Edit agent**: the field is filled with the agent's instruction (as today). For the Taskmaster and the Grunt, whose
   instruction is Orkboard's own, the field is labelled *Added to what it is told* and above it, folded and read only,
   *What it is told already*: `told` on those two roles of `ideas.roles` (A: `realm/roles.py` `TOLD`, one or two lines
-  each, written from the keeper's steps and a task's prompt as they are).
+  each, written from the keeper's steps and a task's prompt as they are). The Taskmaster's instruction goes before each
+  step it runs (A: `core/idea_keeper.py`; it was saved and reached none before).
 
 ## 9. A question comes with its answer picked (A, B, C)
 - **The model's answer** (the draft's and the goal's reading's JSON): `"questions": [{"ask": "…?", "choices": ["…",
@@ -150,9 +151,9 @@ changed.
   recommendation; More opens the form with the recommended answers filled in.
 - **Let the Taskmaster decide** (a quiet button in the card): `ideas.answer` `{"slug", "decide": true}` (with `"goal":
   true` for a goal's). Every question is answered with its recommended choice, a question without one with *(no
-  answer: decide)*; the talk keeps *Left to the Taskmaster*, and code writes each into the spec's Decisions as
-  `<ask> — <choice> (the Taskmaster's pick)` before the answer call, which then runs as today. `keeper.answer` takes an
-  all-empty answer only with `decide`.
+  answer: decide)*; the talk keeps *Left to the Taskmaster*; the answer call runs as today, and the Decisions lines
+  code writes for the answers read `<ask> — <choice> (the Taskmaster's pick)` (every answer's line now says the ask
+  alone, not its choices). `keeper.answer` takes an all-empty answer only with `decide`.
 
 ## 10. Measured (A)
 - `idea_answered` gains `picked` (answers that are one of the choices), `recommended` (that are its pick), `typed`

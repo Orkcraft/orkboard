@@ -14,7 +14,8 @@ import datetime as dt
 import re
 from pathlib import Path
 
-from orkboard.realm import idea_target, ideas
+from orkboard.realm import idea_questions, idea_target, ideas
+from orkboard.realm.idea_words import short_said
 
 REPLY_CHARS, MAX_QUESTIONS = 4000, 3
 
@@ -52,10 +53,11 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
 
 {context}""" + """Answer with one JSON object and nothing else:
 {"title": "a title of at most 60 characters",
+ "short": "its name in two or three words, 24 characters at most",
  "summary": "5 to 12 lines: what the goal means for this repository, the modules and files it touches (as repository paths), what exists already, the constraints",
  "metrics": [{"name": "done when …: one to three, each measurable", "target": "the number or state", "how": "how it is counted, and where"}],
  "links": ["at most 8 repository paths or Wiki pages you read and found relevant"],
- "questions": ["zero to three questions the person must answer to make the goal clear, all at once, each ending with its likely answers: (one / other)"],
+ "questions": [{"ask": "zero to three questions the person must answer to make the goal clear, all at once: only what changes it, never what the repository already answers", "choices": ["two to four likely answers, each at most 40 characters"], "pick": "the index of the one you recommend", "why": "one line: why that one"}],
  "reply": "one short line to the person (only when they said something)"}
 """
 
@@ -128,10 +130,13 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
                 how[kw._words(m.get("name"), 300) or str(i)] = kw._words(m.get("how"), 300)
             if kw._words(m.get("name"), 300):
                 metrics.append({k: kw._words(m.get(k), 300) for k in ("name", "target", "how")})
-        questions = [] if answered else kw._strings(answer.get("questions"), MAX_QUESTIONS)
+        asked = [] if answered else idea_questions.all_of(answer.get("questions"), MAX_QUESTIONS)
+        questions = [idea_questions.line(q) for q in asked]
         links = self._links_found(root, kw._strings(answer.get("links"), 20, 300)) if "links" in answer else None
-        ideas.write_goal_reading(root, slug, kw._words(answer.get("summary"), 3000), how, questions,
-                                 title=kw._words(answer.get("title"), ideas.TITLE_KEEPER), metrics=metrics, links=links)
+        title = kw._words(answer.get("title"), ideas.TITLE_KEEPER)
+        ideas.write_goal_reading(root, slug, kw._words(answer.get("summary"), 3000), how, questions, title=title,
+                                 metrics=metrics, links=links,
+                                 short=short_said(answer.get("short"), title) if title else "")
         if said and (reply := kw._words(answer.get("reply"), REPLY_CHARS)):
             ideas.add_turn(self.state_dir, slug, "keeper", reply, goal=True)
         tier, effort = self.picked()

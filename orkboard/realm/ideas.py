@@ -26,6 +26,7 @@ import shutil
 import threading
 from pathlib import Path
 
+from orkboard.realm.idea_words import short_of
 from orkboard.realm.idea_page import (  # noqa: F401  (re-exported: the names callers and tests use)
     SECTION_CHARS, SECTIONS, Page, _FENCE, _HEADING, _KEY, _int, _now, clean_text, items, parse, slugify, thesis)
 
@@ -138,7 +139,8 @@ def _metrics_by(page: Page) -> str:
 
 def _track(slug: str, page: Page, count: int = 0) -> dict:
     about = page.section("Description") or page.section("About")
-    return {"slug": slug, "title": page.title or page.get("title") or slug, "about": about,
+    title = page.title or page.get("title") or slug
+    return {"slug": slug, "title": title, "short": page.get("short") or short_of(title), "about": about,
             "title_by": page.get("title_by") if page.get("title_by") in ("keeper", "person") else "person",
             "metrics_by": _metrics_by(page),
             "criteria": items(page.section("Success criteria")), "deadline": page.get("deadline"),
@@ -213,16 +215,17 @@ def _metric_lines(metrics: list[dict]) -> str:
                      for m in metrics)
 
 
-def save_goal(root: Path, slug: str | None, title: str = "", about: str = "", metrics: object = None,
-              priority: str = "normal", links: object = None, deadline: str | None = None,
+def save_goal(root: Path, slug: str | None, title: str = "", about: str | None = "", metrics: object = None,
+              priority: str | None = "normal", links: object = None, deadline: str | None = None,
               craft: str | None = None) -> tuple[str, bool]:
     """A goal made or edited (spec 35 §2): (its slug, whether it is new). The person writes its Description and
     Priority, and on Edit may correct its Title: a title they type is theirs (`title_by: person`) and the keeper never
     rewrites it; without one the keeper writes it (`title_by: keeper`). Spec 34's metrics, links and deadline are still
     taken and kept when given; left out (None), what is there stays. What the keeper wrote is kept. Its craft (decisions
-    §53) is the person's: engineering when new, kept when left out."""
+    §53) is the person's: engineering when new, kept when left out. On a goal that exists, a Description or a
+    Priority left out (None) is kept too (spec 41 §7: a save of its party alone)."""
     title = " ".join(str(title or "").split())[:TITLE_CHARS]
-    about = str(about or "").strip()
+    about = None if about is None and slug else str(about or "").strip()
     if metrics is not None and not isinstance(metrics, (list, tuple)) or links is not None and not isinstance(links, (list, tuple)):
         raise ValueError("Metrics and links are lists")
     if str(priority or "normal").lower() not in PRIORITIES:
@@ -244,10 +247,13 @@ def save_goal(root: Path, slug: str | None, title: str = "", about: str = "", me
             page.title = title
             page.set("title", title)
             page.set("title_by", "person")
+            page.set("short", short_of(title))
         elif new:
             page.set("title", page.title)
             page.set("title_by", "keeper")
-        page.set("priority", _priority(priority))
+            page.set("short", short_of(about or page.title))
+        if priority is not None or new:
+            page.set("priority", _priority(priority))
         if craft is not None or new:
             page.set("craft", craft or CRAFTS[0])
         if deadline is not None:
@@ -276,7 +282,8 @@ def save_goal(root: Path, slug: str | None, title: str = "", about: str = "", me
         page.sections = [(n, t) for n, t in page.sections if n != "About" or not page.section("Description")]
         if any(n == "About" for n, _t in page.sections):          # an older goal: About becomes Description
             page.sections = [("Description" if n == "About" else n, t) for n, t in page.sections]
-        page.set_section("Description", about, TRACK_SECTIONS)
+        if about is not None:
+            page.set_section("Description", about, TRACK_SECTIONS)
         page.set_section("Metrics", _metric_lines(_metrics(page)), TRACK_SECTIONS)
         for name in TRACK_SECTIONS:
             if not any(n == name for n, _t in page.sections):
@@ -287,10 +294,11 @@ def save_goal(root: Path, slug: str | None, title: str = "", about: str = "", me
 
 
 def write_goal_reading(root: Path, slug: str, summary: str, how: dict, questions: list[str], title: str = "",
-                       metrics: list[dict] | None = None, links: list[str] | None = None) -> None:
+                       metrics: list[dict] | None = None, links: list[str] | None = None, short: str = "") -> None:
     """What the keeper's reading of a goal writes: Summary, its metrics (1–3 `done when` lines with how each is
     counted; on a goal whose metrics the person wrote in spec 34, only how each is counted), the open questions, its
-    title unless the person typed one, and the paths it found relevant (`keeper_links`: the person's links stay)."""
+    title and its short name unless the person typed a title, and the paths it found relevant (`keeper_links`: the
+    person's links stay)."""
     with LOCK:
         page = track_page(root, slug)
         if page is None:
@@ -299,6 +307,8 @@ def write_goal_reading(root: Path, slug: str, summary: str, how: dict, questions
         if title and page.get("title_by") == "keeper":
             page.title = title
             page.set("title", title)
+        if page.get("title_by") == "keeper" and (title or short):
+            page.set("short", short or short_of(title))
         if links is not None:
             page.set("keeper_links", json.dumps(list(dict.fromkeys(links))[:KEEPER_LINKS], ensure_ascii=False))
         written = [m for m in metrics or [] if isinstance(m, dict) and str(m.get("name") or "").strip()]
@@ -331,8 +341,9 @@ def idea_page(root: Path, slug: str) -> Page | None:
 
 
 def _idea(slug: str, page: Page) -> dict:
-    return {"slug": slug, "title": page.title or slug, "track": page.get("track") or GENERAL,
-            "order": _int(page.get("order")), "size": page.get("size") if page.get("size") in SIZES else "",
+    title = page.title or slug
+    return {"slug": slug, "title": title, "short": page.get("short") or short_of(title),
+            "track": page.get("track") or GENERAL, "order": _int(page.get("order")), "size": page.get("size") if page.get("size") in SIZES else "",
             "thesis": thesis(page.section("Gist")), "priority": _priority(page.get("priority")),
             "placed": page.get("placed")}
 
@@ -366,7 +377,7 @@ def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None
         if not priority:
             priority = next((t["priority"] for t in tracks(root, make=False) if t["slug"] == track), "normal")
         page = Page([("owner", OWNER), ("kind", "idea"), ("track", track), ("order", str(order)), ("size", ""),
-                     ("priority", _priority(priority))],
+                     ("priority", _priority(priority)), ("short", short_of(first))],
                     title, "", [(name, text if name == "Gist" else "") for name in SECTIONS])
         page.set_section("Gist", text)
         _write(root / IDEAS / f"{slug}.md", page.text())

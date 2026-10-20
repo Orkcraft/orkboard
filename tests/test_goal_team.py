@@ -239,6 +239,12 @@ def test_a_goal_s_steps_run_as_its_leader_its_voice_and_model_and_the_taskmaster
     assert seen[-1]["prompt"].startswith("You are the keeper") and seen[-1]["model"] == harnesses.get("claude").pick("elder")
     g = next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == plain)
     assert g["leader"]["slug"] == "taskmaster" and g["leader"]["name"] == "Taskmaster"
+    # spec 41 §8: the Taskmaster's own instruction goes before each step it runs (it went nowhere before)
+    host.command("ideas.role_save", {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1,
+                                     "instruction": "Answer in Russian."})
+    again = host.command("ideas.goal_save", {"about": "Fewer flaky tests."})["slug"]
+    _wait(host, again, goal=True)
+    assert seen[-1]["prompt"].startswith("Answer in Russian.\n\nYou are the keeper")
 
 
 def test_the_leader_accepts_the_goal_when_its_last_idea_is_done_and_when_asked(host, monkeypatch):
@@ -323,3 +329,49 @@ def fake_repo_events(host):
     from pathlib import Path
     from orkboard.realm import event_log
     return event_log.path(Path(host.repo_root))
+
+
+def test_a_goals_party_saved_alone_keeps_its_words_and_is_not_read_again(host, monkeypatch):
+    # spec 41 §7: the phone changes a goal's team from its screen; nothing else is sent, nothing is emptied
+    calls = []
+
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
+        calls.append(prompt)
+        return json.dumps({"summary": "ok", "questions": [], "metrics": []}), 0.1, 10, "s"
+
+    monkeypatch.setattr(jobs, "run_read", run_read)
+    slug = host.command("ideas.goal_save", {"about": "A landing page that sells.", "craft": "design", "priority": "high"})["slug"]
+    _wait(host, slug, goal=True)
+    read = len(calls)
+    host.command("ideas.goal_save", {"slug": slug, "team": ["ui-kit"], "every": [], "leader": "product-designer"})
+    _wait(host, slug, goal=True)
+    g = next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == slug)
+    assert g["team"] == ["ui-kit"] and g["leader"]["slug"] == "product-designer"
+    assert g["about"] == "A landing page that sells." and g["priority"] == "high" and g["craft"] == "design"
+    assert len(calls) == read                                                    # its party alone: no reading
+    host.command("ideas.goal_save", {"slug": slug, "about": "A landing page that sells, in two languages."})
+    _wait(host, slug, goal=True)
+    assert len(calls) == read + 1 and next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == slug)["team"] == ["ui-kit"]
+
+
+def test_an_agent_of_the_library_is_added_once_and_each_agent_says_about_what_a_task_costs(host):
+    # spec 41 §8
+    got = host.command("ideas.roles")
+    assert next(a for a in got["library"] if a["id"] == "grunt")["installed"] is True
+    assert next(a for a in got["library"] if a["id"] == "copywriter")["installed"] is False
+    assert host.command("ideas.role_add", {"id": "copywriter"}) == {"slug": "copywriter"}
+    got = host.command("ideas.roles")
+    assert next(a for a in got["library"] if a["id"] == "copywriter")["installed"] is True
+    cw = next(r for r in got["roles"] if r["slug"] == "copywriter")
+    assert cw["instruction"] == library.get("copywriter").instruction and cw["craft"] == "marketing"
+    with pytest.raises(CommandError, match="already this project's"):
+        host.command("ideas.role_add", {"id": "copywriter"})
+    with pytest.raises(CommandError, match="No agent 'wizard' in the library"):
+        host.command("ideas.role_add", {"id": "wizard"})
+    by = {r["slug"]: r for r in got["roles"]}
+    assert by["taskmaster"]["usd_task"] is None and by["grunt"]["usd_task"] == got["tier_costs"][by["grunt"]["head"]["tier"]]
+    assert by["copywriter"]["usd_task"] == round(got["tier_costs"][cw["head"]["tier"]], 2)
+    assert by["taskmaster"]["told"] == roles.TOLD["taskmaster"] and "worktree" in by["grunt"]["told"]
+    assert "told" not in by["copywriter"]
+    blocks = {b["role"]: b for b in host.command("ideas.agents")["roles"]}
+    assert blocks["grunt"]["usd_task"] == by["grunt"]["usd_task"] and blocks["taskmaster"]["usd_task"] is None
