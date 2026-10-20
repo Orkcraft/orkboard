@@ -137,6 +137,25 @@ class Pairing:
                 self._save(devices)
                 return
 
+    def get(self, device_id: str) -> dict | None:
+        return next((d for d in self.devices() if d["id"] == device_id), None)
+
+    def set_push(self, device_id: str, push: dict | None) -> bool:
+        """The device's Web Push subscription kept (docs/specs/42-coming-back.md §3.3), or dropped with None; False for a
+        device that is gone or a subscription that is not whole."""
+        devices = self.devices()
+        for d in devices:
+            if d["id"] == device_id:
+                kept = settings.clean_push(push) if push is not None else None
+                if push is not None and kept is None:
+                    return False
+                d.pop("push", None)
+                if kept is not None:
+                    d["push"] = kept
+                self._save(devices)
+                return True
+        return False
+
     def forget(self, device_id: str) -> bool:
         devices = self.devices()
         kept = [d for d in devices if d["id"] != device_id]

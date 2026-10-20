@@ -360,7 +360,7 @@ def test_the_workers_install_fills_its_cache_past_the_http_cache():
 
 def test_service_worker_names_cache_version_and_cache_first_prefixes():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert "orkcraft-app-v38" in sw
+    assert "orkcraft-app-v39" in sw
     prefixes = sw[sw.index("CACHE_PREFIXES = ["):sw.index("];", sw.index("CACHE_PREFIXES = ["))]
     assert set(re.findall(r'"([^"]+)"', prefixes)) == set(pwa.CACHE_PREFIXES) == {"fonts/"}
 
@@ -375,3 +375,12 @@ def test_cache_control_headers_for_cache_first_and_shell():
     assert "Cache-Control: no-cache" in head_html
     head_assets, _ = _split(pwa.serve("GET", "/app/assets.json"))
     assert "Cache-Control: no-cache" in head_assets
+
+
+def test_the_worker_shows_every_push_and_a_tap_opens_the_pushs_address():
+    sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
+    push = sw[sw.index('addEventListener("push"'):sw.index('addEventListener("notificationclick"')]
+    assert "showNotification(" in push and "if (" not in push.split("e.waitUntil")[1].split("showNotification")[0]      # nothing decides whether it shows
+    assert "tag" in push and "data: { url" in push and "setAppBadge" in push and "clearAppBadge" in push and 'icon: "icon-192.png"' in push
+    click = sw[sw.index('addEventListener("notificationclick"'):]
+    assert "e.notification.data" in click and "openWindow(target)" in click and "from=push-" in click and "all[0].focus()" in click

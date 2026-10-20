@@ -4,6 +4,7 @@
 import { h, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { TARGETS } from "./shell-words.js";
+import { makePush } from "./shell-push.js";
 
 /** `core`: the board's frame; `ctx`: {send, flash, unpair}; `drawer`: the sheet these live in; `limits`: opens What is left.
  *  Returns {head, project, phone, sheets, sync(), render(snapshot)}. */
@@ -80,8 +81,10 @@ export function makeSettings(core, ctx, drawer, limits) {
     h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => { drawer.close(); limits(); } }, "What is left")),
   ];
+  const push = makePush(ctx);
   const phone = [
     h("h3", {}, "This phone"),
+    push.el,
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => pairSheet.open() }, "Pair a phone")),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Download the logs"),
       h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => download(1) }, "Today"),
@@ -97,6 +100,7 @@ export function makeSettings(core, ctx, drawer, limits) {
     sheets: [stopSheet.el, pairSheet.el],
     /** The settings' values from what the Board read last. */
     sync() {
+      push.draw();
       if (writing) return;
       for (const [id, input] of picks) input.checked = id === (core.st.board?.target || "balance");
       pushBox.checked = Boolean(core.st.review?.push);

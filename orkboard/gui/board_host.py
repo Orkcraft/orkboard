@@ -118,7 +118,8 @@ class BoardPhone:
     Orkline's is gui/mobile.py): the Board's commands and Stop all, the project switcher, a Markdown file read-only
     (spec 37 §8: no edit and no git from the phone), and the snapshot's Board, small."""
 
-    COMMANDS = ("mobile.hello", "mobile.snapshot", "halt", "projects.list", "projects.use")
+    COMMANDS = ("mobile.hello", "mobile.snapshot", "halt", "projects.list", "projects.use", "mobile.push_key", "mobile.push_on",
+                "mobile.push_off", "mobile.push_quiet")
     MARKDOWN = (".md", ".markdown")
 
     @classmethod
@@ -132,6 +133,10 @@ class BoardPhone:
     def guard(name: str, args: dict, device: dict | None = None) -> dict:
         """As Orkline's (gui/mobile.py `guard`): the event log says the phone, and the link is the listener's to say."""
         args = dict(args)
+        if name.startswith("mobile.push_"):
+            args.pop("device_id", None)                 # whose subscription it is: the listener's to say (gui/phone_push.py)
+            if (device or {}).get("id"):
+                args["device_id"] = device["id"]
         if name.startswith(("ideas.", "ops.", "projects.", "files.")) or name == "halt":
             args["device"] = "phone"
             args.pop("link", None)
@@ -169,7 +174,7 @@ class Orkboard:
     def __init__(self, repo_root: Path | None = None, demo: bool = False, restore: bool = False) -> None:
         """`repo_root`: the folder opened and shown (refused in words: `ideas.IdeasError`); `restore`: the projects
         open when Orkboard last closed are opened again too (`orkboard` does it; a test's host has only its own)."""
-        from orkboard.gui import board_files, board_git, board_projects, folder_dialog, logs_save, onboarding, ops, updates
+        from orkboard.gui import board_files, board_git, board_projects, folder_dialog, logs_save, onboarding, ops, phone_push, updates
         self.demo = demo
         self.machine = settings.load()
         self.bus = b.Bus()
@@ -194,6 +199,8 @@ class Orkboard:
             "mobile.hello": self._hello,
             "mobile.snapshot": self._mobile_snapshot,
         }
+        self.pusher = phone_push.Pusher(self)          # notifications to a paired phone (spec 42 §3)
+        self.commands.update(self.pusher.commands())
         self.updates = updates.Updates(self)
         self.commands.update(self.updates.commands())
         self.onboarding = onboarding.Onboarding(self)
@@ -342,6 +349,11 @@ class Orkboard:
         self.updates.tick(now)
         self.projects.tick(now)           # every open project's Board: showing another stops nothing
         self.ops.tick(now)
+        self.pusher.tick()
+
+    def attach_phones(self, listener: Any) -> None:
+        """The phone listener (gui/phones.py) made: the pusher reads its devices and its open sockets."""
+        self.pusher.listener = listener
 
     def close(self) -> None:
         self.ops.close()
@@ -352,13 +364,13 @@ class Orkboard:
 
     def command(self, name: str, args: dict | None = None) -> Any:
         from orkboard.core.op_commands import OpsError
-        from orkboard.gui import ideas, onboarding, updates
+        from orkboard.gui import ideas, onboarding, phone_push, updates
         fn = self.commands.get(name)
         if fn is None:
             raise CommandError(f"Unknown command: {name}")
         try:
             return fn(dict(args or {}))
-        except (ideas.IdeasError, onboarding.OnboardingError, updates.UpdateError, OpsError) as e:
+        except (ideas.IdeasError, onboarding.OnboardingError, updates.UpdateError, OpsError, phone_push.PushRefused) as e:
             raise CommandError(str(e)) from None
 
     def _halt(self, args: dict) -> int:
