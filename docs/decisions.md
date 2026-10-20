@@ -462,3 +462,23 @@ budget; the five hours are a rate that comes back. So:
    *Last week ended with 30 % unused*; if weeks end spent, the rule mostly holds Low work at night, which is its other
    use.
 Improvements of v1's existing mechanics (§27): the same autostart, the same reserve, read against the week. Spec 44.
+
+## 58. A tool that is not signed in opens its own sign-in at once; the work that needs it waits for it (20 October, the owner)
+
+Why: the owner (20 October): when Claude Code's sign-in fails, Orkline only says so (*Sign in again in a terminal:
+claude, then /login*), and the task that hit it is failed. The person has to find a terminal, sign in, maybe in another
+config folder than the one Orkline's runs use (`tool_errors.claude_sign_in`), and then start the work again by hand.
+Every tool Orkline runs has its own sign-in; Claude Code (`claude auth login`) and Codex (`codex login`) open the
+browser by themselves and take the answer back without a terminal (checked on 20 October: 2.1.304, 0.163.0). So:
+1. **The sign-in opens at once**, for every tool: in the browser for a tool that signs in there by itself, in a terminal
+   window opened with the tool for one that signs in only inside its own session (pi's `/login`). Orkline starts the
+   tool's own sign-in with its own environment, so the sign-in lands where its runs look; it never sees a password, a
+   code or a token.
+2. **Only when someone is at the computer's page**: at once while the person uses Orkline, else the moment they come
+   back to it; never on a phone, and never into a browser no one answers at night. At most once by itself for each
+   time a tool needs it; *Sign in* opens it again any time.
+3. **Never when a sign-in cannot help**: a key in the environment the tool takes first, another Claude Code renewing
+   the sign-in; the line says what to do, as today.
+4. **The work waits for it instead of failing**: what ran by itself (a task, a draft, an operation's run) is held for the
+   sign-in, as a spent window holds it, and goes on by itself once the tool is signed in; at most a day.
+Improvements of v1's existing mechanics (§27): the same failure, the same hold, with the tool's own sign-in. Spec 45.
