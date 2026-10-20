@@ -102,6 +102,7 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
   border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: var(--ork-type-label); color: var(--ork-ink); background: none; }
 .ork-count { min-width: 16px; justify-content: center; padding: 0 var(--ork-2); }
 .ork-count.on { background: var(--ork-action); border-color: var(--ork-action); color: var(--ork-on-ink); }
+.ork-count.warning { background: var(--ork-warning); border-color: var(--ork-warning); color: var(--ork-on-ink); }
 .ork-label { display: flex; align-items: center; gap: var(--ork-3); color: var(--ork-ink-muted); font: var(--ork-type-label);
   text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); }
 .ork-label::before { content: ""; width: 6px; height: 6px; background: currentColor; flex: none; }
