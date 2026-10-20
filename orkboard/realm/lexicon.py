@@ -97,6 +97,7 @@ TERMS: tuple[Term, ...] = (
     _t("tier.warrior", "Seasoned", "", "Warrior", "Warriors"),
     _t("tier.elder", "Veteran", "Veterans", "Elder"),                          # a CLI an ork thinks with: Claude Code, Codex… (realm/harnesses.py)
     _t("tool_error", "Tool error", "Tool errors"),                 # an AI tool failed: Switch, Retry, Details (realm/tool_errors.py)
+    _t("sign_in", "Sign-in", "Sign-ins"),                          # a tool's own way to sign in to its account (realm/sign_in.py; Sign in the button)
     _t("main_tool", "Main tool", "Main tools"),                    # the AI tool decisions run on (realm/harnesses.py)                               # tokens kept on this machine (realm/logins.py)
     # screens and actions
     _t("war_horn", "Stop all", "", "War Horn"),

@@ -16,8 +16,10 @@ import os
 import re
 import shutil
 import threading
-from typing import Callable, Iterable
+from contextlib import contextmanager
+from typing import Callable, Iterable, Iterator
 
+from orkboard import tools
 from orkboard.realm import harnesses
 
 MISSING, LOGIN, LIMIT, NETWORK, OTHER = "missing", "login", "limit", "network", "other"
@@ -25,15 +27,25 @@ KINDS = (MISSING, LOGIN, LIMIT, NETWORK, OTHER)
 DETAIL_KEEP = 4000                   # the tool's own words kept for Details
 PLAIN_CHARS = 600                    # `plainly`'s line: what happened, the tool's words, the step
 
+# The words of a refused sign-in. The weak ones can be the work's own words (a task about OAuth): a sign-in helps on
+# them only when the tool says it is not signed in (`helps`).
+_LOGIN_STRONG = (r"not logged in|log ?in again|please (run )?/?log ?in|/login|logged out|unauthori[sz]ed"
+                 r"|\b401\b|invalid (x-)?api[ _-]?key|api key (is )?(missing|invalid|not set)"
+                 r"|(token|session|credentials?|login) (has )?expired|expired (token|session|credentials?)"
+                 r"|no credentials")
+_LOGIN_WEAK = r"oauth|sign ?in|authenticat"
+_STRONG = re.compile(_LOGIN_STRONG)
+# The keys a tool takes before its sign-in, where Orkline runs: a sign-in cannot help while one is set.
+TAKES_KEYS = {"claude": ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"), "codex": ("CODEX_API_KEY",),
+              "cursor": ("CURSOR_API_KEY",)}
+RENEWING = "another claude code process is refreshing"
+
 # The first kind whose words are in the tool's output (lower case). Order matters: a 401 that says
 # "connection" is a login.
 _WORDS: tuple[tuple[str, re.Pattern], ...] = (
     (MISSING, re.compile(r"command not found|not found \(|cli not found|^\S+ not found$|no such file or directory"
                          r"|is not recognized as an internal|enoent")),
-    (LOGIN, re.compile(r"not logged in|log ?in again|please (run )?/?log ?in|/login|logged out|unauthori[sz]ed"
-                       r"|\b401\b|authenticat|invalid (x-)?api[ _-]?key|api key (is )?(missing|invalid|not set)"
-                       r"|(token|session|credentials?|login) (has )?expired|expired (token|session|credentials?)"
-                       r"|no credentials|oauth|sign ?in")),
+    (LOGIN, re.compile(_LOGIN_STRONG + "|" + _LOGIN_WEAK)),
     (LIMIT, re.compile(r"\b429\b|\b529\b|rate[ _-]?limit|too many requests|overloaded|usage limit|limit reached"
                        r"|hit your limit|quota|resource[ _-]exhausted|capacity|credit balance")),
     (NETWORK, re.compile(r"econnrefused|econnreset|enotfound|etimedout|eai_again|getaddrinfo|network"
@@ -64,10 +76,62 @@ class ToolError(RuntimeError):
         else:
             said = f"{harness} exited with {code}: {self.detail[:300]}"
         super().__init__(said)
+        self.helped: bool | None = None       # whether a sign-in helps (`helped`), once asked
         _LAST.error = self
+        if self.kind == LOGIN:
+            _tell(_WATCHERS, self)
 
 
 _LAST = threading.local()       # the newest ToolError made on each thread (`taken`)
+_WATCHERS: list[Callable] = []      # a host's ears (spec 45 §3): nothing is watched until a host watches
+_OK_WATCHERS: list[Callable] = []
+_WHERE = threading.local()          # what the thread does now (`doing`): where a sign-in's failure was first met
+
+
+def _tell(watchers: list[Callable], *args: object) -> None:
+    for fn in list(watchers):
+        try:
+            fn(*args)
+        except Exception:                 # a watcher's own error never stops the work
+            pass
+
+
+def watch(fn: Callable[["ToolError"], object]) -> Callable[[], None]:
+    """`fn(err)` for every ToolError of kind `login` made, on the thread that made it. Returns the way to stop."""
+    _WATCHERS.append(fn)
+    return lambda: _WATCHERS.remove(fn) if fn in _WATCHERS else None
+
+
+def watch_ok(fn: Callable[[str], object]) -> Callable[[], None]:
+    """`fn(harness)` for every run of a tool that ended without a failure (`ran`)."""
+    _OK_WATCHERS.append(fn)
+    return lambda: _OK_WATCHERS.remove(fn) if fn in _OK_WATCHERS else None
+
+
+def watching() -> bool:
+    return bool(_WATCHERS)
+
+
+def ran(harness: str) -> None:
+    """A run of `harness` ended without a failure (realm/tool_run.py calls it)."""
+    if _OK_WATCHERS:
+        _tell(_OK_WATCHERS, harness)
+
+
+@contextmanager
+def doing(where: str) -> Iterator[None]:
+    """`where` (task, draft, plan, op, check, ask) is what this thread does until it leaves: a login failure met
+    meanwhile says it (`where_now`)."""
+    was = getattr(_WHERE, "name", "")
+    _WHERE.name = where
+    try:
+        yield
+    finally:
+        _WHERE.name = was
+
+
+def where_now() -> str:
+    return getattr(_WHERE, "name", "") or "ask"
 
 
 def taken() -> ToolError | None:
@@ -120,6 +184,30 @@ def install_hint(failed: str, which: Callable[[str], str | None] | None = None) 
     return "No other AI tool is installed."
 
 
+def helps(err: ToolError, env: dict | None = None, signed_in: Callable[..., bool | None] = tools.signed_in) -> bool:
+    """Whether the tool's own sign-in can help with this failure (spec 45 §3): it is a refused sign-in, unless a key the
+    tool takes before its sign-in is set where Orkline runs, another Claude Code was renewing the sign-in, or only the
+    weak words matched and the tool says it is signed in."""
+    if err.kind != LOGIN or harnesses.get(err.harness) is None:
+        return False
+    env = dict(os.environ) if env is None else env
+    if any(env.get(k) for k in TAKES_KEYS.get(err.harness, ())):
+        return False
+    low = err.detail.lower()
+    if err.harness == "claude" and RENEWING in low:
+        return False
+    if not _STRONG.search(low):                    # the work's own words can hold them
+        return signed_in(err.harness, env) is not True
+    return True
+
+
+def helped(err: ToolError) -> bool:
+    """`helps(err)`, asked once for an error (a host's watcher asks it first)."""
+    if err.helped is None:
+        err.helped = helps(err)
+    return err.helped
+
+
 def what_to_do(err: ToolError) -> str:
     """The step the person can take for this kind, beyond Switch and Retry ("" when none)."""
     h = harnesses.get(err.harness)
@@ -128,6 +216,9 @@ def what_to_do(err: ToolError) -> str:
     if err.kind == MISSING:
         return f"Install it: {h.install}"
     if err.kind == LOGIN:
+        if err.helped is True:                   # a host that opens the sign-in judged it (`watch`): the button says it
+            where = "claude, then /login" if err.harness == "claude" else h.login
+            return f"Sign in opens {h.title}'s sign-in. In a terminal: {where}."
         return claude_sign_in(err.detail) if err.harness == "claude" else f"Sign in again in a terminal: {h.login}"
     if err.kind == LIMIT:
         return "Wait a few minutes, or switch to another tool."

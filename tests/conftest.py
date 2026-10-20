@@ -148,3 +148,12 @@ def _codex_beside_claude_and_agy(monkeypatch, billing: str) -> None:
     monkeypatch.setattr(codex_quota, "_converse", lambda cmd, messages, timeout, cwd: raw)
     monkeypatch.setattr(codex_quota, "datetime", type("D", (datetime,), {"now": staticmethod(
         lambda tz=None: datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc))}))
+
+
+@pytest.fixture(autouse=True)
+def _nothing_watches_the_tools():
+    """A host that watches the AI tools' failures (core/sign_ins.py, spec 45) stops watching with its test."""
+    yield
+    from orkboard.realm import tool_errors
+    tool_errors._WATCHERS.clear()
+    tool_errors._OK_WATCHERS.clear()

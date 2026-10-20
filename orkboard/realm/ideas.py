@@ -481,7 +481,7 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
 # -- what runs on an idea: <state_dir>/ideas/<slug>/ ------------------------------------------------
 
 STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": "",
-                 "queue": "", "held_until": "", "measure": None}
+                 "queue": "", "held_until": "", "held_for": "", "measure": None}
 
 
 def queue_of(st: dict) -> str:

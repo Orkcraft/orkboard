@@ -35,6 +35,8 @@ TOOL_ERROR = "tool_error"  # harness, tool, kind, title, line, action, detail, s
                           # AI tool failed (realm/tool_errors.py report); a face shows Switch, Retry and Details
 ORDER = "order"      # kind, building, source, order, card: the Workchief gave an order a face runs as its job
                      # (a road for the road planner, an ork for the Recruiter, a change for a keeper)
+SIGN_IN = "sign_in"  # harness, tool, state, by, auto, why, command, waiting: a tool's sign-in changed (core/sign_ins.py, spec 45 §4)
+SIGNED_IN = "signed_in"  # harness: a tool is signed in again; what was held for it goes on (spec 45 §6)
 LOOK = "look"        # the greeting of "since your last look" changed (core/last_look.py): a face draws it again
 
 

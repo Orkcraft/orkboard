@@ -27,7 +27,8 @@ from orkboard import __version__, settings
 from orkboard.core import bus as b
 from orkboard.core import treasury, updates as core_updates
 from orkboard.core.board_limits import BoardLimits
-from orkboard.realm import analytics, call_log, day_log, event_log, halt
+from orkboard.core.sign_ins import SignInError, SignIns
+from orkboard.realm import analytics, board_map, call_log, day_log, event_log, halt
 from orkboard.sources import telemetry
 
 TELEMETRY_REFRESH_S = 5.0       # as Orkline's host: this run's spend read again
@@ -65,6 +66,11 @@ class BoardHost:
         self.day_logs = day_logs
         self.demo = demo
         self.wiki_of = wiki_of
+
+    @property
+    def sign_ins(self) -> Any:
+        """The host's sign-ins (core/sign_ins.py), which the keeper and the runner hold work for; None in a host with none."""
+        return getattr(self._owner, "sign_ins", None)
 
     @property
     def machine(self) -> settings.MachineSettings:
@@ -191,6 +197,11 @@ class Orkboard:
         self.town = self                # what gui/updates.py, gui/onboarding.py and gui/server.py read as `host.town`:
         self.phone_face = BoardPhone    # the machine, demo, call and toast — the host's own here, there is no town
         self.bus.subscribe(b.ANY, self._event)
+        # a tool's own sign-in (spec 45): watched except in the demo; the work that needs it is held by the projects' Boards
+        self.sign_ins = SignIns(self.bus, None, settings.path().parent, waiting=self._sign_in_waiting,
+                                root=lambda: None if self.demo else self.repo_root)
+        if not demo:
+            self.sign_ins.watch()
         self.projects = board_projects.Projects(self)
         self.commands: dict[str, Callable[[dict], Any]] = {
             "halt": self._halt,
@@ -198,6 +209,9 @@ class Orkboard:
             "crash.window": lambda a: None,           # the crash reporter is Orkline's (core/crashes.py)
             "mobile.hello": self._hello,
             "mobile.snapshot": self._mobile_snapshot,
+            "tools.sign_in": self._sign_in,                # desktop only: a phone opens nothing on the computer (BoardPhone)
+            "tools.sign_in_cancel": self._sign_in_cancel,
+            "tools.sign_in_done": self._sign_in_done,
         }
         self.pusher = phone_push.Pusher(self)          # notifications to a paired phone (spec 42 §3)
         self.commands.update(self.pusher.commands())
@@ -271,7 +285,8 @@ class Orkboard:
     def _with_ops(self, board: dict) -> dict:
         """The shown project's Board, Operations' rows in its Needs you (spec 38 §8)."""
         from orkboard.gui.ideas_board import sort_needs
-        return {**board, "needs_you": sort_needs([*board.get("needs_you", []), *self.ops.needs()])}
+        needs = [*board.get("needs_you", []), *self.ops.needs(), *board_map.sign_in_needs(self.sign_ins.snapshot())]
+        return {**board, "needs_you": sort_needs(needs)}
 
     def budget_ok(self, root: Path | None = None) -> bool:
         """Whether work may start in a project (the shown one when none is named): this run's spend under its cap."""
@@ -302,8 +317,10 @@ class Orkboard:
             ops_needs = self.ops.count()
         except Exception:                      # Operations never breaks the snapshot
             ops_needs = 0
-        board = {**board, "needs_you": int(board.get("needs_you") or 0) + ops_needs, "ops_rev": self.ops.rev}
-        return {**board, "focus": "board", "onboarding": self.onboarding.snapshot(),
+        sign_in = self.sign_ins.snapshot()
+        board = {**board, "needs_you": int(board.get("needs_you") or 0) + ops_needs + len(board_map.sign_in_needs(sign_in)),
+                 "ops_rev": self.ops.rev}
+        return {**board, "focus": "board", "onboarding": self.onboarding.snapshot(), "sign_in": sign_in,
                 "hud": {"show_gold": show_gold, "gold": gold, "lumber": lumber},
                 "repo": str(root) if root is not None else "", "projects": self.projects.list(),
                 "update": self.updates.snapshot()}
@@ -350,12 +367,14 @@ class Orkboard:
         self.projects.tick(now)           # every open project's Board: showing another stops nothing
         self.ops.tick(now)
         self.pusher.tick()
+        self.sign_ins.tick()
 
     def attach_phones(self, listener: Any) -> None:
         """The phone listener (gui/phones.py) made: the pusher reads its devices and its open sockets."""
         self.pusher.listener = listener
 
     def close(self) -> None:
+        self.sign_ins.close()             # quitting stops the sign-ins it opened
         self.ops.close()
         self.projects.close_all()
         call_log.keep_days(None)
@@ -370,14 +389,51 @@ class Orkboard:
             raise CommandError(f"Unknown command: {name}")
         try:
             return fn(dict(args or {}))
-        except (ideas.IdeasError, onboarding.OnboardingError, updates.UpdateError, OpsError, phone_push.PushRefused) as e:
+        except (ideas.IdeasError, onboarding.OnboardingError, updates.UpdateError, OpsError, phone_push.PushRefused,
+                SignInError) as e:
             raise CommandError(str(e)) from None
+
+    # -- a tool's own sign-in (spec 45 §5): the desktop's commands ------------------------------------------
+
+    @staticmethod
+    def _harness(args: dict) -> str:
+        harness = args.get("harness")
+        if not isinstance(harness, str) or not harness:
+            raise SignInError("Say which AI tool")
+        return harness
+
+    def _sign_in(self, args: dict) -> dict | None:
+        """`tools.sign_in {harness, auto}`: the tool's own sign-in opens (in the browser, or in a terminal); the tool's
+        entry. `auto` is taken once per episode, by the first page that asks. Refused for a tool that is unknown or not
+        found on this computer."""
+        auto = args.get("auto", False)
+        if not isinstance(auto, bool):
+            raise SignInError("auto is true or false")
+        return self.sign_ins.start(self._harness(args), auto=auto)
+
+    def _sign_in_cancel(self, args: dict) -> dict | None:
+        return self.sign_ins.cancel(self._harness(args))
+
+    def _sign_in_done(self, args: dict) -> dict | None:
+        """A sign-in in a terminal, of a tool that cannot be told it is signed in: the person says it is done."""
+        return self.sign_ins.done(self._harness(args))
+
+    def _sign_in_waiting(self, harness: str) -> int:
+        """How much waits for this tool's sign-in now: tasks, ideas and operations, in every open project."""
+        n = 0
+        for p in self.projects.open_ones:
+            for part in (getattr(p.ideas, "_runner", None), p.ideas.keeper):
+                if part is not None:
+                    n += part.held_for(harness)
+        ops = getattr(self, "ops", None)
+        return n + (ops.runner.held_for(harness) if ops is not None else 0)
 
     def _halt(self, args: dict) -> int:
         """🛑 Stop all: every open project's keeper and runner stop, every operation's call, every agent process is
         killed."""
         self.projects.stop_all(device="phone" if args.get("device") == "phone" else "desktop")
         self.ops.stop_all()
+        self.sign_ins.stop_all()
         stopped = halt.halt_all()
         self.toast(f"Stopped {stopped} run{'s' if stopped != 1 else ''}" if stopped else "Nothing was running",
                    title="Stop all")
