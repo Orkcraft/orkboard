@@ -106,3 +106,17 @@ async def test_a_tap_on_an_idea_opens_it_and_waits_for_you_opens_needs_you(fake_
         await page.get_by_role("button", name="Back", exact=True).click()
         await card.get_by_role("button", name="Waits for you: 1 answer, 3 results to check").click()
         assert await page.locator(".needs-pane").is_visible() and not await page.locator(".board-tab-pane").is_visible()
+
+
+@pytest.mark.asyncio
+async def test_nights_in_a_row_is_line_seven_from_two_and_not_at_one_spec_42_h(fake_repo, monkeypatch):
+    for nights, said in ((4, True), (1, False)):
+        ANSWER["nights"] = nights
+        async with _phone(fake_repo, monkeypatch, init=seed(fake_repo, 9)) as (stub, page):
+            card = page.get_by_label("While you were away")
+            await card.wait_for(timeout=WAIT_MS)
+            lines = [" ".join(t.split()) for t in await _lines(card).all_text_contents()]
+            if said:
+                assert lines[-2:-1] == ["4 nights in a row with work done."] and lines[-1].startswith("Waits for you")
+            else:
+                assert not [x for x in lines if "in a row" in x]

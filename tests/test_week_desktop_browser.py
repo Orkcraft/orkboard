@@ -166,3 +166,24 @@ def test_the_maps_last_week_link_shows_the_card_any_time_and_logs_via_map(gui):
     pg.get_by_label("Last week").get_by_text("Nothing was merged or finished.").wait_for(timeout=WAIT_MS)
     pg.close()
     assert not errors, "\n".join(errors)
+
+
+def test_nights_in_a_row_is_line_four_of_this_week_from_two_and_after_the_nights_of_last_week_spec_42_h(gui):
+    host = WeekHost()
+    host.week.update(streak=5)
+    pg, host, errors = _show(gui, host)
+    assert _lines(pg)[2:4] == ["The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running", "5 nights in a row"]
+    pg.keyboard.press("Escape")
+    host.week.update(streak=1)
+    pg.get_by_role("button", name="Spend today: $2.40. This week's work").click()
+    pg.get_by_role("dialog", name="This week").locator(".week").wait_for(timeout=WAIT_MS)
+    assert not [x for x in _lines(pg) if "in a row" in x]
+    pg.close()
+    host = LastHost()
+    host.last = {**LAST, "streak": 5}
+    pg, host, errors2 = _open_map(gui, host, init=_seed(_iso(14)), ready=".map-card")
+    card = pg.get_by_label("Last week")
+    card.wait_for(timeout=WAIT_MS)
+    assert [" ".join(p.text_content().split()) for p in card.locator(".away__lines p").all()][-1] == "Nights: 5 with work done, 2 with none · 5 in a row"
+    pg.close()
+    assert not errors and not errors2

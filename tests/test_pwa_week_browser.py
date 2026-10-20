@@ -155,3 +155,21 @@ async def test_no_key_writes_it_and_the_drawers_row_shows_the_card_any_time(fake
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "phone", "via": "map"})
         await card.get_by_role("button", name="Close").click()
         assert await card.count() == 0
+
+
+@pytest.mark.asyncio
+async def test_nights_in_a_row_in_this_week_and_last_week_from_two_spec_42_h(fake_repo, monkeypatch):
+    ANSWER.update(streak=5)
+    LASTS.update(streak=5)
+    async with _phone(fake_repo, monkeypatch, init=_seed(fake_repo, _iso(14))) as (stub, page):
+        card = page.get_by_label("Last week")
+        await card.wait_for(timeout=WAIT_MS)
+        assert [" ".join(t.split()) for t in await card.locator(".away-lines p").all_text_contents()][-1] == "Nights: 5 with work done, 2 with none · 5 in a row"
+        await card.get_by_role("button", name="Close").click()
+        sheet = await _sheet(page)
+        lines = [" ".join(t.split()) for t in await sheet.locator(".week p").all_text_contents()]
+        assert lines[2:4] == ["The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running", "5 nights in a row"]
+        await sheet.get_by_role("button", name="Close").click()
+        ANSWER.update(streak=1)
+        sheet = await _sheet(page)
+        assert not [x for x in await sheet.locator(".week p").all_text_contents() if "in a row" in x]

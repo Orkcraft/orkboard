@@ -143,3 +143,19 @@ def test_the_card_does_not_scroll_the_page_sideways_at_390_px(gui):
     assert pg.get_by_label("While you were away").bounding_box()["width"] <= 390
     pg.close()
     assert not errors, "\n".join(errors)
+
+
+def test_nights_in_a_row_is_line_seven_from_two_and_not_at_one_spec_42_h(gui):
+    for nights, said in ((5, True), (2, True), (1, False), (0, False)):
+        host = RecapHost()
+        host.recap = {**RECAP, "nights": nights}
+        pg, host, errors = _page(gui, 9, host)
+        card = pg.get_by_label("While you were away")
+        card.wait_for(timeout=WAIT_MS)
+        lines = [_text(p) for p in card.locator(".away__lines p").all()]
+        if said:
+            assert lines[-3:] == ["≈$4.20 of work at API prices, not your bill.", f"{nights} nights in a row with work done.", "Waits for you: 1 answer, 3 results to check"]
+        else:
+            assert not [x for x in lines if "in a row" in x]
+        pg.close()
+        assert not errors, "\n".join(errors)

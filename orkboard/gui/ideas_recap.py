@@ -30,6 +30,7 @@ class RecapMixin:
         got = board_recap.build(Path(self.host.repo_root), self.state_dir, since, now, self.board(make=False), into=self._into())
         snap = self.snapshot()
         got["waits"] = {"you": int(snap.get("needs_you") or 0), "review": int(snap.get("review_count") or 0)}
+        got["nights"] = board_week.streak(Path(self.host.repo_root), self.settings_now(), now)
         return got
 
     def flags(self, args: dict) -> dict:
