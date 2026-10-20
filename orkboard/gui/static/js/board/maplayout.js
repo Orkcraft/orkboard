@@ -32,6 +32,12 @@ export const spentWords = (usd) => (usd == null ? "—" : `≈$${usd < 10 ? usd.
 
 export const goalState = (state) => say(GOAL_WORDS[state] || state || "");
 
+/** A trail proposal's words (spec 46 §7): who proposed it (`trail_by`), and the idea of the person's it may be the same as. */
+export function trailWords(n) {
+  if (n.state !== "proposed") return "";
+  return [n.trail_by?.name ? `proposed by ${n.trail_by.name}` : "", n.same_as?.short ? `the same as your ${n.same_as.short}?` : ""].filter(Boolean).join(" · ");
+}
+
 /** What a node shows: the Board's row words, then what only the Map adds. */
 export function nodeView(n, titles) {
   const [rowWords, spin] = rowOf(n, titles);
@@ -40,7 +46,7 @@ export function nodeView(n, titles) {
   return { words: rowWords, needs, wait: wait && !rowWords.includes(wait) ? wait : "",
     // a node moves by itself unless it waits for something; a spinner shows only for what runs now
     spin: spin || (["working", "reading", "planning"].includes(n.state) && !wait),
-    cost: estimateWords(n.estimate) };
+    cost: estimateWords(n.estimate), trail: trailWords(n) };
 }
 
 /** The nodes of a goal that show in the tree, by tier (top to bottom), each tier in the Board's order. */

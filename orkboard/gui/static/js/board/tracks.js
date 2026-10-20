@@ -7,8 +7,8 @@ import { useEffect, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { say, town } from "../link.js";
 import { WhoHead, CRAFT_WORDS } from "../orkui.js";
-import { board, track, stateWords, goalList, hhmm, dayAt, PRIORITY_WORDS, OPS } from "./store.js";
-import { act as run, preview, showIdea, showGoal, roles } from "../shell/store.js";
+import { board, track, stateWords, goalList, hhmm, dayAt, layingOutWords, PRIORITY_WORDS, OPS } from "./store.js";
+import { act as run, preview, showIdea, showGoal, roles, mapData } from "../shell/store.js";
 import { currentProject } from "../shell/projects.js";
 import { openDialog } from "../shell/modals.js";
 import { TargetChip } from "./target.js";
@@ -40,7 +40,7 @@ function GoalCard({ g }) {
   const known = roles.value?.roles || [];
   const party = (g.team || []).map((s) => known.find((r) => r.slug === s)).filter(Boolean);
   const heads = [g.leader, ...party].filter((x) => x?.head);
-  const state = g.state === "reading" ? `${leaderOf(g)} is reading` : say(GOAL_WORDS[g.state] || "");
+  const state = g.state === "reading" ? `${leaderOf(g)} is reading` : layingOutWords(g) || say(GOAL_WORDS[g.state] || "");
   const led = g.leader?.name || "Taskmaster";
   return html`<div class="board-goals__one board-goal" data-state=${g.state} data-goal=${g.slug}>
     ${heads.length > 0 && html`<span class="board-goal__heads" aria-hidden="true">${heads.map((x) => html`<${WhoHead} key=${x.slug} head=${x.head} />`)}</span>`}
@@ -134,17 +134,51 @@ function Card({ i, titles }) {
   </div></li>`;
 }
 
+/** A trail proposal of the goal on the Board (spec 46 §7): *proposed*, Take (at the goal's priority) and No, whose reason starts as *the same as <title>* when the idea added is one. */
+function TrailCard({ i, twin }) {
+  const [reason, setReason] = useState("");
+  const [declining, setDeclining] = useState(false);
+  const t = i.title;
+  const no = () => run("ideas.proposal", { slug: i.slug, take: false, via: "board", ...(reason.trim() ? { reason: reason.trim() } : {}) });
+  const asking = () => { setReason(twin ? `the same as ${twin}` : ""); setDeclining(true); };
+  return html`<li class="board-card-row is-trail" data-state="proposed" data-slug=${i.slug}><button class="board-card kit-well" data-state="proposed" onClick=${() => showIdea(i.slug, { via: "board" })}>
+    <b class="board-card__title">${t}</b>
+    <span class="board-card__meta"><span class="board-state" data-state="proposed">proposed</span></span></button>
+  <div class="board-card__acts">
+    <button class="ork-btn primary" aria-label=${`Take: ${t}`} onClick=${() => run("ideas.proposal", { slug: i.slug, take: true, via: "board" })}>Take</button>
+    ${!declining && html`<button class="ork-btn" aria-label=${`No: ${t}`} onClick=${asking}>No</button>`}
+    ${declining && html`<input class="ork-field" value=${reason} aria-label=${`Why not: ${t}`} placeholder="Why not? (optional, one line)" autofocus
+        onInput=${(e) => setReason(e.target.value)} onKeyDown=${(e) => { if (e.key === "Enter") no(); }} />
+      <button class="ork-btn" aria-label=${`Decline: ${t}`} onClick=${no}>No</button>
+      <button class="board-link" onClick=${() => setDeclining(false)}>Cancel</button>`}
+  </div></li>`;
+}
+
+/** The goal's trail proposals that wait, in the trail's order (Needs you's `trail` row names them); the idea each may be the same as, from the Map. */
+function trailOf(b, goal) {
+  const row = (b.needs_you || []).find((n) => n.kind === "trail" && n.goal === goal);
+  if (!row) return [];
+  const by = Object.fromEntries(b.ideas.map((i) => [i.slug, i]));
+  const nodes = Object.fromEntries((mapData.value?.nodes || []).map((n) => [n.slug, n]));
+  return (row.ideas || []).filter((x) => by[x.slug]?.state === "proposed").map((x) => {
+    const twin = nodes[x.slug]?.same_as;
+    return { i: by[x.slug], twin: twin ? by[twin.slug]?.title || twin.short : "" };
+  });
+}
+
 export function Ideas() {
   const b = board.value;
   const titles = Object.fromEntries(b.ideas.map((i) => [i.slug, i.title]));
   const mine = b.ideas.filter((i) => (!track.value || i.track === track.value) && !i.in_needs_you && i.state !== "proposed")
     .sort((x, y) => x.order - y.order);
   const open_ = mine.filter((i) => i.state !== "done"), done = mine.filter((i) => i.state === "done");
+  const trail = track.value ? trailOf(b, track.value) : [];
   const some = (b.tracks || []).some((g) => g.slug !== "general");
   return html`<section class="board-ideas" aria-label="Ideas">
     <h3 class="board-sub kit-band">Ideas ${open_.length ? html`<span class="board-count kit-well">${open_.length}</span>` : ""}
       <button class="ork-btn primary board-ideas__new" onClick=${() => (some ? openDialog("idea", track.value ? { goal: track.value } : {}) : openDialog("goal", { then: "idea" }))}>New idea</button></h3>
-    ${open_.length ? html`<ul class="board-list">${open_.map((i) => html`<${Card} key=${i.slug} i=${i} titles=${titles} />`)}</ul>`
+    ${open_.length || trail.length ? html`<ul class="board-list">${open_.map((i) => html`<${Card} key=${i.slug} i=${i} titles=${titles} />`)}
+      ${trail.map((t) => html`<${TrailCard} key=${t.i.slug} i=${t.i} twin=${t.twin} />`)}</ul>`
       : html`<p class="ok-tone-muted">No idea here yet.</p>`}
     ${done.length > 0 && html`<details class="board-done"><summary>Done (${done.length})</summary>
       <ul class="board-list">${done.map((i) => html`<${Card} key=${i.slug} i=${i} titles=${titles} />`)}</ul></details>`}

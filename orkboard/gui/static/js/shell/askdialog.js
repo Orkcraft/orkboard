@@ -27,7 +27,7 @@ export function AskDialog({ slug, goal = false, title = "", asked = null, picks 
   return html`<${Modal} title=${`Questions: ${title}`} onClose=${closeDialog} wide=${true}
     foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Later</button>`}>
     ${questions === null ? html`<p class="ok-tone-muted">Opening…</p>`
-      : questions.length ? html`<${Questions} questions=${questions} onSend=${send} initial=${asked ? picks : []} hints=${asked ? asked.map((q) => q.why || "") : []} />`
+      : questions.length ? html`<${Questions} questions=${questions} onSend=${send} initial=${asked ? picks : []} hints=${asked ? asked.map((q) => q.why || "") : []} askers=${asked ? asked.map((q) => q.by || null) : []} />`
         : html`<p class="ok-tone-muted">No question is open any more.</p>`}
   <//>`;
 }

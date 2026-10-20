@@ -431,6 +431,8 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .needs-pane .need { touch-action: pan-y; transition: transform 0.15s ease; }
 .need.quick { display: flex; align-items: flex-start; }
 .quick-q p { margin: var(--ork-2) 0; color: var(--ork-ink); }
+.ask-by { display: inline-flex; align-items: center; gap: var(--ork-2); }                   /* who asks a goal's question (spec 46 §7) */
+.need-ideas { margin: 0; padding-left: var(--ork-5); }
 .quick-q .answers { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
 .ork-btn.answer[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }   /* chosen: inverted, as orkUI's hover */
 .limits-note { margin: 0; font: var(--ork-type-caption); }

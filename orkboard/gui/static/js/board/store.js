@@ -36,6 +36,12 @@ export function stateWords(i) {
     plan: "plan ready", working: `working ${p.done}/${p.total}`, done: "done", failed: "needs you" }[i.state] || i.state);
 }
 
+/** *<leader> is laying out its ideas…* while a goal that is ready has its leader laying out its trail (spec 46 §7); else "". */
+export function layingOutWords(g) {
+  if (!g || g.state !== "ready" || !g.trail?.busy) return "";
+  return `${g.leader?.slug && g.leader.slug !== "taskmaster" ? g.leader.name : say("the Taskmaster")} is laying out its ideas…`;
+}
+
 export const PRIORITY_WORDS = { high: "High", normal: "Normal", low: "Low" };
 const PRIORITY_ORDER = ["high", "normal", "low"];
 

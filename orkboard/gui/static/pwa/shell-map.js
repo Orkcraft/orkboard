@@ -9,7 +9,7 @@
 import { h, icon, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { keepGoal } from "./shell-top.js";
-import { rowState } from "./shell-ideas.js";
+import { rowState, trailWords } from "./shell-ideas.js";
 import { goalState, partyFold } from "./shell-goal.js";
 import { PRIORITY_WORDS, hhmm, dayAt } from "./shell-words.js";
 import { whoHead } from "./shell-who.js";
@@ -248,7 +248,10 @@ export function makeMap(core, goalSheet) {
   function actionOf(node) {
     if (node.state === "done") return null;
     const slug = node.slug, title = node.title;
-    const go = (name, args, done) => async () => { if (await core.call(name, { slug, ...args, via: "map" })) { core.flash(done); core.refresh(); } };
+    const go = (name, args, done) => async () => { if (await core.call(name, { slug, ...args, via: "map" })) { if (done) core.flash(done); core.refresh(); } };
+    if (node.state === "proposed" && node.proposed_by === "trail" && !node.needs_you) {          // its goal's leader laid it out (spec 46 §7): Take, at the goal's priority
+      return { icon: null, text: "Take", aria: `Take “${title}”`, run: go("ideas.proposal", { take: true }, ""), key: "take" };
+    }
     if (node.needs_you === "plan" && !(node.waits_on || []).length) {
       const n = (node.tasks || []).length, cost = price(node.estimate);
       return { icon: "play", text: cost, aria: `Start “${title}”: ${n} ${n === 1 ? "task" : "tasks"}${cost ? `, about ${cost.replace(/^~/, "")}` : ""}`,
@@ -271,7 +274,7 @@ export function makeMap(core, goalSheet) {
     const needsHand = node.needs_you && node.state !== "done";
     const isNew = since && node.updated && Date.parse(node.updated) > since;
     const on = (node.checks || []).filter((c) => c.applies), passed = on.filter((c) => c.state === "passed").length;
-    const words = [s.text, why && why !== s.text && !s.text.includes(why) ? why : "", node.by_itself ? "by itself" : "",
+    const words = [s.text, trailWords(node), why && why !== s.text && !s.text.includes(why) ? why : "", node.by_itself ? "by itself" : "",
       node.estimate ? `≈$${node.estimate.usd_low.toFixed(2)}–${node.estimate.usd_high.toFixed(2)}` : "", on.length ? `checks ${passed}/${on.length}` : "", isNew ? "new" : ""]
       .filter(Boolean).join(" · ");
     const head = stopHead(node, leader);

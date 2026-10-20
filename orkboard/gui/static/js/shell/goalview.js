@@ -6,7 +6,7 @@ import { useEffect, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, openLink } from "../link.js";
 import { goal, act, showDoc, roles, logOpened } from "./store.js";
-import { board, ask } from "../board/store.js";
+import { board, ask, layingOutWords } from "../board/store.js";
 import { WhoHead } from "../orkui.js";
 import { openDialog } from "./modals.js";
 import { ErrorLine } from "./errors.js";
@@ -23,11 +23,13 @@ export function GoalView() {
   const g = goal.value;
   if (!g) return html`<p class="ok-tone-muted">Opening…</p>`;
   const lead = leaderThe(g), named = g.leader?.slug && g.leader.slug !== "taskmaster";
-  const words = g.state === "reading" && named ? `${lead} is reading` : GOAL_STATE[g.state];
+  const laying = layingOutWords(g);
+  const words = laying || (g.state === "reading" && named ? `${lead} is reading` : GOAL_STATE[g.state]);
   return html`<div class="board-ideaview shell-goal" data-state=${g.state}>
     <div class="board-bar"><span class="board-state" data-state=${g.state}>${say(words || "not read yet")}</span>
       <span class="board-size kit-well">${({ high: "High", normal: "Normal", low: "Low" })[g.priority]}</span>
       ${g.deadline && html`<span class="ok-tone-muted">by ${g.deadline}</span>`}
+      ${g.state === "ready" && !g.trail?.waiting && html`<button class="ork-btn" disabled=${!!g.trail?.busy} onClick=${() => act("ideas.trail", { goal: g.slug })}>Lay out ideas</button>`}
       <button class="ork-btn" onClick=${() => openDialog("goal", { slug: g.slug })}>Edit</button></div>
     ${g.state_error && g.state === "raw" && html`<${ErrorLine} text=${g.state_error} />`}
     <section class="shell-goal__sec" aria-label="Description"><h3 class="board-sub">Description</h3>
@@ -43,7 +45,7 @@ export function GoalView() {
       })}</ul><${SaveParty} goal=${g} /></section>`}
     <section class="shell-goal__sec" aria-label="What the party did"><${PartyFold} slug=${g.slug} /></section>
     <section class="shell-goal__sec" aria-label="Summary"><h3 class="board-sub">Summary ${g.title_by === "keeper" && html`<span class="ok-tone-muted">· title by the Taskmaster</span>`}</h3>
-      <p class="shell-brief">${g.summary || html`<span class="ok-tone-muted">${g.state === "reading" ? `${lead} is reading the goal…` : "Not written yet."}</span>`}</p></section>
+      <p class="shell-brief">${g.summary || html`<span class="ok-tone-muted">${g.state === "reading" ? `${lead} is reading the goal…` : layingOutWords(g) || "Not written yet."}</span>`}</p></section>
     <section class="shell-goal__sec" aria-label="Metrics"><h3 class="board-sub">Metrics ${g.metrics_by === "keeper" && html`<span class="ok-tone-muted">· by the Taskmaster</span>`}</h3>
       ${g.metrics.length ? html`<table class="shell-metrics"><thead><tr><th>What is measured</th><th>Target</th><th>How it is counted</th></tr></thead>
         <tbody>${g.metrics.map((m) => html`<tr key=${m.name}><td>${m.name}</td><td>${m.target || "—"}</td><td>${m.how || html`<span class="ok-tone-muted">—</span>`}</td></tr>`)}</tbody></table>`

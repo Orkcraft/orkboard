@@ -123,7 +123,8 @@ class Stub:
                           else {"kind": "night", "ref": "", "title": "", "until": ""} if i.get("queue") == "night" or i.get("start_at") == "night" else None,
                           "needs_you": needs,
                           "progress": {"done": sum(t["state"] == "merged" for t in tasks), "total": len(tasks)}, "tasks": tasks, "estimate": None,
-                          "by_itself": False, "folded": i["state"] == "done", "updated": "", "checks": copy.deepcopy(i.get("checks") or (self.checks if i["slug"] == "sync" else []))})
+                          "by_itself": False, "folded": i["state"] == "done", "updated": "", "checks": copy.deepcopy(i.get("checks") or (self.checks if i["slug"] == "sync" else [])),
+                          "proposed_by": "", "trail_by": None, "same_as": None, **i.get("node", {})})        # spec 46: a trail proposal's `node` fields
         used = {n["goal"] for n in nodes}
         goals = [g | {"done_when": [m["name"] for m in g.get("metrics", [])], "ideas": sum(n["goal"] == g["slug"] for n in nodes),
                       "done": sum(n["goal"] == g["slug"] and n["state"] == "done" for n in nodes), "usd": None,
@@ -136,7 +137,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer", "parties", "party_save", "party_drop")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer", "parties", "party_save", "party_drop", "trail", "trail_take")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -243,6 +244,12 @@ class Stub:
         if name == "ideas.goal":
             g = self.goals[a["slug"]]
             return g | {"description": g["about"], "talk": [], "busy": g.get("busy") or g["state"] == "reading", "sections": []}
+        if name == "ideas.trail":                     # Lay out ideas (spec 46 §4): the goal's leader is laying it out now
+            self.goals[a["goal"]]["trail"] = {"at": "", "waiting": 0, "busy": True}
+            return self.bump({"ok": True})
+        if name == "ideas.trail_take":                # Take all: the goal's trail row is answered
+            self.extra_needs = [n for n in self.extra_needs if n["kind"] != "trail" or n["goal"] != a["goal"]]
+            return self.bump({"ok": True})
         if name == "ideas.read_now":
             self.ideas[a["slug"]]["state"] = "ready"
             return self.bump({"ok": True})
@@ -981,3 +988,95 @@ async def test_a_row_and_a_stop_held_for_the_sign_in_say_waits_claude_codes_sign
             await page.wait_for_timeout(100)
         assert "waits: Claude Code's sign-in" in said and "limits" not in said
         assert not any(c[0].startswith("tools.") for c in stub.calls)
+
+
+# -- spec 46 D: the trail's faces on the phone ---------------------------------------------------------------------------------
+
+REVIEWER = {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}
+LEADER = {"slug": "taskmaster", "name": "Taskmaster", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}
+
+
+def _trail_row(goal="docs", title="Docs", n=5):
+    ideas = ["Write the queue", "Retry on a lost signal", "Test it offline", "Write the notes", "Release it"][:n]
+    return {"kind": "trail", "idea": "", "goal": goal, "title": title, "short": title, "text": f"{n} ideas laid out", "priority": "low", "blocks": False,
+            "at": "2026-10-20T09:00:00", "ideas": [{"slug": f"t{i}", "title": t, "short": t} for i, t in enumerate(ideas, 1)]}
+
+
+def _goals(stub):
+    stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready")
+    stub.goals["docs"] = stub.goal("docs", "Docs", "low", "ready")
+    stub.ideas["ship-1"] = stub.idea("ship-1", "Draft the pricing page", "plan", 5, track="ship")
+    stub.ideas["docs-1"] = stub.idea("docs-1", "Write the docs index", "raw", 6, track="docs", queue="night")
+
+
+@pytest.mark.asyncio
+async def test_a_goals_question_says_who_asks_with_the_head_and_the_name_on_its_card_and_in_its_form(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.extra_needs = [{"kind": "goal", "idea": "", "goal": "docs", "title": "Docs", "text": "Which channel first?", "priority": "high", "blocks": False, "at": "",
+                             "questions": ["Which channel first?", "Who checks the invoices?"],
+                             "asked": [{"ask": "Which channel first?", "choices": ["npm", "the forum"], "pick": 0, "why": "", "by": LEADER},
+                                       {"ask": "Who checks the invoices?", "choices": [], "pick": None, "why": "", "by": REVIEWER}]}]
+        stub.bump({})
+        await _needs(page)
+        card = page.locator(".need.quick[data-kind=goal]")
+        await card.wait_for(timeout=WAIT_MS)
+        qs = card.locator(".quick-q")
+        assert "Taskmaster asks:" in await qs.nth(0).inner_text() and "Reviewer asks:" in await qs.nth(1).inner_text()
+        assert await qs.nth(1).get_attribute("data-by") == "reviewer"
+        for n in (0, 1):
+            assert await qs.nth(n).locator("img.ork-race__head.small").count() == 1            # the head of who asks, 12 × 11
+        await card.get_by_role("button", name="More").click()
+        form = page.locator(".q-form")
+        await form.wait_for(timeout=WAIT_MS)
+        assert "reviewer asks:" in (await form.inner_text()).lower() and await form.locator("img.ork-race__head.small").count() == 2
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_trail_row_names_the_goal_and_three_ideas_take_all_sends_the_goal_and_look_shows_it_on_the_boards_map(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        _goals(stub)
+        count = page.locator(".board-tab", has_text="Needs you").locator(".count")
+        before = await count.inner_text()
+        stub.extra_needs = [_trail_row()]
+        stub.bump({})
+        await _pick_goal(page, "ship")
+        await page.locator(".map-goal[data-goal=ship]").wait_for(timeout=WAIT_MS)                         # the Board shows Ship v1
+        await _needs(page)
+        row = page.locator(".need-trail")
+        await row.wait_for(timeout=WAIT_MS)
+        assert await row.locator("b").inner_text() == "Docs: 5 ideas laid out"
+        assert await row.locator(".need-ideas li").all_inner_texts() == ["Write the queue", "Retry on a lost signal", "Test it offline", "and 2 more"]
+        assert "primary" in await row.get_by_role("button", name="Take all: Docs").get_attribute("class")
+        assert await count.inner_text() == before                                                        # a trail waits for no answer: out of the count
+        await row.get_by_role("button", name="Look: Docs").click()
+        await page.locator(".map-goal[data-goal=docs]").wait_for(timeout=WAIT_MS)                         # the Board tab, its Map at that goal
+        assert "board" in (await page.locator(".board-tab.is-active").inner_text()).lower()
+        await _needs(page)
+        await page.locator(".need-trail").get_by_role("button", name="Take all: Docs").click()
+        assert await _called(stub, "ideas.trail_take", {"goal": "docs", "via": "needs"})
+        await page.locator(".need-trail").wait_for(state="detached", timeout=WAIT_MS)
+
+
+@pytest.mark.asyncio
+async def test_lay_out_ideas_is_on_the_goals_screen_while_it_is_ready_and_no_trail_waits_and_the_goal_says_who_is_laying_out(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        _goals(stub)
+        stub.goals["ship"]["leader"] = {"slug": "product-manager", "name": "Product manager", "head": None}
+        stub.bump({})
+        await _pick_goal(page, "ship")
+        await page.locator(".map-goal[data-goal=ship]").wait_for(timeout=WAIT_MS)
+        await page.get_by_role("button", name="Open goal Ship v1").click()
+        lay = page.get_by_role("button", name="Lay out ideas")
+        await lay.wait_for(timeout=WAIT_MS)
+        await lay.click()
+        assert await _called(stub, "ideas.trail", {"goal": "ship"})
+        await page.wait_for_function("() => document.querySelector('[data-act=lay-out]').disabled")                # the screen reads the goal again
+        await page.wait_for_function("() => document.querySelector('.screen').innerText.includes('Product manager is laying out its ideas…')")
+        await page.get_by_role("button", name="Back").first.click()                                       # the Map's goal head says it too
+        await page.locator(".map-goal-meta").get_by_text("Product manager is laying out its ideas…").wait_for(timeout=WAIT_MS)
+        stub.goals["ship"]["trail"] = {"at": "x", "waiting": 2, "busy": False}                           # a trail that waits: no Lay out ideas
+        stub.bump({})
+        await page.get_by_role("button", name="Open goal Ship v1").click()
+        await page.get_by_text("Description").first.wait_for(timeout=WAIT_MS)
+        assert await page.get_by_role("button", name="Lay out ideas").count() == 0

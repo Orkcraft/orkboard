@@ -17,6 +17,7 @@ export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks yo
 export const leaderName = (g) => g?.leader?.name || "Taskmaster";
 /** A goal's state in words, its leader's name in them. */
 export function goalState(g) {
+  if (g?.state === "ready" && g.trail?.busy) return `${g.leader?.name && g.leader.slug !== "taskmaster" ? g.leader.name : "the Taskmaster"} is laying out its ideas…`;   // spec 46 §7
   if (g?.state === "reading") return `${g?.leader?.name && g.leader.slug !== "taskmaster" ? g.leader.name : "the Taskmaster"} is reading`;
   return GOAL_STATE[g?.state] || "";
 }
@@ -130,6 +131,8 @@ export function goalBody(g, core, act, asked, setAsked) {
     h("p", { class: "muted" }, [words || "not read yet", PRIORITY_WORDS[g.priority], g.deadline ? `by ${g.deadline}` : ""].filter(Boolean).join(" · ")),
     g.state_error && g.state === "raw" ? h("p", { class: "warn" }, g.state_error) : null,
     g.state_error && g.state !== "raw" && /^Not accepted/.test(g.state_error) ? h("p", { class: "warn" }, g.state_error) : null,
+    g.state === "ready" && !g.trail?.waiting ? h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-act": "lay-out", disabled: Boolean(g.trail?.busy),
+      onclick: () => act("ideas.trail", { goal: g.slug }, "") }, "Lay out ideas")) : null,
     verdictSec(g, core, act, sec, lead),
     teamSec(g, core, sec),
     h("section", { class: "goal-sec", "aria-label": "What the party did" }, partyFold(core, g.slug)),

@@ -33,6 +33,12 @@ export function rowState(idea, titleOf = (slug) => slug) {
   return { text: STATE_WORDS[idea.state] || idea.state, cls: idea.state };
 }
 
+/** A trail proposal's words (spec 46 §7): who proposed it (`trail_by`), and the idea of the person's it may be the same as (`same_as`). */
+export function trailWords(node) {
+  if (node.state !== "proposed") return "";
+  return [node.trail_by?.name ? `proposed by ${node.trail_by.name}` : "", node.same_as?.short ? `the same as your ${node.same_as.short}?` : ""].filter(Boolean).join(" · ");
+}
+
 /** `core`: the board's frame; `ctx`: {deliver, flash}. Returns {sheets, openNew(goalSlug), list(ideas), wireDrag}. */
 export function makeIdeas(core, ctx, goalSheet) {
   const st = core.st;

@@ -256,6 +256,8 @@
 .board-quick .board-need__text { gap: var(--ork-3); }
 .board-quick__q { display: flex; flex-direction: column; gap: var(--ork-2); }
 .board-quick__answers { flex-wrap: wrap; }
+.board-quick__by { display: flex; align-items: center; gap: var(--ork-2); }
+.board-trail__ideas { margin: 0; padding-left: var(--ork-5); }
 .board-quick__reco { font: var(--ork-type-caption); }
 .board-quick__why { display: block; }
 .board-quick__answer[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }

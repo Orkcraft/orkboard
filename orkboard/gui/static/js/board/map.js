@@ -8,8 +8,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Chev, Icon, WhoHead } from "../orkui.js";
-import { PRIORITY_WORDS, ask } from "./store.js";
-import { mapData, mapSince, mapFolded, mapUi, mapView, preview, lookKey, logOpened, showIdea, showTask, showGoal, act as run } from "../shell/store.js";
+import { PRIORITY_WORDS, ask, layingOutWords } from "./store.js";
+import { mapData, mapSince, mapFolded, mapUi, mapView, preview, lookKey, logOpened, showIdea, showTask, showGoal, act as run,
+  tab, active, MAP, narrow, activate, openMap } from "../shell/store.js";
 import { skippable, spares, price } from "./idea.js";
 import { say, toast } from "../link.js";
 import { Cards } from "./cards.js";
@@ -61,6 +62,9 @@ const timed = (w) => ["night", "limits", "reserve", "week"].includes(w?.kind);
  *  None while the node waits for anything else. */
 export function actionOf(n) {
   if (n.state === "done") return null;
+  if (n.state === "proposed" && n.proposed_by === "trail" && !n.needs_you) {          // its goal's leader laid it out (spec 46 §7): Take, at the goal's priority
+    return { icon: "", text: "Take", key: "take", name: "ideas.proposal", args: { take: true }, said: "", aria: `Take “${n.title}”` };
+  }
   if (n.needs_you === "plan" && !(n.waits_on || []).length) {
     const tasks = (n.tasks || []).length, cost = price(n.estimate);
     return { icon: "play", text: cost, key: "start", name: "ideas.start", args: {}, said: "Started.",
@@ -78,7 +82,7 @@ export function actionOf(n) {
 function StopAction({ n }) {
   const a = actionOf(n);
   if (!a) return null;
-  const go = async () => { if (await run(a.name, { slug: n.slug, ...a.args, via: "map" })) toast(a.said); };
+  const go = async () => { if (await run(a.name, { slug: n.slug, ...a.args, via: "map" }) && a.said) toast(a.said); };
   return html`<button type="button" class="ork-btn map-act" data-act=${a.key} aria-label=${a.aria} onClick=${go}>${a.icon && html`<${Icon} name=${a.icon} />`}${a.text && html`<span>${a.text}</span>`}</button>`;
 }
 
@@ -88,7 +92,7 @@ function Stop({ n, titles, since, leader, team }) {
   const v = nodeView(n, titles);
   const fresh = !!since && n.updated > since;
   const left = n.tasks.filter(leftToDo), doneTasks = n.tasks.length - left.length;
-  const words = [v.needs && !v.words.includes(v.needs) ? `${v.words} · ${v.needs}` : v.words, v.wait, n.by_itself ? "by itself" : "", v.cost,
+  const words = [v.needs && !v.words.includes(v.needs) ? `${v.words} · ${v.needs}` : v.words, v.trail, v.wait, n.by_itself ? "by itself" : "", v.cost,
     checksWords(n.checks), fresh ? "new" : ""].filter(Boolean).join(" · ");
   const head = stopHead(n, leader);
   return html`<li class=${cls("map-node", { "is-gate": !!v.needs })} data-slug=${n.slug}>
@@ -256,7 +260,7 @@ function Goal({ g, nodes, edges, titles, since }) {
       <button class="map-fold" aria-expanded=${!folded} aria-label=${`${folded ? "Unfold" : "Fold"} ${g.title}`} onClick=${fold}><${Chev} dir=${folded ? "right" : "down"} /></button>
       <h3 class="map-goal__title">${g.title}</h3>
       <span class="board-prio" data-priority=${g.priority}>${PRIORITY_WORDS[g.priority] || "Normal"}</span>
-      <span class="map-goal__state ok-tone-muted">${goalState(g.state)}</span>
+      <span class="map-goal__state ok-tone-muted">${layingOutWords(g) || goalState(g.state)}</span>
       <span class="map-goal__count">${progressOf(nodes)} %</span>
       <span class="map-goal__usd ok-tone-muted">${spentWords(g.usd)}</span>
       ${g.verdict && html`<span class=${`map-goal__verdict ${g.verdict.met ? "ok-tone-ok" : "ok-tone-error"}`}>${g.verdict.met ? `accepted by ${g.verdict.by}` : `not met, says ${g.verdict.by}`}</span>`}
@@ -267,7 +271,20 @@ function Goal({ g, nodes, edges, titles, since }) {
   </section>`;
 }
 
-const FLAGS_OPEN = "@flags:open";                                   // in the folds kept with the tabs: the Flags fold is closed until it is opened
+/** *Look* at a goal's trail (spec 46 §7): the Map's tab (below 1 024 px its screen), the goal unfolded and scrolled to; asked again for a moment while it is drawn. */
+export function lookAtGoal(slug) {
+  mapFolded.value = mapFolded.value.filter((x) => x !== slug);
+  if (narrow()) { tab.value = "board"; openMap(); } else if (active.value !== MAP) activate(MAP);
+  let tries = 25;
+  const scroll = () => {
+    const el = document.querySelector(`.map-goal[data-goal="${CSS.escape(slug)}"]`);
+    if (el) el.scrollIntoView({ block: "start" });
+    else if (tries-- > 0) setTimeout(scroll, 60);
+  };
+  requestAnimationFrame(scroll);
+}
+
+const FLAGS_OPEN ="@flags:open";                                   // in the folds kept with the tabs: the Flags fold is closed until it is opened
 
 /** The foot of the Map (spec 42 §2.4): *Flags (3)*, the goals met, with their tally; the list is asked for when the fold is opened. */
 function MapFoot({ m }) {

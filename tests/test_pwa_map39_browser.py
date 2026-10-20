@@ -336,3 +336,41 @@ async def test_a_stop_says_tonight_by_who_put_it_off_and_when_the_week_holds_it(
             got = await said(slug)
             assert "waits: the week is behind · until Mon 09:00" in got and "sooner" not in got
         assert await page.evaluate(NO_SCROLL)
+
+
+# -- spec 46 D: a goal's trail on the phone's Map ------------------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_trail_proposal_is_a_stop_with_take_as_its_one_action_and_says_who_proposed_it_and_what_it_may_repeat(fake_repo, monkeypatch):
+    reviewer = {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}
+    ANSWER["nodes"] = [
+        node("t1", "Write the queue", 1, "proposed", proposed_by="trail", trail_by=reviewer),
+        node("t2", "Retry on a lost signal", 2, "proposed", proposed_by="trail", same_as={"slug": "old", "short": "Old cleanup"}, depends_on=["t1"], waits_on=["t1"],
+             waits={"kind": "idea", "ref": "t1", "title": "Write the queue", "until": ""}),
+        node("night", "The night's idea", 2, "proposed", needs_you="proposal", waits={"kind": "you", "ref": "", "title": "", "until": ""}),
+        node("old", "Old cleanup", 1, "done", folded=True)]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        take = page.locator('.map-row[data-slug="t1"] .map-act')
+        await take.wait_for(timeout=WAIT_MS)
+        assert await take.inner_text() == "Take" and await take.get_attribute("aria-label") == "Take “Write the queue”" and await take.get_attribute("data-act") == "take"
+        assert "proposed by Reviewer" in await page.locator('.map-row[data-slug="t1"] .map-open').get_attribute("aria-label")
+        said = await page.locator('.map-row[data-slug="t2"] .map-open').get_attribute("aria-label")
+        assert "the same as your Old cleanup?" in said and "proposed by" not in said
+        assert await page.locator('.map-row[data-slug="t2"] .map-act').get_attribute("data-act") == "take"          # waiting for the first, it can still be taken
+        assert await page.locator('.map-row[data-slug="night"] .map-act').count() == 0                               # the night's proposal is Needs you's
+        assert (await take.bounding_box())["height"] >= 44 and await page.evaluate(NO_SCROLL)
+        await take.click()
+        assert await _called(stub, "ideas.proposal", {"slug": "t1", "take": True, "via": "map"})                      # at the goal's priority: none sent
+        assert await page.locator(".flash").count() == 0                                                              # no toast but the host's answer
+
+
+@pytest.mark.asyncio
+async def test_the_maps_goal_head_says_who_is_laying_out_its_ideas_while_it_runs(fake_repo, monkeypatch):
+    ANSWER["goals"] = [{**MAP["goals"][0], "trail": {"at": "x", "waiting": 0, "busy": True}, "leader": {"slug": "product-manager", "name": "Product manager", "head": None}},
+                       MAP["goals"][1]]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        await page.locator(".map-goal-meta").get_by_text("Product manager is laying out its ideas…").wait_for(timeout=WAIT_MS)
+        assert await page.evaluate(NO_SCROLL)

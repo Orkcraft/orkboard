@@ -8,15 +8,16 @@
 import { useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { html, cls } from "../html.js";
-import { Icon, NEED_ICONS } from "../orkui.js";
+import { Icon, NEED_ICONS, WhoHead } from "../orkui.js";
 import { say, toast } from "../link.js";
 import { board, PRIORITY_WORDS } from "./store.js";
 import { RulesProposal } from "./ops.js";
+import { lookAtGoal } from "./map.js";
 import { act as run, showGoal, showIdea, showPlan } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { SignInButton } from "../shell/signin.js";
 
-const KIND_WORDS = { goal: "A goal asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take", party: "A party's proposal", sign_in: "Sign-in" };
+const KIND_WORDS = { goal: "A goal asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take", party: "A party's proposal", sign_in: "Sign-in", trail: "Ideas laid out" };
 
 function Proposal({ n }) {
   const g = board.value.tracks.find((t) => t.slug === n.goal);
@@ -39,6 +40,19 @@ function Proposal({ n }) {
         <button class="ork-btn" aria-label=${`Decline: ${n.title}`}
           onClick=${() => run("ideas.proposal", { slug: n.idea, take: false, ...(reason.trim() ? { reason: reason.trim() } : {}) })}>No</button>
         <button class="board-link" onClick=${() => setDeclining(false)}>Cancel</button></div>`}
+    </div></li>`;
+}
+
+/** A goal's trail that waits (spec 46 §7): the goal's flag, *<goal>: 5 ideas laid out*, the first three titles and *and 2 more*; Take all, or Look at it on the Map. */
+function TrailNeed({ n }) {
+  const ideas = n.ideas || [], more = ideas.length - 3;
+  return html`<li class="board-need board-proposal board-trail" data-kind="trail" data-goal=${n.goal}>
+    <span class="board-need__icon"><${Icon} name="flag" /></span>
+    <div class="board-need__text"><b>${n.short || n.title}: ${n.text}</b>
+      <ul class="board-trail__ideas">${ideas.slice(0, 3).map((i) => html`<li key=${i.slug}>${i.title}</li>`)}${more > 0 && html`<li class="ok-tone-muted">and ${more} more</li>`}</ul>
+      <div class="board-row">
+        <button class="ork-btn primary" aria-label=${`Take all: ${n.title}`} onClick=${() => run("ideas.trail_take", { goal: n.goal, via: "needs" })}>Take all</button>
+        <button class="ork-btn" aria-label=${`Look: ${n.title}`} onClick=${() => lookAtGoal(n.goal)}>Look</button></div>
     </div></li>`;
 }
 
@@ -117,7 +131,8 @@ function Quick({ n }) {
   return html`<li class="board-need board-quick" data-kind=${n.kind} data-priority=${n.priority} data-idea=${n.idea || undefined} data-goal=${n.goal || undefined}>
     <span class="board-need__icon"><${Icon} name=${NEED_ICONS[n.kind] || "flag"} /></span>
     <div class="board-need__text"><b>${n.title}</b><span class="ok-tone-muted board-need__kind">${kindLine(n)}</span>
-      ${asked.map((q, i) => html`<div key=${i} class="board-quick__q"><span>${say(q.ask)}</span>${q.choices.length > 0 && html`<div class="board-row board-quick__answers">
+      ${asked.map((q, i) => html`<div key=${i} class="board-quick__q" data-by=${q.by?.slug || undefined}>
+        ${q.by && html`<span class="board-quick__by"><${WhoHead} head=${q.by.head} small /> <small class="ok-tone-muted">${q.by.name} asks:</small></span>`}<span>${say(q.ask)}</span>${q.choices.length > 0 && html`<div class="board-row board-quick__answers">
           ${q.choices.map((c, j) => html`<button key=${c} type="button" class=${cls("ork-btn board-quick__answer", { "is-recommended": j === q.pick })} aria-pressed=${String(picked[i] === c)}
             onClick=${() => setPicked(picked.map((x, k) => (k === i ? (x === c ? "" : c) : x)))}>${c}${j === q.pick && html` <small class="board-quick__reco">Recommended</small>`}</button>`)}</div>`}
         ${q.why && html`<small class="ok-tone-muted board-quick__why">${say(q.why)}</small>`}</div>`)}
@@ -141,6 +156,7 @@ function SignInNeed({ n }) {
 function Row({ n }) {
   if (n.kind === "sign_in") return html`<${SignInNeed} n=${n} />`;
   if (n.kind === "proposal") return html`<${Proposal} n=${n} />`;
+  if (n.kind === "trail") return html`<${TrailNeed} n=${n} />`;
   if (n.kind === "op_rules") return html`<${OpRules} n=${n} />`;
   if (n.kind === "party") return html`<${PartyProposal} n=${n} />`;
   if (n.kind === "goal" || n.kind === "asks") return html`<${Quick} n=${n} />`;
@@ -158,7 +174,7 @@ const rowKey = (n) => n.kind + (n.op || n.idea || n.goal || n.template || n.harn
 /** How many rows wait on the person now (proposals, and the ones put away Later, aside): the Needs you tab says it. */
 export function needsCount() {
   void laterRev.value;
-  return (board.value?.needs_you || []).filter((n) => n.kind !== "proposal" && n.kind !== "party" && n.kind !== "op_rules" && !isLater(n)).length;
+  return (board.value?.needs_you || []).filter((n) => n.kind !== "proposal" && n.kind !== "trail" && n.kind !== "party" && n.kind !== "op_rules" && !isLater(n)).length;
 }
 
 /** The rows that wait for an answer now, the ones put away Later aside. */

@@ -746,3 +746,52 @@ def test_the_maps_one_action_is_start_start_now_or_process_now_beside_the_chip_a
     act("offline").click()
     assert _sent(pg, host, ("ideas.queue", {"slug": "offline", "queue": "now", "via": "map"}))
     pg.get_by_text("The Taskmaster drafts it now.").first.wait_for(timeout=WAIT_MS)
+
+
+# -- Spec 46 D: a goal's trail on the Map ------------------------------------------------------------------------------------------
+
+
+def _trail_nodes(host):
+    """Two ideas the leader laid out for Ship sync: one proposed by the Reviewer, one that may be the same as an idea of the person's."""
+    host.lay_out("ship-sync", ["Write the queue", "Retry on a lost signal"])
+    reviewer = {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}
+    host.nodes += [
+        node("t-ship-sync-1", "ship-sync", "Write the queue", "proposed", 3, proposed_by="trail", trail_by=reviewer),
+        node("t-ship-sync-2", "ship-sync", "Retry on a lost signal", "proposed", 4, proposed_by="trail", same_as={"slug": "offline", "short": "Offline mode"},
+             depends_on=["t-ship-sync-1"], waits_on=["t-ship-sync-1"], waits={"kind": "idea", "ref": "t-ship-sync-1", "title": "Write the queue", "until": ""}),
+    ]
+    host.bump({})
+
+
+def test_a_trail_proposal_is_a_fog_stop_with_take_as_its_one_action_and_says_who_proposed_it_and_what_it_may_repeat(mapped):
+    pg, host = mapped
+    _trail_nodes(host)
+    first, second = card(pg, "Write the queue"), card(pg, "Retry on a lost signal")
+    first.wait_for(timeout=WAIT_MS)
+    assert "is-fog" in first.get_attribute("class") and first.evaluate("e => getComputedStyle(e).borderStyle") == "dotted"       # a proposal as today
+    assert "proposed by Reviewer" in first.get_attribute("title") and "the same as" not in first.get_attribute("title")
+    assert "the same as your Offline mode?" in second.get_attribute("aria-label") and "proposed by" not in second.get_attribute("aria-label")
+    take = pg.locator(".map-node[data-slug=t-ship-sync-1] .map-act")
+    assert take.inner_text().strip() == "Take" and take.get_attribute("aria-label") == "Take “Write the queue”" and take.get_attribute("data-act") == "take"
+    assert pg.locator(".map-node[data-slug=t-ship-sync-2] .map-act").get_attribute("data-act") == "take"                   # waiting for the first, it can still be taken
+    assert pg.locator(".map-node[data-slug=tags] .map-act").count() == 0                                                  # the night's proposal is Needs you's
+    take.click()
+    assert _sent(pg, host, ("ideas.proposal", {"slug": "t-ship-sync-1", "take": True, "via": "map"}))                      # at the goal's priority: none sent
+
+
+def test_look_shows_the_goal_on_the_maps_tab_from_another_tab_and_the_goal_head_says_who_is_laying_out(mapped):
+    pg, host = mapped
+    host.lay_out("ship-sync", ["Write the queue", "Retry on a lost signal"])
+    pg.locator(".board-card", has_text="Dark mode").click()                                         # another tab is shown
+    pg.locator(".shell-preview .board-sec").first.wait_for(timeout=WAIT_MS)
+    row = pg.locator(".shell-review .board-need[data-kind=trail]")
+    row.wait_for(timeout=WAIT_MS)
+    row.get_by_role("button", name="Look: Ship sync").click()
+    pg.locator(".shell-preview .map").wait_for(timeout=WAIT_MS)
+    assert active_tab(pg).inner_text() == "Map"
+    pg.wait_for_function("""() => { const m = document.querySelector('.map').getBoundingClientRect(), g = document.querySelector('.map-goal[data-goal=ship-sync]').getBoundingClientRect();
+        return g.top >= m.top - 2 && g.top < m.top + m.height / 2; }""", timeout=WAIT_MS)             # scrolled to the goal
+    host.extra_goal = {"trail": {"at": "x", "waiting": 0, "busy": True}, "leader": {"slug": "product-manager", "name": "Product manager", "head": None}}
+    host.bump({})
+    pg.wait_for_function("() => document.querySelector('.map-goal[data-goal=grow] .map-goal__state').innerText.includes('is laying out its ideas…')", timeout=WAIT_MS)
+    assert "Product manager is laying out its ideas…" in pg.locator(".map-goal[data-goal=grow] .map-goal__state").inner_text()

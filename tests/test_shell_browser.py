@@ -93,6 +93,7 @@ class StubHost:
                       "tags": self.idea("tags", "Tag the notes", "proposed", 5, in_needs_you=True, track="grow")}
         self.goals["grow"] = self.goal("grow", "Grow installs", "high", "ready", order=2, summary="More people try Orkline.", questions=["Which channel first?"])
         self.proposals, self.asked, self.todo_log = [], [], []
+        self.trails: dict[str, dict] = {}             # spec 46: a goal's trail by slug: {at, busy, ideas: [its proposals' slugs, in the trail's order]}
         self.lens = {"lenses": [{"id": "text"}], "default": "text", "segments": [], "screens": []}    # ideas.lens
         self.unplanned = False                        # sync's spec says no plan yet (its tasks stay on the Board)
         self.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed", "task": "k1", "tier": "elder"},   # sync's
@@ -100,6 +101,35 @@ class StubHost:
                         "task": "", "tier": "warrior"}]
         self.parts: list[dict] = []                                                                  # ideas.lens_code
         self.screen_png = ""                                                                         # ideas.lens_screen
+
+    def lay_out(self, goal, titles, at="2026-10-20T09:00:00"):
+        """The goal's leader laid out `titles` (spec 46 §3): each an idea in the state `proposed`, the goal's trail."""
+        slugs = []
+        for n, title in enumerate(titles):
+            slug = f"t-{goal}-{n + 1}"
+            self.ideas[slug] = self.idea(slug, title, "proposed", 30 + n, track=goal)
+            slugs.append(slug)
+        self.trails[goal] = {"at": at, "busy": False, "ideas": slugs}
+        self.bump({})
+
+    def waiting_trail(self, goal):
+        return [s for s in self.trails.get(goal, {}).get("ideas", []) if self.ideas.get(s, {}).get("state") == "proposed"]
+
+    def trail_of(self, goal):
+        """A goal's `trail` {at, waiting, busy} (gui/ideas_goals.py `trail_rows`)."""
+        got = self.trails.get(goal) or {}
+        return {"at": got.get("at", ""), "busy": bool(got.get("busy")), "waiting": len(self.waiting_trail(goal))}
+
+    def trail_needs(self):
+        out = []
+        for goal in self.trails:
+            waiting = self.waiting_trail(goal)
+            g = self.goals[goal]
+            if waiting:
+                out.append({"kind": "trail", "idea": "", "goal": goal, "title": g["title"], "short": g.get("short") or g["title"],
+                            "text": f"{len(waiting)} ideas laid out", "priority": g["priority"], "blocks": False, "at": self.trails[goal]["at"],
+                            "ideas": [{"slug": s, "title": self.ideas[s]["title"], "short": self.ideas[s]["title"]} for s in waiting]})
+        return out
 
     def idea(self, slug, title, state, order, **more):
         return {"slug": slug, "title": title, "track": "ship-sync", "order": order, "state": state, "size": "M", "asks": 0, "updated": "x", "talk": [],
@@ -118,7 +148,7 @@ class StubHost:
                        **({"asked": self.goals["grow"]["asked"]} if self.goals.get("grow", {}).get("asked") else {})},
                base | {"kind": "proposal", "idea": "tags", "goal": "grow", "title": "Tag the notes", "text": "Tags make a long list findable."}]
         gone = set(self.proposals) | set(self.asked)            # answered: out of the list
-        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + [base | n for n in self.party_needs] + list(self.sign_in_needs)
+        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + [base | n for n in self.party_needs] + list(self.sign_in_needs) + self.trail_needs()
 
     def goal(self, slug, title, priority, state, order=1, **more):
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": order, "count": 0, "priority": priority,
@@ -169,7 +199,7 @@ class StubHost:
         if name == "ideas.board":
             ideas = [i | {"thesis": "Gist in one line", "progress": {"done": 1, "total": 5} if i["slug"] == "sync" else {"done": 0, "total": 0}}
                      for i in self.ideas.values()]
-            return {"tracks": [g | {"count": sum(1 for i in ideas if i["track"] == g["slug"])} for g in self.goals.values()],
+            return {"tracks": [g | {"count": sum(1 for i in ideas if i["track"] == g["slug"]), "trail": self.trail_of(g["slug"])} for g in self.goals.values()],
                     "ideas": ideas, "needs_you": self.needs_you(), "target": self.target, "autostart": self.autostart, "night": self.night,
                     "rev": self.rev}
         if name == "ideas.page":
@@ -256,7 +286,14 @@ class StubHost:
             return self.bump({"ok": True})
         if name == "ideas.goal":
             g = self.goals[a["slug"]]
-            return g | {"description": g["about"], "talk": [], "busy": g.get("busy") or g["state"] == "reading", "sections": []}
+            return g | {"description": g["about"], "talk": [], "busy": g.get("busy") or g["state"] == "reading", "sections": [], "trail": self.trail_of(a["slug"])}
+        if name == "ideas.trail":                     # Lay out ideas (spec 46 §4): the goal's leader is laying it out now
+            self.trails.setdefault(a["goal"], {"at": "", "ideas": []})["busy"] = True
+            return self.bump({"ok": True})
+        if name == "ideas.trail_take":                # Take all: each proposal of the goal that waits, taken
+            for s in self.waiting_trail(a["goal"]):
+                self.ideas[s].update(state="raw", queue="now")
+            return self.bump({"ok": True})
         if name == "ideas.queue":
             self.ideas[a["slug"]].update(queue=a["queue"], state="reading" if a["queue"] == "now" else "raw")
             return self.bump({"ok": True})
@@ -291,6 +328,11 @@ class StubHost:
             return self.bump({"ok": True})
         if name == "ideas.proposal":
             self.proposals.append(a["slug"])
+            if a["slug"] in self.ideas and any(a["slug"] in t["ideas"] for t in self.trails.values()):     # a trail proposal: taken, or turned down
+                if a.get("take"):
+                    self.ideas[a["slug"]].update(state="raw", queue="now")
+                else:
+                    self.ideas.pop(a["slug"])
             return self.bump({"ok": True})
         if name == "ideas.answer":
             self.asked.append(a["slug"])
@@ -1885,3 +1927,82 @@ def test_nothing_in_needs_you_or_review_says_nothing_waits_for_you(shell):
     host.bump({})
     pg.get_by_text("Nothing waits for you.").wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-review > header .shell-count").count() == 0 and pg.locator(".shell-review .shell-card").count() == 0
+
+
+# -- Spec 46 D: the trail's faces on the desktop ----------------------------------------------------------------------------------
+
+REVIEWER = {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}
+LEADER = {"slug": "taskmaster", "name": "Taskmaster", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}
+
+
+def test_a_goals_questions_say_who_asks_with_the_head_and_the_name_in_the_row_and_in_its_form(shell):
+    pg, host = shell
+    host.goals["grow"]["questions"] = ["Which channel first?", "Who checks the invoices?"]
+    host.goals["grow"]["asked"] = [{"ask": "Which channel first?", "choices": ["npm", "the forum"], "pick": 0, "why": "", "by": LEADER},
+                                   {"ask": "Who checks the invoices?", "choices": [], "pick": None, "why": "", "by": REVIEWER}]
+    host.bump({})
+    _needs(pg)
+    row = pg.locator(".board-need[data-kind=goal]")
+    row.locator(".board-quick__q").nth(1).wait_for(timeout=WAIT_MS)
+    first, second = row.locator(".board-quick__q").nth(0), row.locator(".board-quick__q").nth(1)
+    assert "Taskmaster asks:" in first.inner_text() and "Reviewer asks:" in second.inner_text()          # the leader's own too
+    assert second.get_attribute("data-by") == "reviewer"
+    for q in (first, second):
+        assert q.locator("img.ork-race__head.small").count() == 1                                        # the head of who asks, 12 × 11
+    row.get_by_role("button", name="More: Grow installs").click()
+    dlg = pg.get_by_role("dialog", name="Questions: Grow installs")
+    dlg.locator(".board-quick__by").nth(1).wait_for(timeout=WAIT_MS)
+    assert "Reviewer asks:" in dlg.inner_text() and dlg.locator("img.ork-race__head.small").count() == 2
+
+
+def test_the_trail_row_names_the_goal_and_its_first_three_ideas_take_all_sends_the_goal_and_the_count_is_unchanged(shell):
+    pg, host = shell
+    before = pg.locator(".shell-review > header .shell-count").inner_text()
+    host.lay_out("ship-sync", ["Write the queue", "Retry on a lost signal", "Test it offline", "Write the notes", "Release it"])
+    _needs(pg)
+    row = pg.locator(".board-need[data-kind=trail]")
+    row.wait_for(timeout=WAIT_MS)
+    assert row.locator("b").first.inner_text() == "Ship sync: 5 ideas laid out" and row.locator("svg use[href$='#flag']").count() == 1
+    assert row.locator(".board-trail__ideas li").all_inner_texts() == ["Write the queue", "Retry on a lost signal", "Test it offline", "and 2 more"]
+    assert "primary" in row.get_by_role("button", name="Take all: Ship sync").get_attribute("class")
+    assert pg.locator(".shell-review > header .shell-count").inner_text() == before                    # it blocks nothing: out of the count
+    kinds = pg.locator(".board-need, .board-proposal").evaluate_all("els => els.map(e => e.dataset.kind)")
+    assert kinds[-1] == "trail"                                                                          # among the proposals, last
+    row.get_by_role("button", name="Take all: Ship sync").click()
+    assert _sent(pg, host, ("ideas.trail_take", {"goal": "ship-sync", "via": "needs"}))
+    row.wait_for(state="detached", timeout=WAIT_MS)
+
+
+def test_a_trail_proposal_is_a_row_of_the_boards_ideas_with_take_and_no(shell):
+    pg, host = shell
+    host.lay_out("ship-sync", ["Write the queue", "Retry on a lost signal", "Test it offline"])
+    ideas = pg.locator(".board-ideas")
+    ideas.locator(".board-card-row.is-trail").nth(2).wait_for(timeout=WAIT_MS)
+    rows = ideas.locator(".board-card-row.is-trail")
+    assert rows.locator(".board-card__title").all_inner_texts() == ["Write the queue", "Retry on a lost signal", "Test it offline"]     # the trail's order
+    assert rows.first.locator(".board-state").inner_text() == "proposed"
+    rows.nth(1).get_by_role("button", name="No: Retry on a lost signal").click()
+    assert rows.nth(1).get_by_label("Why not: Retry on a lost signal").input_value() == ""
+    rows.nth(1).get_by_role("button", name="Decline: Retry on a lost signal").click()
+    assert _sent(pg, host, ("ideas.proposal", {"slug": "t-ship-sync-2", "take": False, "via": "board"}))
+    rows.first.get_by_role("button", name="Take: Write the queue").click()
+    assert _sent(pg, host, ("ideas.proposal", {"slug": "t-ship-sync-1", "take": True, "via": "board"}))
+    pg.wait_for_function("() => document.querySelectorAll('.board-card-row.is-trail').length === 1", timeout=WAIT_MS)
+
+
+def test_lay_out_ideas_shows_only_while_the_goal_is_ready_and_no_trail_waits_and_the_goal_says_who_is_laying_out(shell):
+    pg, host = shell
+    host.goals["ship-sync"]["leader"] = REVIEWER | {"slug": "product-manager", "name": "Product manager"}
+    host.bump({})
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    lay = pg.locator(".shell-goal").get_by_role("button", name="Lay out ideas")
+    lay.wait_for(timeout=WAIT_MS)
+    lay.click()
+    assert _sent(pg, host, ("ideas.trail", {"goal": "ship-sync"}))
+    pg.wait_for_function("() => document.querySelector('.board-goal').innerText.includes('is laying out its ideas…')", timeout=WAIT_MS)
+    assert "Product manager is laying out its ideas…" in pg.locator(".board-goal").inner_text()
+    pg.wait_for_function("() => document.querySelector('.shell-goal .board-bar').innerText.includes('is laying out its ideas…')", timeout=WAIT_MS)
+    assert pg.locator(".shell-goal").get_by_role("button", name="Lay out ideas").is_disabled()
+    host.trails["ship-sync"]["busy"] = False
+    host.lay_out("ship-sync", ["Write the queue"])                                                          # a trail that waits: no Lay out ideas
+    pg.wait_for_function("() => ![...document.querySelectorAll('.shell-goal button')].some((b) => b.textContent === 'Lay out ideas')", timeout=WAIT_MS)

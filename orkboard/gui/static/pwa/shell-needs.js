@@ -8,6 +8,8 @@
 import { h, sheet, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { limitsNote } from "./shell-limits.js";
+import { whoHead } from "./shell-who.js";
+import { keepGoal } from "./shell-top.js";
 
 const LATER = "orkcraft.later";                       // {row key: until}, this phone's own
 const LATER_MS = 4 * 3600 * 1000;
@@ -25,7 +27,7 @@ const later = {
 
 // What needs the person, by kind, as orkUI's pixel icon (as the desktop's js/orkui.js NEED_ICONS).
 const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb",
-  op: "checkbox", op_failed: "square-alert", op_rules: "sliders", sign_in: "warning-diamond" };
+  op: "checkbox", op_failed: "square-alert", op_rules: "sliders", sign_in: "warning-diamond", trail: "flag" };
 const MAX_FILE = 5 * 1024 * 1024;
 const isList = /^([-*+]|\d+[.)])\s+/;
 
@@ -42,6 +44,9 @@ const toBase64 = (file) => new Promise((ok, no) => {
   r.onerror = () => no(r.error);
   r.readAsDataURL(file);
 });
+
+/** Who asks a goal's question (spec 46 §7): the head of the member, or of the leader for its own, and its name: *Reviewer asks:*; null for a question with no `by`. */
+const byLine = (q) => (q.by ? h("span", { class: "ask-by" }, whoHead(q.by.head, true), h("small", {}, ` ${q.by.name} asks:`)) : null);
 
 export function makeNeeds(core, ctx, ops) {
   const st = core.st;
@@ -70,7 +75,7 @@ export function makeNeeds(core, ctx, ops) {
     });
     const send = h("button", { class: "ork-btn primary big", type: "submit" }, "Send");
     const cancel = h("button", { class: "ork-btn big", type: "button", onclick: () => qSheet.close() }, "Cancel");
-    qBody.replaceChildren(h("p", { class: "muted" }, n.title), ...asked.map((q, i) => field(`${i + 1}. ${q.ask}`, boxes[i], q.why || null)), foot(cancel, send));
+    qBody.replaceChildren(h("p", { class: "muted" }, n.title), ...asked.map((q, i) => field(q.by ? h("span", {}, byLine(q), ` ${i + 1}. ${q.ask}`) : `${i + 1}. ${q.ask}`, boxes[i], q.why || null)), foot(cancel, send));
     qBody.onsubmit = async (e) => {
       e.preventDefault();
       send.disabled = true;
@@ -156,7 +161,7 @@ export function makeNeeds(core, ctx, ops) {
           } }, c, reco ? h("small", { class: "recommended" }, "Recommended") : null);
         return b;
       });
-      return h("div", { class: "quick-q" }, h("p", {}, q.ask), q.choices.length ? h("div", { class: "answers" }, ...btns) : null,
+      return h("div", { class: "quick-q", "data-by": q.by?.slug || null }, byLine(q), h("p", {}, q.ask), q.choices.length ? h("div", { class: "answers" }, ...btns) : null,
         q.why ? h("small", { class: "muted why" }, q.why) : null);
     });
     sync();
@@ -222,6 +227,28 @@ export function makeNeeds(core, ctx, ops) {
           reason, h("button", { class: "ork-btn", type: "button", onclick: () => act(false) }, "No")), limitsNote(st.snap)));
   }
 
+  // -- a goal's trail that waits (spec 46 §7): Take all, or Look at it on the Board's Map -----------------------------------
+  /** The Board tab's Map at that goal. */
+  function look(slug) {
+    st.view = ""; st.track = slug; st.mapGoal = "";
+    keepGoal(st.snap?.project, slug);
+    core.go("board");
+    core.draw();
+  }
+  function trail(n) {
+    const ideas = n.ideas || [], more = ideas.length - 3;
+    return h("div", { class: "card need need-trail need-proposal", "data-kind": "trail", "data-goal": n.goal },
+      h("span", { class: "need-mark" }, icon(ICONS.trail)),
+      h("span", { class: "need-text" }, h("b", {}, `${n.short || n.title}: ${n.text}`),
+        h("ul", { class: "need-ideas" }, ...ideas.slice(0, 3).map((i) => h("li", {}, i.title)), more > 0 ? h("li", { class: "muted" }, `and ${more} more`) : null),
+        h("div", { class: "row" },
+          h("button", { class: "ork-btn primary", type: "button", "aria-label": `Take all: ${n.title}`, onclick: async () => {
+            const r = await core.call("ideas.trail_take", { goal: n.goal, via: "needs" });
+            if (r) core.refresh();
+          } }, "Take all"),
+          h("button", { class: "ork-btn", type: "button", "aria-label": `Look: ${n.title}`, onclick: () => look(n.goal) }, "Look"))));
+  }
+
   // -- the night's proposal to take a checker out of a goal's party (spec 43 §4.2) --------------------------------------
   function partyProposal(n) {
     const reason = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: "Why not? (optional, one line)" });
@@ -247,6 +274,7 @@ export function makeNeeds(core, ctx, ops) {
   function row(n) {
     if (n.kind === "sign_in") return signInNeed(n);
     if (n.kind === "proposal") return proposal(n);
+    if (n.kind === "trail") return trail(n);
     if (n.kind === "party") return partyProposal(n);
     if (n.kind === "goal" || n.kind === "asks") return swipeable(quick(n), n);
     const go = () => {
@@ -271,7 +299,7 @@ export function makeNeeds(core, ctx, ops) {
     /** What the screen shows, to draw it again only when it changed. */
     key: () => JSON.stringify([waiting(), showLater, waiting().map((n) => later.has(n)), Boolean(st.snap?.limits)]),
     /** How many rows wait on the person now (the ones put away Later aside): the top bar's ! says it. */
-    count: () => waiting().filter((n) => !later.has(n)).length,
+    count: () => waiting().filter((n) => n.kind !== "trail" && !later.has(n)).length,       // a trail waits for no answer: out of the count
     /** The screen's nodes: every goal's rows, then the ones put away, folded. */
     draw() {
       const all = waiting(), now = all.filter((n) => !later.has(n)), away = all.filter((n) => later.has(n));
