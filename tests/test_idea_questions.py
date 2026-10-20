@@ -31,3 +31,11 @@ def test_the_pages_line_says_the_pick_in_bold_and_reads_back():
     assert iq.parse("Pick one (a / b / c / d / e)")["choices"] == []
     assert iq.parse("Both bold (**a** / **b**)")["pick"] is None
     assert iq.parse("") == {"ask": "", "choices": [], "pick": None, "why": ""}
+
+
+def test_a_goal_s_question_may_say_who_it_is_for_and_the_page_does_not_keep_it():
+    """Spec 46 §1: `by` is the slug of the member whose view the question answers; the line is the same."""
+    q = iq.of({"ask": "Which?", "choices": ["a", "b"], "pick": 1, "by": "Reviewer"})
+    assert q["by"] == "reviewer" and iq.line(q) == "Which? (a / **b**)"
+    assert "by" not in iq.of({"ask": "Which?"}) and "by" not in iq.parse(iq.line(q))
+    assert iq.asked_by([q, {"ask": "x", "by": "ghost"}, {"ask": "y"}], ["reviewer"], "taskmaster") == ["reviewer", "taskmaster", "taskmaster"]

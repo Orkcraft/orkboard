@@ -14,7 +14,7 @@ from typing import Any
 from orkboard import settings
 from orkboard.core import idea_keeper, idea_night
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text, _via
-from orkboard.realm import board_map, event_log, idea_questions, idea_risk, idea_secrets, ideas
+from orkboard.realm import board_map, event_log, goal_team, idea_questions, idea_risk, idea_secrets, ideas
 from orkboard.realm.idea_git import BoardTree
 
 NEEDS_IDEA = ("asks", "plan", "failed", "proposed")
@@ -281,12 +281,16 @@ class BoardMixin:
                 raise IdeasError("That goal is gone")
             if decide:
                 answers = idea_questions.picks(g["questions"])
+            asks_by = self._goal_extra(slug).get("asks_by")          # read before the keeper reads again (spec 46 §1)
+            lead = goal_team.leader_of(self.root(), slug)
+            by_party = sum(1 for n, b in enumerate(asks_by if isinstance(asks_by, list) else [])
+                           if b != lead and n < len(answers) and answers[n].strip())
             said = "\n".join(f"{q} — {(answers[n] if n < len(answers) else '').strip() or '(no answer: decide)'}"
                              for n, q in enumerate(g["questions"]))      # a phone's quick answer may answer one
             self.keeper.read_goal(slug, said, answered=True)
             how = idea_questions.tally(g["questions"], [] if decide else answers)
             self._ev(event_log.GOAL_ANSWERED, args, goal=slug, answers=sum(1 for a in answers if a.strip()),
-                     decided=decide, **how)
+                     decided=decide, by_party=by_party, **how)
             self._what[f"goal:{slug}"] = "answered"
             self.changed(f"goal:{slug}")
             return {"ok": True}

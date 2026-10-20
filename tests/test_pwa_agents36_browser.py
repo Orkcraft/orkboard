@@ -270,3 +270,15 @@ async def test_a_checkers_line_ends_with_its_check_of_the_week_and_its_sheet_has
         stub.bump({})
         await page.wait_for_timeout(3500)
         assert await said("Edit Scribe") == "Its check, the last 30 days: 2 ideas: too few to say more"
+
+
+@pytest.mark.asyncio
+async def test_a_chip_started_by_the_pace_says_the_week_has_room(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.chip_extra = {"k3": {"by": "auto", "pace": True}, "k2": {"by": "auto"}}
+        stub.bump({})
+        agents = await _agents(page)
+        pace = agents.locator(".chip", has_text="Retry on a lost signal")
+        await pace.wait_for(timeout=WAIT_MS)
+        assert await pace.locator(".chip-why").inner_text() == "by itself: the week has room"
+        assert await agents.locator(".chip", has_text="Add the queue").locator(".chip-why").inner_text() == "by itself"

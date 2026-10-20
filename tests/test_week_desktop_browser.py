@@ -12,7 +12,7 @@ from tests.test_shell_browser import StubHost, _open, _sent  # noqa: E402
 pytestmark = pytest.mark.browser
 
 WEEK = {"usd": 46.1, "ops_usd": 3.2, "merged": 12, "first_time": 10, "usd_per_merged": 3.84, "nights": {"worked": 4, "idle": 2, "off": 1},
-        "tonight": 0, "night_on": True, "into": "dev"}
+        "tonight": 0, "night_on": True, "into": "dev", "week": None, "last_unused": None}
 
 
 class WeekHost(StubHost):
@@ -187,3 +187,27 @@ def test_nights_in_a_row_is_line_four_of_this_week_from_two_and_after_the_nights
     assert [" ".join(p.text_content().split()) for p in card.locator(".away__lines p").all()][-1] == "Nights: 5 with work done, 2 with none · 5 in a row"
     pg.close()
     assert not errors and not errors2
+
+
+# -- spec 44 B: the week's pace ----------------------------------------------------------------------------------------
+
+def test_this_week_says_the_pace_in_three_ways_last_weeks_unused_share_and_nothing_without_a_week(gui):
+    for pace, left, rest, words in (("ahead", 0.55, 0.29, "Low work starts by day"), ("even", 0.4, 0.29, "Low work waits for the night"),
+                                    ("behind", 0.1, 0.57, "Low work waits until the week comes back")):
+        host = WeekHost()
+        host.week.update(week={"left": left, "rest": rest, "pace": pace, "reset": 1.0}, last_unused=0.3)
+        pg, host, errors = _show(gui, host)
+        days = round(rest * 7)
+        assert _lines(pg)[-2:] == [f"The week: {round(left * 100)} % left with {days} days to go: {words}", "Last week ended with 30 % unused"], pace
+        pg.close()
+        assert not errors, "\n".join(errors)
+    host = WeekHost()
+    host.week.update(week={"left": 0.9, "rest": 1 / 7, "pace": "ahead", "reset": 1.0}, last_unused=None)
+    pg, host, errors = _show(gui, host)
+    assert _lines(pg)[-1] == "The week: 90 % left with 1 day to go: Low work starts by day"
+    pg.close()
+    host = WeekHost()                                                                                 # no week: no line, as before
+    pg, host, errors = _show(gui, host)
+    assert not any("The week" in l or "unused" in l for l in _lines(pg))
+    pg.close()
+    assert not errors, "\n".join(errors)

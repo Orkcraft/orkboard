@@ -11,7 +11,7 @@ import { foot } from "./shell-forms.js";
 import { keepGoal } from "./shell-top.js";
 import { rowState } from "./shell-ideas.js";
 import { goalState, partyFold } from "./shell-goal.js";
-import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
+import { PRIORITY_WORDS, hhmm, dayAt } from "./shell-words.js";
 import { whoHead } from "./shell-who.js";
 import { price } from "./shell-preview.js";
 
@@ -33,6 +33,7 @@ export function waitsWords(node) {
   if (w.kind === "files") return `same files as ${w.title || w.ref}`;
   if (w.kind === "limits") return at ? `waits for limits · after ${at}` : "waits for limits";
   if (w.kind === "reserve") return at ? `keeps your reserve · after ${at}` : "keeps your reserve";
+  if (w.kind === "week") return w.until ? `waits: the week is behind · until ${dayAt(w.until)}` : "waits: the week is behind";
   if (w.kind === "night") return "tonight";
   if (w.kind === "stopped") return "stopped";
   return "";
@@ -274,7 +275,7 @@ export function makeMap(core, goalSheet) {
       .filter(Boolean).join(" · ");
     const head = stopHead(node, leader);
     const act = actionOf(node);
-    const timed = ["night", "limits", "reserve"].includes(node.waits?.kind) && node.state !== "done";
+    const timed = ["night", "limits", "reserve", "week"].includes(node.waits?.kind) && node.state !== "done";
     return h("li", { class: `map-row state-${node.state}${needsHand ? " needs-hand" : ""}${node.waits && !needsHand ? " is-waiting" : ""}${node.state === "proposed" ? " is-proposed" : ""}${act ? " has-act" : ""}`,
       "data-slug": node.slug },
       h("div", { class: "map-line" },

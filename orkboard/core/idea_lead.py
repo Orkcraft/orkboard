@@ -30,14 +30,20 @@ class LeadMixin:
         return (page.get("track") or "") if page is not None else ""
 
     def leader(self) -> dict | None:
-        """The role the running step leads as: its goal's leader; None for the Taskmaster (no leader, or no goal)."""
+        """The role the running step leads as: its goal's leader; None for the Taskmaster (no leader, or no goal). A
+        member's `ask` call (core/idea_goals.py, spec 46 §2) runs as that member."""
+        if member := getattr(self._tls, "member", None):
+            return member
         goal = self.goal_of_key(getattr(self._tls, "key", "") or getattr(self._tls, "slug", "") or "")
         slug = goal_team.leader_of(self.wiki_root(), goal) if goal else roles.TASKMASTER
         return None if slug == roles.TASKMASTER else roles.role(self.state_dir, slug)
 
     @staticmethod
     def voice(lead: dict) -> str:
-        """What a leader is told before a step's own prompt: who it is, and its instruction."""
+        """What a leader is told before a step's own prompt: who it is, and its instruction; a member (builder or checker)
+        asked about the goal, who it is the same way."""
+        if lead.get("member"):
+            return f"You are {lead['name']}, a member of this goal's party. {lead.get('instruction') or ''}\n\n"
         return (f"You are {lead['name']}, the leader of this goal's party: you plan its ideas and accept the goal. "
                 f"{lead.get('instruction') or ''}\nIn what follows, \"the keeper\" is you.\n\n")
 

@@ -88,7 +88,7 @@ function Worker({ role, done }) {
     ${role.kinds?.length > 0 && html`<span class="ok-font-status ok-tone-muted shell-role__takes">Takes: ${role.kinds.join(", ")}</span>`}
     ${chips.length ? html`<ul class="shell-chips">${[...chips].sort(byState).map((c) => html`<li key=${c.idea + c.task}><button
         class=${cls("shell-chip", `is-${c.state}`)} data-state=${c.state} title=${c.title} aria-label=${`${c.title}: ${gruntWords(c)}`} onClick=${() => showTask(c.idea, c.task, { via: "agents" })}>
-        <${WhoHead} head=${c.head} small /><span class="shell-chip__state">${gruntWords(c)}</span>${c.by === "auto" && html`<span class="shell-chip__tag">by itself</span>`}${c.night && html`<span class="shell-chip__tag">tonight</span>`}<b class="shell-chip__name">${c.short || c.title}</b><small class="ok-tone-muted shell-chip__idea">${c.idea_short || c.idea_title}</small></button></li>`)}</ul>`
+        <${WhoHead} head=${c.head} small /><span class="shell-chip__state">${gruntWords(c)}</span>${c.by === "auto" && html`<span class="shell-chip__tag">${c.pace ? "by itself: the week has room" : "by itself"}</span>`}${c.night && html`<span class="shell-chip__tag">tonight</span>`}<b class="shell-chip__name">${c.short || c.title}</b><small class="ok-tone-muted shell-chip__idea">${c.idea_short || c.idea_title}</small></button></li>`)}</ul>`
       : html`<span class="ok-tone-muted">No task runs now.</span>`}
     ${mine.length > 0 && html`<details class="shell-done"><summary>Done today (${mine.length})</summary>
       <ul class="shell-chips">${mine.map((d) => html`<li key=${d.idea + d.task}><button class="shell-chip is-done"

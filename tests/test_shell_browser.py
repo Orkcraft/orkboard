@@ -1762,3 +1762,14 @@ def test_not_now_to_the_offer_is_sent_and_the_offer_is_gone(shell):
     dlg = _after_pairing(pg, host, "Not now")
     assert _sent(pg, host, ("awake.offer", {"yes": False}))
     assert dlg.get_by_role("group", name="Keep the computer awake").count() == 0 and "Paired: iPhone 15." in dlg.inner_text()
+
+def test_an_agents_chip_started_by_the_pace_says_the_week_has_room(gui):
+    host = StubHost()
+    host.chip_extra = {"k3": {"pace": True}}
+    pg, host, errors = _open(gui, host=host)
+    _show_goal(pg)
+    chips = pg.locator(".shell-agents .shell-chip")
+    assert "by itself: the week has room" in chips.filter(has_text="Retry on a lost signal").inner_text()
+    assert "the week has room" not in chips.filter(has_text="Dark palette").inner_text()             # by itself, but not by the pace
+    pg.close()
+    assert not errors, "\n".join(errors)
