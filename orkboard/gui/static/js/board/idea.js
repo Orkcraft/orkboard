@@ -9,6 +9,7 @@ import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
 import { Stages } from "./stages.js";
 import { act as run, showTask, showIdea, closePreview } from "../shell/store.js";
 import { ErrorLine } from "../shell/errors.js";
+import { PointedAt } from "../shell/lens.js";
 
 // Section → [colour role, line icon, kit icon]. The role is a design-system token in board.css (`[data-sec]`); the line
 // icon (16px) is Office's, the kit's pixel icon (tools/ui_kit.py) Camp's.
@@ -169,6 +170,7 @@ export function IdeaView({ p }) {
           onChange=${(e) => run("ideas.edit", { slug: p.slug, priority: e.target.value })}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
     ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<${ErrorLine} text=${p.state_error} />`}
+    <${PointedAt} lens=${p.lens} />
     <${Checks} checks=${p.checks} />
     <${Actions} p=${p} />
     <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>

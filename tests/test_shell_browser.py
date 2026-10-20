@@ -79,6 +79,9 @@ class StubHost:
                       "tags": self.idea("tags", "Tag the notes", "proposed", 5, in_needs_you=True, track="grow")}
         self.goals["grow"] = self.goal("grow", "Grow installs", "high", "ready", order=2, summary="More people try Orkline.", questions=["Which channel first?"])
         self.proposals, self.asked, self.todo_log = [], [], []
+        self.lens = {"lenses": [{"id": "text"}], "default": "text", "segments": [], "screens": []}    # ideas.lens
+        self.parts: list[dict] = []                                                                  # ideas.lens_code
+        self.screen_png = ""                                                                         # ideas.lens_screen
 
     def idea(self, slug, title, state, order, **more):
         return {"slug": slug, "title": title, "track": "ship-sync", "order": order, "state": state, "size": "M", "asks": 0, "updated": "x", "talk": [],
@@ -135,7 +138,7 @@ class StubHost:
         if slug == "search":
             next(x for x in secs if x["name"] == "Open questions")["text"] = "- Which fields count?\n- Do tags count?"
         return {"slug": slug, "title": i["title"], "track": "general", "state": i["state"], "size": "M", "sections": secs, "talk": i["talk"],
-                "plan": self.plan if slug == "sync" else None, "busy": False, "state_error": i.get("state_error", ""),
+                "plan": self.plan if slug == "sync" else None, "busy": False, "state_error": i.get("state_error", ""), "lens": i.get("lens", []),
                 "checks": [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed"},
                            {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": False, "why": "It changes no screen",
                             "state": ""}] if slug == "sync" else []}
@@ -153,6 +156,12 @@ class StubHost:
                     "rev": self.rev}
         if name == "ideas.page":
             return self.page(a["slug"])
+        if name == "ideas.lens":                      # the goal's party's lenses (gui/ideas_lens.py)
+            return dict(self.lens, track=a["track"])
+        if name == "ideas.lens_code":
+            return {"parts": self.parts}
+        if name == "ideas.lens_screen":
+            return {"id": a["id"], "name": "Orders", "type": "image/png", "data": self.screen_png}
         if name == "ideas.review_list":
             return {"into": self.into, "push": self.push, "branches": ["dev", "main"], "results": self.results()}
         if name == "ideas.agents":
