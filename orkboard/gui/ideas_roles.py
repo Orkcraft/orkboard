@@ -180,7 +180,8 @@ class RolesMixin:
                          "note": t.get("note") or (t.get("error") if state == "failed" else "") or "",
                          # spec 35 §11.5: who started it, and whether it waits for the night
                          "by": "auto" if plan.get("passed_by") == "auto" else "person",
-                         "night": plan.get("start_at") == "night" and not t.get("started")})
+                         "night": plan.get("start_at") == "night" and not t.get("started"),
+                         "pace": plan.get("by_pace") is True})            # spec 44: it started by day, the week has room
         spent, week, out = self._role_spend(), idea_spend.by_role(self.state_dir), []
         costs = idea_spend.tier_costs(self.state_dir)
         for r in roles.roles(self.state_dir):

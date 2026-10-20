@@ -324,7 +324,8 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, RolesMixin
             raise IdeasError(str(e)) from None
         pointed = self._lens_args(args)
         queue = "night" if priority == "low" or args.get("night") is True else "now"
-        slug = ideas.add_idea(self.root(), text, track, self.state_dir, priority, queue)
+        by = "person" if args.get("night") is True else "board"       # who put it off (spec 44 §2): Low is the Board's
+        slug = ideas.add_idea(self.root(), text, track, self.state_dir, priority, queue, by)
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
         idea_lens.save(self.state_dir, slug, pointed)

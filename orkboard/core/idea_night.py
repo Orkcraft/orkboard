@@ -26,6 +26,7 @@ from pathlib import Path
 from orkboard.realm import event_log, idea_target, ideas
 
 RETRY_S = 600                     # a night the reserve held is tried again after this, inside the window
+PACE_S = 600                      # the pace is looked at this often by day (docs/specs/44-week-pace.md §3)
 DECLINED, NIGHT = "declined.jsonl", "night.json"
 DECLINED_READ, COMMITS_READ = 30, 50
 _PATH = re.compile(r"`?([\w.-]+(?:/[\w.*-]+)+/?|[\w-]+\.(?:py|js|ts|tsx|md|json|toml|yaml|yml|css|html|sql))`?")
@@ -110,12 +111,88 @@ class NightMixin:
             limits = []
         return idea_target.reserve_held(limits, self.settings(), time.time()) is not None
 
+    # -- the week's pace (docs/specs/44-week-pace.md §3) ---------------------------------------------------------
+
+    def _limits_rows(self) -> list:
+        try:
+            return list(self.limits() or [])
+        except Exception:                          # a quota never stops the Board
+            return []
+
+    def autostart_on(self) -> bool:
+        return bool((self.settings() or {}).get("autostart", True))
+
+    def pace_now(self, now: float) -> str | None:
+        return idea_target.pace(self._limits_rows(), now)
+
+    def week_behind(self, now: float | None = None) -> bool:
+        """At night the Board's Low work is held: `autostart` is on and the week is behind its pace."""
+        now = time.time() if now is None else now
+        return self.autostart_on() and self.pace_now(now) == "behind"
+
+    def pace_day_free(self, skip: str = "") -> bool:
+        """No other plan of this project is running by day by the pace (one at a time)."""
+        folder = self.state_dir / "ideas"
+        for st in sorted(folder.glob("*/state.json")) if folder.is_dir() else ():
+            slug = st.parent.name
+            if slug != skip and ideas.state(self.state_dir, slug)["state"] == "working" \
+                    and (ideas.plan(self.state_dir, slug) or {}).get("by_pace"):
+                return False
+        return True
+
+    def pace_open(self, now: float) -> bool:
+        """By day, `autostart` on, the week ahead and the reserve not held: the Board's Low work may go now."""
+        night = idea_target.in_night(str((self.settings() or {}).get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
+        limits = self._limits_rows()
+        return not night and self.autostart_on() and idea_target.pace(limits, now) == "ahead" \
+            and idea_target.reserve_held(limits, self.settings(), now) is None
+
+    def pace_tick(self, now: float) -> bool:
+        """From the keeper's clock, at most every PACE_S: when the week is ahead, the oldest Board's Low plan waiting for
+        the night starts and the oldest Board's Low idea is drafted (one draft at a time). True when something started."""
+        if now - self._pace_at < PACE_S:
+            return False
+        self._pace_at = now
+        if self._night_busy or self._pace_busy or self.key_in_night(now) or not self.pace_open(now):
+            return False
+        root, started = self.wiki_root(), False
+        mine = sorted(ideas.ideas(root), key=_rank)
+        for i in mine:                             # a Board's Low plan waiting for the night goes first
+            slug = i["slug"]
+            plan = ideas.plan(self.state_dir, slug)
+            if plan and plan.get("passed_at") and idea_target.board_low(plan) and ideas.state(self.state_dir, slug)["state"] == "plan":
+                if self.pace_day_free(slug):
+                    ideas.edit_plan(self.state_dir, slug, lambda p: p.update(by_pace=True))
+                    try:
+                        started = bool(self.start_night(slug))
+                    except Exception:              # one plan that cannot start never stops the clock
+                        started = False
+                    if not started:
+                        ideas.edit_plan(self.state_dir, slug, lambda p: p.pop("by_pace", None))
+                break                              # the oldest one only
+        waiting = [i for i in mine if (st := ideas.state(self.state_dir, i["slug"]))["state"] == "raw"
+                   and ideas.queue_of(st) == "night" and ideas.night_by_of(st) == "board" and not self.busy(i["slug"])]
+        if waiting and not self._pace_busy and not self.hold(waiting[0]["slug"]):
+            slug, self._pace_busy = waiting[0]["slug"], True
+
+            def run() -> None:
+                try:
+                    self._sync(slug, "drafting", lambda: self.draft_one(slug))
+                finally:
+                    self._pace_busy = False
+            threading.Thread(target=run, daemon=True, name="idea-pace").start()
+            started = True
+        return started
+
+    def key_in_night(self, now: float) -> bool:
+        return bool(self.night_key(now))
+
     # -- the run ---------------------------------------------------------------------------------------------
 
     def run_night(self, key: str = "") -> dict:
         began = time.monotonic()
         key = key or self.night_key(time.time()) or dt.datetime.now().isoformat(timespec="minutes")
-        counts = {"drafted": 0, "started": 0, "refreshed": 0, "proposed": 0, "held": 0}
+        counts = {"drafted": 0, "started": 0, "refreshed": 0, "proposed": 0, "held": 0, "paced": 0}
         root = self.wiki_root()
         steps = (self._night_queue, self._night_starts, self._night_refresh, self._night_proposals)
         for step in steps:
@@ -135,6 +212,10 @@ class NightMixin:
         """1. the `night` queue, by priority then the person's order: each drafted (its plan and autostart follow)."""
         waiting = [i for i in ideas.ideas(root) if (st := ideas.state(self.state_dir, i["slug"]))["state"] == "raw"
                    and ideas.queue_of(st) == "night" and not self.busy(i["slug"])]
+        if self.week_behind():                    # the Board's Low work stays queued; the person's is drafted (spec 44 §3)
+            kept = [i for i in waiting if ideas.night_by_of(ideas.state(self.state_dir, i["slug"])) == "person"]
+            counts["paced"] += len(waiting) - len(kept)
+            waiting = kept
         for n, i in enumerate(sorted(waiting, key=_rank)):
             if self._reserved() or self.hold(i["slug"]):
                 counts["held"] += len(waiting) - n

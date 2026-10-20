@@ -158,7 +158,9 @@ class BoardMixin:
         what = idea_risk.decide(page.get("risk"), page.get("priority"))
         if what != "wait":
             try:
-                self.pass_plan(slug, "auto", night=what == "night")
+                # a Low plan goes by day when the week is ahead of its pace, one at a time (spec 44 §3)
+                pace = what == "night" and self.keeper.pace_open(time.time()) and self.keeper.pace_day_free(slug)
+                self.pass_plan(slug, "auto", night=what == "night", pace=pace)
             except IdeasError:
                 return "wait"
         return what
@@ -171,9 +173,11 @@ class BoardMixin:
             pass
         self._publish(slug)
 
-    def pass_plan(self, slug: str, by: str, night: bool = False, args: dict | None = None) -> None:
+    def pass_plan(self, slug: str, by: str, night: bool = False, args: dict | None = None, pace: bool = False) -> None:
         """A plan passed: by the person's press ("person") or the board ("auto"); `night`: it starts inside the night
-        window. From now on it is the runner's."""
+        window (`start_at_by` keeps who put it off); `pace`: the week is ahead, so it starts by day all the same
+        (`by_pace`, spec 44 §3). From now on it is the runner's."""
+        pace = pace and night and by == "auto"
         plan = ideas.plan(self.state_dir, slug)
         if plan is None:
             raise IdeasError("This idea has no plan yet: Take it to work first")
@@ -184,14 +188,19 @@ class BoardMixin:
             def passing(p: dict) -> None:
                 p.update(passed_at=time.strftime("%Y-%m-%dT%H:%M:%S"), passed_by=by)
                 p["start_at"] = "night" if night else None
+                if night:
+                    p["start_at_by"] = "board" if by == "auto" else "person"
+                if pace:
+                    p["by_pace"] = True
                 p.pop("stopped", None)
             ideas.edit_plan(self.state_dir, slug, passing)
             self._ev(event_log.PLAN_PASSED, args, idea=slug, tasks=len(plan.get("tasks") or []), seconds=self._since(plan.get("made_at")),
                      by=by, risk=idea_risk.level(page.get("risk")) if page else "", priority=page.get("priority") if page else "",
-                     **({"via": _via(args)} if args is not None else {}))
+                     **({"via": _via(args)} if args is not None else {}),
+                     **({"pace": pace} if by == "auto" else {}))
         elif by == "person" and plan.get("start_at"):
             ideas.edit_plan(self.state_dir, slug, lambda p: p.update(start_at=None))
-        if night:
+        if night and not pace:
             ideas.save_state(self.state_dir, slug, error="")
             self._publish(slug)
             return
@@ -243,7 +252,7 @@ class BoardMixin:
         else:
             if self._state(slug)["state"] != "raw":
                 raise IdeasError("Only a new idea waits for the night")
-            ideas.save_state(self.state_dir, slug, queue="night", held_until="", error="")
+            ideas.save_state(self.state_dir, slug, queue="night", night_by="person", held_until="", error="")
         self._ev(event_log.IDEA_QUEUED, args, idea=slug, queue=q, via=_via(args))
         self.changed(slug)
         return {"ok": True}

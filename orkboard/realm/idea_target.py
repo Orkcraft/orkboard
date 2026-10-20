@@ -8,6 +8,7 @@
     task_pick("warrior", "thrift", "")             # ("laborer", "low"): Grunt runs on the shifted tier
     in_night("01:00-07:00", now)                   # inside the night window (the machine's local time)
     reserve_held(limits, settings, now)            # the reserve left for the person: None, or until when
+    pace(limits, now)                              # the Claude week's pace: "ahead" · "even" · "behind" · None (spec 44)
 
 One Target per Board, for the whole route board → pool → gate (decisions §44.3, §47.6). A role with a model set
 (spec 34 §3) runs on it; the Target still gives the effort. No face, no model.
@@ -162,25 +163,89 @@ def reserve(settings: dict | None, night: bool) -> float:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else default
 
 
-def reserve_held(limits, settings: dict | None, now: float, provider: str = "claude") -> float | None:
-    """What starts by itself waits while the tool's `left` is at or below the reserve (by day, or inside the night
-    window): until when (epoch seconds), else None. With no limits read for the tool, no reserve applies."""
+# -- the week's pace (docs/specs/44-week-pace.md §1) --------------------------------------------------------------
+
+MARGIN = 0.10                     # the week is `ahead` when its share left is this far above the share still to come
+SOON_S = 3600                     # by day, within this of the five-hour window's reset its reserve is the night's
+WEEK_S = 7 * 24 * 3600
+_EDGE = 1e-9                      # a percent read is a float: the edges are compared with this much room
+
+
+def week(limits, now: float, provider: str = "claude") -> dict | None:
+    """The tool's weekly window as read: `{"left", "rest", "reset"}` (its share left, the share of the week still to
+    come, 0..1, and when it comes back, epoch seconds); None with no such window (not read, an error, another tool)."""
     from orkboard.realm import status
-    left = left_of(limits, provider)
-    if left is None:
+    for lim in limits or ():
+        if getattr(lim, "provider", "") != provider or getattr(lim, "window", "") != "weekly" or getattr(lim, "error", None):
+            continue
+        left, reset = getattr(lim, "remaining", None), status.reset_at(lim)
+        if left is None or reset is None:
+            continue
+        return {"left": float(left), "rest": min(max((reset - now) / WEEK_S, 0.0), 1.0), "reset": reset}
+    return None
+
+
+def pace(limits, now: float, provider: str = "claude") -> str | None:
+    """The week's pace: "ahead" (its share left at least MARGIN above the share to come), "behind" (below it), else
+    "even"; None with no `week`."""
+    w = week(limits, now, provider)
+    if w is None:
+        return None
+    if w["left"] - w["rest"] >= MARGIN - _EDGE:
+        return "ahead"
+    return "behind" if w["left"] < w["rest"] else "even"
+
+
+def reserve_held(limits, settings: dict | None, now: float, provider: str = "claude") -> float | None:
+    """What starts by itself waits while any of the tool's windows has its share or less left: the day's reserve by day,
+    the night's inside the night window (the five-hour window's, by day within SOON_S of its reset and while the week's
+    pace is not behind, is the night's: spec 44 §1). Until when (epoch seconds), else None. With no limits read for the
+    tool, no reserve applies."""
+    from orkboard.realm import status
+    rows = [lim for lim in limits or () if getattr(lim, "provider", "") == provider
+            and getattr(lim, "remaining", None) is not None]
+    if not rows:
         return None
     night = in_night(str((settings or {}).get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
-    share = reserve(settings, night)
-    if left > share:
+    easing = False if night else pace(limits, now, provider) != "behind"
+    held, resets = False, []
+    for lim in rows:
+        reset = status.reset_at(lim)
+        soon = easing and getattr(lim, "window", "") == "session" and reset is not None and 0 < reset - now <= SOON_S
+        if lim.remaining <= reserve(settings, night or soon):
+            held = True
+            if reset is not None and reset > now:
+                resets.append(reset)
+    if not held:
         return None
-    return status.reset_of(limits, provider, now, share) or now + status.UNKNOWN_RESET_S
+    return max(resets) if resets else now + status.UNKNOWN_RESET_S
 
 
-def gate(plan: dict, limits, board: dict, now: float) -> str | float | None:
+def board_low(plan: dict, board: dict | None = None) -> bool:
+    """A plan the Board itself put off to the night (a Low plan its autostart passed), while `autostart` is on: the
+    only work the week's pace moves (spec 44 §2, §3). A plan of before reads as the person's."""
+    return plan.get("start_at") == "night" and plan.get("start_at_by") == "board" \
+        and bool((board or {}).get("autostart", True))
+
+
+def week_hold(plan: dict, limits, board: dict, now: float) -> float | None:
+    """The week's reset when the Board's Low plan is held for the week: at night, with the week `behind`."""
+    if not board_low(plan, board) or not in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)) \
+            or pace(limits, now) != "behind":
+        return None
+    return (week(limits, now) or {}).get("reset")
+
+
+def gate(plan: dict, limits, board: dict, now: float, day_free: bool = True) -> str | float | None:
     """What holds a passed plan's tasks besides the spent window: "night" (it starts at night and the window is not
-    open: its tasks wait, unheld), the reserve's reset (it started by itself), else None (spec 35 §5, §6)."""
+    open: its tasks wait, unheld), the week's reset (the Board's Low plan, at night, the week behind: spec 44 §3), the
+    reserve's reset (it started by itself), else None (spec 35 §5, §6). The Board's Low plan starts by day while the
+    week is `ahead`, one at a time (`day_free`: no other starts by day in this project)."""
     if plan.get("start_at") == "night" and not in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)):
-        return "night"
+        if not (board_low(plan, board) and day_free and pace(limits, now) == "ahead"):
+            return "night"
+    elif (until := week_hold(plan, limits, board, now)) is not None:
+        return until
     if plan.get("passed_by") == "auto" or plan.get("start_at") == "night":
         return reserve_held(limits, board, now)
     return None
