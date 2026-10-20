@@ -29,6 +29,7 @@ const lcfirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 export function makeParty(core) {
   let leader = TASKMASTER, team = [], every = [];          // team: the builders and checkers
   let editing = false, fold = "", checking = false;
+  let price = null, priceTimer = 0;                        // `ideas.party_price`: asked when the picker opens, 300 ms after a seat or *Every idea* changes
   const teamEl = h("div", { class: "party" });
   const checksEl = h("div", { class: "party-checks" });
 
@@ -39,6 +40,30 @@ export function makeParty(core) {
   const inBand = (band) => (band === "lead" ? [leader] : team.filter((id) => bandOf(id) === band));
   const names = (band) => inBand(band).map(nameOf).join(", ") || "none";
   const draw = () => { drawTeam(); drawChecks(); };
+  const current = () => ({ leader, team: [...team], every: every.filter((id) => team.includes(id)) });
+  function askPrice(now = false) {
+    clearTimeout(priceTimer);
+    const go = async () => {
+      const got = await core.call("ideas.party_price", current());
+      if (got) { price = got; draw(); }
+    };
+    if (now) go(); else priceTimer = setTimeout(go, 300);
+  }
+  /** *This party: about $2–6 an idea* (below $1, in cents) and, muted, where it comes from. */
+  function priceLine() {
+    if (!price) return null;
+    const { low, high } = price, a = Math.round(low), b = Math.round(high);
+    const range = low < 1 ? `$${low.toFixed(2)}–${high.toFixed(2)}` : a === b ? `$${a}` : `$${a}–${b}`;
+    return h("p", { class: "party-price", role: "status" }, `This party: about ${range} an idea`,
+      h("small", { class: "muted" }, ` ${price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}`));
+  }
+  /** *adds about $0.35 to an idea it checks · about half of them* (*· every idea* when it checks every idea). */
+  function addsWords(id) {
+    const c = (price?.checks || []).find((x) => x.by === id);
+    if (!c) return "";
+    const share = c.every ? "every idea" : Math.abs(c.share - 0.5) < 0.03 ? "about half of them" : `about ${Math.round(c.share * 100)} % of them`;
+    return ` · adds about $${c.usd.toFixed(2)} to an idea it checks · ${share}`;
+  }
 
   /** An agent's row in its fold: a tap takes it in or out (a leader takes the one seat; out, the Taskmaster leads). */
   function seat(a) {
@@ -52,7 +77,8 @@ export function makeParty(core) {
         else if (inBand(band).length < seatsOf(core)[band]) team = [...team, id];
         else { core.flash(`${BANDS.find((b) => b[0] === band)[1]} has ${seatsOf(core)[band]} seats: take one out first.`); return; }
         draw();
-      } }, head(kind, a.tier || "warrior"), h("b", {}, a.name),
+        askPrice();
+      } }, head(kind, a.tier || "warrior"), h("b", {}, a.name, a.check ? h("span", { class: "check-badge" }, "checks") : null),
       h("small", { class: "muted" }, `${TIER_WORDS[a.tier] || ""} ${RACE_WORDS[kind]}${a.line ? ` · ${a.line}` : ""}`.trim()),
       h("span", { class: "team-mark", "aria-hidden": "true" }, icon(on ? "check" : "plus")));
   }
@@ -79,12 +105,12 @@ export function makeParty(core) {
   function drawTeam() {
     const line = h("p", { class: "party-line" }, h("b", {}, "Leads: "), names("lead"), " · ", h("b", {}, "Builds: "), names("build"), " · ", h("b", {}, "Checks: "), names("check"));
     if (!editing) {
-      teamEl.replaceChildren(h("h3", {}, "Team"), line,
+      teamEl.replaceChildren(h("h3", {}, "Team"), line, priceLine(),
         h("button", { class: "ork-btn", type: "button", "data-change": "team", onclick: () => { editing = true; fold = "lead"; draw(); } }, "Change"));
       return;
     }
     if (!fold) { editing = false; drawTeam(); return; }            // every fold closed by Done: back to the line
-    teamEl.replaceChildren(h("h3", {}, "Team"), ...BANDS.map(band));
+    teamEl.replaceChildren(h("h3", {}, "Team"), ...BANDS.map(band), priceLine());
   }
 
   /** The craft the party was started from (the goal's craft sorts its agents first); set by the sheet. */
@@ -92,7 +118,6 @@ export function makeParty(core) {
 
   // -- the team's checks: each checker's, where it applies or on every idea, and what a check adds to an idea, in dollars ----------
   function drawChecks() {
-    const costs = core.st.roles?.tier_costs || {};
     const checkers = team.map(agent).filter((a) => a?.check);
     const mine = every.filter((id) => team.includes(id));
     const said = !checkers.length ? "No check" : `${checkers.length} ${checkers.length === 1 ? "check" : "checks"}, ${mine.length ? `${mine.length} on every idea` : "where each applies"}`;
@@ -101,16 +126,13 @@ export function makeParty(core) {
         checkers.length ? h("button", { class: "ork-btn", type: "button", "data-change": "checks", onclick: () => { checking = true; drawChecks(); } }, "Change") : null);
       return;
     }
-    const priced = checkers.every((a) => Number(costs[a.tier]) > 0);       // no price known: no number said
-    const usd = (n) => (priced ? ` · ≈ $${Number(n).toFixed(2)}` : "");
-    const total = checkers.reduce((sum, a) => sum + Number(costs[a.tier] || 0), 0);
     checksEl.replaceChildren(h("h3", {}, "Checks"), h("div", { class: "checks-block", role: "group", "aria-label": "Checks" },
-      h("p", { class: "muted" }, `How deep each idea is worked: every check adds a line to its Done when and a task to its plan${priced ? `, ≈ $${total.toFixed(2)} an idea they all apply to` : ""}.`),
+      h("p", { class: "muted" }, `How deep each idea is worked: every check adds a line to its Done when and a task to its plan.`),
       ...checkers.map((a) => {
         const box = h("input", { type: "checkbox", "aria-label": `Every idea: ${a.name}`, ...(every.includes(a.id) ? { checked: true } : {}) });
-        box.addEventListener("change", () => { every = box.checked ? [...every, a.id] : every.filter((x) => x !== a.id); });
+        box.addEventListener("change", () => { every = box.checked ? [...every, a.id] : every.filter((x) => x !== a.id); askPrice(); });
         return h("div", { class: "check-row" }, head(RACE[a.craft], a.tier, { small: true }),
-          h("span", { class: "check-text" }, h("b", {}, a.name), h("small", { class: "muted" }, `${a.check.done} · applies ${a.check.applies}${usd(costs[a.tier])}`)),
+          h("span", { class: "check-text" }, h("b", {}, a.name), h("small", { class: "muted" }, `${a.check.done} · applies ${a.check.applies}${addsWords(a.id)}`)),
           h("label", { class: "check-every" }, box, h("span", {}, "Every idea")));
       }),
       h("button", { class: "ork-btn", type: "button", "data-done": "checks", onclick: () => { checking = false; drawChecks(); } }, "Done")));
@@ -124,9 +146,10 @@ export function makeParty(core) {
       leader = party.leader || TASKMASTER;
       team = [...(party.team || [])];
       every = [...(party.every || [])];
-      editing = false; fold = ""; checking = false;
+      editing = false; fold = ""; checking = false; price = null;
       craftNow = craft;
       draw();
+      askPrice(true);                                      // the picker opens
     },
     /** A craft's party in the seats at once. */
     preset(craft) {
@@ -135,8 +158,9 @@ export function makeParty(core) {
       team = [...p.build, ...p.check];
       every = [];
       draw();
+      askPrice();
     },
-    get: () => ({ leader, team: [...team], every: every.filter((id) => team.includes(id)) }),
+    get: current,
     /** The crafts of the party's agents, for a Mixed goal's own craft. */
     crafts: () => [leader, ...team].filter((id) => id !== TASKMASTER).map((id) => agent(id)?.craft).filter(Boolean),
     names,

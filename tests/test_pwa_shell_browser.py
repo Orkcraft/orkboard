@@ -50,6 +50,7 @@ class Stub:
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
         self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
         self.party: dict = {}                             # ideas.party (spec 43 B)
+        self.learned = True                               # ideas.party_price (spec 43 C): learned, or a first guess
         self.checks: list[dict] = []                      # the idea's checks (realm/idea_checks.py `status`), the sync idea's
         self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
         self.todos = [{"idea": "sync", "id": "t1", "title": "API_KEY", "kind": "secret", "why": "The sync service needs it", "choices": [],
@@ -130,7 +131,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -162,6 +163,9 @@ class Stub:
                                   "at": "", "todo": {k: t.get(k) for k in ("id", "title", "kind", "why", "choices", "steps", "accept", "done")}})
             return {"tracks": list(self.goals.values()), "ideas": ideas, "needs_you": needs + self.extra_needs,
                     "target": self.target, "autostart": self.autostart, "night": self.night, "rev": self.rev, "demo": False}
+        if name == "ideas.party_price":                 # spec 43 C: about what an idea costs with this party
+            from tests.test_shell_browser import party_price
+            return party_price(a, self.learned)
         if name == "ideas.party":                       # spec 43 B: what the goal's party did
             return copy.deepcopy(self.party)
         if name == "ideas.page":
