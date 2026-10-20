@@ -178,3 +178,8 @@ Nothing else: no mark in the top bar, no colour (a battery is not a signal), no 
 - The old Town settings' `AwakeField` (`js/settings.js`): Orkboard does not load that dialog; it goes with that file.
 
 ## 9. As built (notes, no change of the contract)
+- **A** (`spec/47-awake-backend`): `gui/awake.py` is written from §1's description, not copied: Orkline's file was not
+  in reach. `Awake` takes `popen`, `which`, `platform`, `settle` and `windows` for the tests; `apply(True)` holds nothing
+  while `running` is false, and a refused hold is not tried again (`can()` turns false). `KeepAwake.start()` (from `run`)
+  sets `awake.running`; `stop()` clears it. `tests/conftest.py` swaps `awake.Awake` for a fake in every test.
+  An idea `raw` with no queue counts for `tonight`, as the night takes it (`ideas.queue_of`).

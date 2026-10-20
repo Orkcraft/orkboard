@@ -476,9 +476,9 @@ class Listener:
                 "awake_offer": self._awake_offer()}
 
     def _awake_offer(self) -> str:
-        """"Mac" while "keep it awake for the phone" is to be asked (gui/away.py `offer`), else ""."""
-        away = getattr(self.host, "away", None)
-        return away.offer() if away is not None else ""
+        """"Mac" while "keep it awake for the phone" is to be asked (gui/keep_awake.py `offer`), else ""."""
+        keep = getattr(self.host, "keep_awake", None)
+        return keep.offer() if keep is not None else ""
 
     def pair(self) -> dict[str, Any]:
         """A new one-time code and the QR code that carries it, the address and the fingerprint."""

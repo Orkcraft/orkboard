@@ -68,6 +68,26 @@ def _rank(i: dict) -> tuple:
 
 
 class NightMixin:
+    # -- what the host asks (spec 47 §3: keeping the computer awake) ------------------------------------------
+
+    def at_work(self) -> bool:
+        """The keeper is at work: a draft, a plan, a read, a check or the night's run."""
+        with self._lock:
+            return bool(self._busy) or bool(self._night_busy)
+
+    def tonight(self) -> int:
+        """How many rows the night's steps 1 and 2 would take: an idea `raw` in the `night` queue, a passed plan with
+        `start_at: "night"` still in state `plan`. The night's refresh and proposals are not counted."""
+        root, n = self.wiki_root(), 0
+        for i in ideas.ideas(root):
+            st = ideas.state(self.state_dir, i["slug"])
+            if st["state"] == "raw" and ideas.queue_of(st) == "night":
+                n += 1
+            elif st["state"] == "plan" and (p := ideas.plan(self.state_dir, i["slug"])) and p.get("passed_at") \
+                    and p.get("start_at") == "night":
+                n += 1
+        return n
+
     # -- when -----------------------------------------------------------------------------------------------
 
     def _night_file(self) -> Path:

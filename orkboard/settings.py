@@ -52,7 +52,8 @@ PROFILE_TEXT = ("orchestration", "role", "role_other", "industry", "industry_oth
 PROFILE_LISTS = ("day", "mcp")   # mcp: the MCP servers the orks may use (gui/onboarding.py)
 UPDATES = ("auto", "critical", "ask")   # core/updates.py POLICIES
 LOOKS = ("camp", "office", "shift")
-# When the computer is kept from sleeping (gui/away.py): never, while carts are in work, or also while a phone is
+# When the computer is kept from sleeping (Orkboard's gui/keep_awake.py, Orkline's gui/away.py): never, while carts are
+# in work, or also while a phone is
 # paired, so it can reach the town all day (decisions-2026-10 §18). Both only on power.
 KEEP_AWAKE = ("off", "carts", "phone")
 # "shift": Office while the work day lasts, Camp the rest of the day (docs/design/portrait.md §3) — the default.
@@ -125,8 +126,8 @@ class MachineSettings:
     agy_warder_checked: bool = False
     usage: bool | None = None     # anonymous usage stats (core/usage.py): None until the operator answers
     install_id: str = ""          # a random id while they share them; forgotten when they stop
-    keep_awake: str = "carts"     # KEEP_AWAKE: when the computer does not sleep by itself, on power (gui/away.py)
-    awake_offered: bool = False   # "keep it awake for the phone" was asked once, when a phone paired (js/phones.js)
+    keep_awake: str = "carts"     # KEEP_AWAKE: when the computer does not sleep by itself, on power (gui/keep_awake.py; Orkline's gui/away.py)
+    awake_offered: bool = False   # "keep it awake for the phone" was asked once, when a phone paired (js/phones.js; gui/keep_awake.py `offer`)
     fire: bool = True             # flames over a building whose ork has waited a minute or more (the GUI's huts)
     updates: str = "critical"     # which updates install by themselves when the town opens (core/updates.py)
     main_tool: str = ""           # the tool decisions run on (realm/harnesses.py); "" the first one on
