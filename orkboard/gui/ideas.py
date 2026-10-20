@@ -525,6 +525,6 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixi
                  "ideas.queue": self.queue, "ideas.read_stop": self.read_stop, "ideas.start_now": self.start_now,
                  "ideas.proposal": self.proposal, "ideas.board_set": self.board_set, "ideas.answer": self.answer,
                  "ideas.spend": self.spend, "ideas.lens": self.lens, "ideas.lens_code": self.lens_code,
-                 "ideas.lens_screen": self.lens_screen}
+                 "ideas.lens_screen": self.lens_screen, "ideas.check_skip": self.check_skip}
         return {name: guarded(fn) for name, fn in table.items()}
 

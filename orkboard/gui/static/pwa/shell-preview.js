@@ -142,12 +142,21 @@ export function makePreview(core, ctx) {
   }
 
   /** The checks the goal's team holds this idea to (realm/idea_checks.py): passed, its task's state, or why it does not apply. */
-  function checksLine(checks) {
+  /** The checks of the idea (realm/idea_checks.py): passed, its task's state, why not, or skipped by the person. Skip spares a
+   *  check that has not run (its task taken out of the plan); Take again, before a plan. */
+  function checksLine(p, cur) {
+    const checks = p.checks;
     if (!(checks || []).length) return null;
-    const words = (c) => (!c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : c.state ? TASK_WORDS[c.state] || c.state : "in the plan to come");
+    const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : c.state ? TASK_WORDS[c.state] || c.state : "in the plan to come");
+    const skippable = (c) => c.applies && !c.skipped && (!c.state || ["waiting", "ready", "held"].includes(c.state));
+    const spares = (c) => { const usd = Number(core.st.roles?.tier_costs?.[c.tier]); return usd > 0 ? ` · spares ≈ $${usd.toFixed(2)}` : ""; };
+    const skip = (c, on) => act("ideas.check_skip", { slug: p.slug, by: c.by, ...(on ? {} : { skip: false }) },
+      on ? `Skipped: ${c.name}.` : `${c.name} checks it again.`).then(() => read(cur));
     return h("div", { class: "checks-line", role: "list", "aria-label": "Checks" }, h("span", { class: "field-label" }, "Checks"),
-      ...checks.map((c) => h("span", { class: `check-chip${c.applies ? "" : " is-off"}${c.state === "passed" ? " is-passed" : ""}`, role: "listitem" },
-        h("b", {}, c.state === "passed" ? icon("check") : null, c.name), h("small", {}, words(c)))));
+      ...checks.map((c) => h("span", { class: `check-chip${c.applies && !c.skipped ? "" : " is-off"}${c.state === "passed" ? " is-passed" : ""}`, role: "listitem" },
+        h("b", {}, c.state === "passed" ? icon("check") : null, c.name), h("small", {}, words(c)),
+        skippable(c) ? h("button", { class: "ork-btn check-skip", type: "button", "aria-label": `Skip the check: ${c.name}`, onclick: () => skip(c, true) }, `Skip${spares(c)}`)
+          : c.skipped && !p.plan ? h("button", { class: "ork-btn check-skip", type: "button", "aria-label": `Take the check again: ${c.name}`, onclick: () => skip(c, false) }, "Take again") : null)));
   }
 
   // why the Taskmaster's last step on it failed (a failed plan says its own under its button)
@@ -160,7 +169,7 @@ export function makePreview(core, ctx) {
       h("p", { class: "muted" }, [p.size ? `Size ${p.size} · ` : "", stateWords({ state: p.state, progress: { done: (p.plan?.tasks || []).filter((t) => t.state === "merged").length, total: (p.plan?.tasks || []).length } })].join("")),
       stateError(p) ? h("p", { class: "warn", role: "alert" }, stateError(p)) : null,
       pointedAt(p.lens),
-      checksLine(p.checks),
+      checksLine(p, cur),
       ...(p.sections || []).map(sectionBlock),
       p.plan && ["plan", "working", "failed", "done"].includes(p.state) ? planList(p.plan, p) : null,
       talk.length ? h("h3", {}, "The talk") : null,

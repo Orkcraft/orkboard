@@ -273,3 +273,53 @@ def test_the_leader_accepts_the_goal_when_its_last_idea_is_done_and_when_asked(h
     assert host.command("ideas.goal_accept", {"slug": goal}) == {"ok": True}           # asked again, from the goal
     _wait(host, goal, goal=True)
     assert sum(1 for p in seen if "accept the goal or" in p) == 2
+
+
+def test_a_check_skipped_before_the_plan_is_left_out_and_after_it_its_task_is_taken_out_before_it_runs(host):
+    from orkboard.realm import idea_checks
+    slug = host.command("ideas.goal_save", {"about": "Sync that holds.", "craft": "engineering", "leader": "architect",
+                                            "team": ["grunt", "reviewer"]})["slug"]
+    idea = host.command("ideas.add", {"text": "Retry a lost sync", "track": slug, "priority": "low"})["slug"]
+    root, state = host.ideas.root(), host.ideas.state_dir
+    keeper = host.ideas.keeper
+    host.command("ideas.check_skip", {"slug": idea, "by": "reviewer"})                       # before a plan: left out of it
+    kept = keeper.idea_checks(root, idea)
+    assert kept == [{"by": "reviewer", "applies": True, "why": "", "skipped": True}]
+    assert idea_checks.plan_lines(kept, keeper.team_checks(root, idea)) == ""
+    tasks = [{"id": "k1", "title": "Retry", "kind": "code", "after": []}]
+    assert idea_checks.with_check_tasks(tasks, kept, keeper.team_checks(root, idea), lambda *a: {"id": a[0], "kind": a[3]}) == tasks
+    assert "reviewer" not in keeper.draft_prompt(root, idea)                                  # not asked of in the draft either
+    host.command("ideas.check_skip", {"slug": idea, "by": "reviewer", "skip": False})         # taken again, before a plan
+    assert not keeper.idea_checks(root, idea)[0].get("skipped")
+
+    ideas.save_plan(state, idea, {"idea": idea, "todos": [], "tasks": [                       # a plan with its check task, after the work
+        {"id": "k1", "title": "Retry", "kind": "code", "state": "merged", "after": []},
+        {"id": "k2", "title": "Check: Reviewer", "kind": "review", "state": "waiting", "after": ["k1"]},
+        {"id": "k3", "title": "Notes", "kind": "docs", "state": "waiting", "after": ["k2"]}]})
+    host.command("ideas.check_skip", {"slug": idea, "by": "reviewer"})
+    plan = ideas.plan(state, idea)
+    assert [t["id"] for t in plan["tasks"]] == ["k1", "k3"] and plan["tasks"][1]["after"] == []      # what waited for it does not
+    st = idea_checks.status(keeper.idea_checks(root, idea), keeper.team_checks(root, idea), plan["tasks"])
+    assert st[0]["skipped"] and st[0]["state"] == "" and st[0]["task"] == ""
+    with pytest.raises(CommandError, match="comes back with the idea's next plan"):
+        host.command("ideas.check_skip", {"slug": idea, "by": "reviewer", "skip": False})
+    with pytest.raises(CommandError, match="no such check"):
+        host.command("ideas.check_skip", {"slug": idea, "by": "editor"})
+    lines = [json.loads(x) for x in (fake_repo_events(host)).read_text().splitlines()]
+    skipped = [x for x in lines if x.get("event") == "check_skipped"]
+    assert [(x["by"], x["skipped"], x["task"]) for x in skipped] == [("reviewer", True, ""), ("reviewer", False, ""), ("reviewer", True, "k2")]
+
+
+def test_a_check_under_way_cannot_be_skipped(host):
+    slug = host.command("ideas.goal_save", {"about": "x", "craft": "engineering", "leader": "architect", "team": ["reviewer"]})["slug"]
+    idea = host.command("ideas.add", {"text": "y", "track": slug, "priority": "low"})["slug"]
+    ideas.save_plan(host.ideas.state_dir, idea, {"idea": idea, "todos": [], "tasks": [
+        {"id": "k1", "title": "Check: Reviewer", "kind": "review", "state": "review", "after": []}]})
+    with pytest.raises(CommandError, match="under way"):
+        host.command("ideas.check_skip", {"slug": idea, "by": "reviewer"})
+
+
+def fake_repo_events(host):
+    from pathlib import Path
+    from orkboard.realm import event_log
+    return event_log.path(Path(host.repo_root))

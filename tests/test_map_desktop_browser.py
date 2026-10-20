@@ -55,7 +55,8 @@ class MapHost(StubHost):
                       pip("k3", "Retry on a lost signal", "ready", ["k1"]), pip("k4", "Test it offline", "waiting", ["k2", "k3"])]
         self.nodes = [
             node("sync", "ship-sync", "Sync ideas between the phone and the town", "working", 1, progress={"done": 1, "total": 4},
-                 tasks=self.tasks, by_itself=True, updated=ago(1)),
+                 tasks=self.tasks, by_itself=True, updated=ago(1),
+                 checks=[{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "waiting", "task": "k4", "skipped": False, "tier": "elder"}]),
             node("offline", "ship-sync", "Offline mode", "raw", 1, queue="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}),
             node("dark", "ship-sync", "Dark mode", "plan", 2, depends_on=["sync"], waits_on=["sync"], needs_you="plan",
                  waits={"kind": "you", "ref": "", "title": "", "until": ""}, estimate={"usd_low": 0.4, "usd_high": 1.2}),
@@ -259,6 +260,10 @@ def test_an_idea_at_work_shows_its_tasks_left_with_their_agents_in_waves_and_the
     assert "working" in waves.nth(0).locator(".map-task").first.get_attribute("title")
     assert waves.nth(1).locator(".map-task").count() == 1 and "1 done" in tasks.inner_text()
     assert waves.nth(0).locator(".map-task").first.locator("img.ork-race__head").count() == 1          # who does it
+    skip = tasks.get_by_role("button", name="Skip the check: Reviewer")                                 # a checker's task, not run yet: ×
+    assert skip.count() == 1 and tasks.locator(".map-task__skip").count() == 1
+    skip.click()
+    assert _sent(pg, host, ("ideas.check_skip", {"slug": "sync", "by": "reviewer"}))
     waves.nth(0).locator(".map-task").first.click()
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "task", "ref": "sync/k2", "device": "desktop", "via": "map"}))
     tab(pg, "Map").click()

@@ -263,3 +263,11 @@
 .trail .map-task[data-state="running"], .trail .map-task[data-state="testing"] { border-color: var(--ork-ink); }
 .trail .map-task[data-state="failed"] { border-color: var(--ork-danger); color: var(--ork-danger); }
 .trail-step { gap: var(--ork-3); }
+.board-check__skip { align-self: flex-start; font: var(--ork-type-caption); }
+/* A checker's task on the trail: × skips it before it runs, to spare its run (map.js). */
+.map-task-pair { display: inline-flex; align-items: stretch; max-width: 100%; }
+.trail .map-task-pair.is-check .map-task { border-style: dashed; }
+.map-task__skip { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; padding: 0 var(--ork-1);
+  border: var(--ork-line) solid var(--ork-frame); border-left: 0; color: var(--ork-ink-muted); }
+.map-task__skip:hover, .map-task__skip:focus-visible { color: var(--ork-ink); outline: 1px solid var(--ork-ink); }
+.map-task__skip .ork-icon { width: 10px; height: 10px; }

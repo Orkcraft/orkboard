@@ -124,7 +124,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map")
+                 "lens_code", "lens_screen", "map", "check_skip")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -238,6 +238,11 @@ class Stub:
             return self.bump({"ok": True})
         if name == "ideas.todo":
             self.todos[0]["done"] = a["done"]
+            return self.bump({"ok": True})
+        if name == "ideas.check_skip":                # a check skipped, or taken again (gui/ideas_review.py)
+            for c in self.checks:
+                if c["by"] == a["by"]:
+                    c.update(skipped=a.get("skip", True) is not False, state="", task="")
             return self.bump({"ok": True})
         if name == "ideas.map":                       # the Board's trails (realm/board_map.py), from the ideas in memory
             return self.map_doc()

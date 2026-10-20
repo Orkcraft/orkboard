@@ -80,6 +80,10 @@ class StubHost:
         self.goals["grow"] = self.goal("grow", "Grow installs", "high", "ready", order=2, summary="More people try Orkline.", questions=["Which channel first?"])
         self.proposals, self.asked, self.todo_log = [], [], []
         self.lens = {"lenses": [{"id": "text"}], "default": "text", "segments": [], "screens": []}    # ideas.lens
+        self.unplanned = False                        # sync's spec says no plan yet (its tasks stay on the Board)
+        self.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed", "task": "k1", "tier": "elder"},   # sync's
+                       {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": False, "why": "It changes no screen", "state": "",
+                        "task": "", "tier": "warrior"}]
         self.parts: list[dict] = []                                                                  # ideas.lens_code
         self.screen_png = ""                                                                         # ideas.lens_screen
 
@@ -138,10 +142,8 @@ class StubHost:
         if slug == "search":
             next(x for x in secs if x["name"] == "Open questions")["text"] = "- Which fields count?\n- Do tags count?"
         return {"slug": slug, "title": i["title"], "track": "general", "state": i["state"], "size": "M", "sections": secs, "talk": i["talk"],
-                "plan": self.plan if slug == "sync" else None, "busy": False, "state_error": i.get("state_error", ""), "lens": i.get("lens", []),
-                "checks": [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed"},
-                           {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": False, "why": "It changes no screen",
-                            "state": ""}] if slug == "sync" else []}
+                "plan": self.plan if slug == "sync" and not self.unplanned else None, "busy": False, "state_error": i.get("state_error", ""), "lens": i.get("lens", []),
+                "checks": self.checks if slug == "sync" else []}
 
     def find(self, a):
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])
@@ -158,6 +160,11 @@ class StubHost:
             return self.page(a["slug"])
         if name == "ideas.lens":                      # the goal's party's lenses (gui/ideas_lens.py)
             return dict(self.lens, track=a["track"])
+        if name == "ideas.check_skip":                # a check skipped, or taken again (gui/ideas_review.py)
+            for c in self.checks:
+                if c["by"] == a["by"]:
+                    c.update(skipped=a.get("skip", True) is not False, state="", task="")
+            return self.bump({"ok": True})
         if name == "ideas.lens_code":
             return {"parts": self.parts}
         if name == "ideas.lens_screen":
@@ -926,6 +933,22 @@ def test_a_proposal_declined_with_a_reason_or_without(shell):
     prop.get_by_role("button", name="Decline: Tag the notes").click()
     pg.wait_for_function("() => document.querySelectorAll('.board-proposal').length === 0", timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.proposal", {"slug": "tags", "take": False, "reason": "not now"}))
+
+
+def test_a_check_that_has_not_run_is_skipped_from_the_spec_and_a_skipped_one_is_taken_again_before_a_plan(shell):
+    pg, host = shell
+    host.checks[1].update(applies=True, why="", state="", task="")                                   # no task yet: in the plan to come
+    host.unplanned = True
+    host.bump({})
+    pg.locator(".board-card", has_text="Sync ideas").click()
+    checks = pg.locator(".shell-preview").get_by_role("list", name="Checks")
+    checks.wait_for(timeout=WAIT_MS)
+    assert checks.get_by_role("button", name="Skip the check: Reviewer").count() == 0                # passed: nothing to spare
+    checks.get_by_role("button", name="Skip the check: Accessibility reviewer").click()
+    assert _sent(pg, host, ("ideas.check_skip", {"slug": "sync", "by": "accessibility-reviewer"}))
+    checks.get_by_text("skipped by you").wait_for(timeout=WAIT_MS)
+    checks.get_by_role("button", name="Take the check again: Accessibility reviewer").click()         # before a plan: it can come back
+    assert _sent(pg, host, ("ideas.check_skip", {"slug": "sync", "by": "accessibility-reviewer", "skip": False}))
 
 
 def test_the_spec_shows_its_sections_and_stages_with_each_tasks_live_state(shell):

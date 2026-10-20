@@ -134,7 +134,8 @@ class DraftMixin:
         metrics = "\n".join(f"- {m['name']}" + (f" → {m['target']}" if m.get("target") else "")
                             + (f" (counted: {m['how']})" if m.get("how") else "") for m in (g or {}).get("metrics") or [])
         links = [x for x in (g or {}).get("links") or [] if "://" not in x]
-        checks = self.team_checks(root, slug)
+        spared = {k["by"] for k in self.idea_checks(root, slug) if k.get("skipped")}          # a check the person skipped: not asked of
+        checks = [c for c in self.team_checks(root, slug) if c["by"] not in spared]
         checks_json = ',\n "checks": [{"by": "<a check\'s id>", "applies": true, "why": "when it does not apply: why, in one line"}]' if checks else ""
         context = idea_target.cut([("The idea, in the person's words", page.section("Gist")),
                                    ("Its goal's summary", (g or {}).get("summary", "")), ("Its goal's metrics", metrics),
@@ -281,9 +282,13 @@ Section names: {", ".join(names)}."""
         if why := w(answer.get("why"), ideas.SECTION_CHARS):
             sections["Why"] = why
         checks = self.team_checks(root, slug)
-        kept_checks = idea_checks.kept(answer.get("checks"), checks)
+        skipped = {k["by"] for k in self.idea_checks(root, slug) if k.get("skipped")}     # what the person skipped stays skipped
+        said = [x | ({"skipped": True} if isinstance(x, dict) and x.get("by") in skipped else {}) for x in answer.get("checks") or [] if isinstance(x, dict)]
+        said += [{"by": b, "skipped": True} for b in skipped if not any(x.get("by") == b for x in said)]
+        kept_checks = idea_checks.kept(said, checks)
         done = ss(answer.get("done_when"), MAX_DONE)
-        done += [c["done"] for c in checks for k in kept_checks if k["by"] == c["by"] and k["applies"] and c["done"] not in done]
+        go = idea_checks.on(kept_checks)
+        done += [c["done"] for c in checks if c["by"] in go and c["done"] not in done]
         if done:                                     # a check that applies: its line, whether the draft wrote it or not
             sections["Done when"] = kw._bullets(done)
         sections["Out"] = kw._bullets(ss(answer.get("out"), MAX_OUT))

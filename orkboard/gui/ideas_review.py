@@ -1,15 +1,16 @@
 """Review, Agents and one task (spec 33 §5), as `gui/ideas.py`'s `Ideas` has them: the results waiting for the person
 (`ideas.review_list`, `ideas.diff`), their three answers (`ideas.merge`, `ideas.back`, `ideas.drop_task`),
-`ideas.stop_task`, one task with its log (`ideas.task`) and the branch results merge into (`ideas.into`, the project's
+`ideas.stop_task`, a check skipped to spare its run (`ideas.check_skip`), one task with its log (`ideas.task`) and the branch results merge into (`ideas.into`, the project's
 own setting: spec 37 §8). Split from ideas.py to keep it under ~600 lines.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from orkboard import settings
 from orkboard.gui.ideas_args import IdeasError, _device, _text
-from orkboard.realm import event_log, idea_spend, ideas, roles
+from orkboard.realm import event_log, idea_checks, idea_spend, ideas, roles
 from orkboard.realm.idea_git import IdeaGit
 
 _NO_TESTS = {"passed": 0, "failed": 0, "failing": [], "tail": ""}
@@ -97,6 +98,34 @@ class ReviewMixin:
     def drop_task(self, args: dict) -> dict:
         slug, tid, _task, _plan = self._task(args)
         self.runner(need=True).drop_task(slug, tid, device=_device(args))
+        self.changed(slug)
+        return {"ok": True}
+
+    def check_skip(self, args: dict) -> dict:
+        """`{"slug", "by", "skip"?}`: skip a check of the idea's goal's party to spare its run (`skip: false` takes it
+        again, before a plan). Before a plan the plan leaves it out; after, its task is taken out before it runs."""
+        slug, by = _text(args, "slug", 100), _text(args, "by", 60)
+        skip = args.get("skip", True) is not False
+        root = self.root()
+        if ideas.idea_page(root, slug) is None:
+            raise IdeasError("That idea is gone")
+        checks = self.keeper.team_checks(root, slug)
+        try:
+            rows = idea_checks.skip(self.keeper.idea_checks(root, slug), checks, by, skip)
+        except ValueError as e:
+            raise IdeasError(str(e)) from None
+        check = next(c for c in checks if c["by"] == by)
+        plan = ideas.plan(self.state_dir, slug)
+        task = next((t for t in (plan or {}).get("tasks") or [] if t.get("kind") == check["tag"]), None)
+        if skip and task is not None:
+            if task.get("state") in idea_checks.DONE:
+                raise IdeasError("That check has passed already")
+            self.runner(need=True).skip_task(slug, str(task.get("id")), device=_device(args))
+        elif not skip and plan and task is None:
+            raise IdeasError("The plan was made without it: it comes back with the idea's next plan")
+        ideas.set_meta(root, slug, checks=json.dumps(rows))
+        self._ev(event_log.CHECK_SKIPPED, args, idea=slug, by=by, skipped=skip, task=str((task or {}).get("id") or ""),
+                 usd=idea_spend.tier_costs(self.state_dir).get(check["tier"]))
         self.changed(slug)
         return {"ok": True}
 

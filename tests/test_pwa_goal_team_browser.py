@@ -142,3 +142,22 @@ async def test_a_goal_whose_ideas_are_done_is_accepted_by_its_leader_against_its
         await verdict.get_by_role("button", name="Add as idea: A post on the forum").click()
         assert await _called(stub, "ideas.add", {"text": "A post on the forum", "track": "land", "priority": "normal"})
         assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_check_that_has_not_run_is_skipped_from_the_spec_to_spare_its_run(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "waiting", "task": "k5", "skipped": False, "tier": "elder"},
+                       {"by": "editor", "name": "Editor", "applies": True, "why": "", "state": "passed", "task": "k6", "skipped": False, "tier": "laborer"}]
+        stub.bump({})
+        await page.locator(".map-row", has_text="Sync ideas").locator(".map-open").click()
+        line = page.locator(".screen").get_by_role("list", name="Checks")
+        await line.wait_for(timeout=WAIT_MS)
+        assert await line.get_by_role("button", name="Skip the check: Editor").count() == 0           # passed: nothing to spare
+        skip = line.get_by_role("button", name="Skip the check: Reviewer")
+        assert "spares ≈ $" in await skip.inner_text()                                                 # what it spares, in dollars
+        await _shot(page, "phone-check-skip-390x844")
+        await skip.click()
+        assert await _called(stub, "ideas.check_skip", {"slug": "sync", "by": "reviewer"})
+        await line.get_by_text("skipped by you").wait_for(timeout=WAIT_MS)
+        assert await page.evaluate(NO_SCROLL)

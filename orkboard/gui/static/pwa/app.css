@@ -602,3 +602,4 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .map-row .map-wave, .map-row .map-tasks { min-width: 0; max-width: 100%; }
 .map-row .map-task-title { min-width: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.check-chip .check-skip { margin-top: var(--ork-2); align-self: flex-start; }

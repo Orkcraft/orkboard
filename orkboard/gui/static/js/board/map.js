@@ -9,7 +9,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Chev, Icon, WhoHead } from "../orkui.js";
 import { PRIORITY_WORDS } from "./store.js";
-import { mapData, mapSince, mapFolded, mapUi, mapView, preview, showIdea, showTask } from "../shell/store.js";
+import { mapData, mapSince, mapFolded, mapUi, mapView, preview, showIdea, showTask, act as run } from "../shell/store.js";
+import { skippable, spares } from "./idea.js";
 import { openDialog } from "../shell/modals.js";
 import { TASK_STATE, nodeView, tiersOf, wavesOf, spentWords, goalState, progressOf, leftToDo, trailCurve, trailEdges } from "./maplayout.js";
 
@@ -76,8 +77,12 @@ function Stop({ n, titles, since, leader }) {
       ${wavesOf(left).map((wave, i) => html`<div key=${i} class="map-wave" data-wave=${i + 1}>
         ${wave.slice(0, TASKS).map((t) => {
           const said = `${t.title} · ${t.tag ? `${t.tag} · ` : ""}${TASK_STATE[t.state] || t.state}`;
-          return html`<button key=${t.id} type="button" class="map-task" data-state=${t.state} title=${said} aria-label=${said}
+          const check = (n.checks || []).find((c) => c.task === t.id);            // a task of a checker: it may be skipped before it runs
+          const chip = html`<button type="button" class="map-task" data-state=${t.state} title=${said} aria-label=${said}
             onClick=${() => showTask(n.slug, t.id, { via: "map" })}>${t.head && html`<${WhoHead} head=${t.head} small />`}<span class="map-task__title">${t.title}</span></button>`;
+          return check && skippable(check) ? html`<span key=${t.id} class="map-task-pair is-check">${chip}<button type="button" class="map-task__skip"
+            aria-label=${`Skip the check: ${check.name}`} title=${`Skip the check: its run is spared${spares(check)}`}
+            onClick=${() => run("ideas.check_skip", { slug: n.slug, by: check.by })}><${Icon} name="close" /></button></span>` : html`<span key=${t.id} class="map-task-pair">${chip}</span>`;
         })}</div>`)}
       ${doneTasks > 0 && html`<small class="map-tasks__done ok-tone-muted">${doneTasks} done</small>`}</div>`}
   </li>`;

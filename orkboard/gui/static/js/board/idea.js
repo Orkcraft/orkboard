@@ -7,7 +7,7 @@ import { Who, Icon } from "../orkui.js";
 import { say } from "../link.js";
 import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
 import { Stages } from "./stages.js";
-import { act as run, showTask, showIdea, closePreview } from "../shell/store.js";
+import { act as run, showTask, showIdea, closePreview, roles } from "../shell/store.js";
 import { ErrorLine } from "../shell/errors.js";
 import { PointedAt } from "../shell/lens.js";
 
@@ -99,13 +99,23 @@ function Tasks({ plan, working }) {
 /** "tasks k2 and k3 wait for it": the tasks a to-do holds back. */
 const CHECK_STATE = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "at Review", held: "held", failed: "failed" };
 
-/** The checks the goal's team holds this idea to (realm/idea_checks.py): passed, its task's state, or why it does not apply. */
-function Checks({ checks }) {
+/** A check the person may still skip: it applies, it has not run (no task yet, or its task waits). */
+export const skippable = (c) => c.applies && !c.skipped && (!c.state || ["waiting", "ready", "held"].includes(c.state));
+/** What skipping a check spares, in words ("" when its tier has no price yet). */
+export const spares = (c) => { const usd = Number(roles.value?.tier_costs?.[c.tier]); return usd > 0 ? ` · spares ≈ $${usd.toFixed(2)}` : ""; };
+
+/** The checks the goal's team holds this idea to (realm/idea_checks.py): passed, its task's state, why it does not apply, or
+ *  skipped by the person; Skip spares a check that has not run (its task taken out of the plan), Take again before a plan. */
+function Checks({ checks, slug, planned }) {
   if (!(checks || []).length) return null;
-  const words = (c) => (!c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : CHECK_STATE[c.state] || c.state || "in the plan to come");
+  const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : CHECK_STATE[c.state] || c.state || "in the plan to come");
   return html`<div class="board-checks" role="list" aria-label="Checks"><span class="ok-font-label">Checks</span>
-    ${checks.map((c) => html`<span key=${c.by} role="listitem" class=${cls("board-check", { "is-off": !c.applies, "is-passed": c.state === "passed" })}>
-      <b>${c.state === "passed" && html`<${Icon} name="check" />`}${c.name}</b><small>${words(c)}</small></span>`)}</div>`;
+    ${checks.map((c) => html`<span key=${c.by} role="listitem" class=${cls("board-check", { "is-off": !c.applies || c.skipped, "is-passed": c.state === "passed" })}>
+      <b>${c.state === "passed" && html`<${Icon} name="check" />`}${c.name}</b><small>${words(c)}</small>
+      ${skippable(c) && html`<button class="board-link board-check__skip" aria-label=${`Skip the check: ${c.name}`} title=${`Skip it: its run is spared${spares(c)}`}
+        onClick=${() => run("ideas.check_skip", { slug, by: c.by })}>Skip${spares(c)}</button>`}
+      ${c.skipped && !planned && html`<button class="board-link board-check__skip" aria-label=${`Take the check again: ${c.name}`}
+        onClick=${() => run("ideas.check_skip", { slug, by: c.by, skip: false })}>Take again</button>`}</span>`)}</div>`;
 }
 
 export function unblocks(todo) {
@@ -171,7 +181,7 @@ export function IdeaView({ p }) {
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
     ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<${ErrorLine} text=${p.state_error} />`}
     <${PointedAt} lens=${p.lens} />
-    <${Checks} checks=${p.checks} />
+    <${Checks} checks=${p.checks} slug=${p.slug} planned=${!!p.plan} />
     <${Actions} p=${p} />
     <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>
     <${Say} p=${p} section=${section} setSection=${setSection} />

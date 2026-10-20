@@ -1,6 +1,6 @@
 """What the person does at Review (docs/specs/33-v1-shell.md §3), and each task's log: the runner's second half.
 
-    ReviewMixin on `IdeaRunner` (core/idea_runner.py): merge / back / drop_task / stop_task / log.
+    ReviewMixin on `IdeaRunner` (core/idea_runner.py): merge / back / drop_task / skip_task / stop_task / log.
 
 A result waits at `review` holding its worktree and branch. **Merge** lands it into `ideas.merge_into` (only when its
 tests are green and it does not conflict); **Send back** resumes the task's session with one line; **Drop** fails it
@@ -157,6 +157,24 @@ class ReviewMixin:
                 self._active.append(slug)
         self._remove_worktree(slug, tid)
         self._log(slug, tid, f"== dropped by you · {_r().now_iso()}\n")
+        self.tick()
+
+    def skip_task(self, slug: str, tid: str, device: str = "desktop") -> None:
+        """Skip a task before it runs (a check the person spares): it is taken out of the plan, and out of what the
+        others wait for; nothing of it ran, nothing is kept. Once it runs, it is too late: Stop it, or Drop it at Review."""
+        with self._lock:
+            task = self._task(slug, tid)
+            if task.get("state") not in ("waiting", "ready", "held") or (slug, tid) in self._runs:
+                raise RunnerError("That check is under way: it can no longer be skipped")
+            plan = self.plan(slug) or {"tasks": []}
+            left = [t for t in plan["tasks"] if t.get("id") != tid]
+            for t in left:
+                if tid in (t.get("after") or []):
+                    t["after"] = [a for a in t["after"] if a != tid]
+            self._save_tasks(slug, left)
+            self._emit("task_skipped", idea=slug, task=tid, device=device or "desktop")
+        self._settle_idea(slug)
+        self._changed(slug)
         self.tick()
 
     def stop_task(self, slug: str, tid: str, device: str = "desktop") -> None:

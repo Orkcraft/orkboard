@@ -5,7 +5,8 @@ to `every` idea applies always.
 
     of_team(state_dir, ["accessibility-reviewer", "grunt"], every=["reviewer"])   # the team's checks
     draft_lines(checks)               # for the draft prompt: each check, when it applies, its Done when line
-    kept(answer.get("checks"), checks)  # what the draft said, as the page keeps it: [{"by", "applies", "why"}]
+    kept(answer.get("checks"), checks)  # what the draft said, as the page keeps it: [{"by", "applies", "why", "skipped"?}]
+    skip(kept_, checks, "reviewer")   # the person skips a check: kept with `skipped`
     plan_lines(kept_, checks)         # for the plan prompt: the checks that apply, each one task
     with_check_tasks(tasks, kept_, checks)  # the plan's tasks, a check task added where the plan left one out
     status(kept_, checks, tasks)      # for a face: each check, whether it applies, why not, its task's state
@@ -48,7 +49,8 @@ def draft_lines(checks: list[dict]) -> str:
 
 def kept(answer: object, checks: list[dict]) -> list[dict]:
     """What the draft said of the team's checks, as the page keeps it: one per check, in the team's order. A check the
-    draft left out applies (the safer side); one set to every idea applies whatever it said."""
+    draft left out applies (the safer side); one set to every idea applies whatever it said. One the person skipped stays
+    skipped."""
     said = {}
     for x in answer if isinstance(answer, list) else []:
         if isinstance(x, dict) and isinstance(x.get("by"), str):
@@ -58,30 +60,49 @@ def kept(answer: object, checks: list[dict]) -> list[dict]:
         x = said.get(c["by"], {})
         applies = True if c["every"] or "applies" not in x else bool(x.get("applies"))
         why = "" if applies else " ".join(str(x.get("why") or "").split())[:200] or "Does not apply"
-        out.append({"by": c["by"], "applies": applies, "why": why})
+        out.append({"by": c["by"], "applies": applies, "why": why, **({"skipped": True} if x.get("skipped") is True else {})})
     return out
+
+
+def on(kept_: list[dict]) -> set[str]:
+    """The checks an idea goes through: the ones that apply, not skipped."""
+    return {k["by"] for k in kept_ if k["applies"] and not k.get("skipped")}
+
+
+def skip(kept_: list[dict], checks: list[dict], by: str, skipped: bool = True) -> list[dict]:
+    """The kept checks with `by` skipped (or not again); ValueError when the team has no such check."""
+    if not any(c["by"] == by for c in checks):
+        raise ValueError("The goal's party has no such check")
+    rows = kept(kept_, checks)
+    for k in rows:
+        if k["by"] == by:
+            k.pop("skipped", None)
+            if skipped:
+                k["skipped"] = True
+    return rows
 
 
 def plan_lines(kept_: list[dict], checks: list[dict]) -> str:
     """The plan prompt's part: the checks this spec must pass, each one task with its tag, after the work it checks."""
-    on = {k["by"] for k in kept_ if k["applies"]}
-    rows = [f'- {c["name"]}: a task tagged "{c["tag"]}", after the work it checks: {c["task"]}' for c in checks if c["by"] in on]
+    go = on(kept_)
+    rows = [f'- {c["name"]}: a task tagged "{c["tag"]}", after the work it checks: {c["task"]}' for c in checks if c["by"] in go]
     return ("The checks this spec must pass, one task each:\n" + "\n".join(rows) + "\n") if rows else ""
 
 
 def with_check_tasks(tasks: list[dict], kept_: list[dict], checks: list[dict], make) -> list[dict]:
     """The plan's tasks with a check task for each check that applies and has none of its tag yet, after every other
     task. `make(id, title, brief, tag, tier, after)`: a task as the plan writes it (core/idea_keeper.py `_task`)."""
-    on = {k["by"] for k in kept_ if k["applies"]}
+    go = on(kept_)
     out = list(tasks)
     for c in checks:
-        if c["by"] in on and not any(t.get("kind") == c["tag"] for t in out):
+        if c["by"] in go and not any(t.get("kind") == c["tag"] for t in out):
             out.append(make(f"k{len(out) + 1}", f"Check: {c['name']}", c["task"], c["tag"], c["tier"], [t["id"] for t in tasks]))
     return out
 
 
 def status(kept_: list[dict], checks: list[dict], tasks: list[dict]) -> list[dict]:
-    """Each check for a face: {by, name, applies, why, state}: its task's state ("" before a plan; "passed" merged)."""
+    """Each check for a face: {by, name, applies, why, state, task, skipped, tier}: its task's state ("" before a plan;
+    "passed" merged), its task's id ("" with none), whether the person skipped it, the tier it runs at."""
     byc = {c["by"]: c for c in checks}
     out = []
     for k in kept_:
@@ -90,5 +111,7 @@ def status(kept_: list[dict], checks: list[dict], tasks: list[dict]) -> list[dic
             continue
         t = next((t for t in tasks if t.get("kind") == c["tag"]), None)
         state = "" if t is None else "passed" if t.get("state") in DONE else str(t.get("state") or "")
-        out.append({"by": k["by"], "name": c["name"], "applies": k["applies"], "why": k["why"], "state": state if k["applies"] else ""})
+        skipped = bool(k.get("skipped")) and (t is None or t.get("state") not in DONE)
+        out.append({"by": k["by"], "name": c["name"], "applies": k["applies"], "why": k["why"], "state": state if k["applies"] and not skipped else "",
+                    "task": (t or {}).get("id") or "", "skipped": skipped, "tier": c["tier"]})
     return out
