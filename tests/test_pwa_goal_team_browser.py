@@ -253,7 +253,7 @@ async def test_the_party_s_price_is_said_when_the_picker_opens_and_after_a_seat_
         line = sheet.locator(".party-price")
         await line.wait_for(timeout=WAIT_MS)
         assert " ".join((await line.inner_text()).split()) == "This party: about $2–6 an idea from this project's last 12 ideas"
-        assert asked(stub) == [{"leader": "architect", "team": ["grunt", "tester", "reviewer"], "every": []}]       # when the sheet opens: one call
+        assert asked(stub) == [{"leader": "architect", "team": ["grunt", "tester", "reviewer"], "every": [], "craft": "engineering"}]       # when the sheet opens: one call
         await sheet.locator('.craft-tile[data-craft="design"]').click()                                # a craft, then a seat, inside 300 ms: one call
         await sheet.locator('.party [data-change="team"]').click()
         stub.price_learned, stub.price_low, stub.price_high = False, 0.4, 1.2
@@ -272,6 +272,25 @@ async def test_the_party_s_price_is_said_when_the_picker_opens_and_after_a_seat_
 
 
 @pytest.mark.asyncio
+async def test_the_hints_are_said_under_the_price_line_muted_and_save_stays_enabled(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.price_hints = ["Reviewer found nothing in its last 12 checks.", "No builders: each task goes to this project's agent for its type (the Grunt when none)."]
+        await _new_goal(page)
+        sheet = page.get_by_role("dialog", name="New goal")
+        hints = sheet.locator(".party-hints p")
+        await hints.first.wait_for(timeout=WAIT_MS)
+        assert await hints.all_inner_texts() == stub.price_hints and "muted" in (await hints.first.get_attribute("class"))
+        assert [c[1].get("craft") for c in stub.calls if c[0] == "ideas.party_price"][-1] == "engineering"
+        await sheet.get_by_label("Description").fill("A settings screen.")
+        assert await sheet.get_by_role("button", name="Save goal").is_enabled() and await page.evaluate(NO_SCROLL)
+        stub.price_hints = []                                                                          # a change that fits: the hints go
+        await sheet.locator('.craft-tile[data-craft="design"]').click()
+        await page.wait_for_function("() => document.querySelector('.party-hints')?.hidden === true", timeout=WAIT_MS)
+        await sheet.get_by_role("button", name="Save goal").click()
+        assert await _called(stub, "ideas.goal_save")
+
+
+@pytest.mark.asyncio
 async def test_a_goal_s_team_sheet_asks_the_price_when_it_opens(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.goals["land"] = stub.goal("land", "Landing page", "high", "ready", craft="design", race="elf", about="A landing page.",
@@ -283,7 +302,7 @@ async def test_a_goal_s_team_sheet_asks_the_price_when_it_opens(fake_repo, monke
         sheet = page.get_by_role("dialog", name="Team")
         await sheet.locator(".party-price").wait_for(timeout=WAIT_MS)
         assert "This party: about $2–6 an idea" in await sheet.locator(".party-price").inner_text()
-        assert await _called(stub, "ideas.party_price", {"leader": "product-designer", "team": ["ui-kit", "accessibility-reviewer"], "every": []})
+        assert await _called(stub, "ideas.party_price", {"leader": "product-designer", "team": ["ui-kit", "accessibility-reviewer"], "every": [], "craft": "design"})
 
 
 PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},

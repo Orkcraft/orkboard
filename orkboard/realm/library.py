@@ -26,6 +26,7 @@ class Check:
     applies: str              # when it applies to an idea, for the Taskmaster ("when the idea changes code")
     done: str                 # the line it adds to the spec's Done when
     task: str                 # the brief of the task it adds to the plan, after the work it checks
+    fits: tuple[str, ...] = ()  # the goal crafts it usually applies to (a hint while a party is picked, never a limit: spec 43 §5)
 
 
 @dataclass(frozen=True)
@@ -74,7 +75,7 @@ LIBRARY: tuple[Agent, ...] = (
           "what is small and certain. Never print a secret, even to show it.",
           Check("when the idea touches input, secrets, sign-in, files or the network", "No security finding is left "
                 "open: secrets, input, sign-in and rights checked", "Check the idea's change for secrets, unescaped input, "
-                "missing rights checks and long-lived tokens; fix what is small."), band="check"),
+                "missing rights checks and long-lived tokens; fix what is small.", fits=("engineering", "product", "data")), band="check"),
     Agent("reviewer", "Reviewer", "engineering", "elder", ("review",),
           "Reads a change before it merges and says what breaks",
           "You review a change. Read its diff and what it calls. Look for what breaks: a wrong case, a lost error, a "
@@ -82,7 +83,7 @@ LIBRARY: tuple[Agent, ...] = (
           "wrong and a fix, the worst first. Fix only what is small and certain; leave the rest as findings. Say "
           "plainly when you find nothing that blocks.",
           Check("when the idea changes code", "The change was reviewed and no blocking finding is left",
-                "Review the idea's change before it merges: list what breaks, worst first, and fix what is small."), band="check"),
+                "Review the idea's change before it merges: list what breaks, worst first, and fix what is small.", fits=("engineering", "product", "data")), band="check"),
     # -- design: elves --------------------------------------------------------------------------------------------
     Agent("product-designer", "Product designer", "design", "elder", ("design",),
           "Turns a goal into flows and screens people get through",
@@ -103,7 +104,7 @@ LIBRARY: tuple[Agent, ...] = (
           "control and image has a name a screen reader says. Motion can be turned off. Write each finding with where, "
           "who it stops and the fix; fix what is small.",
           Check("when the idea changes what people see or use", "It passes the accessibility check: contrast, keyboard, "
-                "tap sizes and names", "Check the changed screens for contrast, keyboard use, tap sizes and names; fix what is small."), band="check"),
+                "tap sizes and names", "Check the changed screens for contrast, keyboard use, tap sizes and names; fix what is small.", fits=("design", "product", "engineering")), band="check"),
     Agent("artist", "Artist", "design", "laborer", ("art",),
           "Draws the pixel art: icons, heads and pictures",
           "You draw pixel art in the design system's style: a small grid, hard edges, no blur, the palette's colours "
@@ -137,7 +138,7 @@ LIBRARY: tuple[Agent, ...] = (
           "what it changes and the fix.",
           Check("when the idea changes events, tables, queries or numbers", "Its numbers are recounted from their source "
                 "and no personal data leaks", "Recount the idea's numbers from their source on a sample and check that no "
-                "personal data reaches a log, a report or a prompt."), band="check"),
+                "personal data reaches a log, a report or a prompt.", fits=("data", "engineering", "product")), band="check"),
     Agent("sql", "SQL", "data", "laborer", ("query",),
           "Writes and checks the queries a report needs",
           "You write queries. Read the tables first and say which ones you use. One query per question, its steps "
@@ -164,7 +165,7 @@ LIBRARY: tuple[Agent, ...] = (
           "the product's; and that nothing is misspelt. Mark each change with why. Rewrite only what is wrong; keep "
           "the writer's voice.",
           Check("when the idea adds or changes text people read", "Its text is edited: plain, true, in the product's "
-                "words, no typos", "Edit the idea's texts for plain words, claims that can be shown, the glossary and typos."), band="check"),
+                "words, no typos", "Edit the idea's texts for plain words, claims that can be shown, the glossary and typos.", fits=("marketing", "product", "design")), band="check"),
     Agent("seo", "SEO", "marketing", "laborer", ("seo",),
           "Finds the words people search for and where they go",
           "You make pages found. Find the words people search for that the product answers, and give each a page. "

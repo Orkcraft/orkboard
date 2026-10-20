@@ -59,6 +59,7 @@ class StubHost:
     def __init__(self, look="camp", onboarding=None):
         self.look, self.onboarding, self.rev, self.log, self.ws = look, onboarding, 1, [], None
         self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
+        self.price_hints = []
         self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
         self.plan = make_plan()
         self.into, self.push = "dev", False
@@ -242,6 +243,7 @@ class StubHost:
         if name == "ideas.party_price":                                            # spec 43 C: a price, each checker adds $0.35
             checkers = [i for i in a.get("team", []) if i in ("reviewer", "accessibility-reviewer", "editor", "data-reviewer", "security-reviewer")]
             return {"low": self.price_low, "high": self.price_high, "learned": self.price_learned, "ideas": 12 if self.price_learned else 0,
+                    "hints": list(self.price_hints),
                     "checks": [{"by": i, "name": i, "usd": 0.35, "share": 1 if i in a.get("every", []) else 0.5, "every": i in a.get("every", [])}
                                for i in checkers]}
         if name == "ideas.goal_accept":
@@ -908,7 +910,7 @@ def test_new_goal_says_a_partys_price_when_the_picker_opens_and_after_a_seat_cha
     line = dlg.locator(".shell-party-price")
     line.wait_for(timeout=WAIT_MS)
     assert " ".join(line.inner_text().split()) == "This party: about $2–6 an idea from this project's last 12 ideas"
-    assert _price_calls(pg, host, 1) == [{"leader": "product-designer", "team": ["ui-kit", "artist", "accessibility-reviewer"], "every": []}]
+    assert _price_calls(pg, host, 1) == [{"leader": "product-designer", "team": ["ui-kit", "artist", "accessibility-reviewer"], "every": [], "craft": "design"}]
     dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # two changes inside 300 ms: one call
     dlg.get_by_role("button", name="Take in: Analyst").click()
     got = _price_calls(pg, host, 2)
@@ -939,9 +941,27 @@ def test_edit_goal_says_the_price_when_the_party_is_changed(shell):
     assert not _prices(host) and party.locator(".shell-party-price").count() == 0                   # not asked before the picker opens
     party.get_by_role("button", name="Change the party").click()
     party.locator(".shell-party-price").wait_for(timeout=WAIT_MS)
-    assert _price_calls(pg, host, 1) == [{"leader": "architect", "team": ["grunt", "reviewer"], "every": []}]
+    assert _price_calls(pg, host, 1) == [{"leader": "architect", "team": ["grunt", "reviewer"], "every": [], "craft": "engineering"}]
     assert "This party: about $2–6 an idea" in party.locator(".shell-party-price").inner_text()
     assert "adds about $0.35 to an idea it checks · about half of them" in party.get_by_role("group", name="Checks").inner_text()
+
+
+def test_the_hints_are_said_under_the_price_line_muted_and_save_stays_enabled(shell):
+    pg, host = shell
+    host.price_hints = ["Reviewer found nothing in its last 12 checks.", "No builders: each task goes to this project's agent for its type (the Grunt when none)."]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.locator('.shell-craft-tile[data-craft="data"]').click()
+    hints = dlg.locator(".shell-party-hint")
+    hints.first.wait_for(timeout=WAIT_MS)
+    assert hints.all_inner_texts() == host.price_hints and "ok-tone-muted" in hints.first.get_attribute("class")
+    assert _prices(host)[-1]["craft"] == "data"
+    host.price_hints = []                                                                            # a change that fits: the hints go
+    dlg.get_by_role("button", name="Take in: Copywriter").click()
+    pg.wait_for_function("() => document.querySelectorAll('.shell-party-hint').length === 0", timeout=WAIT_MS)
+    dlg.get_by_role("button", name="Next").click()                                                   # Save is the last step's, never held by a hint
+    dlg.get_by_label("Description").fill("Count the sign-ups.")
+    assert dlg.get_by_role("button", name="Save goal").is_enabled()
 
 
 def test_the_target_chip_shows_and_sets_the_boards_one_target(shell):

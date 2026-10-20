@@ -6,7 +6,8 @@
 // work (Grunt fills in); a checker's check adds its line to the spec's Done when and its task to the plan (realm/idea_checks.py). A Mixed
 // goal starts with the Taskmaster alone, its craft its party's most. `makeParty` is the team and the checks alone: a goal's own screen
 // changes its team with the same two (§7). Under the team, one line says about what an idea costs with the party (ideas.party_price:
-// spec 43 C), asked when the picker opens and 300 ms after a seat or Every idea changes; each check says what it adds.
+// spec 43 C), asked when the picker opens and 300 ms after a seat or Every idea changes; each check says what it adds, and under the
+// price come the party's hints (E: at most two plain lines, muted).
 import { h, sheet, head, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "./shell-who.js";
@@ -37,16 +38,19 @@ const lcfirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 export function makeParty(core) {
   let leader = TASKMASTER, team = [], every = [];          // team: the builders and checkers
   let editing = false, fold = "", checking = false;
+  let craftNow = () => "";                                   // the goal's craft: its agents sort first, and the hints read it (set by the sheet)
   const teamEl = h("div", { class: "party" });
   const checksEl = h("div", { class: "party-checks" });
   const priceEl = h("p", { class: "party-price", "aria-live": "polite", hidden: true });
+  const hintsEl = h("div", { class: "party-hints", "aria-live": "polite", hidden: true });   // spec 43 E: at most two lines, muted
+  const priceBox = h("div", { class: "party-priced" }, priceEl, hintsEl);
   let price = null, timer = 0, asking = 0;
 
   /** The price of the party now (the leader, the team, the checkers on every idea), drawn when it comes. */
   async function askPrice() {
     clearTimeout(timer);
     const mine = ++asking, p = party();
-    const got = await core.call("ideas.party_price", { leader: p.leader, team: p.team, every: p.every });
+    const got = await core.call("ideas.party_price", { leader: p.leader, team: p.team, every: p.every, craft: craftNow() });
     if (mine !== asking || !got) return;
     price = got;
     drawPrice();
@@ -57,6 +61,9 @@ export function makeParty(core) {
     priceEl.hidden = !price;
     if (price) priceEl.replaceChildren(h("b", {}, priceWords(price)), " ", h("small", { class: "muted" },
       price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"));
+    const hints = price?.hints || [];
+    hintsEl.hidden = !hints.length;
+    hintsEl.replaceChildren(...hints.map((t) => h("p", { class: "muted" }, t)));
     for (const el of checksEl.querySelectorAll("[data-adds]")) {           // a check's line, in place (the box in hand keeps its focus)
       const c = price?.checks?.find((x) => x.by === el.dataset.adds);
       el.textContent = `${el.dataset.base}${c ? ` · ${addsWords(c)}` : ""}`;
@@ -120,9 +127,6 @@ export function makeParty(core) {
     teamEl.replaceChildren(h("h3", {}, "Team"), ...BANDS.map(band));
   }
 
-  /** The craft the party was started from (the goal's craft sorts its agents first); set by the sheet. */
-  let craftNow = () => "";
-
   // -- the team's checks: each checker's, where it applies or on every idea, and what a check adds to an idea, in dollars ----------
   function drawChecks() {
     const checkers = team.map(agent).filter((a) => a?.check);
@@ -148,7 +152,7 @@ export function makeParty(core) {
 
   return {
     team: teamEl,
-    price: priceEl,
+    price: priceBox,
     checks: checksEl,
     /** The party a goal has (or starts with); `craft`: whose agents sort first. */
     set(party, craft = () => "") {

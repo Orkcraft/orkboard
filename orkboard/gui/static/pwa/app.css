@@ -497,6 +497,8 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .fold-body { display: flex; flex-direction: column; gap: var(--ork-3); padding-bottom: var(--ork-3); }
 .party-checks .checks-block { align-self: stretch; }
 .party-price { margin: 0; overflow-wrap: anywhere; }
+.party-hints { display: grid; gap: var(--ork-2); }
+.party-hints p { margin: 0; overflow-wrap: anywhere; }
 .new-goal-craft { align-items: stretch; }
 .answer .recommended { display: block; font: var(--ork-type-caption); }
 .decide { align-self: flex-start; min-height: var(--ork-tap); }

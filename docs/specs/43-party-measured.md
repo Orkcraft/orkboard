@@ -362,3 +362,9 @@ else: stop and write it in §11 first.
 - **Not counted.** Besides `ideas.snapshot`, the tab's count in `js/shell/shell.js` and `js/board/today.js` leave the `party` kind out (`shell.js` is outside D's row: a one-word change to the filter). The phone's count (`needs.count`) counts what it did for proposals.
 - **Words.** The *its check* mark on the agent's muted line ends it (*· its check: 6 ideas, caught 2*; `1 idea`; nothing without a check); the dialog's and the sheet's line has the label *Its check* and reads *no idea checked* with none.
 - **Tests' stubs.** `StubHost` and the phone's `Stub` gained `check_week`, a `party_answer` command and (desktop) `party_needs`.
+
+### E. Hints while picking
+- **The term.** `lexicon.TERMS` gained `party_hint` (*hint* / *hints*).
+- **Who counts as writing code.** The leader counts as a member, so the Taskmaster (the library gives it `code`) as leader never draws hint 3; an agent of the person's own counts by `roles.takes_of` (its file's kinds and the project's task types given to it). A checker's name in a hint is the library's.
+- **The numbers.** Hint 1 reads `check_records` over 30 days: 8 checks or more and none `caught` (a send back is a catch), said with that count. Hint 2 needs a known craft: `ideas.party_price` takes `craft` and ignores one outside `roles.CRAFTS`; a Mixed goal's face sends the craft it would save with.
+- **Shown.** Desktop: `PriceLine` (`js/shell/party.js`) draws the hints under the price line, `usePartyPrice` sends `craft` and asks again when it changes. Phone: `makeParty` sends `craftNow()`; `party.price` is now a wrapper holding the price line and `.party-hints`.

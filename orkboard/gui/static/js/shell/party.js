@@ -2,7 +2,7 @@
 // pick it: three bands of seats from the library (ideas.roles `library`, `seats`) — Leads (one: the goal's steps run as it, and
 // it accepts the goal; the Taskmaster when none), Builds (three at most), Checks (two at most) —; a click takes an agent in or out of
 // its band, a full band says so. Under the bands, about what an idea costs with the party (ideas.party_price: spec 43 C, asked when
-// the picker opens and 300 ms after a seat or Every idea changes). Then the checkers' checks: where each applies or on every idea,
+// the picker opens and 300 ms after a seat or Every idea changes), and its hints (spec 43 E: at most two plain lines). Then the checkers' checks: where each applies or on every idea,
 // and what a check adds to an idea.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
@@ -32,15 +32,15 @@ export function partyWords(leader, team) {
 
 export const PRICE_MS = 300;
 /** About what an idea costs with the party (spec 43 §3): asked when the picker opens (`on`), then 300 ms after a change. */
-export function usePartyPrice(on, leader, team, every) {
+export function usePartyPrice(on, leader, team, every, craft = "") {
   const [price, setPrice] = useState(null);
   const asked = useRef(false);
   const mine = every.filter((id) => team.includes(id));
-  const key = JSON.stringify([leader, team, mine]);
+  const key = JSON.stringify([leader, team, mine, craft]);
   useEffect(() => {
     if (!on) { asked.current = false; return undefined; }
     let live = true, timer = 0;
-    const run = () => ask("ideas.party_price", { leader, team, every: mine }).then((got) => { if (live && got && !got.error) setPrice(got); });
+    const run = () => ask("ideas.party_price", { leader, team, every: mine, craft }).then((got) => { if (live && got && !got.error) setPrice(got); });
     if (asked.current) timer = setTimeout(run, PRICE_MS);
     else { asked.current = true; run(); }
     return () => { live = false; clearTimeout(timer); };
@@ -57,11 +57,13 @@ const shareWords = (share) => (share === 0.5 ? "about half of them" : share <= 0
 export function addsWords(c) {
   return `adds about $${Number(c.usd).toFixed(2)} to an idea it checks · ${c.every ? "every idea" : shareWords(c.share)}`;
 }
-/** The price in one line under the bands, and after it, muted, where it comes from. */
+/** The price in one line under the bands, and after it, muted, where it comes from; under it the party's hints (spec 43 E), muted,
+ *  one line each. A hint never blocks Save and has no button. */
 export function PriceLine({ price }) {
   if (!price) return null;
   return html`<p class="shell-party-price" aria-live="polite"><b>${priceWords(price)}</b> <small class="ok-tone-muted">${price.learned
-    ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}</small></p>`;
+    ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}</small></p>
+    ${(price.hints || []).map((t) => html`<p key=${t} class="shell-party-hint ok-tone-muted">${t}</p>`)}`;
 }
 
 /** The three bands. `craft`: the goal's, its agents listed first in each band. */

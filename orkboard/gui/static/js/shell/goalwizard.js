@@ -27,7 +27,6 @@ export function GoalWizard({ then = "" }) {
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
   const [saving, setSaving] = useState(false);
-  const price = usePartyPrice(step >= 2, leader, team, every);        // about what an idea costs with this party (spec 43 C)
 
   const pick = (c) => {
     if (c !== craft) {
@@ -43,6 +42,7 @@ export function GoalWizard({ then = "" }) {
     const crafts = [leader, ...team].filter((id) => id !== TASKMASTER).map((id) => agentOf(id)?.craft).filter(Boolean);
     return crafts.sort((a, b) => crafts.filter((x) => x === b).length - crafts.filter((x) => x === a).length)[0] || "engineering";
   };
+  const price = usePartyPrice(step >= 2, leader, team, every, step >= 2 ? craftOf() : "");   // what an idea costs with this party and its hints (spec 43 C, E)
   const save = async (e) => {
     e?.preventDefault();
     if (!about.trim() || saving) return;

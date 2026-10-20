@@ -28,7 +28,7 @@ function GoalEdit({ slug, then = "" }) {
   const [team, setTeam] = useState(was.team);
   const [every, setEvery] = useState(was.every);
   const [changing, setChanging] = useState(false);
-  const price = usePartyPrice(changing, leader, team, every);        // about what an idea costs with this party (spec 43 C)
+  const price = usePartyPrice(changing, leader, team, every, g?.craft || "");   // what an idea costs with this party and its hints (spec 43 C, E)
   const moved = leader !== was.leader || JSON.stringify(team) !== JSON.stringify(was.team) || JSON.stringify(every) !== JSON.stringify(was.every);
   const save = async (e) => {
     e?.preventDefault();

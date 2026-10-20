@@ -46,6 +46,7 @@ class Stub:
     def __init__(self) -> None:
         self.rev = 1
         self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
+        self.price_hints = []
         self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
         self.calls: list[tuple[str, dict]] = []
         self.into, self.push = "dev", False
@@ -230,6 +231,7 @@ class Stub:
         if name == "ideas.party_price":                                            # spec 43 C: a price, each checker adds $0.35
             checkers = [i for i in a.get("team", []) if i in ("reviewer", "accessibility-reviewer", "editor", "data-reviewer", "security-reviewer")]
             return {"low": self.price_low, "high": self.price_high, "learned": self.price_learned, "ideas": 12 if self.price_learned else 0,
+                    "hints": list(self.price_hints),
                     "checks": [{"by": i, "name": i, "usd": 0.35, "share": 1 if i in a.get("every", []) else 0.5, "every": i in a.get("every", [])}
                                for i in checkers]}
         if name == "ideas.goal_accept":

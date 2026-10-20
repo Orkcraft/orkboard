@@ -6,7 +6,7 @@ keep it under ~600 lines.
 from __future__ import annotations
 
 from orkboard.gui.ideas_args import IdeasError, _text
-from orkboard.realm import event_log, goal_team, ideas, party_price, party_proposals, party_work, roles
+from orkboard.realm import event_log, goal_team, ideas, party_hints, party_price, party_proposals, party_work, roles
 
 
 class PartyMixin:
@@ -18,7 +18,8 @@ class PartyMixin:
         return party_work.work(self.root(False), self.state_dir, goal, self._target())
 
     def party_price(self, args: dict) -> dict:
-        """`{"leader", "team", "every"}`: §3.1's object, about what an idea costs with that party, before it starts."""
+        """`{"leader", "team", "every", "craft"?}`: §3.1's object, about what an idea costs with that party, before it starts, and
+        `hints` (spec 43 §5): at most two lines about the party for the goal's `craft`."""
         leader = _text(args, "leader", 60) if args.get("leader") else roles.TASKMASTER
         try:
             team = goal_team.clean(args.get("team") if args.get("team") is not None else [])
@@ -27,7 +28,10 @@ class PartyMixin:
             raise IdeasError(str(e)) from None
         if why := goal_team.seats(team, "" if leader == roles.TASKMASTER else leader):
             raise IdeasError(why)
-        return party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, [s for s in every if s in team])
+        every = [s for s in every if s in team]
+        craft = args.get("craft") if args.get("craft") in roles.CRAFTS else ""
+        got = party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, every)
+        return {**got, "hints": party_hints.hints(self.root(False), self.state_dir, craft, leader, team, every)}
 
     def party_answer(self, args: dict) -> dict:
         """`{"goal", "take", "reason"?}`: the person's answer to the night's proposal to take a checker out of a goal's

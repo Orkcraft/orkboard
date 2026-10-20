@@ -122,7 +122,7 @@ def test_the_command_is_the_hosts_and_a_phones_and_needs_a_project(host):
         Orkboard().command("ideas.party_price", {"leader": "taskmaster", "team": [], "every": []})
     got = host.command("ideas.party_price", {"leader": "product-manager", "team": ["tester", "reviewer"], "every": ["reviewer", "seo"]})
     json.dumps(got)
-    assert set(got) == {"low", "high", "learned", "ideas", "checks"} and got["checks"][0]["every"] is True       # `every` outside the team is dropped
+    assert set(got) == {"low", "high", "learned", "ideas", "checks", "hints"} and got["checks"][0]["every"] is True       # `every` outside the team is dropped
 
 
 def test_the_command_refuses_a_party_that_does_not_fit_its_seats(host):
