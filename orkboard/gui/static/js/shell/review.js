@@ -1,4 +1,4 @@
-// Review, on the right (docs/specs/33-v1-shell.md §3, §6): Merge into `dev` ▾ at the top, then the results oldest first,
+// Needs you, on the right (spec 46 §6.3), and Review in it (docs/specs/33-v1-shell.md §3, §6): Merge into `dev` ▾ at the top of Review, then the results oldest first,
 // one card each — what changed, its tests, its cost. Three answers, on the card and in the result's preview: Merge
 // (only when the tests are green and nothing conflicts), Send back / Fix (one line, required), Drop (quiet, apart).
 import { useState } from "preact/hooks";
@@ -6,6 +6,8 @@ import { html, cls } from "../html.js";
 import { Chev } from "../orkui.js";
 import { review, preview, act, showResult, closePreview } from "./store.js";
 import { Modal, openDialog, closeDialog } from "./modals.js";
+import { board } from "../board/store.js";
+import { Today, needsCount, needsRows } from "../board/today.js";
 
 const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
 
@@ -146,26 +148,35 @@ export function DropDialog({ r }) {
   <//>`;
 }
 
-export function ReviewPane() {
-  const rv = review.value, p = preview.value;
+/** The right column (spec 46 §6.3): *Needs you* — its head with the signal (`.ork-count.warning` while an answer waits), the rows that wait for an
+ *  answer (board/today.js) — then **Review**, a section of its own: its count, Merge into ▾ and its cards. Nothing in either: *Nothing waits for you.* */
+export function NeedsPane() {
+  const rv = review.value, p = preview.value, b = board.value;
   const results = rv?.results || [];
+  const asks = b ? needsCount() : 0;
+  const rows = b ? needsRows().length : 0;
   // ↑ ↓ move through the cards and open each one's code; no shortcut merges
   const move = (e) => {
-    if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || !results.length) return;
+    if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || !results.length || !e.target.closest?.(".shell-reviewing")) return;
     e.preventDefault();
     const at = results.findIndex((r) => r.task === (e.target.closest?.(".shell-card")?.dataset.task ?? p?.task) && r.idea === (e.target.closest?.(".shell-card")?.dataset.idea ?? p?.slug));
     const next = results[Math.max(0, Math.min(results.length - 1, at + (e.key === "ArrowDown" ? 1 : -1)))];
     showResult(next.idea, next.task);
     requestAnimationFrame(() => document.querySelector(`.shell-card[data-task="${next.task}"][data-idea="${next.idea}"]`)?.focus());
   };
-  return html`<aside class="shell-pane shell-review" aria-label="Review" onKeyDown=${move}>
-    <header class="shell-pane__head"><h2>Review ${results.length > 0 && html`<span class="shell-count">${results.length}</span>`}</h2></header>
-    <${Into} />
+  const nothing = !!rv && !!b && !rows && !results.length;
+  return html`<aside class="shell-pane shell-review shell-needs" aria-label="Needs you" tabindex="-1" onKeyDown=${move}>
+    <header class="shell-pane__head"><h2>Needs you ${asks > 0 && html`<span class="shell-count ork-count warning">${asks}</span>`}</h2></header>
     <div class="shell-pane__body">
-      ${!rv ? html`<p class="ok-tone-muted">Opening…</p>`
-        : results.length ? html`<div role="list" class="shell-cards">${results.map((r) => html`<${Card} key=${r.idea + r.task} r=${r}
-            selected=${p?.kind === "result" && p.task === r.task && p.slug === r.idea} />`)}</div>`
-        : html`<p class="ok-tone-muted">Nothing waits at Review. A result lands here when a Grunt's work has been tested.</p>`}
+      ${!b || !rv ? html`<p class="ok-tone-muted">Opening…</p>` : html`
+        <${Today} empty=${nothing} />
+        <section class="shell-reviewing" aria-label="Review">
+          <h3 class="shell-reviewing__head">Review ${results.length > 0 && html`<span class="shell-count">${results.length}</span>`}</h3>
+          <${Into} />
+          ${results.length ? html`<div role="list" class="shell-cards">${results.map((r) => html`<${Card} key=${r.idea + r.task} r=${r}
+              selected=${p?.kind === "result" && p.task === r.task && p.slug === r.idea} />`)}</div>`
+            : !nothing && html`<p class="ok-tone-muted">Nothing waits at Review. A result lands here when a Grunt's work has been tested.</p>`}
+        </section>`}
     </div>
   </aside>`;
 }

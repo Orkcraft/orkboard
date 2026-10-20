@@ -10,7 +10,8 @@ import { html, cls } from "../html.js";
 import { Chev, Icon, WhoHead } from "../orkui.js";
 import { PRIORITY_WORDS, ask } from "./store.js";
 import { mapData, mapSince, mapFolded, mapUi, mapView, preview, lookKey, logOpened, showIdea, showTask, showGoal, act as run } from "../shell/store.js";
-import { skippable, spares } from "./idea.js";
+import { skippable, spares, price } from "./idea.js";
+import { say, toast } from "../link.js";
 import { Cards } from "./cards.js";
 import { showWeek } from "../shell/look.js";
 import { PartyFold } from "../shell/goalview.js";
@@ -56,6 +57,31 @@ export function stopHead(n, leader) {
 /** A timed wait (the night, the limits, the reserve) is a clock on the chip. */
 const timed = (w) => ["night", "limits", "reserve", "week"].includes(w?.kind);
 
+/** The one button a node that waits for the person alone has (spec 41 §4, as the phone's): {icon, text, aria, name, args, said, key} or null.
+ *  None while the node waits for anything else. */
+export function actionOf(n) {
+  if (n.state === "done") return null;
+  if (n.needs_you === "plan" && !(n.waits_on || []).length) {
+    const tasks = (n.tasks || []).length, cost = price(n.estimate);
+    return { icon: "play", text: cost, key: "start", name: "ideas.start", args: {}, said: "Started.",
+      aria: `Start “${n.title}”: ${tasks} ${tasks === 1 ? "task" : "tasks"}${cost ? `, about ${cost.replace(/^~/, "")}` : ""}` };
+  }
+  if (n.state === "plan" && n.start_at === "night" && !n.needs_you) {
+    return { icon: "play", text: "Start now", key: "start-now", name: "ideas.start_now", args: {}, said: "Started.", aria: `Start “${n.title}” now, instead of tonight` };
+  }
+  if (n.state === "raw" && ["night", "hold"].includes(n.queue) && !n.held_until) {
+    return { icon: "", text: "Process now", key: "process-now", name: "ideas.queue", args: { queue: "now" }, said: say("The Taskmaster drafts it now."), aria: `Process “${n.title}” now` };
+  }
+  return null;
+}
+
+function StopAction({ n }) {
+  const a = actionOf(n);
+  if (!a) return null;
+  const go = async () => { if (await run(a.name, { slug: n.slug, ...a.args, via: "map" })) toast(a.said); };
+  return html`<button type="button" class="ork-btn map-act" data-act=${a.key} aria-label=${a.aria} onClick=${go}>${a.icon && html`<${Icon} name=${a.icon} />`}${a.text && html`<span>${a.text}</span>`}</button>`;
+}
+
 /** A stop: a chip — the head of who does it, its title, a mark of its state (its words on hover and to a screen reader) — and,
  *  for the idea at work, its tasks left as smaller chips, each with its agent's head, in the waves they go in. */
 function Stop({ n, titles, since, leader, team }) {
@@ -66,7 +92,7 @@ function Stop({ n, titles, since, leader, team }) {
     checksWords(n.checks), fresh ? "new" : ""].filter(Boolean).join(" · ");
   const head = stopHead(n, leader);
   return html`<li class=${cls("map-node", { "is-gate": !!v.needs })} data-slug=${n.slug}>
-    <button class=${cls("map-card trail-chip", { "is-needs": !!v.needs, "is-wait": !!v.wait, "is-fog": fog(n), "is-done": n.state === "done", "is-on": preview.value?.kind === "idea" && preview.value.slug === n.slug })}
+    <div class="map-line"><button class=${cls("map-card trail-chip", { "is-needs": !!v.needs, "is-wait": !!v.wait, "is-fog": fog(n), "is-done": n.state === "done", "is-on": preview.value?.kind === "idea" && preview.value.slug === n.slug })}
       data-slug=${n.slug} data-state=${n.state} data-needs=${n.needs_you || ""} title=${`${n.title} · ${words}`} aria-label=${`${n.title}: ${words}`}
       onClick=${() => showIdea(n.slug, { via: "map" })}>
       ${head ? html`<${WhoHead} head=${head} small />` : html`<span class="trail-chip__nohead" aria-hidden="true"></span>`}
@@ -76,6 +102,7 @@ function Stop({ n, titles, since, leader, team }) {
           : timed(n.waits) && n.state !== "done" ? html`<span class="trail-chip__mark" aria-hidden="true"><${Icon} name="clock" /></span>` : ""}
       ${fresh && html`<span class="map-card__new" aria-hidden="true">new</span>`}
     </button>
+    <${StopAction} n=${n} /></div>
     ${left.length > 0 && n.state !== "done" && html`<div class="map-tasks" aria-label=${`Tasks of ${n.title}`}>
       ${wavesOf(left).map((wave, i) => html`<div key=${i} class="map-wave" data-wave=${i + 1}>
         ${wave.slice(0, TASKS).map((t) => {
@@ -278,6 +305,7 @@ export function MapView() {
   const goalOf = Object.fromEntries(m.nodes.map((n) => [n.slug, n.goal]));
   return html`<div class="map" ref=${el} aria-label="Map" onScroll=${(e) => { mapView.top = e.currentTarget.scrollTop; }}>
     <${Cards} />
+    ${m.goals.length > 0 && html`<div class="map-head"><button type="button" class="ork-btn" onClick=${() => openDialog("goal")}>New goal</button></div>`}
     ${!m.goals.length ? html`<div class="shell-empty"><p>No goals yet</p><p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New goal</button></p></div>`
       : m.goals.map((g) => html`<${Goal} key=${g.slug} g=${g} nodes=${m.nodes.filter((n) => n.goal === g.slug)}
         edges=${m.edges.filter((e) => goalOf[e.to] === g.slug)} titles=${titles} since=${since} />`)}

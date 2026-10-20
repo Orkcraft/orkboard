@@ -1,4 +1,4 @@
-// Needs you (docs/specs/35-goals-window.md §10–§11.2), a tab of its own beside the Board's, as on the phone (pwa/shell-needs.js):
+// Needs you (docs/specs/35-goals-window.md §10–§11.2), the right column's rows (spec 46 §6.3: Review is a section below them), as on the phone (pwa/shell-needs.js):
 // one list of every goal's rows, sorted by the host (what blocks work in progress, then the priority, then the oldest; proposals
 // last), an icon per kind, its title, its kind and goal, and one line. Questions are answered in their row (spec 41 §9): each row's
 // `asked` — the ask, its choices, the one the Taskmaster picks and why — as buttons with the recommended one pressed and marked
@@ -152,7 +152,8 @@ function Row({ n }) {
     <button class="ork-btn board-need__later" aria-label=${`Later: ${n.title}`} onClick=${() => putAway(n)}>Later</button></li>`;
 }
 
-const rowKey = (n) => n.kind + (n.op || n.idea || n.goal || n.template || n.harness || "") + (n.todo?.id || "");
+// A row asking other questions is another row: its picks start again from the recommended answers.
+const rowKey = (n) => n.kind + (n.op || n.idea || n.goal || n.template || n.harness || "") + (n.todo?.id || "") + (n.asked || []).map((q) => q.ask).join("|");
 
 /** How many rows wait on the person now (proposals, and the ones put away Later, aside): the Needs you tab says it. */
 export function needsCount() {
@@ -160,14 +161,21 @@ export function needsCount() {
   return (board.value?.needs_you || []).filter((n) => n.kind !== "proposal" && n.kind !== "party" && n.kind !== "op_rules" && !isLater(n)).length;
 }
 
-export function Today() {
+/** The rows that wait for an answer now, the ones put away Later aside. */
+export function needsRows() {
+  void laterRev.value;
+  return (board.value?.needs_you || []).filter((n) => !isLater(n));
+}
+
+/** The rows in the right column, under Needs you's head (shell/review.js `NeedsPane`); `empty`: say *Nothing waits for you.* when there are none. */
+export function Today({ empty = true }) {
   void laterRev.value;
   const [showLater, setShowLater] = useState(false);
   const all = board.value.needs_you || [];
   const list = all.filter((n) => !isLater(n)), away = all.filter(isLater);
   return html`<section class="board-today" aria-label="Needs you">
     ${list.length ? html`<ul class="board-list">${list.map((n) => html`<${Row} key=${rowKey(n)} n=${n} />`)}</ul>`
-      : html`<p class="ok-tone-muted">Nothing waits for you.</p>`}
+      : empty && html`<p class="ok-tone-muted">Nothing waits for you.</p>`}
     ${away.length > 0 && html`<button class="board-link" onClick=${() => setShowLater(!showLater)}>${showLater ? `Hide the ${away.length} put away` : `Put away for later (${away.length}): show`}</button>
       ${showLater && html`<ul class="board-list is-later">${away.map((n) => html`<${Row} key=${rowKey(n)} n=${n} />`)}</ul>`}`}
   </section>`;

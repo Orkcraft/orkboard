@@ -129,8 +129,8 @@ def test_a_click_on_an_idea_opens_it_and_waits_for_you_opens_needs_you(gui):
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "dark", "device": "desktop", "via": "recap"}))
     pg.locator(".shell-tabstrip").get_by_role("tab", name="Map").click()
     pg.get_by_label("While you were away").get_by_role("button", name="Waits for you: 1 answer, 3 results to check").click()
-    pg.locator(".board-today").wait_for(timeout=WAIT_MS)
-    assert pg.locator(".shell-board").get_by_role("tab", name="Needs you").get_attribute("aria-selected") == "true"
+    pg.locator(".shell-review .board-today").wait_for(timeout=WAIT_MS)
+    pg.wait_for_function("() => document.activeElement === document.querySelector('.shell-review')", timeout=WAIT_MS)      # the focus is in the right column (spec 46 §6.3)
     pg.close()
     assert not errors, "\n".join(errors)
 

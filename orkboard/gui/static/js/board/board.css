@@ -267,6 +267,10 @@
 .board-goal__progress { display: flex; align-items: center; gap: var(--ork-3); color: var(--ork-ink-muted); }
 /* The trail's chips (map.js): a stop in one line — the head of who does it, its title, a mark — and its tasks smaller under it. */
 .trail .map-node { width: auto; max-width: 260px; align-items: flex-start; }
+.trail .map-node:has(.map-act) { max-width: 420px; }
+.map-line { display: flex; align-items: center; gap: var(--ork-2); max-width: 100%; }
+.map-act { flex: none; display: inline-flex; align-items: center; gap: var(--ork-2); }
+.map-head { display: flex; justify-content: flex-end; }
 .trail-step { align-items: flex-start; }
 .trail .map-card.trail-chip, .map-done__list .map-card.trail-chip { width: auto; max-width: 260px; height: auto; min-height: 30px; padding: var(--ork-1) var(--ork-3);
   flex-direction: row; align-items: center; gap: var(--ork-2); overflow: hidden; }

@@ -434,13 +434,13 @@ def _show_goal(pg, slug="ship-sync"):
 
 
 def _needs(pg):
-    """Needs you: its tab, beside the Board's."""
-    pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
-    pg.locator(".board-today").wait_for(timeout=WAIT_MS)
+    """Needs you: the right column (spec 46 §6.3), its rows under its head."""
+    pg.locator(".shell-review").get_by_role("heading", name="Needs you").wait_for(timeout=WAIT_MS)
+    pg.locator(".shell-review .board-today").wait_for(timeout=WAIT_MS)
 
 
 def _board(pg):
-    """The Board's tab, back from Needs you."""
+    """The Board's tab (the left column's: Board · Files)."""
     pg.locator(".shell-board").get_by_role("tab", name="Board").click()
 
 
@@ -693,10 +693,16 @@ def test_below_1024_the_phones_layout_three_tabs_and_the_preview_on_its_own_scre
     pg, host, errors = _open(gui, {"width": 900, "height": 800}, ready=".shell-tabs")
     try:
         tabs = pg.locator(".shell-tabs")
-        assert tabs.get_by_role("tab", name="Review").text_content().replace("\n", "").strip() == "Review2"
+        labels = tabs.get_by_role("tab").evaluate_all("els => els.map(e => e.getAttribute('aria-label'))")
+        assert [x.split(":")[0].split(",")[0] for x in labels] == ["Board", "Agents", "Needs you"]          # the phone's order
+        needs = tabs.get_by_role("tab", name="Needs you")
+        assert needs.get_attribute("aria-label") == "Needs you: 4 wait for your answer, 2 results to check"
+        assert "warning" in needs.locator(".shell-count").get_attribute("class") and needs.locator(".shell-count").inner_text() == "6"   # an answer waits: the signal
+        assert needs.locator("use").get_attribute("href").endswith("#warning-diamond")
         assert pg.locator(".shell-review").is_hidden() and pg.locator(".shell-board").is_visible()
-        tabs.get_by_role("tab", name="Review").click()
-        assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "tab", "ref": "review", "device": "desktop"}))
+        needs.click()
+        assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "tab", "ref": "needs", "device": "desktop"}))
+        assert pg.locator(".shell-review").is_visible() and pg.locator(".shell-review .board-need").count() > 0 and pg.locator(".shell-reviewing").is_visible()
         pg.locator(".shell-card", has_text="Add the queue").click()
         pg.locator(".shell-preview.is-open").wait_for(timeout=WAIT_MS)
         box_ = box(pg, ".shell-preview")
@@ -738,25 +744,39 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
     pg, host = shell
     pg.get_by_role("button", name="New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
-    assert dlg.locator(".shell-craft-tile").count() == 6                                            # 1. its craft: five and Mixed
-    dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # 2. its party: the craft's, in three bands
-    leads, builds = dlg.get_by_role("region", name="Leads"), dlg.get_by_role("region", name="Builds")
+    assert dlg.locator(".shell-craft-tile").count() == 6                                            # its craft: one row of five and Mixed
+    assert dlg.locator('.shell-craft-tile[aria-pressed="true"]').get_attribute("data-craft") == "engineering"     # Engineering is picked at the start
+    assert dlg.get_by_label("Description").evaluate("e => e === document.activeElement")            # the description is focused
+    assert dlg.get_by_role("button", name="Save goal").is_disabled()                                 # a description is required
+    assert dlg.get_by_role("button", name="Next").count() == 0 and dlg.get_by_role("list", name="Step 1 of 3").count() == 0   # one sheet, no steps
+    dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # the craft's party, in the seats at once
+    assert "Design: " in dlg.locator(".shell-craft-line").inner_text()
+    team = dlg.get_by_role("region", name="Team")
+    assert "Leads: Product designer" in team.inner_text()                                           # folded to one line
+    team.locator("[data-change=team]").click()                                                      # three folds, Leads open
+    leads, builds, checks_ = dlg.get_by_role("region", name="Leads"), dlg.get_by_role("region", name="Builds"), dlg.get_by_role("region", name="Checks")
     assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "product-designer"
-    assert builds.locator(".shell-team-seat:not(.is-empty)").count() == 2 and builds.locator(".shell-team-seat").count() == 3
-    dlg.get_by_role("button", name="Take in: Analyst").click()                                      # another leader
+    assert builds.locator(".shell-team-row").count() == 0                                           # one fold open at a time
+    dlg.get_by_role("button", name="Take in: Analyst").click()                                      # another leader: a pick folds Leads and opens Builds
+    assert leads.locator(".shell-team-row").count() == 0 and builds.locator(".shell-team-seat").count() == 3
+    assert builds.locator(".shell-team-seat:not(.is-empty)").count() == 2
     dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # the third builder
     dlg.get_by_role("button", name="Take in: Grunt").click()                                        # a fourth: no seat
     assert builds.locator(".shell-team-seat:not(.is-empty)").count() == 3
-    assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "analyst"
+    leads.get_by_role("button", name="Leads").click()                                               # a fold's head opens it again, the other closes
+    assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "analyst" and builds.locator(".shell-team-row").count() == 0
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
         pg.screenshot(path=str(SHOTS / "desktop-new-goal-team-1440x900.png"))
-    dlg.get_by_role("button", name="Next").click()                                                  # 3. what it is for
-    assert dlg.is_visible() and dlg.get_by_role("button", name="Save goal").is_disabled()           # a description is required
-    assert "led by Analyst" in dlg.inner_text()
+    dlg.locator('[data-done="lead"]').click()                                                       # every fold closed by Done: back to the line
+    assert "Leads: Analyst" in team.inner_text() and team.locator("[data-change=team]").is_visible()
+    assert "1 check, where each applies" in dlg.get_by_role("region", name="Checks").inner_text()  # the checks, folded to one line
+    dlg.get_by_role("region", name="Checks").locator("[data-change=checks]").click()
     checks = dlg.get_by_role("group", name="Checks")                                                # the party's checkers, what they add
     assert "Accessibility reviewer" in checks.inner_text() and "Analyst" not in checks.inner_text()
     checks.get_by_label("Every idea: Accessibility reviewer").check()
+    dlg.locator('[data-done="checks"]').click()
+    assert "1 check, 1 on every idea" in dlg.get_by_role("region", name="Checks").inner_text()
     assert dlg.get_by_label("Title").count() == 0 and dlg.get_by_label("Deadline").count() == 0     # nothing else is asked
     assert dlg.get_by_label("Metric 1: what is measured").count() == 0 and dlg.get_by_label("Link 1", exact=True).count() == 0
     dlg.get_by_label("Description").fill("More people try Orkline.")
@@ -861,11 +881,9 @@ def test_with_no_goal_yet_new_idea_opens_new_goal_first_and_then_itself_with_tha
     pg, host = shell
     host.goals.pop("grow"), host.goals.pop("ship-sync")
     host.bump({})
-    pg.wait_for_function("() => document.querySelectorAll('.board-goals__select option').length === 1", timeout=WAIT_MS)
+    pg.locator('.board-goals__select option[value=""]').wait_for(state="attached", timeout=WAIT_MS)
     pg.get_by_role("button", name="New idea").click()
     dlg = pg.get_by_role("dialog", name="New goal")
-    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
-    dlg.get_by_role("button", name="Next").click()
     dlg.get_by_label("Description").fill("Make notes searchable.")
     dlg.get_by_role("button", name="Save goal").click()
     idea = pg.get_by_role("dialog", name="New idea")
@@ -948,22 +966,23 @@ def test_new_goal_says_a_partys_price_when_the_picker_opens_and_after_a_seat_cha
     pg, host = shell
     pg.get_by_role("button", name="New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
-    assert not _prices(host)                                                                        # step 1 picks a craft: no party yet
-    dlg.locator('.shell-craft-tile[data-craft="design"]').click()
     line = dlg.locator(".shell-party-price")
-    line.wait_for(timeout=WAIT_MS)
+    line.wait_for(timeout=WAIT_MS)                                                                  # asked when the sheet opens: Engineering's party
     assert " ".join(line.inner_text().split()) == "This party: about $2–6 an idea from this project's last 12 ideas"
-    assert _price_calls(pg, host, 1) == [{"leader": "product-designer", "team": ["ui-kit", "artist", "accessibility-reviewer"], "every": [], "craft": "design"}]
-    dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # two changes inside 300 ms: one call
-    dlg.get_by_role("button", name="Take in: Analyst").click()
-    got = _price_calls(pg, host, 2)
+    assert _price_calls(pg, host, 1)[0]["craft"] == "engineering"
+    dlg.locator('.shell-craft-tile[data-craft="design"]').click()
+    assert _price_calls(pg, host, 2)[-1] == {"leader": "product-designer", "team": ["ui-kit", "artist", "accessibility-reviewer"], "every": [], "craft": "design"}
+    dlg.locator("[data-change=team]").click()
+    dlg.get_by_role("button", name="Take in: Analyst").click()                                      # two changes inside 300 ms: one call
+    dlg.get_by_role("button", name="Take in: Copywriter").click()
+    got = _price_calls(pg, host, 3)
     pg.wait_for_timeout(600)
-    assert len(_prices(host)) == 2 and got[-1]["leader"] == "analyst" and "copywriter" in got[-1]["team"]
+    assert len(_prices(host)) == 3 and got[-1]["leader"] == "analyst" and "copywriter" in got[-1]["team"]
     host.price_learned, host.price_low, host.price_high = False, 0.4, 1.2
     dlg.get_by_role("button", name="Take out: Copywriter").click()
     pg.wait_for_function("() => document.querySelector('.shell-party-price')?.textContent.includes('a first guess')", timeout=WAIT_MS)
     assert " ".join(line.inner_text().split()) == "This party: about $0.40–1.20 an idea a first guess: it learns from this project's ideas"
-    dlg.get_by_role("button", name="Next").click()
+    dlg.locator("[data-change=checks]").click()
     checks = dlg.get_by_role("group", name="Checks")
     row = checks.locator(".shell-check-row", has_text="Accessibility reviewer")
     assert "adds about $0.35 to an idea it checks · about half of them" in row.inner_text()
@@ -997,13 +1016,14 @@ def test_the_hints_are_said_under_the_price_line_muted_and_save_stays_enabled(sh
     dlg.locator('.shell-craft-tile[data-craft="data"]').click()
     hints = dlg.locator(".shell-party-hint")
     hints.first.wait_for(timeout=WAIT_MS)
+    assert _price_calls(pg, host, 2)[-1]["craft"] == "data"
     assert hints.all_inner_texts() == host.price_hints and "ok-tone-muted" in hints.first.get_attribute("class")
-    assert _prices(host)[-1]["craft"] == "data"
     host.price_hints = []                                                                            # a change that fits: the hints go
+    dlg.locator("[data-change=team]").click()
+    dlg.get_by_role("button", name="Builds").click()
     dlg.get_by_role("button", name="Take in: Copywriter").click()
     pg.wait_for_function("() => document.querySelectorAll('.shell-party-hint').length === 0", timeout=WAIT_MS)
-    dlg.get_by_role("button", name="Next").click()                                                   # Save is the last step's, never held by a hint
-    dlg.get_by_label("Description").fill("Count the sign-ups.")
+    dlg.get_by_label("Description").fill("Count the sign-ups.")                                      # Save is never held by a hint
     assert dlg.get_by_role("button", name="Save goal").is_enabled()
 
 
@@ -1061,10 +1081,10 @@ def test_a_high_idea_shows_a_spinner_and_stop_leaves_it_stopped_a_low_one_waits_
         pg.screenshot(path=str(SHOTS / "desktop-board-rows-1440x900.png"))
 
 
-def test_needs_you_is_a_tab_of_every_goal_s_rows_the_questions_one_form_and_a_proposal_is_answered_in_its_row(shell):
+def test_needs_you_is_the_right_column_of_every_goal_s_rows_the_questions_one_form_and_a_proposal_is_answered_in_its_row(shell):
     pg, host = shell
-    assert pg.locator(".board-today").count() == 0                                                  # not on the Board: a tab of its own
-    assert "4" in pg.locator(".shell-board").get_by_role("tab", name="Needs you").inner_text()     # a proposal is no count
+    assert pg.locator(".shell-board .board-today").count() == 0                                     # not on the Board: the right column's
+    assert "4" in pg.locator(".shell-review > header").inner_text()                                # a proposal is no count
     assert "export" not in pg.locator(".board-ideas").inner_text().lower() and "Search the notes" not in pg.locator(".board-ideas").inner_text()    # each idea in one place
     _needs(pg)
     kinds = pg.locator(".board-need, .board-proposal").evaluate_all("els => els.map(e => e.dataset.kind)")
@@ -1114,7 +1134,7 @@ def test_a_question_comes_with_its_answer_picked_one_send_takes_it_and_later_put
         pg.screenshot(path=str(SHOTS / "desktop-needs-you-1440x900.png"))
     row.get_by_role("button", name="Send: Grow installs").click()
     assert _sent(pg, host, ("ideas.answer", {"slug": "grow", "answers": ["the forum"], "goal": True}))
-    tab = pg.locator(".shell-board").get_by_role("tab", name="Needs you")
+    tab = pg.locator(".shell-review > header")
     before = tab.inner_text()
     pg.get_by_role("button", name="Later: Export notes").click()                                    # put away here; nothing is sent
     pg.locator(".board-need[data-kind=plan]").wait_for(state="detached", timeout=WAIT_MS)
@@ -1167,7 +1187,7 @@ def test_a_party_proposal_is_answered_in_its_row_taken_out_or_kept_and_is_never_
     pg, host = shell
     host.party_needs = [dict(PARTY_ROW)]
     host.bump({})
-    assert "4" in pg.locator(".shell-board").get_by_role("tab", name="Needs you").inner_text()         # a party's proposal is no count either
+    assert "4" in pg.locator(".shell-review > header").inner_text()                                   # a party's proposal is no count either
     _needs(pg)
     kinds = pg.locator(".board-need, .board-proposal").evaluate_all("els => els.map(e => e.dataset.kind)")
     assert kinds[-2:] == ["proposal", "party"]                                                          # sorted last with the proposals
@@ -1466,13 +1486,12 @@ def test_pair_a_phone_from_the_gear_shows_the_qr_the_time_left_how_it_reaches_an
 
 def test_the_needs_you_count_is_the_warning_and_review_s_stays_plain(shell):
     pg, host = shell
-    count = pg.locator(".shell-board").get_by_role("tab", name="Needs you").locator(".shell-count")   # the Board's Needs you tab
+    count = pg.locator(".shell-review > header .shell-count")                                          # the right column's head
     assert "warning" in count.get_attribute("class") and count.inner_text() == "4"                    # an answer waits: the warning colour
     colour = count.evaluate("e => getComputedStyle(e).backgroundColor")
     assert colour == pg.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-warning)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
-    review = pg.locator(".shell-review .shell-count")
-    if review.count():
-        assert "warning" not in review.first.get_attribute("class")                                    # Review's stays plain
+    review = pg.locator(".shell-reviewing .shell-count")
+    assert review.count() == 1 and "warning" not in review.get_attribute("class")                     # Review's section count stays plain
 
 
 def test_an_agent_is_one_line_with_its_head_its_name_how_many_and_what_a_task_costs(shell):
@@ -1621,18 +1640,16 @@ def test_your_parties_fill_the_craft_and_the_seats_in_new_goal_and_the_id_goes_w
     host.own_parties = [dict(LEAN)]
     pg.get_by_role("button", name="New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
-    assert dlg.get_by_role("region", name="Your parties").count() == 0                              # step 1 picks a craft: no party yet
-    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
     mine = dlg.get_by_role("region", name="Your parties")
     mine.wait_for(timeout=WAIT_MS)
     chip = mine.get_by_role("button", name="Pick your party “Lean web”")
     assert " ".join(chip.inner_text().split()) == "Lean web 3 goals in 2 projects · 2 met" and chip.locator("img.ork-race__head").count() == 3
     chip.click()
     assert chip.get_attribute("aria-pressed") == "true"
-    assert [dlg.locator(f'[data-agent="{a}"]').get_attribute("aria-pressed") for a in ("product-designer", "ui-kit", "accessibility-reviewer")] == ["true"] * 3
-    assert dlg.locator('[data-agent="grunt"]').get_attribute("aria-pressed") == "false"             # the engineering party's seats are gone
-    dlg.get_by_role("button", name="Next").click()
-    assert "Design · led by Product designer" in " ".join(dlg.locator(".shell-party-line").inner_text().split())      # the craft is the party's
+    line = " ".join(dlg.get_by_role("region", name="Team").inner_text().split())
+    assert "Leads: Product designer" in line and "Accessibility reviewer" in line and "Grunt" not in line      # the engineering party's seats are gone
+    assert dlg.locator('.shell-craft-tile[aria-pressed="true"]').get_attribute("data-craft") == "design"        # the craft is the party's
+    dlg.locator("[data-change=checks]").click()
     assert dlg.get_by_role("group", name="Checks").get_by_label("Every idea: Accessibility reviewer").is_checked()
     dlg.get_by_label("Description").fill("A landing page.")
     dlg.get_by_role("button", name="Save goal").click()
@@ -1646,12 +1663,12 @@ def test_a_seat_changed_after_picking_a_party_drops_its_id_and_the_save_sends_no
     host.own_parties = [dict(LEAN)]
     pg.get_by_role("button", name="New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
-    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
     chip = dlg.get_by_role("button", name="Pick your party “Lean web”")
     chip.click()
+    dlg.locator("[data-change=team]").click()
+    dlg.get_by_role("button", name="Builds").click()
     dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # a seat changed
     assert chip.get_attribute("aria-pressed") == "false"
-    dlg.get_by_role("button", name="Next").click()
     dlg.get_by_label("Description").fill("A landing page.")
     dlg.get_by_role("button", name="Save goal").click()
     got = _calls(pg, host, "ideas.goal_save")[-1]
@@ -1688,7 +1705,6 @@ def test_remove_your_party_drops_it_after_the_person_agrees(shell):
     host.own_parties = [dict(LEAN)]
     pg.get_by_role("button", name="New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
-    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
     said = _dialogs(pg)
     dlg.get_by_role("button", name="Remove your party “Lean web”").click()
     assert _sent(pg, host, ("ideas.party_drop", {"id": "p-1"}))
@@ -1786,3 +1802,86 @@ def test_an_agents_chip_started_by_the_pace_says_the_week_has_room(gui):
     assert "the week has room" not in chips.filter(has_text="Dark palette").inner_text()             # by itself, but not by the pace
     pg.close()
     assert not errors, "\n".join(errors)
+
+
+# -- Spec 46 C: the desktop catches up with the phone ----------------------------------------------------------------------------
+
+
+def _store(pg, script):
+    """Runs `script(m)` with the shell's store module (the page keeps one instance of it)."""
+    pg.evaluate("async (src) => { const m = await import(document.querySelector('link[href$=\"shell.css\"]').href.replace('shell.css', 'store.js')); return new Function('m', src)(m); }", script)
+
+
+def test_the_goal_select_ends_with_new_goal_which_opens_it_and_keeps_the_goal_and_the_boards_button_stays(shell):
+    pg, host = shell
+    select = pg.get_by_label("Goal", exact=True)
+    assert select.locator("option").all_inner_texts()[-1] == "New goal…"                              # the last option (spec 46 §6.1)
+    assert pg.locator(".board-goals__bar").get_by_role("button", name="New goal", exact=True).is_visible()   # the Board's stays
+    assert select.input_value() == "ship-sync"
+    select.select_option(label="New goal…")
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.wait_for(timeout=WAIT_MS)
+    assert select.input_value() == "ship-sync"                                                        # the select keeps the goal shown
+    pg.keyboard.press("Escape")
+    pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
+    assert select.input_value() == "ship-sync"
+    pg.locator(".board-goals__bar").get_by_role("button", name="New goal", exact=True).click()
+    assert pg.get_by_role("dialog", name="New goal").is_visible()
+
+
+def test_new_goal_is_one_sheet_save_waits_for_words_the_craft_sets_the_party_and_the_save_sends_the_three_steps_arguments(shell):
+    pg, host = shell
+    pg.locator(".board-goals__bar").get_by_role("button", name="New goal", exact=True).click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    save = dlg.get_by_role("button", name="Save goal")
+    assert save.is_disabled() and [b.inner_text() for b in dlg.locator(".shell-modal__foot button").all()] == ["Cancel", "Save goal"]   # in the modal's foot
+    assert [b.get_attribute("aria-label") for b in dlg.locator(".shell-craft-tile").all()] == ["Engineering", "Design", "Data", "Marketing", "Product", "Mixed"]
+    dlg.get_by_label("Description").fill("   ")
+    assert save.is_disabled()                                                                         # blanks are no words
+    dlg.locator('.shell-craft-tile[data-craft="product"]').click()
+    assert "Product: " in dlg.locator(".shell-craft-line").inner_text()                               # the picked one's word and line under the row
+    assert "Leads: Product manager" in dlg.get_by_role("region", name="Team").inner_text()
+    dlg.get_by_label("Description").fill("Know who it is for.")
+    assert save.is_enabled()
+    save.click()
+    pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
+    got = _calls(pg, host, "ideas.goal_save")[0]
+    assert got["craft"] == "product" and got["leader"] == "product-manager" and got["about"] == "Know who it is for." and got["priority"] == "normal"
+    assert set(got) >= {"about", "craft", "leader", "team", "every", "priority"}
+
+
+def test_the_right_column_is_needs_you_with_the_signal_its_rows_then_review_with_its_count_and_the_left_has_no_needs_you_tab(shell):
+    pg, host = shell
+    assert [t.lower() for t in pg.locator(".shell-board").get_by_role("tab").all_inner_texts()] == ["board"]             # the Needs you tab goes (Files with projects)
+    head = pg.locator(".shell-review > header")
+    assert head.get_by_role("heading", name="Needs you").is_visible()
+    count = head.locator(".shell-count")
+    assert "warning" in count.get_attribute("class") and count.inner_text() == "4"                    # the signal while an answer waits
+    review = pg.get_by_role("region", name="Review")
+    assert review.get_by_role("heading", name="Review").inner_text().split()[-1] == "2"
+    assert review.locator(".shell-into").get_by_role("button", name="Merge into dev").is_visible() and review.locator(".shell-card").count() == 2
+    rows, section = box(pg, ".shell-review .board-today"), box(pg, ".shell-reviewing")
+    assert rows["y"] < section["y"]                                                                   # the rows, then Review
+    assert pg.locator(".shell-review .board-need").count() >= 4
+    assert pg.locator(".shell-board .board-today").count() == 0                                       # none on the left
+
+
+def test_a_kept_needs_tab_reads_board_and_a_card_s_link_to_needs_you_focuses_the_right_column(shell):
+    pg, host = shell
+    _store(pg, "m.leftTab.value = 'needs';")
+    pg.wait_for_timeout(200)
+    assert pg.locator(".shell-board .shell-ltab.is-on").inner_text().lower() == "board" and pg.locator(".shell-board .board-goals").is_visible()
+    _store(pg, "m.showNeeds();")
+    pg.wait_for_function("() => document.activeElement === document.querySelector('.shell-review')", timeout=WAIT_MS)
+
+
+def test_nothing_in_needs_you_or_review_says_nothing_waits_for_you(shell):
+    pg, host = shell
+    host.asked = ["sync", "export", "search", "grow"]
+    host.proposals = ["tags"]
+    for t in host.plan["tasks"]:
+        if t["state"] == "review":
+            t["state"] = "merged"
+    host.bump({})
+    pg.get_by_text("Nothing waits for you.").wait_for(timeout=WAIT_MS)
+    assert pg.locator(".shell-review > header .shell-count").count() == 0 and pg.locator(".shell-review .shell-card").count() == 0

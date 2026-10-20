@@ -1,5 +1,5 @@
 // The goal shown and its ideas (docs/specs/35-goals-window.md §11.1, §11.3), as the phone's Board (pwa/shell-board.js): one goal at a
-// time — the one this computer showed last in the project, else the first —, picked in a select with New goal and the Target chip.
+// time — the one this computer showed last in the project, else the first —, picked in a select (its last option New goal…) with New goal beside it and the Target chip.
 // Its card: its party's heads (the leader's first, decisions §53), its Summary's first line, its craft, priority and state, who leads
 // it and who is in its party, how far its ideas are, Open and Edit. Then its ideas, one row each — title, priority mark, state in
 // words, actions; they drag to reorder, and a click opens the idea's spec in the preview. Needs you is a tab of its own (today.js).
@@ -18,6 +18,7 @@ const DRAG = "text/x-board-slug";
 const drag = (slug) => (e) => { e.dataTransfer.setData(DRAG, slug); e.dataTransfer.effectAllowed = "move"; };
 const takes = (e) => e.dataTransfer.types.includes(DRAG);
 
+const NEW_GOAL = "@new-goal";                       // the select's last option: it opens New goal and the select keeps the goal shown
 const GOAL_WORDS = { reading: "reading", asks: "asks you", ready: "ready" };
 const firstLine = (text) => String(text || "").split("\n").map((l) => l.trim()).find(Boolean) || "";
 
@@ -64,10 +65,11 @@ export function Goals() {
   useEffect(() => { if (g) keepGoal(g.slug); }, [g?.slug]);
   return html`<div class="board-goals" aria-label="Goals">
     <div class="board-row board-goals__bar">
-      <select class="ork-field board-goals__select" aria-label="Goal" value=${want} onChange=${(e) => { track.value = e.target.value; }}>
+      <select class="ork-field board-goals__select" aria-label="Goal" value=${want} onChange=${(e) => { if (e.target.value === NEW_GOAL) { e.target.value = want; openDialog("goal"); } else track.value = e.target.value; }}>
         ${!goals.length && html`<option value="">No goal yet</option>`}
         ${goals.map((x) => html`<option key=${x.slug} value=${x.slug} title=${x.title}>${x.short || x.title} · ${PRIORITY_WORDS[x.priority] || "Normal"}${GOAL_WORDS[x.state] ? ` · ${say(GOAL_WORDS[x.state])}` : ""}</option>`)}
-        ${town.value?.ops_rev !== undefined && html`<option disabled>──────────</option><option value=${OPS}>Operations</option>`}</select>
+        <option disabled>──────────</option>
+        ${town.value?.ops_rev !== undefined && html`<option value=${OPS}>Operations</option>`}<option value=${NEW_GOAL}>New goal…</option></select>
       <button class="ork-btn" onClick=${() => openDialog("goal")}>New goal</button>
       ${inOps ? html`<${NewMenu} />` : html`<${TargetChip} />`}</div>
     ${g && html`<${GoalCard} g=${g} />`}
