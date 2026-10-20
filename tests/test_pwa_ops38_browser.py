@@ -407,7 +407,7 @@ async def test_the_phone_shows_the_way_to_by_itself_and_since_the_day_it_went_sp
         await _ops_view(page)
         await page.locator(".ops-fold", has_text="Templates").locator("summary").click()
         jira = page.locator(".ops-template", has_text="New Jira task")
-        await jira.locator("[data-way]").wait_for(timeout=WAIT_MS)
+        await jira.get_by_text("2 of 3 clean checks", exact=False).wait_for(timeout=WAIT_MS)      # drawn again once ops_rev moved
         assert " ".join((await jira.locator("[data-way]").inner_text()).split()) == "Checks with you: 2 of 3 clean checks, then it goes by itself"
         assert await jira.locator(".ork-pips > i").evaluate_all("els => els.map(e => e.className)") == ["d", "d", ""]
         mail = page.locator(".ops-template", has_text="Reply to an email")
