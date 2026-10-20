@@ -1,7 +1,8 @@
 // The v1 shell on a phone (docs/specs/33-v1-shell.md §6, §8; decisions §45.2): the one face when the compact snapshot's `focus` is
 // "board". Three tabs at the foot — Board (the Map: the goals' trails) · Agents · Needs you (what waits for an answer, then Review's
-// results to check), Needs you with its count when it is not zero — under a top bar (the project over the goal shown, ! with the same
-// count, what is left of the AI tools when one is low, the gear with Spend and Stop all). New idea is the button at the bottom right of the Board, with Speak beside it. An idea's spec, a plan, a task or a result's code opens on its own full
+// results to check), Needs you the signal (spec 41 §1): orkUI's warning mark and colour while something waits for an answer, the eye and
+// a plain count while only results wait — under a top bar (the menu, the goal shown, what is left of the AI tools when one is low; the
+// menu opens the drawer: Stop all, Spend, the projects and the settings). New idea is the button at the bottom right of the Board. An idea's spec, a plan, a task or a result's code opens on its own full
 // screen over the tab, with Back (and the system back gesture) to the tab it came from and its actions pinned at the bottom.
 // It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's
 // `ideas_rev` changes (and every POLL_MS while the Taskmaster or a task works). Always Office's calm look.
@@ -17,6 +18,7 @@ import { steady } from "./shell-util.js";
 const POLL_MS = 10000;
 const TABS = [["board", "Board"], ["agents", "Agents"], ["needs", "Needs you"]];
 const MARKS = { board: () => icon("map"), agents: () => icon("robot"), needs: () => icon("eye") };   // a head says a craft, not every agent
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const LIVE = new Set(["running", "testing"]);
 
 export { stateWords } from "./shell-board.js";
@@ -41,6 +43,7 @@ export function makeBoard(ctx) {
     },
     refresh, open, close, back, reset, go,
     editGoal(slug) { boardTab.editGoal(slug); },
+    editTeam(g) { boardTab.editTeam(g); },
     showMap() { boardTab.showMap(); },
     draw() { drawAll(); },
     flash(text) { ctx.flash(text); },
@@ -92,7 +95,9 @@ export function makeBoard(ctx) {
     needsBody.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Needs you")), ...needs.draw());
   }
   /** What waits on the person: the rows to answer (the ones put away aside) and the results to check. */
-  const waiting = () => (st.board ? needs.count() : st.snap?.needs_you || 0) + (st.review ? st.review.results.length : st.snap?.review_count || 0);
+  const asking = () => (st.board ? needs.count() : st.snap?.needs_you || 0);
+  const checking = () => (st.review ? st.review.results.length : st.snap?.review_count || 0);
+  const waiting = () => asking() + checking();
 
   function drawPanes() {
     for (const [id, p] of Object.entries(panes)) p.hidden = st.tab !== id;
@@ -101,18 +106,30 @@ export function makeBoard(ctx) {
     el.classList.toggle("is-open", Boolean(st.preview));
   }
 
+  /** The tabs' counts; Needs you is the signal (spec 41 §1): while an answer waits its mark is the warning diamond and its count the
+   *  warning colour; with results only, the eye and a plain count. */
   function counts() {
-    const n = { board: 0, agents: 0, needs: waiting() };   // the top bar's ! says the same
+    const asks = asking(), results = checking();
+    const n = { board: 0, agents: 0, needs: asks + results };
     for (const [id, b] of Object.entries(tabs)) {
       const c = b.querySelector(".count");
       c.hidden = !n[id];
       c.textContent = String(n[id] || "");
-      b.setAttribute("aria-label", `${TABS.find((x) => x[0] === id)[1]}${n[id] ? `, ${n[id]}` : ""}`);
+      let label = TABS.find((x) => x[0] === id)[1];
+      if (id === "needs") {
+        const mark = asks ? "warning-diamond" : "eye";
+        if (b.dataset.mark !== mark) { b.dataset.mark = mark; b.firstChild.replaceWith(icon(mark)); }
+        c.classList.toggle("warning", asks > 0);
+        c.classList.toggle("on", !asks);
+        const said = [asks ? `${asks} ${asks === 1 ? "waits" : "wait"} for your answer` : "", results ? plural(results, "result to check", "results to check") : ""].filter(Boolean);
+        label = said.length ? `Needs you: ${said.join(", ")}` : label;
+      } else label = `${label}${n[id] ? `, ${n[id]}` : ""}`;
+      b.setAttribute("aria-label", label);
     }
   }
 
   function drawAll() {
-    top.draw(waiting());
+    top.draw();
     drawNeeds();
     boardTab.draw();
     agents.draw();

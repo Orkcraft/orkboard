@@ -1,12 +1,12 @@
-// The phone's top bar (docs/specs/33-v1-shell.md §6): the folder — the drawer of projects — · the project, small, over the goal shown, its
-// craft's head (decisions §53): a tap picks another goal, Operations or the Map · ! with how many rows Needs you
-// (its screen) · what is left of the AI tools as one chip, only when a tool is low or its limits were not read — the smallest of all of
-// them, a tap opens each tool's windows with when they reset — · the gear: today's Spend, Stop all and the settings (Push after
-// merging). No frames: the words and icons alone. It slides away as the page scrolls down and comes back as it scrolls up. Roles only:
-// warning at 20 % or less left, danger at 5 % or less.
+// The phone's top bar (docs/specs/33-v1-shell.md §6, spec 41 §2): the menu mark — it opens the drawer: Stop all, Spend today, the projects, the
+// project's settings and the phone's (shell-projects.js, shell-drawer.js) · the goal shown, its craft's head (decisions §53) and its short name on one
+// line: a tap picks another goal, Operations or the Map · what is left of the AI tools as one chip, only when a tool is low or its limits were not
+// read — the smallest of all of them, a tap opens each tool's windows with when they reset. No frames: the words and icons alone. It slides away
+// as the page scrolls down and comes back as it scrolls up. Roles only: warning at 20 % or less left, danger at 5 % or less.
 import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { makeProjects } from "./shell-projects.js";
+import { makeSettings } from "./shell-drawer.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
 import { CRAFT_WORDS, goalHead, goalMark } from "./shell-who.js";
 import { OPS_VIEW } from "./shell-ops.js";
@@ -33,17 +33,17 @@ export function resetWords(iso, now = new Date()) {
   return d.toDateString() === now.toDateString() ? `resets at ${hm}` : `resets ${d.toLocaleDateString([], { weekday: "short" })} ${hm}`;
 }
 
-/** `core`: the board's frame (board.js). Returns {el, sheets, render(snapshot), drawGear()}. */
+/** `core`: the board's frame (board.js). Returns {el, sheets, render(snapshot), draw()}. */
 export function makeTop(core, ctx) {
   const st = core.st;
   const chip = h("button", { class: "limit-chip", type: "button", hidden: true, "aria-haspopup": "dialog" });
-  const spend = h("p", { class: "board-spend muted" });
-  const projects = makeProjects(core, ctx);
+  const limitsBody = h("div", { class: "limits" });
+  const limitsSheet = sheet("What is left", limitsBody);
+  const settings = makeSettings(core, ctx, { close: () => projects.sheet.close() }, () => limitsSheet.open());
+  const projects = makeProjects(core, ctx, settings);
+  const menu = h("button", { class: "bar-btn menu", type: "button", "aria-label": "Menu", "aria-haspopup": "dialog", onclick: () => projects.open() }, icon("menu"));
   const goalChip = h("button", { class: "goal-chip", type: "button", "aria-haspopup": "dialog" });
-  const stop = h("button", { class: "ork-btn danger board-stop", type: "button" }, "Stop all");
-  const gear = h("button", { class: "bar-btn gear", type: "button", "aria-label": "Settings" }, icon("sliders"));
-  const needsChip = h("button", { class: "needs-chip", type: "button", hidden: true, onclick: () => core.go("needs") });
-  const el = h("header", { class: "board-bar" }, projects.chip, h("div", { class: "board-name" }, goalChip), needsChip, chip, gear);
+  const el = h("header", { class: "board-bar" }, menu, h("div", { class: "board-name" }, goalChip), chip);
 
   // -- the goal shown: a sheet of the goals (their heads, priority and state), Operations, the Map, and New goal --------------
   const goalList = h("ul", { class: "goal-list" });
@@ -70,11 +70,12 @@ export function makeTop(core, ctx) {
   goalChip.addEventListener("click", () => { drawGoals(); goalsSheet.open(); });
   function drawChip() {
     const g = goals().find((x) => x.slug === st.track);
-    const word = st.view === OPS_VIEW ? "Operations" : g ? g.title : st.board ? "No goal yet" : "";
+    const word = st.view === OPS_VIEW ? "Operations" : g ? (g.short || g.title) : st.board ? "No goal yet" : "";
+    const full = st.view === OPS_VIEW ? "Operations" : g ? g.title : word;
     goalChip.hidden = !word;
-    goalChip.replaceChildren(h("small", { class: "goal-chip__project" }, st.snap?.project || ""),
-      h("span", { class: "goal-chip__goal" }, ...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾")));   // the craft's head: the team's are on its card
-    goalChip.setAttribute("aria-label", `Goal: ${word}. Choose another`);
+    goalChip.replaceChildren(h("span", { class: "goal-chip__goal" }, ...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾")));   // the craft's head: the team's are on its card
+    goalChip.setAttribute("aria-label", `Goal: ${full}. Choose another`);
+    goalChip.title = full;
   }
 
   // Slides away as the page scrolls down, back as it scrolls up (or near the top); never while a screen is open over the tab.
@@ -86,20 +87,6 @@ export function makeTop(core, ctx) {
     lastY = y;
   }, { passive: true });
 
-  // Stop all: a tap asks first (the confirm is a sheet whose button sits away from this one), as the town's does.
-  const really = h("button", { class: "ork-btn danger", type: "button" }, "Stop every ork");
-  const stopSheet = sheet("Stop all",
-    h("p", {}, "Every ork at work stops now, and every idea's tasks with them: their sessions are interrupted and their processes ended."),
-    really);
-  stop.addEventListener("click", () => { gearSheet.close(); stopSheet.open(); });
-  really.addEventListener("click", async () => {
-    stopSheet.close();
-    const r = await ctx.send("halt");
-    ctx.flash(r.ok ? `Stopped: ${r.result} session(s)` : r.error);
-  });
-
-  const limitsBody = h("div", { class: "limits" });
-  const limitsSheet = sheet("What is left", limitsBody);
   chip.addEventListener("click", () => limitsSheet.open());
   function drawLimits(tools, unread) {
     limitsBody.replaceChildren(...tools.map((l) => h("div", { class: `limit ${levelOf(l.left)}`.trim() },
@@ -110,82 +97,19 @@ export function makeTop(core, ctx) {
         h("div", { class: "muted" }, l.error))));
   }
 
-  // The analytics zip (gui/ideas.py `ideas.logs`), handed over the paired link and saved as a file on this phone.
-  async function download(days) {
-    const got = await core.call("ideas.logs", { days });
-    if (!got?.data) return;
-    const bytes = Uint8Array.from(atob(got.data), (c) => c.charCodeAt(0));
-    const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
-    const a = h("a", { href: url, download: got.name || "orkline-logs.zip" });
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    ctx.flash("The logs are downloaded.");
-  }
-
-  // Pair a phone: a phone does not pair another one (the listener refuses `phones.*` to a phone, docs/design/mobile.md §2): this sheet says
-  // where it is done and how the phone will reach the computer.
-  const pairSheet = sheet("Pair a phone",
-    h("p", {}, "A phone is paired from the computer, never from another phone: that keeps a lost phone from adding more."),
-    h("ol", { class: "steps" },
-      h("li", {}, "On the computer, open the gear → Pair a phone: it shows a QR code and says how long the code lasts."),
-      h("li", {}, "Scan the code with this phone’s camera: Orkline opens in the browser and pairs.")),
-    h("h3", {}, "How the phone reaches the computer"),
-    h("ul", { class: "steps" },
-      h("li", {}, "On the same Wi-Fi as the computer."),
-      h("li", {}, "Anywhere on your tailnet, when Tailscale runs on the computer and the phone."),
-      h("li", {}, "Away from home? Install Tailscale on the computer and the phone.")),
-    foot(h("button", { class: "ork-btn primary big", type: "button", onclick: () => pairSheet.close() }, "Done")));
-  const pushBox = h("input", { type: "checkbox", id: "push-after" });
-  // The Board's two settings (spec 35 §5, §7, §11): plans start by themselves (on), and the night's hours.
-  const autoBox = h("input", { type: "checkbox", id: "autostart" });
-  const nightFrom = h("input", { class: "ork-field", type: "time", "aria-label": "Night from" });
-  const nightTo = h("input", { class: "ork-field", type: "time", "aria-label": "Night to" });
-  const gearSheet = sheet("Settings", spend, h("div", { class: "row" }, stop,
-    h("button", { class: "ork-btn", type: "button", onclick: () => { gearSheet.close(); limitsSheet.open(); } }, "What is left")),
-    h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
-    h("label", { class: "check-line", for: "autostart" }, autoBox, h("span", {}, "Start plans by themselves")),
-    h("div", { class: "field" }, h("span", { class: "field-label" }, "Night"), h("div", { class: "row night-row" }, nightFrom, h("span", {}, "to"), nightTo)),
-    h("h3", {}, "Your phone"),
-    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => pairSheet.open() }, "Pair a phone")),
-    h("h3", {}, "Download today's logs"),
-    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => download(1) }, "Today"),
-      h("button", { class: "ork-btn", type: "button", onclick: () => download(7) }, "The last 7 days")),
-    h("p", { class: "muted" }, "What you did and what the orks did, kept on the computer. Off by default."));
-  gear.addEventListener("click", () => {
-    pushBox.checked = Boolean(core.st.review?.push);
-    autoBox.checked = core.st.board?.autostart !== false;
-    [nightFrom.value, nightTo.value] = String(core.st.board?.night || "01:00-07:00").split("-");
-    gearSheet.open();
-  });
-  autoBox.addEventListener("change", async () => { await core.call("ideas.board_set", { autostart: autoBox.checked }); core.refresh(); });
-  const setNight = async () => {
-    if (!nightFrom.value || !nightTo.value) return;
-    if (await core.call("ideas.board_set", { night: `${nightFrom.value}-${nightTo.value}` })) core.refresh();
-  };
-  nightFrom.addEventListener("change", setNight);
-  nightTo.addEventListener("change", setNight);
-  pushBox.addEventListener("change", async () => { await core.call("ideas.into", { push: pushBox.checked }); core.refresh(); });
-
   return {
     el,
-    /** The goal shown and how many rows Needs you, drawn again with the Board. */
-    draw(needs = 0) {
-      needsChip.hidden = !needs;
-      needsChip.classList.toggle("is-on", st.tab === "needs");
-      needsChip.replaceChildren(h("b", { "aria-hidden": "true" }, "!"), h("span", {}, String(needs)));
-      needsChip.setAttribute("aria-label", `Needs you, ${needs}`);
+    /** The goal shown, drawn again with the Board. */
+    draw() {
       drawChip();
+      projects.sync();
       if (goalsSheet.el.open) drawGoals();
       if (window.scrollY <= el.offsetHeight) el.classList.remove("is-away");     // back at the top: always there
     },
-    sheets: [...projects.sheets, goalsSheet.el, stopSheet.el, limitsSheet.el, gearSheet.el, pairSheet.el],
+    sheets: [...projects.sheets, goalsSheet.el, limitsSheet.el],
     render(s, rev) {
       projects.render(s, rev);
-      const gold = s.hud?.show_gold ? s.hud.gold : "";
-      spend.replaceChildren(...(gold ? [h("span", { class: "word" }, "Spend today"), " ", h("b", {}, gold)] : []));
-      spend.hidden = !gold;
+      settings.render(s);
       const tools = (s.limits || []).filter((l) => typeof l.left === "number");
       const unread = (s.limits || []).filter((l) => typeof l.left !== "number" && l.error);   // turned on, not read: never missing without a word
       const low = tools.some((l) => l.left <= WARN);

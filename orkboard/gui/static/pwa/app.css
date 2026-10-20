@@ -110,10 +110,7 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .limit-chip.is-danger, .limit.is-danger > b { color: var(--ork-danger); font-weight: 600; }
 .limit { display: flex; flex-direction: column; gap: var(--ork-1); margin-bottom: var(--ork-5); }
 .limit-row { display: grid; grid-template-columns: 4rem 3.5rem 1fr; gap: var(--ork-4); }
-.project-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: var(--ork-tap); max-width: 100%; display: inline-flex; align-items: center;
-  gap: var(--ork-2); color: var(--ork-ink-muted); font: var(--ork-type-caption); }
-.project-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink); }
-.project-chip:focus-visible, .project-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.project-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .pane { display: flex; flex-direction: column; gap: var(--ork-4); }
 .pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
 .pane-head h2 { margin: 0; }
@@ -265,10 +262,15 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 /* -- Agents: a block per agent, its race's head beside its name; a card per live task, the head of who does it ------------ */
 .agents .role, .review .results { display: flex; flex-direction: column; gap: var(--ork-4); }
 .agents .role + .role { border-top: var(--ork-line) solid var(--ork-frame); padding-top: var(--ork-5); }
-.role-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--ork-2) var(--ork-4); }
-.role-head > .ork-race__head { grid-row: span 2; }
+.role-head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--ork-2) var(--ork-4); }       /* a role in one line (spec 41 §8) */
+.role-head h3 { flex: 1 1 auto; min-width: 0; }
+.role-many, .role-usd { flex: none; font-variant-numeric: tabular-nums; color: var(--ork-ink-muted); font: var(--ork-type-caption); }
 .role-head h3 { margin: 0; color: var(--ork-ink); font: var(--ork-type-body); font-weight: 600; text-transform: none; letter-spacing: 0; }
-.role-facts { grid-column: 2 / -1; }
+.role-facts { flex: 1 0 100%; }
+.chip .chip-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font: var(--ork-type-caption); font-weight: 600; }
+.told { border: var(--ork-line) solid var(--ork-frame); padding: var(--ork-3) var(--ork-4); }
+.told summary { cursor: pointer; min-height: var(--ork-tap); display: flex; align-items: center; }
+.told-text { margin: 0; white-space: pre-wrap; color: var(--ork-ink-muted); }
 .priced { cursor: help; }
 .chips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-4); }
 .chip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--ork-1) var(--ork-4); width: 100%; min-height: 56px; text-align: left;
@@ -376,8 +378,7 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .board-bar { position: sticky; top: 0; z-index: 4; flex-wrap: nowrap; transition: transform 0.2s ease; }
 .board-bar.is-away { transform: translateY(-100%); }
 .board-name { flex-direction: row; align-items: center; gap: var(--ork-2); overflow: hidden; }
-.board-bar .project-chip { flex: 0 1 auto; max-width: 40%; }
-.goal-chip { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; min-height: var(--ork-tap); display: inline-flex;
+.board-bar .goal-chip { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; min-height: var(--ork-tap); display: inline-flex;
   align-items: center; gap: var(--ork-2); color: var(--ork-ink); font: var(--ork-type-caption); }
 .goal-chip[hidden] { display: none; }
 .goal-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -403,7 +404,13 @@ input[type="radio"] { accent-color: var(--ork-ink); }
   white-space: nowrap; }
 .word-chip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .idea-tools { margin-top: 0; }
-.idea-tools .ork-btn.is-on { --_fg: var(--ork-danger); --_bd: var(--ork-danger); --_ring: var(--ork-danger); }   /* listening */
+.idea-box { position: relative; display: flex; }
+.idea-box .ork-field { flex: 1 1 auto; padding-right: calc(var(--ork-tap) + var(--ork-2)); }
+.idea-mic { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; right: 0; bottom: 0; min-width: var(--ork-tap); min-height: var(--ork-tap);
+  display: inline-flex; align-items: center; justify-content: center; color: var(--ork-ink); }
+.idea-mic[hidden] { display: none; }
+.idea-mic:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.idea-mic.is-on { color: var(--ork-danger); }                                /* listening */
 .idea-photos { display: flex; gap: var(--ork-3); flex-wrap: wrap; }
 .idea-photo { position: relative; width: 72px; height: 72px; border: var(--ork-line) solid var(--ork-edge); }
 .idea-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -411,18 +418,12 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 
 /* -- the phone's round of UX: the bar without frames, project over goal, ! for Needs you; quick answers; the + at the bottom right;
       the projects' drawer ------------------------------------------------------------------------------------------------------ */
-.board-bar .project-chip { flex: none; max-width: none; min-width: var(--ork-tap); justify-content: center; color: var(--ork-ink); }
-.board-bar .goal-chip { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; max-width: 100%; }
-.goal-chip__project { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.board-bar .board-bar .goal-chip { max-width: 100%; }                           /* the head and the short name on one line (spec 41 §2) */
 .goal-chip__goal { display: inline-flex; align-items: center; gap: var(--ork-2); max-width: 100%; min-width: 0; font: var(--ork-type-body); }
 .board-bar .limit-chip { border: 0; clip-path: none; padding: 0 var(--ork-2); }
 .bar-btn { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-width: var(--ork-tap); min-height: var(--ork-tap); display: inline-flex;
   align-items: center; justify-content: center; color: var(--ork-ink); }
-.bar-btn:focus-visible, .needs-chip:focus-visible, .fab:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.needs-chip { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-width: var(--ork-tap); min-height: var(--ork-tap); display: inline-flex;
-  align-items: center; justify-content: center; gap: var(--ork-1); color: var(--ork-alert); font: var(--ork-type-button); font-variant-numeric: tabular-nums; }
-.needs-chip[hidden] { display: none; }
-.needs-chip.is-on { box-shadow: inset 0 -2px 0 var(--ork-alert); }
+.bar-btn:focus-visible, .fab:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .needs-pane .need { touch-action: pan-y; transition: transform 0.15s ease; }
 .need.quick { display: flex; align-items: flex-start; }
 .quick-q p { margin: var(--ork-2) 0; color: var(--ork-ink); }
@@ -437,32 +438,38 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .fab { all: unset; box-sizing: border-box; cursor: pointer; width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center;
   background: var(--ork-action); color: var(--ork-on-ink); clip-path: var(--ork-notch); }
 .fab .ork-icon { width: 28px; height: 28px; }
-.fab.small { width: auto; height: var(--ork-tap); padding: 0 var(--ork-4); background: var(--ork-panel); color: var(--ork-ink);
-  border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-button); }
 .board-tab-pane { padding-bottom: 96px; }                           /* the last card never under the + */
 dialog.sheet.drawer { margin: 0 auto 0 0; top: 0; bottom: 0; height: 100dvh; max-height: 100dvh; width: min(86vw, 360px); max-width: 86vw; }
 dialog.sheet.drawer .sheet-in { height: 100%; }
 dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 
 /* -- New goal in three steps (shell-goal-new.js): the steps, the craft's tiles, the team's seats and rows ------------------------- */
-.steps-bar { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--ork-3); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
-.steps-bar li { flex: 1 1 0; padding-bottom: var(--ork-2); color: var(--ork-ink-faint); box-shadow: inset 0 -2px 0 var(--ork-frame); }
-.steps-bar li.is-done { color: var(--ork-ink-muted); box-shadow: inset 0 -2px 0 var(--ork-ink-muted); }
-.steps-bar li.is-on { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
-.craft-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ork-4); }
-.craft-tile { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-2);
-  padding: var(--ork-5); min-height: 132px; border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); }
-.craft-tile .ork-race__head { width: 48px; height: 44px; image-rendering: pixelated; }
-.craft-tile b { font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); }
+.craft-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--ork-2); }           /* five crafts and Mixed in one row (spec 41 §6) */
+.craft-tile { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  min-height: var(--ork-tap); padding: var(--ork-2); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); }
+.craft-tile .ork-race__head { width: 24px; height: 22px; image-rendering: pixelated; }
+.craft-line { margin: 0; }
 .craft-tile[aria-pressed="true"] { background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
 .craft-tile:focus-visible, .team-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .team-seats { display: flex; gap: var(--ork-3); }
 .team-seat { width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; border: var(--ork-line) solid var(--ork-edge); }
 .team-seat.is-empty { border-style: dashed; border-color: var(--ork-frame); }
 .team-seat.is-lead { background: var(--ork-raised); }
-.party-band { display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-3) 0; border-top: var(--ork-line) solid var(--ork-edge); }
-.band-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ork-3); }
-.band-head h3 { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.party, .party-checks, .new-goal-craft { display: flex; flex-direction: column; gap: var(--ork-3); align-items: flex-start; }
+.party h3, .party-checks h3, .new-goal-craft h3, .goal-sec h3 { margin: 0; }
+.party-line, .team-line { margin: 0; overflow-wrap: anywhere; }
+.party-fold { align-self: stretch; border-top: var(--ork-line) solid var(--ork-edge); }
+.fold-head { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; min-height: var(--ork-tap); display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; column-gap: var(--ork-4); }
+.fold-head b { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.fold-head small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold-head:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.fold-body { display: flex; flex-direction: column; gap: var(--ork-3); padding-bottom: var(--ork-3); }
+.party-checks .checks-block { align-self: stretch; }
+.new-goal-craft { align-items: stretch; }
+.answer .recommended { display: block; font: var(--ork-type-caption); }
+.decide { align-self: flex-start; min-height: var(--ork-tap); }
+.quick-q .why { display: block; margin-bottom: var(--ork-2); }
 .team-list { display: flex; flex-direction: column; }
 .team-row { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 24px 1fr 32px; grid-template-areas: "head name mark" "head line mark";
   column-gap: var(--ork-4); align-items: center; min-height: var(--ork-tap); padding: var(--ork-3) 0; border-bottom: var(--ork-line) solid var(--ork-frame); }
@@ -473,7 +480,6 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .team-row[aria-pressed="true"] .team-mark { color: var(--ork-action); }
 .team-heads { display: inline-flex; gap: var(--ork-2); vertical-align: middle; }
 .goal-steps { display: flex; flex-direction: column; gap: var(--ork-5); }
-.craft-tile.mixed { min-height: 0; }
 .craft-heads { display: inline-flex; gap: var(--ork-2); }
 .team-craft { margin: var(--ork-3) 0 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
 .craft-tile .craft-heads .ork-race__head { width: 24px; height: 22px; }
@@ -544,7 +550,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
   display: flex; flex-direction: column; justify-content: center; gap: var(--ork-1); border: var(--ork-line) solid var(--ork-frame); }
 .map-goal-tab.is-on { border-color: var(--ork-ink); background: var(--ork-raised); }
 .map-goal-tab:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.map-goal-tab-title { font: var(--ork-type-body); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-goal-tab-title { font: var(--ork-type-caption); font-weight: 600; }
 .map-goal-tab small { font: var(--ork-type-caption); color: var(--ork-ink-muted); }
 .map-goal-tab-bar { display: block; height: 3px; background: var(--ork-frame); }
 .map-goal-tab-fill { display: block; height: 100%; width: 0; background: var(--ork-success); }
@@ -568,7 +574,6 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .map-row .map-wave + .map-wave { border-top: var(--ork-line) dotted var(--ork-frame); padding-top: var(--ork-1); }
 .map-task { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-2); align-items: center; min-height: 32px; font: var(--ork-type-caption); }
 .map-task:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
-.map-task-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-task small { grid-column: 2; color: var(--ork-ink-muted); }
 .map-tasks-done { align-self: flex-end; font: var(--ork-type-caption); }
 .trail-end { align-items: center; color: var(--ork-ink-muted); }
@@ -581,7 +586,13 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .trail-empty { margin: 0; }
 /* The trail's chips on the phone (shell-map.js): a stop in one line, its tasks smaller under it. */
 .trail-lanes .map-open.trail-chip { flex-direction: row; align-items: center; gap: var(--ork-2); min-height: var(--ork-tap); padding: 0 var(--ork-3); }
-.trail-chip .idea-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.trail-chip .idea-title { flex: 1 1 auto; min-width: 0; font: var(--ork-type-caption); font-weight: 600; }
+.trail-chip .idea-title, .map-task-title, .map-goal-tab-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; white-space: normal; overflow-wrap: anywhere; }        /* a short name on two lines at most (spec 41 §3) */
+.map-line { display: flex; align-items: stretch; }
+.map-line .map-open { flex: 1 1 auto; min-width: 0; width: auto; }
+.map-act { flex: none; min-height: var(--ork-tap); gap: var(--ork-2); }
+.trail-lanes.is-two > .map-row.has-act { grid-column: 1 / -1; }          /* a node with a button takes its step's whole row */
 .trail-chip-nohead { width: 12px; height: 11px; flex: none; }
 .trail-mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
 .trail-mark.is-gate { color: var(--ork-alert); }

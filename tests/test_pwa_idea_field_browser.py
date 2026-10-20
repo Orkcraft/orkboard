@@ -92,10 +92,13 @@ async def test_speak_puts_the_words_heard_in_at_the_caret_and_stops(fake_repo, m
         sheet = await _new_idea(stub, page)
         text = sheet.get_by_label("The idea", exact=True)
         await text.fill("Please")
-        speak = sheet.get_by_role("button", name="Speak")
+        speak = sheet.get_by_role("button", name="Speak the idea")
         assert "keyboard’s microphone" not in await sheet.locator(".hint").inner_text()                 # Speak is here: no need to say it
+        assert await speak.locator("use").get_attribute("href") == "icons/icons.svg#mic"                # the mic mark, in the field's corner
+        mic, field = await speak.bounding_box(), await text.bounding_box()
+        assert field["x"] + field["width"] - mic["x"] - mic["width"] < 4 and field["y"] + field["height"] - mic["y"] - mic["height"] < 4
         await speak.click()
-        stop = sheet.get_by_role("button", name="Stop")
+        stop = sheet.get_by_role("button", name="Stop speaking")
         assert await stop.get_attribute("aria-pressed") == "true"
         for _ in range(100):
             if await text.input_value() == "Please fix the sync queue":
@@ -105,3 +108,11 @@ async def test_speak_puts_the_words_heard_in_at_the_caret_and_stops(fake_repo, m
         await stop.click()
         await speak.wait_for(timeout=WAIT_MS)
         assert await speak.get_attribute("aria-pressed") == "false"
+
+
+@pytest.mark.asyncio
+async def test_without_speech_to_text_the_mic_is_not_there_and_the_hint_says_the_keyboard_s(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch, init="delete window.SpeechRecognition; delete window.webkitSpeechRecognition;") as (stub, page):
+        sheet = await _new_idea(stub, page)
+        assert await sheet.locator(".idea-mic").is_hidden() and "Speak it with the keyboard’s microphone" in await sheet.locator(".hint").inner_text()
+        assert await page.get_by_role("button", name="Speak a new idea").count() == 0                   # Speak left the Board (spec 41 §5)

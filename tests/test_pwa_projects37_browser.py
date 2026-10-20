@@ -1,12 +1,12 @@
 """Spec 37 part D3 on the phone (docs/specs/37-board-and-line.md §8, "Tests → D3"): Chromium at 390 × 844 against the stub of
 test_pwa_shell_browser.py with fake `projects.*` and `files.read` commands. The switcher as a sheet with the open projects and
-their counts, a tap shows another one; a spec a goal links opens read-only, rendered, with no edit or git control; no
+their counts, a tap shows another one (the drawer the menu opens, spec 41 §2); a spec a goal links opens read-only, rendered, with no edit or git control; no
 horizontal scroll of the page. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _menu, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -44,11 +44,8 @@ def _projects(monkeypatch):
 @pytest.mark.asyncio
 async def test_the_switcher_is_a_drawer_with_the_open_projects_and_a_tap_shows_another(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        chip = page.locator(".project-chip")
-        await chip.wait_for(timeout=WAIT_MS)
-        await chip.click()
-        sheet = page.get_by_role("dialog", name="Projects")
-        await sheet.wait_for(timeout=WAIT_MS)
+        sheet = await _menu(page)                                                           # the menu opens the drawer (spec 41 §2)
+        assert await sheet.locator(".sheet-head h2").text_content() == "project"                       # the project shown is said in its head
         await sheet.get_by_text("2 working · 1 needs you").wait_for(timeout=WAIT_MS)
         text = await sheet.inner_text()
         assert "3 to review" in text and "old" in text and "Open a folder" not in text

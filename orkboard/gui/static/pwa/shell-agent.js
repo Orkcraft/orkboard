@@ -2,7 +2,9 @@
 // decisions §53; Taskmaster and Grunt are orks), a model (By Target, or a tier: the gear on its head),
 // how many may work at once, an instruction of at most 600 characters added to every task prompt of that agent, and the task types it
 // takes. An agent of your own can be deleted (its task types go back to Grunt, said first); Taskmaster and Grunt can be edited, not
-// deleted; Grunt's types are shown, not editable, and the Taskmaster takes none. `assign`: a task type a new agent starts with.
+// deleted; Grunt's types are shown, not editable, and the Taskmaster takes none. `assign`: a task type a new agent starts with. For the
+// Taskmaster and the Grunt, whose instruction is Orkboard's own, the field says *Added to what it is told* and *What it is told already* is
+// above it, folded and read only (spec 41 §8, `told` of `ideas.roles`).
 import { h, sheet } from "./util.js";
 import { field, foot } from "./shell-forms.js";
 import { who, CRAFT_WORDS, RACE_WORDS } from "./shell-who.js";
@@ -18,6 +20,9 @@ export function makeAgentSheet(core) {
   const many = h("select", { class: "ork-field", "aria-label": "At most at once" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => h("option", { value: String(n) }, String(n))));
   const modelHint = h("small", { class: "muted" }, "By Target: the task's own tier, moved by the Target");
   const instruction = h("textarea", { class: "ork-field", rows: "5", "aria-label": "Instruction", placeholder: "Added to every task this agent does" });
+  const instructionLabel = h("span", { class: "field-label" }, "Instruction");
+  const toldText = h("p", { class: "told-text" });
+  const told = h("details", { class: "told", hidden: true }, h("summary", {}, "What it is told already"), toldText);
   const counter = h("small", { class: "muted counter", "aria-live": "polite" });
   const longNote = h("p", { class: "warn", hidden: true }, "Only the first 600 characters go to the ork: shorten it");
   const takesBox = h("fieldset", { class: "field takes" });
@@ -29,7 +34,7 @@ export function makeAgentSheet(core) {
   const sureBtn = h("button", { class: "ork-btn danger big", type: "button" }, "Delete agent");
   const keep = h("button", { class: "ork-btn big", type: "button" }, "Keep it");
   const sure = h("div", { class: "sure", hidden: true }, sureText, sureBtn, keep);
-  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Craft", craft), craftHint, whoNow, field("Model", model), modelHint, field("At most at once", many), field("Instruction", instruction), counter, longNote, takesBox,
+  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Craft", craft), craftHint, whoNow, field("Model", model), modelHint, field("At most at once", many), told, h("label", { class: "field" }, instructionLabel, instruction), counter, longNote, takesBox,
     note, h("div", {}, del), sure, foot(cancel, save));
   const sh = sheet("Add agent", form);
   let slug = "", assign = "";
@@ -105,6 +110,12 @@ export function makeAgentSheet(core) {
       modelHint.hidden = r?.slug === "taskmaster";
       many.value = String(r?.max_parallel || 2);
       instruction.value = r?.instruction_long || r?.instruction || "";
+      const own = r?.told;                              // Orkboard's own instruction: the Taskmaster's and the Grunt's
+      told.hidden = !own;
+      told.open = false;
+      toldText.textContent = own || "";
+      instructionLabel.textContent = own ? "Added to what it is told" : "Instruction";
+      instruction.setAttribute("aria-label", own ? "Added to what it is told" : "Instruction");
       longNote.hidden = !r?.instruction_long;
       takes(data, r);
       note.hidden = !assign;

@@ -3,7 +3,9 @@
 // left to do — a step under the ideas it depends on, the ones that can go at once side by side (two at most, the rest a tap away) —
 // to its flag, raised when its leader accepts it against its metrics. An idea at work shows its tasks left with the heads of the
 // agents who do them, in their waves; a stop that waits for the person is a gate. What is done is not on the trail (Done shows it).
-// A tap opens the idea's screen, as from the Board; *new* marks what changed since the Map was last shown on this phone.
+// A tap opens the idea's screen, as from the Board; *new* marks what changed since the Map was last shown on this phone. A name is its
+// short one on two lines at most (spec 41 §3), the title in the element's title and label. A node that waits for the person alone has one
+// button beside its chip: Start (with its price), Start now or Process now (spec 41 §4).
 import { h, icon, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { keepGoal } from "./shell-top.js";
@@ -11,6 +13,7 @@ import { rowState } from "./shell-ideas.js";
 import { goalState } from "./shell-goal.js";
 import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
 import { whoHead } from "./shell-who.js";
+import { price } from "./shell-preview.js";
 
 export const MAP_VIEW = "map";
 
@@ -125,10 +128,10 @@ export function makeMap(core, goalSheet) {
           const check = checks.find((c) => c.task === t.id);
           if (check && skippable(check)) {                // a checker's task not run yet: a button to skip it
             return h("button", { class: "map-task check-step", type: "button", "data-state": t.state, "aria-label": `Skip the check: ${check.name}`,
-              onclick: () => askSkip(node, check, true) }, t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.title), icon("close"));
+              onclick: () => askSkip(node, check, true) }, t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.short || t.title), icon("close"));
           }
           return h("span", { class: "map-task", "data-state": t.state, title: `${t.title} · ${TASK_WORDS[t.state] || t.state}` },   // the idea's screen opens it
-            t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.title), h("span", { class: "sr-only" }, ` · ${TASK_WORDS[t.state] || t.state}`));
+            t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.short || t.title), h("span", { class: "sr-only" }, ` · ${TASK_WORDS[t.state] || t.state}`));
         }))),
       done ? h("small", { class: "muted map-tasks-done" }, `${done} done`) : null);
   }
@@ -151,6 +154,25 @@ export function makeMap(core, goalSheet) {
       leader ? ` Led by ${leader.name}${words ? ` · ${words}` : ""}` : ` Team: ${words}`);
   }
 
+  /** The one button a node that waits for the person alone has (spec 41 §4): {label, text, aria, run} or null. */
+  function actionOf(node) {
+    if (node.state === "done") return null;
+    const slug = node.slug, title = node.title;
+    const go = (name, args, done) => async () => { if (await core.call(name, { slug, ...args, via: "map" })) { core.flash(done); core.refresh(); } };
+    if (node.needs_you === "plan" && !(node.waits_on || []).length) {
+      const n = (node.tasks || []).length, cost = price(node.estimate);
+      return { icon: "play", text: cost, aria: `Start “${title}”: ${n} ${n === 1 ? "task" : "tasks"}${cost ? `, about ${cost.replace(/^~/, "")}` : ""}`,
+        run: go("ideas.start", {}, "Started."), key: "start" };
+    }
+    if (node.state === "plan" && node.start_at === "night" && !node.needs_you) {
+      return { icon: "play", text: "Start now", aria: `Start “${title}” now, instead of tonight`, run: go("ideas.start_now", {}, "Started."), key: "start-now" };
+    }
+    if (node.state === "raw" && ["night", "hold"].includes(node.queue) && !node.held_until) {
+      return { icon: null, text: "Process now", aria: `Process “${title}” now`, run: go("ideas.queue", { queue: "now" }, "The Taskmaster drafts it now."), key: "process-now" };
+    }
+    return null;
+  }
+
   /** A stop: a chip — the head of who does it, its title, a mark of its state (its words for a screen reader, all of them on its
    *  screen) — and, for the idea at work, its tasks left as smaller chips with their agents' heads. */
   function row(node, titleOf, leader, team) {
@@ -163,17 +185,21 @@ export function makeMap(core, goalSheet) {
       node.estimate ? `≈$${node.estimate.usd_low.toFixed(2)}–${node.estimate.usd_high.toFixed(2)}` : "", on.length ? `checks ${passed}/${on.length}` : "", isNew ? "new" : ""]
       .filter(Boolean).join(" · ");
     const head = stopHead(node, leader);
+    const act = actionOf(node);
     const timed = ["night", "limits", "reserve"].includes(node.waits?.kind) && node.state !== "done";
-    return h("li", { class: `map-row state-${node.state}${needsHand ? " needs-hand" : ""}${node.waits && !needsHand ? " is-waiting" : ""}${node.state === "proposed" ? " is-proposed" : ""}`,
+    return h("li", { class: `map-row state-${node.state}${needsHand ? " needs-hand" : ""}${node.waits && !needsHand ? " is-waiting" : ""}${node.state === "proposed" ? " is-proposed" : ""}${act ? " has-act" : ""}`,
       "data-slug": node.slug },
-      h("button", { class: "map-open trail-chip", type: "button", "aria-label": `${node.title}: ${words}`, "data-words": words,
-        onclick: () => core.open({ kind: "idea", slug: node.slug }, "map") },
-        head ? whoHead(head, true) : h("span", { class: "trail-chip-nohead", "aria-hidden": "true" }),
-        h("span", { class: "idea-title" }, node.title),
-        needsHand ? h("span", { class: "trail-mark is-gate", "aria-hidden": "true" }, icon("warning-diamond"))
-          : s.spin ? h("span", { class: "spin trail-mark", "aria-hidden": "true" }, "↻")
-            : timed ? h("span", { class: "trail-mark", "aria-hidden": "true" }, icon("clock")) : null,
-        isNew ? h("span", { class: "map-new", "aria-hidden": "true" }, "new") : null),
+      h("div", { class: "map-line" },
+        h("button", { class: "map-open trail-chip", type: "button", "aria-label": `${node.title}: ${words}`, "data-words": words, title: node.title,
+          onclick: () => core.open({ kind: "idea", slug: node.slug }, "map") },
+          head ? whoHead(head, true) : h("span", { class: "trail-chip-nohead", "aria-hidden": "true" }),
+          h("span", { class: "idea-title" }, node.short || node.title),
+          needsHand ? h("span", { class: "trail-mark is-gate", "aria-hidden": "true" }, icon("warning-diamond"))
+            : s.spin ? h("span", { class: "spin trail-mark", "aria-hidden": "true" }, "↻")
+              : timed ? h("span", { class: "trail-mark", "aria-hidden": "true" }, icon("clock")) : null,
+          isNew ? h("span", { class: "map-new", "aria-hidden": "true" }, "new") : null),
+        act ? h("button", { class: "ork-btn map-act", type: "button", "data-act": act.key, "aria-label": act.aria, onclick: act.run },
+          act.icon ? icon(act.icon) : null, act.text ? h("span", {}, act.text) : null) : null),
       tasksLeft(node, team));
   }
 
@@ -222,13 +248,13 @@ export function makeMap(core, goalSheet) {
     return h("nav", { class: "map-goal-tabs", role: "tablist", "aria-label": "Goals" }, ...goals.map((g) => {
       const pct = progressOf(nodes.filter((n) => n.goal === g.slug));
       return h("button", { class: `map-goal-tab${g.slug === on ? " is-on" : ""}`, type: "button", role: "tab", "aria-selected": String(g.slug === on),
-        "data-goal": g.slug, onclick: () => {
+        "data-goal": g.slug, title: g.title, "aria-label": `${g.title}, ${g.verdict?.met ? "met" : `${pct} %`}`, onclick: () => {
           if ((st.board?.tracks || []).some((t) => t.slug === g.slug)) {        // the Board's goal too, as the top bar's
             st.track = g.slug; st.mapGoal = ""; keepGoal(st.snap?.project, g.slug);
           } else st.mapGoal = g.slug;
           core.draw();
         } },
-        h("span", { class: "map-goal-tab-title" }, g.title), h("small", {}, g.verdict?.met ? "met" : `${pct} %`),
+        h("span", { class: "map-goal-tab-title" }, g.short || g.title), h("small", {}, g.verdict?.met ? "met" : `${pct} %`),
         h("i", { class: "map-goal-tab-bar", "aria-hidden": "true" }, h("i", { class: `map-goal-tab-fill p${Math.round(pct / 10) * 10}` })));
     }));
   }

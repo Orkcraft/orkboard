@@ -25,34 +25,96 @@ async def _agents(page):
 
 
 def _grunt_head(agents):
-    return agents.locator(".role[data-role='grunt'] .role-facts")
+    return agents.locator(".role[data-role='grunt'] .role-head")
 
 
 @pytest.mark.asyncio
-async def test_agents_is_a_monitor_a_role_says_its_week_after_three_merged_and_the_chips_put_needs_you_first(fake_repo, monkeypatch):
+async def test_agents_is_a_monitor_a_role_is_one_line_with_what_a_task_costs_and_the_chips_put_needs_you_first(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.chip_extra = {"k4": {"state": "failed", "note": "tests stayed red"}, "k2": {"state": "held", "note": "after 18:00"}}
-        stub.week = {"grunt": WEEK | {"merged": 2}}                                                       # two merged: too few to say
+        stub.usd_task = {"grunt": 0.4}                                                                    # spec 41 §8: `usd_task`
         stub.bump({})
         agents = await _agents(page)
         assert "Task types" not in await agents.inner_text() and await agents.get_by_label("Agent for Code").count() == 0
-        facts = _grunt_head(agents)
-        assert await facts.inner_text() == "By Target · up to 8 · ≈$1.25 today"                         # no week under three merged
-        assert await facts.locator(".priced").first.get_attribute("title") == "At API prices, not your bill"
+        line = _grunt_head(agents)
+        await expect(line).to_have_attribute("aria-label", "Grunts: an ork, Engineering, Seasoned; up to 8 at once; about $0.40 a task", timeout=WAIT_MS)
+        assert " ".join((await line.inner_text()).split()) == "Grunts ×8 ≈ $0.40 a task Edit"             # its head, its name, ×8, the cost of a task
+        assert await line.locator("img").count() == 1 and await line.locator(".role-usd").get_attribute("title") == "At API prices, not your bill"
+        assert "up to" not in await line.inner_text() and "By Target" not in await line.inner_text()      # no model in words (spec 41 §8)
         assert "Takes: code, tests, docs, text for people, research" in await agents.locator(".role[data-role='grunt']").inner_text()
+        tm = agents.locator(".role[data-role='taskmaster'] .role-head")                                  # its cost is its steps: no ×N, no cost of a task
+        assert " ".join((await tm.inner_text()).split()) == "Taskmaster Edit" and "×" not in await tm.inner_text()
         # needs you first, then working, then the rest; spec 35's held words stay
         await expect(agents.locator(".role[data-role='grunt'] .chip[data-state] .chip-state").first).to_contain_text(
             "needs you", timeout=WAIT_MS)                                                               # the bump drawn
         states = await agents.locator(".role[data-role='grunt'] .chip[data-state]").evaluate_all("els => els.map((e) => e.querySelector('.chip-state').textContent)")
         assert states[0].startswith("needs you") and states[1].startswith("working")
         assert [s.split(" ")[0] for s in states] == ["needs", "working", "waits"]
-        stub.week = {"grunt": WEEK, "taskmaster": {"spent": 1.0, "plans": 3, "merged": 0, "first_time": 8, "finished": 10, "usd_per_merged": None}}
+        stub.week = {"taskmaster": {"spent": 1.0, "plans": 3, "merged": 0, "first_time": 8, "finished": 10, "usd_per_merged": None}}
         stub.bump({})
-        await expect(facts).to_contain_text("a result", timeout=WAIT_MS)
-        assert await facts.inner_text() == "By Target · up to 8 · ≈$1.25 today · ≈$0.90 a result · 8/10 the first time"
-        assert await agents.locator(".role[data-role='taskmaster'] .role-facts").inner_text() == "Elder · opus · 8/10 tasks the first time"
+        await expect(tm).to_contain_text("8/10 tasks the first time", timeout=WAIT_MS)                    # the Taskmaster's week stays as it was said
         await _shot(page, "phone-agents-monitor-390x844")
         assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_chip_shows_its_short_name_on_two_lines_with_the_title_in_its_label(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.chip_extra = {"k3": {"short": "Retry offline", "idea_short": "Sync"}}
+        stub.bump({})
+        agents = await _agents(page)
+        chip = agents.locator(".chip", has_text="Retry offline")
+        await chip.wait_for(timeout=WAIT_MS)
+        assert await chip.get_attribute("title") == "Retry on a lost signal" and "Retry on a lost signal" in await chip.get_attribute("aria-label")
+        assert "Sync" in await chip.locator(".chip-idea").inner_text() and "Sync ideas between" not in await chip.inner_text()
+        assert await chip.locator(".chip-name").evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_add_agent_opens_two_ways_from_the_library_adds_the_agent_and_your_own_is_the_sheet(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        agents = await _agents(page)
+        await agents.get_by_role("button", name="+ Add agent").click()
+        choose = page.get_by_role("dialog", name="Add an agent")
+        await choose.wait_for(timeout=WAIT_MS)
+        rows = choose.locator(".team-row")
+        assert await rows.count() > 5 and await choose.get_by_role("button", name="Add Taskmaster").count() == 0   # the ones the project has are not offered
+        assert await choose.get_by_role("button", name="Your own").is_visible()
+        row = choose.get_by_role("button", name="Add Copywriter")
+        assert "Marketing" in await row.inner_text() and await row.locator("img").count() == 1                 # its head, name, craft and what it takes
+        await _shot(page, "phone-add-agent-390x844")
+        await row.click()
+        assert await _called(stub, "ideas.role_add", {"id": "copywriter"})
+        await choose.wait_for(state="hidden", timeout=WAIT_MS)
+        await agents.locator(".role[data-slug='copywriter']").wait_for(timeout=WAIT_MS)
+        await agents.get_by_role("button", name="+ Add agent").click()                                   # added: no longer offered
+        await choose.wait_for(timeout=WAIT_MS)
+        assert await choose.get_by_role("button", name="Add Copywriter").count() == 0
+        await choose.get_by_role("button", name="Your own").click()
+        assert await page.get_by_role("dialog", name="Add agent").get_by_label("Name").is_visible()      # today's sheet
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_built_in_two_show_what_they_are_told_already_and_the_field_adds_to_it(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        agents = await _agents(page)
+        await agents.get_by_role("button", name="Edit Taskmaster").click()
+        sheet = page.get_by_role("dialog", name="Edit agent")
+        told = sheet.locator(".told")
+        assert await told.get_attribute("open") is None and "What it is told already" in await told.inner_text()      # folded
+        await told.locator("summary").click()
+        assert "The Taskmaster reads each step's prompt." in await told.inner_text() and await told.locator("textarea, input").count() == 0   # read only
+        assert await sheet.get_by_label("Added to what it is told").is_visible()
+        await sheet.get_by_role("button", name="Cancel").click()
+        await agents.get_by_role("button", name="Edit Grunts").click()
+        assert "A Grunt gets the task's brief" in await page.get_by_role("dialog", name="Edit agent").locator(".told").text_content()
+        await page.get_by_role("dialog", name="Edit agent").get_by_role("button", name="Cancel").click()
+        await agents.get_by_role("button", name="+ Add agent").click()                                    # an agent of your own: no told, the plain field
+        await page.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
+        own = page.get_by_role("dialog", name="Add agent")
+        assert await own.locator(".told").is_hidden() and await own.get_by_label("Instruction").is_visible()
 
 
 @pytest.mark.asyncio
@@ -60,6 +122,7 @@ async def test_the_dialog_is_a_sheet_with_by_target_a_counter_and_takes_that_mov
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         agents = await _agents(page)
         await agents.get_by_role("button", name="+ Add agent").click()
+        await page.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
         sheet = page.get_by_role("dialog", name="Add agent")
         box = await sheet.bounding_box()
         assert box["x"] == 0 and box["width"] == 390 and box["y"] + box["height"] == 844                # a bottom sheet

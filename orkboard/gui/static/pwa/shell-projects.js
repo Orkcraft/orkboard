@@ -1,8 +1,8 @@
 // The project switcher on the phone (docs/specs/37-board-and-line.md §8): a drawer from the left, the projects open at the computer,
 // each with what is working, what needs you and what waits in Review; a tap shows that one. A project is opened and closed at the
-// computer, never from the phone: the recent ones are only named. Under them, the documents the goal shown links (read only, §8).
-// Read again when the snapshot's `rev` moves.
-import { h, sheet, icon } from "./util.js";
+// computer, never from the phone: the recent ones are only named.
+// The settings of the project and of this phone are under them (spec 41 §2). Read again when the snapshot's `rev` moves.
+import { h, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 
 const count = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");
@@ -13,22 +13,13 @@ export function countWords(p) {
   return parts.filter(Boolean).join(" · ") || "Nothing waiting";
 }
 
-/** `core`: the board's frame (board.js). Returns {chip, sheets, render(snapshot)}. */
-export function makeProjects(core, ctx) {
-  const chip = h("button", { class: "project-chip", type: "button", "aria-haspopup": "dialog" });
+/** `core`: the board's frame; `settings`: the drawer's settings (shell-drawer.js). The drawer the menu opens (spec 41 §2), from the left: Stop all,
+ *  Spend today, the projects, This project, This phone. Returns {open(), sheets, render(snapshot)}. */
+export function makeProjects(core, ctx, settings) {
   const body = h("div", { class: "projects" });
-  const docs = h("div", { class: "project-docs" });
-  const sh = sheet("Projects", body, docs, foot(h("button", { class: "ork-btn primary big", type: "button", onclick: () => sh.close() }, "Done")));
+  const sh = sheet("Menu", ...settings.head, h("h3", {}, "Projects"), body, ...settings.project, ...settings.phone,
+    foot(h("button", { class: "ork-btn primary big", type: "button", onclick: () => sh.close() }, "Done")));
   sh.el.classList.add("drawer");
-  /** The goal's links that are files of the project: each opens read only on its screen. */
-  function drawDocs() {
-    const g = (core.st.board?.tracks || []).find((t) => t.slug === core.st.track);
-    const paths = (g?.links || []).filter((l) => !/^[a-z][a-z0-9+.-]*:\/\//i.test(l));
-    docs.replaceChildren(...(g ? [h("h3", {}, `${g.title}: its documents`), paths.length
-      ? h("ul", { class: "project-list" }, ...paths.map((p) => h("li", {}, h("button", { class: "project-row", type: "button",
-        onclick: () => { sh.close(); core.open({ kind: "doc", slug: g.slug, path: p }); } }, h("b", {}, p)))))
-      : h("p", { class: "muted" }, "The goal links no file yet: the Taskmaster adds the ones it finds.")] : []));
-  }
   let list = null;
   let name = "";
   let seq = 0;
@@ -68,16 +59,17 @@ export function makeProjects(core, ctx) {
     sh.close();
   }
 
-  chip.addEventListener("click", () => { drawDocs(); sh.open(); load(); });
   draw();
 
   return {
-    chip,
-    sheets: [sh.el],
+    open() { settings.sync(); sh.open(); load(); },
+    sheet: sh,
+    /** The Board was read again: an open drawer shows what it read. */
+    sync() { if (sh.el.open) settings.sync(); },
+    sheets: [sh.el, ...settings.sheets],
     render(s, rev) {
       name = s.project || "";
-      chip.replaceChildren(icon("folder"));                // the top bar says the project's name over the goal
-      chip.setAttribute("aria-label", name ? `Project ${name}: choose another` : "No project open");
+      sh.title(name || "Menu");                            // the project shown is said in the drawer's head
       if (rev !== undefined) load();
     },
   };

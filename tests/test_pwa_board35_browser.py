@@ -9,7 +9,7 @@ import base64
 
 import pytest
 
-from tests.test_pwa_shell_browser import _said, _stop, NO_SCROLL, WAIT_MS, Stub, _called, _needs, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import _menu, _said, _stop, NO_SCROLL, WAIT_MS, Stub, _called, _needs, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -33,32 +33,25 @@ def _two_goals(stub: Stub) -> None:
 
 
 @pytest.mark.asyncio
-async def test_the_target_chip_sets_and_shows_and_the_gear_has_autostart_and_the_night(fake_repo, monkeypatch):
+async def test_the_drawer_sets_the_target_autostart_and_the_night_and_the_board_has_no_heading_or_target(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        chip = page.locator(".pane-head .target-chip")
-        assert (await chip.inner_text()).replace("\n", " ") == "Target: Balance"
-        assert (await page.locator(".board-tab-pane .pane-head").bounding_box())["y"] < 200                              # in the Board's header
-        await chip.click()
-        sheet = page.get_by_role("dialog", name="Target")
-        await sheet.wait_for(timeout=WAIT_MS)
-        text = await sheet.inner_text()
+        pane = page.locator(".board-tab-pane")
+        assert await pane.locator("h2").count() == 0 and await page.locator(".target-chip").count() == 0       # spec 41 §2: the tab says Board, the drawer the Target
+        drawer = await _menu(page)
+        text = await drawer.inner_text()
         assert "lighter models, less reasoning, no proposals at night" in text and "heavier models, more reasoning, three proposals a night" in text
-        assert await sheet.get_by_role("radio", name="Balance").is_checked()
-        box = await sheet.bounding_box()
-        assert box["x"] == 0 and box["width"] == 390 and box["y"] + box["height"] == 844                 # a bottom sheet
-        await _shot(page, "phone-target-390x844")
-        await sheet.get_by_role("radio", name="Quality").click()
+        assert await drawer.get_by_role("radio", name="Balance").is_checked()
+        await _shot(page, "phone-drawer-390x844")
+        await drawer.get_by_role("radio", name="Quality").click()
         assert await _called(stub, "ideas.board_set", {"target": "quality"})
-        await sheet.wait_for(state="hidden", timeout=WAIT_MS)
-        await page.locator(".target-chip", has_text="Quality").wait_for(timeout=WAIT_MS)
-        await page.get_by_role("button", name="Settings").click()
-        gear = page.get_by_role("dialog", name="Settings")
-        box_ = gear.get_by_label("Start plans by themselves")
-        assert await box_.is_checked() and await gear.get_by_label("Night from").input_value() == "01:00"
+        box_ = drawer.get_by_label("Start plans by themselves")
+        assert await box_.is_checked() and await drawer.get_by_label("Night from").input_value() == "01:00"
         await box_.uncheck()
         assert await _called(stub, "ideas.board_set", {"autostart": False})
-        await gear.get_by_label("Night to").fill("06:30")
+        await drawer.get_by_label("Night to").fill("06:30")
         assert await _called(stub, "ideas.board_set", {"night": "01:00-06:30"})
+        await drawer.get_by_label("Push after merging (sends your code to origin)").check()
+        assert await _called(stub, "ideas.into", {"push": True})
         assert await page.evaluate(NO_SCROLL)
 
 
@@ -120,7 +113,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         assert await hi.locator(".spin").count() == 0
         await hi.locator(".map-open").click()
         for name in ("Process now", "Tonight"):
-            assert await screen.get_by_role("button", name=name, exact=True).is_visible()
+            await screen.get_by_role("button", name=name, exact=True).wait_for(timeout=WAIT_MS)
         await screen.get_by_role("button", name="Tonight", exact=True).click()
         assert await _called(stub, "ideas.queue", {"slug": "hi", "queue": "night"})
         await page.get_by_role("button", name="Back", exact=True).click()
@@ -240,10 +233,10 @@ async def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(fake_re
 
 
 @pytest.mark.asyncio
-async def test_the_top_bar_names_the_project_and_the_goal_with_its_craft_s_head_and_slides_away_scrolling_down(fake_repo, monkeypatch):
+async def test_the_top_bar_has_the_menu_and_the_goal_with_its_craft_s_head_and_short_name_and_slides_away_scrolling_down(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _two_goals(stub)
-        stub.goals["ship"].update(craft="design", race="elf")
+        stub.goals["ship"].update(craft="design", race="elf", short="Ship")
         for n in range(14):
             stub.ideas[f"i{n}"] = stub.idea(f"i{n}", f"Idea number {n}", "raw", 10 + n, track="ship", queue="night")
         stub.bump({})
@@ -258,10 +251,11 @@ async def test_the_top_bar_names_the_project_and_the_goal_with_its_craft_s_head_
         await _pick_goal(page, "ship")
         await _stop(page, "Idea number 13").wait_for(timeout=WAIT_MS)
         chip = bar.locator(".goal-chip")
-        assert "Ship v1" in await chip.inner_text() and await chip.get_attribute("aria-label") == "Goal: Ship v1. Choose another"
+        assert (await chip.inner_text()).strip().startswith("Ship") and "Ship v1" not in await chip.inner_text()           # its short name, on one line
+        assert await chip.get_attribute("aria-label") == "Goal: Ship v1. Choose another" and await chip.get_attribute("title") == "Ship v1"
         assert await chip.locator("img").get_attribute("src") == "races/elf-laborer.png"                 # the goal's craft, its race's head
         assert await chip.locator("img").get_attribute("title") == "Design"
-        assert await bar.locator(".project-chip").is_visible() and "project" in await chip.locator(".goal-chip__project").inner_text()   # the project over the goal
+        assert await bar.get_by_role("button", name="Menu").is_visible() and await bar.locator(".goal-chip__project, .project-chip, .needs-chip, .gear").count() == 0
         assert (await bar.bounding_box())["height"] < 80
         away = "(() => { const b = document.querySelector('.board-bar'); return [b.classList.contains('is-away'), b.getBoundingClientRect().bottom]; })()"
         await page.mouse.wheel(0, 600)
@@ -272,36 +266,47 @@ async def test_the_top_bar_names_the_project_and_the_goal_with_its_craft_s_head_
         assert await page.evaluate(NO_SCROLL)
 
 
+def _asked_needs(stub: Stub) -> None:
+    """Two cards with questions, as the host sends them (`asked`, spec 41 §9)."""
+    base = {"priority": "normal", "blocks": False, "at": ""}
+    stub.extra_needs = [
+        {**base, "kind": "goal", "idea": "", "goal": "ship", "title": "Ship v1", "text": "Which store first?", "questions": ["Which store first?"],
+         "asked": [{"ask": "Which store first?", "choices": ["App Store", "Google Play"], "pick": 0, "why": "most of its users are on iPhone"}]},
+        {**base, "kind": "asks", "idea": "sync", "goal": "general", "title": "Sync ideas", "text": "Keep the edits offline?",
+         "questions": ["Keep the edits offline?", "Which server?"],
+         "asked": [{"ask": "Keep the edits offline?", "choices": ["yes", "no"], "pick": 0, "why": "the phone loses signal"},
+                   {"ask": "Which server?", "choices": [], "pick": None, "why": ""}]}]
+    stub.bump({})
+
+
 @pytest.mark.asyncio
-async def test_a_question_is_answered_in_its_card_with_a_likely_answer_and_later_puts_a_row_away(fake_repo, monkeypatch):
+async def test_a_question_comes_with_its_answer_picked_one_send_takes_it_and_later_puts_a_row_away(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _two_goals(stub)
-        base = {"priority": "normal", "blocks": False, "at": ""}
-        stub.extra_needs = [
-            {**base, "kind": "goal", "idea": "", "goal": "ship", "title": "Ship v1", "text": "Which store first? (App Store / Google Play)",
-             "questions": ["Which store first? (App Store / Google Play)"]},
-            {**base, "kind": "asks", "idea": "sync", "goal": "general", "title": "Sync ideas", "text": "Keep the edits offline? (yes / no)",
-             "questions": ["Keep the edits offline? (yes / no)", "Which server?"]}]
-        stub.bump({})
-        assert await _until(page, "document.querySelector('.needs-chip').getAttribute('aria-label')", lambda v: v == "Needs you, 4")
+        _asked_needs(stub)
+        tab = "document.querySelector('.board-tabs .board-tab:nth-child(3)').getAttribute('aria-label')"
+        want = f"Needs you: 4 wait for your answer, {len(stub.results())} results to check"
+        assert await _until(page, tab, lambda v: v == want)
         await _needs(page)
         goal = page.locator(".need-goal")
         await goal.wait_for(timeout=WAIT_MS)
         assert "Which store first?" in await goal.inner_text() and "(App Store" not in await goal.inner_text()   # the question, its answers as buttons
+        store = goal.get_by_role("button", name="App Store")
+        assert await store.get_attribute("aria-pressed") == "true" and "Recommended" in await store.inner_text()   # the pick is pressed, and said in words
+        assert await goal.get_by_role("button", name="Google Play").get_attribute("aria-pressed") == "false"
+        assert "most of its users are on iPhone" in await goal.inner_text()                              # its why, under the question
         send = goal.get_by_role("button", name="Send")
-        assert await send.is_disabled()
-        await goal.get_by_role("button", name="App Store").click()
-        assert await goal.get_by_role("button", name="App Store").get_attribute("aria-pressed") == "true"
+        assert await send.is_enabled()                                                                  # one tap takes every recommendation
         await _shot(page, "phone-quick-answers-390x844")
         await send.click()
         assert await _called(stub, "ideas.answer", {"slug": "ship", "answers": ["App Store"], "goal": True})
         asks = page.locator(".need-asks")
-        assert "Which server?" in await asks.inner_text() and "the Taskmaster decides" in await asks.inner_text()
-        assert await asks.get_by_role("button", name="yes", exact=True).count() == 1
+        assert "Which server?" in await asks.inner_text()
+        assert await asks.get_by_role("button", name="yes", exact=False).get_attribute("aria-pressed") == "true"
         await asks.get_by_role("button", name="Later: Sync ideas").click()                              # put away on this phone
         await asks.wait_for(state="detached", timeout=WAIT_MS)
-        want = f"Needs you, {2 + len(stub.results())}"                                                  # answered and one put away; the results to check
-        assert await _until(page, "document.querySelector('.board-bar .needs-chip').getAttribute('aria-label')", lambda v: v == want)
+        want = f"Needs you: 2 wait for your answer, {len(stub.results())} results to check"            # answered and one put away
+        assert await _until(page, tab, lambda v: v == want)
         await page.get_by_role("button", name="Put away for later (1): show").click()
         await page.locator(".need-asks").wait_for(timeout=WAIT_MS)
         plan = page.locator(".need-plan")                                                              # a swipe to the left: Later too
@@ -316,6 +321,32 @@ async def test_a_question_is_answered_in_its_card_with_a_likely_answer_and_later
 
 
 @pytest.mark.asyncio
+async def test_a_choice_can_be_changed_more_fills_the_picks_and_let_the_taskmaster_decide_answers_with_them(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        _two_goals(stub)
+        _asked_needs(stub)
+        await _needs(page)
+        asks = page.locator(".need-asks")
+        await asks.wait_for(timeout=WAIT_MS)
+        await asks.get_by_role("button", name="no", exact=True).click()                                 # another choice replaces the pick
+        assert await asks.get_by_role("button", name="no", exact=True).get_attribute("aria-pressed") == "true"
+        assert await asks.get_by_role("button", name="yes").get_attribute("aria-pressed") == "false"
+        await asks.get_by_role("button", name="More").click()                                           # the form, the picks filled in
+        form = page.get_by_role("dialog", name="Questions")
+        await form.wait_for(timeout=WAIT_MS)
+        assert await form.get_by_label("Answer 1: Keep the edits offline?").input_value() == "no"
+        assert await form.get_by_label("Answer 2: Which server?").input_value() == ""
+        await form.get_by_label("Answer 2: Which server?").fill("the office one")
+        await form.get_by_role("button", name="Send").click()
+        assert await _called(stub, "ideas.answer", {"slug": "sync", "answers": ["no", "the office one"]})
+        goal = page.locator(".need-goal")
+        await goal.get_by_role("button", name="Let the Taskmaster decide").click()
+        assert await _called(stub, "ideas.answer", {"slug": "ship", "decide": True, "goal": True})
+        await page.locator(".need-goal").wait_for(state="detached", timeout=WAIT_MS)
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
 async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_where_a_choice_spends_them(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _two_goals(stub)
@@ -324,6 +355,7 @@ async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_wh
         box = await fab.bounding_box()
         assert box["x"] + box["width"] > 330 and box["y"] > 600 and box["width"] >= 44                 # under the thumb
         assert await page.locator(".section-head").get_by_role("button", name="New idea").count() == 0
+        assert await page.locator(".fab").count() == 1 and await page.get_by_role("button", name="Speak a new idea").count() == 0   # one button; Speak is in the sheet (spec 41 §5)
         await fab.click()
         await page.get_by_role("dialog", name="New idea").wait_for(timeout=WAIT_MS)
         await page.keyboard.press("Escape")
@@ -334,26 +366,8 @@ async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_wh
         await page.get_by_role("dialog", name="Goals").get_by_role("button", name="New goal").click()
         sheet = page.get_by_role("dialog", name="New goal")
         await sheet.locator('.craft-tile[data-craft="data"]').click()
-        await sheet.get_by_role("button", name="Next").click()
         assert "What is left: Claude 62 % · Antigravity 15 %" in await sheet.locator(".limits-note").inner_text()
         await page.keyboard.press("Escape")
         await _stop(page, "Offline mode").locator(".map-open").click()
         await page.locator(".screen .limits-note").wait_for(timeout=WAIT_MS) if await page.locator(".screen .action-bar, .screen-foot").count() else None
         assert await page.evaluate(NO_SCROLL)
-
-
-@pytest.mark.asyncio
-async def test_the_folder_opens_the_drawer_of_projects_with_the_goal_s_documents(fake_repo, monkeypatch):
-    async with _phone(fake_repo, monkeypatch) as (stub, page):
-        stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready", links=["docs/plan.md", "https://example.com/post"])
-        stub.bump({})
-        await _pick_goal(page, "ship")
-        await page.locator(".board-bar .project-chip").click()
-        drawer = page.get_by_role("dialog", name="Projects")
-        await drawer.wait_for(timeout=WAIT_MS)
-        box = await drawer.bounding_box()
-        assert box["x"] == 0 and box["y"] == 0 and box["height"] == 844 and box["width"] < 390        # from the left, the whole height
-        assert "ship v1: its documents" in (await drawer.inner_text()).lower() and "example.com" not in await drawer.inner_text()
-        await _shot(page, "phone-projects-390x844")
-        await drawer.get_by_role("button", name="docs/plan.md").click()
-        await page.locator(".screen").get_by_text("The text of docs/plan.md").wait_for(timeout=WAIT_MS)

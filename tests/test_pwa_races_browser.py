@@ -40,7 +40,7 @@ async def test_agents_wear_their_races_the_cards_their_runners_and_the_tab_is_a_
         assert await head("herald").get_attribute("src") == "races/gnome-laborer.png"
         assert await head("grunt").get_attribute("src") == "races/peon-warrior.png"
         assert (await head("layout").bounding_box())["width"] == 24
-        assert (await agents.locator(".role[data-slug=seer] .role-facts").inner_text()).startswith("Data · By Target, now Seasoned")
+        assert (await agents.locator(".role[data-slug=seer] .role-head").get_attribute("aria-label")).startswith("Seer: a goblin, Data, Seasoned; up to 2 at once")
         card = agents.locator(".role[data-role=grunt] .chip").first
         assert await card.locator("img.ork-race__head").get_attribute("src") == "races/peon-warrior.png"
         assert (await card.locator("img.ork-race__head").bounding_box())["width"] == 12              # an accent: a cell a pixel
@@ -56,6 +56,7 @@ async def test_the_agents_sheet_picks_the_craft_and_shows_the_head_it_will_wear(
         await page.get_by_role("tab", name="Agents").click()
         await page.locator(".agents .role[data-slug=layout]").wait_for(timeout=WAIT_MS)
         await page.get_by_role("button", name="+ Add agent").click()
+        await page.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
         sheet = page.get_by_role("dialog", name="Add agent")
         await sheet.get_by_label("Name").fill("Counter")
         craft = sheet.get_by_label("Craft")

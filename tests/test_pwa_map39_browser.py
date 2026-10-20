@@ -106,7 +106,7 @@ async def test_the_goals_are_tabs_with_how_far_each_is_and_a_goal_is_a_trail_dow
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "phone", "via": "map"})
         await page.get_by_role("button", name="Back", exact=True).click()
         await page.locator(".map-goal").wait_for(timeout=WAIT_MS)                            # back on the Board: its trails
-        assert await page.locator(".pane-head h2", has_text="Board").count() == 1
+        assert await page.locator(".board-tab-pane h2").count() == 0                       # no heading on the Board (spec 41 §2)
 
 
 @pytest.mark.asyncio
@@ -141,4 +141,69 @@ async def test_the_phone_map_says_a_goal_s_team_and_an_idea_s_checks(fake_repo, 
         said = await page.locator('.map-row[data-slug="sync"] .map-open').get_attribute("aria-label")
         assert "checks 1/2" in said
         await _shot(page, "phone-map-team-390x844")
+        assert await page.evaluate(NO_SCROLL)
+
+
+def _short(n, short):
+    return {**n, "short": short}
+
+
+@pytest.mark.asyncio
+async def test_a_chip_and_a_tab_show_the_short_name_on_two_lines_with_the_title_in_their_label(fake_repo, monkeypatch):
+    ANSWER["goals"] = [{**ANSWER["goals"][0], "short": "Ship"}, *ANSWER["goals"][1:]]
+    ANSWER["nodes"] = [_short(NODES[0], "Pricing page"), *NODES[1:3],
+                       {**_short(NODES[3], "Sync"), "tasks": [{**t, "short": f"T{t['id']}"} for t in NODES[3]["tasks"]]}, NODES[4]]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        tab = page.get_by_role("tablist", name="Goals").get_by_role("tab").first
+        await tab.wait_for(timeout=WAIT_MS)
+        assert "Ship" in await tab.inner_text() and "Ship v1" not in await tab.inner_text() and await tab.get_attribute("title") == "Ship v1"
+        chip = page.locator('.map-row[data-slug="plan-me"] .map-open')
+        assert await chip.locator(".idea-title").inner_text() == "Pricing page" and await chip.get_attribute("title") == "Draft the pricing page"
+        assert "Draft the pricing page" in await chip.get_attribute("aria-label")                  # the title is its label
+        assert await chip.locator(".idea-title").evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
+        sync = page.locator('.map-row[data-slug="sync"]')
+        assert [await t.locator(".map-task-title").inner_text() for t in await sync.locator(".map-task").all()] == ["Tk2", "Tk3"]   # a task on the trail
+        assert await sync.locator(".map-task").first.get_attribute("title") == "Task 2 · working"
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_node_that_waits_for_the_person_alone_has_one_button_beside_its_chip(fake_repo, monkeypatch):
+    est = {"usd_low": 2.0, "usd_high": 4.0}
+    ANSWER["nodes"] = [
+        node("start-me", "Offline mode", 1, "plan", needs_you="plan", waits={"kind": "you", "ref": "", "title": "", "until": ""}, estimate=est, tasks=_tasks("waiting", "waiting", "waiting")),
+        node("blocked", "Needs the first", 1, "plan", needs_you="plan", waits_on=["start-me"], waits={"kind": "idea", "ref": "start-me", "title": "Offline mode", "until": ""},
+             estimate=est, tasks=_tasks("waiting")),
+        node("tonight", "Starts tonight", 2, "plan", start_at="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}, tasks=_tasks("waiting")),
+        node("raw", "A raw idea", 2, "raw", queue="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}),
+        node("held", "Waits for limits", 3, "raw", queue="night", held_until="2026-10-18T18:00:00", waits={"kind": "limits", "ref": "", "title": "", "until": "18:00"}),
+        node("asks", "Asks you", 3, "asks", needs_you="asks", waits={"kind": "you", "ref": "", "title": "", "until": ""}),
+        node("going", "Going", 4, "working", progress={"done": 1, "total": 2}, tasks=_tasks("merged", "running"))]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        acts = page.locator(".map-act")
+        await acts.first.wait_for(timeout=WAIT_MS)
+        assert await acts.count() == 3                                                              # the three nodes of the table; none for the rest
+        for slug in ("blocked", "held", "asks", "going"):
+            assert await page.locator(f'.map-row[data-slug="{slug}"] .map-act').count() == 0, slug  # it waits for something else: its chip says what
+        start = page.locator('.map-row[data-slug="start-me"] .map-act')
+        assert await start.get_attribute("aria-label") == "Start “Offline mode”: 3 tasks, about $2.0–4.0"
+        assert "$2.0–4.0" in await start.inner_text() and await start.locator("use").get_attribute("href") == "icons/icons.svg#play"
+        chip = page.locator('.map-row[data-slug="start-me"] .map-open')
+        a, b = await chip.bounding_box(), await start.bounding_box()
+        assert abs((a["y"] + a["height"] / 2) - (b["y"] + b["height"] / 2)) < 4 and b["x"] > a["x"]       # the same row; a sibling, not inside the chip
+        assert await start.evaluate("e => !e.closest('.map-open')") and (await start.bounding_box())["height"] >= 44
+        await _shot(page, "phone-map-actions-390x844")
+        await start.click()
+        assert await _called(stub, "ideas.start", {"slug": "start-me", "via": "map"})
+        await page.locator(".flash", has_text="Started.").wait_for(timeout=WAIT_MS)
+        now = page.locator('.map-row[data-slug="tonight"] .map-act')
+        assert await now.inner_text() == "Start now"
+        await now.click()
+        assert await _called(stub, "ideas.start_now", {"slug": "tonight", "via": "map"})
+        proc = page.locator('.map-row[data-slug="raw"] .map-act')
+        assert await proc.inner_text() == "Process now"
+        await proc.click()
+        assert await _called(stub, "ideas.queue", {"slug": "raw", "queue": "now", "via": "map"})
         assert await page.evaluate(NO_SCROLL)

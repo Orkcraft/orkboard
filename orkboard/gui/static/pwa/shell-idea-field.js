@@ -1,8 +1,8 @@
 // New idea's field on the phone, beyond its text: the goal's words to complete with (a row of them under the text, from
 // `ideas.words`: a tap puts the word in place of the one being typed and a space after it), Photo (the camera or the
 // library; each made a JPEG of at most MAX_PX before it goes, for the Taskmaster to read) and Speak (the browser's own
-// speech to text, where it has one: the words go into the text as they are said).
-import { h } from "./util.js";
+// speech to text, where it has one: the words go into the text as they are said; the `mic` mark at the field's corner, spec 41 §5).
+import { h, icon } from "./util.js";
 
 const MAX_PX = 1600;
 const MAX_PHOTOS = 4;                    // realm/idea_photos.py MAX_PHOTOS
@@ -38,7 +38,7 @@ export function completing(words, typed, n = SHOWN) {
   return words.filter((w) => { const l = w.toLowerCase(); return l.startsWith(low) && l !== low; }).slice(0, n);
 }
 
-/** `text`: the idea's textarea. Returns {el, track(slug), photos(), reset()}. */
+/** `text`: the idea's textarea. Returns {el, mic, track(slug), photos(), reset()}. */
 export function makeIdeaField(ctx, text) {
   let words = [];
   let wordsOf = "";
@@ -82,7 +82,8 @@ export function makeIdeaField(ctx, text) {
 
   // -- Speak: the browser's speech to text, put in at the caret as it is heard --------------------------------------
   let rec = null;
-  const speak = h("button", { class: "ork-btn", type: "button", hidden: !Speech, "aria-pressed": "false" }, "Speak");
+  const speak = h("button", { class: "idea-mic", type: "button", hidden: !Speech, "aria-pressed": "false", "aria-label": "Speak the idea" }, icon("mic"));
+  const rest = () => { speak.replaceChildren(icon("mic")); speak.setAttribute("aria-label", "Speak the idea"); speak.setAttribute("aria-pressed", "false"); speak.classList.remove("is-on"); };
   function stopSpeaking() { if (rec) rec.stop(); }
   speak.addEventListener("click", () => {
     if (rec) { stopSpeaking(); return; }
@@ -102,18 +103,21 @@ export function makeIdeaField(ctx, text) {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") ctx.flash("Orkline may not use the microphone: allow it in the phone’s settings for this browser.");
       else if (e.error !== "no-speech" && e.error !== "aborted") ctx.flash("Speech stopped: type it, or use the keyboard’s microphone.");
     };
-    rec.onend = () => { rec = null; speak.textContent = "Speak"; speak.setAttribute("aria-pressed", "false"); speak.classList.remove("is-on"); };
+    rec.onend = () => { rec = null; rest(); };
     try {
       rec.start();
-      speak.textContent = "Stop";
+      speak.replaceChildren(icon("stop"));
+      speak.setAttribute("aria-label", "Stop speaking");
       speak.setAttribute("aria-pressed", "true");
       speak.classList.add("is-on");
     } catch { rec = null; ctx.flash("Speech could not start: type it, or use the keyboard’s microphone."); }
   });
 
-  const el = h("div", { class: "idea-field-more" }, strip, h("div", { class: "row idea-tools" }, photoBtn, speak, pick), thumbs);
+  const el = h("div", { class: "idea-field-more" }, strip, h("div", { class: "row idea-tools" }, photoBtn, pick), thumbs);
   return {
     el,
+    /** The mark that listens, for the corner of the text (hidden where the browser has no speech to text). */
+    mic: speak,
     speaks: Boolean(Speech),
     /** The goal whose words are offered: read once per goal while the sheet is open. */
     async track(slug) {
@@ -128,7 +132,5 @@ export function makeIdeaField(ctx, text) {
     photos: () => photos.map((url) => ({ data: url.slice(url.indexOf(",") + 1) })),
     reset() { stopSpeaking(); photos = []; wordsOf = ""; drawPhotos(); strip.hidden = true; },
     stop: stopSpeaking,
-    /** Speak at once (the button that opened the sheet was the tap the microphone needs). */
-    listen() { if (Speech && !rec) speak.click(); },
   };
 }

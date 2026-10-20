@@ -5,9 +5,9 @@
 import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
-import { CRAFT_WORDS, RACE_WORDS, goalHead } from "./shell-who.js";
+import { CRAFT_WORDS, RACE_WORDS, goalHead, whoHead } from "./shell-who.js";
 import { limitsNote } from "./shell-limits.js";
-import { makeNewGoal } from "./shell-goal-new.js";
+import { makeNewGoal, makeParty } from "./shell-goal-new.js";
 
 const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"], ["product", "lich"]];   // realm/roles.py RACES
 
@@ -62,10 +62,31 @@ export function makeGoalSheet(core) {
     if (after) after(got.slug); else core.open({ kind: "goal", slug: got.slug });
   });
   sh.el.addEventListener("close", () => { then = null; });
-  const wizard = makeNewGoal(core);                    // a new goal: craft, team, what for (shell-goal-new.js)
+  const wizard = makeNewGoal(core);                    // a new goal: one sheet (shell-goal-new.js)
+
+  // -- a goal's team from its own screen (spec 41 §7): the Team and Checks folds of New goal, saved alone -----------------------
+  const party = makeParty(core);
+  const teamSave = h("button", { class: "ork-btn primary big", type: "button" }, "Save team");
+  const teamSheet = sheet("Team", party.team, party.checks, foot(teamSave));
+  let teamOf = "";
+  teamSave.addEventListener("click", async () => {
+    const p = party.get();
+    teamSave.disabled = true;
+    const got = await core.call("ideas.goal_save", { slug: teamOf, team: p.team, every: p.every, leader: p.leader });
+    teamSave.disabled = false;
+    if (!got?.slug) return;
+    teamSheet.close();
+    core.refresh();
+  });
   return {
     el: sh.el,
-    sheets: [sh.el, wizard.el],
+    sheets: [sh.el, wizard.el, teamSheet.el],
+    /** Change the team of a goal (`g`: as `ideas.goal` sends it). */
+    editTeam(g) {
+      teamOf = g.slug;
+      party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [] }, () => g.craft || "");
+      teamSheet.open();
+    },
     open(which = "", after = null) {
       if (!which) { wizard.open(after); return; }
       slug = which;
@@ -108,6 +129,7 @@ export function goalBody(g, core, act, asked, setAsked) {
     g.state_error && g.state === "raw" ? h("p", { class: "warn" }, g.state_error) : null,
     g.state_error && g.state !== "raw" && /^Not accepted/.test(g.state_error) ? h("p", { class: "warn" }, g.state_error) : null,
     verdictSec(g, core, act, sec, lead),
+    teamSec(g, core, sec),
     sec("Description", h("p", { class: "brief" }, g.description || "No description yet.")),
     sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? `${the} is reading the goal…` : "Not written yet."))),
     sec("Metrics", g.metrics.length ? h("div", { class: "metrics" }, ...g.metrics.map((m) => h("div", { class: "card metric" }, h("b", {}, m.name),
@@ -121,6 +143,20 @@ export function goalBody(g, core, act, asked, setAsked) {
     (g.talk || []).length ? h("div", { class: "talk" }, ...g.talk.slice(-6).map((t) => h("div", { class: `turn ${t.who}` },
       h("span", { class: "who" }, t.who === "you" ? "You" : the), h("p", {}, t.text)))) : null,
   ].filter(Boolean);
+}
+
+/** The goal's team in one line — the heads with their names — and Change (spec 41 §7). */
+function teamSec(g, core, sec) {
+  const roles = core.st.roles?.roles || [];
+  const lib = core.st.roles?.library || [];
+  const mine = [g.leader?.slug || "taskmaster", ...(g.team || [])];
+  const pick = (id) => {
+    const r = roles.find((x) => x.slug === id), a = lib.find((x) => x.id === id);
+    return { name: r?.name || a?.name || id, head: r?.head || (a ? { craft: a.craft, race: { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" }[a.craft] || "peon", tier: a.tier } : null) };
+  };
+  return sec("Team", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),
+    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the team",
+      onclick: () => core.editTeam(g) }, "Change")));
 }
 
 /** The goal's verdict: met or not, each metric's status and why, the next ideas (each added with a tap); and the button that

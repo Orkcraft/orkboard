@@ -1,7 +1,8 @@
-// Needs you on the phone (docs/specs/35-goals-window.md §9, §10, §11.2), a screen of its own (the top bar's ! opens it): one list the
-// backend sorted, every goal's, an icon per kind, the title and one line. Questions are cards answered there: each question's likely
-// answers (the Taskmaster ends a question with them, "(one / other)") as buttons, one Send, and More for the form with a box per
-// question. A tap on another row opens what it is about: the plan on its screen, the to-do's sheet (its why, its steps, then its one
+// Needs you on the phone (docs/specs/35-goals-window.md §9, §10, §11.2), a screen of its own (the tab opens it): one list the
+// backend sorted, every goal's, an icon per kind, the title and one line. Questions are cards answered there (spec 41 §9): each row's
+// `asked` — the ask, its choices, the one the Taskmaster picks and why — as buttons with the recommended one pressed and marked
+// *Recommended*, so one Send takes every recommendation; More for the form with a box per question, the recommended answers filled in;
+// and Let the Taskmaster decide, which answers every question with its pick. A tap on another row opens what it is about: the plan on its screen, the to-do's sheet (its why, its steps, then its one
 // input: a secret, a choice, a confirm or a file), the goal. A proposal is answered in its row: Take with a priority, No with a reason.
 // Later (or a swipe to the left) puts a row away on this phone for LATER_MS; nothing is sent.
 import { h, sheet, icon } from "./util.js";
@@ -21,14 +22,6 @@ const later = {
   },
   has(n) { return (later.all()[keyOf(n)] || 0) > Date.now(); },
 };
-
-/** A question and its likely answers: "Which store first? (App Store / Google Play)" → {ask: "Which store first?", choices: [...]}. */
-export function choicesOf(q) {
-  const m = String(q || "").match(/^(.*?)\s*\(([^()]*\/[^()]*)\)\s*([?.!]?)\s*(?:[—–]\s*.*)?$/);   // "— why" after it (spec 41 §9)
-  const choices = m ? m[2].split("/").map((c) => c.trim().replace(/^\*\*(.+)\*\*$/, "$1")).filter(Boolean) : [];
-  if (!m || choices.length < 2 || choices.length > 4 || choices.some((c) => c.length > 40)) return { ask: String(q || ""), choices: [] };
-  return { ask: `${m[1].trim()}${m[3] && !/[?.!]$/.test(m[1].trim()) ? m[3] : ""}`, choices };
-}
 
 // What needs the person, by kind, as orkUI's pixel icon (as the desktop's js/orkui.js NEED_ICONS).
 const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb",
@@ -56,17 +49,28 @@ export function makeNeeds(core, ctx, ops) {
   // -- the questions of a spec or a goal: one form, one Send (§0's one round) ---------------------------------------------
   const qBody = h("form", { class: "sheet-form q-form" });
   const qSheet = sheet("Questions", qBody);
-  async function askForm(n) {
+  /** A card's questions as `asked` says them; a row without it (or a page of before) has the plain lines, no choices. */
+  const askedOf = (n) => (n.asked?.length ? n.asked : (n.questions || (n.text ? [n.text] : [])).filter(Boolean).map((ask) => ({ ask, choices: [], pick: null, why: "" }))).slice(0, 3);
+  const SENT = "Sent: the Taskmaster answers in a moment.";
+  async function askForm(n, picks = []) {
     const isGoal = n.kind === "goal";
     const slug = isGoal ? n.goal : n.idea;
-    const got = await core.call(isGoal ? "ideas.goal" : "ideas.page", { slug });
-    if (!got) return;
-    const qs = isGoal ? got.questions || [] : questionsOf((got.sections || []).find((s) => s.name === "Open questions")?.text);
-    if (!qs.length) { core.open(isGoal ? { kind: "goal", slug } : { kind: "idea", slug }); return; }
-    const boxes = qs.map((q, i) => h("textarea", { class: "ork-field", rows: "2", maxlength: "20000", "aria-label": `Answer ${i + 1}: ${q}`, placeholder: "Your answer, or leave it and the Taskmaster decides" }));
+    let asked = n.asked?.length ? n.asked : null;
+    if (!asked) {
+      const got = await core.call(isGoal ? "ideas.goal" : "ideas.page", { slug });
+      if (!got) return;
+      const lines = isGoal ? got.questions || [] : questionsOf((got.sections || []).find((s) => s.name === "Open questions")?.text);
+      asked = lines.map((ask) => ({ ask, choices: [], pick: null, why: "" }));
+    }
+    if (!asked.length) { core.open(isGoal ? { kind: "goal", slug } : { kind: "idea", slug }); return; }
+    const boxes = asked.map((q, i) => {
+      const box = h("textarea", { class: "ork-field", rows: "2", maxlength: "20000", "aria-label": `Answer ${i + 1}: ${q.ask}`, placeholder: "Your answer, or leave it and the Taskmaster decides" });
+      box.value = picks[i] ?? (q.pick != null ? q.choices[q.pick] || "" : "");     // the recommended answers filled in
+      return box;
+    });
     const send = h("button", { class: "ork-btn primary big", type: "submit" }, "Send");
     const cancel = h("button", { class: "ork-btn big", type: "button", onclick: () => qSheet.close() }, "Cancel");
-    qBody.replaceChildren(h("p", { class: "muted" }, n.title), ...qs.map((q, i) => field(`${i + 1}. ${q}`, boxes[i])), foot(cancel, send));
+    qBody.replaceChildren(h("p", { class: "muted" }, n.title), ...asked.map((q, i) => field(`${i + 1}. ${q.ask}`, boxes[i], q.why || null)), foot(cancel, send));
     qBody.onsubmit = async (e) => {
       e.preventDefault();
       send.disabled = true;
@@ -74,7 +78,7 @@ export function makeNeeds(core, ctx, ops) {
       send.disabled = false;
       if (!r) return;
       qSheet.close();
-      ctx.flash("Sent: the Taskmaster answers in a moment.");
+      ctx.flash(SENT);
       core.refresh();
     };
     qSheet.open();
@@ -134,34 +138,47 @@ export function makeNeeds(core, ctx, ops) {
     tSheet.open();
   }
 
-  // -- questions answered in their card: a likely answer each, one Send; More for the whole form ------------------
+  // -- questions answered in their card: the recommended answer pressed, one Send; More for the whole form ---------------
   function quick(n) {
-    const qs = (n.questions || [n.text]).filter(Boolean).slice(0, 3);
-    const picked = qs.map(() => "");
-    const send = h("button", { class: "ork-btn primary", type: "button", disabled: true }, "Send");
-    const blocks = qs.map((q, i) => {
-      const { ask, choices } = choicesOf(q);
-      const btns = choices.map((c) => h("button", { class: "ork-btn answer", type: "button", "aria-pressed": "false", onclick: () => {
-        picked[i] = picked[i] === c ? "" : c;
-        for (const b of btns) b.setAttribute("aria-pressed", String(b.textContent === picked[i]));
-        send.disabled = !picked.some(Boolean);
-      } }, c));
-      return h("div", { class: "quick-q" }, h("p", {}, ask), choices.length ? h("div", { class: "answers" }, ...btns) : null);
+    const asked = askedOf(n);
+    const isGoal = n.kind === "goal", slug = isGoal ? n.goal : n.idea;
+    const picked = asked.map((q) => (q.pick != null ? q.choices[q.pick] || "" : ""));
+    const send = h("button", { class: "ork-btn primary", type: "button" }, "Send");
+    const sync = () => { send.disabled = !picked.some(Boolean); };
+    const blocks = asked.map((q, i) => {
+      const btns = q.choices.map((c, j) => {
+        const reco = j === q.pick;
+        const b = h("button", { class: `ork-btn answer${reco ? " is-recommended" : ""}`, type: "button", "aria-pressed": String(picked[i] === c), "data-choice": String(j),
+          onclick: () => {
+            picked[i] = picked[i] === c ? "" : c;
+            for (const x of btns) x.setAttribute("aria-pressed", String(x.dataset.choice === String(q.choices.indexOf(picked[i]))));
+            sync();
+          } }, c, reco ? h("small", { class: "recommended" }, "Recommended") : null);
+        return b;
+      });
+      return h("div", { class: "quick-q" }, h("p", {}, q.ask), q.choices.length ? h("div", { class: "answers" }, ...btns) : null,
+        q.why ? h("small", { class: "muted why" }, q.why) : null);
     });
+    sync();
     send.addEventListener("click", async () => {
       send.disabled = true;
-      const isGoal = n.kind === "goal";
-      const r = await core.call("ideas.answer", { slug: isGoal ? n.goal : n.idea, answers: picked, ...(isGoal ? { goal: true } : {}) });
-      if (!r) { send.disabled = false; return; }
-      ctx.flash("Sent: the Taskmaster answers in a moment.");
+      const r = await core.call("ideas.answer", { slug, answers: picked, ...(isGoal ? { goal: true } : {}) });
+      if (!r) { sync(); return; }
+      ctx.flash(SENT);
       core.refresh();
     });
-    const more = h("button", { class: "ork-btn", type: "button", onclick: () => askForm(n) }, "More");
+    const decide = h("button", { class: "linkish decide", type: "button", onclick: async () => {
+      decide.disabled = true;
+      const r = await core.call("ideas.answer", { slug, decide: true, ...(isGoal ? { goal: true } : {}) });
+      if (!r) { decide.disabled = false; return; }
+      ctx.flash(SENT);
+      core.refresh();
+    } }, "Let the Taskmaster decide");
+    const more = h("button", { class: "ork-btn", type: "button", onclick: () => askForm(n, [...picked]) }, "More");
     return h("div", { class: `card need need-${n.kind} quick`, "data-kind": n.kind, "data-idea": n.idea || null, "data-goal": n.goal || null },
       h("span", { class: "need-mark" }, icon(ICONS[n.kind] || "flag")),
       h("span", { class: "need-text" }, h("b", {}, n.title), ...blocks,
-        qs.length > 1 ? h("small", { class: "muted" }, "A question left without an answer: the Taskmaster decides.") : null,
-        h("div", { class: "row" }, send, more, laterBtn(n))));
+        h("div", { class: "row" }, send, more, laterBtn(n)), decide));
   }
 
   const laterBtn = (n) => h("button", { class: "ork-btn", type: "button", "aria-label": `Later: ${n.title}`, onclick: () => putAway(n) }, "Later");

@@ -1,6 +1,6 @@
-// New idea on the phone (docs/specs/35-goals-window.md §3): a sheet — the text (with the goal's words to complete with, Photo and Speak:
-// shell-idea-field.js), the goal, the lens of its party (shell-lens.js) and the priority, one button, Add — opened by the button at the
-// bottom right. An idea's state in words (`rowState`) is said the same on the Board's trail (shell-map.js) and its screen.
+// New idea on the phone (docs/specs/35-goals-window.md §3): a sheet — the text (with the goal's words to complete with, Photo and the mic
+// mark at its corner: shell-idea-field.js), the goal, the lens of its party (shell-lens.js) and the priority, one button, Add — opened by
+// the one button at the bottom right (spec 41 §5). An idea's state in words (`rowState`) is said the same on the Board's trail (shell-map.js) and its screen.
 import { h, sheet, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { hhmm } from "./shell-words.js";
@@ -50,7 +50,7 @@ export function makeIdeas(core, ctx, goalSheet) {
   const hint = h("p", { class: "muted hint" }, "High and Normal are drafted at once; Low waits for the night. Closing this with text in it keeps the idea for tonight."
     + (more.speaks ? "" : " Speak it with the keyboard’s microphone."));
   const add = h("button", { class: "ork-btn primary big", type: "button" }, "Add");
-  const addSheet = sheet("New idea", field("The idea", field_), more.el, field("Goal", goalPick), lens.el,
+  const addSheet = sheet("New idea", field("The idea", h("div", { class: "idea-box" }, field_, more.mic)), more.el, field("Goal", goalPick), lens.el,
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(add));
   let saved = false;                                 // a button saved it: closing the sheet after it saves nothing more
   async function drop(night) {
@@ -88,7 +88,7 @@ export function makeIdeas(core, ctx, goalSheet) {
     saved = false;
     if (r) { ctx.flash("Kept for tonight."); if (!r.kept) core.refresh(); }
   });
-  function open(goal, voice = false) {
+  function open(goal) {
     saved = false;
     touched = false;
     const list = [...tracks()].sort((a, b) => (RANK[a.priority] ?? 1) - (RANK[b.priority] ?? 1) || (a.order ?? 0) - (b.order ?? 0));
@@ -102,17 +102,15 @@ export function makeIdeas(core, ctx, goalSheet) {
     lens.track(on.slug);
     addSheet.open();
     field_.focus();
-    if (voice) more.listen();
   }
-  /** New idea needs a goal: with none yet, New goal opens first and then this. `voice`: Speak at once. */
-  function openNew(voice = false) {
-    if (tracks().length) open("", voice);
-    else goalSheet.open("", (slug) => open(slug, voice));
+  /** New idea needs a goal: with none yet, New goal opens first and then this. */
+  function openNew() {
+    if (tracks().length) open("");
+    else goalSheet.open("", (slug) => open(slug));
   }
 
-  // New idea at the bottom right, under the thumb (and Speak above it, where the browser has speech to text).
+  // New idea at the bottom right, under the thumb.
   const fab = h("div", { class: "fab-stack", hidden: true },
-    more.speaks ? h("button", { class: "fab small", type: "button", "aria-label": "Speak a new idea", onclick: () => openNew(true) }, "Speak") : null,
     h("button", { class: "fab", type: "button", "aria-label": "New idea", onclick: () => openNew() }, icon("plus")));
 
   return { sheets: [addSheet.el], openNew, fab };

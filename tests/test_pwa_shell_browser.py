@@ -8,6 +8,7 @@ import asyncio
 import copy
 import datetime as dt
 import os
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -18,7 +19,7 @@ pytestmark = pytest.mark.browser
 
 from orkboard.gui import pairing, phone_tls  # noqa: E402
 from orkboard.gui.board_host import BoardPhone  # noqa: E402
-from orkboard.realm import library, plans  # noqa: E402
+from orkboard.realm import library, plans, roles  # noqa: E402
 from tests.test_phones import _listening, _serve  # noqa: E402
 from tests.browser_kit import CHROMIUM, WAIT_MS, spki  # noqa: E402
 
@@ -71,6 +72,9 @@ class Stub:
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
         self.week: dict[str, dict] = {}                   # spec 36 §2: a role's week by slug
         self.spend: dict | None = None                    # spec 36 §2: what ideas.spend returns (None: an error)
+        self.hide_plan = False                            # no plan waiting on the person (spec 41 §1's tests)
+        self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`; null for the Taskmaster)
+        self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}   # `told`
 
     @staticmethod
     def idea(slug, title, state, order, **more):
@@ -124,7 +128,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -147,7 +151,7 @@ class Stub:
         if name == "ideas.board":
             ideas = [i | {"thesis": "Gist in one line", "asks": 0, "updated": "", "progress": {"done": 1, "total": 5} if i["slug"] == "sync" else {"done": 0, "total": 0}}
                      for i in self.ideas.values()]
-            needs = [{"kind": "plan", "idea": "dark", "goal": "general", "title": "Dark mode", "text": "Plan ready · 5 tasks", "priority": "normal", "blocks": False, "at": ""}]
+            needs = [] if self.hide_plan else [{"kind": "plan", "idea": "dark", "goal": "general", "title": "Dark mode", "text": "Plan ready · 5 tasks", "priority": "normal", "blocks": False, "at": ""}]
             for t in self.todos:
                 if not t["done"]:
                     needs.append({"kind": "todo", "idea": t["idea"], "goal": "general", "title": t["title"], "text": t["title"], "priority": "normal", "blocks": True,
@@ -168,19 +172,22 @@ class Stub:
                      for t in self.plan["tasks"] if t["state"] in ("running", "review", "held")]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "state": "waiting",
                        "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": [],
-                       "week": self.week.get("taskmaster")},
+                       "week": self.week.get("taskmaster"), "usd_task": None, "head": {"craft": "engineering", "race": "peon", "tier": "elder"}},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
-                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt")}]
+                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt"), "usd_task": self.usd_task.get("grunt"),
+                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
-                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"])} for r in self.roles.values() if not r["builtin"]]
+                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"]), "usd_task": self.usd_task.get(r["slug"]),
+                        "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
             names = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
-            return {"roles": [{"instruction_long": "", "hand_model": False} | r | {"spend_today": 0} for r in self.roles.values()],
+            return {"roles": [{"instruction_long": "", "hand_model": False} | r | {"spend_today": 0, "usd_task": self.usd_task.get(r["slug"])}
+                              | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
                     "kinds": [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()],
                     "models": [{"id": "", "label": "By Target"}, {"id": "elder", "label": "Elder · opus"},
                                {"id": "warrior", "label": "Warrior · sonnet"}, {"id": "laborer", "label": "Laborer · haiku"}],
-                    "library": library.listed(), "suggested": library.SUGGESTED, "seats": library.SEATS, "parties": library.parties(), "tier_costs": dict(plans.DEFAULT_COST)}                  # the host's own library
+                    "library": [a | {"installed": a["id"] in self.roles} for a in library.listed()], "suggested": library.SUGGESTED, "seats": library.SEATS, "parties": library.parties(), "tier_costs": dict(plans.DEFAULT_COST)}                  # the host's own library
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -188,6 +195,13 @@ class Stub:
             if "kinds" in a:                              # spec 36 §3: a type another agent had moves here, an unticked one goes back to Grunt
                 self.kinds = {k: slug if k in a["kinds"] else ("grunt" if r == slug else r) for k, r in self.kinds.items()}
             return self.bump({"slug": slug})
+        if name == "ideas.role_add":                  # an agent of the library made a role of this project (gui/ideas_roles.py)
+            a = library.get(a["id"])
+            if a is None or a.id in self.roles:
+                return {"error": "No such agent, or it is already this project's"}
+            self.roles[a.id] = {"slug": a.id, "name": a.name, "model": a.tier, "max_parallel": 2, "instruction": a.instruction, "builtin": False, "craft": a.craft,
+                                "head": {"craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier}}
+            return self.bump({"slug": a.id})
         if name == "ideas.role_drop":
             self.roles.pop(a["slug"])
             self.kinds = {k: ("grunt" if r == a["slug"] else r) for k, r in self.kinds.items()}
@@ -196,13 +210,15 @@ class Stub:
             self.kinds[a["kind"]] = a["role"]
             return self.bump({"ok": True})
         if name == "ideas.goal_save":
-            about = a["about"]
+            old = self.goals.get(a.get("slug") or "", {})
+            about = a.get("about", old.get("about", ""))               # a party-only save keeps the words (spec 41 §7)
             slug = a.get("slug") or "-".join(about.lower().replace(".", "").split()[:3])
-            old = self.goals.get(slug, {})
-            self.goals[slug] = self.goal(slug, a.get("title") or old.get("title") or " ".join(about.split()[:3]), a["priority"], "reading", about=about,
-                                         metrics=old.get("metrics", []), links=old.get("links", []), craft=a.get("craft", "engineering"),
-                                         race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft"), "peon"),
-                                         team=a.get("team", old.get("team", [])), leader=self.leader(a.get("leader")) or old.get("leader"))
+            self.goals[slug] = self.goal(slug, a.get("title") or old.get("title") or " ".join(about.split()[:3]), a.get("priority", old.get("priority", "normal")),
+                                         "reading" if "about" in a else old.get("state", "ready"), about=about,
+                                         metrics=old.get("metrics", []), links=old.get("links", []), craft=a.get("craft", old.get("craft", "engineering")),
+                                         race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft", old.get("craft")), "peon"),
+                                         team=a.get("team", old.get("team", [])), every=a.get("every", old.get("every", [])),
+                                         leader=self.leader(a.get("leader")) or old.get("leader"))
             return self.bump({"slug": slug})
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
@@ -382,9 +398,8 @@ async def _new_goal(page):
 
 
 async def _wizard(sheet, craft="engineering"):
-    """New goal's first two steps: a craft, and its team as suggested; the third, what it is for, is open after."""
+    """New goal is one sheet (spec 41 §6): a craft picked puts its party in the seats; the rest is below it."""
     await sheet.locator(f'.craft-tile[data-craft="{craft}"]').click()
-    await sheet.get_by_role("button", name="Next").click()
 
 
 def _stop(page, title):
@@ -398,15 +413,22 @@ async def _said(page, title):
 
 
 async def _needs(page):
-    """Needs you: its tab (with Review), opened with the top bar's !."""
-    await page.locator(".board-bar .needs-chip").click()
+    """Needs you: its tab (with Review), the signal of spec 41 §1."""
+    await page.locator(".board-tabs").get_by_role("tab", name=re.compile("^Needs you")).click()
     await page.locator(".needs-pane").wait_for(timeout=WAIT_MS)
 
 
+async def _menu(page):
+    """The drawer the top bar's menu opens (spec 41 §2); the project is said in its head, so it is found by its class."""
+    await page.locator(".board-bar").get_by_role("button", name="Menu").click()
+    drawer = page.locator("dialog.drawer")
+    await drawer.wait_for(timeout=WAIT_MS)
+    return drawer
+
+
 async def _stop_all(page):
-    """Stop all, in the gear's sheet."""
-    await page.locator(".board-bar").get_by_role("button", name="Settings").click()
-    await page.get_by_role("dialog", name="Settings").get_by_role("button", name="Stop all").click()
+    """Stop all, at the drawer's head."""
+    await (await _menu(page)).get_by_role("button", name="Stop all").click()
 
 
 NO_SCROLL = "document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390"
@@ -419,13 +441,15 @@ SMALL = """() => [...document.querySelectorAll('.board button, .board input, .bo
 async def test_three_tabs_with_their_counts_the_top_bar_and_no_camp(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         tabs = page.locator(".board-tabs")
-        assert [await b.get_attribute("aria-label") for b in await tabs.get_by_role("tab").all()] == ["Board", "Agents", "Needs you, 4"]   # 2 to answer, 2 to check
+        assert [await b.get_attribute("aria-label") for b in await tabs.get_by_role("tab").all()] == ["Board", "Agents", "Needs you: 2 wait for your answer, 2 results to check"]
         assert await page.evaluate("document.documentElement.dataset.look") == "office"        # the phone's look is camp: not here
         assert await page.locator(".dock, .camp, .grid, .head").count() == 0
         top = page.locator(".board-bar")
-        assert await top.get_by_role("button", name="Settings").is_visible() and "Stop all" not in await top.inner_text()   # one line: the gear holds it
+        assert await top.get_by_role("button", name="Menu").is_visible() and "Stop all" not in await top.inner_text()   # one line: the drawer holds it
         assert "General" in await top.locator(".goal-chip").inner_text()                                # the goal shown: General holds the ideas here
-        assert await top.locator(".needs-chip").get_attribute("aria-label") == "Needs you, 4"            # ! says what waits, every goal's
+        assert await top.locator(".needs-chip").count() == 0                                            # no ! beside it: the tab is the signal (spec 41 §1)
+        needs = tabs.get_by_role("tab", name=re.compile("^Needs you"))
+        assert "warning" in await needs.locator(".count").get_attribute("class") and await needs.locator("use").get_attribute("href") == "icons/icons.svg#warning-diamond"
         chip = top.locator(".limit-chip")
         assert "15 %" in await chip.inner_text() and "is-warn" in await chip.get_attribute("class")      # the smallest of all tools
         await chip.click()
@@ -569,20 +593,18 @@ async def test_a_secret_todo_is_entered_over_the_paired_link_on_the_board(fake_r
         idea = page.get_by_role("dialog", name="New idea")                                              # … then New idea, with that goal
         await idea.wait_for(timeout=WAIT_MS)
         assert await idea.get_by_label("Goal").input_value() == "offline-first"
-        await idea.get_by_label("The idea").fill("Offline mode")
+        await idea.get_by_label("The idea", exact=True).fill("Offline mode")
         await idea.get_by_role("button", name="Add").click()
         assert await _called(stub, "ideas.add", {"text": "Offline mode", "track": "offline-first", "priority": "normal"})
 
 
 @pytest.mark.asyncio
-async def test_the_gear_downloads_the_days_logs_on_the_phone_and_tabs_are_logged(fake_repo, monkeypatch):
+async def test_the_drawer_downloads_the_days_logs_on_the_phone_and_tabs_are_logged(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.get_by_role("tab", name="Agents").click()
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "tab", "ref": "agents", "device": "phone"})
-        await page.get_by_role("button", name="Settings").click()
-        sheet = page.get_by_role("dialog", name="Settings")
-        await sheet.wait_for(timeout=WAIT_MS)
-        assert "Download today's logs" in await sheet.text_content()                          # a heading: in capitals on the page
+        sheet = await _menu(page)
+        assert "Download the logs" in await sheet.text_content()                              # a label: in capitals on the page
         async with page.expect_download() as got:
             await sheet.get_by_role("button", name="Today", exact=True).click()
         download = await got.value
@@ -598,13 +620,12 @@ def _adds(stub):
 
 
 @pytest.mark.asyncio
-async def test_the_top_bar_is_one_line_with_no_band_above_it_and_the_gear_shows_spend_whole(fake_repo, monkeypatch):
+async def test_the_top_bar_is_one_line_with_no_band_above_it_and_the_drawer_shows_spend_whole(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         bar = await page.locator(".board-bar").bounding_box()
         assert bar["y"] == 0 and bar["x"] == 0 and bar["width"] == 390                                  # no empty band above it
         assert bar["height"] < 80                                                                       # one line
-        await page.locator(".board-bar").get_by_role("button", name="Settings").click()
-        spend = page.get_by_role("dialog", name="Settings").locator(".board-spend")
+        spend = (await _menu(page)).locator(".board-spend")
         text = await spend.inner_text()
         assert "Spend today" in text and "…" not in text and "..." not in text                          # the whole of today's spend
         assert await spend.evaluate("e => e.scrollWidth <= e.clientWidth + 1 && getComputedStyle(e).textOverflow !== 'ellipsis'")
@@ -620,18 +641,21 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
         await _goal_row(page, "ship")
         opens = [("New goal", lambda: _new_goal(page)),
                  ("New idea", lambda: page.get_by_role("button", name="New idea", exact=True).click()),
-                 ("Settings", lambda: page.get_by_role("button", name="Settings").click()),
+                 ("Menu", lambda: _menu(page)),
                  ("Goals", lambda: page.locator(".board-bar .goal-chip").click()),
                  ("Stop all", lambda: _stop_all(page))]
         for name, opener in opens:
             await opener()
-            sheet = page.get_by_role("dialog", name=name)
+            sheet = page.locator("dialog.drawer") if name == "Menu" else page.get_by_role("dialog", name=name)
             await sheet.wait_for(timeout=WAIT_MS)
             shade = await sheet.evaluate("e => getComputedStyle(e, '::backdrop').backgroundColor")
             assert shade.startswith("rgba(") and 0.2 < float(shade.split(",")[3].strip(" )")) < 0.9, (name, shade)          # dimmed
             assert await sheet.evaluate("e => getComputedStyle(e).backgroundColor") not in ("rgba(0, 0, 0, 0)", "transparent")  # opaque panel
             box = await sheet.bounding_box()
-            assert box["x"] == 0 and box["width"] == 390 and box["y"] + box["height"] == 844                # from the bottom, full width
+            if name == "Menu":
+                assert box["x"] == 0 and box["y"] == 0 and box["height"] == 844 and box["width"] < 390  # the drawer: from the left
+            else:
+                assert box["x"] == 0 and box["width"] == 390 and box["y"] + box["height"] == 844        # from the bottom, full width
             assert await page.evaluate(NO_SCROLL)
             await page.keyboard.press("Escape")
             await sheet.wait_for(state="hidden", timeout=WAIT_MS)
@@ -746,6 +770,7 @@ async def test_agents_add_an_agent_give_it_a_task_type_edit_and_delete_it(fake_r
         await agents.get_by_role("button", name="+ Add agent").wait_for(timeout=WAIT_MS)
         assert "Task types" not in await agents.inner_text()                                            # spec 36 §5: the section is gone
         await agents.get_by_role("button", name="+ Add agent").click()
+        await page.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
         sheet = page.get_by_role("dialog", name="Add agent")
         await sheet.get_by_label("Name").fill("Docs scribe")
         await sheet.get_by_label("Model").select_option("laborer")
@@ -769,13 +794,56 @@ async def test_agents_add_an_agent_give_it_a_task_type_edit_and_delete_it(fake_r
 
 
 @pytest.mark.asyncio
-async def test_pair_a_phone_in_the_gear_says_where_it_is_done_and_how_the_phone_reaches_the_computer(fake_repo, monkeypatch):
+async def test_pair_a_phone_in_the_drawer_says_where_it_is_done_and_how_the_phone_reaches_the_computer(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.get_by_role("button", name="Settings").click()
-        await page.get_by_role("button", name="Pair a phone").click()
+        await (await _menu(page)).get_by_role("button", name="Pair a phone").click()
         sheet = page.get_by_role("dialog", name="Pair a phone")
         await sheet.wait_for(timeout=WAIT_MS)
         text = await sheet.inner_text()
         assert "On the same Wi-Fi" in text and "tailnet" in text and "Install Tailscale" in text and "from the computer" in text
         await _shot(page, "phone-pair-390x844")
         assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_needs_you_is_the_signal_a_warning_mark_while_an_answer_waits_the_eye_with_results_only_nothing_with_neither(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        tab = page.locator(".board-tabs").get_by_role("tab", name=re.compile("^Needs you"))
+        mark = lambda: tab.locator("use").get_attribute("href")                                         # noqa: E731
+        assert await tab.locator(".count").get_attribute("class") == "count ork-count warning"          # an answer waits: the warning colour
+        assert await mark() == "icons/icons.svg#warning-diamond" and await tab.locator(".count").inner_text() == "4"
+        colour = await tab.locator(".count").evaluate("e => getComputedStyle(e).backgroundColor")
+        assert colour == await page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-warning)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
+        assert await tab.get_attribute("aria-label") == "Needs you: 2 wait for your answer, 2 results to check"
+        await _shot(page, "phone-needs-signal-390x844")
+        stub.hide_plan = True
+        stub.todos[0]["done"] = True                                                                    # only the results to check are left
+        stub.bump({})
+        await tab.get_by_text("2", exact=True).wait_for(timeout=WAIT_MS)
+        for _ in range(100):
+            if await mark() == "icons/icons.svg#eye":
+                break
+            await page.wait_for_timeout(50)
+        assert await mark() == "icons/icons.svg#eye" and await tab.get_attribute("aria-label") == "Needs you: 2 results to check"
+        assert await tab.locator(".count").get_attribute("class") == "count ork-count on"               # plain: not the warning colour
+        for t in stub.plan["tasks"]:
+            if t["state"] == "review":
+                t["state"] = "merged"
+        stub.bump({})
+        await tab.locator(".count").wait_for(state="hidden", timeout=WAIT_MS)                           # neither: no count
+        assert await tab.get_attribute("aria-label") == "Needs you" and await page.locator(".needs-chip").count() == 0
+
+
+@pytest.mark.asyncio
+async def test_the_drawer_holds_stop_all_spend_the_projects_this_project_and_this_phone_in_that_order(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        drawer = await _menu(page)
+        text = (await drawer.inner_text()).lower()
+        order = ["Stop all", "Spend today", "Projects", "This project", "Target", "Start plans by themselves", "Push after merging", "What is left",
+                 "This phone", "Pair a phone", "Download the logs", "Unpair this phone"]
+        at = [text.index(w.lower()) for w in order]
+        assert at == sorted(at), dict(zip(order, at))
+        assert await page.locator(".board-bar").get_by_role("button", name="Settings").count() == 0     # the gear is gone
+        await drawer.get_by_role("button", name="What is left").click()                                 # the limits' sheet, as the chip opens it
+        await page.get_by_role("dialog", name="What is left").wait_for(timeout=WAIT_MS)
+        assert await drawer.is_hidden()
