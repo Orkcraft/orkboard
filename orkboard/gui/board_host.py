@@ -408,13 +408,16 @@ class Orkboard:
         return harness
 
     def _sign_in(self, args: dict) -> dict | None:
-        """`tools.sign_in {harness, auto}`: the tool's own sign-in opens (in the browser, or in a terminal); the tool's
-        entry. `auto` is taken once per episode, by the first page that asks. Refused for a tool that is unknown or not
+        """`tools.sign_in {harness, auto, by}`: the tool's own sign-in opens (in the browser, or in a terminal; `by: "terminal"`
+        forces the terminal); the tool's entry. `auto` is taken once per episode, by the first page that asks. Refused for a tool that is unknown or not
         found on this computer."""
         auto = args.get("auto", False)
         if not isinstance(auto, bool):
             raise SignInError("auto is true or false")
-        return self.sign_ins.start(self._harness(args), auto=auto)
+        by = args.get("by")
+        if by is not None and by not in ("browser", "terminal"):
+            raise SignInError('by is "terminal" or "browser"')
+        return self.sign_ins.start(self._harness(args), auto=auto, by=by)
 
     def _sign_in_cancel(self, args: dict) -> dict | None:
         return self.sign_ins.cancel(self._harness(args))

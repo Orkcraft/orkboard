@@ -67,7 +67,7 @@ function view(e) {
   const t = e.tool;
   const again = { label: "Sign in again", run: () => signIn(e.harness) };
   if (e.state === "open" && e.by === "terminal") {
-    const typed = TYPED[e.harness] || "";
+    const typed = e.type || TYPED[e.harness] || "";
     return { title: `Sign in to ${t}`, severity: "warning", seconds: 600,
       message: `${t} signs in in its own window: a terminal opened with ${t}.${typed ? ` Type ${typed} there.` : ""}`,
       acts: [{ label: "Copy", run: () => { copyText(typed || e.command || t); keep(e); } },

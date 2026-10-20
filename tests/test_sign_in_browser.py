@@ -118,6 +118,17 @@ def test_two_tools_open_one_at_a_time_the_next_once_the_first_is_no_longer_open(
     assert not errors, "\n".join(errors)
 
 
+def test_a_terminal_sign_in_says_to_type_what_the_entry_names(gui):
+    host = StubHost()
+    host.sign_in = [entry("claude", "Claude Code", "open", "terminal", auto=False, type="/login now")]
+    pg, errors = _page(gui, host)
+    try:
+        assert "Type /login now there." in _toast(pg, "Sign in to Claude Code").inner_text()
+    finally:
+        pg.close()
+    assert not errors, "\n".join(errors)
+
+
 def test_a_sign_in_in_a_terminal_says_where_and_has_copy_done_and_cancel(gui):
     host = StubHost()
     host.sign_in = [entry("pi", "pi", "open", "terminal", auto=False)]

@@ -60,6 +60,7 @@ class SignIns:
         self._probe: dict[str, list] = {}             # harness → [next ask, whether the tool was ever told not signed in]
         self._telling: set[str] = set()               # tools whose Check runs now: its good answer is not "elsewhere"
         self._done_at: dict[str, float] = {}
+        self._forced: dict[str, str] = {}             # harness → the way a person chose for the run ("terminal")
         self._ticked = float("-inf")
         self._polling = False
         self._off: list[Callable[[], None]] = []
@@ -100,7 +101,7 @@ class SignIns:
     def _begin(self, harness: str, where: str) -> dict:
         h = harnesses.need(harness)
         e = {"harness": h.id, "tool": h.title, "mark": h.mark, "state": NEEDED, "by": h.sign_in_by, "auto": True,
-             "since": self.clock(), "where": where, "why": "", "command": ""}
+             "type": h.sign_in_type, "since": self.clock(), "where": where, "why": "", "command": ""}
         self._entries[h.id] = e
         self._probe[h.id] = [self.clock() + PROBE_S, False]
         self._pending.pop(h.id, None)
@@ -151,9 +152,12 @@ class SignIns:
 
     # -- the commands -----------------------------------------------------------------------------
 
-    def start(self, harness: str, auto: bool = False) -> dict:
+    def start(self, harness: str, auto: bool = False, by: str | None = None) -> dict:
         """The tool's own sign-in; one run per tool (an open one is returned, never a second). `auto` is taken once per
-        episode, by the first page that asks."""
+        episode, by the first page that asks. `by` \"terminal\": a terminal window opens with the tool, not its browser way
+        (after a browser that did not open); None | \"browser\": the tool's own way."""
+        if by not in (None, "browser", "terminal"):
+            raise SignInError('by is "terminal" or "browser"')
         h = harnesses.get(harness)
         if h is None:
             raise SignInError(f"{harness} is not one of the AI tools")
@@ -167,9 +171,13 @@ class SignIns:
                 return self._public(e)
             e["auto"] = False
             e.update(why="", command="")
+            if by == "terminal":
+                self._forced[h.id] = by
+            else:
+                self._forced.pop(h.id, None)
             if h.id == "codex" and self._port_busy():   # one Codex sign-in at a time on the computer: it waits for the port
                 self._pending[h.id] = self.clock() + WAIT_S
-                e.update(state=OPEN, by=h.sign_in_by)
+                e.update(state=OPEN, by=self._forced.get(h.id, h.sign_in_by))
             else:
                 self._open(h.id, e)
             out = self._public(e)
@@ -177,7 +185,8 @@ class SignIns:
         return out
 
     def _open(self, harness: str, e: dict) -> None:
-        run = self._start(harness, self.env, self.state_dir, platform=self._platform, which=self._which)
+        way = {"by": self._forced[harness]} if harness in self._forced else {}      # only a chosen way is passed on
+        run = self._start(harness, self.env, self.state_dir, platform=self._platform, which=self._which, **way)
         self._runs[harness] = run
         e.update(state=OPEN, by=run.by)
         if run.outcome is not None:                      # none: this computer has no terminal to open

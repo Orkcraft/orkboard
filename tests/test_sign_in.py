@@ -346,7 +346,8 @@ def fresh(tmp_path, env=None, signed=None, root=None, **kw):
 
     def start(harness, env_, state_dir, platform="linux", which=None, **k):
         return sign_in.start(harness, env_, state_dir, platform, which or (lambda n: f"/bin/{n}"), spawn, clock=clock,
-                             signed_in=lambda h, e=None: state["signed"], ask=lambda *a: None, home=tmp_path)
+                             signed_in=lambda h, e=None: state["signed"], ask=lambda *a: None, home=tmp_path,
+                             by=k.get("by"))
 
     s = SignIns(bus, {} if env is None else env, tmp_path / "state", clock, start=start, which=lambda n: f"/bin/{n}",
                 signed_in=lambda h, e=None: state["signed"], port_busy=lambda: False, threaded=False, root=root, **kw)
@@ -894,3 +895,33 @@ def test_a_demo_watches_nothing(fake_repo):
     login_error()
     assert host.snapshot()["sign_in"] == []
     host.close()
+
+
+def test_start_by_terminal_after_a_browser_that_did_not_open_opens_the_terminal_way(tmp_path):
+    s, _ = fresh(tmp_path)
+    s.spawn.lines = ["Browser didn't open? Paste code here if prompted >"]
+    first = s.start("claude")
+    assert first["by"] == "browser" and s.spawn.procs[0].argv[1:] == ["auth", "login"]
+    for _ in range(50):
+        s.poll()
+        if s.entry("claude")["state"] == "failed":
+            break
+        time.sleep(0.02)
+    assert s.entry("claude")["why"] == "no_browser"
+    opened = s.start("claude", by="terminal")
+    assert opened["state"] == "open" and opened["by"] == "terminal" and opened["why"] == ""
+    argv = s.spawn.procs[-1].argv                      # the fake opener: a terminal with the script, no tool process
+    assert len(s.spawn.procs) == 2 and argv[-1].endswith("claude.command") and "auth" not in argv[1:-1]
+    assert "auth" in (tmp_path / "state" / "sign-in" / "claude.command").read_text()
+    s.start("claude", by="terminal")                   # one run per tool: an open one is returned
+    assert len(s.spawn.procs) == 2
+
+
+def test_by_is_terminal_or_browser_and_the_entry_names_what_to_type(tmp_path):
+    s, _ = fresh(tmp_path)
+    with pytest.raises(SignInError):
+        s.start("claude", by="carrier pigeon")
+    s.start("pi")
+    assert s.entry("pi")["type"] == "/login" and s.snapshot()[0]["type"] == "/login"
+    s.start("claude", by="terminal")
+    assert s.entry("claude")["type"] == ""

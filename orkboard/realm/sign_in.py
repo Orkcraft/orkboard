@@ -247,8 +247,8 @@ def opener(platform: str, script: Path, which: Callable[[str], str | None]) -> l
 def start(harness_id: str, env: dict, state_dir: Path, platform: str = sys.platform,
           which: Callable[[str], str | None] = shutil.which, popen: Callable = subprocess.Popen, *,
           clock: Callable[[], float] = time.monotonic, signed_in: Callable[..., bool | None] = tools.signed_in,
-          ask: Callable[..., object] | None = None, home: Path | None = None) -> Run:
-    """The tool's own sign-in started. Raises SignInError for a tool that is unknown or not found on this computer."""
+          ask: Callable[..., object] | None = None, home: Path | None = None, by: str | None = None) -> Run:
+    """The tool's own sign-in started (`by` "terminal": in a terminal window, whatever the tool's own way is). Raises SignInError for a tool that is unknown or not found on this computer."""
     h = harnesses.get(harness_id)
     if h is None:
         raise SignInError(f"{harness_id} is not one of the AI tools")
@@ -261,7 +261,7 @@ def start(harness_id: str, env: dict, state_dir: Path, platform: str = sys.platf
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
     ask = ask or tool_run.ask
     common = dict(clock=clock, signed_in=signed_in, ask=ask, env=run_env)
-    if h.sign_in_by == "browser":
+    if (by or h.sign_in_by) == "browser":
         log = folder / f"{h.id}.log"
         log.write_text("", encoding="utf-8")
         log.chmod(0o600)
