@@ -10,7 +10,7 @@ import { h, icon, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { keepGoal } from "./shell-top.js";
 import { rowState } from "./shell-ideas.js";
-import { goalState } from "./shell-goal.js";
+import { goalState, partyFold } from "./shell-goal.js";
 import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
 import { whoHead } from "./shell-who.js";
 import { price } from "./shell-preview.js";
@@ -123,7 +123,7 @@ export function makeMap(core, goalSheet) {
     try { open = localStorage.getItem(foldKey()) === "open"; } catch { /* closed */ }
     const fill = (flags) => list.replaceChildren(...flags.map((f) => h("li", {}, h("button", { class: "map-flag", type: "button", onclick: () => core.open({ kind: "goal", slug: f.goal }, "flags") },
       h("span", { class: "map-flag-mark", "aria-hidden": "true" }, icon("flag")),
-      h("span", { class: "map-flag-body" }, h("b", {}, f.title), h("small", { class: "muted" }, flagWords(f)), h("small", { class: "muted" }, tallyWords(f.tally)))))));
+      h("span", { class: "map-flag-body" }, h("b", {}, f.title), h("small", { class: "muted" }, flagWords(f)), h("small", { class: "muted" }, tallyWords(f.tally)))), partyFold(core, f.goal))));
     async function load() {
       const rev = st.map?.rev;
       if (flagsAt && flagsAt.rev === rev) { fill(flagsAt.list); return; }

@@ -45,6 +45,7 @@ class Stub:
 
     def __init__(self) -> None:
         self.rev = 1
+        self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
         self.calls: list[tuple[str, dict]] = []
         self.into, self.push = "dev", False
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
@@ -129,7 +130,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip", "role_add")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -222,6 +223,8 @@ class Stub:
                                          team=a.get("team", old.get("team", [])), every=a.get("every", old.get("every", [])),
                                          leader=self.leader(a.get("leader")) or old.get("leader"))
             return self.bump({"slug": slug})
+        if name == "ideas.party":
+            return copy.deepcopy(self.party)
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
             return self.bump({"ok": True})

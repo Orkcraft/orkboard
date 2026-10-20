@@ -290,3 +290,23 @@ async def test_the_tally_stays_under_the_flag_and_flags_opens_with_its_rows(fake
         await row.click()
         await page.locator(".screen").first.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "goal:docs", "device": "phone", "via": "flags"})
+
+
+@pytest.mark.asyncio
+async def test_a_met_goals_row_in_flags_has_the_fold_for_what_its_party_did(fake_repo, monkeypatch):
+    from tests.test_pwa_goal_team_browser import PARTY, PARTY_LINES
+    _met()
+    async with _phone(fake_repo, monkeypatch, init=with_list(fake_repo, ["docs"])) as (stub, page):
+        stub.party = PARTY
+        await _open_map(page)
+        await _docs(page)
+        await page.locator("details.map-flags summary").click()
+        await page.locator(".map-flag").wait_for(timeout=WAIT_MS)
+        fold = page.locator("details.map-flags details.party-work")
+        assert await fold.get_attribute("open") is None and not any(c[0] == "ideas.party" for c in stub.calls)
+        await fold.locator("summary").click()
+        await fold.locator("li").first.wait_for(timeout=WAIT_MS)
+        assert [" ".join(t.split()) for t in await fold.locator("li").all_inner_texts()] == PARTY_LINES
+        assert await _called(stub, "ideas.party", {"goal": "docs"})
+        assert " ".join((await page.locator(".map-flag").inner_text()).split()).startswith("Docs met, says Product manager")
+        assert await page.evaluate(NO_SCROLL)

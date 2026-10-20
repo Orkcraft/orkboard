@@ -69,7 +69,7 @@ TASK_SKIPPED = "task_skipped"     # idea, task, device: a task taken out of its 
 CHECK_SKIPPED = "check_skipped"   # idea, by (the checker), skipped (false: taken again), task ("" before a plan), usd (what it spares), device
 STOP_ALL = "stop_all"             # count, device
 INTO_CHANGED = "into_changed"     # branch, push, device
-OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map · recap · flag · week · push), ref, via (map · board · needs · agents · review · recap · week · flags · push; old lines ""), device
+OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map · recap · flag · week · push · party), ref, via (map · board · needs · agents · review · recap · week · flags · push; old lines ""), device
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
 GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device

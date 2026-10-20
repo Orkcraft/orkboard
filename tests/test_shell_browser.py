@@ -58,6 +58,7 @@ class StubHost:
 
     def __init__(self, look="camp", onboarding=None):
         self.look, self.onboarding, self.rev, self.log, self.ws = look, onboarding, 1, [], None
+        self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
         self.plan = make_plan()
         self.into, self.push = "dev", False
         self.paired = [{"id": "p1", "name": "Pixel 8", "seen": "2026-10-17T09:30:00"}]
@@ -233,6 +234,8 @@ class StubHost:
                                          title_by="person" if a.get("title") else old.get("title_by", "keeper"),
                                          leader=self.leader(a.get("leader")) or old.get("leader"))
             return self.bump({"slug": slug})
+        if name == "ideas.party":
+            return json.loads(json.dumps(self.party))
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
             return self.bump({"ok": True})
@@ -1343,3 +1346,38 @@ def test_add_agent_opens_two_ways_from_the_library_and_your_own_and_the_built_in
     told.locator("summary").click()
     assert "The Taskmaster reads each step's prompt." in told.inner_text() and told.locator("textarea, input").count() == 0    # read only
     assert dlg.get_by_label("Added to what it is told").is_visible()
+
+
+PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},
+         "members": [{"slug": "grunt", "name": "Grunt", "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tasks": 14, "merged": 13, "first_time": 12, "usd": 9.2}],
+         "checks": [{"by": "accessibility-reviewer", "name": "Accessibility reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "warrior"},
+                     "applied": 6, "skipped": 1, "clean": 4, "caught": 2, "left": 1, "before": 2, "usd": 1.8}]}
+PARTY_LINES = ['Product manager (leads): ≈$4.10 for the goal, the drafts and the plans', 'Grunt: 14 tasks, 12 merged the first time · ≈$9.20', 'Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 before findings were kept']
+
+
+def test_the_goals_screen_has_a_fold_for_what_its_party_did_closed_at_first_and_read_when_opened(shell):
+    pg, host = shell
+    host.party = PARTY
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    sec = pg.locator(".shell-goal").get_by_role("region", name="What the party did")
+    fold = sec.get_by_role("button", name="What the party did")
+    fold.wait_for(timeout=WAIT_MS)
+    assert fold.get_attribute("aria-expanded") == "false" and not [1 for n, _a in host.log if n == "ideas.party"]    # closed: not asked for
+    fold.click()
+    sec.get_by_role("list", name="What the party did").wait_for(timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in sec.locator("li").all_inner_texts()] == PARTY_LINES
+    assert sec.locator("li img.ork-race__head").count() == 3                                       # a head each, the words in the text face
+    assert _sent(pg, host, ("ideas.party", {"goal": "ship-sync"}))
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "party", "ref": "ship-sync", "device": "desktop"}))
+    fold.click()
+    assert fold.get_attribute("aria-expanded") == "false" and sec.locator("li").count() == 0
+
+
+def test_a_goal_with_no_work_yet_says_so(shell):
+    pg, host = shell
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    sec = pg.locator(".shell-goal").get_by_role("region", name="What the party did")
+    sec.get_by_role("button", name="What the party did").click()
+    sec.get_by_text("No work yet").wait_for(timeout=WAIT_MS)
