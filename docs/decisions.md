@@ -433,6 +433,10 @@ made to pass. So:
    §48.5 means the night to turn signals into proposals; the first of them).
 5. **Hints while picking**: at most two quiet lines (a check that seldom applies to the goal's craft, no builder for its
    code, a check that has found nothing lately); never a block.
+6. **Your parties** (the owner, the same day): a party saved from a goal's screen and picked again for a goal in any
+   project, kept in the person's folder as Operations are (§51.1), never in a repository; an agent of the person's own
+   travels inside it and is installed where it is missing, never over a project's; a saved party's record is its
+   goals, its projects and its flags.
 Not a game's words: no cards, decks, mana or rarity in what a person reads (CLAUDE.md: everything by what it does); no
 agent unlocked, no tier raised by use, no party ranked against another's. Built after spec 42, before the testers'
 numbers: the owner's named exception to §27 (as §55). Spec 43.

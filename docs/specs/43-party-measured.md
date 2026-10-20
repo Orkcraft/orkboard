@@ -1,23 +1,24 @@
-# Spec 43 — A goal's party, measured: a check says what it found, what the party did, its price before it starts, what a check is worth, hints while picking
+# Spec 43 — A goal's party, measured: a check says what it found, what the party did, its price before it starts, what a check is worth, hints while picking, your parties across projects
 
 The owner and the PM, 20 October (decisions §56). A goal's party is the deck Orkboard builds its work with (a library,
 crafts, seats, a party of each craft to start from, a checker's check over every idea), but it is picked once and never
 answered: nothing says afterwards whether it was a good party, and a check cannot even say "nothing found" (a check task
 that changes no file fails at the gate). This spec makes a check say what it found, then shows what the party did, what
-a party costs while it is picked, what a check is worth, with the night's first proposal from a signal, and two quiet
-hints. **Builds:** Claude · **Review:** full · P1.
+a party costs while it is picked, what a check is worth, with the night's first proposal from a signal, two quiet
+hints, and the person's own parties, saved from a goal and picked again in any project. **Builds:** Claude · **Review:** full · P1.
 
 **Built after spec 42** (all its parts merged; read its §13 "As built" first: this spec uses what 42 made — the flag's
 tally and Flags (42 B), an agent's record (42 D), `board_recap` and `board_week` (42 A, F, G), the phone's cache at v44).
 **What it is, and is not:** part A changes the engine (how a check task ends); B to E only read, but D's proposal, which
-the person takes or keeps with their own press. Nothing in what a person reads says card, deck, mana, rarity or level
+the person takes or keeps with their own press; F keeps the person's own parties in their folder and, when one is
+picked, installs the agents of theirs it brings. Nothing in what a person reads says card, deck, mana, rarity or level
 (CLAUDE.md: everything by what it does); no agent is unlocked, no tier is raised by use, no party is ranked against
 another's.
 
-Five parts, one branch each, **in this order, each from `main` once the one before is merged** (CLAUDE.md "Alpha", as
+Six parts, one branch each, **in this order, each from `main` once the one before is merged** (CLAUDE.md "Alpha", as
 spec 42: the critical tests, the part's files' tests, `tests/test_gui_wording.py`, `tests/test_design_system.py`,
 `tests/test_pwa.py` and its browser tests). **This file is the contract**; the rest is the builder's choice inside its
-files. **Change nothing outside a part's files** but those §9 names.
+files. **Change nothing outside a part's files** but those §10 names.
 
 | part | branch | builds | files (and their tests) |
 |---|---|---|---|
@@ -26,9 +27,10 @@ files. **Change nothing outside a part's files** but those §9 names.
 | **C. A party's price** | `spec/43-party-price` | §3 | new `realm/party_price.py`, `gui/ideas_party.py` (`ideas.party_price`), `js/shell/party.js`, `js/shell/goalwizard.js`, `js/shell/goaldialog.js`, `js/shell/shell.css`, `pwa/shell-goal-new.js`, `pwa/shell-goal.js`, `pwa/app.css`, `pwa/sw.js` (v47); new `tests/test_party_price.py`, `tests/test_gui_party.py`, the party picker's browser tests of both faces (desktop New goal and Edit goal; `tests/test_pwa_goal_team_browser.py`), `tests/test_pwa.py` |
 | **D. What a check is worth** | `spec/43-check-worth` | §4 | `realm/party_work.py` (`check_record`, `quiet_run`), new `realm/party_proposals.py`, `core/idea_night.py` (a step), `gui/ideas_party.py` (`ideas.party_answer`), `gui/ideas_board.py` or `gui/ideas_goals.py` (Needs you's `party` rows), `gui/ideas_roles.py` (`check_week`, `record.check`), `realm/event_log.py`, `realm/lexicon.py`, `js/board/today.js`, `js/shell/agents.js`, `js/shell/agentdialog.js`, `pwa/shell-needs.js`, `pwa/shell-agents.js`, `pwa/shell-agent.js`, `pwa/app.css`, `pwa/sw.js` (v48); `tests/test_party_work.py`, new `tests/test_party_proposals.py`, the night's tests of today, `tests/test_gui_party.py`, the Needs you and Agents browser tests of both faces, `tests/test_pwa.py` |
 | **E. Hints while picking** | `spec/43-hints` | §5 | `realm/library.py` (`Check.fits`), new `realm/party_hints.py`, `gui/ideas_party.py` (`hints` in `ideas.party_price`), `js/shell/party.js`, `pwa/shell-goal-new.js`, `pwa/sw.js` (v49); new `tests/test_party_hints.py`, C's browser tests, `tests/test_pwa.py` |
+| **F. Your parties** | `spec/43-own-parties` | §6 | new `realm/own_parties.py`, `realm/goal_team.py` (`party` on the goal's page), `realm/roles.py` (only if installing an own agent needs a sibling of `install`), `core/idea_lead.py` (a use marked met), `gui/ideas_party.py` (`ideas.parties`, `ideas.party_save`, `ideas.party_drop`), `gui/ideas_goals.py` (`ideas.goal_save`'s `party`), `realm/event_log.py`, `realm/lexicon.py`, `js/shell/party.js`, `js/shell/goalview.js`, `js/shell/goalwizard.js`, `js/shell/goaldialog.js`, `js/shell/shell.css`, `pwa/shell-goal-new.js`, `pwa/shell-goal.js`, `pwa/app.css`, `pwa/sw.js` (v50); new `tests/test_own_parties.py`, `tests/test_gui_party.py`, `tests/test_gui_goals.py`, C's browser tests, `tests/test_pwa.py` |
 
 Each part that changes a phone file moves `pwa/sw.js`'s `CACHE` up by one (the versions above) with `tests/test_pwa.py`'s
-pinned version; a new `.js` the app serves goes into `SHELL`. Each part writes its "as built" notes into §10, as spec 42.
+pinned version; a new `.js` the app serves goes into `SHELL`. Each part writes its "as built" notes into §11, as spec 42.
 
 ## 0. The words
 New `TERMS` (`realm/lexicon.py`), each with its part:
@@ -40,6 +42,8 @@ New `TERMS` (`realm/lexicon.py`), each with its part:
 - **What the party did** (`party_work`, B): a goal's party's work, member by member, check by check.
 - **a party's price** (`party_price`, C): about what an idea costs with this party, before it starts.
 - **a party's proposal** (`party_proposal`, D): the night's proposal to take a checker out of a goal's party.
+- **your parties** (`own_party`, *your party* / *your parties*, F): parties the person saved from a goal, kept in their
+  own folder and picked for a goal in any project.
 - Today's words stay: *party*, *leader*, *builder*, *checker*, *check*, *team*, *merged the first time*, *result*.
 
 ## 1. A check says what it found (A)
@@ -207,7 +211,64 @@ No face, no model, writes nothing. `price(root, state_dir, settings, leader, tea
 - `ideas.party_price` takes `craft` too and answers `hints`; the faces show them under the price line, muted, one line
   each. A hint never blocks Save and has no button.
 
-## 6. Tests
+## 6. Your parties (F)
+
+### 6.1 Kept: `realm/own_parties.py`
+The person's, one for every project, as Operations are (decisions §51.1): `parties.json` beside the machine's settings
+(`~/.config/orkcraft/parties.json`), written whole and atomically, 0600 as `realm/op_runs.py` writes; never in a
+repository. No face, no model.
+```json
+{"v": 1, "parties": [{"id": "p-1a2b3c4d", "name": "Lean web", "craft": "engineering",
+  "leader": "architect", "team": ["grunt", "tester", "reviewer"], "every": ["reviewer"],
+  "own": [{"slug": "docs-scribe", "name": "Docs scribe", "craft": "design", "model": "", "max_parallel": 2,
+           "instruction": "…", "takes": ["docs"]}],
+  "saved": "<iso>",
+  "uses": [{"project": "<12 hex: sha1 of the project's path>", "name": "<the project folder's name>", "goal": "<slug>",
+            "at": "<iso>", "met": null}]}]}
+```
+- `own`: every member (the leader too) that is neither a library agent nor built in, as its role file says it at the
+  save (`roles.role`: name, craft, model, max_parallel, instruction, takes); the Taskmaster and the Grunt are never
+  carried.
+- At most `MAX = 12` parties; a name of 1 to 40 characters, unique whatever its case; at most 50 `uses` a party, the
+  oldest dropped.
+- `list()`, `save(name, craft, leader, team, every, own, replace=False)`, `drop(id)`, `used(id, project, name, goal)`,
+  `mark(project, goal, met)`. A file of another shape reads as none and is not overwritten until a save.
+
+### 6.2 Commands
+| command | args | returns |
+|---|---|---|
+| `ideas.parties` | `{}` | `{"parties": [{"id", "name", "craft", "leader", "team", "every", "own": ["<names>"], "goals", "projects", "met", "saved"}]}` |
+| `ideas.party_save` | `{"goal", "name", "replace"?}` | `{"id"}`: the goal's party as it is now; a taken name is refused (*You have a party named “Lean web”*) unless `replace` is true; a thirteenth is refused (*You have 12 parties: remove one first*) |
+| `ideas.party_drop` | `{"id"}` | `{"ok": true}` |
+| `ideas.goal_save` | gains `{"party"?: "<id>"}` | as today |
+
+- `goals`: its uses; `projects`: the distinct projects among them; `met`: the uses whose goal was accepted as met.
+- **Using one** (`ideas.goal_save` with `party`): the face sends the party's `leader`, `team` and `every`, as it filled
+  them, and its `id`. The host installs the library agents as today and each `own` agent the project has not (a role
+  file written as `roles.install` writes one, never over a role of that slug: the project's own stays, and the answer
+  says *Docs scribe is this project's already: kept as it is*), checks the seats, saves the party, records the use and
+  keeps `party: <id>` on the goal's page (`goal_team.set_team`'s `party`).
+- **A goal's party changed afterwards** (a `goal_save` with `team`, `leader` or `every` and no `party`) clears the
+  goal's `party`; a goal never changes a saved party.
+- **Met**: when a goal's leader accepts it (`core/idea_lead.py`, after `goal_verdict.save`) and the goal has a `party`,
+  `mark` sets that use's `met` (asked again, the last verdict).
+- **Logged**: `party_saved {party, members, own, replaced, device}`, `party_dropped {party, device}`; `goal_saved` gains
+  `party` (the id; `""` without one).
+
+### 6.3 Shown
+- **Save**: on the goal's screen, under its Team (desktop `goalview.js`, phone `pwa/shell-goal.js` `teamSec`), a quiet
+  button **Save this party**. It asks a name (filled with *<Craft> party*, *Engineering party*) and saves; a taken name
+  asks *Replace your party “Lean web”?* first. Said after: *Saved: pick it for a goal in any project.*
+- **Pick**: where a party is picked (desktop `party.js`'s bands, in New goal and Change the party; phone `makeParty`),
+  a row **Your parties** above the bands when there is one: each a chip with its members' small heads, its name and,
+  muted, *3 goals in 2 projects · 2 met* (only once used). A tap fills the leader, the builders, the checkers and Every
+  idea, sets the craft in New goal, and keeps its id for the save; a seat changed afterwards drops the id (the party is
+  then the person's own picking). C's price and E's hints follow the seats as for any party.
+- **Remove**: each chip's `close` mark (`aria-label` *Remove your party “Lean web”*), after *Remove your party “Lean
+  web”? Goals that use it keep their agents.*
+- Nowhere else: no list of parties of its own, nothing on the Map, no rank.
+
+## 7. Tests
 - **A**: `parse_findings` (the shape, 20 at most, the lengths, bad JSON and a bad shape give `None`); the prompt of a
   check task ends with the ask, another task's does not; with a fake session: clean and no change → `merged` with no
   commit, no gate run and no Review, the file never committed; findings left and no change → `review` with
@@ -234,27 +295,35 @@ No face, no model, writes nothing. `price(root, state_dir, settings, leader, tea
   the sheet's *Its check* line.
 - **E**: `hints` (each of the four, their order, at most two, none for a party that fits); `ideas.party_price`'s
   `hints`; browser: the hints under the price line, muted, and Save still enabled.
+- **F**: `own_parties` (save, the twelve, a taken name refused and replaced, drop, `uses` at most 50, a broken file
+  read as none and kept, 0600); `ideas.party_save` from a goal with an agent of the person's own carries it;
+  `ideas.goal_save` with `party` in another project (a second fixture repository) installs that agent, keeps a role of
+  the same slug as it is and says so, records the use and keeps `party` on the page; a later party change clears it;
+  accepting the goal marks `met`; `ideas.parties`' counts; the events. Browser: Save this party on both faces' goal
+  screens (the name, the replace); Your parties' chips fill the seats and the craft in New goal; a seat changed drops
+  the id (the save sends no `party`); Remove asks first.
 - Every part: the critical tests (`orkcraft.toml` `always`), its files' tests, `tests/test_gui_wording.py`,
   `tests/test_design_system.py`, `tests/test_pwa.py`.
 
-## 7. Measured
+## 8. Measured
 - `opened` gains `what` `party` (B).
-- New events: `check_done` (A), `party_proposed`, `party_answered` (D); `task_state` gains `check`, `clean` (A).
+- New events: `check_done` (A), `party_proposed`, `party_answered` (D), `party_saved`, `party_dropped` (F); `task_state` gains `check`, `clean` (A).
 - The owner reads after a week: how many checks ended clean, caught or said nothing (the failures part A ends); how
   often *Fix them* and *Leave them* are pressed; how often a party is changed from the craft's own (`goal_saved`'s
-  `team` against `library.PARTIES`) with and without a price shown; party proposals taken and kept.
+  `team` against `library.PARTIES`) with and without a price shown; party proposals taken and kept; how often a saved party is picked against a craft's own, and in how many projects.
 
-## 8. Not in this spec
-- A party of the person's own, saved and picked again; an agent's instruction that learns from send-backs (decisions
-  §48.5's other proposals); agents from another project or a team. After the testers' numbers.
+## 9. Not in this spec
+- An agent's instruction that learns from send-backs (decisions §48.5's other proposals); a library of the person's
+  own agents across projects beyond what a saved party carries; parties shared with a team; a saved party's first-time
+  share or $ across projects (its record is its goals, projects and flags). After the testers' numbers.
 - A party's record across goals, a rank of parties, a score; any word of a card game.
 - A check's findings in the recap or Last week (spec 42 stays as built, but a clean check is not a result, §1.4).
 - A checker's craft limiting where it may sit (`fits` only hints).
 
-## 9. Files a part may need beyond its row
+## 10. Files a part may need beyond its row
 `core/idea_keeper.py` (A: only if a check task's prompt is built there and not in `core/idea_task.py`),
 `gui/ideas.py` (A, D: a command's arguments), `js/shell/store.js` and `pwa/board.js` (B, C: a fold or a call),
 `tests/test_shell_browser.py`'s `StubHost` and `tests/test_pwa_shell_browser.py`'s `Stub` (the new commands). Anything
-else: stop and write it in §10 first.
+else: stop and write it in §11 first.
 
-## 10. As built (notes, no change of the contract)
+## 11. As built (notes, no change of the contract)
