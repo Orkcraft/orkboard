@@ -59,14 +59,14 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
 
 const PRICE_MS = 300;
 /** What the party costs (spec 43 §3): `ideas.party_price` once the picker is open (`active`), again 300 ms after a seat or *Every idea* changes. null until answered. */
-export function usePartyPrice(active, leader, team, every) {
+export function usePartyPrice(active, leader, team, every, craft = "") {
   const [price, setPrice] = useState(null);
   const asked = useRef(false);
-  const key = JSON.stringify([leader, team, every.filter((id) => team.includes(id))]);
+  const key = JSON.stringify([leader, team, every.filter((id) => team.includes(id)), craft]);
   useEffect(() => {
     if (!active) { asked.current = false; return undefined; }
     let live = true;
-    const run = () => command("ideas.party_price", { leader, team, every: every.filter((id) => team.includes(id)) })
+    const run = () => command("ideas.party_price", { leader, team, every: every.filter((id) => team.includes(id)), ...(craft ? { craft } : {}) })
       .then((got) => { if (live && got && !got.error) setPrice(got); }).catch(() => {});
     const first = !asked.current;
     asked.current = true;
@@ -85,11 +85,13 @@ export function rangeWords(price) {
   return a === b ? `about $${a}` : `about $${a}–${b}`;
 }
 
-/** Under the bands: *This party: about $2–6 an idea* and, muted, where it comes from. */
+/** Under the bands: *This party: about $2–6 an idea* and, muted, where it comes from; under it the hints (spec 43 §5), muted, one line each:
+ *  they never block Save and have no button. */
 export function PriceLine({ price }) {
   if (!price) return null;
   return html`<p class="shell-price" role="status">This party: ${rangeWords(price)} an idea
-    <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}</small></p>`;
+    <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}</small></p>
+    ${(price.hints || []).map((h, n) => html`<p key=${n} class="shell-hint ok-font-status ok-tone-muted">${h}</p>`)}`;
 }
 
 /** *adds about $0.35 to an idea it checks · about half of them* (*· every idea* when it checks every idea). */

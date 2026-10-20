@@ -27,7 +27,7 @@ export function GoalWizard({ then = "" }) {
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
   const [saving, setSaving] = useState(false);
-  const price = usePartyPrice(step >= 2, leader, team, every);        // asked when the party is picked (step 2)
+  const price = usePartyPrice(step >= 2, leader, team, every, craft === MIXED ? "" : craft);        // asked when the party is picked (step 2)
 
   const pick = (c) => {
     if (c !== craft) {

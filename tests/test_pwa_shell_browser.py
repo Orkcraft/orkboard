@@ -51,6 +51,7 @@ class Stub:
         self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
         self.party: dict = {}                             # ideas.party (spec 43 B)
         self.learned = True                               # ideas.party_price (spec 43 C): learned, or a first guess
+        self.hints: list[str] = []                        # ideas.party_price's hints (spec 43 E)
         self.checks: list[dict] = []                      # the idea's checks (realm/idea_checks.py `status`), the sync idea's
         self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
         self.todos = [{"idea": "sync", "id": "t1", "title": "API_KEY", "kind": "secret", "why": "The sync service needs it", "choices": [],
@@ -169,7 +170,7 @@ class Stub:
             return self.bump({"ok": True})
         if name == "ideas.party_price":                 # spec 43 C: about what an idea costs with this party
             from tests.test_shell_browser import party_price
-            return party_price(a, self.learned)
+            return party_price(a, self.learned, self.hints)
         if name == "ideas.party":                       # spec 43 B: what the goal's party did
             return copy.deepcopy(self.party)
         if name == "ideas.page":

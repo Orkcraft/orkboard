@@ -61,12 +61,12 @@ PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product mana
 PARTY_LINES = ["Product manager (leads): ≈$4.10 for the goal, the drafts and the plans", "Grunt: 14 tasks, 12 merged the first time · ≈$9.20",
                "Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 before findings were kept",
                "Reviewer: checked 1 idea: 1 clean, caught 0"]
-def party_price(a, learned=True):
+def party_price(a, learned=True, hints=()):
     """What `ideas.party_price` answers for a party (spec 43 §3): $0.35 a check, about half of the ideas, all of them with `every`."""
     from orkboard.realm import library
     checks = [{"by": s, "name": library.get(s).name, "usd": 0.35, "share": 1.0 if s in (a.get("every") or []) else 0.5, "every": s in (a.get("every") or [])}
               for s in a.get("team") or [] if library.get(s) is not None and library.get(s).check is not None]
-    return {"low": 1.9, "high": 5.7, "learned": learned, "ideas": 12 if learned else 0, "checks": checks}
+    return {"low": 1.9, "high": 5.7, "learned": learned, "ideas": 12 if learned else 0, "checks": checks, "hints": list(hints)}
 
 
 SAVED = "/home/me/Downloads/orkboard-logs-2026-10-19-120000.zip"            # what logs.save answers
@@ -111,6 +111,7 @@ class StubHost:
         self.parts: list[dict] = []                                                                  # ideas.lens_code
         self.screen_png = ""                                                                         # ideas.lens_screen
         self.party = copy.deepcopy(PARTY)                                                            # ideas.party (spec 43 B)
+        self.hints: list[str] = []                                                                   # ideas.party_price's hints (spec 43 E)
         self.learned = True                                                                          # ideas.party_price: learned from the project's ideas, or a first guess
 
     def idea(self, slug, title, state, order, **more):
@@ -260,7 +261,7 @@ class StubHost:
             self.party_rows = [n for n in self.party_rows if n["goal"] != a["goal"]]
             return self.bump({"ok": True})
         if name == "ideas.party_price":                # spec 43 C: about what an idea costs with this party
-            return party_price(a, self.learned)
+            return party_price(a, self.learned, self.hints)
         if name == "ideas.party":                      # spec 43 B: what the goal's party did
             return copy.deepcopy(self.party)
         if name == "ideas.goal_accept":

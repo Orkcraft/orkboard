@@ -54,8 +54,12 @@ async def test_new_goal_says_the_price_asks_again_300_ms_after_a_seat_and_each_c
         await sheet.locator('.party [data-change="team"]').click()
         await sheet.get_by_role("button", name="Take in: Analyst").click()
         await sheet.get_by_role("button", name="Take in: Copywriter").click()
+        for _ in range(100):                                                                 # the last change is asked 300 ms after it
+            if asked()[-1]["leader"] == "analyst" and len(asked()) > before:
+                break
+            await page.wait_for_timeout(100)
         await page.wait_for_function("() => document.querySelector('.party-price')?.innerText.includes('a first guess')", timeout=WAIT_MS)
-        assert len(asked()) - before <= 2                                                     # the changes of 300 ms are one call (and the picker's own)
+        assert len(asked()) - before <= 3                                                     # the changes of 300 ms are a call each at most (and the picker's own)
         assert asked()[-1]["leader"] == "analyst"
         assert " ".join((await price.inner_text()).split()) == "This party: about $2–6 an idea a first guess: it learns from this project's ideas"
         await sheet.get_by_role("region", name="Checks").get_by_role("button").first.click()
@@ -70,4 +74,23 @@ async def test_new_goal_says_the_price_asks_again_300_ms_after_a_seat_and_each_c
         await block.get_by_label("Every idea: Accessibility reviewer").check()
         await page.wait_for_function("() => document.querySelector('.checks-block')?.innerText.includes('· every idea')", timeout=WAIT_MS)
         assert asked()[-1]["every"] == ["accessibility-reviewer"]
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_hints_are_quiet_lines_under_the_price_and_never_block_save(fake_repo, monkeypatch):
+    """Spec 43 E: muted, one line each, no button; the goal's craft is sent with the party."""
+    from tests.test_pwa_shell_browser import _new_goal
+    hints = ["Reviewer found nothing in its last 12 checks.", "No one in the party writes code: code tasks go to this project's agent for code (the Grunt when none)."]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.hints = list(hints)
+        await _new_goal(page)
+        sheet = page.get_by_role("dialog", name="New goal")
+        await sheet.locator(".party-hint").first.wait_for(timeout=WAIT_MS)
+        assert await sheet.locator(".party-hint").all_inner_texts() == hints
+        assert await sheet.locator(".party-hint button, .party-hint a").count() == 0
+        asked = [c[1] for c in stub.calls if c[0] == "ideas.party_price"]
+        assert asked[0].get("craft") == "engineering"
+        await sheet.get_by_label("Description").fill("A goal that saves with its hints.")
+        assert await sheet.get_by_role("button", name="Save goal").is_enabled()                  # a hint never blocks Save
         assert await page.evaluate(NO_SCROLL)

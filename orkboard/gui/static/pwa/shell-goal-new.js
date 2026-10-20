@@ -44,7 +44,7 @@ export function makeParty(core) {
   function askPrice(now = false) {
     clearTimeout(priceTimer);
     const go = async () => {
-      const got = await core.call("ideas.party_price", current());
+      const got = await core.call("ideas.party_price", { ...current(), ...(craftNow() ? { craft: craftNow() } : {}) });
       if (got) { price = got; draw(); }
     };
     if (now) go(); else priceTimer = setTimeout(go, 300);
@@ -54,8 +54,10 @@ export function makeParty(core) {
     if (!price) return null;
     const { low, high } = price, a = Math.round(low), b = Math.round(high);
     const range = low < 1 ? `$${low.toFixed(2)}–${high.toFixed(2)}` : a === b ? `$${a}` : `$${a}–${b}`;
-    return h("p", { class: "party-price", role: "status" }, `This party: about ${range} an idea`,
-      h("small", { class: "muted" }, ` ${price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}`));
+    return h("div", { class: "party-price-box" },
+      h("p", { class: "party-price", role: "status" }, `This party: about ${range} an idea`,
+        h("small", { class: "muted" }, ` ${price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}`)),
+      ...(price.hints || []).map((t) => h("p", { class: "muted party-hint" }, t)));    // spec 43 §5: quiet lines, never a block, no button
   }
   /** *adds about $0.35 to an idea it checks · about half of them* (*· every idea* when it checks every idea). */
   function addsWords(id) {
