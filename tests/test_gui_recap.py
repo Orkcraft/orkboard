@@ -60,6 +60,6 @@ def test_opened_takes_the_new_what_and_via(host):
     for via in ("recap", "week", "flags", "push"):
         host.command("ideas.log", {"event": "opened", "what": "idea", "ref": "x", "via": via})
     with pytest.raises(CommandError, match="`what` is one of"):
-        host.command("ideas.log", {"event": "opened", "what": "party"})
+        host.command("ideas.log", {"event": "opened", "what": "nothing"})
     rows = [r for r in event_log.read(Path(host.town.repo_root)) if r["event"] == "opened"]
     assert [r["what"] for r in rows] == ["recap", "flag", "week", "push", "idea", "idea", "idea", "idea"]

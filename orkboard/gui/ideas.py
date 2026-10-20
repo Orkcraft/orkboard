@@ -265,7 +265,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
             try:
                 b = self.board(make=False)       # reads only: no tree is made for a snapshot
                 waiting = self.results()
-                data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] != "proposal"),
+                data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] not in ("proposal", "party")),
                         "idea_states": [{"slug": i["slug"], "title": i["title"], "state": i["state"]} for i in b["ideas"]],
                         "review_count": len(waiting),
                         "review_results": [{k: r[k] for k in ("idea", "task", "title")} for r in waiting]}
@@ -513,7 +513,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
                     raise IdeasError(str(e)) from None
             return run
 
-        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.flags": self.flags, "ideas.week_work": self.week_work, "ideas.week": self.week, "ideas.party": self.party, "ideas.party_price": self.party_price, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
+        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.flags": self.flags, "ideas.week_work": self.week_work, "ideas.week": self.week, "ideas.party": self.party, "ideas.party_price": self.party_price, "ideas.party_answer": self.party_answer, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
                  "ideas.add": self.add, "ideas.say": self.say, "ideas.plan": self.plan, "ideas.start": self.start,
                  "ideas.move": self.move, "ideas.edit": self.edit, "ideas.track_add": self.track_add,
                  "ideas.track_set": self.track_set, "ideas.todo": self.todo, "ideas.drop": self.drop,

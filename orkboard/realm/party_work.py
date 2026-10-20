@@ -10,11 +10,14 @@ of it was priced, never 0.
 """
 from __future__ import annotations
 
+import datetime as dt
+import time
 from pathlib import Path
 from typing import Any
 
-from orkboard.realm import goal_team, idea_checks, idea_spend, ideas, library, roles
+from orkboard.realm import board_recap, goal_team, idea_checks, idea_spend, ideas, library, roles
 
+QUIET_RUN = 8                            # check tasks of a goal that all ended clean in round 1: the night proposes to take the checker out
 ENDED = ("merged", "failed")             # a task that has an end: the work counts from here
 CHECKED = ("merged", "review")          # a check task that has said what it found: merged, or waiting for the person
 
@@ -122,3 +125,72 @@ def work(root: Path, state_dir: Path, goal: str, target: str = "balance") -> dic
                        "applied": applied, "skipped": skipped, "clean": clean, "caught": caught, "left": left, "before": before,
                        "usd": usd_of(rows)})
     return {"ideas": len(plans), "leader": leader, "members": members, "checks": checks}
+
+
+# -- what a check is worth (spec 43 §4) ------------------------------------------------------------------------
+
+def _verdict(t: dict) -> str:
+    """What a check task that has said what it found found: "clean" (round 1, nothing found), "caught" (a finding, or sent back),
+    "" when it has not said (running, failed, or kept before findings were)."""
+    found = t.get("findings") if isinstance(t.get("findings"), list) else None
+    if t.get("state") not in CHECKED or found is None:
+        return ""
+    return "caught" if found or int(t.get("round") or 1) > 1 else "clean"
+
+
+_CACHE: dict[tuple[str, str, int], tuple[float, dict[str, dict]]] = {}
+CACHE_S = 30.0
+
+
+def forget() -> None:
+    """The cache of `check_record` cleared (a test, or a change the person should see at once)."""
+    _CACHE.clear()
+
+
+def _scan(root: Path, state_dir: Path, days: int, now: dt.datetime) -> dict[str, dict]:
+    """Every checker's record over the last `days`, from one read of the plans."""
+    since = now - dt.timedelta(days=days)
+    sums: dict[str, dict] = {}
+    for i in ideas.ideas(root):
+        plan = ideas.plan(state_dir, i["slug"])
+        per = None
+        for t in (plan or {}).get("tasks") or []:
+            at = board_recap.when(t.get("finished"))
+            if str(t.get("kind") or "") not in idea_checks.TAGS or not (v := _verdict(t)) or at is None or not since <= at <= now:
+                continue
+            per = per if per is not None else idea_spend.of_idea(state_dir, i["slug"])["tasks"]
+            row = sums.setdefault(check_by(t), {"checks": 0, "clean": 0, "caught": 0, "left": 0, "spent": []})
+            row["checks"] += 1
+            row["clean"] += v == "clean"
+            row["caught"] += v == "caught"
+            row["left"] += idea_checks.counts(t["findings"])["left"]
+            row["spent"].append((per.get(str(t.get("id"))) or {}).get("usd"))
+    return sums
+
+
+def check_record(root: Path, state_dir: Path, by: str, days: int, now: dt.datetime | None = None) -> dict[str, Any]:
+    """{checks, clean, caught, left, usd_per_check}: the checker's check tasks that ended with findings in the last `days`, across the
+    project's goals. `usd_per_check` from `idea_spend.TOO_FEW` checks, else None (and None while they are unpriced). Cached for 30 s
+    (as `idea_spend.by_role` is) unless `now` is given."""
+    key, mono = (str(root), str(state_dir), int(days)), time.monotonic()
+    hit = _CACHE.get(key) if now is None else None
+    if hit is None or mono - hit[0] >= CACHE_S:
+        hit = (mono, _scan(root, state_dir, days, (now or dt.datetime.now()).astimezone()))
+        if now is None:
+            _CACHE[key] = hit
+    row = hit[1].get(by) or {"checks": 0, "clean": 0, "caught": 0, "left": 0, "spent": []}
+    usd = _sum(row["spent"])
+    return {"checks": row["checks"], "clean": row["clean"], "caught": row["caught"], "left": row["left"],
+            "usd_per_check": round(usd / row["checks"], 2) if row["checks"] >= idea_spend.TOO_FEW and usd is not None else None}
+
+
+def quiet_run(root: Path, state_dir: Path, goal: str, by: str) -> str | None:
+    """When the checker's newest `QUIET_RUN` check tasks in this goal's ideas all ended clean in round 1: the time the newest of them
+    finished (a decline of it is older than that); else None. A check that failed, was sent back or found something ends the run."""
+    done: list[tuple[str, str]] = []
+    for i in ideas.ideas(root, goal):
+        for t in (ideas.plan(state_dir, i["slug"]) or {}).get("tasks") or []:
+            if str(t.get("kind") or "") in idea_checks.TAGS and check_by(t) == by and t.get("finished") and t.get("state") in ("merged", "review", "failed"):
+                done.append((str(t["finished"]), _verdict(t)))
+    newest = sorted(done, reverse=True)[:QUIET_RUN]
+    return newest[0][0] if len(newest) == QUIET_RUN and all(v == "clean" for _at, v in newest) else None

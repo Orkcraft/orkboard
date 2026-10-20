@@ -345,5 +345,5 @@ def sort_needs(needs: list[dict]) -> list[dict]:
     proposals with them (spec 38 §8)."""
     def key(n: dict) -> tuple:
         prio = n.get("priority") if n.get("priority") in ideas.PRIORITIES else "normal"
-        return n["kind"] in ("proposal", "op_rules"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
+        return n["kind"] in ("proposal", "op_rules", "party"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
     return sorted(needs, key=key)

@@ -15,7 +15,7 @@ import { RulesProposal } from "./ops.js";
 import { act as run, showGoal, showIdea, showPlan } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 
-const KIND_WORDS = { goal: "A goal asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
+const KIND_WORDS = { goal: "A goal asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal", party: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
 
 function Proposal({ n }) {
   const g = board.value.tracks.find((t) => t.slug === n.goal);
@@ -38,6 +38,26 @@ function Proposal({ n }) {
         <button class="ork-btn" aria-label=${`Decline: ${n.title}`}
           onClick=${() => run("ideas.proposal", { slug: n.idea, take: false, ...(reason.trim() ? { reason: reason.trim() } : {}) })}>No</button>
         <button class="board-link" onClick=${() => setDeclining(false)}>Cancel</button></div>`}
+    </div></li>`;
+}
+
+/** The night's proposal to take a checker out of a goal's party (spec 43 §4.2), answered in its row as a proposal is: **Take it out** or
+ *  **Keep it** (with *Why not? (optional, one line)*). It is never counted in the signal. */
+function PartyProposal({ n }) {
+  const [reason, setReason] = useState("");
+  const [keeping, setKeeping] = useState(false);
+  const keep = () => run("ideas.party_answer", { goal: n.goal, take: false, ...(reason.trim() ? { reason: reason.trim() } : {}) });
+  return html`<li class="board-need board-proposal" data-kind="party" data-goal=${n.goal}>
+    <span class="board-need__icon"><${Icon} name=${NEED_ICONS.proposal} /></span>
+    <div class="board-need__text"><b>${n.title}</b><span class="ok-tone-muted">${n.text}</span>
+      <div class="board-row">
+        <button class="ork-btn primary" aria-label=${`Take it out: ${n.title}`} onClick=${() => run("ideas.party_answer", { goal: n.goal, take: true })}>Take it out</button>
+        ${!keeping && html`<button class="ork-btn" aria-label=${`Keep it: ${n.title}`} onClick=${() => setKeeping(true)}>Keep it</button>`}</div>
+      ${keeping && html`<div class="board-row">
+        <input class="ork-field" value=${reason} aria-label=${`Why not: ${n.title}`} placeholder="Why not? (optional, one line)" autofocus
+          onInput=${(e) => setReason(e.target.value)} onKeyDown=${(e) => { if (e.key === "Enter") keep(); }} />
+        <button class="ork-btn" aria-label=${`Keep: ${n.title}`} onClick=${keep}>Keep it</button>
+        <button class="board-link" onClick=${() => setKeeping(false)}>Cancel</button></div>`}
     </div></li>`;
 }
 
@@ -110,6 +130,7 @@ function Quick({ n }) {
 function Row({ n }) {
   if (n.kind === "proposal") return html`<${Proposal} n=${n} />`;
   if (n.kind === "op_rules") return html`<${OpRules} n=${n} />`;
+  if (n.kind === "party") return html`<${PartyProposal} n=${n} />`;
   if (n.kind === "goal" || n.kind === "asks") return html`<${Quick} n=${n} />`;
   return html`<li class="board-need-row">
     <button class="board-need" data-kind=${n.kind} data-priority=${n.priority} onClick=${() => open(n)}>
@@ -121,10 +142,10 @@ function Row({ n }) {
 
 const rowKey = (n) => n.kind + (n.op || n.idea || n.goal || n.template || "") + (n.todo?.id || "");
 
-/** How many rows wait on the person now (proposals, and the ones put away Later, aside): the Needs you tab says it. */
+/** How many rows wait on the person now (proposals, a party's among them, and the ones put away Later, aside): the Needs you tab says it. */
 export function needsCount() {
   void laterRev.value;
-  return (board.value?.needs_you || []).filter((n) => n.kind !== "proposal" && n.kind !== "op_rules" && !isLater(n)).length;
+  return (board.value?.needs_you || []).filter((n) => n.kind !== "proposal" && n.kind !== "op_rules" && n.kind !== "party" && !isLater(n)).length;
 }
 
 export function Today() {

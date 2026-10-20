@@ -38,7 +38,8 @@ class Stub36(StubHost):
     def handle(self, name, a):
         if name == "ideas.roles":
             return {"roles": [r | {"spend_today": 0, "week": self.week.get(r["slug"]), "hand_model": r["model"] not in ("", "elder", "warrior", "laborer"), "record": self.record.get(r["slug"]),
-                                   "kinds": [k for k, v in self.kinds.items() if v == r["slug"]]} for r in self.roles.values()],
+                                   "kinds": [k for k, v in self.kinds.items() if v == r["slug"]],
+                                   **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})} for r in self.roles.values()],
                     "kinds": self.kind_list(), "models": MODELS}
         if name == "ideas.agents":
             got = super().handle(name, a)
@@ -46,6 +47,8 @@ class Stub36(StubHost):
                                          dict(idea="dark", idea_title="Dark mode", task="d3", title="Pick the palette", state="failed", tier="warrior", note="", by="person", night=False)]
             for b in got["roles"]:
                 b["week"] = self.week.get(b["role"])
+                if b["role"] in self.check_week:
+                    b["check_week"] = self.check_week[b["role"]]
                 if b["role"] != "taskmaster":
                     b["kinds"] = [k for k, v in self.kinds.items() if v == b["role"]]
             got["roles"] += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False,
