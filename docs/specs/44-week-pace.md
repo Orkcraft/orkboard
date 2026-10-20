@@ -154,3 +154,4 @@ else: stop and write it in §9 first.
 - A draft left by the pace at night counts as `held` for the night's retry (`night.json` `held` is true when `paced` > 0).
 - With no week read, a `week` wait has `until: ""` and both faces say *waits: the week is behind* alone.
 - Browser tests: the chip's *by itself: the week has room* and the wait without a time, on both faces (`tests/test_week_desktop_browser.py`, `tests/test_pwa_week_browser.py`).
+- A plan the pace started and the person stopped (`stopped`) holds no other: `_paced_running` leaves it out, as the runner does (it is no longer active), so the next Board's Low plan may go by day.

@@ -322,10 +322,12 @@ may want to take in the morning, each under one of the goals. {self.reads("propo
         return True
 
     def _paced_running(self, found: list[dict]) -> bool:
-        """A plan of this project that the pace started by day is not finished (its tasks not all merged or failed)."""
+        """A plan of this project that the pace started by day is not finished (its tasks not all merged or failed); one the
+        person stopped waits for them, not for the pace, so it holds no other."""
         for j in found:
             plan = ideas.plan(self.state_dir, j["slug"])
-            if plan and plan.get("by_pace") and not all(t.get("state") in ("merged", "failed") for t in plan.get("tasks") or []):
+            if plan and plan.get("by_pace") and not plan.get("stopped") \
+                    and not all(t.get("state") in ("merged", "failed") for t in plan.get("tasks") or []):
                 return True
         return False
 

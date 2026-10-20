@@ -500,6 +500,21 @@ def test_the_pace_starts_one_boards_low_plan_a_second_waits_until_the_first_has_
     assert keeper.started == [a, b]
 
 
+def test_a_plan_the_pace_started_and_the_person_stopped_does_not_hold_the_next_one(keeper):
+    _g, (a, b) = _ready(keeper, "first plan", "second plan")
+    for s in (a, b):
+        _passed_low(keeper, s)
+    keeper.settings_now["night"] = day_around_now()
+    keeper.limits_now = [weekly(0.9, 2)]
+    _drafting(keeper)
+    keeper.run_pace()
+    assert keeper.started == [a]
+    ideas.save_state(keeper.state, a, state="working")
+    ideas.edit_plan(keeper.state, a, lambda p: p.update(stopped=True))                              # Stop: its task stays ready, for the person
+    keeper.run_pace()
+    assert keeper.started == [a, b]
+
+
 def test_a_low_plan_the_pace_runs_by_day_is_no_longer_waiting_for_the_night_on_the_map(town):
     _board_low(town)
     runner = _runner(town, [weekly(0.9, 2)], day_around_now())
