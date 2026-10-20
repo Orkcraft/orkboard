@@ -43,6 +43,7 @@ from orkboard.core.idea_sign_in import SignInMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
 from orkboard.core.idea_lead import LeadMixin
+from orkboard.core.idea_trail import TrailMixin
 from orkboard.realm import event_log, goal_team, idea_checks, idea_lens, idea_spend, idea_target, ideas, plans, roles, status, tool_errors
 from orkboard.realm.idea_words import short_of, short_said
 
@@ -94,7 +95,7 @@ def _iso(at: float) -> str:
     return dt.datetime.fromtimestamp(at).isoformat(timespec="seconds")
 
 
-class IdeaKeeper(SignInMixin, DraftMixin, GoalMixin, NightMixin, LeadMixin):
+class IdeaKeeper(SignInMixin, DraftMixin, GoalMixin, NightMixin, LeadMixin, TrailMixin):
     def __init__(self, repo_root: Path, state_dir: Path, wiki_root: Callable[[], Path],
                  settings: Callable[[], dict], publish: Callable[[str], None] = lambda slug: None,
                  demo: bool = False, budget_ok: Callable[[], bool] = lambda: True,

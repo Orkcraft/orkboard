@@ -275,7 +275,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, PartyMixin
             try:
                 b = self.board(make=False)       # reads only: no tree is made for a snapshot
                 waiting = self.results()
-                data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] not in ("proposal", "party")),
+                data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] not in ("proposal", "trail", "party")),
                         "idea_states": [{"slug": i["slug"], "title": i["title"], "state": i["state"]} for i in b["ideas"]],
                         "review_count": len(waiting),
                         "review_results": [{k: r[k] for k in ("idea", "task", "title")} for r in waiting]}
@@ -532,7 +532,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, PartyMixin
                  "ideas.merge": self.merge, "ideas.back": self.back, "ideas.drop_task": self.drop_task,
                  "ideas.stop_task": self.stop_task, "ideas.agents": self.agents, "ideas.task": self.task,
                  "ideas.into": self.into, "ideas.log": self.log, "ideas.logs": self.logs, "ideas.goal_save": self.goal_save,
-                 "ideas.words": self.words, "ideas.goal_accept": self.goal_accept,
+                 "ideas.words": self.words, "ideas.goal_accept": self.goal_accept, "ideas.trail": self.trail, "ideas.trail_take": self.trail_take,
                  "ideas.goal": self.goal, "ideas.read_now": self.read_now, "ideas.doc": self.doc, "ideas.roles": self.roles,
                  "ideas.role_save": self.role_save, "ideas.role_add": self.role_add, "ideas.role_drop": self.role_drop,
                  "ideas.kind_set": self.kind_set,

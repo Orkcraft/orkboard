@@ -12,8 +12,9 @@ from typing import Any
 
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
+from orkboard.gui.ideas_board import proposal_via
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, own_parties, party_proposals, roles
+from orkboard.realm import board_map, event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, own_parties, party_proposals, roles
 
 
 DOC_CHARS = 100_000
@@ -41,6 +42,24 @@ class GoalsMixin:
                 "leader": {"slug": lead["slug"], "name": lead["name"], "head": roles.head(lead, self._target())},
                 "verdict": goal_verdict.read(self.state_dir, g["slug"])}
 
+    def trail_rows(self, goals: list[dict], found: list[dict], states: dict[str, dict]) -> list[dict]:
+        """Each goal row's `trail` {at, waiting, busy} (spec 46 §4), and the Needs you row of each goal whose trail waits: kind
+        `trail`, one per goal, its ideas in the trail's order; none of those ideas is a `proposal` row of its own."""
+        by_goal: dict[str, dict[str, str]] = {}
+        for i in found:
+            by_goal.setdefault(i["track"], {})[i["slug"]] = states[i["slug"]]["state"]
+        rows = []
+        for g in goals:
+            g["trail"] = board_map.trail_of(self.state_dir, g["slug"], by_goal.get(g["slug"], {}), self.keeper.trailing(g["slug"]))
+            mine = [i for i in found if i["track"] == g["slug"] and states[i["slug"]]["state"] == "proposed"
+                    and board_map.is_trail(self.state_dir, i["slug"])]
+            if mine:
+                rows.append({"idea": "", "goal": g["slug"], "kind": "trail", "title": g["title"], "short": g["short"],
+                             "text": f"{len(mine)} idea{'' if len(mine) == 1 else 's'} laid out",
+                             "ideas": [{k: i[k] for k in ("slug", "title", "short")} for i in mine],
+                             "priority": g["priority"], "blocks": False, "at": g["trail"]["at"]})
+        return rows
+
     def goal(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)
         g = next((t for t in ideas.tracks(self.root(), make=False) if t["slug"] == slug), None)
@@ -48,7 +67,9 @@ class GoalsMixin:
             raise IdeasError("That goal is gone")
         st = self.goal_state(slug)
         page = ideas.track_page(self.root(), slug)
-        return {**self._goal_row(g), "description": g["about"],
+        mine = {i["slug"]: self._state(i["slug"])["state"] for i in ideas.ideas(self.root(), slug)}
+        return {**self._goal_row(g), "trail": board_map.trail_of(self.state_dir, slug, mine, self.keeper.trailing(slug)),
+                "description": g["about"],
                 "sections": [{"name": n, "text": page.section(n)} for n in ideas.TRACK_SECTIONS],
                 "talk": ideas.talk(self.state_dir, slug, goal=True),
                 "busy": bool(self.keeper.busy_goal(slug)) or st["state"] == "reading"}
@@ -73,6 +94,46 @@ class GoalsMixin:
             self.keeper.accept_goal(slug)
         except idea_keeper.KeeperError as e:
             raise IdeasError(str(e)) from None
+        self.changed(f"goal:{slug}")
+        return {"ok": True}
+
+    def trail(self, args: dict) -> dict:
+        """`{"goal"}` Lay out ideas: the goal's leader lays out its trail now, in the background (spec 46 §4). Refused in
+        plain words: a goal not `ready`, a trail that waits, its leader busy, the window and the reserve."""
+        slug = _text(args, "goal", 100)
+        try:
+            self.keeper.lay_out_goal(slug)
+        except idea_keeper.KeeperError as e:
+            raise IdeasError(str(e)) from None
+        self.changed(f"goal:{slug}")
+        return {"ok": True}
+
+    def trail_take(self, args: dict) -> dict:
+        """`{"goal", "via"?}` Take all: each trail proposal of the goal that waits is taken as `ideas.proposal` takes one, at
+        the goal's priority; those for `now` are drafted one at a time in the trail's order, in the goal's run; Low ones
+        go to the night (spec 46 §4)."""
+        slug = _text(args, "goal", 100)
+        root = self.root()
+        g = next((t for t in ideas.tracks(root, make=False) if t["slug"] == slug), None)
+        if g is None:
+            raise IdeasError("That goal is gone")
+        waiting = self.keeper.trail_waiting(slug)
+        if not waiting:
+            raise IdeasError("No laid-out ideas wait for you")
+        if self.keeper.busy_goal(slug):
+            raise IdeasError("The goal's leader is busy with it: a moment")
+        now = []
+        for i in waiting:
+            if self.take_proposal(root, i["slug"], ideas.idea_page(root, i["slug"]), g["priority"]) == "now":
+                now.append(i["slug"])
+        try:
+            self.keeper.draft_trail(slug, now)
+        except idea_keeper.KeeperError as e:
+            for s in now:
+                ideas.save_state(self.state_dir, s, error=str(e))
+        self._ev(event_log.TRAIL_TAKEN, args, goal=slug, ideas=len(waiting), via=proposal_via(args))
+        for i in waiting:
+            self.changed(i["slug"])
         self.changed(f"goal:{slug}")
         return {"ok": True}
 

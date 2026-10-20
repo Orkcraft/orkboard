@@ -56,6 +56,28 @@ def list_of(text: object) -> list[str]:
     return [str(x) for x in got if isinstance(x, str)] if isinstance(got, list) else []
 
 
+TRAIL = "trail"                  # `proposed_by` of a proposal the goal's leader laid out (core/idea_trail.py)
+
+
+def proposal_state(state_dir: Path, slug: str) -> dict:
+    """What a proposal's state keeps beside the Board's keys (spec 46 §3, §5): `proposed_by` ("trail"; none for the
+    night's), `trail_by` (the member's slug), `same_as` (the slug of an idea the person added that does the same)."""
+    got = ideas._json(ideas.state_folder(state_dir, slug) / "state.json") or {}
+    return {k: str(got.get(k) or "") for k in ("proposed_by", "trail_by", "same_as")}
+
+
+def is_trail(state_dir: Path, slug: str) -> bool:
+    return proposal_state(state_dir, slug)["proposed_by"] == TRAIL
+
+
+def trail_of(state_dir: Path, goal: str, states: dict[str, str], busy: bool = False) -> dict:
+    """A goal's trail (spec 46 §4): `{at, waiting, busy}`: when it was laid out ("" not yet), how many of its
+    proposals wait, and whether its leader is laying it out now. `states`: the state of each of the goal's ideas."""
+    kept = ideas._json(ideas.goal_folder(state_dir, goal) / "state.json") or {}
+    return {"at": str(kept.get("trail_at") or ""), "busy": bool(busy),
+            "waiting": sum(1 for s, st in states.items() if st == "proposed" and is_trail(state_dir, s))}
+
+
 def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, asks: list[str]) -> list[dict]:
     """What of one idea needs the person (spec 35 §10): its questions, its plan waiting, its to-dos, a failure, a proposal."""
     slug, state = i["slug"], st["state"]
@@ -70,7 +92,7 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
     if state == "plan" and plan and not plan.get("passed_at"):
         out.append({**base, "kind": "plan", "text": "Plan ready" + (f" · {len(tasks)} tasks" if tasks else ""),
                     "at": str(plan.get("made_at") or base["at"])})
-    if state == "proposed":
+    if state == "proposed" and not is_trail(state_dir, slug):        # a trail proposal is its goal's row (spec 46 §4)
         out.append({**base, "kind": "proposal", "text": ideas.thesis(
             (ideas.idea_page(root, slug) or ideas.Page()).section("Gist")) or "The keeper proposes this"})
     if state == "failed":
@@ -213,10 +235,11 @@ def _week_until(settings: dict | None, limits: list | None, now: float) -> str:
 
 def build(root: Path, state_dir: Path, settings: dict | None = None, limits: list | None = None, now: float = 0.0, *,
           goal: str = "", rev: Any = "", state_of: Callable[[str], dict] | None = None,
-          goal_state_of: Callable[[str], dict] | None = None) -> dict:
+          goal_state_of: Callable[[str], dict] | None = None, trail_busy_of: Callable[[str], bool] | None = None) -> dict:
     """The Map of a project (spec 39 §1): `goal` one goal's slug (else every goal but General). Reads each idea's page,
     state and `plan.json` once; no git, no process, no write. `settings`, `limits` and `now` are the Board's (the faces
-    word `until` and the gate); a held task already says when it goes on."""
+    word `until` and the gate); a held task already says when it goes on. `trail_busy_of`: the keeper's reading of whether
+    a goal's leader is laying out its trail now (spec 46 §4)."""
     state_of = state_of or (lambda slug: ideas.state(state_dir, slug))
     goal_state_of = goal_state_of or (lambda slug: ideas.goal_state(state_dir, slug))
     tracks = [t for t in ideas.tracks(root, make=False) if t["slug"] != ideas.GENERAL]
@@ -224,6 +247,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
     found = ideas.ideas(root)
     states = {i["slug"]: state_of(i["slug"]) for i in found}
     titles = {i["slug"]: i["title"] for i in found}
+    shorts = {i["slug"]: i["short"] for i in found}
     place = {i["slug"]: n for n, i in enumerate(found)}
     pages = {i["slug"]: ideas.idea_page(root, i["slug"]) for i in found}
     depends = {s: list_of(p.get("depends_on")) if p else [] for s, p in pages.items()}
@@ -261,6 +285,8 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                                   **({"tally": goal_flags.tally(root, state_dir, g["slug"])} if verdict.get("met") is True else {})}
                       if verdict else None,
                       "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
+                      "trail": trail_of(state_dir, g["slug"], {x: states[x]["state"] for x in order},
+                                        bool(trail_busy_of and trail_busy_of(g["slug"]))),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2)})
         for i in sorted(mine, key=lambda i: (tier[i["slug"]], place[i["slug"]])):
@@ -271,12 +297,17 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             needs = idea_needs(root, state_dir, i, st, plan, asks)
             r = row(root, state_dir, i, st, plan, page, asks, states, needs)
             started = any(t.get("state") not in (None, "waiting", "ready", "held") for t in tasks)
+            ps = proposal_state(state_dir, slug) if r["state"] == "proposed" else {}
+            by, twin = by_slug.get(ps.get("trail_by") or ""), ps.get("same_as") or ""
             est = (plan or {}).get("estimate")
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
                     "held_until": r["held_until"], **({"held_for": r["held_for"]} if r.get("held_for") else {}),
                     "start_at": r["start_at"], "priority": r["priority"], "size": r["size"],
                     "risk": r["risk"], "tier": tier[slug], "depends_on": r["depends_on"], "waits_on": r["waits_on"],
                     "night_by": r["night_by"], "by_pace": (plan or {}).get("by_pace") is True,
+                    "proposed_by": ps.get("proposed_by") or "",          # spec 46 §4: "trail" when the goal's leader laid it out
+                    "trail_by": {"slug": by["slug"], "name": by["name"], "head": roles.head(by, target)} if by else None,
+                    "same_as": {"slug": twin, "short": shorts[twin]} if twin in shorts else None,
                     "waits": None, "needs_you": next((k for k in NEEDS if any(n["kind"] == k for n in needs)), "")
                     if r["state"] != "done" else "",
                     "progress": r["progress"],

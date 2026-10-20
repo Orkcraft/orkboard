@@ -118,6 +118,7 @@ class BoardMixin:
         rows, needs = [], self.goal_needs(goals)
         found = ideas.ideas(root)
         states = {i["slug"]: self._state(i["slug"]) for i in found}
+        needs += self.trail_rows(goals, found, states)
         for i in found:
             slug, st = i["slug"], states[i["slug"]]
             plan, page = ideas.plan(self.state_dir, slug), ideas.idea_page(root, slug)
@@ -323,7 +324,8 @@ class BoardMixin:
     # -- proposals (§8) -----------------------------------------------------------------------------------------
 
     def proposal(self, args: dict) -> dict:
-        """Take (with a priority: the idea joins the queue) or No (with an optional reason, read back the next night)."""
+        """Take (with a priority: the idea joins the queue) or No (with an optional reason, read back the next night).
+        `via`: where the person pressed it (needs · map · board · idea, spec 46 §4)."""
         slug = _text(args, "slug", 100)
         root = self.root()
         page = ideas.idea_page(root, slug)
@@ -331,15 +333,9 @@ class BoardMixin:
             raise IdeasError("That proposal is gone")
         take = args.get("take") is True
         reason = args.get("reason") if isinstance(args.get("reason"), str) else ""
+        by = "trail" if board_map.is_trail(self.state_dir, slug) else "night"
         if take:
-            priority = _opt(args, "priority").lower() or next(
-                (t["priority"] for t in ideas.tracks(root, make=False) if t["slug"] == page.get("track")), "normal")
-            if priority not in ideas.PRIORITIES:
-                raise IdeasError("Priority is High, Normal or Low")
-            ideas.set_meta(root, slug, priority=priority)
-            q = "night" if priority == "low" else "now"
-            ideas.save_state(self.state_dir, slug, state="raw", queue=q, error="")
-            if q == "now":
+            if self.take_proposal(root, slug, page, _opt(args, "priority").lower()) == "now":
                 try:
                     self.keeper.draft(slug)
                 except idea_keeper.KeeperError as e:
@@ -348,15 +344,34 @@ class BoardMixin:
             idea_night.decline(self.state_dir, page.title or slug, page.get("track") or "", reason)
             ideas.drop(root, slug, self.state_dir)
             self._what[slug] = "declined"
-        self._ev(event_log.PROPOSAL_ANSWERED, args, idea=slug, take=take, has_reason=bool(reason.strip()))
+        self._ev(event_log.PROPOSAL_ANSWERED, args, idea=slug, take=take, has_reason=bool(reason.strip()), via=proposal_via(args),
+                 proposed_by=by)
         self.changed(slug)
         return {"ok": True}
 
+    def take_proposal(self, root: Path, slug: str, page: ideas.Page, priority: str = "") -> str:
+        """A proposal taken: its priority (else its goal's), `raw` in the queue `now` (drafted by the caller) or, for Low,
+        `night`. The queue it joined."""
+        priority = priority or next((t["priority"] for t in ideas.tracks(root, make=False) if t["slug"] == page.get("track")), "normal")
+        if priority not in ideas.PRIORITIES:
+            raise IdeasError("Priority is High, Normal or Low")
+        ideas.set_meta(root, slug, priority=priority)
+        q = "night" if priority == "low" else "now"
+        ideas.save_state(self.state_dir, slug, state="raw", queue=q, error="")
+        return q
+
+
+VIAS = ("needs", "map", "board", "idea")          # where a proposal was answered from (spec 46 §4)
+
+
+def proposal_via(args: dict) -> str:
+    return args["via"] if args.get("via") in VIAS else "idea"
+
 
 def sort_needs(needs: list[dict]) -> list[dict]:
-    """What blocks work in progress first, then the priority, then the oldest; proposals last (§10), a party's proposal and Operations' rules
+    """What blocks work in progress first, then the priority, then the oldest; proposals last (§10), a goal's trail (spec 46 §4), a party's proposal and Operations' rules
     with them (spec 38 §8)."""
     def key(n: dict) -> tuple:
         prio = n.get("priority") if n.get("priority") in ideas.PRIORITIES else "normal"
-        return n["kind"] in ("proposal", "party", "op_rules"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
+        return n["kind"] in ("proposal", "trail", "party", "op_rules"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
     return sorted(needs, key=key)

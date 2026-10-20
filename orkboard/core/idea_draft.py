@@ -162,6 +162,8 @@ class DraftMixin:
  "depends_on": ["the slugs of listed ideas, of any goal, that must be done first"],
  "size": "S, M or L",
  "before": "the slug of the goal's idea this one should stand before, or empty",
+ "needed_by": ["the slugs of the goal's ideas (state proposed or raw) that should wait for this one, as it comes first"],
+ "same_as": "the slug of a proposed idea of the goal that does the same thing as this one, or empty",
  "questions": [{{"ask": "zero to three questions the person must answer before it can be planned, all at once: only what changes the plan, never what the repository, the goal or the person's text already answers", "choices": ["two to four likely answers, each at most 40 characters"], "pick": "the index of the one you recommend", "why": "one line: why that one"}}]{checks_json}}}
 """
 
@@ -186,13 +188,14 @@ class DraftMixin:
                              **({"queue": "hold"} if stopped else {}))
             return
         questions = self.write_draft(root, slug, answer)
+        needed_by, same_as = self.join_trail(root, slug, answer)
         ideas.save_state(self.state_dir, slug, state="asks" if questions else "ready", error="", measure=self.measure(),
                          batch_at=dt.datetime.now().isoformat(timespec="seconds"))
         tier, effort = self.picked()
         page = ideas.idea_page(root, slug)
         self._ev(event_log.IDEA_DRAFTED, idea=slug, risk=idea_risk.level(page.get("risk")),
                  triggers=_json_list(page.get("risk_triggers")), questions=len(questions), tier=tier, effort=effort,
-                 seconds=round(time.monotonic() - began, 1), **self.measure())
+                 seconds=round(time.monotonic() - began, 1), needed_by=needed_by, same_as=same_as, **self.measure())
         self.publish(slug)
         if not questions:
             self.plan_now(slug)
@@ -340,6 +343,35 @@ Section names: {", ".join(names)}."""
         self.assess(slug)
         self._place(root, slug, w(answer.get("before"), 60))
         return questions
+
+    def join_trail(self, root: Path, slug: str, answer: dict) -> tuple[int, bool]:
+        """An idea the person added joins its goal's trail (spec 46 §5), from the draft's answer: `needed_by`, the goal's
+        ideas not drafted yet (`proposed` or `raw`) that wait for this one, which is added to each one's `depends_on` (no
+        cycle, at most MAX_DEPENDS; an idea drafted already is never changed); `same_as`, a proposal of the goal that does
+        the same, which keeps this idea's slug on its state and is not removed. How many were made to wait, and whether
+        a proposal was named."""
+        kw = _kw()
+        page = ideas.idea_page(root, slug)
+        if page is None:
+            return 0, False
+        track = page.get("track") or ideas.GENERAL
+        mine = {i["slug"]: ideas.state(self.state_dir, i["slug"])["state"] for i in ideas.ideas(root, track) if i["slug"] != slug}
+        joined = 0
+        for other in dict.fromkeys(kw._strings(answer.get("needed_by"), MAX_DEPENDS, 60)):
+            if mine.get(other) not in ("proposed", "raw"):
+                continue
+            then = ideas.idea_page(root, other)
+            have = _json_list(then.get("depends_on")) if then is not None else []
+            if slug in have:
+                continue
+            kept = depends_ok(root, other, [*have, slug])
+            if slug in kept:
+                ideas.set_meta(root, other, depends_on=json.dumps(kept, ensure_ascii=False))
+                joined += 1
+        twin = kw._words(answer.get("same_as"), 60)
+        if mine.get(twin) == "proposed":
+            ideas.save_state(self.state_dir, twin, same_as=slug)
+        return joined, mine.get(twin) == "proposed"
 
     def write_stages(self, slug: str, plan: dict) -> None:
         ideas.update(self.wiki_root(), slug, {"Stages": stages(plan)})

@@ -65,6 +65,22 @@ def decline(state_dir: Path, title: str, goal: str, reason: str = "") -> None:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def write_proposal(root: Path, state_dir: Path, goal: str, title: str, why: str, short: str = "", **state: object) -> str:
+    """An idea of `goal` in the state `proposed` (its Gist the `why`), the slug: the night's proposal, and the trail's
+    (core/idea_trail.py, which adds `proposed_by` and `trail_by` to its state). `short`: its name in a few words."""
+    from orkboard.realm.idea_words import short_said
+    slug = ideas.add_idea(root, why, goal, state_dir)
+    with ideas.LOCK:
+        page = ideas.idea_page(root, slug)
+        page.title = title
+        if short:
+            page.set("short", short_said(short, title))
+        ideas._write(root / ideas.IDEAS / f"{slug}.md", page.text())
+        ideas._reindex(root)
+    ideas.save_state(state_dir, slug, state="proposed", queue="", **state)
+    return slug
+
+
 def _rank(i: dict) -> tuple:
     return ideas.PRIORITIES.index(i["priority"]), i["order"], i["slug"]
 
@@ -359,13 +375,7 @@ may want to take in the morning, each under one of the goals. {self.reads("propo
             goal, title, why = kw._words(raw.get("goal"), 60), " ".join(kw._words(raw.get("title"), 120).split()), kw._words(raw.get("why"), 600)
             if goal not in goals or not title or not why or title.lower() in no:
                 continue
-            slug = ideas.add_idea(root, why, goal, self.state_dir)
-            with ideas.LOCK:
-                page = ideas.idea_page(root, slug)
-                page.title = title
-                ideas._write(root / ideas.IDEAS / f"{slug}.md", page.text())
-                ideas._reindex(root)
-            ideas.save_state(self.state_dir, slug, state="proposed", queue="")
+            slug = write_proposal(root, self.state_dir, goal, title, why)
             self._ev(event_log.PROPOSAL_MADE, idea=slug, goal=goal)
             self.publish(slug)
             counts["proposed"] += 1

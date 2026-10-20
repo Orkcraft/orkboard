@@ -251,3 +251,5 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
         ideas.save_goal_state(self.state_dir, slug, state="asks" if questions else "ready", error="", read_at=self.head(),
                               read_time=dt.datetime.now().isoformat(timespec="seconds"), tier=tier, effort=effort,
                               measure=self.measure(), asks_by=by, party=len(members), by_party=sum(1 for b in by if b != lead))
+        if step == "goal" and not questions and self.trail_due(slug) and not self._may_run() and self.window_until() is None:
+            self.lay_out(slug, "read")             # a read that ends `ready` lays out the goal's trail at once (spec 46 §3)

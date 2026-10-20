@@ -23,7 +23,9 @@ class Model:
         self.calls, self.lock = [], threading.Lock()
 
     def __call__(self, tier, prompt, effort="", budget=None):
-        kind = "goal" if "keeper of this project's Task board" in prompt else "ask"
+        kind = "trail" if "lay out its ideas" in prompt else "goal" if "keeper of this project's Task board" in prompt else "ask"
+        if kind == "trail":                                     # a read that ends `ready` lays out its trail (spec 46 §3)
+            return json.dumps({"ideas": []}), 0.01, 10, "s"
         with self.lock:
             self.calls.append({"kind": kind, "tier": tier, "prompt": prompt, "effort": effort, "budget": budget})
         if kind == "goal":
@@ -201,6 +203,8 @@ def host(fake_repo, monkeypatch):
     h.calls = []
 
     def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
+        if "lay out its ideas" in prompt:
+            return json.dumps({"ideas": []}), 0.01, 10, "s"
         h.calls.append(prompt)
         return json.dumps({"summary": "S.", "metrics": [], "questions": [QS[0], {**QS[3], "by": "reviewer"}, QS[1]]}), 0.01, 10, "s"
 

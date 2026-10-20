@@ -80,7 +80,7 @@ ROLE_DROPPED = "role_dropped"     # role, kinds (the task types sent back to Gru
 KIND_SET = "kind_set"             # kind, role, device
 # Spec 35 §12: the Board writes, starts what is safe, and works at night.
 BOARD_SET = "board_set"           # target, autostart, night, device
-IDEA_DRAFTED = "idea_drafted"     # idea, risk, triggers, questions, tier, effort, seconds
+IDEA_DRAFTED = "idea_drafted"     # idea, risk, triggers, questions, tier, effort, seconds, needed_by (ideas of the goal made to wait for it), same_as (true: it named a proposal that does the same)
 IDEA_ANSWERED = "idea_answered"   # idea, answers (how many), picked, recommended, typed, decided (spec 41 §10)
 GOAL_ANSWERED = "goal_answered"   # goal, answers, picked, recommended, typed, decided, by_party (answered questions that were a member's), device (spec 41 §10)
 # … and every keeper event (goal_read, idea_drafted, idea_answered, idea_said, plan_made, night_run) carries §0's
@@ -89,7 +89,9 @@ KEEPER_STOPPED = "keeper_stopped"  # idea (the person stopped the keeper's run o
 NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, paced (the Board's Low ideas left for the week), seconds
 WEEK_RESET = "week_reset"         # left (the share left when the week came back), provider (spec 44 §4)
 PROPOSAL_MADE = "proposal_made"   # idea, goal
-PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
+PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason, via (needs · map · board · idea), proposed_by (trail · night) (spec 46 §4)
+TRAIL_LAID = "trail_laid"         # goal, ideas (how many written), dropped, via (read · person), step ("trail"), prompt_chars, tokens, cost (spec 46 §3)
+TRAIL_TAKEN = "trail_taken"       # goal, ideas (how many taken), via (needs · map · board · idea), device (spec 46 §4)
 PARTY_ASKED = "party_asked"       # goal, by (the member), questions, step ("ask"), prompt_chars, tokens, cost: a member's call before the leader's read (spec 46 §2)
 PARTY_PROPOSED = "party_proposed"   # goal, by (the checker), runs: the night's proposal to take a checker out of a party (spec 43 D)
 PARTY_ANSWERED = "party_answered"   # goal, by, take, has_reason, device
@@ -128,7 +130,7 @@ SIGN_IN_FAILED = "sign_in_failed"   # harness, why (timeout · cancelled · refu
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
           TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, CHECK_DONE, TASK_STOPPED, TASK_SKIPPED, CHECK_SKIPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, GOAL_ACCEPTED, ROLE_SAVED,
-          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED, PARTY_ASKED, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED,
+          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED, TRAIL_LAID, TRAIL_TAKEN, PARTY_ASKED, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
           OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, WEEK_RESET, SIGN_IN_NEEDED, SIGNED_IN, SIGN_IN_FAILED)

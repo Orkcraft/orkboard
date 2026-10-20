@@ -38,6 +38,8 @@ def model(monkeypatch):
 
     def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
         kind = "goal" if "saved a goal" in prompt else "idea"
+        if "lay out its ideas" in prompt:                      # a read that ends `ready` lays out its trail (spec 46 §3)
+            return json.dumps({"ideas": []}), 0.01, 10, "s-1"
         seen.append({"kind": kind, "model": model, "prompt": prompt, "env": env})
         return json.dumps(answers[kind]), 0.01, 10, "s-1"
 

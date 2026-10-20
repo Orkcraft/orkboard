@@ -39,7 +39,7 @@ def model(monkeypatch):
 
     def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, effort="", budget=None,
                  one_shot=False, tools=True):
-        step = ("goal" if "saved a goal" in prompt else "draft" if "write its spec" in prompt
+        step = ("trail" if "lay out its ideas" in prompt else "goal" if "saved a goal" in prompt else "draft" if "write its spec" in prompt
                 else "plan" if "turn it into a plan" in prompt else "other")
         seen.append({"step": step, "model": model, "resume": resume, "effort": effort, "budget": budget,
                      "one_shot": one_shot, "prompt": prompt})
@@ -101,7 +101,8 @@ def test_the_new_commands_are_the_hosts_and_a_phones(host):
 
 def test_a_goal_from_a_description_and_a_priority_is_read_at_once_and_written(host, model):
     slug = _goal(host, priority="high")
-    (call,) = model.seen
+    (call, trail) = model.seen                                               # the read, then the trail it lays out (spec 46 §3)
+    assert trail["step"] == "trail" and trail["effort"] == "medium"
     assert call["step"] == "goal" and "opus" in call["model"] and call["effort"] == "high" and call["budget"] == 1.0
     assert call["resume"] == "" and call["one_shot"] is True and "Show the runs at a glance." in call["prompt"]
     g = host.command("ideas.goal", {"slug": slug})
