@@ -164,6 +164,15 @@ def test_the_morning_says_what_waits_and_is_not_sent_to_a_device_seen_in_the_nig
 def test_nothing_to_say_is_no_morning(rig):
     rig.set_seen("2026-10-19T20:00:00")
     assert rig.tick(at(8, 30)) == []
+    assert rig.pairing.get(rig.device)["push"]["morning"] == "2026-10-20"       # the day is checked: the recap is not built again every tick
+
+
+def test_the_morning_reads_at_most_30_days_back(rig, monkeypatch):
+    asked = []
+    monkeypatch.setattr(rig.host.pusher, "morning", lambda since, now, waiting: asked.append(since) or "")
+    rig.set_seen("2026-01-01T08:00:00")
+    rig.tick(at(8, 30))
+    assert asked == [at(8, 30) - dt.timedelta(days=30)]
 
 
 def test_a_gone_subscription_is_dropped_and_the_send_is_logged(rig):
@@ -206,6 +215,25 @@ def test_the_four_commands_are_a_phones_only(rig):
             host.command(name, {})                                       # the page has no device
         with pytest.raises(CommandError, match="Only a paired phone"):
             _as_phone(host, name, {"device_id": rig.device}, None)       # a made-up id is not taken from the args
+
+
+def test_the_page_cannot_name_a_device(rig):
+    from orkboard.gui.server import Server
+    server = Server(rig.host)
+    for name in ("mobile.push_key", "mobile.push_off"):
+        reply = server._handle(json.dumps({"t": "cmd", "id": 1, "name": name, "args": {"device_id": rig.device, "link": "paired"}}))
+        assert reply["ok"] is False and "Only a paired phone" in reply["error"]       # a known id in the page's own args is no phone
+
+
+def test_without_the_cryptography_package_every_push_command_says_so(rig, monkeypatch):
+    from orkboard.gui import web_push
+
+    def missing():
+        raise web_push.PushError(web_push.NEED)
+    monkeypatch.setattr(web_push, "_crypto", missing)
+    for name, args in (("mobile.push_key", {}), ("mobile.push_on", {}), ("mobile.push_off", {}), ("mobile.push_quiet", {"quiet": "22:00-07:30"})):
+        with pytest.raises(CommandError, match="Notifications need the cryptography package"):
+            _as_phone(rig.host, name, args, rig.device)
 
 
 def test_push_key_gives_the_key_and_the_quiet_hours(rig):

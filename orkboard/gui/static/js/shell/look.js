@@ -32,6 +32,15 @@ export function closeCard() {
   cards.value = cards.value.slice(1);
 }
 
+// The recap is logged as opened when it is the card shown, not when its answer arrives: it may wait behind Last week's card.
+const logged = new WeakSet();
+if (typeof window !== "undefined") {
+  effect(() => {
+    const first = cards.value[0];
+    if (first && first.kind === "recap" && !logged.has(first)) { logged.add(first); queueMicrotask(() => logOpened("recap", `${first.data.hours}h`)); }
+  });
+}
+
 // -- Last week (spec 42 §7.3): the first look of a new ISO week shows last week's card; `orkboard.week.<12 characters>` holds the last week shown --------
 const weekKey = () => lookKey().replace("orkboard.look.", "orkboard.week.");
 /** The ISO week (`2026-W42`) of a date. */
@@ -52,15 +61,15 @@ export async function weekCheck() {
   const last = lastWeekId();
   let kept = null;
   try { kept = localStorage.getItem(key); } catch { return; }
-  const write = () => { try { localStorage.setItem(key, last); } catch { /* the page works without it */ } };
+  const write = (week) => { try { localStorage.setItem(key, week); } catch { /* the page works without it */ } };
   if (kept === last) return;
-  if (kept === null) { write(); return; }
+  if (kept === null) { write(last); return; }
   weekBusy = true;
   try {
     const got = await command("ideas.week", {}).catch(() => null);
     if (!got || got.error || key !== weekKey()) return;
-    write();
-    if (!got.empty) {
+    write(got.week);                                  // the week `ideas.week` answered, not this device's idea of last week
+    if (!got.empty && got.week !== kept) {
       showCard({ kind: "week", data: got }, true);
       logOpened("week", got.week);
     }
@@ -90,7 +99,6 @@ export async function away() {
     touch(Date.now());
     if (got.merged && !got.empty) {
       showCard({ kind: "recap", data: got });
-      logOpened("recap", `${got.hours}h`);
     }
   } finally { checking = false; }
 }

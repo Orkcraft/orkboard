@@ -68,7 +68,16 @@ export function pushWeek(core, data, via = "") {
 /** `core`: the board's frame (open, go, draw). Returns {section(card), close()}. */
 export function makeCards(core) {
   const st = core.st;
-  const close = () => { st.cards = st.cards.slice(1); core.draw(); };
+  const close = () => {
+    const shown = st.cards[0];
+    st.cards = st.cards.slice(1);
+    const next = st.cards[0];
+    if (shown?.kind === "week" && next?.kind === "recap" && !next.logged) {       // the recap that waited behind Last week's card is shown now
+      next.logged = true;
+      core.call("ideas.log", { event: "opened", what: "recap", ref: `${next.data.hours}h`, device: "phone" });
+    }
+    core.draw();
+  };
   const link = (text, run) => h("button", { class: "linkish", type: "button", onclick: run }, text);
   const idea = (i) => link(i.short, () => core.open({ kind: "idea", slug: i.slug }, "recap"));
   const goal = (g) => link(g.short, () => core.open({ kind: "goal", slug: g.goal }, "recap"));
