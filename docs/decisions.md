@@ -343,3 +343,43 @@ agent's role and tier with the mascots, **orks the engineers, elves design, gobl
    ork's head; a goal's mark is a flag.
 An improvement of v1's existing mechanics (§27): the look and the words of what is there, one new field (`craft`).
 Spec 40.
+
+## 54. The phone, round 3: what waits for you is the signal, a name fits its chip, a question comes with its answer picked (20 October, the owner)
+
+Why: the owner's notes after a day on the phone. The top bar's ! repeats the Needs you tab's count and never says
+whether work stands still; the project switcher, the gear and the Board's heading and Target row take the room the goal's
+name and the limits need; goals' and ideas' names are cut on the Map; starting a plan takes two screens; Speak sits on
+the Board unused; New goal is three screens for what is mostly a default, and a goal's team cannot be changed on the phone
+once it is made; Add agent only makes a new agent; an agent's line spells its model in words; the questions' likely
+answers are seldom the ones taken. So:
+1. **Needs you is the signal**: orkUI's warning mark and colour while something waits for an answer — a
+   question, a plan to start, a to-do, a failure, an Operation's check —; a plain count while only results wait in
+   Review. The top bar's ! goes. Colour means a signal (§53.5): a result waiting for a look is not one.
+2. **The top bar holds the goal and the limits**: the menu at its left opens the drawer (Stop all, today's spend, the
+   projects, this project's settings with the Target, this phone's); the gear and the Board's heading and Target row go.
+   A setting sits with what it sets: the phone's and the project's in the drawer, a goal's in Edit goal on its screen.
+3. **A short name**: an idea, a goal and a task carry `short` (24 characters at most), written by code when it is made,
+   then by the call that writes its title anyway (the draft, the plan, the goal's reading): no model call more. A chip
+   or a tab shows it on two lines; the title stays on its screen.
+4. **The Map gets one action beside open** (amends §52.1): a node that waits for the person alone — a plan whose ideas
+   it depends on are done, a plan held for the night, an idea held for the night — has one button, with what it costs.
+   Nothing is skipped from the trail but a check (spec 39); a task of code never, the next ones build on it.
+5. **New goal on one sheet**: what it is for, the craft as a row of heads, the team folded to one line with Change (its
+   bands in folds, one open at a time), the checks, Save always in sight. A goal's team changes from its screen.
+6. **Agents**: Add agent takes one from the library or makes your own; an agent is one line — its head (the race its
+   craft, the gear its tier), its name, how many at once, about what a task costs —; the Taskmaster and the Grunt say
+   what they are told already beside the field that adds to it.
+7. **A question comes with its answer picked**: the Taskmaster gives each question its choices, the one it recommends
+   and why; the recommended ones are pressed, so one Send takes them, and *Let the Taskmaster decide* takes them unread,
+   written in the spec's Decisions as its pick. Measured: how many answers are a choice, the recommended one, typed, or
+   left to it — the research the owner asked for, before the next change to how it asks.
+8. **Not done, and why.** *A goal stays a goal*: it has metrics, a flag and a verdict, and the Map's trail runs to that
+   flag; a line of work by kind is the goal's craft, so goals may be grouped by craft, never renamed back to tracks
+   (`track` is the word `goal` replaced, `TERMS`). *No sideways scroll of ideas*: it hides what is past the edge and
+   breaks the trail's order; the trail packs tighter instead. *No token multiplier on an agent*: a person has nothing to
+   hold it against and a token's price differs by model; dollars a task say it. *No new leader for delivery*: spreading
+   the work across goals is the Taskmaster's (priority, autostart, how many at once, the limits); a release is an
+   Operation's template (spec 38), a spec of its own when wanted. *No tool mark on an agent* while every agent of the
+   Board runs on Claude Code (`core/idea_runner.py` `HARNESS`).
+An improvement of v1's existing mechanics (§27): the look, the words and the order of what is there; two fields
+(`short`, a question's `pick`), one command (`ideas.role_add`), one flag (`ideas.answer`'s `decide`). Spec 41.
