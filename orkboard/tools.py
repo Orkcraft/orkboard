@@ -8,7 +8,9 @@
 Nothing here spends quota or keeps a key: a CLI is looked up on PATH, asked for its version, and
 its login is guessed from what it leaves on disk or in the environment (Codex's `auth.json` is read
 for which kind of login it holds, never for the key; failing that, `codex login status` tells).
-`logged_in` is None when it cannot be told without a model call. `billing` is a guess the operator may override.
+Claude Code is asked `claude auth status` (2.1.41 on): its `oauthAccount` in `~/.claude.json` outlives
+a sign-in it deleted. `logged_in` is None when it cannot be told without a model call. `billing` is a
+guess the operator may override.
 """
 from __future__ import annotations
 
@@ -24,6 +26,8 @@ from typing import Callable
 from orkboard.realm import harnesses
 
 VERSION_TIMEOUT_S = 5
+# The oldest claude with `claude auth status`: an older one would take "auth status" for a prompt.
+CLAUDE_AUTH_MIN = (2, 1, 41)
 # The oldest agy the 🛡 Warder guards: `--mode` is honoured in `-p` runs and a project's
 # `.agents/hooks.json` loads once the folder is trusted (docs/design/agy-guard.md).
 AGY_WARDER_MIN = (1, 1, 12)
@@ -123,9 +127,16 @@ def agy_version(which: Callable[[str], str | None] | None = None, run: Callable 
     return None if not path else _version(path, run or subprocess.run)
 
 
-def _claude_login(env: dict, home: Path) -> tuple[bool | None, str]:
+def _claude_login(env: dict, home: Path, path: str = "", run: Callable | None = None,
+                  version: str = "") -> tuple[bool | None, str]:
     if env.get("ANTHROPIC_API_KEY"):
         return True, "api"
+    v = version_tuple(version)
+    if path and run is not None and v is not None and v >= CLAUDE_AUTH_MIN:
+        said = claude_auth(path, run, env)
+        if isinstance(said.get("loggedIn"), bool):          # its own word: a sign-in it deleted is gone here too
+            api = said.get("authMethod") == "api_key" or bool(said.get("apiKeySource"))
+            return said["loggedIn"], "api" if said["loggedIn"] and api else "subscription"
     if (home / ".claude" / ".credentials.json").is_file():
         return True, "subscription"
     try:
@@ -263,7 +274,7 @@ def detect(which: Callable[[str], str | None] = shutil.which, run: Callable = su
         if tool.available and (path := which(_bin(tool.id))):
             status.found, status.path = True, path
             status.version = _version(path, run)
-            login = {"claude": _claude_login, "agy": _agy_login, "hermes": _hermes_login, "pi": _pi_login,
+            login = {"claude": lambda e, h: _claude_login(e, h, path, run, status.version), "agy": _agy_login, "hermes": _hermes_login, "pi": _pi_login,
                      "cursor": _cursor_login, "codex": lambda e, h: _codex_login(e, h, path, run)}.get(tool.id)
             if login is not None:
                 status.logged_in, status.billing = login(env, home)

@@ -157,8 +157,8 @@ function ToolsStep({ o }) {
             <i>${r.enabled ? "✓" : ""}</i></label>
           <span class="gui-onb__tool"><${ToolMark} id=${r.id} mark=${r.mark} />${r.title}
             ${r.version && html`<span class="ok-font-status ok-tone-muted">${r.version}</span>`}</span>
-          <span class=${cls("ok-font-status", r.logged_in === false ? "ok-tone-wait" : "ok-tone-ok")}>
-            ${r.logged_in === false ? say(`⚠ not logged in: ${r.login}`) : "✓ logged in"}</span>
+          <span class=${cls("ok-font-status", r.logged_in === false ? "ok-tone-wait" : r.logged_in ? "ok-tone-ok" : "ok-tone-muted")}>
+            ${r.logged_in === false ? say(`⚠ not logged in: ${r.login}`) : r.logged_in ? "✓ logged in" : "sign-in unknown: Check tells"}</span>
           <select class="ork-field" value=${r.billing} aria-label=${say(`How ${r.title} is paid`)}
               onChange=${(e) => set(r.id, { billing: e.target.value })}>
             <option value="subscription">Subscription</option><option value="api">API</option></select>

@@ -41,6 +41,39 @@ def test_oauth_account_in_claude_json(tmp_path: Path):
     assert claude.logged_in and claude.billing == "subscription"
 
 
+def _claude(version: str, said: dict | None, asked: list):
+    def run(cmd, **kw):
+        if cmd[1:] == ["--version"]:
+            return subprocess.CompletedProcess(cmd, 0, stdout=f"{version} (Claude Code)\n", stderr="")
+        asked.append(cmd[1:])
+        if said is None:
+            raise subprocess.TimeoutExpired(cmd, 5)
+        return subprocess.CompletedProcess(cmd, 0 if said.get("loggedIn") else 1, stdout=json.dumps(said), stderr="")
+    return run
+
+
+def test_claude_says_its_own_sign_in(tmp_path: Path):
+    # the owner's 20 October: Save logs said signed_in true beside `claude auth status`'s loggedIn false — Claude Code
+    # had deleted the expired sign-in, and the oauthAccount left in ~/.claude.json was taken for one
+    (tmp_path / ".claude.json").write_text(json.dumps({"oauthAccount": {"emailAddress": "a@b"}}), encoding="utf-8")
+    asked: list = []
+    out = {"loggedIn": False, "authMethod": "none", "apiProvider": "firstParty"}
+    claude = tools.detect(_which({"claude"}), _claude("2.1.296", out, asked), env={}, home=tmp_path)[0]
+    assert asked == [["auth", "status"]]
+    assert claude.logged_in is False and claude.summary() == f"found · v2.1.296 · not logged in — {claude.tool.login}"
+    signed = {"loggedIn": True, "authMethod": "claude.ai", "subscriptionType": "max"}
+    claude = tools.detect(_which({"claude"}), _claude("2.1.296", signed, []), env={}, home=tmp_path)[0]
+    assert claude.logged_in and claude.billing == "subscription"
+    console = {"loggedIn": True, "authMethod": "api_key"}                 # a Console sign-in keeps an API key
+    assert tools.detect(_which({"claude"}), _claude("2.1.296", console, []), env={}, home=tmp_path)[0].billing == "api"
+    # it cannot say (it hangs): the guess from the disk
+    assert tools.detect(_which({"claude"}), _claude("2.1.296", None, []), env={}, home=tmp_path)[0].logged_in
+    # before 2.1.41 there is no `auth status`: never asked, an older claude would take it for a prompt
+    old: list = []
+    assert tools.detect(_which({"claude"}), _claude("2.1.40", out, old), env={}, home=tmp_path)[0].logged_in
+    assert old == []
+
+
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
