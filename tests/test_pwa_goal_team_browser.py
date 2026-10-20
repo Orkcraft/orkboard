@@ -3,6 +3,8 @@ library (the host's, realm/library.py) in three folds, its checks; a goal's team
 (tests/test_pwa_shell_browser.py)."""
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from orkboard.realm import library  # noqa: E402
@@ -345,3 +347,112 @@ async def test_a_goal_with_no_work_yet_says_so(fake_repo, monkeypatch):
         sec = page.locator(".screen").get_by_role("region", name="What the party did")
         await sec.locator("summary").click()
         await sec.get_by_text("No work yet").wait_for(timeout=WAIT_MS)
+
+
+# -- spec 43 F: your parties ---------------------------------------------------------------------------------------------------
+
+LEAN = {"id": "p-1", "name": "Lean web", "craft": "design", "leader": "product-designer", "team": ["ui-kit", "accessibility-reviewer"],
+        "every": ["accessibility-reviewer"], "own": [], "goals": 3, "projects": 2, "met": 2, "saved": "2026-10-20T10:00:00"}
+
+
+@pytest.mark.asyncio
+async def test_your_parties_fill_the_craft_and_the_seats_in_new_goal_and_a_seat_changed_drops_the_id(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.own_parties = [dict(LEAN)]
+        await _new_goal(page)
+        sheet = page.get_by_role("dialog", name="New goal")
+        mine = sheet.get_by_role("region", name="Your parties")
+        await mine.wait_for(timeout=WAIT_MS)
+        chip = mine.get_by_role("button", name="Pick your party “Lean web”")
+        assert " ".join((await chip.inner_text()).split()) == "Lean web 3 goals in 2 projects · 2 met" and await chip.locator("img").count() == 3
+        await chip.click()
+        assert await chip.get_attribute("aria-pressed") == "true"
+        assert await sheet.locator(".craft-tile[aria-pressed='true']").get_attribute("data-craft") == "design"        # the party's craft
+        assert await sheet.locator(".party-line").first.inner_text() == "Leads: Product designer · Builds: Design system designer · Checks: Accessibility reviewer"
+        await sheet.get_by_label("Description").fill("A landing page.")
+        await sheet.get_by_role("button", name="Save goal").click()
+        assert await _called(stub, "ideas.goal_save", {"about": "A landing page.", "craft": "design", "leader": "product-designer",
+                                                       "team": ["ui-kit", "accessibility-reviewer"], "every": ["accessibility-reviewer"],
+                                                       "priority": "normal", "party": "p-1"})
+        assert await page.evaluate(NO_SCROLL)
+    async with _phone(fake_repo, monkeypatch) as (stub, page):                                         # a seat changed after the pick
+        stub.own_parties = [dict(LEAN)]
+        await _new_goal(page)
+        sheet = page.get_by_role("dialog", name="New goal")
+        chip = sheet.get_by_role("button", name="Pick your party “Lean web”")
+        await chip.click()
+        await sheet.locator('.party [data-change="team"]').click()
+        await sheet.get_by_role("button", name="Take in: Analyst").click()
+        assert await chip.get_attribute("aria-pressed") == "false"
+        await sheet.get_by_label("Description").fill("A landing page.")
+        await sheet.get_by_role("button", name="Save goal").click()
+        assert await _called(stub, "ideas.goal_save")
+        assert all("party" not in c[1] for c in stub.calls if c[0] == "ideas.goal_save")
+
+
+@pytest.mark.asyncio
+async def test_remove_your_party_asks_first(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.own_parties = [dict(LEAN)]
+        said = []
+        answers = [False, True]
+
+        async def on_dialog(d):
+            said.append(d.message)
+            await (d.accept() if answers.pop(0) else d.dismiss())
+
+        page.on("dialog", lambda d: asyncio.ensure_future(on_dialog(d)))
+        await _new_goal(page)
+        sheet = page.get_by_role("dialog", name="New goal")
+        mine = sheet.get_by_role("region", name="Your parties")
+        await mine.wait_for(timeout=WAIT_MS)
+        await mine.get_by_role("button", name="Remove your party “Lean web”").click()                    # declined: it stays
+        await asyncio.sleep(0.3)
+        assert said == ["Remove your party “Lean web”? Goals that use it keep their agents."]
+        assert not any(c[0] == "ideas.party_drop" for c in stub.calls) and await mine.is_visible()
+        await mine.get_by_role("button", name="Remove your party “Lean web”").click()
+        assert await _called(stub, "ideas.party_drop", {"id": "p-1"})
+        await mine.wait_for(state="hidden", timeout=WAIT_MS)
+
+
+@pytest.mark.asyncio
+async def test_save_this_party_on_a_goal_s_screen_asks_a_name_and_a_taken_name_asks_to_replace(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.goals["land"] = stub.goal("land", "Landing page", "high", "ready", craft="design", race="elf", about="A landing page.",
+                                       team=["ui-kit", "accessibility-reviewer"], every=[], leader=stub.leader("product-designer"))
+        stub.bump({})
+        said = []
+        page.on("dialog", lambda d: (said.append(d.message), asyncio.ensure_future(d.accept())))
+        await _pick_goal(page, "land")
+        await page.locator('.map-goal[data-goal="land"]').get_by_role("button", name="Open goal Landing page").click()
+        team = page.locator(".screen").get_by_role("region", name="Team")
+        await team.get_by_role("button", name="Save this party").click()
+        name = team.get_by_label("Name of your party")
+        assert await name.input_value() == "Design party"                                                # filled with the craft's
+        await name.fill("Lean web")
+        await team.get_by_role("button", name="Save", exact=True).click()
+        assert await _called(stub, "ideas.party_save", {"goal": "land", "name": "Lean web"})
+        await page.locator(".flash", has_text="Saved: pick it for a goal in any project.").wait_for(timeout=WAIT_MS)
+        await team.get_by_role("button", name="Save this party").click()
+        await team.get_by_label("Name of your party").fill("lean web")
+        await team.get_by_role("button", name="Save", exact=True).click()
+        assert await _called(stub, "ideas.party_save", {"goal": "land", "name": "lean web", "replace": True})
+        assert said == ["Replace your party “Lean web”?"] and len(stub.own_parties) == 1
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_party_picked_on_a_goal_s_team_sheet_is_sent_with_the_team(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.own_parties = [dict(LEAN)]
+        stub.goals["land"] = stub.goal("land", "Landing page", "high", "ready", craft="design", race="elf", about="A landing page.",
+                                       team=["copywriter"], every=[], leader=stub.leader("analyst"))
+        stub.bump({})
+        await _pick_goal(page, "land")
+        await page.locator('.map-goal[data-goal="land"]').get_by_role("button", name="Open goal Landing page").click()
+        await page.locator(".screen").get_by_role("region", name="Team").get_by_role("button", name="Change the team").click()
+        sheet = page.get_by_role("dialog", name="Team")
+        await sheet.get_by_role("button", name="Pick your party “Lean web”").click()
+        await sheet.get_by_role("button", name="Save team").click()
+        assert await _called(stub, "ideas.goal_save", {"slug": "land", "team": ["ui-kit", "accessibility-reviewer"], "every": ["accessibility-reviewer"],
+                                                      "leader": "product-designer", "party": "p-1"})

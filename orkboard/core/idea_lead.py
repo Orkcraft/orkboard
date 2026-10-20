@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orkboard.realm import event_log, goal_team, goal_verdict, idea_target, ideas, roles
+from orkboard.realm import event_log, goal_team, goal_verdict, idea_target, ideas, own_parties, roles
 
 
 def _kw():
@@ -82,11 +82,20 @@ not, against its metrics, not against the work done. You may read the repository
  "next": ["zero to three next ideas, one line each, when the goal is not reached"]}}
 """
 
+    def _mark_party(self, slug: str, met: bool) -> None:
+        """The goal has a saved party of the person's: its use says whether the goal was met (realm/own_parties.py)."""
+        if party := goal_team.party_of(self.wiki_root(), slug):
+            try:
+                own_parties.mark(own_parties.project_id(self.repo_root), slug, met, party)
+            except OSError:
+                pass                                  # the person's folder cannot be written: the verdict stands
+
     def accept_one(self, slug: str) -> None:
         root = self.wiki_root()
         try:
             text, *_rest = self.ask("accept", self.accept_prompt(root, slug))
             got = goal_verdict.save(self.state_dir, slug, self.parse(text), by=self.leader_name(slug))
+            self._mark_party(slug, got["met"])
         except Exception as e:
             if not isinstance(e, InterruptedError):
                 ideas.save_goal_state(self.state_dir, slug, error=f"Not accepted: {_kw()._why(e)}")

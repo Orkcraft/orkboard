@@ -67,14 +67,15 @@ export function makeGoalSheet(core) {
   // -- a goal's team from its own screen (spec 41 §7): the Team and Checks folds of New goal, saved alone -----------------------
   const party = makeParty(core);
   const teamSave = h("button", { class: "ork-btn primary big", type: "button" }, "Save team");
-  const teamSheet = sheet("Team", party.team, party.price, party.checks, foot(teamSave));
+  const teamSheet = sheet("Team", party.own, party.team, party.price, party.checks, foot(teamSave));
   let teamOf = "";
   teamSave.addEventListener("click", async () => {
     const p = party.get();
     teamSave.disabled = true;
-    const got = await core.call("ideas.goal_save", { slug: teamOf, team: p.team, every: p.every, leader: p.leader });
+    const got = await core.call("ideas.goal_save", { slug: teamOf, team: p.team, every: p.every, leader: p.leader, ...(p.party ? { party: p.party } : {}) });
     teamSave.disabled = false;
     if (!got?.slug) return;
+    (got.notes || []).forEach((n) => core.flash(n));       // an agent of the party's the project has already: kept as it is
     teamSheet.close();
     core.refresh();
   });
@@ -158,7 +159,34 @@ function teamSec(g, core, sec) {
   };
   return sec("Team", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the team",
-      onclick: () => core.editTeam(g) }, "Change")));
+      onclick: () => core.editTeam(g) }, "Change")), saveParty(g, core));
+}
+
+/** *Save this party*, quiet, beside Change (spec 43 §6.3): asks a name (filled with *Engineering party*), saves the goal's party among the person's,
+ * and says where to pick it. A taken name asks *Replace your party “…”?* first. */
+function saveParty(g, core) {
+  const name = h("input", { class: "ork-field", type: "text", "aria-label": "Name of your party", maxlength: "40" });
+  const go = h("button", { class: "ork-btn primary", type: "submit" }, "Save");
+  const cancel = h("button", { class: "ork-btn", type: "button" }, "Cancel");
+  const form = h("form", { class: "party-save-form", "aria-label": "Save this party", hidden: true }, name, h("div", { class: "row" }, go, cancel));
+  const open = h("button", { class: "ork-btn quiet", type: "button", "data-save-party": "" }, "Save this party");
+  open.addEventListener("click", () => { name.value = `${CRAFT_WORDS[g.craft] || "Your"} party`; form.hidden = false; open.hidden = true; name.focus(); });
+  cancel.addEventListener("click", () => { form.hidden = true; open.hidden = false; });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const typed = name.value.trim().replace(/\s+/g, " ");
+    if (!typed) return;
+    go.disabled = true;
+    const taken = ((await core.call("ideas.parties", {}))?.parties || []).find((p) => p.name.toLowerCase() === typed.toLowerCase());
+    const got = !taken || confirm(`Replace your party “${taken.name}”?`)
+      ? await core.call("ideas.party_save", { goal: g.slug, name: typed, ...(taken ? { replace: true } : {}) }) : null;
+    go.disabled = false;
+    if (!got) return;
+    form.hidden = true;
+    open.hidden = false;
+    core.flash("Saved: pick it for a goal in any project.");
+  });
+  return h("span", { class: "party-save" }, open, form);
 }
 
 /** The goal's verdict: met or not, each metric's status and why, the next ideas (each added with a tap); and the button that

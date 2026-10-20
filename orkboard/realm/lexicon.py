@@ -172,6 +172,7 @@ TERMS: tuple[Term, ...] = (
     _t("flag", "flag", "flags"),                                   # a goal accepted by its leader against its metrics (spec 42 §2)
     _t("party_work", "What the party did"),                       # a goal's party's work, member by member, check by check (spec 43 B)
     _t("party_proposal", "party's proposal", "party's proposals"),   # the night's proposal to take a checker out of a goal's party (spec 43 D)
+    _t("own_party", "your party", "your parties"),                  # a party the person saved from a goal, picked for a goal in any project (spec 43 F)
     _t("party_hint", "hint", "hints"),                             # a plain line about a party while it is picked (spec 43 E)
     _t("party_price", "price"),                                    # about what an idea costs with a party, said while it is picked (spec 43 C)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)

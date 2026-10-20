@@ -60,6 +60,7 @@ class StubHost:
         self.look, self.onboarding, self.rev, self.log, self.ws = look, onboarding, 1, [], None
         self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
         self.price_hints = []
+        self.own_parties: list[dict] = []                                             # ideas.parties (spec 43 F)
         self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
         self.plan = make_plan()
         self.into, self.push = "dev", False
@@ -264,6 +265,23 @@ class StubHost:
         if name == "ideas.drop":
             self.ideas.pop(a["slug"], None)
             return self.bump({"ok": True})
+        if name == "ideas.parties":                                                # spec 43 F: the person's parties
+            return {"parties": json.loads(json.dumps(self.own_parties))}
+        if name == "ideas.party_save":
+            g = self.goals[a["goal"]]
+            taken = next((p for p in self.own_parties if p["name"].lower() == a["name"].lower()), None)
+            if taken and not a.get("replace"):
+                return {"error": f"You have a party named “{taken['name']}”"}
+            keep = {"name": a["name"], "craft": g.get("craft", "engineering"), "leader": (g.get("leader") or {}).get("slug", "taskmaster"),
+                    "team": list(g.get("team", [])), "every": list(g.get("every", [])), "own": [], "goals": 0, "projects": 0, "met": 0, "saved": "2026-10-20T10:00:00"}
+            if taken:
+                taken.update(keep)
+                return {"id": taken["id"]}
+            self.own_parties.append({"id": f"p-{len(self.own_parties) + 1}", **keep})
+            return {"id": self.own_parties[-1]["id"]}
+        if name == "ideas.party_drop":
+            self.own_parties = [p for p in self.own_parties if p["id"] != a["id"]]
+            return {"ok": True}
         if name == "ideas.party_answer":
             self.party_needs = [n for n in self.party_needs if n["goal"] != a["goal"]]
             return self.bump({"ok": True})
@@ -1518,3 +1536,136 @@ def test_a_goal_with_no_work_yet_says_so(shell):
     sec = pg.locator(".shell-goal").get_by_role("region", name="What the party did")
     sec.get_by_role("button", name="What the party did").click()
     sec.get_by_text("No work yet").wait_for(timeout=WAIT_MS)
+
+
+# -- spec 43 F: your parties ---------------------------------------------------------------------------------------------------
+
+LEAN = {"id": "p-1", "name": "Lean web", "craft": "design", "leader": "product-designer", "team": ["ui-kit", "accessibility-reviewer"],
+        "every": ["accessibility-reviewer"], "own": [], "goals": 3, "projects": 2, "met": 2, "saved": "2026-10-20T10:00:00"}
+
+
+def _dialogs(pg, answer=True):
+    """Every native confirm from now on is answered; the messages are kept."""
+    said = []
+    pg.on("dialog", lambda d: (said.append(d.message), d.accept() if answer else d.dismiss()))
+    return said
+
+
+def test_save_this_party_asks_a_name_saves_it_and_a_taken_name_asks_to_replace(shell):
+    pg, host = shell
+    host.goals["ship-sync"].update(craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    team = pg.locator(".shell-goal").get_by_role("region", name="Team")
+    team.get_by_role("button", name="Save this party").click()
+    name = team.get_by_label("Name of your party")
+    assert name.input_value() == "Engineering party"                                               # filled with the craft's
+    name.fill("Lean web")
+    team.get_by_role("button", name="Save", exact=True).click()
+    assert _sent(pg, host, ("ideas.party_save", {"goal": "ship-sync", "name": "Lean web"}))
+    pg.get_by_text("Saved: pick it for a goal in any project.").wait_for(timeout=WAIT_MS)
+    said = _dialogs(pg)
+    team.get_by_role("button", name="Save this party").click()
+    team.get_by_label("Name of your party").fill("lean WEB")
+    team.get_by_role("button", name="Save", exact=True).click()
+    assert _sent(pg, host, ("ideas.party_save", {"goal": "ship-sync", "name": "lean WEB", "replace": True}))
+    assert said == ["Replace your party “Lean web”?"] and len(host.own_parties) == 1
+
+
+def test_a_replace_that_is_declined_saves_nothing(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    host.goals["ship-sync"].update(craft="engineering", leader=host.leader("architect"), team=["grunt"], every=[])
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    team = pg.locator(".shell-goal").get_by_role("region", name="Team")
+    said = _dialogs(pg, answer=False)
+    team.get_by_role("button", name="Save this party").click()
+    team.get_by_label("Name of your party").fill("Lean web")
+    team.get_by_role("button", name="Save", exact=True).click()
+    for _ in range(10):
+        if said:
+            break
+        pg.wait_for_timeout(50)
+    assert said == ["Replace your party “Lean web”?"] and not [1 for n, _a in host.log if n == "ideas.party_save"]
+    assert team.get_by_label("Name of your party").is_visible()                                     # the name stays to be changed
+
+
+def test_your_parties_fill_the_craft_and_the_seats_in_new_goal_and_the_id_goes_with_the_save(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    assert dlg.get_by_role("region", name="Your parties").count() == 0                              # step 1 picks a craft: no party yet
+    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
+    mine = dlg.get_by_role("region", name="Your parties")
+    mine.wait_for(timeout=WAIT_MS)
+    chip = mine.get_by_role("button", name="Pick your party “Lean web”")
+    assert " ".join(chip.inner_text().split()) == "Lean web 3 goals in 2 projects · 2 met" and chip.locator("img.ork-race__head").count() == 3
+    chip.click()
+    assert chip.get_attribute("aria-pressed") == "true"
+    assert [dlg.locator(f'[data-agent="{a}"]').get_attribute("aria-pressed") for a in ("product-designer", "ui-kit", "accessibility-reviewer")] == ["true"] * 3
+    assert dlg.locator('[data-agent="grunt"]').get_attribute("aria-pressed") == "false"             # the engineering party's seats are gone
+    dlg.get_by_role("button", name="Next").click()
+    assert "Design · led by Product designer" in " ".join(dlg.locator(".shell-party-line").inner_text().split())      # the craft is the party's
+    assert dlg.get_by_role("group", name="Checks").get_by_label("Every idea: Accessibility reviewer").is_checked()
+    dlg.get_by_label("Description").fill("A landing page.")
+    dlg.get_by_role("button", name="Save goal").click()
+    got = _calls(pg, host, "ideas.goal_save")[-1]
+    assert (got["party"], got["craft"], got["leader"], got["team"], got["every"]) == (
+        "p-1", "design", "product-designer", ["ui-kit", "accessibility-reviewer"], ["accessibility-reviewer"])
+
+
+def test_a_seat_changed_after_picking_a_party_drops_its_id_and_the_save_sends_none(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
+    chip = dlg.get_by_role("button", name="Pick your party “Lean web”")
+    chip.click()
+    dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # a seat changed
+    assert chip.get_attribute("aria-pressed") == "false"
+    dlg.get_by_role("button", name="Next").click()
+    dlg.get_by_label("Description").fill("A landing page.")
+    dlg.get_by_role("button", name="Save goal").click()
+    got = _calls(pg, host, "ideas.goal_save")[-1]
+    assert "party" not in got and "copywriter" in got["team"]
+
+
+def test_a_party_picked_in_edit_goal_is_sent_and_remove_asks_first(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt"], every=[])
+    host.bump({})
+    pg.locator(".board-goal", has_text="Led by Architect").wait_for(timeout=WAIT_MS)
+    pg.get_by_role("button", name="Edit goal Ship sync").click()
+    party = pg.get_by_role("dialog", name="Edit goal").get_by_role("group", name="Party")
+    assert party.get_by_role("region", name="Your parties").count() == 0                            # not before the picker opens
+    party.get_by_role("button", name="Change the party").click()
+    mine = party.get_by_role("region", name="Your parties")
+    said = _dialogs(pg, answer=False)
+    mine.get_by_role("button", name="Remove your party “Lean web”").click()
+    for _ in range(10):
+        if said:
+            break
+        pg.wait_for_timeout(50)
+    assert said == ["Remove your party “Lean web”? Goals that use it keep their agents."]
+    assert not [1 for n, _a in host.log if n == "ideas.party_drop"] and mine.get_by_role("button", name="Pick your party “Lean web”").is_visible()
+    mine.get_by_role("button", name="Pick your party “Lean web”").click()
+    pg.get_by_role("dialog", name="Edit goal").get_by_role("button", name="Save goal").click()
+    got = _calls(pg, host, "ideas.goal_save")[-1]
+    assert (got["party"], got["leader"], got["team"]) == ("p-1", "product-designer", ["ui-kit", "accessibility-reviewer"])
+
+
+def test_remove_your_party_drops_it_after_the_person_agrees(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
+    said = _dialogs(pg)
+    dlg.get_by_role("button", name="Remove your party “Lean web”").click()
+    assert _sent(pg, host, ("ideas.party_drop", {"id": "p-1"}))
+    dlg.get_by_role("region", name="Your parties").wait_for(state="detached", timeout=WAIT_MS)       # the row goes with its last party
+    assert said == ["Remove your party “Lean web”? Goals that use it keep their agents."]

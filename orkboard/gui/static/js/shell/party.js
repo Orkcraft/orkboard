@@ -3,13 +3,14 @@
 // it accepts the goal; the Taskmaster when none), Builds (three at most), Checks (two at most) —; a click takes an agent in or out of
 // its band, a full band says so. Under the bands, about what an idea costs with the party (ideas.party_price: spec 43 C, asked when
 // the picker opens and 300 ms after a seat or Every idea changes), and its hints (spec 43 E: at most two plain lines). Then the checkers' checks: where each applies or on every idea,
-// and what a check adds to an idea.
+// and what a check adds to an idea. Above the bands, Your parties (spec 43 F): the parties the person saved from a goal, each a chip
+// that fills the seats, with a mark to remove it; on a goal's screen, Save this party (`SaveParty`).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { toast } from "../link.js";
 import { ask } from "../board/store.js";
 import { roles } from "./store.js";
-import { Head, Icon, RACE_WORDS, TIER_WORDS } from "../orkui.js";
+import { Head, Icon, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
 
 export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["design", "elf", "Screens, flows and words on them"],
   ["data", "goblin", "Numbers, queries and reports"], ["marketing", "gnome", "Pages, posts and search"],
@@ -22,12 +23,19 @@ export const TASKMASTER = "taskmaster";
 const library = () => roles.value?.library || [];
 const seatsOf = () => roles.value?.seats || { lead: 1, build: 3, check: 2 };
 export const agentOf = (id) => library().find((a) => a.id === id);
-/** The agents in a band: the leader alone in Leads; the team's builders or checkers. */
-export const inBand = (band, leader, team) => (band === "lead" ? [leader] : team.filter((id) => agentOf(id)?.band === band));
+/** The agents in a band: the leader alone in Leads; the team's builders or checkers (an agent of the person's own, not the library's, builds). */
+export const inBand = (band, leader, team) => (band === "lead" ? [leader] : team.filter((id) => (agentOf(id)?.band || "build") === band));
+/** An agent's name: the library's, else the project's own role's, else its slug said as a name (a party's agent this project has not yet). */
+const nameOf = (id) => agentOf(id)?.name || (roles.value?.roles || []).find((r) => r.slug === id)?.name || id.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase());
+/** An agent of the person's own in the team: the library does not know it; drawn as a builder's row. */
+const ownAgent = (id) => {
+  const r = (roles.value?.roles || []).find((x) => x.slug === id);
+  return { id, name: nameOf(id), band: "build", craft: r?.craft || r?.head?.craft || "engineering", tier: r?.head?.tier || "laborer", line: "one of your own agents" };
+};
 /** The party in words: "led by Growth · builds: Copywriter, SEO · checks: Editor". */
 export function partyWords(leader, team) {
-  const names = (b) => inBand(b, leader, team).map((id) => agentOf(id)?.name).filter(Boolean).join(", ") || "none";
-  return `led by ${agentOf(leader)?.name || "Taskmaster"} · builds: ${names("build")} · checks: ${names("check")}`;
+  const names = (b) => inBand(b, leader, team).map(nameOf).join(", ") || "none";
+  return `led by ${nameOf(leader)} · builds: ${names("build")} · checks: ${names("check")}`;
 }
 
 export const PRICE_MS = 300;
@@ -83,11 +91,12 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
     <span class="shell-team-mark" aria-hidden="true"><${Icon} name=${on(a) ? "check" : "plus"} /></span></button>`;
   return BANDS.map(([id, words, what]) => {
     const taken = inBand(id, leader, team);
-    const list = library().filter((a) => a.band === id).sort((x, y) => (x.craft === craft ? 0 : 1) - (y.craft === craft ? 0 : 1));
+    const list = [...library().filter((a) => a.band === id), ...(id === "build" ? team.filter((x) => !agentOf(x)).map(ownAgent) : [])]
+      .sort((x, y) => (x.craft === craft ? 0 : 1) - (y.craft === craft ? 0 : 1));
     return html`<section key=${id} class=${`shell-party-band band-${id}`} aria-label=${words}>
       <div class="shell-band-head"><h3>${words}</h3><small class="ok-tone-muted">${taken.length} of ${seats[id]} · ${what}</small></div>
       <div class="shell-team-seats">${Array.from({ length: seats[id] }, (_, i) => {
-        const a = agentOf(taken[i]);
+        const a = agentOf(taken[i]) || (taken[i] ? ownAgent(taken[i]) : null);
         return html`<span key=${i} class=${`shell-team-seat${a ? "" : " is-empty"}${id === "lead" ? " is-lead" : ""}`} title=${a?.name || "A free seat"}>${a && html`<${Head} race=${RACE[a.craft]} tier=${a.tier} />`}</span>`;
       })}</div>
       <div class="shell-team-list">${list.map(row)}</div></section>`;
@@ -106,4 +115,60 @@ export function ChecksBlock({ team, every, setEvery, price = null }) {
       <span><b>${a.name}</b> <small class="ok-tone-muted">${a.check.done} · applies ${a.check.applies}${adds(a)}</small></span>
       <label class="shell-check-every"><input type="checkbox" aria-label=${`Every idea: ${a.name}`} checked=${every.includes(a.id)}
         onChange=${(e) => setEvery(e.target.checked ? [...every, a.id] : every.filter((x) => x !== a.id))} /> Every idea</label></div>`)}</div>`;
+}
+
+/** The person's parties (ideas.parties), read when `on` (the picker is shown); `reload()` reads them again. */
+export function useOwnParties(on) {
+  const [parties, setParties] = useState([]);
+  const load = () => ask("ideas.parties", {}).then((got) => { if (got) setParties(got.parties || []); });
+  useEffect(() => { if (on) load(); }, [on]);
+  return [parties, load];
+}
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/** *3 goals in 2 projects · 2 met*; nothing for a party not used yet. */
+export const recordWords = (p) => (p.goals ? `${plural(p.goals, "goal", "goals")} in ${plural(p.projects, "project", "projects")}${p.met ? ` · ${p.met} met` : ""}` : "");
+
+/** *Your parties*, above the bands (spec 43 §6.3): each a chip with its members' small heads, its name and its record; a tap fills the seats
+ *  (`onPick(party)`), the mark removes it after asking. Nothing when the person has none. */
+export function OwnParties({ parties, picked = "", onPick, reload }) {
+  if (!parties.length) return null;
+  const headOf = (id, p) => { const a = agentOf(id); return { race: RACE[a?.craft || p.craft], tier: a?.tier || "laborer" }; };
+  const remove = async (p) => {
+    if (!confirm(`Remove your party “${p.name}”? Goals that use it keep their agents.`)) return;
+    if (await ask("ideas.party_drop", { id: p.id })) reload();
+  };
+  return html`<section class="shell-own" aria-label="Your parties"><h3 class="shell-own__title">Your parties</h3>
+    <div class="shell-own__list">${parties.map((p) => html`<div key=${p.id} class="shell-own__chip" data-party=${p.id}>
+      <button type="button" class="shell-own__pick" aria-pressed=${String(p.id === picked)} aria-label=${`Pick your party “${p.name}”`} onClick=${() => onPick(p)}>
+        <span class="shell-own__heads">${[p.leader, ...p.team].filter((id) => id !== TASKMASTER).map((id) => html`<${Head} key=${id} ...${headOf(id, p)} small=${true} />`)}</span>
+        <b>${p.name}</b>${recordWords(p) && html` <small class="ok-tone-muted">${recordWords(p)}</small>`}</button>
+      <button type="button" class="ork-btn quiet shell-own__x" aria-label=${`Remove your party “${p.name}”`} onClick=${() => remove(p)}><${Icon} name="close" /></button></div>`)}</div></section>`;
+}
+
+/** *Save this party*, quiet, under a goal's Team (spec 43 §6.3): asks a name (filled with *Engineering party*), saves the goal's party among the
+ *  person's, and says where to pick it. A taken name asks *Replace your party “…”?* first. */
+export function SaveParty({ goal }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const show = () => { setName(`${CRAFT_WORDS[goal.craft] || "Your"} party`); setOpen(true); };
+  const save = async (e) => {
+    e.preventDefault();
+    const typed = name.trim().replace(/\s+/g, " ");
+    if (!typed || busy) return;
+    setBusy(true);
+    const mine = (await ask("ideas.parties", {}))?.parties || [];
+    const taken = mine.find((p) => p.name.toLowerCase() === typed.toLowerCase());
+    const go = !taken || confirm(`Replace your party “${taken.name}”?`);
+    const got = go ? await ask("ideas.party_save", { goal: goal.slug, name: typed, ...(taken ? { replace: true } : {}) }) : null;
+    setBusy(false);
+    if (!got) return;
+    setOpen(false);
+    toast("Saved: pick it for a goal in any project.");
+  };
+  if (!open) return html`<button type="button" class="ork-btn quiet shell-party-save" onClick=${show}>Save this party</button>`;
+  return html`<form class="shell-party-save-form" aria-label="Save this party" onSubmit=${save}>
+    <input class="ork-field" aria-label="Name of your party" value=${name} maxlength="40" autofocus onInput=${(e) => setName(e.target.value)} />
+    <button type="submit" class="ork-btn primary" disabled=${!name.trim() || busy}>Save</button>
+    <button type="button" class="ork-btn" onClick=${() => setOpen(false)}>Cancel</button></form>`;
 }

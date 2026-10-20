@@ -281,13 +281,15 @@ def set_kind(state_dir: Path, kind: str, slug: str) -> None:
         _save_kinds(state_dir, {**kinds(state_dir), kind: slug})
 
 
-def install(state_dir: Path, slug: str, name: str, model: str, craft: str, instruction: str, takes: tuple[str, ...]) -> None:
-    """A role from the library (realm/library.py), its slug given: written once, never over one that is there."""
+def install(state_dir: Path, slug: str, name: str, model: str, craft: str, instruction: str, takes: tuple[str, ...],
+            max_parallel: int = 2) -> None:
+    """A role from the library (realm/library.py) or from a saved party of the person's (realm/own_parties.py), its slug given:
+    written once, never over one that is there."""
     with LOCK:
         if role(state_dir, slug) is not None or slug in BUILTIN:
             return
-        _write(state_dir, {"slug": slug, "name": name, "model": model, "max_parallel": 2, "instruction": instruction,
-                           "craft": craft, "takes": [k for k in takes if k in TASK_KINDS]})
+        _write(state_dir, {"slug": slug, "name": name, "model": model, "max_parallel": min(max(int(max_parallel), MAX_PARALLEL[0]), MAX_PARALLEL[1]),
+                           "instruction": instruction, "craft": craft, "takes": [k for k in takes if k in TASK_KINDS]})
 
 
 def takes_of(r: dict, kinds_: dict[str, str]) -> set[str]:

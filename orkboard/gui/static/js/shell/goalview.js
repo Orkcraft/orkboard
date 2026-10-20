@@ -11,6 +11,7 @@ import { WhoHead } from "../orkui.js";
 import { openDialog } from "./modals.js";
 import { ErrorLine } from "./errors.js";
 import { Questions } from "../board/ask.js";
+import { SaveParty } from "./party.js";
 
 export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks you", ready: "ready", raw: "" };
 const STATUS_TONE = { met: "ok-tone-ok", "not met": "ok-tone-error", unknown: "ok-tone-muted" };
@@ -39,7 +40,7 @@ export function GoalView() {
         const check = (roles.value?.library || []).find((a) => a.id === s)?.check;
         return html`<li key=${s}>${r?.head && html`<${WhoHead} head=${r.head} small />`} <b>${r?.name || s}</b>
           ${check && html` <span class="ok-tone-muted">· checks ${(g.every || []).includes(s) ? "every idea" : check.applies}</span>`}</li>`;
-      })}</ul></section>`}
+      })}</ul><${SaveParty} goal=${g} /></section>`}
     <section class="shell-goal__sec" aria-label="What the party did"><${PartyFold} slug=${g.slug} /></section>
     <section class="shell-goal__sec" aria-label="Summary"><h3 class="board-sub">Summary ${g.title_by === "keeper" && html`<span class="ok-tone-muted">· title by the Taskmaster</span>`}</h3>
       <p class="shell-brief">${g.summary || html`<span class="ok-tone-muted">${g.state === "reading" ? `${lead} is reading the goal…` : "Not written yet."}</span>`}</p></section>

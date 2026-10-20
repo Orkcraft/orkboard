@@ -48,6 +48,7 @@ class Stub:
         self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
         self.price_hints = []
         self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
+        self.own_parties: list[dict] = []                                             # ideas.parties (spec 43 F)
         self.calls: list[tuple[str, dict]] = []
         self.into, self.push = "dev", False
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
@@ -133,7 +134,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer", "parties", "party_save", "party_drop")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -300,6 +301,23 @@ class Stub:
         if name == "ideas.start_now":
             self.ideas[a["slug"]].update(state="working", start_at="")
             return self.bump({"ok": True})
+        if name == "ideas.parties":                                                # spec 43 F: the person's parties
+            return {"parties": copy.deepcopy(self.own_parties)}
+        if name == "ideas.party_save":
+            g = self.goals[a["goal"]]
+            taken = next((p for p in self.own_parties if p["name"].lower() == a["name"].lower()), None)
+            if taken and not a.get("replace"):
+                return {"error": f"You have a party named “{taken['name']}”"}
+            keep = {"name": a["name"], "craft": g.get("craft", "engineering"), "leader": (g.get("leader") or {}).get("slug", "taskmaster"),
+                    "team": list(g.get("team", [])), "every": list(g.get("every", [])), "own": [], "goals": 0, "projects": 0, "met": 0, "saved": "2026-10-20T10:00:00"}
+            if taken:
+                taken.update(keep)
+                return {"id": taken["id"]}
+            self.own_parties.append({"id": f"p-{len(self.own_parties) + 1}", **keep})
+            return {"id": self.own_parties[-1]["id"]}
+        if name == "ideas.party_drop":
+            self.own_parties = [p for p in self.own_parties if p["id"] != a["id"]]
+            return {"ok": True}
         if name == "ideas.party_answer":
             self.extra_needs = [n for n in self.extra_needs if n.get("goal") != a["goal"] or n["kind"] != "party"]
             return self.bump({"ok": True})

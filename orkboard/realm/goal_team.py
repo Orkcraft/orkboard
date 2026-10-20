@@ -11,6 +11,8 @@ every team and is never in the list.
 A goal's party (library.SEATS): one leader — the goal's steps (its reading, its ideas' drafts, answers and plans, and
 accepting the goal) run as it; the Taskmaster when none is picked —, at most three builders and two checkers (the team).
 
+    party_of(root, "ship")                                      # the id of the person's saved party it was picked from, "" if none
+
     leader_of(root, "ship")                                     # "product-manager"; "taskmaster" when none was picked
     seats(team, leader)                                         # the error of a party that has too many in a band, else ""
 
@@ -64,17 +66,30 @@ def leader_of(root: Path, slug: str) -> str:
     return (page.get("leader") if page is not None else "") or "taskmaster"
 
 
-def set_team(root: Path, slug: str, team: list[str], every: list[str] | None = None, leader: str | None = None) -> None:
+def set_team(root: Path, slug: str, team: list[str], every: list[str] | None = None, leader: str | None = None,
+             party: str | None = None) -> None:
+    """The goal's party kept. `party`: the id of the person's saved party (realm/own_parties.py) it was picked from, kept on
+    the page; a party that comes out different from the goal's (and `party` not given) is no longer that one: the id goes."""
     with ideas.LOCK:
         page = ideas.track_page(root, slug)
         if page is None:
             raise ValueError(f"No goal {slug!r}")
         kept = clean(team)
+        was = (page.get("team"), page.get("team_every"), page.get("leader") or "")
         page.set("team", json.dumps(kept))
         page.set("team_every", json.dumps([s for s in clean(every or []) if s in kept]))
         if leader is not None:
             page.set("leader", leader if leader != "taskmaster" else "")
+        if party is not None:
+            page.set("party", party)
+        elif page.get("party") and was != (page.get("team"), page.get("team_every"), page.get("leader") or ""):
+            page.set("party", "")
         ideas._write(Path(root) / ideas.TRACKS / f"{slug}.md", page.text())
+
+
+def party_of(root: Path, slug: str) -> str:
+    page = ideas.track_page(root, slug)
+    return (page.get("party") if page is not None else "") or ""
 
 
 def team_of(root: Path, slug: str) -> list[str]:

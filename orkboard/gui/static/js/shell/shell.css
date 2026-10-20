@@ -354,6 +354,20 @@
 .shell-check-badge { margin-left: var(--ork-2); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
 .shell-party-price { margin: var(--ork-4) 0 0; overflow-wrap: anywhere; }
 .shell-party-hint { margin: var(--ork-2) 0 0; overflow-wrap: anywhere; }
+/* Your parties (party.js `OwnParties`, `SaveParty`): chips above the bands, and the quiet button under a goal's Team. */
+.shell-own { display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-3) 0; }
+.shell-own__title { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.shell-own__list { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+.shell-own__chip { display: inline-flex; align-items: center; max-width: 100%; border: var(--ork-line) solid var(--ork-edge); }
+.shell-own__pick { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2) var(--ork-3);
+  padding: var(--ork-3) var(--ork-4); min-width: 0; overflow-wrap: anywhere; }
+.shell-own__pick:hover { background: var(--ork-raised); }
+.shell-own__pick:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.shell-own__pick[aria-pressed="true"] { background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.shell-own__heads { display: inline-flex; gap: var(--ork-2); }
+.shell-party-save { margin-top: var(--ork-3); }
+.shell-party-save-form { display: flex; flex-wrap: wrap; gap: var(--ork-3); align-items: center; margin-top: var(--ork-3); }
+.shell-party-save-form .ork-field { flex: 1 1 12rem; min-width: 0; }
 .shell-checks { display: flex; flex-direction: column; gap: var(--ork-3); margin-top: var(--ork-4); }
 .shell-check-row { display: grid; grid-template-columns: 12px 1fr auto; gap: var(--ork-3); align-items: center; }
 .shell-check-every { display: inline-flex; align-items: center; gap: var(--ork-2); white-space: nowrap; }

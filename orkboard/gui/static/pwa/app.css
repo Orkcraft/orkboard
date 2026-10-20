@@ -498,6 +498,19 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .party-checks .checks-block { align-self: stretch; }
 .party-price { margin: 0; overflow-wrap: anywhere; }
 .party-hints { display: grid; gap: var(--ork-2); }
+/* Your parties (shell-goal-new.js `makeParty`, shell-goal.js `saveParty`): chips above the team's folds, and the quiet button under a goal's Team. */
+.own-parties { align-self: stretch; display: flex; flex-direction: column; gap: var(--ork-3); }
+.own-parties[hidden] { display: none; }
+.own-parties h3 { margin: 0; }
+.own-list { display: flex; flex-direction: column; gap: var(--ork-3); }
+.own-chip { display: flex; align-items: center; border: var(--ork-line) solid var(--ork-edge); }
+.own-pick { all: unset; box-sizing: border-box; cursor: pointer; flex: 1; min-width: 0; min-height: var(--ork-tap); display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--ork-2) var(--ork-3); padding: var(--ork-3) var(--ork-4); overflow-wrap: anywhere; }
+.own-pick:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.own-pick[aria-pressed="true"] { background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.own-heads { display: inline-flex; gap: var(--ork-2); }
+.own-x { min-width: var(--ork-tap); min-height: var(--ork-tap); }
+.party-save-form { display: flex; flex-direction: column; gap: var(--ork-3); align-self: stretch; }
 .party-hints p { margin: 0; overflow-wrap: anywhere; }
 .new-goal-craft { align-items: stretch; }
 .answer .recommended { display: block; font: var(--ork-type-caption); }

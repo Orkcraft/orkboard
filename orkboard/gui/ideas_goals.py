@@ -13,7 +13,7 @@ from typing import Any
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, party_proposals, roles
+from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, own_parties, party_proposals, roles
 
 
 DOC_CHARS = 100_000
@@ -77,11 +77,14 @@ class GoalsMixin:
         return {"ok": True}
 
     def goal_save(self, args: dict) -> dict:
-        """`{"slug"?, "about", "priority", "title"?, "craft"?, "team"?, "every"?, "leader"?}`: a party (realm/goal_team.py:
+        """`{"slug"?, "about", "priority", "title"?, "craft"?, "team"?, "every"?, "leader"?, "party"?}`: a party (realm/goal_team.py:
         a leader, builders and checkers in their seats); its agents of the library are made
         roles of the project (realm/library.py), the person's own agents taken as they are; `every`: the team's checkers
         whose check applies to every idea, not only where it applies (realm/idea_checks.py): a title typed is the person's (never rewritten); spec 34's
-        metrics, links and deadline are still taken and kept when given."""
+        metrics, links and deadline are still taken and kept when given. `party`: the id of one of the person's saved
+        parties (realm/own_parties.py) the seats were picked from: its own agents the project has not are made roles of it (a role of
+        that slug the project has stays as it is, and `notes` says so), the use is recorded and the id kept on the goal's page; a goal
+        whose party is changed afterwards, with no `party`, loses it (realm/goal_team.py)."""
         slug = _opt(args, "slug") or None
         about = args.get("about", None if slug else "")          # a goal that exists keeps what is left out (spec 41 §7)
         title = args.get("title", "")
@@ -92,6 +95,17 @@ class GoalsMixin:
         if metrics is not None and not isinstance(metrics, list) or links is not None and not isinstance(links, list):
             raise IdeasError("Metrics and links are lists")
         deadline = args.get("deadline") if isinstance(args.get("deadline"), str) else None
+        pid, notes = "", []
+        if isinstance(args.get("party"), str) and args["party"].strip():
+            saved = own_parties.get(args["party"].strip())
+            if saved is None:
+                raise IdeasError("That party is gone")
+            pid = saved["id"]
+            args = {**args, **{k: saved[k] for k in ("team", "every") if args.get(k) is None}}
+            if args.get("leader") is None and saved["leader"] != roles.TASKMASTER:
+                args["leader"] = saved["leader"]
+            _made, kept = own_parties.install(self.state_dir, saved["own"], [*(args.get("team") or []), args.get("leader") or ""])
+            notes = [f"{n} is this project's already: kept as it is" for n in kept]
         team = None
         if args.get("team") is not None:
             try:
@@ -112,18 +126,20 @@ class GoalsMixin:
         if team is not None:
             library.install(self.state_dir, [s for s in team if library.get(s) is not None])
             every = args.get("every") if isinstance(args.get("every"), list) else []
-            goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)], leader)
+            goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)], leader, pid or None)
         elif leader is not None:
-            goal_team.set_team(self.root(), got, goal_team.team_of(self.root(), got), goal_team.every_of(self.root(), got), leader)
+            goal_team.set_team(self.root(), got, goal_team.team_of(self.root(), got), goal_team.every_of(self.root(), got), leader, pid or None)
         if leader:
             library.install(self.state_dir, [leader])
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
-                 priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER)
+                 priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER, party=g["party"])
+        if pid and g["party"] == pid:
+            own_parties.used(pid, own_parties.project_id(self.host.repo_root), Path(self.host.repo_root).name, got)
         if new or before is None or _what_it_says(before) != _what_it_says(g):
             self._read_goal(got)                      # a save of its party alone reads nothing again (spec 41 §7)
         self.changed(f"goal:{got}")
-        return {"slug": got}
+        return {"slug": got, **({"notes": notes} if notes else {})}
 
     def _read_goal(self, slug: str, said: str = "") -> None:
         """The keeper reads the goal at once, in the background; a keeper that may not run (the demo, the spend limit)

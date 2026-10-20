@@ -66,3 +66,13 @@ def test_party_price_with_no_arguments_is_the_taskmaster_alone_and_a_bad_team_is
         host.command("ideas.party_price", {"team": ["reviewer", "editor", "security-reviewer"]})
     with pytest.raises(CommandError, match="A team is a list"):
         host.command("ideas.party_price", {"team": "reviewer"})
+
+
+def test_the_persons_parties_are_the_hosts_and_a_phones(host):
+    from orkboard.realm import own_parties
+    for name in ("ideas.parties", "ideas.party_save", "ideas.party_drop"):
+        assert BoardPhone.allowed(Orkboard(), name, {})
+    pid = own_parties.save("Lean web", "engineering", "taskmaster", ["grunt"], [], [])
+    got = host.command("ideas.parties", {})
+    json.dumps(got)
+    assert [(p["id"], p["name"], p["goals"]) for p in got["parties"]] == [(pid, "Lean web", 0)]

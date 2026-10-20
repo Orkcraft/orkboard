@@ -1,12 +1,13 @@
 """A goal's party measured (docs/specs/43-party-measured.md) as `gui/ideas.py`'s `Ideas` has it: `ideas.party`, what the
 party did (realm/party_work.py), and `ideas.party_price`, about what a party costs an idea (realm/party_price.py). `ideas.party_answer`
-takes or keeps the night's proposal to take a checker out of a party (realm/party_proposals.py); F adds its commands here. Split from ideas.py to
+takes or keeps the night's proposal to take a checker out of a party (realm/party_proposals.py); `ideas.parties`, `ideas.party_save` and
+`ideas.party_drop` are the person's own parties (F: realm/own_parties.py). Split from ideas.py to
 keep it under ~600 lines.
 """
 from __future__ import annotations
 
 from orkboard.gui.ideas_args import IdeasError, _text
-from orkboard.realm import event_log, goal_team, ideas, party_hints, party_price, party_proposals, party_work, roles
+from orkboard.realm import event_log, goal_team, ideas, own_parties, party_hints, party_price, party_proposals, party_work, roles
 
 
 class PartyMixin:
@@ -52,4 +53,42 @@ class PartyMixin:
         party_proposals.remove(self.state_dir, goal)
         self._ev(event_log.PARTY_ANSWERED, args, goal=goal, by=by, take=take, has_reason=bool(reason.strip()))
         self.changed(f"goal:{goal}")
+        return {"ok": True}
+
+    def parties(self, args: dict) -> dict:
+        """`{}`: the person's parties (spec 43 §6.2), for the pickers: each with its seats, the names of its own agents and its
+        record (`goals`, `projects`, `met`)."""
+        return {"parties": [{"id": p["id"], "name": p["name"], "craft": p["craft"], "leader": p["leader"], "team": p["team"],
+                             "every": p["every"], "own": [o["name"] for o in p["own"]], **own_parties.counts(p), "saved": p["saved"]}
+                            for p in own_parties.list()]}
+
+    def party_save(self, args: dict) -> dict:
+        """`{"goal", "name", "replace"?}`: the goal's party as it is now, kept among the person's (a taken name is refused unless
+        `replace`); the agents of its own that are not the library's go with it."""
+        goal = _text(args, "goal", 100)
+        root = self.root(False)
+        g = next((t for t in ideas.tracks(root, make=False) if t["slug"] == goal), None)
+        if g is None:
+            raise IdeasError("That goal is gone")
+        leader = g["leader"] or roles.TASKMASTER
+        own = own_parties.carry(self.state_dir, leader, g["team"])
+        replace = args.get("replace") is True
+        before = {p["name"].lower() for p in own_parties.list()}
+        name = _text(args, "name", 200)
+        try:
+            pid = own_parties.save(name, g["craft"], leader, g["team"], g["every"], own, replace)
+        except ValueError as e:
+            raise IdeasError(str(e)) from None
+        self._ev(event_log.PARTY_SAVED, args, party=pid, members=len(g["team"]) + (leader != roles.TASKMASTER), own=len(own),
+                 replaced=" ".join(name.split()).lower() in before)
+        return {"id": pid}
+
+    def party_drop(self, args: dict) -> dict:
+        """`{"id"}`: a party of the person's removed; the goals that used it keep their agents."""
+        pid = _text(args, "id", 60)
+        try:
+            own_parties.drop(pid)
+        except ValueError as e:
+            raise IdeasError(str(e)) from None
+        self._ev(event_log.PARTY_DROPPED, args, party=pid)
         return {"ok": True}

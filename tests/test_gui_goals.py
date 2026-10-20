@@ -350,3 +350,12 @@ def test_a_goals_question_comes_with_its_answer_picked_and_may_be_left_to_the_ta
     assert "— brew" in said and "Which week? (this / **next**) — next" in said and "Bad choices? — (no answer: decide)" in said
     got = _events(host, "goal_answered")[-1]
     assert got["decided"] is True and got["answers"] == 2 and got["recommended"] == 0
+
+
+def test_a_goal_row_says_the_saved_party_it_was_picked_from_and_goal_saved_logs_it(host, model):
+    from orkboard.realm import own_parties
+    pid = own_parties.save("Lean web", "engineering", "taskmaster", ["reviewer"], [], [])
+    slug = host.command("ideas.goal_save", {"about": "Ship it.", "team": ["reviewer"], "party": pid})["slug"]
+    assert next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == slug)["party"] == pid
+    assert host.command("ideas.goal", {"slug": slug})["party"] == pid
+    assert [e for e in event_log.read(Path(host.repo_root)) if e["event"] == "goal_saved"][-1]["party"] == pid
