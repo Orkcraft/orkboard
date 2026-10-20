@@ -134,10 +134,23 @@ async def test_the_first_look_of_a_new_week_shows_last_weeks_card_then_the_recap
         assert await page.get_by_label("While you were away").count() == 0                          # the week's card first
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "phone"})
         assert await page.evaluate(NO_SCROLL)
+        recap_logs = lambda: [c for c in stub.calls if c[0] == "ideas.log" and c[1].get("what") == "recap"]   # noqa: E731
         await card.get_by_role("button", name="Close").click()
         await page.get_by_label("While you were away").wait_for(timeout=WAIT_MS)                    # then the recap's
+        assert await _called(stub, "ideas.log", {"event": "opened", "what": "recap", "ref": "9h", "device": "phone"})
+        await page.wait_for_timeout(1500)
+        assert len(recap_logs()) == 1                                                               # once, whichever card came first
         assert json.loads(await page.evaluate(f"JSON.stringify(localStorage.getItem({json.dumps('orkboard.week.' + fake_repo.name)}))")) == _iso(7)
         await page.get_by_label("While you were away").get_by_role("button", name="Close").click()
+
+
+@pytest.mark.asyncio
+async def test_the_week_ideas_week_answered_is_the_one_kept_so_its_card_shows_once(fake_repo, monkeypatch):
+    LASTS["week"] = "2026-W41"                                      # the host's idea of last week is not this phone's
+    async with _phone(fake_repo, monkeypatch, init=_seed(fake_repo, "2026-W41")) as (stub, page):
+        await page.wait_for_function(f"localStorage.getItem({json.dumps('orkboard.week.' + fake_repo.name)}) === '2026-W41'", timeout=WAIT_MS)
+        await page.wait_for_timeout(400)
+        assert [c for c in stub.calls if c[0] == "ideas.week"] and await page.get_by_label("Last week").count() == 0
 
 
 @pytest.mark.asyncio

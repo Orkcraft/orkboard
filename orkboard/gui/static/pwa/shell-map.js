@@ -82,6 +82,7 @@ export function makeMap(core, goalSheet) {
     try { localStorage.setItem(flagsKey(), JSON.stringify([...new Set([...(raisedList() || []), ...slugs])])); } catch { /* raised again next time */ }
   };
   let watch = null;                                      // the one trail on screen waits to raise its flag
+  let unwatch = null;                                    // takes its observer and its listener away
 
   /** A phone with no list adds every met goal without raising any (the first start after this part). */
   function seedRaised(goals) {
@@ -91,26 +92,31 @@ export function makeMap(core, goalSheet) {
   /** The chosen goal's flag is raised once, when its trail is on screen (this tab shown, the page visible): six steps up from the foot
    *  of its box (not under reduced motion); the slug is kept and `opened` `flag` is logged. */
   function raiseWhenSeen(goal, end) {
-    watch?.disconnect();
-    watch = null;
+    unwatch?.();                                         // the section is drawn again and again: the last one's listener goes first
     const list = goal.verdict?.met ? raisedList() : null;
     if (!list || list.includes(goal.slug)) return;
-    let done = false;
+    let done = false, inView = false;                    // whether the observer last saw the trail on screen
     const raise = () => {
-      if (done || document.visibilityState !== "visible") return;
+      if (done || !inView || document.visibilityState !== "visible") return;
       done = true;
-      watch?.disconnect();
-      document.removeEventListener("visibilitychange", raise);
+      unwatch?.();
       keepRaised([goal.slug]);
       core.call("ideas.log", { event: "opened", what: "flag", ref: goal.slug, device: "phone" });
       const mark = end.querySelector(".trail-flag");
       if (mark && !reducedMotion()) { mark.classList.add("is-raising"); setTimeout(() => mark.classList.remove("is-raising"), 700); }
     };
     document.addEventListener("visibilitychange", raise);
+    unwatch = () => {
+      done = true;
+      watch?.disconnect();
+      watch = null;
+      document.removeEventListener("visibilitychange", raise);
+      unwatch = null;
+    };
     if (typeof IntersectionObserver === "function") {
-      watch = new IntersectionObserver((seen) => { if (seen.some((e) => e.isIntersecting)) raise(); });
+      watch = new IntersectionObserver((seen) => { inView = seen[seen.length - 1].isIntersecting; raise(); });
       watch.observe(end);
-    } else raise();
+    } else { inView = true; raise(); }
   }
 
   let flagsAt = null;                                    // {rev, list}: the flags as `ideas.flags` gave them for this Map

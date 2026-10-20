@@ -125,13 +125,27 @@ def test_the_first_look_of_a_new_week_shows_last_weeks_card_with_its_lines_then_
     assert pg.get_by_label("While you were away").count() == 0                                         # the week's card comes first
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "desktop"}))
     assert json.loads(pg.evaluate(f"JSON.stringify(localStorage.getItem({json.dumps(WEEK_KEY)}))")) == _iso(7)
+    recap_logs = lambda: [a for n, a in host.log if n == "ideas.log" and a.get("what") == "recap"]   # noqa: E731
+    assert recap_logs() == []                                                                          # it waits behind Last week's card: not opened yet
     card.get_by_role("button", name="Close").click()
     pg.get_by_label("While you were away").wait_for(timeout=WAIT_MS)                                   # then the recap's
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "recap", "ref": "9h", "device": "desktop"})) and len(recap_logs()) == 1
     pg.get_by_label("While you were away").get_by_role("button", name="Close").click()
     pg.reload()
     pg.locator(".map-card").first.wait_for(timeout=WAIT_MS)
     pg.wait_for_timeout(400)
     assert pg.get_by_label("Last week").count() == 0 and len([n for n, _a in host.log if n == "ideas.week"]) == 1
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_the_week_ideas_week_answered_is_the_one_kept_so_its_card_shows_once(gui):
+    host = LastHost()
+    host.last = {**LAST, "week": "2026-W41"}                          # the host's idea of last week is not this device's
+    pg, host, errors = _open_map(gui, host, init=_seed("2026-W41"), ready=".map-card")
+    pg.wait_for_function(f"localStorage.getItem({json.dumps(WEEK_KEY)}) === '2026-W41'", timeout=WAIT_MS)
+    pg.wait_for_timeout(400)
+    assert [n for n, _a in host.log if n == "ideas.week"] == ["ideas.week"] and pg.get_by_label("Last week").count() == 0     # asked, kept, not shown
     pg.close()
     assert not errors, "\n".join(errors)
 

@@ -87,7 +87,8 @@ def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
     ops = idea_spend.between_file(Path(ops_base) / "spend.jsonl", since, now) if ops_base is not None else None
     merged, first = board_recap.merges(board_recap.events_between(root, since, now, event_log.TASK_STATE))
     kinds = [x["kind"] for x in nights(root, settings, now)]
-    tonight = sum(1 for i in rows.get("ideas") or [] if i.get("state") != "done" and (i.get("queue") == "night" or i.get("start_at") == "night"))
+    tonight = sum(1 for i in rows.get("ideas") or [] if (i.get("state") == "raw" and i.get("queue") == "night")
+                  or (i.get("state") == "plan" and i.get("start_at") == "night"))      # the night's own rule: a draft or a start still to come
     return {"usd": None if spent is None else round(spent, 2), "ops_usd": None if ops is None else round(ops, 2), "merged": merged,
             "first_time": first,
             "usd_per_merged": round(spent / merged, 2) if merged >= idea_spend.TOO_FEW and spent is not None else None,
@@ -177,7 +178,7 @@ def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
                "recommended": sum(board_recap._int(r.get("recommended")) for r in answered),
                "decided": sum(1 for r in answered if r.get("decided") is True)} if answered else None
 
-    kinds = [x["kind"] for x in nights(root, settings, min(now, until), 7)] if until > since else []
+    kinds = [x["kind"] for x in nights(root, settings, min(now, until), 7) if x["date"] >= monday.isoformat()] if until > since else []
     out = {"week": iso_week(monday), "from": monday.isoformat(), "to": (monday + dt.timedelta(days=6)).isoformat(), "into": into, **now_week,
            "before": {k: prior[k] for k in ("merged", "first_time", "usd_per_merged")} if prior["merged"] else None,
            "goals": goals, "flags": flags, "dearest": dearest, "fastest": fastest, "answers": answers,

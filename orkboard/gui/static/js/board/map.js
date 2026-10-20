@@ -135,9 +135,9 @@ function useRaise(g, ref) {
     const key = flagsKey();
     const list = key && met ? raisedList(key) : null;
     if (!list || list.includes(g.slug) || !ref.current) return undefined;
-    let io, timer, done = false;
+    let io, timer, done = false, inView = false;          // whether the observer last saw the trail on screen
     const raise = () => {
-      if (done || document.visibilityState !== "visible") return;
+      if (done || !inView || document.visibilityState !== "visible") return;
       done = true;
       io?.disconnect();
       keepRaised(key, [g.slug]);
@@ -145,9 +145,9 @@ function useRaise(g, ref) {
       if (!reducedMotion()) { setRaising(true); timer = setTimeout(() => setRaising(false), 700); }
     };
     if (typeof IntersectionObserver === "function") {
-      io = new IntersectionObserver((seen) => { if (seen.some((e) => e.isIntersecting)) raise(); });
+      io = new IntersectionObserver((seen) => { inView = seen[seen.length - 1].isIntersecting; raise(); });
       io.observe(ref.current);
-    } else raise();
+    } else { inView = true; raise(); }
     document.addEventListener("visibilitychange", raise);
     return () => { done = true; io?.disconnect(); clearTimeout(timer); document.removeEventListener("visibilitychange", raise); };
   }, [met, g.slug]);
