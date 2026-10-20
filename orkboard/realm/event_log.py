@@ -72,7 +72,7 @@ INTO_CHANGED = "into_changed"     # branch, push, device
 OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map · recap · flag · week · push · party), ref, via (map · board · needs · agents · review · recap · week · flags · push; old lines ""), device
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
-GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device
+GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device, party (the id of the saved party it was picked from, else "")
 GOAL_ACCEPTED = "goal_accepted"   # goal, met, by (its leader's name), and the call's measure
 GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took, tier, effort
 ROLE_SAVED = "role_saved"         # role, model, max_parallel, new, device, kinds (the types it takes), instruction_chars
@@ -114,6 +114,10 @@ OP_TRUST = "op_trust"             # template, alone, why (clean · edit · rules
 PARTY_PROPOSED = "party_proposed"   # goal, by (the checker's slug), runs
 PARTY_ANSWERED = "party_answered"   # goal, by, take, has_reason, device
 
+# Spec 43 §6: the person's own parties, saved from a goal and picked again in any project.
+PARTY_SAVED = "party_saved"       # party (its id), members, own (agents of the person's own it carries), replaced, device
+PARTY_DROPPED = "party_dropped"   # party, device
+
 # Spec 42 §3: notifications to a paired phone (counts and tags, never a word of the push).
 PUSH_SET = "push_set"             # on, device
 PUSH_SENT = "push_sent"           # tag, devices, gone
@@ -124,7 +128,7 @@ EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LE
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED)
+          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED)
 
 _LOCK = threading.Lock()
 

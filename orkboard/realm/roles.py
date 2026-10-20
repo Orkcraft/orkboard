@@ -290,6 +290,31 @@ def install(state_dir: Path, slug: str, name: str, model: str, craft: str, instr
                            "craft": craft, "takes": [k for k in takes if k in TASK_KINDS]})
 
 
+def install_own(state_dir: Path, own: dict) -> bool:
+    """An agent of the person's own that a saved party carries (realm/own_parties.py), made a role of this project with its slug: written
+    once, never over a role of that slug (the project's own stays as it is). True when it was written."""
+    slug = str(own.get("slug") or "")
+    name = " ".join(str(own.get("name") or "").split())[:NAME_CHARS]
+    if not re.fullmatch(r"[a-z0-9-]{1,60}", slug) or slug in BUILTIN or not name:
+        return False
+    with LOCK:
+        if _read(state_dir, slug) is not None:
+            return False
+        try:
+            model = _model(own.get("model"), slug, None)
+        except ValueError:
+            model = ""
+        try:
+            many = _clean_parallel(own.get("max_parallel") or 2)
+        except ValueError:
+            many = 2
+        craft = own.get("craft") if own.get("craft") in CRAFTS else DEFAULT_CRAFT
+        _write(state_dir, {"slug": slug, "name": name, "model": model, "max_parallel": many,
+                           "instruction": str(own.get("instruction") or "").replace("\r\n", "\n").strip()[:INSTRUCTION_CHARS],
+                           "craft": craft, "takes": [k for k in own.get("takes") or [] if k in TASK_KINDS]})
+    return True
+
+
 def takes_of(r: dict, kinds_: dict[str, str]) -> set[str]:
     """The kinds of work a role takes: its own (a library agent's `takes`) and the project's task types given to it."""
     return set(r.get("takes") or []) | {k for k, s in kinds_.items() if s == r.get("slug")}

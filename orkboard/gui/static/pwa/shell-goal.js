@@ -72,9 +72,10 @@ export function makeGoalSheet(core) {
   teamSave.addEventListener("click", async () => {
     const p = party.get();
     teamSave.disabled = true;
-    const got = await core.call("ideas.goal_save", { slug: teamOf, team: p.team, every: p.every, leader: p.leader });
+    const got = await core.call("ideas.goal_save", { slug: teamOf, team: p.team, every: p.every, leader: p.leader, ...(p.party ? { party: p.party } : {}) });
     teamSave.disabled = false;
     if (!got?.slug) return;
+    for (const note of got.notes || []) core.flash(note);
     teamSheet.close();
     core.refresh();
   });
@@ -84,7 +85,7 @@ export function makeGoalSheet(core) {
     /** Change the team of a goal (`g`: as `ideas.goal` sends it). */
     editTeam(g) {
       teamOf = g.slug;
-      party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [] }, () => g.craft || "");
+      party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [], party: g.party || "" }, () => g.craft || "");
       teamSheet.open();
     },
     open(which = "", after = null) {
@@ -177,6 +178,47 @@ export function partyFold(core, slug) {
   return el;
 }
 
+// What the person has half done in Save this party, kept apart from the DOM so a redraw puts it back (goal → {name, replace}).
+const naming = new Map();
+
+/** **Save this party**, under the Team: it asks a name (*Engineering party*), asks again before it replaces a party of that name, and says after
+ *  *Saved: pick it for a goal in any project.* */
+function savePartyEl(g, core) {
+  const wrap = h("div", { class: "party-save" });
+  const draw = () => {
+    const now = naming.get(g.slug);
+    if (!now) {
+      wrap.replaceChildren(h("button", { class: "linkish", type: "button", onclick: () => { naming.set(g.slug, { name: `${CRAFT_WORDS[g.craft] || "Engineering"} party`, replace: "" }); draw(); } }, "Save this party"));
+      return;
+    }
+    const send = async (replacing) => {
+      const name = now.name.trim().replace(/\s+/g, " ");
+      if (!replacing) {                                          // a taken name asks before it replaces
+        const have = await core.call("ideas.parties");
+        const hit = (have?.parties || []).find((p) => p.name.toLowerCase() === name.toLowerCase());
+        if (hit) { now.replace = hit.name; draw(); return; }
+      }
+      const got = await core.call("ideas.party_save", { goal: g.slug, name, ...(replacing ? { replace: true } : {}) });      // a refusal is flashed
+      if (got) { naming.delete(g.slug); core.flash("Saved: pick it for a goal in any project."); draw(); }
+    };
+    if (now.replace) {
+      wrap.replaceChildren(h("p", { class: "party-save-ask", role: "alert" }, `Replace your party “${now.replace}”?`,
+        h("button", { class: "ork-btn primary", type: "button", onclick: () => send(true) }, "Replace it"),
+        h("button", { class: "ork-btn", type: "button", onclick: () => { now.replace = ""; draw(); } }, "Cancel")));
+      return;
+    }
+    const field = h("input", { class: "ork-field", type: "text", "aria-label": "Name of your party", maxlength: "40" });
+    field.value = now.name;
+    const go = h("button", { class: "ork-btn primary", type: "submit", disabled: !now.name.trim() }, "Save");
+    field.addEventListener("input", () => { now.name = field.value; go.disabled = !field.value.trim(); });
+    const form = h("form", { class: "row party-save-form" }, field, go, h("button", { class: "ork-btn", type: "button", onclick: () => { naming.delete(g.slug); draw(); } }, "Cancel"));
+    form.addEventListener("submit", (e) => { e.preventDefault(); if (now.name.trim()) send(false); });
+    wrap.replaceChildren(form);
+  };
+  draw();
+  return wrap;
+}
+
 /** The goal's team in one line — the heads with their names — and Change (spec 41 §7). */
 function teamSec(g, core, sec) {
   const roles = core.st.roles?.roles || [];
@@ -188,7 +230,8 @@ function teamSec(g, core, sec) {
   };
   return sec("Team", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the team",
-      onclick: () => core.editTeam(g) }, "Change")));
+      onclick: () => core.editTeam(g) }, "Change")),
+    savePartyEl(g, core));
 }
 
 /** The goal's verdict: met or not, each metric's status and why, the next ideas (each added with a tap); and the button that

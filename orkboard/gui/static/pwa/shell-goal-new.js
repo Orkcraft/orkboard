@@ -26,8 +26,9 @@ const lcfirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 
 /** A goal's team and its checks: {team, checks, set({leader, team, every}), get() → {leader, team, every}, preset(craft)}. `team` is the line
  *  with Change and the three folds; `checks` the checks' line with Change and its list. */
-export function makeParty(core) {
+export function makeParty(core, opts = {}) {
   let leader = TASKMASTER, team = [], every = [];          // team: the builders and checkers
+  let owns = [], partyId = "", asking = "";                // your parties (spec 43 §6); `partyId`: the one whose seats these are, until a seat changes
   let editing = false, fold = "", checking = false;
   let price = null, priceTimer = 0;                        // `ideas.party_price`: asked when the picker opens, 300 ms after a seat or *Every idea* changes
   const teamEl = h("div", { class: "party" });
@@ -40,6 +41,40 @@ export function makeParty(core) {
   const inBand = (band) => (band === "lead" ? [leader] : team.filter((id) => bandOf(id) === band));
   const names = (band) => inBand(band).map(nameOf).join(", ") || "none";
   const draw = () => { drawTeam(); drawChecks(); };
+  async function loadOwns() {
+    const got = await core.call("ideas.parties");
+    if (got) { owns = got.parties || []; draw(); }
+  }
+  /** *3 goals in 2 projects · 2 met*: said only once a party has been used. */
+  const usedWords = (p) => (p.goals ? `${p.goals} ${p.goals === 1 ? "goal" : "goals"} in ${p.projects} ${p.projects === 1 ? "project" : "projects"} · ${p.met} met` : "");
+  /** **Your parties**, above the team when there is one: a chip each with its members' small heads, its name and where it was used. A tap fills the seats
+   *  (and the craft in New goal); its `close` mark removes it after asking. */
+  function ownRow() {
+    if (!owns.length) return null;
+    const drop = async (p) => {
+      const got = await core.call("ideas.party_drop", { id: p.id });
+      asking = "";
+      if (got) loadOwns(); else draw();
+    };
+    return h("section", { class: "own-parties", "aria-label": "Your parties" }, h("h3", {}, "Your parties"),
+      h("div", { class: "own-chips" }, ...owns.map((p) => h("div", { class: `own-chip${partyId === p.id ? " is-on" : ""}`, "data-party": p.id },
+        h("button", { class: "own-pick", type: "button", "aria-pressed": String(partyId === p.id), "aria-label": `Pick your party “${p.name}”`, onclick: () => pickOwn(p) },
+          h("span", { class: "own-heads" }, ...[p.leader, ...p.team].map(agent).filter((a) => a?.craft).map((a) => head(RACE[a.craft] || "peon", a.tier || "warrior", { small: true }))),
+          h("b", {}, p.name), usedWords(p) ? h("small", { class: "muted" }, usedWords(p)) : null),
+        h("button", { class: "own-close", type: "button", "aria-label": `Remove your party “${p.name}”`, onclick: () => { asking = p.id; draw(); } }, icon("close")),
+        asking === p.id ? h("p", { class: "own-ask", role: "alert" }, `Remove your party “${p.name}”? Goals that use it keep their agents.`,
+          h("button", { class: "ork-btn danger", type: "button", onclick: () => drop(p) }, "Remove it"),
+          h("button", { class: "ork-btn", type: "button", onclick: () => { asking = ""; draw(); } }, "Keep it")) : null))));
+  }
+  function pickOwn(p) {
+    leader = p.leader || TASKMASTER;
+    team = [...p.team];
+    every = [...p.every];
+    partyId = p.id;
+    if (p.craft && opts.onCraft) opts.onCraft(p.craft);
+    draw();
+    askPrice();
+  }
   const current = () => ({ leader, team: [...team], every: every.filter((id) => team.includes(id)) });
   function askPrice(now = false) {
     clearTimeout(priceTimer);
@@ -78,6 +113,7 @@ export function makeParty(core) {
         else if (on) team = team.filter((x) => x !== id);
         else if (inBand(band).length < seatsOf(core)[band]) team = [...team, id];
         else { core.flash(`${BANDS.find((b) => b[0] === band)[1]} has ${seatsOf(core)[band]} seats: take one out first.`); return; }
+        partyId = "";                                            // a seat changed: the party is then the person's own picking
         draw();
         askPrice();
       } }, head(kind, a.tier || "warrior"), h("b", {}, a.name, a.check ? h("span", { class: "check-badge" }, "checks") : null),
@@ -107,12 +143,12 @@ export function makeParty(core) {
   function drawTeam() {
     const line = h("p", { class: "party-line" }, h("b", {}, "Leads: "), names("lead"), " · ", h("b", {}, "Builds: "), names("build"), " · ", h("b", {}, "Checks: "), names("check"));
     if (!editing) {
-      teamEl.replaceChildren(h("h3", {}, "Team"), line, priceLine(),
+      teamEl.replaceChildren(h("h3", {}, "Team"), ownRow(), line, priceLine(),
         h("button", { class: "ork-btn", type: "button", "data-change": "team", onclick: () => { editing = true; fold = "lead"; draw(); } }, "Change"));
       return;
     }
     if (!fold) { editing = false; drawTeam(); return; }            // every fold closed by Done: back to the line
-    teamEl.replaceChildren(h("h3", {}, "Team"), ...BANDS.map(band), priceLine());
+    teamEl.replaceChildren(h("h3", {}, "Team"), ownRow(), ...BANDS.map(band), priceLine());
   }
 
   /** The craft the party was started from (the goal's craft sorts its agents first); set by the sheet. */
@@ -132,7 +168,7 @@ export function makeParty(core) {
       h("p", { class: "muted" }, `How deep each idea is worked: every check adds a line to its Done when and a task to its plan.`),
       ...checkers.map((a) => {
         const box = h("input", { type: "checkbox", "aria-label": `Every idea: ${a.name}`, ...(every.includes(a.id) ? { checked: true } : {}) });
-        box.addEventListener("change", () => { every = box.checked ? [...every, a.id] : every.filter((x) => x !== a.id); askPrice(); });
+        box.addEventListener("change", () => { every = box.checked ? [...every, a.id] : every.filter((x) => x !== a.id); partyId = ""; askPrice(); });
         return h("div", { class: "check-row" }, head(RACE[a.craft], a.tier, { small: true }),
           h("span", { class: "check-text" }, h("b", {}, a.name), h("small", { class: "muted" }, `${a.check.done} · applies ${a.check.applies}${addsWords(a.id)}`)),
           h("label", { class: "check-every" }, box, h("span", {}, "Every idea")));
@@ -148,10 +184,12 @@ export function makeParty(core) {
       leader = party.leader || TASKMASTER;
       team = [...(party.team || [])];
       every = [...(party.every || [])];
-      editing = false; fold = ""; checking = false; price = null;
+      editing = false; fold = ""; checking = false; price = null; asking = "";
+      partyId = party.party || "";
       craftNow = craft;
       draw();
       askPrice(true);                                      // the picker opens
+      loadOwns();
     },
     /** A craft's party in the seats at once. */
     preset(craft) {
@@ -159,10 +197,11 @@ export function makeParty(core) {
       leader = p.lead || TASKMASTER;
       team = [...p.build, ...p.check];
       every = [];
+      partyId = "";
       draw();
       askPrice();
     },
-    get: current,
+    get: () => ({ ...current(), party: partyId }),
     /** The crafts of the party's agents, for a Mixed goal's own craft. */
     crafts: () => [leader, ...team].filter((id) => id !== TASKMASTER).map((id) => agent(id)?.craft).filter(Boolean),
     names,
@@ -173,7 +212,7 @@ export function makeParty(core) {
 /** `core`: the board's frame. Returns {el, open(after)}; `after(slug)` instead of opening the goal's screen. */
 export function makeNewGoal(core) {
   let craft = "engineering", then = null;
-  const party = makeParty(core);
+  const party = makeParty(core, { onCraft: (c) => { craft = c; drawCraft(); } });
   const about = h("textarea", { class: "ork-field", rows: "4", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
   const priority = prioritySwitch("new-goal-priority");
   const row = h("div", { class: "craft-row", role: "group", "aria-label": "Craft" });
@@ -209,9 +248,11 @@ export function makeNewGoal(core) {
     if (!about.value.trim()) return;
     save.disabled = true;
     const p = party.get();
-    const got = await core.call("ideas.goal_save", { about: about.value.trim(), craft: craftOf(), leader: p.leader, team: p.team, every: p.every, priority: priority.get() });
+    const got = await core.call("ideas.goal_save", { about: about.value.trim(), craft: craftOf(), leader: p.leader, team: p.team, every: p.every, priority: priority.get(),
+      ...(p.party ? { party: p.party } : {}) });
     save.disabled = !about.value.trim();
     if (!got?.slug) return;
+    for (const note of got.notes || []) core.flash(note);       // an agent of the project's own that the party carries stays as it was
     const after = then;
     then = null;
     sh.close();

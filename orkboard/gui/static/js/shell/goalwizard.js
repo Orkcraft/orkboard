@@ -7,13 +7,13 @@
 // (realm/idea_checks.py).
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
-import { say } from "../link.js";
+import { say, toast } from "../link.js";
 import { track } from "../board/store.js";
 import { act, roles, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { Head, CRAFT_WORDS, RACE_WORDS } from "../orkui.js";
 import { PRIORITIES } from "./goaldialog.js";
-import { CRAFTS, TASKMASTER, PartyBands, PriceLine, ChecksBlock, agentOf, partyWords, usePartyPrice } from "./party.js";
+import { CRAFTS, TASKMASTER, PartyBands, PriceLine, ChecksBlock, OwnParties, agentOf, partyWords, usePartyPrice, useOwnParties } from "./party.js";
 
 const MIXED = "mixed";
 
@@ -27,12 +27,23 @@ export function GoalWizard({ then = "" }) {
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
   const [saving, setSaving] = useState(false);
+  const [partyId, setPartyId] = useState("");              // the saved party of the person's whose seats these are, until a seat changes
+  const [owns, loadOwns] = useOwnParties(step >= 2);
+  const seat = (set) => (v) => { set(v); setPartyId(""); };      // a seat changed afterwards: the party is then the person's own picking
+  const pickOwn = (p) => {
+    if (p.craft) setCraft(p.craft);
+    setLeader(p.leader || TASKMASTER);
+    setTeam([...p.team]);
+    setEvery([...p.every]);
+    setPartyId(p.id);
+  };
   const price = usePartyPrice(step >= 2, leader, team, every, craft === MIXED ? "" : craft);        // asked when the party is picked (step 2)
 
   const pick = (c) => {
     if (c !== craft) {
       const p = partyOf(c);
       setCraft(c);
+      setPartyId("");
       setLeader(p.lead || TASKMASTER);
       setTeam([...p.build, ...p.check]);
     }
@@ -47,9 +58,11 @@ export function GoalWizard({ then = "" }) {
     e?.preventDefault();
     if (!about.trim() || saving) return;
     setSaving(true);
-    const got = await act("ideas.goal_save", { about: about.trim(), craft: craftOf(), leader, team, every: every.filter((id) => team.includes(id)), priority });
+    const got = await act("ideas.goal_save", { about: about.trim(), craft: craftOf(), leader, team, every: every.filter((id) => team.includes(id)), priority,
+      ...(partyId ? { party: partyId } : {}) });
     setSaving(false);
     if (!got?.slug) return;
+    for (const note of got.notes || []) toast(note);       // an agent of the project's own that the party carries stays as it was
     closeDialog();
     track.value = got.slug;
     if (then === "idea") openDialog("idea", { goal: got.slug });
@@ -70,7 +83,8 @@ export function GoalWizard({ then = "" }) {
     foot = html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>`;
   } else if (step === 2) {
     body = html`<p class="ok-tone-muted">The goal's party: its leader plans and accepts, its builders work, its checkers check. A task goes to the one who does its kind of work; Grunt fills in.</p>
-      <${PartyBands} craft=${craft} leader=${leader} setLeader=${setLeader} team=${team} setTeam=${setTeam} />
+      <${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
+      <${PartyBands} craft=${craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
       <${PriceLine} price=${price} />`;
     foot = html`<button type="button" class="ork-btn" onClick=${() => setStep(1)}>Back</button>
       <button type="button" class="ork-btn primary" onClick=${() => setStep(3)}>Next</button>`;
@@ -85,7 +99,7 @@ export function GoalWizard({ then = "" }) {
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
           <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>
       <p class="ok-font-status ok-tone-muted">${say(`${lead?.name || "The Taskmaster"} reads the repository and writes the title, the summary, the metrics and the links.`)}</p>
-      <${ChecksBlock} team=${team} every=${every} setEvery=${setEvery} price=${price} />
+      <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />
     </form>`;
     foot = html`<button type="button" class="ork-btn" onClick=${() => setStep(2)}>Back</button>
       <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!about.trim() || saving}>Save goal</button>`;

@@ -96,6 +96,18 @@
 .shell-facts .is-danger { color: var(--ork-danger); }
 .shell-facts .is-muted { color: var(--ork-ink-muted); }
 .shell-conflict { margin: 0; }
+.shell-own-parties { display: flex; flex-direction: column; gap: var(--ork-3); margin: 0 0 var(--ork-5); }
+.shell-own-parties h3 { margin: 0; }
+.shell-own-chips { display: flex; flex-wrap: wrap; gap: var(--ork-4); }
+.shell-own-chip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2); min-width: 0; }
+.shell-own-chip__pick { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-3); cursor: pointer; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-edge); }
+.shell-own-chip.is-on .shell-own-chip__pick, .shell-own-chip__pick:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
+.shell-own-heads { display: inline-flex; gap: 2px; }
+.shell-own-chip__close { all: unset; cursor: pointer; padding: var(--ork-2); color: var(--ork-ink-muted); }
+.shell-own-chip__close:focus-visible { outline: 2px solid var(--ork-ink); }
+.shell-own-ask, .shell-party-save-ask { flex-basis: 100%; margin: 0; }
+.shell-party-save-form { display: flex; gap: var(--ork-4); align-items: center; margin-top: var(--ork-3); }
+.shell-party-save { margin-top: var(--ork-3); }
 .shell-price { margin: var(--ork-4) 0 var(--ork-2); }
 .shell-hint { margin: 0 0 var(--ork-2); }
 .shell-party > summary { cursor: pointer; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
