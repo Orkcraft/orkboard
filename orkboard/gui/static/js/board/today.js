@@ -1,12 +1,13 @@
 // Needs you (docs/specs/35-goals-window.md §10–§11.2), a tab of its own beside the Board's, as on the phone (pwa/shell-needs.js):
 // one list of every goal's rows, sorted by the host (what blocks work in progress, then the priority, then the oldest; proposals
-// last), an icon per kind, its title, its kind and goal, and one line. Questions are answered in their row: each question's likely
-// answers (the keeper ends a question with them, "(one / other)") as buttons, one Send, and More for the form with a box per
-// question. A click on another row opens what it is about: the plan, the to-do's dialog, the goal. A proposal is answered in its
+// last), an icon per kind, its title, its kind and goal, and one line. Questions are answered in their row (spec 41 §9): each row's
+// `asked` — the ask, its choices, the one the Taskmaster picks and why — as buttons with the recommended one pressed and marked
+// *Recommended*, so one Send takes every recommendation; More for the form with the recommended answers filled in; Let the Taskmaster
+// decide answers every question with its pick. A click on another row opens what it is about: the plan, the to-do's dialog, the goal. A proposal is answered in its
 // row. Later puts a row away on this computer for a few hours; nothing is sent.
 import { useState } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { html } from "../html.js";
+import { html, cls } from "../html.js";
 import { Icon, NEED_ICONS } from "../orkui.js";
 import { say, toast } from "../link.js";
 import { board, PRIORITY_WORDS } from "./store.js";
@@ -74,42 +75,36 @@ function putAway(n) {
   toast("Put away for a few hours, on this computer.");
 }
 
-/** A question and its likely answers: "Which store first? (App Store / Google Play)" → {ask: "Which store first?", choices: [...]}. */
-export function choicesOf(q) {
-  const m = String(q || "").match(/^(.*?)\s*\(([^()]*\/[^()]*)\)\s*([?.!]?)\s*(?:[—–]\s*.*)?$/);   // "— why" after it (spec 41 §9)
-  const choices = m ? m[2].split("/").map((c) => c.trim().replace(/^\*\*(.+)\*\*$/, "$1")).filter(Boolean) : [];
-  if (!m || choices.length < 2 || choices.length > 4 || choices.some((c) => c.length > 40)) return { ask: String(q || ""), choices: [] };
-  return { ask: `${m[1].trim()}${m[3] && !/[?.!]$/.test(m[1].trim()) ? m[3] : ""}`, choices };
-}
-
 const goalTitle = (slug) => (board.value?.tracks || []).find((t) => t.slug === slug)?.title || "";
 const kindLine = (n) => [KIND_WORDS[n.kind], !isOp(n) && n.goal && n.goal !== "general" ? goalTitle(n.goal) : ""].filter(Boolean).join(" · ");
 
-/** Questions answered in their row: a likely answer each, one Send; More for the whole form; Later. */
+/** A row's questions as `asked` says them; a row without it has its plain lines, no choices. */
+const askedOf = (n) => (n.asked?.length ? n.asked : (n.questions?.length ? n.questions : [n.text]).filter(Boolean).map((ask) => ({ ask, choices: [], pick: null, why: "" }))).slice(0, 3);
+
+/** Questions answered in their row: the recommended answer pressed, one Send; More for the whole form; Let the Taskmaster decide; Later. */
 function Quick({ n }) {
-  const qs = (n.questions?.length ? n.questions : [n.text]).filter(Boolean).slice(0, 3);
-  const [picked, setPicked] = useState(qs.map(() => ""));
+  const asked = askedOf(n);
+  const [picked, setPicked] = useState(() => asked.map((q) => (q.pick != null ? q.choices[q.pick] || "" : "")));
   const [sending, setSending] = useState(false);
-  const isGoal = n.kind === "goal";
-  const send = async () => {
+  const isGoal = n.kind === "goal", slug = isGoal ? n.goal : n.idea;
+  const answer = async (args) => {
     setSending(true);
-    const got = await run("ideas.answer", { slug: isGoal ? n.goal : n.idea, answers: picked, ...(isGoal ? { goal: true } : {}) });
+    const got = await run("ideas.answer", { slug, ...args, ...(isGoal ? { goal: true } : {}) });
     setSending(false);
     if (got) toast(say("Sent: the Taskmaster answers in a moment."));
   };
+  const more = () => openDialog("ask", { slug, goal: isGoal, title: n.title, asked: n.asked?.length ? asked : undefined, picks: picked });
   return html`<li class="board-need board-quick" data-kind=${n.kind} data-priority=${n.priority} data-idea=${n.idea || undefined} data-goal=${n.goal || undefined}>
     <span class="board-need__icon"><${Icon} name=${NEED_ICONS[n.kind] || "flag"} /></span>
     <div class="board-need__text"><b>${n.title}</b><span class="ok-tone-muted board-need__kind">${kindLine(n)}</span>
-      ${qs.map((q, i) => {
-        const { ask, choices } = choicesOf(q);
-        return html`<div key=${i} class="board-quick__q"><span>${say(ask)}</span>${choices.length > 0 && html`<div class="board-row board-quick__answers">
-          ${choices.map((c) => html`<button key=${c} type="button" class="ork-btn board-quick__answer" aria-pressed=${String(picked[i] === c)}
-            onClick=${() => setPicked(picked.map((x, j) => (j === i ? (x === c ? "" : c) : x)))}>${c}</button>`)}</div>`}</div>`;
-      })}
-      ${qs.length > 1 && html`<span class="ok-tone-muted board-need__kind">${say("A question left without an answer: the Taskmaster decides.")}</span>`}
-      <div class="board-row"><button type="button" class="ork-btn primary" disabled=${sending || !picked.some(Boolean)} aria-label=${`Send: ${n.title}`} onClick=${send}>Send</button>
-        <button type="button" class="ork-btn" aria-label=${`More: ${n.title}`} onClick=${() => open(n)}>More</button>
-        <button type="button" class="ork-btn" aria-label=${`Later: ${n.title}`} onClick=${() => putAway(n)}>Later</button></div></div></li>`;
+      ${asked.map((q, i) => html`<div key=${i} class="board-quick__q"><span>${say(q.ask)}</span>${q.choices.length > 0 && html`<div class="board-row board-quick__answers">
+          ${q.choices.map((c, j) => html`<button key=${c} type="button" class=${cls("ork-btn board-quick__answer", { "is-recommended": j === q.pick })} aria-pressed=${String(picked[i] === c)}
+            onClick=${() => setPicked(picked.map((x, k) => (k === i ? (x === c ? "" : c) : x)))}>${c}${j === q.pick && html` <small class="board-quick__reco">Recommended</small>`}</button>`)}</div>`}
+        ${q.why && html`<small class="ok-tone-muted board-quick__why">${say(q.why)}</small>`}</div>`)}
+      <div class="board-row"><button type="button" class="ork-btn primary" disabled=${sending || !picked.some(Boolean)} aria-label=${`Send: ${n.title}`} onClick=${() => answer({ answers: picked })}>Send</button>
+        <button type="button" class="ork-btn" aria-label=${`More: ${n.title}`} onClick=${more}>More</button>
+        <button type="button" class="ork-btn" aria-label=${`Later: ${n.title}`} onClick=${() => putAway(n)}>Later</button>
+        <button type="button" class="board-link" disabled=${sending} aria-label=${`Let the Taskmaster decide: ${n.title}`} onClick=${() => answer({ decide: true })}>Let the Taskmaster decide</button></div></div></li>`;
 }
 
 function Row({ n }) {

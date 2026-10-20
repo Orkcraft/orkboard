@@ -1,14 +1,15 @@
 // Agents, in the lower part of the centre as VS Code's terminal (docs/specs/33-v1-shell.md §6–§7, spec 34 §3, spec 36 §5):
-// a monitor — a block per role: its head (its craft's race in its tier's gear, decisions §53), its name, craft, model, today's
-// spend and its week (what a result costs, how often it is right the first time), what it takes, its chips (needs you first,
-// each with the head of who does it), Edit — with + Add agent at the top. A chip opens its task.
+// a monitor — a block per role, one line (spec 41 §8): its head (its craft's race in its tier's gear, decisions §53), its name,
+// ×2 (at most at once) and ≈ $0.40 a task (the Taskmaster's cost is its steps: it says its week), what it takes, its chips (needs you
+// first, each with the head of who does it and its short name), Edit — with + Add agent at the top (from the library, or your own). A
+// chip opens its task.
 import { html, cls } from "../html.js";
 import { Chev } from "../orkui.js";
 import { say } from "../link.js";
-import { agents, agentsLayout, roles, setLayout, showIdea, showGoal, showTask } from "./store.js";
+import { agents, agentsLayout, setLayout, showIdea, showGoal, showTask } from "./store.js";
 import { openDialog } from "./modals.js";
 import { holdWords } from "../board/store.js";
-import { WhoHead, CRAFT_WORDS, TIER_WORDS, headWords } from "../orkui.js";
+import { WhoHead, CRAFT_WORDS, TIER_WORDS, RACE_WORDS } from "../orkui.js";
 
 const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: ["at Review", ""], ready: ["queued", ""],
   held: ["held", "⏳"], failed: ["needs you", "⚠"] };
@@ -23,41 +24,41 @@ export function gruntWords(c) {
   return mark ? `${word} ${mark}` : word;
 }
 
-const money = (n) => `≈$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const API_PRICES = "At API prices, not your bill";
-const usd = (n) => (n ? `${money(n)} today` : "");
-const modelWords = (r, models) => (models || []).find((m) => m.id === r.model)?.label || r.model || "By Target";
-/** A role's craft and model: "Design · Veteran · opus"; By Target says the tier the Target gives it now. */
-const whoWords = (r, models) => [CRAFT_WORDS[r.head?.craft], r.model ? modelWords(r, models)
-  : `By Target${r.head ? `, now ${TIER_WORDS[r.head.tier]}` : ""}`].filter(Boolean).join(" · ");
+const AN = (race) => (/^[aeiou]/.test(RACE_WORDS[race]) ? "an" : "a");
 
-/** A role's week (spec 36 §2): what a result cost and how often it was merged the first time, once it has three merged. */
+/** The Taskmaster's week (spec 36 §2): how often a task is merged the first time, once there are enough to say. */
 export function weekWords(role) {
   const w = role.week;
-  if (!w) return "";
-  if (role.role === "taskmaster") return w.finished > 0 ? `${w.first_time}/${w.finished} tasks the first time` : "";
-  if (!(w.merged >= 3)) return "";
-  const first = `${w.first_time}/${w.finished} the first time`;
-  return w.usd_per_merged != null ? `${money(w.usd_per_merged)} a result · ${first}` : first;
+  return role.role === "taskmaster" && w && w.finished > 0 ? `${w.first_time}/${w.finished} tasks the first time` : "";
 }
 
-function Head({ role, models }) {
-  const week = weekWords(role);
-  return html`<div class="shell-role__head">
+/** A role's words for a screen reader: "Docs scribe: an elf, Design, Seasoned; up to 2 at once; about $0.40 a task". */
+export function roleWords(role) {
+  const hd = role.head, usd = role.usd_task == null ? "" : `about $${Number(role.usd_task).toFixed(2)} a task`;
+  const who = [hd ? `${AN(hd.race)} ${RACE_WORDS[hd.race]}` : "", CRAFT_WORDS[hd?.craft], TIER_WORDS[hd?.tier]].filter(Boolean).join(", ");
+  return [`${role.name}${who ? `: ${who}` : ""}`, role.role === "taskmaster" ? "" : `up to ${role.max_parallel} at once`, usd, weekWords(role)].filter(Boolean).join("; ");
+}
+
+function Head({ role }) {
+  const week = weekWords(role), tm = role.role === "taskmaster";
+  return html`<div class="shell-role__head" role="group" aria-label=${roleWords(role)}>
     <${WhoHead} head=${role.head} />
     <h3 class="shell-role__name">${say(role.name)}</h3>
+    ${!tm && html`<span class="shell-role__many" title=${`Up to ${role.max_parallel} at once`}>×${role.max_parallel}</span>`}
+    ${role.usd_task != null && html`<span class="shell-role__usd" title=${API_PRICES}>≈ $${Number(role.usd_task).toFixed(2)} a task</span>`}
     <button class="board-link" aria-label=${`Edit ${say(role.name)}`} onClick=${() => openDialog("agent", { slug: role.role })}>Edit</button>
-    <span class="ok-font-status ok-tone-muted shell-role__facts">${whoWords(role, models)}${role.role === "taskmaster" ? "" : ` · up to ${role.max_parallel}`}${role.spend_today ? html` · <span title=${API_PRICES}>${usd(role.spend_today)}</span>` : ""}${week ? html` · <span class="shell-role__week" title=${week.includes("≈") ? API_PRICES : ""}>${week}</span>` : ""}</span>
+    ${week && html`<span class="ok-font-status ok-tone-muted shell-role__facts"><span class="shell-role__week">${week}</span></span>`}
   </div>`;
 }
 
-function Taskmaster({ role, models }) {
+function Taskmaster({ role }) {
   const c = role.chips || [];
-  const say_ = (c0) => `${c0.state === "talking" ? "talking about" : c0.state} “${c0.title}”`;
+  const say_ = (c0) => `${c0.state === "talking" ? "talking about" : c0.state} “${c0.short || c0.title}”`;
   const open = (c0) => (c0.goal ? showGoal(c0.goal, { via: "agents" }) : showIdea(c0.idea, { via: "agents" }));
   const lead = c.find((x) => x.state !== "waiting");
   return html`<div class="shell-role" data-role="taskmaster">
-    <${Head} role=${role} models=${models} />
+    <${Head} role=${role} />
     ${role.state === "waiting" && role.waits_on
       ? html`<button class="shell-chip is-wait" onClick=${() => showIdea(role.waits_on.idea, { via: "agents" })}>${role.waits_on.text}</button>`
       : lead ? html`<button class="shell-chip is-live" onClick=${() => open(lead)}><span class="shell-spin" aria-hidden="true">↻</span> ${say_(lead)}</button>`
@@ -66,15 +67,15 @@ function Taskmaster({ role, models }) {
   </div>`;
 }
 
-function Worker({ role, done, models }) {
+function Worker({ role, done }) {
   const chips = role.chips || [];
   const mine = done.filter((d) => (d.role || "grunt") === role.role);
   return html`<div class="shell-role" data-role=${role.role === "grunt" ? "grunt" : "agent"} data-slug=${role.role}>
-    <${Head} role=${role} models=${models} />
+    <${Head} role=${role} />
     ${role.kinds?.length > 0 && html`<span class="ok-font-status ok-tone-muted shell-role__takes">Takes: ${role.kinds.join(", ")}</span>`}
     ${chips.length ? html`<ul class="shell-chips">${[...chips].sort(byState).map((c) => html`<li key=${c.idea + c.task}><button
-        class=${cls("shell-chip", `is-${c.state}`)} data-state=${c.state} title=${headWords(c.head)} onClick=${() => showTask(c.idea, c.task, { via: "agents" })}>
-        <${WhoHead} head=${c.head} small /><span class="shell-chip__state">${gruntWords(c)}</span>${c.by === "auto" && html`<span class="shell-chip__tag">by itself</span>`}${c.night && html`<span class="shell-chip__tag">tonight</span>`}<b>${c.title}</b><small class="ok-tone-muted">${c.idea_title}</small></button></li>`)}</ul>`
+        class=${cls("shell-chip", `is-${c.state}`)} data-state=${c.state} title=${c.title} aria-label=${`${c.title}: ${gruntWords(c)}`} onClick=${() => showTask(c.idea, c.task, { via: "agents" })}>
+        <${WhoHead} head=${c.head} small /><span class="shell-chip__state">${gruntWords(c)}</span>${c.by === "auto" && html`<span class="shell-chip__tag">by itself</span>`}${c.night && html`<span class="shell-chip__tag">tonight</span>`}<b class="shell-chip__name">${c.short || c.title}</b><small class="ok-tone-muted shell-chip__idea">${c.idea_short || c.idea_title}</small></button></li>`)}</ul>`
       : html`<span class="ok-tone-muted">No task runs now.</span>`}
     ${mine.length > 0 && html`<details class="shell-done"><summary>Done today (${mine.length})</summary>
       <ul class="shell-chips">${mine.map((d) => html`<li key=${d.idea + d.task}><button class="shell-chip is-done"
@@ -87,15 +88,14 @@ export function AgentsPane() {
   const hidden = agentsLayout.value.hidden;
   const live = (a?.roles || []).filter((r) => r.role !== "taskmaster").flatMap((r) => r.chips || [])
     .filter((c) => c.state === "running" || c.state === "testing").length;
-  const models = roles.value?.models;
   return html`<section class=${cls("shell-agents", { "is-hidden": hidden })} aria-label="Agents">
     <header class="shell-pane__head"><h2>Agents ${live > 0 && html`<span class="shell-count">${live}</span>`}</h2>
       ${!hidden && html`<button class="ork-btn primary" onClick=${() => openDialog("agent")}>+ Add agent</button>`}
       <button class="ork-btn" aria-expanded=${!hidden} aria-label=${hidden ? "Show Agents (Ctrl+J)" : "Hide Agents (Ctrl+J)"}
         title="Ctrl+J" onClick=${() => setLayout({ hidden: !hidden })}>${hidden ? html`<${Chev} dir="up" /> show` : html`<${Chev} /> hide`}</button></header>
     ${!hidden && html`<div class="shell-agents__body">
-      ${a ? a.roles.map((r) => r.role === "taskmaster" ? html`<${Taskmaster} key=${r.role} role=${r} models=${models} />`
-        : html`<${Worker} key=${r.role} role=${r} done=${a.done_today || []} models=${models} />`) : html`<p class="ok-tone-muted">Opening…</p>`}
+      ${a ? a.roles.map((r) => r.role === "taskmaster" ? html`<${Taskmaster} key=${r.role} role=${r} />`
+        : html`<${Worker} key=${r.role} role=${r} done=${a.done_today || []} />`) : html`<p class="ok-tone-muted">Opening…</p>`}
     </div>`}
   </section>`;
 }

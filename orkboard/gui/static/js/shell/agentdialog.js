@@ -2,17 +2,46 @@
 // marketing: the race of its head, decisions §53; Taskmaster and Grunt are orks), a model (By Target or a tier: the gear on its
 // head), how many may work at once, an instruction of at most 600 characters (added to every task prompt of that agent) and
 // the task types it takes. An agent of your own can be deleted (its task types go back to Grunt, said before); Taskmaster and Grunt can be
-// edited, not deleted. Grunt takes what no other agent takes (shown, not editable); the Taskmaster takes none.
+// edited, not deleted. Grunt takes what no other agent takes (shown, not editable); the Taskmaster takes none. Add agent opens two ways
+// (spec 41 §8): from the library (the agents this project has not: a click adds one, `ideas.role_add`) or your own (this form). For the
+// Taskmaster and the Grunt, whose instruction is Orkboard's own, the field says *Added to what it is told* and *What it is told
+// already* is above it, folded and read only (`told` of `ideas.roles`).
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say } from "../link.js";
 import { roles, act } from "./store.js";
-import { Who, CRAFT_WORDS, RACE_WORDS } from "../orkui.js";
+import { Who, WhoHead, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
+import { toast } from "../link.js";
 
 const CHARS = 600;                                  // roles.INSTRUCTION_CHARS
 import { Modal, closeDialog } from "./modals.js";
 
+const RACE_OF = { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" };
+
+/** Add agent, the first way: the library's agents this project has not, a click adds one. */
+function Library({ own }) {
+  const free = (roles.value?.library || []).filter((a) => !a.installed);
+  const add = async (a) => {
+    const got = await act("ideas.role_add", { id: a.id });
+    if (got?.slug) { closeDialog(); toast(`${a.name} is added.`); }
+  };
+  return html`<${Modal} title="Add an agent" onClose=${closeDialog}
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button><button type="button" class="ork-btn primary" data-own onClick=${own}>Your own</button>`}>
+    <p class="ok-tone-muted">Pick one that comes with Orkline, or write your own.</p>
+    <h3 class="ok-font-label">From the library</h3>
+    ${free.length ? html`<ul class="shell-library">${free.map((a) => html`<li key=${a.id}><button type="button" class="shell-library__row" data-agent=${a.id} aria-label=${`Add ${a.name}`} onClick=${() => add(a)}>
+        <${WhoHead} head=${{ craft: a.craft, race: RACE_OF[a.craft] || "peon", tier: a.tier }} /><b>${a.name}</b><span aria-hidden="true">+</span>
+        <small>${[CRAFT_WORDS[a.craft] || a.craft, TIER_WORDS[a.tier], a.line].filter(Boolean).join(" · ")}</small></button></li>`)}</ul>`
+      : html`<p class="ok-tone-muted">Every agent that comes with Orkline is already in this project.</p>`}
+  <//>`;
+}
+
 export function AgentDialog({ slug = "" }) {
+  const [own, setOwn] = useState(false);
+  return slug || own ? html`<${AgentForm} slug=${slug} />` : html`<${Library} own=${() => setOwn(true)} />`;
+}
+
+function AgentForm({ slug = "" }) {
   const data = roles.value, r = slug ? data?.roles.find((x) => x.slug === slug) : null;
   const [name, setName] = useState(r?.name || "");
   const [model, setModel] = useState(r ? r.model : "");
@@ -65,8 +94,9 @@ export function AgentDialog({ slug = "" }) {
       <label class="shell-field"><span class="ok-font-label">At most at once</span>
         <select class="ork-field" aria-label="At most at once" value=${String(many)} onChange=${(e) => setMany(e.target.value)}>
           ${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => html`<option key=${n} value=${String(n)}>${n}</option>`)}</select></label>
-      <label class="shell-field"><span class="ok-font-label">Instruction <small class=${over ? "ok-tone-error" : "ok-tone-muted"} data-testid="instruction-count">${instruction.length} / ${CHARS}</small></span>
-        <textarea class="ork-field" rows="5" value=${instruction} aria-label="Instruction" placeholder="Added to every task this agent does"
+      ${r?.told && html`<details class="shell-told"><summary>What it is told already</summary><p class="shell-told__text">${r.told}</p></details>`}
+      <label class="shell-field"><span class="ok-font-label">${r?.told ? "Added to what it is told" : "Instruction"} <small class=${over ? "ok-tone-error" : "ok-tone-muted"} data-testid="instruction-count">${instruction.length} / ${CHARS}</small></span>
+        <textarea class="ork-field" rows="5" value=${instruction} aria-label=${r?.told ? "Added to what it is told" : "Instruction"} placeholder="Added to every task this agent does"
           onInput=${(e) => setInstruction(e.target.value)}></textarea>
         ${over && html`<small class="ok-tone-error" role="alert">Only the first ${CHARS} characters go to the ork: shorten it</small>`}</label>
       ${!taskmaster && html`<fieldset class="shell-field shell-takes"><legend class="ok-font-label">Takes</legend>

@@ -294,10 +294,19 @@
 .shell[data-narrow="true"] .shell-mapbtn { display: inline-flex; align-self: flex-start; }
 
 /* decisions §53: who does a task, as orkUI draws it: the head of the craft's race in its tier's gear, its words beside it */
-.shell-role__head { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: var(--ork-1) var(--ork-4); }
-.shell-role__head > .ork-race__head { grid-row: span 2; }
-.shell-role__head > .shell-role__facts { grid-column: 2 / -1; }
-.shell-role__head > .board-link { justify-self: start; }
+.shell-role__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-1) var(--ork-4); }       /* a role in one line (spec 41 §8) */
+.shell-role__head > .shell-role__facts { flex: 1 0 100%; }
+.shell-role__many, .shell-role__usd { flex: none; font: var(--ork-type-caption); font-variant-numeric: tabular-nums; color: var(--ork-ink-muted); }
+.shell-role__usd { cursor: help; }
+.shell-chip .shell-chip__name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; min-width: 0; }
+.shell-told { border: var(--ork-line) solid var(--ork-frame); padding: var(--ork-3) var(--ork-4); }
+.shell-told summary { cursor: pointer; }
+.shell-told__text { margin: var(--ork-3) 0 0; white-space: pre-wrap; color: var(--ork-ink-muted); }
+.shell-library { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.shell-library__row { display: grid; grid-template-columns: auto 1fr auto; column-gap: var(--ork-4); align-items: center; width: 100%; padding: var(--ork-3) 0; text-align: left;
+  background: none; border: 0; border-bottom: var(--ork-line) solid var(--ork-frame); color: var(--ork-ink); cursor: pointer; font: inherit; }
+.shell-library__row:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.shell-library__row small { grid-column: 2; color: var(--ork-ink-muted); }
 .shell-chip > .ork-race__head { align-self: center; }
 .shell-agent__who { min-height: 24px; display: flex; align-items: center; }
 .board-tasks .ork-race, .shell-facts .ork-race { vertical-align: middle; }

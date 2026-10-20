@@ -132,11 +132,11 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 await page.goto(f"{server.phones.address}/app/#pair={offer['code']}")
                 await page.locator(".board-tabs").wait_for(timeout=WAIT_MS)
                 tabs = [await b.get_attribute("aria-label") for b in await page.locator(".board-tabs").get_by_role("tab").all()]
-                assert [t.split(",")[0] for t in tabs] == ["Board", "Agents", "Needs you"]          # Review: in Needs you
-                await page.locator(".board-bar .needs-chip").click()                             # Needs you: the top bar's !
+                assert [t.split(",")[0].split(":")[0] for t in tabs] == ["Board", "Agents", "Needs you"]          # Review: in Needs you
+                await page.locator(".board-tabs").get_by_role("tab", name="Needs you").click()  # Needs you: the signal (spec 41 §1)
                 await page.get_by_text("Which channel first?").first.wait_for(timeout=WAIT_MS)   # the goal's question, as on the desktop
-                bar = page.locator(".board-bar")                                                 # the project over the goal, !, the gear
-                assert await bar.locator(".goal-chip").is_visible() and await bar.get_by_role("button", name="Settings").is_visible()
+                bar = page.locator(".board-bar")                                                 # the menu, the goal
+                assert await bar.locator(".goal-chip").is_visible() and await bar.get_by_role("button", name="Menu").is_visible()
                 assert await page.evaluate("document.documentElement.dataset.look") == "office"
                 assert await page.locator(".dock, .camp, .grid, .head").count() == 0
                 assert await page.evaluate("document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390")

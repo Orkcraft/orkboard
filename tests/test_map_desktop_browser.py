@@ -14,6 +14,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api")
 
+from orkboard.realm.idea_words import short_of  # noqa: E402
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
 from tests.test_shell_browser import _show_goal, SHOTS, StubHost, _calls, _sent, box  # noqa: E402
 
@@ -35,7 +36,7 @@ def pip(tid, title, state, after=()):
 
 
 def node(slug, goal, title, state, tier, **more):
-    base = {"slug": slug, "goal": goal, "title": title, "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal",
+    base = {"slug": slug, "goal": goal, "title": title, "short": short_of(title), "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal",
             "size": "M", "risk": "low", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "",
             "progress": {"done": 0, "total": 0}, "tasks": [], "estimate": None, "by_itself": False, "folded": False, "updated": ago(30)}
     return base | more
@@ -534,3 +535,18 @@ def test_a_goal_says_its_team_and_an_idea_how_many_of_its_checks_passed(mapped):
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
         pg.screenshot(path=str(SHOTS / "desktop-map-team-1440x900.png"))
+
+
+def test_a_chip_and_a_task_show_their_short_names_on_two_lines_with_the_title_in_their_label(gui):
+    host = MapHost()
+    host.nodes[0] = {**host.nodes[0], "short": "Sync", "tasks": [{**t, "short": f"T{t['id']}"} for t in host.nodes[0]["tasks"]]}
+    pg, host, errors = _open(gui, host)
+    chip = pg.locator(".map-card[data-slug=sync]")
+    assert chip.locator(".map-card__title").inner_text() == "Sync" and "Sync ideas between the phone and the town" in chip.get_attribute("aria-label")
+    assert chip.locator(".map-card__title").evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
+    assert chip.bounding_box()["height"] <= 40                                                         # a short name: still a chip
+    task = pg.locator(".map-task", has_text="Tk2")
+    assert task.get_attribute("title").startswith("Add the queue") and task.locator(".map-task__title").inner_text() == "Tk2"
+    assert pg.get_by_label("Goal", exact=True).locator("option").first.get_attribute("title")           # the goal select keeps the title on its options
+    pg.close()
+    assert not errors, "\n".join(errors)

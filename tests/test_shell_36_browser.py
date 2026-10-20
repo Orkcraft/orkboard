@@ -73,21 +73,23 @@ def shell36(gui):
     assert not errors, "\n".join(errors)
 
 
-def test_agents_has_no_task_types_and_a_roles_head_says_its_week(shell36):
+def test_agents_has_no_task_types_and_a_role_is_one_line_with_what_a_task_costs(shell36):
     pg, host = shell36
+    host.usd_task = {"grunt": 0.9}
+    host.bump({})
     agents = pg.locator(".shell-agents")
     assert "task types" not in agents.inner_text().lower() and agents.get_by_label("Agent for Docs").count() == 0
     assert agents.get_by_role("button", name="+ Add agent").is_visible()
-    grunt = agents.locator(".shell-role[data-slug='grunt'] .shell-role__head").inner_text()
-    assert "≈$0.90 a result · 6/10 the first time" in grunt
-    assert "By Target" in grunt and "up to 8" in grunt and "≈$1.25 today" in grunt
-    assert agents.locator(".shell-role[data-slug='grunt'] [title='At API prices, not your bill']").count() == 2
-    scribe = agents.locator(".shell-role[data-slug='scribe']")                                       # two merged: no week yet
+    line = agents.locator(".shell-role[data-slug='grunt'] .shell-role__head")
+    pg.wait_for_function("() => document.querySelector(\".shell-role[data-slug='grunt'] .shell-role__head\")?.getAttribute('aria-label')?.includes('$0.90')", timeout=WAIT_MS)
+    assert " ".join(line.inner_text().split()) == "Grunts ×8 ≈ $0.90 a task Edit"                      # spec 41 §8: no model, no week, no spend today
+    assert line.locator("[title='At API prices, not your bill']").count() == 1
+    scribe = agents.locator(".shell-role[data-slug='scribe']")
     assert "a result" not in scribe.inner_text() and "first time" not in scribe.inner_text()
     assert "Takes: docs" in scribe.inner_text() and "Does:" not in agents.inner_text()
     assert "Takes: code, tests" in agents.locator(".shell-role[data-slug='grunt']").inner_text()
-    tm = agents.locator(".shell-role[data-role='taskmaster'] .shell-role__head").inner_text()
-    assert "8/10 tasks the first time" in tm
+    tm = agents.locator(".shell-role[data-role='taskmaster'] .shell-role__head").inner_text()          # its cost is its steps: its week stays
+    assert "8/10 tasks the first time" in tm and "×" not in tm
     if os.environ.get("ORKCRAFT_SHOTS"):
         handle = box(pg, ".shell-split")
         pg.mouse.move(handle["x"] + 40, handle["y"] + 2)
@@ -97,13 +99,12 @@ def test_agents_has_no_task_types_and_a_roles_head_says_its_week(shell36):
         pg.screenshot(path=str(SHOTS / "desktop-agents-monitor-1440x900.png"))
 
 
-def test_a_role_with_fewer_than_three_merged_has_no_week_and_the_taskmaster_with_none_finished_says_nothing(shell36):
+def test_the_taskmaster_with_none_finished_says_no_week(shell36):
     pg, host = shell36
-    pg.locator(".shell-role[data-slug=grunt] .shell-role__week").wait_for(timeout=WAIT_MS)             # with three merged, it is there
-    host.week = {"grunt": {"spent": 0.1, "merged": 2, "first_time": 1, "finished": 3, "usd_per_merged": None},
-                 "taskmaster": {"spent": 0, "plans": 0, "first_time": 0, "finished": 0, "merged": 0}}
+    pg.locator(".shell-role[data-role=taskmaster] .shell-role__week").wait_for(timeout=WAIT_MS)       # with tasks finished, it is there
+    host.week = {"taskmaster": {"spent": 0, "plans": 0, "first_time": 0, "finished": 0, "merged": 0}}
     host.bump({})
-    pg.wait_for_function("() => !document.querySelector('.shell-role[data-slug=grunt] .shell-role__week')", timeout=WAIT_MS)
+    pg.wait_for_function("() => !document.querySelector('.shell-role[data-role=taskmaster] .shell-role__week')", timeout=WAIT_MS)
     assert "first time" not in pg.locator(".shell-agents").inner_text()
 
 
@@ -121,6 +122,7 @@ def test_needs_you_chips_come_first_then_working_testing_queued_held_at_review(s
 def test_the_dialog_lists_by_target_and_the_tiers_counts_the_instruction_and_moves_a_type_from_grunt(shell36):
     pg, host = shell36
     pg.get_by_role("button", name="+ Add agent").click()
+    pg.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
     dlg = pg.get_by_role("dialog", name="Add agent")
     assert dlg.get_by_label("Model").input_value() == ""                                              # a new agent is By Target
     labels = dlg.get_by_label("Model").locator("option").all_inner_texts()

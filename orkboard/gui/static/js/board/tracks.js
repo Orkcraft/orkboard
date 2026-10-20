@@ -66,7 +66,7 @@ export function Goals() {
     <div class="board-row board-goals__bar">
       <select class="ork-field board-goals__select" aria-label="Goal" value=${want} onChange=${(e) => { track.value = e.target.value; }}>
         ${!goals.length && html`<option value="">No goal yet</option>`}
-        ${goals.map((x) => html`<option key=${x.slug} value=${x.slug}>${x.title} · ${PRIORITY_WORDS[x.priority] || "Normal"}${GOAL_WORDS[x.state] ? ` · ${say(GOAL_WORDS[x.state])}` : ""}</option>`)}
+        ${goals.map((x) => html`<option key=${x.slug} value=${x.slug} title=${x.title}>${x.short || x.title} · ${PRIORITY_WORDS[x.priority] || "Normal"}${GOAL_WORDS[x.state] ? ` · ${say(GOAL_WORDS[x.state])}` : ""}</option>`)}
         ${town.value?.ops_rev !== undefined && html`<option disabled>──────────</option><option value=${OPS}>Operations</option>`}</select>
       <button class="ork-btn" onClick=${() => openDialog("goal")}>New goal</button>
       ${inOps ? html`<${NewMenu} />` : html`<${TargetChip} />`}</div>

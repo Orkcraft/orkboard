@@ -209,7 +209,7 @@
 .map-task { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-2); align-items: center; width: 100%; }
 .map-task:hover .map-task__title, .map-task:focus-visible .map-task__title { text-decoration: underline; }
 .map-task:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
-.map-task__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-task__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; }
 .map-task small { grid-column: 2; color: var(--ork-ink-muted); }
 .map-tasks__done { align-self: flex-end; white-space: nowrap; }
 .trail .map-card { height: auto; min-height: 72px; }
@@ -238,6 +238,8 @@
 .board-quick .board-need__text { gap: var(--ork-3); }
 .board-quick__q { display: flex; flex-direction: column; gap: var(--ork-2); }
 .board-quick__answers { flex-wrap: wrap; }
+.board-quick__reco { font: var(--ork-type-caption); }
+.board-quick__why { display: block; }
 .board-quick__answer[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }
 .board-list.is-later { opacity: .7; }
 /* The goal shown (tracks.js): its party's heads, its line, its party in words, how far its ideas are. */
@@ -248,9 +250,10 @@
 /* The trail's chips (map.js): a stop in one line — the head of who does it, its title, a mark — and its tasks smaller under it. */
 .trail .map-node { width: auto; max-width: 260px; align-items: flex-start; }
 .trail-step { align-items: flex-start; }
-.trail .map-card.trail-chip, .map-done__list .map-card.trail-chip { width: auto; max-width: 260px; height: 30px; min-height: 0; padding: 0 var(--ork-3);
+.trail .map-card.trail-chip, .map-done__list .map-card.trail-chip { width: auto; max-width: 260px; height: auto; min-height: 30px; padding: var(--ork-1) var(--ork-3);
   flex-direction: row; align-items: center; gap: var(--ork-2); overflow: hidden; }
-.trail-chip .map-card__title { display: block; min-width: 0; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.trail-chip .map-card__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; min-width: 0; flex: 1 1 auto; overflow: hidden;
+  overflow-wrap: break-word; font: var(--ork-type-caption); font-weight: 600; }      /* a short name on two lines at most (spec 41 §3) */
 .trail-chip__nohead { width: 12px; height: 11px; flex: none; }
 .trail-chip__mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
 .trail-chip__mark.is-gate { color: var(--ork-alert); }

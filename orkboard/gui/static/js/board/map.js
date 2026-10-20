@@ -3,7 +3,7 @@
 // the ideas it depends on, the ones that can go at once side by side (three at most, the rest a click away) — to the goal's flag,
 // raised when its leader accepts it against its metrics (the verdict). An idea at work shows its tasks left, each with the head
 // of the agent who does it, in the waves they go in; what is done is not on the trail (a click shows it). A stop is a chip: the
-// head of who does it, its title, a mark of its state (its words on hover); one that waits for the person is a gate (! on it). A view of `ideas.map`: it changes nothing, its one action is open. Words of a stop's state
+// head of who does it, its short name (two lines at most; the title is its label, spec 41 §3), a mark of its state (its words on hover); one that waits for the person is a gate (! on it). A view of `ideas.map`: it changes nothing, its one action is open. Words of a stop's state
 // are the Board row's (`rowOf`).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -67,7 +67,7 @@ function Stop({ n, titles, since, leader, team }) {
       data-slug=${n.slug} data-state=${n.state} data-needs=${n.needs_you || ""} title=${`${n.title} · ${words}`} aria-label=${`${n.title}: ${words}`}
       onClick=${() => showIdea(n.slug, { via: "map" })}>
       ${head ? html`<${WhoHead} head=${head} small />` : html`<span class="trail-chip__nohead" aria-hidden="true"></span>`}
-      <b class="map-card__title">${n.title}</b>
+      <b class="map-card__title">${n.short || n.title}</b>
       ${v.needs ? html`<span class="trail-chip__mark is-gate" aria-hidden="true"><${Icon} name="warning-diamond" /></span>`
         : v.spin ? html`<span class="shell-spin trail-chip__mark" aria-hidden="true">↻</span>`
           : timed(n.waits) && n.state !== "done" ? html`<span class="trail-chip__mark" aria-hidden="true"><${Icon} name="clock" /></span>` : ""}
@@ -79,7 +79,7 @@ function Stop({ n, titles, since, leader, team }) {
           const said = `${t.title} · ${t.tag ? `${t.tag} · ` : ""}${TASK_STATE[t.state] || t.state}`;
           const check = (n.checks || []).find((c) => c.task === t.id);            // a task of a checker: it may be skipped before it runs
           const chip = html`<button type="button" class="map-task" data-state=${t.state} title=${said} aria-label=${said}
-            onClick=${() => showTask(n.slug, t.id, { via: "map" })}>${t.head && html`<${WhoHead} head=${t.head} small />`}<span class="map-task__title">${t.title}</span></button>`;
+            onClick=${() => showTask(n.slug, t.id, { via: "map" })}>${t.head && html`<${WhoHead} head=${t.head} small />`}<span class="map-task__title">${t.short || t.title}</span></button>`;
           return check && skippable(check) ? html`<span key=${t.id} class="map-task-pair is-check">${chip}<button type="button" class="map-task__skip"
             aria-label=${`Skip the check: ${check.name}`} title=${`Skip the check: its run is spared${spares(check)}`}
             onClick=${() => run("ideas.check_skip", { slug: n.slug, by: check.by })}><${Icon} name="close" /></button></span>` : html`<span key=${t.id} class="map-task-pair">${chip}</span>`;

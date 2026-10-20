@@ -14,7 +14,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from orkboard.realm import library, plans  # noqa: E402
+from orkboard.realm import library, plans, roles  # noqa: E402
 
 _TODAY = dt.date.today().isoformat()                 # a reset today reads "resets at 18:00", whatever the day
 _IN_TWO_DAYS = (dt.date.today() + dt.timedelta(days=2)).isoformat()
@@ -67,6 +67,9 @@ class StubHost:
         self.roles = {"taskmaster": {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "builtin": True},
                       "grunt": {"slug": "grunt", "name": "Grunt", "model": "", "max_parallel": 8, "instruction": "", "builtin": True}}
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
+        self.chip_extra: dict[str, dict] = {}             # spec 41 §3: a chip's short / idea_short, by task id
+        self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`)
+        self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}
         self.limits = [{"provider": "claude", "name": "Claude", "left": 0.62,
                         "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
                        {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]},
@@ -100,7 +103,8 @@ class StubHost:
                base | {"kind": "plan", "idea": "export", "title": "Export notes", "text": "Plan ready · 3 tasks"},
                base | {"kind": "asks", "idea": "search", "title": "Search the notes", "text": "Which fields count?"},
                base | {"kind": "goal", "idea": "", "goal": "grow", "title": "Grow installs", "text": "Which channel first?", "priority": "high",
-                       "questions": self.goals.get("grow", {}).get("questions", [])},
+                       "questions": self.goals.get("grow", {}).get("questions", []),
+                       **({"asked": self.goals["grow"]["asked"]} if self.goals.get("grow", {}).get("asked") else {})},
                base | {"kind": "proposal", "idea": "tags", "goal": "grow", "title": "Tag the notes", "text": "Tags make a long list findable."}]
         gone = set(self.proposals) | set(self.asked)            # answered: out of the list
         return [n for n in out if (n["idea"] or n["goal"]) not in gone]
@@ -180,18 +184,31 @@ class StubHost:
                       dict(idea="dark", idea_title="Dark mode", task="d1", title="Dark palette", state="ready", tier="warrior", note="", by="auto", night=True),
                       dict(idea="export", idea_title="Export notes", task="e1", title="Write the export", state="held", tier="warrior", note="files · sync",
                            waits_title="Sync ideas between the phone and the town", by="auto", night=False)]
-            blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0,
+            chips = [c | self.chip_extra.get(c["task"], {}) for c in chips]
+            blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "usd_task": None,
+                       "head": {"craft": "engineering", "race": "peon", "tier": "elder"},
                        "state": "waiting", "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": []},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
-                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"]}]
+                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "usd_task": self.usd_task.get("grunt"),
+                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
-                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]]} for r in self.roles.values() if not r["builtin"]]
+                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "usd_task": self.usd_task.get(r["slug"]),
+                        "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
-            return {"roles": [r | {"spend_today": 0} for r in self.roles.values()], "kinds": self.kind_list(),
+            return {"roles": [r | {"spend_today": 0} | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
+                    "kinds": self.kind_list(),
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
                                {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],
-                    "library": library.listed(), "suggested": library.SUGGESTED, "seats": library.SEATS, "parties": library.parties(), "tier_costs": dict(plans.DEFAULT_COST)}
+                    "library": [x | {"installed": x["id"] in self.roles} for x in library.listed()], "suggested": library.SUGGESTED, "seats": library.SEATS,
+                    "parties": library.parties(), "tier_costs": dict(plans.DEFAULT_COST)}
+        if name == "ideas.role_add":                  # an agent of the library made a role of this project (gui/ideas_roles.py)
+            lib = library.get(a["id"])
+            if lib is None or lib.id in self.roles:
+                return {"error": "No such agent, or it is already this project's"}
+            self.roles[lib.id] = {"slug": lib.id, "name": lib.name, "model": lib.tier, "max_parallel": 2, "instruction": lib.instruction, "builtin": False,
+                                  "craft": lib.craft, "head": {"craft": lib.craft, "race": roles.RACES[lib.craft], "tier": lib.tier}}
+            return self.bump({"slug": lib.id})
         if name == "ideas.role_save":
             slug = a.get("slug") or a["name"].lower().replace(" ", "-")
             self.roles[slug] = {"slug": slug, "name": a["name"], "model": a["model"], "max_parallel": a["max_parallel"],
@@ -901,15 +918,19 @@ def test_needs_you_is_a_tab_of_every_goal_s_rows_the_questions_one_form_and_a_pr
     assert _sent(pg, host, ("ideas.proposal", {"slug": "tags", "take": True, "priority": "low"}))
 
 
-def test_a_question_with_likely_answers_is_answered_in_its_row_and_later_puts_a_row_away(shell):
+def test_a_question_comes_with_its_answer_picked_one_send_takes_it_and_later_puts_a_row_away(shell):
     pg, host = shell
-    host.goals["grow"]["questions"] = ["Which channel first? (npm / the forum)"]
+    host.goals["grow"]["questions"] = ["Which channel first?"]
+    host.goals["grow"]["asked"] = [{"ask": "Which channel first?", "choices": ["npm", "the forum"], "pick": 1, "why": "the forum answers in a day"}]
     host.bump({})
     _needs(pg)
     row = pg.locator(".board-need[data-kind=goal]")
     row.get_by_role("button", name="the forum").wait_for(timeout=WAIT_MS)
-    assert row.get_by_role("button", name="Send: Grow installs").is_disabled()
-    row.get_by_role("button", name="the forum").click()
+    forum = row.get_by_role("button", name="the forum")
+    assert forum.get_attribute("aria-pressed") == "true" and "Recommended" in forum.inner_text()      # the pick is pressed, and said in words
+    assert row.get_by_role("button", name="npm").get_attribute("aria-pressed") == "false"
+    assert "the forum answers in a day" in row.inner_text()                                           # its why, under the question
+    assert row.get_by_role("button", name="Send: Grow installs").is_enabled()                         # one tap takes every recommendation
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
         pg.screenshot(path=str(SHOTS / "desktop-needs-you-1440x900.png"))
@@ -922,6 +943,31 @@ def test_a_question_with_likely_answers_is_answered_in_its_row_and_later_puts_a_
     assert tab.inner_text() != before
     pg.get_by_role("button", name="Put away for later (1): show").click()
     assert pg.locator(".board-list.is-later .board-need[data-kind=plan]").count() == 1
+
+
+def test_a_choice_can_be_changed_more_fills_the_picks_and_let_the_taskmaster_decide_answers_with_them(shell):
+    pg, host = shell
+    host.goals["grow"]["questions"] = ["Which channel first?", "Which month?"]
+    host.goals["grow"]["asked"] = [{"ask": "Which channel first?", "choices": ["npm", "the forum"], "pick": 0, "why": "most installs come from it"},
+                                   {"ask": "Which month?", "choices": [], "pick": None, "why": ""}]
+    host.bump({})
+    _needs(pg)
+    row = pg.locator(".board-need[data-kind=goal]")
+    row.get_by_role("button", name="the forum").wait_for(timeout=WAIT_MS)
+    row.get_by_role("button", name="the forum").click()                                              # another choice replaces the pick
+    assert row.get_by_role("button", name="the forum").get_attribute("aria-pressed") == "true"
+    assert row.get_by_role("button", name="npm").get_attribute("aria-pressed") == "false"
+    row.get_by_role("button", name="More: Grow installs").click()                                     # the form, the picks filled in
+    dlg = pg.get_by_role("dialog", name="Questions: Grow installs")
+    assert dlg.get_by_label("Answer 1: Which channel first?").input_value() == "the forum"
+    assert dlg.get_by_label("Answer 2: Which month?").input_value() == "" and "most installs come from it" in dlg.inner_text()
+    dlg.get_by_label("Answer 2: Which month?").fill("November")
+    dlg.get_by_role("button", name="Send").click()
+    assert _sent(pg, host, ("ideas.answer", {"slug": "grow", "answers": ["the forum", "November"], "goal": True}))
+    host.asked.remove("grow")
+    host.bump({})
+    pg.get_by_role("button", name="Let the Taskmaster decide: Grow installs").click()
+    assert _sent(pg, host, ("ideas.answer", {"slug": "grow", "decide": True, "goal": True}))
 
 
 def test_a_proposal_declined_with_a_reason_or_without(shell):
@@ -1103,6 +1149,7 @@ def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
     agents = pg.locator(".shell-agents")
     assert "taskmaster" in agents.inner_text().lower() and "task types" not in agents.inner_text().lower()      # spec 36 §5: a monitor
     agents.get_by_role("button", name="+ Add agent").click()
+    pg.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
     dlg = pg.get_by_role("dialog", name="Add agent")
     dlg.get_by_label("Name").fill("Docs scribe")
     dlg.get_by_label("Model").select_option("laborer")
@@ -1142,7 +1189,7 @@ def test_every_dialog_has_a_dimmed_backdrop_an_opaque_panel_and_closes_on_esc(sh
     pg, host = shell
     opens = [("New goal", lambda: pg.get_by_role("button", name="New goal").click()),
              ("New idea", lambda: pg.get_by_role("button", name="New idea").click()),
-             ("Add agent", lambda: pg.get_by_role("button", name="+ Add agent").click()),
+             ("Add an agent", lambda: pg.get_by_role("button", name="+ Add agent").click()),
              ("Settings", lambda: pg.get_by_role("button", name="Settings").click()),
              ("Merge into", lambda: pg.locator(".shell-into").get_by_role("button", name="Merge into dev").click()),
              ("Drop this result?", lambda: pg.locator(".shell-card", has_text="Add the queue").get_by_role("button", name="Drop…").click())]
@@ -1188,3 +1235,66 @@ def test_pair_a_phone_from_the_gear_shows_the_qr_the_time_left_how_it_reaches_an
         pg.wait_for_timeout(100)
     assert _sent(pg, host, ("phones.pair_stop", {}))                                                       # closing voids a code not used
     assert pg.get_by_role("button", name="Settings").evaluate("e => e === document.activeElement")    # the focus is back on the gear
+
+
+def test_the_needs_you_count_is_the_warning_and_review_s_stays_plain(shell):
+    pg, host = shell
+    count = pg.locator(".shell-board").get_by_role("tab", name="Needs you").locator(".shell-count")   # the Board's Needs you tab
+    assert "warning" in count.get_attribute("class") and count.inner_text() == "4"                    # an answer waits: the warning colour
+    colour = count.evaluate("e => getComputedStyle(e).backgroundColor")
+    assert colour == pg.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-warning)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
+    review = pg.locator(".shell-review .shell-count")
+    if review.count():
+        assert "warning" not in review.first.get_attribute("class")                                    # Review's stays plain
+
+
+def test_an_agent_is_one_line_with_its_head_its_name_how_many_and_what_a_task_costs(shell):
+    pg, host = shell
+    host.usd_task = {"grunt": 0.4}
+    host.bump({})
+    agents = pg.locator(".shell-agents")
+    line = agents.locator(".shell-role[data-role=grunt] .shell-role__head")
+    pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__head')?.getAttribute('aria-label')?.includes('$0.40')", timeout=WAIT_MS)
+    assert line.get_attribute("aria-label") == "Grunts: an ork, Engineering, Seasoned; up to 8 at once; about $0.40 a task"
+    assert " ".join(line.inner_text().split()) == "Grunts ×8 ≈ $0.40 a task Edit" and line.locator("img").count() == 1
+    assert "up to" not in line.inner_text() and "By Target" not in line.inner_text() and "tasks the first time" not in line.inner_text()
+    tm = agents.locator(".shell-role[data-role=taskmaster] .shell-role__head")                       # its cost is its steps: no ×N, no cost of a task
+    assert "×" not in tm.inner_text() and "a task" not in tm.inner_text()
+
+
+def test_an_agent_chip_shows_its_short_name_on_two_lines_with_the_title_in_its_label(shell):
+    pg, host = shell
+    host.chip_extra = {"k3": {"short": "Retry offline", "idea_short": "Sync"}}
+    host.bump({})
+    chip = pg.locator(".shell-chip", has_text="Retry offline")
+    chip.wait_for(timeout=WAIT_MS)
+    assert chip.get_attribute("title") == "Retry on a lost signal" and "Retry on a lost signal" in chip.get_attribute("aria-label")
+    assert "Sync" in chip.locator(".shell-chip__idea").inner_text() and "Sync ideas between" not in chip.inner_text()
+    assert chip.locator(".shell-chip__name").evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
+
+
+def test_add_agent_opens_two_ways_from_the_library_and_your_own_and_the_built_in_two_show_what_they_are_told(shell):
+    pg, host = shell
+    pg.locator(".shell-agents").get_by_role("button", name="+ Add agent").click()
+    choose = pg.get_by_role("dialog", name="Add an agent")
+    choose.wait_for(timeout=WAIT_MS)
+    assert choose.locator(".shell-library__row").count() > 5 and choose.get_by_role("button", name="Add Taskmaster").count() == 0   # the project's own are not offered
+    row = choose.get_by_role("button", name="Add Copywriter")
+    assert "Marketing" in row.inner_text() and row.locator("img").count() == 1                       # its head, name, craft and what it takes
+    row.click()
+    assert _sent(pg, host, ("ideas.role_add", {"id": "copywriter"}))
+    pg.locator(".shell-role[data-slug='copywriter']").wait_for(timeout=WAIT_MS)
+    pg.locator(".shell-agents").get_by_role("button", name="+ Add agent").click()                    # added: no longer offered
+    choose.wait_for(timeout=WAIT_MS)
+    assert choose.get_by_role("button", name="Add Copywriter").count() == 0
+    choose.get_by_role("button", name="Your own").click()
+    assert pg.get_by_role("dialog", name="Add agent").get_by_label("Name").is_visible()              # today's form
+    assert pg.get_by_role("dialog", name="Add agent").locator(".shell-told").count() == 0
+    pg.keyboard.press("Escape")
+    pg.get_by_role("button", name="Edit Taskmaster").click()
+    dlg = pg.get_by_role("dialog", name="Edit agent")
+    told = dlg.locator(".shell-told")
+    assert told.get_attribute("open") is None and "What it is told already" in told.inner_text()      # folded
+    told.locator("summary").click()
+    assert "The Taskmaster reads each step's prompt." in told.inner_text() and told.locator("textarea, input").count() == 0    # read only
+    assert dlg.get_by_label("Added to what it is told").is_visible()

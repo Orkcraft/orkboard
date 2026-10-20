@@ -85,8 +85,8 @@ def test_each_agent_wears_its_crafts_race_in_its_tiers_gear_and_each_chip_the_he
     assert _src(head("grunt")).endswith("/ds/orkui/races/peon-warrior.png")           # the Grunts: orks
     assert _src(agents.locator(".shell-role[data-role=taskmaster] img.ork-race__head")).endswith("/ds/orkui/races/peon-elder.png")
     assert head("layout").get_attribute("title") == "Veteran elf · Design"
-    facts = agents.locator(".shell-role[data-slug=seer] .shell-role__facts").inner_text()
-    assert facts.startswith("Data · By Target, now Seasoned")
+    said = agents.locator(".shell-role[data-slug=seer] .shell-role__head").get_attribute("aria-label")
+    assert said.startswith("Seer: a goblin, Data, Seasoned; up to 2 at once")
     chip = agents.locator(".shell-role[data-role=grunt] .shell-chip[data-state=running]").first
     assert _src(chip.locator("img.ork-race__head")).endswith("/ds/orkui/races/peon-warrior.png")
     assert head("layout").get_attribute("srcset").endswith("elf-elder@2x.png 2x")              # sharp on a sharp screen
@@ -101,6 +101,7 @@ def test_each_agent_wears_its_crafts_race_in_its_tiers_gear_and_each_chip_the_he
 def test_the_agents_dialog_picks_the_craft_and_shows_the_head_it_will_wear(races):
     pg, host = races
     pg.locator(".shell-agents").get_by_role("button", name="+ Add agent").click()
+    pg.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
     dialog = pg.get_by_role("dialog", name="Add agent")
     craft = dialog.get_by_label("Craft")
     assert [" ".join(o.text_content().split()) for o in craft.locator("option").all()] == [

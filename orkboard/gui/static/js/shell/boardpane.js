@@ -24,7 +24,7 @@ export function BoardPane() {
   return html`<section class="shell-pane shell-board" aria-label=${on === "files" ? "Files" : on === "needs" ? "Needs you" : "Board"}>
     <header class="shell-pane__head shell-pane__tabs" role="tablist" aria-label=${tabs.map((t) => t[1]).join(", ")}>
       ${tabs.map(([id, name]) => html`<button key=${id} role="tab" aria-selected=${on === id}
-        class=${cls("shell-ltab", { "is-on": on === id })} onClick=${() => { leftTab.value = id; }}>${name}${id === "needs" && count > 0 && html`<span class="shell-count ork-count on">${count}</span>`}</button>`)}
+        class=${cls("shell-ltab", { "is-on": on === id })} onClick=${() => { leftTab.value = id; }}>${name}${id === "needs" && count > 0 && html`<span class="shell-count ork-count warning">${count}</span>`}</button>`)}
     </header>
     <div class="shell-pane__body">
       ${on === "files" ? html`<${FilesPane} />`

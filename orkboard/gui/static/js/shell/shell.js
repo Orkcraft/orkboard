@@ -54,7 +54,7 @@ function Tabs() {
   return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents, Review">
     ${[["board", "Board"], ["agents", "Agents"], ["review", "Review"]].map(([id, name]) => html`<button key=${id} role="tab"
       aria-selected=${tab.value === id} class=${cls("shell-tab ork-tabbar__tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
-      <${TabMark} tab=${id} />${name}${counts[id] > 0 && html`<span class="shell-count ork-count on">${counts[id]}</span>`}</button>`)}
+      <${TabMark} tab=${id} />${name}${counts[id] > 0 && html`<span class=${cls("shell-count ork-count", id === "board" ? "warning" : "on")}>${counts[id]}</span>`}</button>`)}
   </nav>`;
 }
 

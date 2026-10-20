@@ -7,9 +7,11 @@ import { Questions } from "../board/ask.js";
 import { act } from "./store.js";
 import { Modal, closeDialog } from "./modals.js";
 
-export function AskDialog({ slug, goal = false, title = "" }) {
-  const [questions, setQuestions] = useState(null);
+/** `asked`/`picks`: the row's questions as the host sends them and the answers pressed in its card; More fills them in. */
+export function AskDialog({ slug, goal = false, title = "", asked = null, picks = [] }) {
+  const [questions, setQuestions] = useState(asked ? asked.map((q) => q.ask) : null);
   useEffect(() => {
+    if (asked) return undefined;
     let live = true;
     (async () => {
       const got = goal ? await ask("ideas.goal", { slug }) : await ask("ideas.page", { slug });
@@ -25,7 +27,7 @@ export function AskDialog({ slug, goal = false, title = "" }) {
   return html`<${Modal} title=${`Questions: ${title}`} onClose=${closeDialog} wide=${true}
     foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Later</button>`}>
     ${questions === null ? html`<p class="ok-tone-muted">Opening…</p>`
-      : questions.length ? html`<${Questions} questions=${questions} onSend=${send} />`
+      : questions.length ? html`<${Questions} questions=${questions} onSend=${send} initial=${asked ? picks : []} hints=${asked ? asked.map((q) => q.why || "") : []} />`
         : html`<p class="ok-tone-muted">No question is open any more.</p>`}
   <//>`;
 }
