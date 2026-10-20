@@ -60,6 +60,25 @@ def nights(root: Path, settings: dict, now: dt.datetime, n: int = 7) -> list[dic
     return out
 
 
+STREAK_MAX = 365
+
+
+def streak(root: Path, settings: dict, now: dt.datetime) -> int:
+    """Nights in a row with work done, from the last night that ended backwards; an idle or an off night ends the run (spec 42 §8).
+    Today's night is not counted until it has ended; at most STREAK_MAX."""
+    run, seen = 0, 0
+    for n in (14, 60, STREAK_MAX):                      # asked for in growing parts: the log is read for as few nights as the run needs
+        got = nights(root, settings, now, n)
+        for x in got[seen:]:
+            if x["kind"] != "worked":
+                return run
+            run += 1
+        if len(got) < n:
+            break
+        seen = n
+    return run
+
+
 def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, rows: dict, ops_base: Path | None = None,
               into: str = "dev") -> dict[str, Any]:
     now = now.astimezone()
@@ -73,7 +92,7 @@ def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
             "first_time": first,
             "usd_per_merged": round(spent / merged, 2) if merged >= idea_spend.TOO_FEW and spent is not None else None,
             "nights": {k: kinds.count(k) for k in ("worked", "idle", "off")}, "tonight": tonight,
-            "night_on": window((settings or {}).get("night")) is not None, "into": into}
+            "night_on": window((settings or {}).get("night")) is not None, "into": into, "streak": streak(root, settings, now)}
 
 
 # -- last week (spec 42 §7) ------------------------------------------------------------------------------------
@@ -162,6 +181,6 @@ def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
     out = {"week": iso_week(monday), "from": monday.isoformat(), "to": (monday + dt.timedelta(days=6)).isoformat(), "into": into, **now_week,
            "before": {k: prior[k] for k in ("merged", "first_time", "usd_per_merged")} if prior["merged"] else None,
            "goals": goals, "flags": flags, "dearest": dearest, "fastest": fastest, "answers": answers,
-           "nights": {k: kinds.count(k) for k in ("worked", "idle", "off")}, "streak": 0}
+           "nights": {k: kinds.count(k) for k in ("worked", "idle", "off")}, "streak": streak(root, settings, min(now, until))}
     out["empty"] = not (now_week["merged"] or flags or goals)
     return out

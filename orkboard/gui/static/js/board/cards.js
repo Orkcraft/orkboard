@@ -53,6 +53,7 @@ function Recap({ r }) {
     ${(r.proposed || []).length > 0 && html`<p class="away__proposed">Proposed for you: ${joined(r.proposed.map((i) => html`<button key=${i.slug} type="button" class="board-link" onClick=${showNeeds}>${i.short}</button>`))}</p>`}
     ${(r.failed || []).length > 0 && html`<p class="away__failed ok-tone-error">Failed: ${joined(r.failed.map((f) => html`<button key=${f.slug + f.task} type="button" class="board-link" onClick=${() => showIdea(f.slug, { via: "recap" })}>${f.short} · ${f.task}</button>`), "; ")}</p>`}
     ${r.usd > 0 && html`<p class="away__usd ok-tone-muted">${usdWords(r.usd)}</p>`}
+    ${r.nights >= 2 && html`<p class="away__streak">${r.nights} nights in a row with work done.</p>`}
     <p class="away__waits"><button type="button" class="board-link" onClick=${showNeeds}>${waitsWords(r.waits || { you: 0, review: 0 })}</button></p>
   </div>`;
 }
@@ -100,7 +101,7 @@ function Week({ w }) {
     lines.push(html`<p class="away__answers">Questions: ${w.answers.recommended} of ${w.answers.answers} answers were the recommended one${left}</p>`);
   }
   const nights = weekNights(w.nights);
-  if (nights) lines.push(html`<p class="away__nights">${nights.replace("The last 7 nights", "Nights")}</p>`);
+  if (nights) lines.push(html`<p class="away__nights">${nights.replace("The last 7 nights", "Nights")}${w.streak >= 2 ? ` · ${w.streak} in a row` : ""}</p>`);
   return html`<div class="away__lines">${lines.length ? lines : html`<p class="ok-tone-muted">Nothing was merged or finished.</p>`}</div>`;
 }
 
@@ -149,6 +150,7 @@ export function WeekDialog() {
       ${weekMoney(w) && html`<p class="week__usd">${weekMoney(w)}</p>`}
       <p class="week__results">${weekResults(w)}</p>
       ${weekNights(w.nights) && html`<p class="week__nights">${weekNights(w.nights)}</p>`}
+      ${w.streak >= 2 && html`<p class="week__streak">${w.streak} nights in a row</p>`}
       ${w.night_on && (w.tonight > 0 ? html`<p class="week__tonight">Tonight: ${w.tonight} wait</p>`
         : html`<p class="week__tonight">Nothing waits for tonight · <button type="button" class="board-link" onClick=${newIdea}>New idea</button></p>`)}
     </div>`}

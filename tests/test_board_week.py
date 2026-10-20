@@ -84,7 +84,7 @@ def test_this_week_sums_the_seven_days_the_ops_ledger_and_what_waits_for_tonight
     assert got["usd"] == 40.0 and got["ops_usd"] == 3.2 and (got["merged"], got["first_time"]) == (4, 3)
     assert got["usd_per_merged"] == 10.0 and got["tonight"] == 2 and got["night_on"] is True and got["into"] == "dev"
     assert sum(got["nights"].values()) == 7 and set(got["nights"]) == {"worked", "idle", "off"}
-    assert set(got) == {"usd", "ops_usd", "merged", "first_time", "usd_per_merged", "nights", "tonight", "night_on", "into"}
+    assert set(got) == {"usd", "ops_usd", "merged", "first_time", "usd_per_merged", "nights", "tonight", "night_on", "into", "streak"}
 
 
 def test_the_price_of_a_result_is_said_from_three_merged_on_and_null_when_unpriced(root, tmp_path):
@@ -193,3 +193,46 @@ def test_ideas_week_is_the_hosts_and_a_phones_and_checks_its_week(fake_repo):
     for bad in ("last", 5, "2026-W99"):
         with pytest.raises(CommandError, match="ISO week"):
             host.command("ideas.week", {"week": bad})
+
+
+# -- nights in a row (spec 42 §8) ---------------------------------------------------------------------------------
+
+def _worked(root, days):
+    for d in days:
+        run(root, at(d, 1, 30), drafted=1)
+
+
+def test_a_run_of_worked_nights_counts_up_to_the_last_that_ended_and_an_idle_or_off_night_ends_it(root):
+    _worked(root, (20, 19, 18, 16))                                          # the 17th is off: it ends the run
+    assert board_week.streak(root, SETTINGS, NOW) == 3
+    run(root, at(17, 1, 30))                                                  # idle: still ends it
+    assert board_week.streak(root, SETTINGS, NOW) == 3
+    _worked(root, (17,))
+    assert board_week.streak(root, SETTINGS, NOW) == 5                        # 16, 17, 18, 19, 20 … and the 15th is off
+    assert board_week.streak(root, {"night": ""}, NOW) == 0
+
+
+def test_todays_night_is_not_counted_until_it_has_ended_and_a_long_run_is_counted_through_the_parts(root):
+    _worked(root, range(20, 0, -1))
+    assert board_week.streak(root, SETTINGS, at(20, 3, 0)) == 19              # the night of the 20th is still going on
+    assert board_week.streak(root, SETTINGS, at(20, 8, 0)) == 20
+    assert board_week.streak(root, SETTINGS, NOW) == 20                       # 1 October is the first with a log; the 30th of September is off
+
+
+def test_the_streak_is_in_this_week_and_last_week(root, tmp_path):
+    _worked(root, (19, 18))
+    assert board_week.this_week(root, tmp_path / "s", SETTINGS, NOW, {})["streak"] == 0          # the night of the 20th was off
+    _worked(root, (20,))
+    assert board_week.this_week(root, tmp_path / "s", SETTINGS, NOW, {})["streak"] == 3
+    assert board_week.last_week(root, tmp_path / "s", SETTINGS, NOW, {})["streak"] == 1           # the run as the week ended: the 18th, and the 17th is off
+    assert board_week.last_week(root, tmp_path / "s", SETTINGS, NOW, {}, week="2026-W43")["streak"] == 3
+
+
+def test_the_recap_carries_the_streak(fake_repo):
+    host = Orkboard(fake_repo)
+    today = dt.date.today()
+    ended = dt.datetime.now().time() >= dt.time(7, 0)                       # tonight's window (01:00–07:00) counts once it has ended
+    for back in (0, 1, 2) if ended else (1, 2):
+        when = dt.datetime.combine(today - dt.timedelta(days=back), dt.time(1, 30)).astimezone()
+        log(Path(host.ideas.host.repo_root), "night_run", when, drafted=1, started=0, refreshed=0, proposed=0)
+    assert host.command("ideas.recap", {"since": int((dt.datetime.now().timestamp() - 3600) * 1000)})["nights"] == (3 if ended else 2)

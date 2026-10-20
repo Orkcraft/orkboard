@@ -95,6 +95,7 @@ export function makeCards(core) {
         () => core.open({ kind: "idea", slug: f.slug }, "recap"))), "; ")));
     }
     if (r.usd > 0) lines.push(h("p", { class: "away-usd muted" }, usdWords(r.usd)));
+    if (r.nights >= 2) lines.push(h("p", { class: "away-streak" }, `${r.nights} nights in a row with work done.`));
     lines.push(h("p", { class: "away-waits" }, needs(waitsWords(r.waits || { you: 0, review: 0 }))));
     return lines;
   }
@@ -127,7 +128,7 @@ export function makeCards(core) {
       lines.push(h("p", { class: "away-answers" }, `Questions: ${w.answers.recommended} of ${w.answers.answers} answers were the recommended one${left}`));
     }
     const nights = weekNights(w.nights);
-    if (nights) lines.push(h("p", { class: "away-nights" }, nights.replace("The last 7 nights", "Nights")));
+    if (nights) lines.push(h("p", { class: "away-nights" }, `${nights.replace("The last 7 nights", "Nights")}${w.streak >= 2 ? ` · ${w.streak} in a row` : ""}`));
     return lines.length ? lines : [h("p", { class: "muted" }, "Nothing was merged or finished.")];
   }
 
@@ -181,6 +182,7 @@ export function makeWeek(core, newIdea) {
     const money = weekMoney(w), nights = weekNights(w.nights);
     body.replaceChildren(...[money ? h("p", { class: "week-usd" }, money) : null, h("p", { class: "week-results" }, weekResults(w)),
       nights ? h("p", { class: "week-nights" }, nights) : null,
+      w.streak >= 2 ? h("p", { class: "week-streak" }, `${w.streak} nights in a row`) : null,
       w.night_on ? (w.tonight > 0 ? h("p", { class: "week-tonight" }, `Tonight: ${w.tonight} wait`)
         : h("p", { class: "week-tonight" }, "Nothing waits for tonight · ", h("button", { class: "linkish", type: "button", onclick: () => { sh.close(); newIdea(); } }, "New idea"))) : null].filter(Boolean));
   }

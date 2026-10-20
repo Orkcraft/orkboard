@@ -498,3 +498,7 @@ only if the pusher's tick cannot ride the host's), `gui/static/pwa/util.js` (A, 
 - `last_week` takes the project's folder as `root` (the event log) and its nights are the seven that end Monday to Sunday of that week. A week that has not ended counts only the nights that have. The recap and the week check ask their own question: the week's key is written when the answer is empty too, so it is not asked again before the next week.
 - Line 3 of the card names a goal by its short name, the first with *N ideas done*, the others with the number alone; *Nights* adds *N Orkline was not running* when a night was off, as This week does.
 - The phone's drawer row **Last week** is under *This phone*; the desktop's link is at the foot of the Map (it is there with no flag too).
+
+### H. Nights in a row
+- `board_week.streak` reads the nights in growing parts (14, 60, 365) so a short run does not read a year of log. `ideas.recap` fills `nights` in the command (`board_recap.build` leaves 0; `board_recap` cannot import `board_week`), `this_week` and `last_week` carry `streak`; Last week's is the run **as the week ended** (its Sunday), not today's.
+- `tests/test_board_week.py`'s check of `this_week`'s keys gained `streak`.
