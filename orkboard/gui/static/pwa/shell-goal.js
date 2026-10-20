@@ -130,6 +130,7 @@ export function goalBody(g, core, act, asked, setAsked) {
     g.state_error && g.state !== "raw" && /^Not accepted/.test(g.state_error) ? h("p", { class: "warn" }, g.state_error) : null,
     verdictSec(g, core, act, sec, lead),
     teamSec(g, core, sec),
+    h("section", { class: "goal-sec", "aria-label": "What the party did" }, partyFold(core, g.slug)),
     sec("Description", h("p", { class: "brief" }, g.description || "No description yet.")),
     sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? `${the} is reading the goal…` : "Not written yet."))),
     sec("Metrics", g.metrics.length ? h("div", { class: "metrics" }, ...g.metrics.map((m) => h("div", { class: "card metric" }, h("b", {}, m.name),
@@ -143,6 +144,37 @@ export function goalBody(g, core, act, asked, setAsked) {
     (g.talk || []).length ? h("div", { class: "talk" }, ...g.talk.slice(-6).map((t) => h("div", { class: `turn ${t.who}` },
       h("span", { class: "who" }, t.who === "you" ? "You" : the), h("p", {}, t.text)))) : null,
   ].filter(Boolean);
+}
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const usdWords = (usd) => `≈$${usd.toFixed(2)}`;
+
+/** What a party did (spec 43 §2.3), a line each, in the text face: the leader's steps, each member's tasks, each checker's checks. */
+export function partyLines(w) {
+  if (!w.ideas) return ["No work yet"];
+  const lead = w.leader;
+  const lines = [`${lead.name} (leads)${lead.usd != null ? `: ${usdWords(lead.usd)} for the goal, the drafts and the plans` : ""}`];
+  for (const m of w.members) {
+    lines.push(`${m.name}: ${plural(m.tasks, "task", "tasks")}, ${m.first_time ? `${m.first_time} merged the first time` : "none merged the first time"}${m.usd != null ? ` · ${usdWords(m.usd)}` : ""}`);
+  }
+  for (const c of w.checks) {
+    lines.push(`${c.name}: checked ${plural(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}`
+      + `${c.usd != null ? ` · ${usdWords(c.usd)}` : ""}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} before findings were kept` : ""}`);
+  }
+  return lines;
+}
+
+/** *What the party did*: a fold, closed at first, that reads `ideas.party` when it is opened and says it once (`opened` `party`). */
+export function partyFold(core, slug) {
+  const body = h("div", {}, h("p", { class: "muted" }, "Reading…"));
+  const el = h("details", { class: "party-work" }, h("summary", {}, "What the party did"), body);
+  el.addEventListener("toggle", async () => {
+    if (!el.open) return;
+    core.call("ideas.log", { event: "opened", what: "party", ref: slug, device: "phone" });
+    const got = await core.call("ideas.party", { goal: slug });
+    if (got) body.replaceChildren(h("ul", { class: "party-lines" }, ...partyLines(got).map((l) => h("li", {}, l))));
+  });
+  return el;
 }
 
 /** The goal's team in one line — the heads with their names — and Change (spec 41 §7). */

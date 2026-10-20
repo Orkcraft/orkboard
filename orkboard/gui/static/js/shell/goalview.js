@@ -2,10 +2,11 @@
 // measured, the target, how it is counted), Links (a repository path or Wiki page opens in the preview; a web address in
 // the browser), the Open questions with a box to answer — the same talk as an idea's, on the goal. Its party's leader speaks in it
 // (the Taskmaster when none) and, when its ideas are done, accepts it against its metrics: the Verdict (realm/goal_verdict.py).
+import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, openLink } from "../link.js";
-import { goal, act, showDoc, roles } from "./store.js";
-import { board } from "../board/store.js";
+import { goal, act, showDoc, roles, logOpened } from "./store.js";
+import { board, ask } from "../board/store.js";
 import { WhoHead } from "../orkui.js";
 import { openDialog } from "./modals.js";
 import { ErrorLine } from "./errors.js";
@@ -16,6 +17,37 @@ const STATUS_TONE = { met: "ok-tone-ok", "not met": "ok-tone-error", unknown: "o
 /** Who leads a goal, as a sentence starts with it: its party's leader by name, else "The Taskmaster". */
 const leaderThe = (g) => (g.leader?.slug && g.leader.slug !== "taskmaster" ? g.leader.name : say("The Taskmaster"));
 const isUrl = (l) => /^[a-z][a-z0-9+.-]*:\/\//i.test(l);
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const usdWords = (usd) => `≈$${usd.toFixed(2)}`;
+
+/** What a party did (spec 43 §2.3), a line each, in the text face: the leader's steps, each member's tasks, each checker's checks. */
+export function partyLines(w) {
+  if (!w.ideas) return ["No work yet"];
+  const lead = w.leader;
+  const lines = [`${lead.name} (leads)${lead.usd != null ? `: ${usdWords(lead.usd)} for the goal, the drafts and the plans` : ""}`];
+  for (const m of w.members) {
+    lines.push(`${m.name}: ${plural(m.tasks, "task", "tasks")}, ${m.first_time ? `${m.first_time} merged the first time` : "none merged the first time"}${m.usd != null ? ` · ${usdWords(m.usd)}` : ""}`);
+  }
+  for (const c of w.checks) {
+    lines.push(`${c.name}: checked ${plural(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}`
+      + `${c.usd != null ? ` · ${usdWords(c.usd)}` : ""}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} before findings were kept` : ""}`);
+  }
+  return lines;
+}
+
+/** *What the party did*: a fold, closed at first, that reads `ideas.party` when it is opened and says it once (`opened` `party`). */
+export function PartyWork({ goal: slug }) {
+  const [work, setWork] = useState(null);
+  const toggle = async (e) => {
+    if (!e.currentTarget.open) return;
+    logOpened("party", slug);
+    const got = await ask("ideas.party", { goal: slug });
+    if (got) setWork(got);
+  };
+  return html`<details class="shell-party" onToggle=${toggle}><summary>What the party did</summary>
+    ${work ? html`<ul class="shell-party__lines">${partyLines(work).map((l, n) => html`<li key=${n}>${l}</li>`)}</ul>` : html`<p class="ok-tone-muted">Reading…</p>`}</details>`;
+}
 
 export function GoalView() {
   const g = goal.value;
@@ -39,6 +71,7 @@ export function GoalView() {
         return html`<li key=${s}>${r?.head && html`<${WhoHead} head=${r.head} small />`} <b>${r?.name || s}</b>
           ${check && html` <span class="ok-tone-muted">· checks ${(g.every || []).includes(s) ? "every idea" : check.applies}</span>`}</li>`;
       })}</ul></section>`}
+    <section class="shell-goal__sec" aria-label="What the party did"><${PartyWork} goal=${g.slug} /></section>
     <section class="shell-goal__sec" aria-label="Summary"><h3 class="board-sub">Summary ${g.title_by === "keeper" && html`<span class="ok-tone-muted">· title by the Taskmaster</span>`}</h3>
       <p class="shell-brief">${g.summary || html`<span class="ok-tone-muted">${g.state === "reading" ? `${lead} is reading the goal…` : "Not written yet."}</span>`}</p></section>
     <section class="shell-goal__sec" aria-label="Metrics"><h3 class="board-sub">Metrics ${g.metrics_by === "keeper" && html`<span class="ok-tone-muted">· by the Taskmaster</span>`}</h3>
