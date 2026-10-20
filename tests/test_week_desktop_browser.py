@@ -239,3 +239,21 @@ def test_nights_in_a_row_is_line_four_of_this_week_from_two_and_after_the_nights
     assert [" ".join(p.text_content().split()) for p in card.locator(".away__lines p").all()][-1] == "Nights: 5 with work done, 2 with none · 5 in a row"
     pg.close()
     assert not errors and not errors2
+
+
+# -- spec 44 fix-ups ---------------------------------------------------------------------------------------------------
+
+def test_a_chip_of_a_task_the_pace_started_says_the_week_has_room_and_a_week_wait_without_a_time_says_none(gui):
+    host = StubHost()
+    host.chip_extra = {"k3": {"pace": True}}
+    pg, host, errors = _open(gui, host=host)
+    chips = pg.locator(".shell-agents .shell-chip")
+    assert "by itself: the week has room" in chips.filter(has_text="Retry on a lost signal").inner_text()
+    assert "the week has room" not in chips.filter(has_text="Add the queue").inner_text()
+    words = pg.evaluate("""async () => {
+      const base = document.querySelector('link[href$="shell.css"]').href.replace('shell/shell.css', 'board/');
+      const m = await import(base + 'maplayout.js');
+      return m.waitsWords({ kind: "week", until: "" }); }""")
+    assert words == "waits: the week is behind"
+    pg.close()
+    assert not errors, "\n".join(errors)

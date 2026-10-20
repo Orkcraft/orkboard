@@ -34,7 +34,7 @@ from typing import Any, Callable
 
 from orkboard.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
 from orkboard.core.idea_task import FINDINGS_ASK, NO_DIFF, NO_FINDINGS, NO_RUN, TaskMixin, is_check
-from orkboard.realm import call_log, event_log, halt, harnesses, idea_checks, idea_spend, idea_target, jobs, roles, status, tool_errors
+from orkboard.realm import call_log, event_log, halt, harnesses, idea_checks, idea_spend, idea_target, ideas, jobs, roles, status, tool_errors
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths  # noqa: F401
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
@@ -168,7 +168,8 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             self._since[(slug, tid)] = now
             check = ({"check": True, **({"clean": True} if new == "merged" and t.get("note") == "clean" else {})}
                      if is_check(t) else {})            # a check task's lines say so; a clean one is no result (spec 43 §1.3)
-            self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1),
+            paced = {"by_pace": True} if new == "running" and (self.plan(slug) or {}).get("by_pace") else {}      # a task the week's pace started by day
+            self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1), **paced,
                        tier=t.get("tier") or "", role=t.get("role") or "", seconds=round(now - since, 1) if since else None, tokens=t.get("tokens"),
                        cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "",
                        tool=t.get("tool") or "", model=t.get("model") or "", **check)
@@ -295,8 +296,9 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                         self._changed(slug)
                     continue
                 board = self.board()
-                gate = idea_target.gate(plan, limits, board, now)
-                paced = idea_target.by_pace(plan, limits, board, now)            # the Board's Low plan, started by day: the week has room (spec 44 §3)
+                low = self._still_low(slug)
+                gate = idea_target.gate(plan, limits, board, now, low)
+                paced = idea_target.by_pace(plan, limits, board, now, low)            # the Board's Low plan, started by day: the week has room (spec 44 §3)
                 if paced and self._paced_elsewhere(slug):
                     gate = "night"                   # at most one of them by day in a project: a second waits for the first to end
                 for t in tasks:
@@ -339,6 +341,13 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         return (roles.role(self.state_dir, str(task.get("role") or "")) if task.get("role") else None) \
             or roles.role_for(self.state_dir, str(task.get("kind") or ""))
 
+    def _still_low(self, slug: str) -> bool:
+        """The idea is still Low: only a Low plan is the Board's to put off (spec 44 §2); with no rank to ask, it is."""
+        try:
+            return self.rank is None or self.rank(slug)[0] == ideas.PRIORITIES.index("low")
+        except Exception:
+            return False
+
     def _rank_of(self, slug: str) -> Any:
         try:
             return (0, self.rank(slug)) if self.rank is not None else (0, 0)
@@ -366,7 +375,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         for t in tasks:
             tid, state = t.get("id"), t.get("state")
             if state == "held" and str(t.get("note") or "").startswith("week") and limits is not None \
-                    and not isinstance(idea_target.gate(plan, limits, self.board(), now), idea_target.WeekHold):
+                    and not isinstance(idea_target.gate(plan, limits, self.board(), now, self._still_low(slug)), idea_target.WeekHold):
                 self._until.pop((slug, tid), None)             # the week is not behind any more: no reason left to hold it
                 t.update(state="waiting", note="")
                 state, changed = "waiting", True

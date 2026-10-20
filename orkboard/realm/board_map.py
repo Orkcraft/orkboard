@@ -82,6 +82,16 @@ def task_short(t: dict) -> str:
     return str(t.get("short") or "") or short_of(str(t.get("title") or ""))
 
 
+def _night_by(i: dict, st: dict, plan: dict | None) -> str:
+    """Who put it off to the night, for what waits for it; "board" only while the idea is still Low (raised to High or Normal it is as the person's)."""
+    low = i["priority"] == "low"
+    if st["state"] == "raw" and ideas.queue_of(st) == "night":
+        return ideas.night_by_of(st) if low else "person"
+    if st["state"] == "plan" and (plan or {}).get("start_at") == "night":
+        return "board" if low and (plan or {}).get("start_at_by") == "board" else "person"
+    return ""
+
+
 def row(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, page: ideas.Page | None, asks: list[str],
         states: dict[str, dict], mine: list[dict]) -> dict:
     """An idea as `ideas.board` lists it: the state and what words it (queue, held_until, start_at, progress, waits_on)."""
@@ -99,8 +109,7 @@ def row(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, page:
             "depends_on": depends,
             "waits_on": [d for d in depends if states.get(d, {}).get("state") != "done"],
             "start_at": str((plan or {}).get("start_at") or ""),
-            "night_by": ideas.night_by_of(st) if st["state"] == "raw" and ideas.queue_of(st) == "night" else
-            ("board" if (plan or {}).get("start_at_by") == "board" else "person") if st["state"] == "plan" and (plan or {}).get("start_at") == "night" else "",
+            "night_by": _night_by(i, st, plan),
             "in_needs_you": any(n["kind"] in ("asks", "plan", "proposal") for n in mine)}
 
 
@@ -154,7 +163,7 @@ def _waits(node: dict, tasks: list[dict], titles: dict[str, str], page_waits: li
         note = str(t.get("note") or "")
         got = _AFTER.search(note)
         if got and note.startswith("week"):
-            return {"kind": "week", "ref": "", "title": "", "until": (week or {}).get("until") or got.group(1)}
+            return {"kind": "week", "ref": "", "title": "", "until": (week or {}).get("until") or ""}      # no week read: no time the faces can say
     if (node["queue"] == "night" or node["start_at"] == "night") and node.get("night_by") == "board" and (week or {}).get("held"):
         return {"kind": "week", "ref": "", "title": "", "until": week["until"]}      # the Board's own Low work, held at night by the pace
     if node["queue"] == "night" or node["start_at"] == "night":

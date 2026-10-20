@@ -208,3 +208,22 @@ async def test_nights_in_a_row_in_this_week_and_last_week_from_two_spec_42_h(fak
         ANSWER.update(streak=1)
         sheet = await _sheet(page)
         assert not [x for x in await sheet.locator(".week p").all_text_contents() if "in a row" in x]
+
+
+# -- spec 44 fix-ups ---------------------------------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_a_chip_of_a_task_the_pace_started_says_the_week_has_room_and_a_week_wait_without_a_time_says_none(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.chip_extra = {"k3": {"by": "auto", "pace": True}, "k2": {"by": "auto"}}
+        stub.bump({})
+        await page.get_by_role("tab", name="Agents").click()
+        agents = page.locator(".agents")
+        await agents.locator(".chip-why").first.wait_for(timeout=WAIT_MS)
+        assert "by itself: the week has room" in await agents.locator(".chip", has_text="Retry on a lost signal").inner_text()
+        assert "the week has room" not in await agents.locator(".chip", has_text="Add the queue").inner_text()
+        words = await page.evaluate("""async () => {
+          const src = [...document.scripts].map((s) => s.src).find(Boolean) || document.baseURI;
+          const m = await import(new URL('shell-map.js', src).href);
+          return m.waitsWords({ state: "ready", waits: { kind: "week", until: "" } }); }""")
+        assert words == "waits: the week is behind"
