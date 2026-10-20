@@ -118,6 +118,11 @@ def _reset_s(lim) -> float | None:
     return reset.timestamp() if isinstance(reset, dt.datetime) else float(reset)
 
 
+def reset_at(lim) -> float | None:
+    """When one window comes back (epoch seconds), None when no reset was read."""
+    return _reset_s(lim)
+
+
 def reset_of(limits, provider: str, now: float | None = None, below: float = SPENT) -> float | None:
     """When `provider`'s window comes back (epoch seconds), from the quota readers' last read (`town.limits`): the
     latest reset among its windows with `below` or less left (all of them must come back), else None — nothing read

@@ -119,6 +119,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
         self._cancels: dict[str, threading.Event] = {}   # key → its run's own cancel (read_stop)
         self._tick_at = float("-inf")
         self._night_busy, self._night_tried = False, float("-inf")
+        self._pace_busy, self._pace_at = False, float("-inf")      # the week's pace (core/idea_night.py `pace_tick`)
 
     # -- the model call -------------------------------------------------------------------------------------
 
@@ -286,7 +287,8 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
                     started |= self._quiet(lambda: self.draft(slug))
                 elif st["state"] == "ready" and st["held_until"] and ideas.plan(self.state_dir, slug) is None:
                     started |= self._quiet(lambda: self.plan(slug, auto=True))
-        return self.night_tick(now) or started
+        night, paced = self.night_tick(now), self.pace_tick(now)
+        return night or paced or started
 
     def _quiet(self, fn: Callable[[], Any]) -> bool:
         try:

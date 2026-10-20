@@ -16,5 +16,5 @@ class MapMixin:
         root = self.root(False)
         if goal and not any(t["slug"] == goal and t["slug"] != ideas.GENERAL for t in ideas.tracks(root, make=False)):
             raise IdeasError("That goal is gone")
-        return board_map.build(root, self.state_dir, self.settings_now(), getattr(self, "_limits", None), time.time(), goal=goal,
+        return board_map.build(root, self.state_dir, self.settings_now(), list(self.host.limits() or []), time.time(), goal=goal,
                                rev=self.rev, state_of=self._state, goal_state_of=self.goal_state)

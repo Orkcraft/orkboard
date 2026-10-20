@@ -170,6 +170,7 @@ TERMS: tuple[Term, ...] = (
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)
     _t("proposal", "proposal", "proposals"),                       # an idea the keeper proposes at night, for the morning (spec 35 §8)
     _t("scribble", "note", "notes", "scribble", "scribbles"),       # an idea or a note on the board
+    _t("week_pace", "pace"),                                       # the Claude week's share left against the share still to come (spec 44; realm/idea_target.py `pace`)
     # Operations (docs/specs/38-operations.md §0): the person's everyday work by templates, across projects
     _t("operations", "Operations"),                                # the person's list, one for all projects; not a goal
     _t("operation", "operation", "operations"),                    # one piece of it, from one template

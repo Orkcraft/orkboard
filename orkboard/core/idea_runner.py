@@ -292,7 +292,8 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     elif changed:
                         self._changed(slug)
                     continue
-                gate = idea_target.gate(plan, limits, self.board(), now)
+                board = self.board()
+                gate = idea_target.gate(plan, limits, board, now, day_free=self._pace_free(slug))
                 for t in tasks:
                     if slots <= 0 or gate == "night":       # starts at night: only inside the window
                         break
@@ -302,9 +303,14 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     if self._running_as(role["slug"]) >= role["max_parallel"]:
                         continue                     # this role's own limit (spec 34 §3): the task waits its turn
                     until = status.reset_of(limits, HARNESS, now, status.NEARLY)
-                    if until is not None or gate is not None:     # the window, else the person's reserve (§6)
-                        self._hold(slug, t, until if until is not None else gate, "" if until is not None else "reserve · ")
+                    if until is not None or gate is not None:     # the window, else the week (spec 44), else the reserve (§6)
+                        week = until is None and idea_target.week_hold(plan, limits, board, now) == gate
+                        self._hold(slug, t, until if until is not None else gate,
+                                   "" if until is not None else ("week · " if week else "reserve · "))
                     else:
+                        if plan.get("start_at") == "night" and idea_target.board_low(plan, board) and not plan.get("by_pace") \
+                                and not idea_target.in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)):
+                            self._mark_pace(slug)                  # it goes by day because the week is ahead (spec 44 §3)
                         self._launch(slug, t)
                         slots -= 1
                     changed = True
@@ -337,9 +343,21 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             return (1, 0)
 
     def board(self) -> dict:
-        """The Board's own settings as the runner reads them (spec 35): its Target, night, reserves."""
+        """The Board's own settings as the runner reads them (spec 35): its Target, night, reserves, and whether it
+        starts plans by itself (spec 44: the week's pace moves only the Board's own work)."""
         return {k: setting(self.settings, k, d) for k, d in (("target", "balance"), ("night", "01:00-07:00"),
-                                                             ("reserve_day", 0.3), ("reserve_night", 0.1))}
+                                                             ("reserve_day", 0.3), ("reserve_night", 0.1),
+                                                             ("autostart", True))}
+
+    def _pace_free(self, slug: str) -> bool:
+        """No other plan of this project goes by day by the week's pace (one at a time, spec 44 §3)."""
+        return not any(o != slug and (self.plan(o) or {}).get("by_pace") for o in self._active)
+
+    def _mark_pace(self, slug: str) -> None:
+        plan = self.plan(slug)
+        if plan is not None:
+            plan["by_pace"] = True
+            self._write(self._dir(slug) / "plan.json", plan)
 
     def ran_on(self, task: dict) -> tuple[str, str]:
         """(the model or tier a task runs on, its effort): the Target's shift of its tier, a role's own model winning."""

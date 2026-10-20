@@ -54,7 +54,8 @@ IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it
 IDEA_SAID = "idea_said"           # idea, section, chars, text, device (the person's turn to the Taskmaster)
 KEEPER_STATE = "keeper_state"     # idea, state, was, seconds in the previous state
 PLAN_MADE = "plan_made"           # idea, tasks, todos, usd_low, usd_high
-PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority
+PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority,
+#                                    pace (with by "auto": it started by day, the week ahead of its pace; spec 44)
 TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan (a secret's value never)
 TASK_STATE = "task_state"         # idea, task, state, was, round, tier, role, seconds in the previous state, tokens, cost, ran_tier, effort
 RESULT_READY = "result_ready"     # idea, task, round, passed, failed, files, added, removed, cost, role
@@ -79,7 +80,8 @@ IDEA_ANSWERED = "idea_answered"   # idea, answers (how many)
 # … and every keeper event (goal_read, idea_drafted, idea_answered, idea_said, plan_made, night_run) carries §0's
 # step, prompt_chars, tokens ({"in", "out", "cache_read"}) and cost (null when unpriced, never 0)
 KEEPER_STOPPED = "keeper_stopped"  # idea (the person stopped the keeper's run on it)
-NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, seconds
+NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, paced (the Board's Low ideas left for the week), seconds
+WEEK_RESET = "week_reset"         # left (the share left when the week came back), provider (spec 44 §4)
 PROPOSAL_MADE = "proposal_made"   # idea, goal
 PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
 BOARD_COMMITTED = "board_committed"   # commit, pages, what, seconds (spec 35 §13: the Board's pages on the work branch)
@@ -109,7 +111,7 @@ EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LE
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST)
+          OP_RULES_ANSWERED, OP_TRUST, WEEK_RESET)
 
 _LOCK = threading.Lock()
 

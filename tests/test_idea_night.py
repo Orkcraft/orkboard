@@ -66,7 +66,7 @@ def test_the_night_runs_its_steps_in_order_and_says_so(keeper):
     order = [s for s in model.steps() if s != "plan"]
     assert order == ["draft", "draft", "draft", "goal", "propose"]               # 1. queue 3. refresh 4. proposals
     assert keeper.started == [tonight] and set(keeper.plans) == {low, high, old}   # 2. the plans that start at night
-    assert counts == {"drafted": 3, "started": 1, "refreshed": 1, "proposed": 2, "held": 0}
+    assert counts == {"drafted": 3, "started": 1, "refreshed": 1, "proposed": 2, "held": 0, "paced": 0}
     proposed = [i for i in ideas.ideas(keeper.root) if ideas.state(keeper.state, i["slug"])["state"] == "proposed"]
     assert {i["title"] for i in proposed} == {"Sort the table", "Filter it"}       # balance: 2, never into General
     assert all(i["track"] == g for i in proposed)
@@ -74,7 +74,7 @@ def test_the_night_runs_its_steps_in_order_and_says_so(keeper):
     assert page.section("Done when") == "" and page.section("Gist") in ("People sort.\nOften.", "They filter.")
     assert next(a for a in model.asked if a["step"] == "goal")["prompt"].count("docs/notes.md") >= 1
     (run,) = _events(keeper, "night_run")
-    assert {k: run[k] for k in ("drafted", "started", "refreshed", "proposed", "held")} == counts
+    assert {k: run[k] for k in ("drafted", "started", "refreshed", "proposed", "held", "paced")} == counts
     assert run["step"] == "propose" and run["seconds"] is not None and run["cost"] is None
     assert [e["goal"] for e in _events(keeper, "proposal_made")] == [g, g]
     refreshed = ideas.goal_state(keeper.state, g)
