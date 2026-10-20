@@ -192,8 +192,7 @@ class BoardMixin:
             ideas.edit_plan(self.state_dir, slug, passing)
             self._ev(event_log.PLAN_PASSED, args, idea=slug, tasks=len(plan.get("tasks") or []), seconds=self._since(plan.get("made_at")),
                      by=by, risk=idea_risk.level(page.get("risk")) if page else "", priority=page.get("priority") if page else "",
-                     **({"via": _via(args)} if args is not None else {}),
-                     **({"pace": night and self._by_pace()} if by == "auto" else {}))
+                     **({"via": _via(args)} if args is not None else {}))
         elif by == "person" and plan.get("start_at"):
             ideas.edit_plan(self.state_dir, slug, lambda p: p.update(start_at=None))
         if night:
@@ -203,13 +202,6 @@ class BoardMixin:
         ideas.save_state(self.state_dir, slug, state="working", error="", queue="")
         runner.start(slug)
         self._publish(slug)
-
-    def _by_pace(self) -> bool:
-        """The Board's Low plan just passed goes on by day: the week is ahead of its pace and it is not the night (spec 44 §3)."""
-        try:
-            return idea_target.by_pace({"start_at": "night", "start_at_by": "board"}, list(self.host.limits() or []), self.runner_board(), time.time())
-        except Exception:                                  # a quota never stops a plan from being passed
-            return False
 
     def runner_board(self) -> dict:
         """The Board's own settings as the runner reads them (target, night, reserves, autostart)."""
@@ -343,7 +335,7 @@ class BoardMixin:
                 raise IdeasError("Priority is High, Normal or Low")
             ideas.set_meta(root, slug, priority=priority)
             q = "night" if priority == "low" else "now"
-            ideas.save_state(self.state_dir, slug, state="raw", queue=q, error="")
+            ideas.save_state(self.state_dir, slug, state="raw", queue=q, error="", **({"night_by": "board"} if q == "night" else {}))
             if q == "now":
                 try:
                     self.keeper.draft(slug)

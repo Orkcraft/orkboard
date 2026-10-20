@@ -71,6 +71,11 @@ def _rank(i: dict) -> tuple:
     return ideas.PRIORITIES.index(i["priority"]), i["order"], i["slug"]
 
 
+def board_low_idea(i: dict, st: dict) -> bool:
+    """A raw idea the Board itself put off to the night and that is still Low: raised to High or Normal it is as any other (spec 44 §2)."""
+    return i["priority"] == "low" and ideas.night_by_of(st) == "board"
+
+
 class NightMixin:
     # -- when -----------------------------------------------------------------------------------------------
 
@@ -138,7 +143,7 @@ class NightMixin:
                 break
             step(root, counts)
         prev = self.night_state()
-        data = {"key": key, "held": counts["held"] > 0, "at": dt.datetime.now().isoformat(timespec="seconds"),
+        data = {"key": key, "held": counts["held"] > 0 or counts.get("paced", 0) > 0, "at": dt.datetime.now().isoformat(timespec="seconds"),
                 "head": self.head() or prev.get("head", ""), "head_before": prev.get("head", "") if prev.get("key") != key
                 else prev.get("head_before", "")}
         ideas._write_json(self._night_file(), data)
@@ -152,7 +157,7 @@ class NightMixin:
         waiting = [i for i in ideas.ideas(root) if (st := ideas.state(self.state_dir, i["slug"]))["state"] == "raw"
                    and ideas.queue_of(st) == "night" and not self.busy(i["slug"])]
         if self.week_is_behind():                          # the Board's Low ideas wait for the week to come back; the person's go on
-            left = [i for i in waiting if ideas.night_by_of(ideas.state(self.state_dir, i["slug"])) == "board"]
+            left = [i for i in waiting if board_low_idea(i, ideas.state(self.state_dir, i["slug"]))]
             counts["paced"] = len(left)
             waiting = [i for i in waiting if i not in left]
         for n, i in enumerate(sorted(waiting, key=_rank)):
@@ -316,20 +321,29 @@ may want to take in the morning, each under one of the goals. {self.reads("propo
         threading.Thread(target=run, daemon=True, name="idea-pace").start()
         return True
 
+    def _paced_running(self, found: list[dict]) -> bool:
+        """A plan of this project that the pace started by day is not finished (its tasks not all merged or failed)."""
+        for j in found:
+            plan = ideas.plan(self.state_dir, j["slug"])
+            if plan and plan.get("by_pace") and not all(t.get("state") in ("merged", "failed") for t in plan.get("tasks") or []):
+                return True
+        return False
+
     def run_pace(self, now: float | None = None) -> dict:
         """What `pace_tick` does, on this thread: {"started": slug | "", "drafted": slug | ""}."""
         root, out = self.wiki_root(), {"started": "", "drafted": ""}
         found = ideas.ideas(root)
-        low = [i for i in sorted(found, key=_rank) if ideas.night_by_of(ideas.state(self.state_dir, i["slug"])) == "board"]
+        low = [i for i in sorted(found, key=_rank) if board_low_idea(i, ideas.state(self.state_dir, i["slug"]))]
         for i in sorted(found, key=_rank):                  # a Board's Low plan waiting for the night starts (the gate lets it, the pace being ahead)
             plan = ideas.plan(self.state_dir, i["slug"])
-            if plan and plan.get("passed_at") and plan.get("start_at") == "night" and plan.get("start_at_by") == "board" \
+            if plan and plan.get("passed_at") and plan.get("start_at") == "night" and plan.get("start_at_by") == "board" and i["priority"] == "low" \
                     and ideas.state(self.state_dir, i["slug"])["state"] == "plan":
-                if self._reserved():
+                if self._reserved() or self._paced_running(found):          # one by day at a time: a second waits for the first to end
                     return out
                 try:
                     if self.start_night(i["slug"]):
                         out["started"] = i["slug"]
+                        ideas.edit_plan(self.state_dir, i["slug"], lambda p: p.update(by_pace=True, start_at=None))      # it is running: no longer waiting for the night
                 except Exception:                           # one plan that cannot start never stops the next
                     pass
                 break
@@ -338,8 +352,8 @@ may want to take in the morning, each under one of the goals. {self.reads("propo
             return out
         for i in low:                                       # its oldest Low idea is drafted, as the night's queue step does one
             st = ideas.state(self.state_dir, i["slug"])
-            if st["state"] != "raw" or ideas.queue_of(st) != "night" or self.busy(i["slug"]):
-                continue
+            if st["state"] != "raw" or ideas.queue_of(st) != "night" or st.get("error") or self.busy(i["slug"]):
+                continue                                    # one whose draft failed waits for the person, as in the keeper's tick; the next goes
             if self._reserved() or self.hold(i["slug"]):
                 break
             if self._sync(i["slug"], "drafting", lambda s=i["slug"]: self.draft_one(s)):

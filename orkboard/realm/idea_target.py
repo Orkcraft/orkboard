@@ -221,25 +221,26 @@ class WeekHold(float):
     """What `gate` answers when the week holds a Board's Low plan's tasks at night: the week's reset (a hold of kind `week`)."""
 
 
-def board_low(plan: dict, board: dict) -> bool:
-    """A plan the Board itself put off to the night (a Low plan's start) while it may still decide: autostart is on."""
-    return plan.get("start_at") == "night" and plan.get("start_at_by") == "board" and bool(board.get("autostart", True))
+def board_low(plan: dict, board: dict, low: bool = True) -> bool:
+    """A plan the Board itself put off to the night (a Low plan's start) while it may still decide: autostart is on. `low`: its idea is
+    still Low (raised to High or Normal it is as the person's)."""
+    return low and plan.get("start_at") == "night" and plan.get("start_at_by") == "board" and bool(board.get("autostart", True))
 
 
-def by_pace(plan: dict, limits, board: dict, now: float) -> bool:
+def by_pace(plan: dict, limits, board: dict, now: float, low: bool = True) -> bool:
     """The Board's Low plan may start by day: the week is ahead of its pace (spec 44 §3)."""
     night = in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
-    return board_low(plan, board) and not night and pace(limits, now) == "ahead"
+    return board_low(plan, board, low) and not night and pace(limits, now) == "ahead"
 
 
-def gate(plan: dict, limits, board: dict, now: float) -> str | float | None:
+def gate(plan: dict, limits, board: dict, now: float, low: bool = True) -> str | float | None:
     """What holds a passed plan's tasks besides the spent window: "night" (it starts at night and the window is not
     open: its tasks wait, unheld), the reserve's reset (it started by itself), the week's reset (`WeekHold`: the Board's
     Low plan at night while the week is behind), else None (spec 35 §5, §6; spec 44 §3). The Board's Low plan is the one
     exception to "night": by day, with the week ahead of its pace, it starts, the reserve as for any autostart."""
     night = in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
     if plan.get("start_at") == "night":
-        low = board_low(plan, board)
+        low = board_low(plan, board, low)
         if not night and not (low and pace(limits, now) == "ahead"):
             return "night"
         if night and low and pace(limits, now) == "behind":

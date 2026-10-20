@@ -64,7 +64,7 @@ No face, no model.
 
 - **`pace_tick(now)`** (`core/idea_night.py`, from the keeper's clock beside `night_tick`, at most every `PACE_S = 600`
   seconds, never inside the night window, never while a draft of the Board's Low is running in this project): when the
-  pace is `ahead`, `autostart` is on and the reserve does not hold, it drafts the oldest Board's Low idea of the
+  pace is `ahead`, `autostart` is on and the reserve does not hold, it drafts the first Board's Low idea in the Board's order of the
   project (as the night's queue step does one). A Low idea it drafts keeps its plan's start as autostart decides: low
   risk passes it with `start_at: "night"` and `start_at_by: "board"`, which the `gate` then lets start by day while the
   pace is `ahead`.
@@ -82,7 +82,7 @@ No face, no model.
 - **`week_reset`** (new event, `core/board_limits.py`): when a read shows the weekly reset moved later than the one
   read before (the week came back), `{left: <the last share left read before it>, provider: "claude"}`, written once to
   the log of the project shown (none open: not written).
-- **`plan_passed`** with `by: "auto"` gains `pace` (`true` when it started by day by the pace).
+- **`task_state`** `running` of a task of a plan that started by day by the pace gains `by_pace: true` (`plan_passed` says nothing of the pace: a plan is passed before it starts, and may start at night).
 - **This week** (`ideas.week_work`, spec 42 §6.2) gains `week`: `{"left", "rest", "pace", "reset"} | null` and
   `last_unused`: the newest `week_reset`'s `left` (`null` with none).
 
@@ -104,7 +104,7 @@ No face, no model.
   weekly limit, an error or another provider); the reserve per window equals today's rule with no window near its
   reset, and eases the five-hour window within `SOON_S` only while the pace is not `behind`; `night_by` and
   `start_at_by` written by each path and read as `"person"` from a state or plan of before; with a fake clock and fake
-  limits: by day and `ahead`, `pace_tick` drafts the oldest Board's Low idea once, one at a time, not while the reserve
+  limits: by day and `ahead`, `pace_tick` drafts the first Board's Low idea in the Board's order once, one at a time, not while the reserve
   holds, not with `autostart` off, not the person's; the `gate` lets the Board's Low plan start by day only `ahead`, one
   per project, and sets `by_pace`; at night and `behind`, the Board's Low plan is held with kind `week` until the reset
   and its draft stays queued while the person's are drafted; `night_run`'s `paced`; `week_reset` once when the reset
@@ -131,8 +131,8 @@ else: stop and write it in §9 first.
 
 ### A. The pace
 - `idea_target.week(limits, now, provider)` takes the tightest weekly window when a tool has several; `rest` is clamped to 0–1. `reserve_held` is the per-window rule (a copy of the old one is the oracle of `tests/test_week_pace.py`, which compares them on a grid); `pace` is `ahead` from `MARGIN` above the share to come (inclusive), `behind` below it, else `even`. `WeekHold` is a float (the week's reset): what `gate` answers for a hold of kind `week`. `board_low(plan, board)` and `by_pace(plan, limits, board, now)` are its helpers.
-- The state keeps `night_by` (in `STATE_DEFAULT`, `""` before; `ideas.night_by_of` reads `""` as `"person"`); a plan keeps `start_at_by`. `ideas.add` sets `"board"` for a Low idea and `"person"` for any `night: true`; `ideas.queue` night sets `"person"`; `pass_plan` sets `start_at_by` (`"board"` for `by == "auto"`). `plan_passed` by `auto` carries `pace` (true when it is passed to go on by day, the week having room).
-- `pace_tick` (`core/idea_night.py`, from the keeper's `tick`) runs `run_pace` on a thread: it starts the Board's oldest Low plan waiting for the night (`start_night`) and drafts the oldest Board's Low idea, unless one is being drafted. The gate does the rest: it lets the plan's tasks start by day and the runner marks the plan `by_pace` when it launches a task; a second Board's Low plan waits (`gate` = `"night"`) while another plan with `by_pace` is not finished. A held task of kind `week` (note *week · after HH:MM*) is let go as soon as the gate no longer answers a `WeekHold` (the pace changed), not only at the reset.
+- The state keeps `night_by` (in `STATE_DEFAULT`, `""` before; `ideas.night_by_of` reads `""` as `"person"`); a plan keeps `start_at_by`. `ideas.add` sets `"board"` for a Low idea and `"person"` for any `night: true`; `ideas.queue` night sets `"person"`; `pass_plan` sets `start_at_by` (`"board"` for `by == "auto"`). `plan_passed` says nothing of the pace; the `running` lines of a `by_pace` plan's tasks carry `by_pace: true` (`IdeaRunner._note`).
+- `pace_tick` (`core/idea_night.py`, from the keeper's `tick`) runs `run_pace` on a thread: it starts the Board's first Low plan waiting for the night (`start_night`) and drafts the first Board's Low idea, unless one is being drafted. *First* is the Board's order (`_rank`: the priority, then the person's order), not age. The gate does the rest: it lets the plan's tasks start by day and the runner marks the plan `by_pace` when it launches a task; a second Board's Low plan waits (`gate` = `"night"`) while another plan with `by_pace` is not finished. A held task of kind `week` (note *week · after HH:MM*) is let go as soon as the gate no longer answers a `WeekHold` (the pace changed), not only at the reset.
 - The night leaves the Board's Low ideas when the week is behind and `autostart` is on; `night_run` carries `paced` (also `0`), the returned counts do not (they stay as they were). The Board's Low plan is started by the night as today, and held by the gate at night while the week is behind.
 - `ideas.map`'s nodes carry `night_by` (only for a new idea waiting for the night and a plan to start at night; `""` otherwise), `by_pace`, and `waits` kind `week` with `until` as `YYYY-MM-DDTHH:MM` (the week's reset, local time) for work held at night by the pace; `ideas.board`'s rows carry `night_by`. `gui/ideas_map.py` now passes the host's limits (`Limit` rows) to `board_map.build` (it passed the page's own dicts, which `build` did not read) — outside A's file list, written here.
 - `week_reset` is written by `BoardLimits._read` when the weekly reset read is more than a day later than the one before and a project is shown (the rows are read for the home folder when none is). This week's `week` carries `reset` in epoch seconds; `ideas.week_work` passes the host's limits.
@@ -143,3 +143,14 @@ else: stop and write it in §9 first.
 - Agents: a chip with `pace: true` reads *by itself: the week has room* (desktop `shell-chip__tag`, phone `chip-why`).
 - This week: `weekPace(w)` (in `cards.js` and `shell-cards.js`) gives *The week: 55 % left with 2 days to go: Low work starts by day / waits for the night / waits until the week comes back*, placed after the nights' lines; the days to go are `rest` × 7 rounded up (at least 1, *1 day*). *Last week ended with 30 % unused* follows when `last_unused` is set. No line when `week` is null. No meter, colour or toast.
 - `sw.js` is `orkcraft-app-v52`. Tests: `test_week_desktop_browser`, `test_pwa_week_browser` (the lines, the row and wait words through the modules).
+- `core/idea_task.py` has `_paced_elsewhere(slug)` (another plan of the project with `by_pace` is not finished: the runner holds a second Board's Low plan with `gate` = `"night"`) and `_mark_pace(slug)` (the plan says `by_pace` and, running, no longer `start_at: "night"`).
+
+### Fix-ups after review
+- `run_pace` skips an idea whose state has an `error` (as the keeper's own tick does) and tries the next; it starts a Board's Low plan only when no plan of the project with `by_pace` is unfinished (`NightMixin._paced_running`).
+- A plan the pace starts is `by_pace: true` with `start_at` cleared (`run_pace` after `start_night`, and `_mark_pace` for a plan that starts through the runner's tick): the Map shows it as any working plan, and the one-at-a-time rule goes through `by_pace`.
+- Only what is still Low is the Board's: `idea_target.board_low`, `by_pace` and `gate` take `low` (the runner asks its `rank`), `board_low_idea` in `core/idea_night.py` is the night's and the pace's test, and `board_map` reads `night_by` as `"person"` for a raised idea or plan. A raised one goes back to today's behaviour exactly.
+- A night proposal taken as Low is queued with `night_by: "board"`.
+- `plan_passed` no longer carries `pace`; the `task_state` `running` events of a `by_pace` plan's tasks carry `by_pace: true`.
+- A draft left by the pace at night counts as `held` for the night's retry (`night.json` `held` is true when `paced` > 0).
+- With no week read, a `week` wait has `until: ""` and both faces say *waits: the week is behind* alone.
+- Browser tests: the chip's *by itself: the week has room* and the wait without a time, on both faces (`tests/test_week_desktop_browser.py`, `tests/test_pwa_week_browser.py`).
