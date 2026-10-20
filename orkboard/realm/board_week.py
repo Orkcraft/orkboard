@@ -13,7 +13,7 @@ import datetime as dt
 from pathlib import Path
 from typing import Any
 
-from orkboard.realm import board_recap, event_log, idea_spend
+from orkboard.realm import board_recap, event_log, idea_spend, idea_target
 
 WEEK = dt.timedelta(days=7)
 WORKED_STATES = ("review", "merged")
@@ -79,8 +79,20 @@ def streak(root: Path, settings: dict, now: dt.datetime) -> int:
     return run
 
 
+def week_of(limits, now: dt.datetime) -> dict | None:
+    """The Claude week for This week (spec 44 §4): {"left", "rest", "pace", "reset"}, `reset` in epoch seconds; None with no week read."""
+    got = idea_target.week(limits, now.timestamp())
+    return None if got is None else {**got, "pace": idea_target.pace(limits, now.timestamp())}
+
+
+def last_unused(root: Path) -> float | None:
+    """The share left when the week last came back (the newest `week_reset`); None with none."""
+    left = [r.get("left") for r in event_log.read(root) if r.get("event") == event_log.WEEK_RESET and isinstance(r.get("left"), (int, float))]
+    return left[-1] if left else None
+
+
 def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, rows: dict, ops_base: Path | None = None,
-              into: str = "dev") -> dict[str, Any]:
+              into: str = "dev", limits=()) -> dict[str, Any]:
     now = now.astimezone()
     since = now - WEEK
     spent = idea_spend.between(state_dir, since, now)
@@ -93,7 +105,8 @@ def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
             "first_time": first,
             "usd_per_merged": round(spent / merged, 2) if merged >= idea_spend.TOO_FEW and spent is not None else None,
             "nights": {k: kinds.count(k) for k in ("worked", "idle", "off")}, "tonight": tonight,
-            "night_on": window((settings or {}).get("night")) is not None, "into": into, "streak": streak(root, settings, now)}
+            "night_on": window((settings or {}).get("night")) is not None, "into": into, "streak": streak(root, settings, now),
+            "week": week_of(limits, now), "last_unused": last_unused(root)}
 
 
 # -- last week (spec 42 §7) ------------------------------------------------------------------------------------

@@ -358,9 +358,9 @@ def ideas(root: Path, track: str | None = None) -> list[dict]:
 
 
 def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None = None, priority: str = "",
-             queue: str = "") -> str:
+             queue: str = "", night_by: str = "") -> str:
     """A dropped idea: its text under Gist, the rest empty, last in its track. No model. `priority`: the person's
-    (else its goal's); `queue`: where a raw idea waits (spec 35 §3)."""
+    (else its goal's); `queue`: where a raw idea waits (spec 35 §3); `night_by`: who put it off to the night (spec 44 §2)."""
     text = str(text or "").strip()
     if not text:
         raise ValueError("An idea needs a few words")
@@ -383,7 +383,8 @@ def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None
         _write(root / IDEAS / f"{slug}.md", page.text())
         _reindex(root)
     if state_dir is not None:
-        save_state(state_dir, slug, state="raw", **({"queue": queue} if queue in QUEUES else {}))
+        save_state(state_dir, slug, state="raw", **({"queue": queue} if queue in QUEUES else {}),
+                   **({"night_by": night_by} if queue == "night" and night_by in ("board", "person") else {}))
     return slug
 
 
@@ -481,7 +482,13 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
 # -- what runs on an idea: <state_dir>/ideas/<slug>/ ------------------------------------------------
 
 STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": "",
-                 "queue": "", "held_until": "", "measure": None}
+                 "queue": "", "held_until": "", "measure": None, "night_by": ""}
+
+
+def night_by_of(st: dict) -> str:
+    """Who put a raw idea off to the night (spec 44 §2): "board" (a Low idea's draft) or "person" (*Tonight*, New idea's night);
+    a state of before this spec reads "person"."""
+    return "board" if st.get("night_by") == "board" else "person"
 
 
 def queue_of(st: dict) -> str:

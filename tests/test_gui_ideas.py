@@ -74,7 +74,8 @@ def test_drop_an_idea_and_read_the_board_and_its_page(host):
     assert set(i) == {"slug", "title", "short", "track", "order", "state", "size", "thesis", "asks", "progress", "updated",
                       "priority",                 # spec 34 §4: ideas gain a priority
                       "queue", "held_until", "risk", "risk_triggers", "depends_on", "waits_on", "start_at",
-                      "in_needs_you"}             # spec 35 §12
+                      "in_needs_you",             # spec 35 §12
+                      "night_by"}                 # spec 44 §4: who put it off to the night
     assert i["priority"] == "normal" and board["tracks"][0]["priority"] == "normal" and board["tracks"][0]["state"] == "raw"
     assert board["needs_you"] == [] and board["rev"] > rev      # spec 35 §10: `today` became `needs_you`, the batch went
     page = host.command("ideas.page", {"slug": slug})

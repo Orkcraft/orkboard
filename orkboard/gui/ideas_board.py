@@ -14,7 +14,7 @@ from typing import Any
 from orkboard import settings
 from orkboard.core import idea_keeper, idea_night
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text, _via
-from orkboard.realm import board_map, event_log, idea_questions, idea_risk, idea_secrets, ideas
+from orkboard.realm import board_map, event_log, idea_questions, idea_risk, idea_secrets, idea_target, ideas
 from orkboard.realm.idea_git import BoardTree
 
 NEEDS_IDEA = ("asks", "plan", "failed", "proposed")
@@ -184,11 +184,16 @@ class BoardMixin:
             def passing(p: dict) -> None:
                 p.update(passed_at=time.strftime("%Y-%m-%dT%H:%M:%S"), passed_by=by)
                 p["start_at"] = "night" if night else None
+                if night:
+                    p["start_at_by"] = "board" if by == "auto" else "person"          # who put the start off (spec 44 §2)
+                else:
+                    p.pop("start_at_by", None)
                 p.pop("stopped", None)
             ideas.edit_plan(self.state_dir, slug, passing)
             self._ev(event_log.PLAN_PASSED, args, idea=slug, tasks=len(plan.get("tasks") or []), seconds=self._since(plan.get("made_at")),
                      by=by, risk=idea_risk.level(page.get("risk")) if page else "", priority=page.get("priority") if page else "",
-                     **({"via": _via(args)} if args is not None else {}))
+                     **({"via": _via(args)} if args is not None else {}),
+                     **({"pace": night and self._by_pace()} if by == "auto" else {}))
         elif by == "person" and plan.get("start_at"):
             ideas.edit_plan(self.state_dir, slug, lambda p: p.update(start_at=None))
         if night:
@@ -198,6 +203,19 @@ class BoardMixin:
         ideas.save_state(self.state_dir, slug, state="working", error="", queue="")
         runner.start(slug)
         self._publish(slug)
+
+    def _by_pace(self) -> bool:
+        """The Board's Low plan just passed goes on by day: the week is ahead of its pace and it is not the night (spec 44 §3)."""
+        try:
+            return idea_target.by_pace({"start_at": "night", "start_at_by": "board"}, list(self.host.limits() or []), self.runner_board(), time.time())
+        except Exception:                                  # a quota never stops a plan from being passed
+            return False
+
+    def runner_board(self) -> dict:
+        """The Board's own settings as the runner reads them (target, night, reserves, autostart)."""
+        s = self.settings_now()
+        return {"night": s.get("night", settings.IDEAS["night"]), "autostart": bool(s.get("autostart", True)),
+                "reserve_day": s.get("reserve_day", 0.3), "reserve_night": s.get("reserve_night", 0.1)}
 
     def start_night(self, slug: str) -> bool:
         """The night's step 2: a plan passed to start at night goes to the runner (its tasks start inside the window)."""
@@ -243,7 +261,7 @@ class BoardMixin:
         else:
             if self._state(slug)["state"] != "raw":
                 raise IdeasError("Only a new idea waits for the night")
-            ideas.save_state(self.state_dir, slug, queue="night", held_until="", error="")
+            ideas.save_state(self.state_dir, slug, queue="night", held_until="", error="", night_by="person")      # Tonight is the person's
         self._ev(event_log.IDEA_QUEUED, args, idea=slug, queue=q, via=_via(args))
         self.changed(slug)
         return {"ok": True}

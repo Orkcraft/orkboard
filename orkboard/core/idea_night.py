@@ -5,7 +5,8 @@ local time), and again inside it when the reserve held it. A mixin of `IdeaKeepe
     keeper.run_night()               # the same, on this thread: its counts (the `night_run` event)
 
 In this order, each step stopping at the reserve (realm/idea_target.py `reserve_held`):
-  1. the `night` queue: draft → plan → autostart, by priority, then the person's order;
+  1. the `night` queue: draft → plan → autostart, by priority, then the person's order; when the Claude week is behind its
+     pace (spec 44), the Board's own Low ideas stay queued (`paced` in `night_run`) and the person's are drafted;
   2. the plans that start at night (`start_night(slug)`: the face hands them to the runner);
   3. refresh (balance, quality): a goal whose linked paths, or the paths its Summary names, changed since its `read_at`
      is read again on the `refresh` step; an unchanged goal costs nothing;
@@ -29,6 +30,7 @@ from pathlib import Path
 from orkboard.realm import event_log, idea_target, ideas, party_proposals
 
 RETRY_S = 600                     # a night the reserve held is tried again after this, inside the window
+PACE_S = 600                      # the week's pace is read again after this (spec 44 §3)
 DECLINED, NIGHT = "declined.jsonl", "night.json"
 DECLINED_READ, COMMITS_READ = 30, 50
 _PATH = re.compile(r"`?([\w.-]+(?:/[\w.*-]+)+/?|[\w-]+\.(?:py|js|ts|tsx|md|json|toml|yaml|yml|css|html|sql))`?")
@@ -105,6 +107,16 @@ class NightMixin:
         threading.Thread(target=run, daemon=True, name="idea-night").start()
         return True
 
+    def _limits_read(self) -> list:
+        try:
+            return list(self.limits() or [])
+        except Exception:                               # a quota never stops the Board
+            return []
+
+    def week_is_behind(self, now: float | None = None) -> bool:
+        """What the Board itself put off to the night waits while the Claude week is behind its pace and `autostart` is on (spec 44 §3)."""
+        return bool((self.settings() or {}).get("autostart", True)) and idea_target.pace(self._limits_read(), time.time() if now is None else now) == "behind"
+
     def _reserved(self) -> bool:
         """The reserve is reached: what runs by itself stops here."""
         try:
@@ -131,13 +143,18 @@ class NightMixin:
                 else prev.get("head_before", "")}
         ideas._write_json(self._night_file(), data)
         measure = counts.pop("measure", None) or {"step": "propose", "prompt_chars": 0, "tokens": None, "cost": None}
-        self._ev(event_log.NIGHT_RUN, **counts, seconds=round(time.monotonic() - began, 1), **measure)
+        paced = counts.pop("paced", 0)                    # how many the week's pace left for later: not among the night's work
+        self._ev(event_log.NIGHT_RUN, **counts, paced=paced, seconds=round(time.monotonic() - began, 1), **measure)
         return counts
 
     def _night_queue(self, root: Path, counts: dict) -> None:
         """1. the `night` queue, by priority then the person's order: each drafted (its plan and autostart follow)."""
         waiting = [i for i in ideas.ideas(root) if (st := ideas.state(self.state_dir, i["slug"]))["state"] == "raw"
                    and ideas.queue_of(st) == "night" and not self.busy(i["slug"])]
+        if self.week_is_behind():                          # the Board's Low ideas wait for the week to come back; the person's go on
+            left = [i for i in waiting if ideas.night_by_of(ideas.state(self.state_dir, i["slug"])) == "board"]
+            counts["paced"] = len(left)
+            waiting = [i for i in waiting if i not in left]
         for n, i in enumerate(sorted(waiting, key=_rank)):
             if self._reserved() or self.hold(i["slug"]):
                 counts["held"] += len(waiting) - n
@@ -275,3 +292,57 @@ may want to take in the morning, each under one of the goals. {self.reads("propo
         for row in party_proposals.propose(root, self.state_dir):
             self._ev(event_log.PARTY_PROPOSED, **row)
             self.publish(f"goal:{row['goal']}")
+
+    # -- the week's pace (spec 44 §3): the Board's Low work by day, while the week has room ------------------------------------
+
+    def pace_tick(self, now: float) -> bool:
+        """From the keeper's clock, at most every PACE_S, never inside the night window: when the week is ahead of its pace, `autostart` is
+        on and the reserve does not hold, the Board's oldest Low plan waiting for the night starts, or its oldest Low idea is drafted,
+        one at a time in this project (a thread of its own). True when a run was started."""
+        if now - self._pace_at < PACE_S or self._pace_busy:
+            return False
+        self._pace_at = now
+        if idea_target.in_night(str((self.settings() or {}).get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)) or self._may_run():
+            return False
+        if not bool((self.settings() or {}).get("autostart", True)) or idea_target.pace(self._limits_read(), now) != "ahead" or self._reserved():
+            return False
+        self._pace_busy = True
+
+        def run() -> None:
+            try:
+                self.run_pace(now)
+            finally:
+                self._pace_busy = False
+        threading.Thread(target=run, daemon=True, name="idea-pace").start()
+        return True
+
+    def run_pace(self, now: float | None = None) -> dict:
+        """What `pace_tick` does, on this thread: {"started": slug | "", "drafted": slug | ""}."""
+        root, out = self.wiki_root(), {"started": "", "drafted": ""}
+        found = ideas.ideas(root)
+        low = [i for i in sorted(found, key=_rank) if ideas.night_by_of(ideas.state(self.state_dir, i["slug"])) == "board"]
+        for i in sorted(found, key=_rank):                  # a Board's Low plan waiting for the night starts (the gate lets it, the pace being ahead)
+            plan = ideas.plan(self.state_dir, i["slug"])
+            if plan and plan.get("passed_at") and plan.get("start_at") == "night" and plan.get("start_at_by") == "board" \
+                    and ideas.state(self.state_dir, i["slug"])["state"] == "plan":
+                if self._reserved():
+                    return out
+                try:
+                    if self.start_night(i["slug"]):
+                        out["started"] = i["slug"]
+                except Exception:                           # one plan that cannot start never stops the next
+                    pass
+                break
+        drafting = any(self.busy(i["slug"]) for i in low if ideas.state(self.state_dir, i["slug"])["state"] in ("raw", "reading"))
+        if drafting:
+            return out
+        for i in low:                                       # its oldest Low idea is drafted, as the night's queue step does one
+            st = ideas.state(self.state_dir, i["slug"])
+            if st["state"] != "raw" or ideas.queue_of(st) != "night" or self.busy(i["slug"]):
+                continue
+            if self._reserved() or self.hold(i["slug"]):
+                break
+            if self._sync(i["slug"], "drafting", lambda s=i["slug"]: self.draft_one(s)):
+                out["drafted"] = i["slug"]
+            break
+        return out
