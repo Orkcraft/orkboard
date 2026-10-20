@@ -245,3 +245,19 @@ first.
   `needs_you` count, with the snapshot's `sign_in`. The phone's snapshot carries neither `sign_in` nor a command for it; B
   reads the need from `ideas.board`. `waits` kind `sign_in` is `{kind, ref: harness, title: tool, tool, until: ISO}`.
 - **Events** go to the shown project's log only (`root()` of the host); none in the demo, where nothing is watched.
+
+**Part B, built.** Where it differs from the text above:
+- **`js/shell/signin.js`** is mounted by the shell and by the first screen (`js/onboarding.js`), the two pages never being drawn together.
+  It reads only the snapshot's `sign_in`: a tool that leaves it after being `open`, `failed` or `none` (or with work waiting) is
+  *signed in*; the `done` toast's *N tasks go on* is the `waiting` it last saw. A cancelled sign-in and a `failed` one found at the
+  page's first snapshot (a reload) say nothing. The toast stays 10 minutes (`WAIT_S`) while open.
+- **Open terminal sign-in**: the snapshot's entry holds no `command` while a terminal is `open` and no `sign_in_type`, so the page
+  knows pi's `/login` itself (`TYPED` in `signin.js`), and *Done* is offered for every tool signed in in a terminal (a tool that can be
+  told is told at once; a *Done* is then only early).
+- **Sign in in a terminal** (after `no_browser`) sends `tools.sign_in {harness, by: "terminal"}`; part A's `start` reads no `by` yet, so
+  until it does the host opens the browser way again. A one-line follow-up in `core/sign_ins.py` / `gui/board_host.py`.
+- **The Check row**: *Sign in* sits beside the failed Check's line (`CheckFailed`), not in the status cell, which reads *⚠ not signed in*
+  (with the tool's `login` words when no sign-in helps).
+- **Needs you**: the `sign_in` row is not a button that opens something; it has *Sign in* and *Later*. The phone's row has neither.
+- No change in `js/board/map.js`: `nodeView` already says the wait `waitsWords` gives, now `waits: Claude Code's sign-in` (before
+  *waits for limits*, since a hold sets `held_until` for both).

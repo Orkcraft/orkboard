@@ -20,7 +20,8 @@ export function waitsWords(w) {
   const who = w.title || w.ref || "another idea";
   return { idea: `waits for ${who}`, files: `same files as ${who}`, limits: `waits for limits${after(w.until)}`,
     reserve: `keeps your reserve${after(w.until)}`, night: "tonight", stopped: "stopped",
-    week: `waits: the week is behind${w.until ? ` · until ${dayAt(w.until)}` : ""}` }[w.kind] || "";
+    week: `waits: the week is behind${w.until ? ` · until ${dayAt(w.until)}` : ""}`,
+    sign_in: `waits: ${w.tool || w.title || "the tool"}'s sign-in` }[w.kind] || "";
 }
 
 /** `≈$0.40–1.20` while a plan has not started. */

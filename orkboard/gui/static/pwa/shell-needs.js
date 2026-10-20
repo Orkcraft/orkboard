@@ -12,7 +12,7 @@ import { limitsNote } from "./shell-limits.js";
 const LATER = "orkcraft.later";                       // {row key: until}, this phone's own
 const LATER_MS = 4 * 3600 * 1000;
 const SWIPE_PX = 80;
-const keyOf = (n) => `${n.kind}:${n.idea || n.goal || n.op || ""}:${n.text || ""}`;
+const keyOf = (n) => `${n.kind}:${n.idea || n.goal || n.op || n.harness || ""}:${n.text || ""}`;
 const later = {
   all() { try { return JSON.parse(localStorage.getItem(LATER)) || {}; } catch { return {}; } },
   put(n) {
@@ -25,7 +25,7 @@ const later = {
 
 // What needs the person, by kind, as orkUI's pixel icon (as the desktop's js/orkui.js NEED_ICONS).
 const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb",
-  op: "checkbox", op_failed: "square-alert", op_rules: "sliders" };
+  op: "checkbox", op_failed: "square-alert", op_rules: "sliders", sign_in: "warning-diamond" };
 const MAX_FILE = 5 * 1024 * 1024;
 const isList = /^([-*+]|\d+[.)])\s+/;
 
@@ -236,7 +236,16 @@ export function makeNeeds(core, ctx, ops) {
           reason, h("button", { class: "ork-btn", type: "button", "aria-label": `Keep it: ${n.title}`, onclick: () => act(false) }, "Keep it"))));
   }
 
+  // -- a tool that needs a sign-in while work waits for it: the wait, no button (a phone opens nothing on the computer) ----------
+  function signInNeed(n) {
+    return swipeable(h("div", { class: "card need need-sign_in", "data-kind": "sign_in", "data-harness": n.harness },
+      h("span", { class: "need-mark" }, icon(ICONS.sign_in)),
+      h("span", { class: "need-text" }, h("b", {}, `Sign in to ${n.tool || n.title} on the computer`),
+        h("small", {}, n.waiting ? `${n.waiting} ${n.waiting === 1 ? "task waits" : "tasks wait"} for it. ` : "", "It goes on by itself once it is signed in."))), n);
+  }
+
   function row(n) {
+    if (n.kind === "sign_in") return signInNeed(n);
     if (n.kind === "proposal") return proposal(n);
     if (n.kind === "party") return partyProposal(n);
     if (n.kind === "goal" || n.kind === "asks") return swipeable(quick(n), n);

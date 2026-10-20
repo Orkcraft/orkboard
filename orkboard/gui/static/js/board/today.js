@@ -14,8 +14,9 @@ import { board, PRIORITY_WORDS } from "./store.js";
 import { RulesProposal } from "./ops.js";
 import { act as run, showGoal, showIdea, showPlan } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
+import { SignInButton } from "../shell/signin.js";
 
-const KIND_WORDS = { goal: "A goal asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take", party: "A party's proposal" };
+const KIND_WORDS = { goal: "A goal asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take", party: "A party's proposal", sign_in: "Sign-in" };
 
 function Proposal({ n }) {
   const g = board.value.tracks.find((t) => t.slug === n.goal);
@@ -82,7 +83,7 @@ function open(n) {
 // -- Later: a row put away on this computer for a few hours (as the phone's, its own) ---------------------------------
 const LATER = "orkboard.later";                       // {row key: until}
 const LATER_MS = 4 * 3600 * 1000;
-const keyOf = (n) => `${n.kind}:${n.idea || n.goal || n.op || n.template || ""}:${n.text || ""}`;
+const keyOf = (n) => `${n.kind}:${n.idea || n.goal || n.op || n.template || n.harness || ""}:${n.text || ""}`;
 const laterRev = signal(0);                           // a row put away: drawn again
 const laterAll = () => { try { return JSON.parse(localStorage.getItem(LATER)) || {}; } catch { return {}; } };
 const isLater = (n) => (laterAll()[keyOf(n)] || 0) > Date.now();
@@ -126,7 +127,19 @@ function Quick({ n }) {
         <button type="button" class="board-link" disabled=${sending} aria-label=${`Let the Taskmaster decide: ${n.title}`} onClick=${() => answer({ decide: true })}>Let the Taskmaster decide</button></div></div></li>`;
 }
 
+/** A tool that needs a sign-in while work waits for it (spec 45 §7): the line and **Sign in**; nothing to open. */
+function SignInNeed({ n }) {
+  return html`<li class="board-need-row">
+    <div class="board-need" data-kind="sign_in" data-harness=${n.harness}>
+      <span class="board-need__icon"><${Icon} name=${NEED_ICONS.sign_in || "warning-diamond"} /></span>
+      <span class="board-need__text"><b>${n.title}</b><span class="ok-tone-muted board-need__kind">${KIND_WORDS.sign_in}</span>
+        <span class="ok-tone-muted">${n.text}${n.waiting ? ` ${n.waiting} ${n.waiting === 1 ? "task waits" : "tasks wait"} for it.` : ""}</span></span></div>
+    <${SignInButton} harness=${n.harness} tool=${n.tool} />
+    <button class="ork-btn board-need__later" aria-label=${`Later: ${n.title}`} onClick=${() => putAway(n)}>Later</button></li>`;
+}
+
 function Row({ n }) {
+  if (n.kind === "sign_in") return html`<${SignInNeed} n=${n} />`;
   if (n.kind === "proposal") return html`<${Proposal} n=${n} />`;
   if (n.kind === "op_rules") return html`<${OpRules} n=${n} />`;
   if (n.kind === "party") return html`<${PartyProposal} n=${n} />`;
@@ -139,7 +152,7 @@ function Row({ n }) {
     <button class="ork-btn board-need__later" aria-label=${`Later: ${n.title}`} onClick=${() => putAway(n)}>Later</button></li>`;
 }
 
-const rowKey = (n) => n.kind + (n.op || n.idea || n.goal || n.template || "") + (n.todo?.id || "");
+const rowKey = (n) => n.kind + (n.op || n.idea || n.goal || n.template || n.harness || "") + (n.todo?.id || "");
 
 /** How many rows wait on the person now (proposals, and the ones put away Later, aside): the Needs you tab says it. */
 export function needsCount() {

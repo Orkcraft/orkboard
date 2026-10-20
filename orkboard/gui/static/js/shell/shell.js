@@ -13,6 +13,7 @@ import { ReviewPane } from "./review.js";
 import { AgentsPane } from "./agents.js";
 import { Preview } from "./preview.js";
 import { Dialogs } from "./dialogs.js";
+import { SignIn } from "./signin.js";
 import { StartScreen, currentProject, projectsOn } from "./projects.js";
 import { resetFiles } from "./files.js";
 import { resetGit } from "./gitpane.js";
@@ -106,7 +107,7 @@ export function Shell() {
     setLayout({ h: Math.max(MIN_H, now + step) });
   };
   if (!project) {
-    return html`<div class="shell" data-narrow=${narrow} data-start="true"><${TopBar} /><${StartScreen} /><${Dialogs} /></div>`;
+    return html`<div class="shell" data-narrow=${narrow} data-start="true"><${TopBar} /><${StartScreen} /><${Dialogs} /><${SignIn} /></div>`;
   }
   return html`<div class="shell" data-narrow=${narrow} data-tab=${tab.value} data-previewing=${!!preview.value}>
     <${TopBar} />
@@ -122,5 +123,6 @@ export function Shell() {
     </div>
     ${narrow && html`<${Tabs} />`}
     <${Dialogs} />
+    <${SignIn} />
   </div>`;
 }
