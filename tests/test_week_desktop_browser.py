@@ -66,44 +66,6 @@ def test_tonight_says_how_many_wait_and_a_null_part_a_missing_price_and_no_night
     assert not errors, "\n".join(errors)
 
 
-# -- spec 44 B: the week's pace ---------------------------------------------------------------------------------------
-
-def test_the_week_line_says_what_low_work_does_and_last_weeks_unused_share(gui):
-    host = WeekHost()
-    host.week.update(week={"left": 0.55, "rest": 2 / 7, "pace": "ahead", "reset": 0}, last_unused=0.3)
-    pg, host, errors = _show(gui, host)
-    lines = _lines(pg)
-    assert lines[-3:-1] == ["The week: 55 % left with 2 days to go: Low work starts by day", "Last week ended with 30 % unused"]
-    pg.keyboard.press("Escape")
-    for pace, words in (("even", "Low work waits for the night"), ("behind", "Low work waits until the week comes back")):
-        host.week.update(week={"left": 0.2, "rest": 1 / 7, "pace": pace, "reset": 0}, last_unused=None)
-        pg.get_by_role("button", name="Spend today: $2.40. This week's work").click()
-        pg.get_by_role("dialog", name="This week").locator(".week").wait_for(timeout=WAIT_MS)
-        got = _lines(pg)
-        assert f"The week: 20 % left with 1 day to go: {words}" in got and not [x for x in got if x.startswith("Last week ended")]
-        pg.keyboard.press("Escape")
-    host.week.update(week=None)
-    pg.get_by_role("button", name="Spend today: $2.40. This week's work").click()
-    pg.get_by_role("dialog", name="This week").locator(".week").wait_for(timeout=WAIT_MS)
-    assert not [x for x in _lines(pg) if x.startswith("The week")]                                     # no week read: no line
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-def test_a_boards_own_night_work_reads_or_sooner_and_a_held_wait_says_until_when(gui):
-    pg, host, errors = _open(gui, host=StubHost())
-    got = pg.evaluate("""async () => {
-      const base = document.querySelector('link[href$="shell.css"]').href.replace('shell/shell.css', 'board/');
-      const t = await import(base + 'tracks.js'), m = await import(base + 'maplayout.js');
-      return [t.rowOf({ state: "raw", queue: "night", night_by: "board" }, {})[0], t.rowOf({ state: "raw", queue: "night", night_by: "person" }, {})[0],
-        t.rowOf({ state: "plan", start_at: "night", night_by: "board" }, {})[0], t.rowOf({ state: "plan", start_at: "night" }, {})[0],
-        m.waitsWords({ kind: "week", until: "2026-10-26T09:00" })]; }""")
-    assert got[:4] == ["tonight, or sooner if the week has room", "tonight", "starts tonight, or sooner if the week has room", "starts tonight"]
-    assert got[4] == "waits: the week is behind · until Mon 09:00"
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
 # -- spec 42 G: Last week ----------------------------------------------------------------------------------------------
 
 import datetime as dt  # noqa: E402
@@ -163,27 +125,13 @@ def test_the_first_look_of_a_new_week_shows_last_weeks_card_with_its_lines_then_
     assert pg.get_by_label("While you were away").count() == 0                                         # the week's card comes first
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "desktop"}))
     assert json.loads(pg.evaluate(f"JSON.stringify(localStorage.getItem({json.dumps(WEEK_KEY)}))")) == _iso(7)
-    recap_logs = lambda: [a for n, a in host.log if n == "ideas.log" and a.get("what") == "recap"]   # noqa: E731
-    assert recap_logs() == []                                                                          # it waits behind Last week's card: not opened yet
     card.get_by_role("button", name="Close").click()
     pg.get_by_label("While you were away").wait_for(timeout=WAIT_MS)                                   # then the recap's
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "recap", "ref": "9h", "device": "desktop"})) and len(recap_logs()) == 1
     pg.get_by_label("While you were away").get_by_role("button", name="Close").click()
     pg.reload()
     pg.locator(".map-card").first.wait_for(timeout=WAIT_MS)
     pg.wait_for_timeout(400)
     assert pg.get_by_label("Last week").count() == 0 and len([n for n, _a in host.log if n == "ideas.week"]) == 1
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-def test_the_week_ideas_week_answered_is_the_one_kept_so_its_card_shows_once(gui):
-    host = LastHost()
-    host.last = {**LAST, "week": "2026-W41"}                          # the host's idea of last week is not this device's
-    pg, host, errors = _open_map(gui, host, init=_seed("2026-W41"), ready=".map-card")
-    pg.wait_for_function(f"localStorage.getItem({json.dumps(WEEK_KEY)}) === '2026-W41'", timeout=WAIT_MS)
-    pg.wait_for_timeout(400)
-    assert [n for n, _a in host.log if n == "ideas.week"] == ["ideas.week"] and pg.get_by_label("Last week").count() == 0     # asked, kept, not shown
     pg.close()
     assert not errors, "\n".join(errors)
 

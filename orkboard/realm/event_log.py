@@ -116,17 +116,6 @@ OP_LEARNED = "op_learned"         # template, lines (how many), step, tokens, co
 OP_RULES_ANSWERED = "op_rules_answered"   # template, take, has_reason
 OP_TRUST = "op_trust"             # template, alone, why (clean · edit · rules · not_right · version · reset)
 
-# Spec 43 §4: the night's proposal to take a checker out of a goal's party, and the person's answer.
-PARTY_PROPOSED = "party_proposed"   # goal, by (the checker's slug), runs
-PARTY_ANSWERED = "party_answered"   # goal, by, take, has_reason, device
-
-# Spec 44 §4: the Claude week came back; what was left of it unused.
-WEEK_RESET = "week_reset"         # left (the share left, read just before it came back), provider
-
-# Spec 43 §6: the person's own parties, saved from a goal and picked again in any project.
-PARTY_SAVED = "party_saved"       # party (its id), members, own (agents of the person's own it carries), replaced, device
-PARTY_DROPPED = "party_dropped"   # party, device
-
 # Spec 42 §3: notifications to a paired phone (counts and tags, never a word of the push).
 PUSH_SET = "push_set"             # on, device
 PUSH_SENT = "push_sent"           # tag, devices, gone

@@ -109,9 +109,8 @@ export function makeBoard(ctx) {
       if (!r.ok || !r.result || r.result.error || key !== lookKey()) return;       // not answered: asked again at the next press
       touch(Date.now());
       if (r.result.merged && !r.result.empty) {
-        const card = { kind: "recap", data: r.result, logged: st.cards.length === 0 };
-        st.cards = [...st.cards, card];
-        if (card.logged) logOpened("recap", `${r.result.hours}h`);       // else it waits behind Last week's card: logged when that closes
+        st.cards = [...st.cards, { kind: "recap", data: r.result }];
+        logOpened("recap", `${r.result.hours}h`);
         drawAll();
       }
     } finally { lookBusy = false; }

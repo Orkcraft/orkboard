@@ -209,30 +209,6 @@ def reserve_held(limits, settings: dict | None, now: float, provider: str = "cla
             and getattr(lim, "remaining", None) is not None]
     if not rows:
         return None
-    left, reset = min(rows)                               # the tightest, when a tool has several
-    return {"left": left, "rest": min(1.0, max(0.0, (reset - now) / WEEK_S)), "reset": reset}
-
-
-def pace(limits, now: float, provider: str = "claude") -> str | None:
-    """The week's pace: "ahead" (its share left at least MARGIN above the share to come), "behind" (below it), else
-    "even"; None with no week."""
-    got = week(limits, now, provider)
-    if got is None:
-        return None
-    if got["left"] - got["rest"] >= MARGIN - 1e-9:
-        return "ahead"
-    return "behind" if got["left"] < got["rest"] else "even"
-
-
-def reserve_held(limits, settings: dict | None, now: float, provider: str = "claude") -> float | None:
-    """What starts by itself waits while any of the tool's windows has its share or less left (by day the day's reserve, inside
-    the night window the night's): until when (epoch seconds), else None. By day, within SOON_S of the five-hour window's
-    (`session`) reset and while the week is not behind, that window's share is the night's. With no limits read for the
-    tool, no reserve applies; with no window near its reset this is the smallest window against one share."""
-    rows = [lim for lim in limits or () if getattr(lim, "provider", "") == provider and getattr(lim, "remaining", None) is not None]
-    if not rows:
-        return None
-    from orkboard.realm import status
     night = in_night(str((settings or {}).get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
     easing = False if night else pace(limits, now, provider) != "behind"
     held, resets = False, []

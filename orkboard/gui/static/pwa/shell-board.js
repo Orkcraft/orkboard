@@ -47,14 +47,14 @@ export function makeBoardTab(core, ctx) {
     try { kept = localStorage.getItem(key); } catch { return; }
     weekFor = project;
     if (kept === last) return;
-    const write = (week) => { try { localStorage.setItem(key, week); } catch { /* the page works without it */ } };
-    if (kept === null) { write(last); return; }          // no key: written, nothing shown
+    const write = () => { try { localStorage.setItem(key, last); } catch { /* the page works without it */ } };
+    if (kept === null) { write(); return; }          // no key: written, nothing shown
     weekBusy = true;
     try {
       const got = await core.call("ideas.week");
       if (!got || project !== st.snap?.project) return;
-      write(got.week);                               // the week `ideas.week` answered, not this device's idea of last week
-      if (!got.empty && got.week !== kept) pushWeek(core, got);
+      write();
+      if (!got.empty) pushWeek(core, got);
     } finally { weekBusy = false; }
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") weekCheck(); });

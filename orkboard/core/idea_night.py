@@ -5,8 +5,7 @@ local time), and again inside it when the reserve held it. A mixin of `IdeaKeepe
     keeper.run_night()               # the same, on this thread: its counts (the `night_run` event)
 
 In this order, each step stopping at the reserve (realm/idea_target.py `reserve_held`):
-  1. the `night` queue: draft → plan → autostart, by priority, then the person's order; when the Claude week is behind its
-     pace (spec 44), the Board's own Low ideas stay queued (`paced` in `night_run`) and the person's are drafted;
+  1. the `night` queue: draft → plan → autostart, by priority, then the person's order;
   2. the plans that start at night (`start_night(slug)`: the face hands them to the runner);
   3. refresh (balance, quality): a goal whose linked paths, or the paths its Summary names, changed since its `read_at`
      is read again on the `refresh` step; an unchanged goal costs nothing;
@@ -126,16 +125,6 @@ class NightMixin:
         threading.Thread(target=run, daemon=True, name="idea-night").start()
         return True
 
-    def _limits_read(self) -> list:
-        try:
-            return list(self.limits() or [])
-        except Exception:                               # a quota never stops the Board
-            return []
-
-    def week_is_behind(self, now: float | None = None) -> bool:
-        """What the Board itself put off to the night waits while the Claude week is behind its pace and `autostart` is on (spec 44 §3)."""
-        return bool((self.settings() or {}).get("autostart", True)) and idea_target.pace(self._limits_read(), time.time() if now is None else now) == "behind"
-
     def _reserved(self) -> bool:
         """The reserve is reached: what runs by itself stops here."""
         try:
@@ -238,8 +227,7 @@ class NightMixin:
                 else prev.get("head_before", "")}
         ideas._write_json(self._night_file(), data)
         measure = counts.pop("measure", None) or {"step": "propose", "prompt_chars": 0, "tokens": None, "cost": None}
-        paced = counts.pop("paced", 0)                    # how many the week's pace left for later: not among the night's work
-        self._ev(event_log.NIGHT_RUN, **counts, paced=paced, seconds=round(time.monotonic() - began, 1), **measure)
+        self._ev(event_log.NIGHT_RUN, **counts, seconds=round(time.monotonic() - began, 1), **measure)
         return counts
 
     def _night_queue(self, root: Path, counts: dict) -> None:

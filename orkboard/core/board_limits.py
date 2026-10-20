@@ -4,9 +4,6 @@ thread, on the Town Hall's clock (every LIMITS_REFRESH_S), the rows kept for the
     limits = BoardLimits(repo_root, call)   # call: runs a function on the host's thread
     limits.tick(now)                         # from the host's clock: reads again when due
     limits()                                 # the last rows read ([] until the first read is in)
-
-A read that shows the Claude week's reset moved later than the one read before (the week came back) writes `week_reset` to the log of
-the project shown (spec 44 §4): how much of the week was left unused.
 """
 from __future__ import annotations
 

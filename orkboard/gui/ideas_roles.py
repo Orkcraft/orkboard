@@ -18,7 +18,6 @@ from orkboard.realm.idea_words import short_of
 
 
 RECORD_DAYS = 30                   # an agent's record: the last 30 days (spec 42 §4)
-CHECK_WEEK = 7                     # a checker's check, the muted line under its name: the last 7 days (spec 43 §4.1)
 
 
 class RolesMixin:

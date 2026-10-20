@@ -5,7 +5,6 @@ a click opens a passing tab, a double-click or an edit keeps it; Esc closes the 
 kept after a reload; below 1 024 px no strip, Back and the Board's Map button."""
 from __future__ import annotations
 
-import copy
 import datetime as dt
 import hashlib
 import json
@@ -17,7 +16,7 @@ pytest.importorskip("playwright.sync_api")
 
 from orkboard.realm.idea_words import short_of  # noqa: E402
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import _show_goal, PARTY, PARTY_LINES, SHOTS, StubHost, _calls, _sent, box  # noqa: E402
+from tests.test_shell_browser import _show_goal, SHOTS, StubHost, _calls, _sent, box  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -96,9 +95,6 @@ class MapHost(StubHost):
             self.log.append((name, a))
             return {"flags": [{"goal": g["slug"], "title": g["title"], "short": g["title"], "by": g["verdict"]["by"], "at": g["verdict"]["at"],
                                "tally": g["verdict"].get("tally")} for g in self.map_doc()["goals"] if (g.get("verdict") or {}).get("met")]}
-        if name == "ideas.party":
-            self.log.append((name, a))
-            return copy.deepcopy(PARTY)
         if name == "files.tree":
             self.log.append((name, a))
             return {"entries": [{"name": n, "path": n, "dir": False, "secret": False, "ignored": False} for n in self.files]}
@@ -595,26 +591,6 @@ def test_a_met_goal_not_in_the_list_is_raised_once_and_its_slug_kept(gui):
     pg.wait_for_timeout(300)
     assert pg.locator(".is-raising").count() == 0 and len(_calls(pg, host, "ideas.log", at_least=1)) and \
         [a for n, a in host.log if n == "ideas.log" and a.get("what") == "flag"] == [{"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}]
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-FAR = "{ const sheet = new CSSStyleSheet(); sheet.replaceSync('.trail-end { margin-top: 3000px }'); document.adoptedStyleSheets = [sheet]; }"      # a constructed sheet: the phone's CSP has no inline style
-FLAG_LOGS = lambda host: [a for n, a in host.log if n == "ideas.log" and a.get("what") == "flag"]    # noqa: E731
-
-
-def test_a_flag_whose_trail_is_out_of_sight_waits_for_it_and_is_raised_once_when_it_comes_into_view(gui):
-    pg, host, errors = _open(gui, met_host(), init=with_list([]) + FAR, ready=".trail-end.is-met")
-    flag = pg.locator(".map-goal[data-goal=grow] .trail-end__flag")
-    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))")                   # the page is visible, the trail is not
-    pg.wait_for_timeout(400)
-    assert pg.locator(".is-raising").count() == 0 and not FLAG_LOGS(host)
-    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == []
-    flag.scroll_into_view_if_needed()
-    pg.wait_for_function("document.querySelectorAll('.is-raising').length === 1", timeout=WAIT_MS)
-    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-    pg.wait_for_timeout(300)
-    assert FLAG_LOGS(host) == [{"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}]            # one `opened`, not more
     pg.close()
     assert not errors, "\n".join(errors)
 

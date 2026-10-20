@@ -85,7 +85,7 @@ export function makeGoalSheet(core) {
     /** Change the team of a goal (`g`: as `ideas.goal` sends it). */
     editTeam(g) {
       teamOf = g.slug;
-      party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [], party: g.party || "" }, () => g.craft || "");
+      party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [] }, () => g.craft || "");
       teamSheet.open();
       party.open();
     },
@@ -146,78 +146,6 @@ export function goalBody(g, core, act, asked, setAsked) {
     (g.talk || []).length ? h("div", { class: "talk" }, ...g.talk.slice(-6).map((t) => h("div", { class: `turn ${t.who}` },
       h("span", { class: "who" }, t.who === "you" ? "You" : the), h("p", {}, t.text)))) : null,
   ].filter(Boolean);
-}
-
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-const usdWords = (usd) => `≈$${usd.toFixed(2)}`;
-
-/** What a party did (spec 43 §2.3), a line each, in the text face: the leader's steps, each member's tasks, each checker's checks. */
-export function partyLines(w) {
-  if (!w.ideas) return ["No work yet"];
-  const lead = w.leader;
-  const lines = [`${lead.name} (leads)${lead.usd != null ? `: ${usdWords(lead.usd)} for the goal, the drafts and the plans` : ""}`];
-  for (const m of w.members) {
-    lines.push(`${m.name}: ${plural(m.tasks, "task", "tasks")}, ${m.first_time ? `${m.first_time} merged the first time` : "none merged the first time"}${m.usd != null ? ` · ${usdWords(m.usd)}` : ""}`);
-  }
-  for (const c of w.checks) {
-    lines.push(`${c.name}: checked ${plural(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}`
-      + `${c.usd != null ? ` · ${usdWords(c.usd)}` : ""}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} before findings were kept` : ""}`);
-  }
-  return lines;
-}
-
-/** *What the party did*: a fold, closed at first, that reads `ideas.party` when it is opened and says it once (`opened` `party`). */
-export function partyFold(core, slug) {
-  const body = h("div", {}, h("p", { class: "muted" }, "Reading…"));
-  const el = h("details", { class: "party-work" }, h("summary", {}, "What the party did"), body);
-  el.addEventListener("toggle", async () => {
-    if (!el.open) return;
-    core.call("ideas.log", { event: "opened", what: "party", ref: slug, device: "phone" });
-    const got = await core.call("ideas.party", { goal: slug });
-    if (got) body.replaceChildren(h("ul", { class: "party-lines" }, ...partyLines(got).map((l) => h("li", {}, l))));
-  });
-  return el;
-}
-
-// What the person has half done in Save this party, kept apart from the DOM so a redraw puts it back (goal → {name, replace}).
-const naming = new Map();
-
-/** **Save this party**, under the Team: it asks a name (*Engineering party*), asks again before it replaces a party of that name, and says after
- *  *Saved: pick it for a goal in any project.* */
-function savePartyEl(g, core) {
-  const wrap = h("div", { class: "party-save" });
-  const draw = () => {
-    const now = naming.get(g.slug);
-    if (!now) {
-      wrap.replaceChildren(h("button", { class: "linkish", type: "button", onclick: () => { naming.set(g.slug, { name: `${CRAFT_WORDS[g.craft] || "Engineering"} party`, replace: "" }); draw(); } }, "Save this party"));
-      return;
-    }
-    const send = async (replacing) => {
-      const name = now.name.trim().replace(/\s+/g, " ");
-      if (!replacing) {                                          // a taken name asks before it replaces
-        const have = await core.call("ideas.parties");
-        const hit = (have?.parties || []).find((p) => p.name.toLowerCase() === name.toLowerCase());
-        if (hit) { now.replace = hit.name; draw(); return; }
-      }
-      const got = await core.call("ideas.party_save", { goal: g.slug, name, ...(replacing ? { replace: true } : {}) });      // a refusal is flashed
-      if (got) { naming.delete(g.slug); core.flash("Saved: pick it for a goal in any project."); draw(); }
-    };
-    if (now.replace) {
-      wrap.replaceChildren(h("p", { class: "party-save-ask", role: "alert" }, `Replace your party “${now.replace}”?`,
-        h("button", { class: "ork-btn primary", type: "button", onclick: () => send(true) }, "Replace it"),
-        h("button", { class: "ork-btn", type: "button", onclick: () => { now.replace = ""; draw(); } }, "Cancel")));
-      return;
-    }
-    const field = h("input", { class: "ork-field", type: "text", "aria-label": "Name of your party", maxlength: "40" });
-    field.value = now.name;
-    const go = h("button", { class: "ork-btn primary", type: "submit", disabled: !now.name.trim() }, "Save");
-    field.addEventListener("input", () => { now.name = field.value; go.disabled = !field.value.trim(); });
-    const form = h("form", { class: "row party-save-form" }, field, go, h("button", { class: "ork-btn", type: "button", onclick: () => { naming.delete(g.slug); draw(); } }, "Cancel"));
-    form.addEventListener("submit", (e) => { e.preventDefault(); if (now.name.trim()) send(false); });
-    wrap.replaceChildren(form);
-  };
-  draw();
-  return wrap;
 }
 
 /** The goal's team in one line — the heads with their names — and Change (spec 41 §7). */

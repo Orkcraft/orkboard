@@ -78,10 +78,6 @@ def set_team(root: Path, slug: str, team: list[str], every: list[str] | None = N
         was = (page.get("team"), page.get("team_every"), page.get("leader") or "")
         page.set("team", json.dumps(kept))
         page.set("team_every", json.dumps([s for s in clean(every or []) if s in kept]))
-        if re.fullmatch(r"p-[0-9a-f]{8}", party or ""):
-            page.set("party", party)
-        elif page.get("party"):
-            page.set("party", "")
         if leader is not None:
             page.set("leader", leader if leader != "taskmaster" else "")
         if party is not None:

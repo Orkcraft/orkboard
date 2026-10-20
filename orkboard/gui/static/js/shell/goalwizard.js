@@ -43,7 +43,6 @@ export function GoalWizard({ then = "" }) {
       setParty("");
       const p = partyOf(c);
       setCraft(c);
-      setPartyId("");
       setLeader(p.lead || TASKMASTER);
       setTeam([...p.build, ...p.check]);
     }

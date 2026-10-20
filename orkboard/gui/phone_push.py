@@ -17,7 +17,6 @@ from typing import Any, Callable
 
 from orkboard import schedule, settings
 from orkboard.gui import web_push
-from orkboard.gui.ideas_recap import RECAP_DAYS
 from orkboard.realm import board_recap, event_log
 from orkboard.realm.idea_words import short_of
 
@@ -151,11 +150,8 @@ class Pusher:
                 out.setdefault("needs", []).append((d, {"title": "Orkline", "body": self.words_needs(waiting), "tag": "needs",
                                                          "badge": waiting, "url": "./#needs"}))
             elif self._morning_due(d, machine, now):
-                since = max(board_recap.when(d.get("seen")) or now, now - dt.timedelta(days=RECAP_DAYS))      # as `ideas.recap` caps it
-                body = self.morning(since, now, waiting)
-                if not body:                                   # nothing to say: the day is checked, not asked again every tick
-                    pairing.set_push(did, {**d["push"], "morning": now.date().isoformat()})
-                elif self._free(did, "recap", now):
+                body = self.morning(board_recap.when(d.get("seen")) or now, now, waiting)
+                if body and self._free(did, "recap", now):
                     out.setdefault("recap", []).append((d, {"title": "Orkline", "body": body, "tag": "recap", "badge": waiting, "url": "./"}))
                     pairing.set_push(did, {**d["push"], "morning": now.date().isoformat()})
         for tag, sends in out.items():
@@ -204,10 +200,6 @@ class Pusher:
         did = args.get("device_id")
         if self.listener is None or not isinstance(did, str) or not self.listener.pairing.known(did):
             raise PushRefused("Only a paired phone can do this")
-        try:
-            web_push._crypto()                                 # every push command needs it, not only the key
-        except web_push.PushError as e:
-            raise PushRefused(str(e)) from None
         return did
 
     def _log_set(self, on: bool) -> None:

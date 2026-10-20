@@ -56,35 +56,13 @@ function Findings({ r }) {
     <ul class="shell-findings__list">${left.map((f, i) => html`<li key=${i}><span class="shell-findings__where">${f.where}</span> · ${f.what}</li>`)}</ul></div>`;
 }
 
-/** What a check found (spec 43 §1.4): *Found 3: 1 fixed, 2 left*; "" for a result that is not a check's or found nothing. */
-export function foundWords(findings) {
-  const n = findings?.length || 0, fixed = (findings || []).filter((f) => f.fixed).length;
-  if (!n) return "";
-  return `Found ${n}: ${fixed ? `${fixed} fixed, ` : ""}${n - fixed} left`;
-}
-export const leftOf = (r) => (r.findings || []).filter((f) => !f.fixed);
-const WHY_MAX = 1000;
-/** *Fix the findings left:* and one line each (*where: what*), within the one line a send back takes. */
-export function fixThemWhy(r) {
-  let why = "Fix the findings left:";
-  const left = leftOf(r);
-  for (const [n, f] of left.entries()) {
-    const next = `${why}\n${f.where}: ${f.what}`, more = left.length - n - 1;
-    if (next.length + (more ? 24 : 0) > WHY_MAX) return `${why}\nand ${left.length - n} more`;
-    why = next;
-  }
-  return why;
-}
-
-/** Merge · Send back / Fix · Drop for one result; `pinned` in a preview's foot. A check with findings left: Fix them · Leave them · Drop. */
-
+/** Merge · Send back / Fix · Drop for one result; `pinned` in a preview's foot. */
 export function ResultActions({ r, pinned = false }) {
   const into = review.value?.into || "dev";
   const [line, setLine] = useState(null);       // null: the one-line box is closed
   const [working, setWorking] = useState(false);
   const reason = mergeReason(r, into), fix = isRed(r) || !!r.conflict, found = leftOf(r).length > 0;
   const key = { slug: r.idea, task: r.task };
-  const fixThem = async () => { setWorking(true); const got = await act("ideas.back", { ...key, why: fixThemWhy(r) }); setWorking(false); if (got?.ok) done(); };
   const done = () => { if (preview.value?.task === r.task && preview.value?.slug === r.idea) closePreview(); };
   const merge = async () => { setWorking(true); const got = await act("ideas.merge", key); setWorking(false); if (got?.ok) done(); };
   const back = async (e) => {
@@ -111,14 +89,6 @@ export function ResultActions({ r, pinned = false }) {
   </div>`;
 }
 
-/** Under a check's title: *Found 3: 1 fixed, 2 left* and the findings left, each *where · what* (the checker's words, in the text face). */
-export function Found({ r }) {
-  const left = leftOf(r);
-  if (!r.check || !left.length) return null;
-  return html`<div class="shell-found"><p class="shell-found__sum">${foundWords(r.findings)}</p>
-    <ul class="shell-found__list">${left.map((f, n) => html`<li key=${n}><span class="shell-found__where">${f.where}</span> · ${f.what}</li>`)}</ul></div>`;
-}
-
 function Card({ r, selected }) {
   const t = testsWords(r);
   return html`<article class=${cls("shell-card", { "is-on": selected })} tabindex="0" role="listitem" aria-label=${r.title}
@@ -126,7 +96,6 @@ function Card({ r, selected }) {
       onKeyDown=${(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showResult(r.idea, r.task, { via: "review" }); } }}>
     <div class="shell-card__head"><b>${r.title}</b>
       <span class="ok-tone-muted">${r.idea_title}${r.round > 1 ? html` · <span class="shell-round">round ${r.round}</span>` : ""}</span></div>
-    <${Found} r=${r} />
     <dl class="shell-facts">
       <dt>Tests</dt><dd class=${`is-${t.tone}`}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</dd>
       <dt>Changes</dt><dd>${changesWords(r.diff)}</dd>

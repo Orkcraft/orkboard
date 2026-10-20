@@ -53,32 +53,6 @@ export function findingsOf(r) {
     h("ul", { class: "findings-list" }, ...left.map((f) => h("li", {}, h("span", { class: "findings-where" }, f.where), ` · ${f.what}`))));
 }
 
-/** What a check found (spec 43 §1.4): *Found 3: 1 fixed, 2 left*; "" for a result that found nothing. */
-export function foundWords(findings) {
-  const n = findings?.length || 0, fixed = (findings || []).filter((f) => f.fixed).length;
-  return n ? `Found ${n}: ${fixed ? `${fixed} fixed, ` : ""}${n - fixed} left` : "";
-}
-export const leftOf = (r) => (r.findings || []).filter((f) => !f.fixed);
-const WHY_MAX = 1000;
-/** *Fix the findings left:* and one line each (*where: what*), within the one line a send back takes. */
-export function fixThemWhy(r) {
-  let why = "Fix the findings left:";
-  const left = leftOf(r);
-  for (const [n, f] of left.entries()) {
-    const next = `${why}\n${f.where}: ${f.what}`, more = left.length - n - 1;
-    if (next.length + (more ? 24 : 0) > WHY_MAX) return `${why}\nand ${left.length - n} more`;
-    why = next;
-  }
-  return why;
-}
-/** Under a check's title: the sum and the findings left, each *where · what* (the checker's words, in the text face). */
-export function foundOf(r) {
-  const left = leftOf(r);
-  if (!r.check || !left.length) return null;
-  return h("div", { class: "found" }, h("p", { class: "found-sum muted" }, foundWords(r.findings)),
-    h("ul", { class: "found-list" }, ...left.map((f) => h("li", {}, h("span", { class: "found-where muted" }, f.where), " · ", f.what))));
-}
-
 export function factsOf(r) {
   const t = testsWords(r);
   return h("dl", { class: "facts" },
@@ -143,18 +117,11 @@ export function resultActions(core, r, done = () => {}) {
     if (got?.ok) { mine.line = null; done(); } else go.disabled = false;
     core.refresh();
   });
-  fixThem.addEventListener("click", async () => {
-    fixThem.disabled = true;
-    const got = await core.call("ideas.back", { ...key, why: fixThemWhy(r) });
-    if (got?.ok) done(); else fixThem.disabled = false;
-    core.refresh();
-  });
   drop.addEventListener("click", () => askDrop(r, async () => {
     const got = await core.call("ideas.drop_task", key);
     if (got?.ok) done();
     core.refresh();
   }));
-  if (check) return h("div", { class: "result-actions", "data-task": r.task }, why, fixThem, merge, h("div", { class: "row between" }, drop));
   return h("div", { class: "result-actions", "data-task": r.task }, why, merge, h("div", { class: "row between" }, back, drop), form);
 }
 
@@ -187,7 +154,7 @@ export function makeReview(core) {
     const fact = factsOf(r);
     return h("article", { class: "card result", "data-task": r.task, "data-idea": r.idea },
       h("button", { class: "result-open", type: "button", "aria-label": `${r.title}: open its code`, onclick: () => core.open({ kind: "result", slug: r.idea, task: r.task }) },
-        h("b", {}, r.title), h("small", { class: "muted" }, r.idea_title, r.round > 1 ? h("span", { class: "round" }, ` · round ${r.round}`) : null), foundOf(r), fact,
+        h("b", {}, r.title), h("small", { class: "muted" }, r.idea_title, r.round > 1 ? h("span", { class: "round" }, ` · round ${r.round}`) : null), fact,
         r.conflict ? h("small", { class: "warn" }, `⚠ ${r.conflict}`) : null),
       findingsOf(r),
       resultActions(core, r));

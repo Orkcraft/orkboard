@@ -502,13 +502,3 @@ only if the pusher's tick cannot ride the host's), `gui/static/pwa/util.js` (A, 
 ### H. Nights in a row
 - `board_week.streak` reads the nights in growing parts (14, 60, 365) so a short run does not read a year of log. `ideas.recap` fills `nights` in the command (`board_recap.build` leaves 0; `board_recap` cannot import `board_week`), `this_week` and `last_week` carry `streak`; Last week's is the run **as the week ended** (its Sunday), not today's.
 - `tests/test_board_week.py`'s check of `this_week`'s keys gained `streak`.
-
-### Fix-ups after review
-A review of the built spec found these; each was confirmed and is fixed (phone cache `orkcraft-app-v45`).
-- **Tonight** (F): `this_week`'s `tonight` counts with the night's own rule (`core/idea_night.py` `_night_queue`, `_night_starts`): an idea in state `raw` whose queue is `night`, and a plan to start at night while the idea is in state `plan`. A drafted idea (its queue is still `night`) and a started plan (its `start_at` is still `night`) are not counted.
-- **The flag** (B): it is raised only while the observer last saw the trail in view *and* the page is visible; a `visibilitychange` of a trail out of sight raises nothing. On the phone the previous observer and listener are removed before new ones are set (the section is drawn again on every redraw), so one raise logs one `opened` `flag`.
-- **`device_id` and `link`** (C): only the phone's `BoardPhone.guard` sets them. The page's command path (`gui/server.py`) drops `device_id` from every command and `link` from the Board's own (`ideas.`, `ops.`, `projects.`, `files.`, `halt`; the onboarding's tool request keeps its `link`, a person's words), so the page is refused even with a known `device_id`.
-- **The morning** (C): when there is nothing to say the day is recorded as checked, so the recap is not built again every tick of the 3-hour window; its start is capped at 30 days (`ideas_recap.RECAP_DAYS`), as `ideas.recap` caps it.
-- **Last week shows once** (G): a device keeps the `week` that `ideas.week` answered (not its own idea of last week) and shows the card only when it differs from the one kept.
-- **A week that has not ended** (G): `last_week` with an explicit week counts only that week's own nights that have ended (none from before its Monday).
-- **Smaller**: the recap's `opened` `recap` is logged when the card is shown (on the desktop when it becomes the first card, on the phone when it is added as the first or when Last week's card in front of it closes), not when its answer arrives; every `mobile.push_*` (not only `push_key`) says *Notifications need the cryptography package* when `cryptography` is missing.

@@ -12,12 +12,6 @@ export const TASK_STATE = { waiting: "waiting", ready: "queued", running: "worki
   failed: "needs you", held: "held", dropped: "dropped" };
 const GOAL_WORDS = { reading: "reading", asks: "asks you", ready: "ready" };
 
-/** "Mon 09:00" from a local `YYYY-MM-DDTHH:MM`; "" when it does not read. */
-export function dayAt(iso) {
-  const d = new Date(iso);
-  return !iso || Number.isNaN(d.getTime()) ? "" : `${d.toLocaleDateString("en-US", { weekday: "short" })} ${hhmm(iso)}`;
-}
-
 const after = (until) => (until ? ` · after ${hhmm(until)}` : "");
 
 /** Why a node that is not done does not move (§4.3), in words; "" for what the Needs you words say. */

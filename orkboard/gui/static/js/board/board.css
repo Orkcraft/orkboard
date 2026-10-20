@@ -297,4 +297,3 @@
 
 /* A template's way to going by itself (spec 42 §5): its pips and the words beside them. */
 .board-op__way { display: inline-flex; align-items: center; gap: var(--ork-3); }
-.map-flags__list .shell-party { margin: var(--ork-2) 0 0 var(--ork-5); }

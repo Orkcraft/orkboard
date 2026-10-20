@@ -15,7 +15,6 @@ import { Cards } from "./cards.js";
 import { showWeek } from "../shell/look.js";
 import { PartyFold } from "../shell/goalview.js";
 import { openDialog } from "../shell/modals.js";
-import { PartyWork } from "../shell/goalview.js";
 import { TASK_STATE, nodeView, tiersOf, wavesOf, spentWords, goalState, progressOf, leftToDo, trailCurve, trailEdges, tallyWords, flagWords } from "./maplayout.js";
 
 const LANES = 3;                       // the stops side by side in one step of the trail, before "+N more"
@@ -137,9 +136,9 @@ function useRaise(g, ref) {
     const key = flagsKey();
     const list = key && met ? raisedList(key) : null;
     if (!list || list.includes(g.slug) || !ref.current) return undefined;
-    let io, timer, done = false, inView = false;          // whether the observer last saw the trail on screen
+    let io, timer, done = false;
     const raise = () => {
-      if (done || !inView || document.visibilityState !== "visible") return;
+      if (done || document.visibilityState !== "visible") return;
       done = true;
       io?.disconnect();
       keepRaised(key, [g.slug]);
@@ -147,9 +146,9 @@ function useRaise(g, ref) {
       if (!reducedMotion()) { setRaising(true); timer = setTimeout(() => setRaising(false), 700); }
     };
     if (typeof IntersectionObserver === "function") {
-      io = new IntersectionObserver((seen) => { inView = seen[seen.length - 1].isIntersecting; raise(); });
+      io = new IntersectionObserver((seen) => { if (seen.some((e) => e.isIntersecting)) raise(); });
       io.observe(ref.current);
-    } else { inView = true; raise(); }
+    } else raise();
     document.addEventListener("visibilitychange", raise);
     return () => { done = true; io?.disconnect(); clearTimeout(timer); document.removeEventListener("visibilitychange", raise); };
   }, [met, g.slug]);

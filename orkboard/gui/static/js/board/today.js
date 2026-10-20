@@ -141,7 +141,7 @@ function Row({ n }) {
 
 const rowKey = (n) => n.kind + (n.op || n.idea || n.goal || n.template || "") + (n.todo?.id || "");
 
-/** How many rows wait on the person now (proposals, a party's among them, and the ones put away Later, aside): the Needs you tab says it. */
+/** How many rows wait on the person now (proposals, and the ones put away Later, aside): the Needs you tab says it. */
 export function needsCount() {
   void laterRev.value;
   return (board.value?.needs_you || []).filter((n) => n.kind !== "proposal" && n.kind !== "party" && n.kind !== "op_rules" && !isLater(n)).length;

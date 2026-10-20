@@ -19,37 +19,6 @@ const STATUS_TONE = { met: "ok-tone-ok", "not met": "ok-tone-error", unknown: "o
 const leaderThe = (g) => (g.leader?.slug && g.leader.slug !== "taskmaster" ? g.leader.name : say("The Taskmaster"));
 const isUrl = (l) => /^[a-z][a-z0-9+.-]*:\/\//i.test(l);
 
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-const usdWords = (usd) => `≈$${usd.toFixed(2)}`;
-
-/** What a party did (spec 43 §2.3), a line each, in the text face: the leader's steps, each member's tasks, each checker's checks. */
-export function partyLines(w) {
-  if (!w.ideas) return ["No work yet"];
-  const lead = w.leader;
-  const lines = [`${lead.name} (leads)${lead.usd != null ? `: ${usdWords(lead.usd)} for the goal, the drafts and the plans` : ""}`];
-  for (const m of w.members) {
-    lines.push(`${m.name}: ${plural(m.tasks, "task", "tasks")}, ${m.first_time ? `${m.first_time} merged the first time` : "none merged the first time"}${m.usd != null ? ` · ${usdWords(m.usd)}` : ""}`);
-  }
-  for (const c of w.checks) {
-    lines.push(`${c.name}: checked ${plural(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}`
-      + `${c.usd != null ? ` · ${usdWords(c.usd)}` : ""}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} before findings were kept` : ""}`);
-  }
-  return lines;
-}
-
-/** *What the party did*: a fold, closed at first, that reads `ideas.party` when it is opened and says it once (`opened` `party`). */
-export function PartyWork({ goal: slug }) {
-  const [work, setWork] = useState(null);
-  const toggle = async (e) => {
-    if (!e.currentTarget.open) return;
-    logOpened("party", slug);
-    const got = await ask("ideas.party", { goal: slug });
-    if (got) setWork(got);
-  };
-  return html`<details class="shell-party" onToggle=${toggle}><summary>What the party did</summary>
-    ${work ? html`<ul class="shell-party__lines">${partyLines(work).map((l, n) => html`<li key=${n}>${l}</li>`)}</ul>` : html`<p class="ok-tone-muted">Reading…</p>`}</details>`;
-}
-
 export function GoalView() {
   const g = goal.value;
   if (!g) return html`<p class="ok-tone-muted">Opening…</p>`;

@@ -24,7 +24,7 @@ const later = {
 };
 
 // What needs the person, by kind, as orkUI's pixel icon (as the desktop's js/orkui.js NEED_ICONS).
-const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb", party: "lightbulb",
+const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb",
   op: "checkbox", op_failed: "square-alert", op_rules: "sliders" };
 const MAX_FILE = 5 * 1024 * 1024;
 const isList = /^([-*+]|\d+[.)])\s+/;
@@ -262,7 +262,7 @@ export function makeNeeds(core, ctx, ops) {
     /** What the screen shows, to draw it again only when it changed. */
     key: () => JSON.stringify([waiting(), showLater, waiting().map((n) => later.has(n)), Boolean(st.snap?.limits)]),
     /** How many rows wait on the person now (the ones put away Later aside): the top bar's ! says it. */
-    count: () => waiting().filter((n) => !later.has(n) && n.kind !== "party").length,
+    count: () => waiting().filter((n) => !later.has(n)).length,
     /** The screen's nodes: every goal's rows, then the ones put away, folded. */
     draw() {
       const all = waiting(), now = all.filter((n) => !later.has(n)), away = all.filter((n) => later.has(n));

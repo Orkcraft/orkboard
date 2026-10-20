@@ -54,11 +54,6 @@ class Stub:
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
         self.sleep = ""                                    # the phone snapshot's `sleep` (spec 47 §3): what the phone says of the computer's sleep
         self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
-        self.party: dict = {}                             # ideas.party (spec 43 B)
-        self.learned = True                               # ideas.party_price (spec 43 C): learned, or a first guess
-        self.hints: list[str] = []                        # ideas.party_price's hints (spec 43 E)
-        self.own: list[dict] = []                         # ideas.parties (spec 43 F)
-        self.goal_notes: list[str] = []                   # what ideas.goal_save says besides its slug
         self.checks: list[dict] = []                      # the idea's checks (realm/idea_checks.py `status`), the sync idea's
         self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
         self.todos = [{"idea": "sync", "id": "t1", "title": "API_KEY", "kind": "secret", "why": "The sync service needs it", "choices": [],
@@ -84,7 +79,6 @@ class Stub:
         self.spend: dict | None = None                    # spec 36 §2: what ideas.spend returns (None: an error)
         self.hide_plan = False                            # no plan waiting on the person (spec 41 §1's tests)
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`; null for the Taskmaster)
-        self.check_week: dict[str, dict] = {}             # spec 43 §4.1: a checker's check of the last 7 days by slug (`check_week`)
         self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
         self.check_week: dict[str, dict | None] = {}      # spec 43 §4.1: a checker's check of the last 7 days by slug
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}   # `told`
@@ -172,14 +166,6 @@ class Stub:
                                   "at": "", "todo": {k: t.get(k) for k in ("id", "title", "kind", "why", "choices", "steps", "accept", "done")}})
             return {"tracks": list(self.goals.values()), "ideas": ideas, "needs_you": needs + self.extra_needs,
                     "target": self.target, "autostart": self.autostart, "night": self.night, "rev": self.rev, "demo": False}
-        if name == "ideas.party_answer":                # spec 43 D: a party's proposal answered
-            self.extra_needs = [n for n in self.extra_needs if not (n["kind"] == "party" and n["goal"] == a["goal"])]
-            return self.bump({"ok": True})
-        if name == "ideas.party_price":                 # spec 43 C: about what an idea costs with this party
-            from tests.test_shell_browser import party_price
-            return party_price(a, self.learned, self.hints)
-        if name == "ideas.party":                       # spec 43 B: what the goal's party did
-            return copy.deepcopy(self.party)
         if name == "ideas.page":
             i = self.ideas[a["slug"]]
             return {"slug": i["slug"], "title": i["title"], "track": "general", "state": i["state"], "size": "M",
@@ -205,7 +191,7 @@ class Stub:
         if name == "ideas.roles":
             names = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
             return {"roles": [{"instruction_long": "", "hand_model": False} | r | {"spend_today": 0, "usd_task": self.usd_task.get(r["slug"]), "record": self.record.get(r["slug"])}
-                              | ({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {}) | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
+                              | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
                     "kinds": [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()],
                     "models": [{"id": "", "label": "By Target"}, {"id": "elder", "label": "Elder · opus"},
                                {"id": "warrior", "label": "Warrior · sonnet"}, {"id": "laborer", "label": "Laborer · haiku"}],

@@ -48,8 +48,7 @@ class ReviewMixin:
                                 "finished": t.get("finished") or "",
                                 "work": (split.get(t.get("id")) or {}).get("work"),
                                 "rework": (split.get(t.get("id")) or {}).get("rework"),
-                                "estimate": est, "over": idea_spend.over(t.get("cost"), est),
-                                **self._check_of(t)})
+                                "estimate": est, "over": idea_spend.over(t.get("cost"), est)})
         return sorted(out, key=lambda r: r["finished"])
 
     def _found(self, t: dict) -> dict:

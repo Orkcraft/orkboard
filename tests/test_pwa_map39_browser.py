@@ -253,29 +253,6 @@ async def test_a_met_goal_not_in_the_list_is_raised_once_and_its_slug_kept(fake_
         assert len([c for c in stub.calls if c[0] == "ideas.log" and c[1].get("what") == "flag"]) == 1
 
 
-FAR = "{ const sheet = new CSSStyleSheet(); sheet.replaceSync('.trail-end { margin-top: 3000px }'); document.adoptedStyleSheets = [sheet]; }"      # a constructed sheet: the phone's CSP has no inline style
-
-
-@pytest.mark.asyncio
-async def test_a_flag_whose_trail_is_out_of_sight_waits_and_is_raised_once_when_it_comes_into_view(fake_repo, monkeypatch):
-    _met()
-    flag_logs = lambda stub: [c for c in stub.calls if c[0] == "ideas.log" and c[1].get("what") == "flag"]      # noqa: E731
-    async with _phone(fake_repo, monkeypatch, init=with_list(fake_repo, []) + FAR) as (stub, page):
-        await _open_map(page)
-        await _docs(page)
-        for _ in range(3):                                                           # the section is drawn again, each time with its listener
-            await page.get_by_role("tablist", name="Goals").get_by_role("tab", name="Ship v1").click()
-            await _docs(page)
-        await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-        await page.wait_for_timeout(400)
-        assert await page.locator(".is-raising").count() == 0 and not flag_logs(stub)
-        await page.locator(".trail-flag").scroll_into_view_if_needed()
-        await page.locator(".trail-flag.is-raising").wait_for(timeout=WAIT_MS)
-        await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-        await page.wait_for_timeout(400)
-        assert len(flag_logs(stub)) == 1
-
-
 @pytest.mark.asyncio
 async def test_under_reduced_motion_nothing_moves_and_a_phone_with_no_list_raises_nothing(fake_repo, monkeypatch):
     _met()

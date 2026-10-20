@@ -95,8 +95,6 @@ class ReviewMixin:
             if _leaves(task):
                 return self._leave(slug, tid, task, device)
         base = str(_r().setting(self.settings, "merge_into") or "dev")
-        if is_check(task) and (task.get("diff") or {}).get("files") == 0 and not task.get("commit"):
-            return self._leave(slug, tid, task, device, base)       # a check that changed no file: *Leave them* lands nothing
         try:
             self.git.ensure_branch(base)
             path = self.git.reopen(slug, tid)

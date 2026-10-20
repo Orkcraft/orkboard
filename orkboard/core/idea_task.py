@@ -28,21 +28,6 @@ def checker_of(task: dict) -> str:
     return str(task.get("role") or "") or next((a.id for a in library.LIBRARY if a.check is not None and a.takes[0] == task.get("kind")), "")
 
 
-FINDINGS_ASK = (
-    f"When you are done, write what you found to `{idea_checks.FINDINGS_FILE}` at the worktree's root, as JSON: "
-    '`{"findings": [{"where": "file:line, or the screen", "what": "one line: what goes wrong", "fixed": true}]}`, the worst first, '
-    'at most 20. Write `{"findings": []}` when you found nothing that blocks, and then change nothing else. Fix only what is small '
-    'and certain; leave the rest as findings with `"fixed": false`.')
-NO_FINDINGS = "You left no findings file and changed no file. Write your findings file, as the task asks."
-NO_RUN = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False, "command": ""}      # a check that changed no file: no gate ran
-NO_DIFF = {"files": 0, "added": 0, "removed": 0}
-
-
-def is_check(task: dict) -> bool:
-    """A check task: its `kind` is a checker's tag (realm/idea_checks.py `TAGS`)."""
-    return str(task.get("kind") or "") in idea_checks.TAGS
-
-
 def _r():
     """The runner's module (it imports this one: looked up when a task runs)."""
     from orkboard.core import idea_runner

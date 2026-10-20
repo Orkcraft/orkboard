@@ -140,15 +140,6 @@ export function weekNights(n) {
   return parts.length ? `The last 7 nights: ${parts.join(", ")}` : "";
 }
 
-/** *The week: 55 % left with 2 days to go: Low work starts by day*; "" with no week read (spec 44 §5). */
-export function weekPace(w) {
-  if (!w?.week) return "";
-  const { left, rest, pace } = w.week;
-  const days = Math.max(1, Math.ceil(rest * 7 - 1e-9));
-  const does = { ahead: "Low work starts by day", even: "Low work waits for the night", behind: "Low work waits until the week comes back" }[pace] || "";
-  return `The week: ${Math.round(left * 100)} % left with ${days} ${days === 1 ? "day" : "days"} to go${does ? `: ${does}` : ""}`;
-}
-
 /** This week (spec 42 §6): the work of the last seven days, at API prices, beside today's spend. Reads `ideas.week_work` when opened. */
 export function WeekDialog() {
   const [w, setW] = useState(null);
@@ -159,8 +150,6 @@ export function WeekDialog() {
       ${weekMoney(w) && html`<p class="week__usd">${weekMoney(w)}</p>`}
       <p class="week__results">${weekResults(w)}</p>
       ${weekNights(w.nights) && html`<p class="week__nights">${weekNights(w.nights)}</p>`}
-      ${weekPace(w) && html`<p class="week__pace">${weekPace(w)}</p>`}
-      ${w.last_unused != null && html`<p class="week__unused">Last week ended with ${Math.round(w.last_unused * 100)} % unused</p>`}
       ${w.streak >= 2 && html`<p class="week__streak">${w.streak} nights in a row</p>`}
       ${w.night_on && (w.tonight > 0 ? html`<p class="week__tonight">Tonight: ${w.tonight} wait</p>`
         : html`<p class="week__tonight">Nothing waits for tonight · <button type="button" class="board-link" onClick=${newIdea}>New idea</button></p>`)}

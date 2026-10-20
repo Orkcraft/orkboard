@@ -149,12 +149,6 @@ TERMS: tuple[Term, ...] = (
     _t("library", "library"),                                      # the agents that come with Orkline (realm/library.py)
     _t("check", "check", "checks"),                                # what a team's checker holds each idea to (realm/idea_checks.py)
     _t("checker", "checker", "checkers"),                          # an agent of the library that brings a check
-    _t("pace", "the week's pace"),                                  # the Claude week's share left against the share of it still to come (spec 44)
-    _t("party_work", "What the party did"),                         # a goal's party's work, member by member and check by check (spec 43 §2)
-    _t("party_proposal", "party proposal", "party proposals"),      # the night's proposal to take a checker out of a goal's party (spec 43 §4)
-    _t("own_party", "your party", "your parties"),                  # a party the person saved from a goal, kept in their own folder and picked in any project (spec 43 §6)
-    _t("party_price", "This party"),                                # about what an idea costs with a party, before it starts (spec 43 §3)
-    _t("check_finding", "finding", "findings"),                    # one thing a check found: where, what goes wrong, fixed or left (spec 43 §0; `finding` is the Mine's)
     _t("tag", "tag", "tags"),                                      # a task's kind of work: who of the team does it (roles.TASK_KINDS)
     _t("craft.engineering", "Engineering"),                        # an ork: the Taskmaster, the Grunts, a role of code
     _t("craft.design", "Design"),                                  # an elf

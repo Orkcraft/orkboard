@@ -39,7 +39,6 @@ class GoalsMixin:
         lead = roles.role(self.state_dir, g.get("leader") or roles.TASKMASTER) or roles.role(self.state_dir, roles.TASKMASTER)
         return {**g, "race": roles.RACES[g["craft"]], "state": st["state"], "state_error": st["error"], "ideas": g["count"],
                 "leader": {"slug": lead["slug"], "name": lead["name"], "head": roles.head(lead, self._target())},
-                "party": goal_team.party_of(self.root(False), g["slug"]),
                 "verdict": goal_verdict.read(self.state_dir, g["slug"])}
 
     def goal(self, args: dict) -> dict:

@@ -208,19 +208,6 @@ class BoardMixin:
         runner.start(slug)
         self._publish(slug)
 
-    def _by_pace(self) -> bool:
-        """The Board's Low plan just passed goes on by day: the week is ahead of its pace and it is not the night (spec 44 §3)."""
-        try:
-            return idea_target.by_pace({"start_at": "night", "start_at_by": "board"}, list(self.host.limits() or []), self.runner_board(), time.time())
-        except Exception:                                  # a quota never stops a plan from being passed
-            return False
-
-    def runner_board(self) -> dict:
-        """The Board's own settings as the runner reads them (target, night, reserves, autostart)."""
-        s = self.settings_now()
-        return {"night": s.get("night", settings.IDEAS["night"]), "autostart": bool(s.get("autostart", True)),
-                "reserve_day": s.get("reserve_day", 0.3), "reserve_night": s.get("reserve_night", 0.1)}
-
     def start_night(self, slug: str) -> bool:
         """The night's step 2: a plan passed to start at night goes to the runner (its tasks start inside the window)."""
         plan = ideas.plan(self.state_dir, slug)

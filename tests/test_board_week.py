@@ -79,9 +79,7 @@ def test_this_week_sums_the_seven_days_the_ops_ledger_and_what_waits_for_tonight
         log(root, "task_state", NOW - dt.timedelta(days=2, hours=n), idea="a", task=f"k{n}", state="merged", was="review", round=rnd)
     log(root, "task_state", NOW - dt.timedelta(days=8), idea="a", task="old", state="merged", was="review", round=1)
     rows = {"ideas": [{"slug": "x", "state": "raw", "queue": "night", "start_at": ""}, {"slug": "y", "state": "plan", "queue": "", "start_at": "night"},
-                      {"slug": "z", "state": "working", "queue": "", "start_at": ""}, {"slug": "d", "state": "done", "queue": "night", "start_at": ""},
-                      {"slug": "p", "state": "plan", "queue": "night", "start_at": ""},          # drafted: its queue is still `night`
-                      {"slug": "w", "state": "working", "queue": "", "start_at": "night"}]}     # started: its plan still says `night`
+                      {"slug": "z", "state": "working", "queue": "", "start_at": ""}, {"slug": "d", "state": "done", "queue": "night", "start_at": ""}]}
     got = board_week.this_week(root, state, SETTINGS, NOW, rows, ops_base=ops)
     assert got["usd"] == 40.0 and got["ops_usd"] == 3.2 and (got["merged"], got["first_time"]) == (4, 3)
     assert got["usd_per_merged"] == 10.0 and got["tonight"] == 2 and got["night_on"] is True and got["into"] == "dev"
@@ -170,13 +168,6 @@ def test_last_week_goals_flags_dearest_fastest_answers_and_nights(root, tmp_path
     assert got["fastest"] == {"slug": "table", "short": "Table", "title": "The table", "minutes": 42}
     assert got["answers"] == {"answers": 12, "recommended": 9, "decided": 1}
     assert got["nights"] == {"worked": 1, "idle": 0, "off": 6} and got["empty"] is False
-
-
-def test_a_week_that_has_not_ended_counts_only_its_own_nights_that_have(root, tmp_path):
-    run(root, at(18, 2), drafted=1)                                                  # the night of Sunday 18th: last week's
-    run(root, at(20, 2), drafted=1)                                                  # Tuesday's night, ended at 07:00
-    got = board_week.last_week(root, tmp_path / "state", SETTINGS, NOW, _rows(), week="2026-W43")
-    assert got["nights"] == {"worked": 1, "idle": 0, "off": 1}                       # Monday's night is off; none from before its Monday
 
 
 def test_a_quiet_week_is_empty_with_null_answers_and_a_deleted_idea_is_left_out(root, tmp_path):

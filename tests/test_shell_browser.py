@@ -4,7 +4,6 @@ terminal. A click on an idea, a to-do, a chip and a result opens the right previ
 back needs its line; no camp. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
 
-import copy
 import datetime as dt
 import json
 import os
@@ -50,23 +49,6 @@ def make_plan():
                       task("k4", "Test it offline", "review", ["k3"], tests=RED, round=2, diff={"files": 3, "added": 12, "removed": 0},
                            conflict="conflicts with dev in a.py, b.py"),
                       task("k5", "Write the notes", "waiting", ["k4"])]}
-
-
-_HEAD = {"craft": "engineering", "race": "peon", "tier": "warrior"}
-PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},
-         "members": [{"slug": "grunt", "name": "Grunt", "head": _HEAD, "tasks": 14, "merged": 13, "first_time": 12, "usd": 9.2}],
-         "checks": [{"by": "accessibility-reviewer", "name": "Accessibility reviewer", "head": {"craft": "design", "race": "elf", "tier": "warrior"}, "applied": 6,
-                     "skipped": 1, "clean": 4, "caught": 2, "left": 1, "before": 2, "usd": 1.8},
-                    {"by": "reviewer", "name": "Reviewer", "head": _HEAD, "applied": 1, "skipped": 0, "clean": 1, "caught": 0, "left": 0, "before": 0, "usd": None}]}
-PARTY_LINES = ["Product manager (leads): ≈$4.10 for the goal, the drafts and the plans", "Grunt: 14 tasks, 12 merged the first time · ≈$9.20",
-               "Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 before findings were kept",
-               "Reviewer: checked 1 idea: 1 clean, caught 0"]
-def party_price(a, learned=True, hints=()):
-    """What `ideas.party_price` answers for a party (spec 43 §3): $0.35 a check, about half of the ideas, all of them with `every`."""
-    from orkboard.realm import library
-    checks = [{"by": s, "name": library.get(s).name, "usd": 0.35, "share": 1.0 if s in (a.get("every") or []) else 0.5, "every": s in (a.get("every") or [])}
-              for s in a.get("team") or [] if library.get(s) is not None and library.get(s).check is not None]
-    return {"low": 1.9, "high": 5.7, "learned": learned, "ideas": 12 if learned else 0, "checks": checks, "hints": list(hints)}
 
 
 SAVED = "/home/me/Downloads/orkboard-logs-2026-10-19-120000.zip"            # what logs.save answers
@@ -116,11 +98,6 @@ class StubHost:
                         "task": "", "tier": "warrior"}]
         self.parts: list[dict] = []                                                                  # ideas.lens_code
         self.screen_png = ""                                                                         # ideas.lens_screen
-        self.party = copy.deepcopy(PARTY)                                                            # ideas.party (spec 43 B)
-        self.hints: list[str] = []                                                                   # ideas.party_price's hints (spec 43 E)
-        self.own: list[dict] = []                                                                    # ideas.parties (spec 43 F)
-        self.goal_notes: list[str] = []                                                              # what ideas.goal_save says besides its slug
-        self.learned = True                                                                          # ideas.party_price: learned from the project's ideas, or a first guess
 
     def idea(self, slug, title, state, order, **more):
         return {"slug": slug, "title": title, "track": "ship-sync", "order": order, "state": state, "size": "M", "asks": 0, "updated": "x", "talk": [],
@@ -229,7 +206,7 @@ class StubHost:
                         "check_week": self.check_week.get(r["slug"]), "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
-            return {"roles": [r | {"spend_today": 0, "record": self.record.get(r["slug"])} | ({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {}) | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
+            return {"roles": [r | {"spend_today": 0, "record": self.record.get(r["slug"])} | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
                     "kinds": self.kind_list(),
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
                                {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],

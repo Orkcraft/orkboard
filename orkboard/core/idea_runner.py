@@ -178,8 +178,6 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 continue
             since = self._since.get((slug, tid))
             self._since[(slug, tid)] = now
-            check = ({"check": True, **({"clean": True} if new == "merged" and t.get("note") == "clean" else {})}
-                     if is_check(t) else {})            # a check task's lines say so; a clean one is no result (spec 43 §1.3)
             self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1),
                        tier=t.get("tier") or "", role=t.get("role") or "", seconds=round(now - since, 1) if since else None, tokens=t.get("tokens"),
                        cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "",
@@ -298,7 +296,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 if plan is None:
                     self._active.remove(slug)
                     continue
-                tasks, changed = plan["tasks"], self._advance(slug, plan, now, limits)
+                tasks, changed = plan["tasks"], self._advance(slug, plan, now)
                 running = [t for t in tasks if (slug, t.get("id")) in self._runs]
                 failed = next((t for t in tasks if t.get("state") == "failed"), None)
                 if failed is not None or all(t.get("state") == "merged" for t in tasks):
@@ -332,8 +330,6 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                             self._mark_pace(slug)                  # it goes by day because the week is ahead (spec 44 §3)
                         self._launch(slug, t)
                         slots -= 1
-                        if paced:
-                            self._mark_pace(slug)
                     changed = True
                 if changed:
                     self._save_tasks(slug, tasks)
@@ -388,7 +384,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
     def _running_as(self, slug: str) -> int:
         return sum(1 for r in self._runs.values() if r.role == slug)
 
-    def _advance(self, slug: str, plan: dict, now: float, limits: list | None = None) -> bool:
+    def _advance(self, slug: str, plan: dict, now: float) -> bool:
         tasks = plan["tasks"]
         merged = {t.get("id") for t in tasks if t.get("state") == "merged"}
         todos = [d for d in plan.get("todos") or [] if isinstance(d, dict)]
@@ -534,10 +530,6 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     prompt += "\n\n" + FINDINGS_ASK
                 if not resume:
                     prompt = self._prompt(slug, plan, task) + "\n\n" + prompt
-                elif is_check(task):
-                    prompt += self._again_ask(task)
-                if is_check(task):
-                    self._set_task(slug, tid, findings=None)       # replaced by this round's
             self._log(slug, tid, f"== round {rnd} · {now_iso()} · {model}\n{prompt}\n", env)
             session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent, effort)
             problem, out, findings = None, "", None
