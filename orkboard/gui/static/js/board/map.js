@@ -8,12 +8,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Chev, Icon, WhoHead } from "../orkui.js";
-import { PRIORITY_WORDS } from "./store.js";
-import { mapData, mapSince, mapFolded, mapUi, mapView, preview, showIdea, showTask, act as run } from "../shell/store.js";
+import { PRIORITY_WORDS, ask } from "./store.js";
+import { mapData, mapSince, mapFolded, mapUi, mapView, preview, lookKey, logOpened, showIdea, showTask, showGoal, act as run } from "../shell/store.js";
 import { skippable, spares } from "./idea.js";
 import { Cards } from "./cards.js";
 import { openDialog } from "../shell/modals.js";
-import { TASK_STATE, nodeView, tiersOf, wavesOf, spentWords, goalState, progressOf, leftToDo, trailCurve, trailEdges } from "./maplayout.js";
+import { TASK_STATE, nodeView, tiersOf, wavesOf, spentWords, goalState, progressOf, leftToDo, trailCurve, trailEdges, tallyWords, flagWords } from "./maplayout.js";
 
 const LANES = 3;                       // the stops side by side in one step of the trail, before "+N more"
 const TASKS = 6;                       // the tasks left shown on a stop at work
@@ -106,9 +106,57 @@ function Checks({ n, team }) {
         onClick=${() => run("ideas.check_skip", { slug: n.slug, by: c.by })}><${Icon} name="close" /></button>`}</span>`)}</div>`;
 }
 
+/** The flags this device raised (spec 42 §2.3): the goals' slugs under `orkboard.flags.<12 characters>`; null on a device with no list. */
+const flagsKey = () => lookKey().replace("orkboard.look.", "orkboard.flags.");
+function raisedList(key) {
+  try {
+    const got = JSON.parse(localStorage.getItem(key) || "null");
+    return Array.isArray(got) ? got.filter((x) => typeof x === "string") : null;
+  } catch { return null; }
+}
+function keepRaised(key, slugs) {
+  try { localStorage.setItem(key, JSON.stringify([...new Set([...(raisedList(key) || []), ...slugs])])); } catch { /* the flag is raised again next time */ }
+}
+const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** A device with no list adds every met goal without raising any (the first start after this part). */
+function seedRaised(m) {
+  const key = flagsKey();
+  if (key && raisedList(key) === null) keepRaised(key, m.goals.filter((g) => g.verdict?.met).map((g) => g.slug));
+}
+
+/** The goal's flag is raised once on this device, while its trail is on screen (the Map shown, the goal unfolded, the page visible):
+ *  it moves up from the foot of its box in six steps (not under reduced motion), the slug is kept and `opened` `flag` is logged. */
+function useRaise(g, ref) {
+  const [raising, setRaising] = useState(false);
+  const met = g.verdict?.met === true;
+  useEffect(() => {
+    const key = flagsKey();
+    const list = key && met ? raisedList(key) : null;
+    if (!list || list.includes(g.slug) || !ref.current) return undefined;
+    let io, timer, done = false;
+    const raise = () => {
+      if (done || document.visibilityState !== "visible") return;
+      done = true;
+      io?.disconnect();
+      keepRaised(key, [g.slug]);
+      logOpened("flag", g.slug);
+      if (!reducedMotion()) { setRaising(true); timer = setTimeout(() => setRaising(false), 700); }
+    };
+    if (typeof IntersectionObserver === "function") {
+      io = new IntersectionObserver((seen) => { if (seen.some((e) => e.isIntersecting)) raise(); });
+      io.observe(ref.current);
+    } else raise();
+    document.addEventListener("visibilitychange", raise);
+    return () => { done = true; io?.disconnect(); clearTimeout(timer); document.removeEventListener("visibilitychange", raise); };
+  }, [met, g.slug]);
+  return raising;
+}
+
 /** One goal's trail: the start (how far, the done ones), its steps of stops, the flag; the lines drawn once laid out. */
 function Trail({ g, nodes, edges, titles, since }) {
-  const root = useRef(), last = useRef("");
+  const root = useRef(), last = useRef(""), end = useRef();
+  const raising = useRaise(g, end);
   const [lines, setLines] = useState([]);
   const open = nodes.filter((n) => n.state !== "done");
   const steps = tiersOf(open);
@@ -142,7 +190,7 @@ function Trail({ g, nodes, edges, titles, since }) {
   const pct = progressOf(nodes), done = nodes.filter((n) => n.state === "done");
   const doneOpen = listed("done").includes(g.slug);
   const flag = g.verdict ? (g.verdict.met ? "is-met" : "is-not") : "";
-  const flagWords = g.verdict ? (g.verdict.met ? `Met · ${g.verdict.by}` : `Not met yet · ${g.verdict.by}`) : open.length ? "The goal" : "Its ideas are done";
+  const endWords = g.verdict ? (g.verdict.met ? `Met · ${g.verdict.by}` : `Not met yet · ${g.verdict.by}`) : open.length ? "The goal" : "Its ideas are done";
   return html`<div class="map-scroll"><div class="trail" ref=${root}>
     <svg class="map-lines" aria-hidden="true">${lines.map((l) => html`<path key=${l.from + l.to} d=${l.d} data-from=${l.from} data-to=${l.to} />`)}</svg>
     <div class="trail-start">
@@ -159,9 +207,10 @@ function Trail({ g, nodes, edges, titles, since }) {
           ${wide ? "Fewer side by side" : `+${step.length - LANES} more side by side`}</button></li>`}</ul>`;
     })}
     ${!steps.length && html`<p class="trail-empty ok-tone-muted">No idea left on the way.</p>`}
-    <div class=${cls("trail-end", flag)} aria-label=${`The flag: ${flagWords}`}>
-      <span class="trail-end__flag"><${Icon} name="flag" /></span>
-      <span class="ok-font-status">${flagWords}</span>
+    <div class=${cls("trail-end", flag)} ref=${end} aria-label=${`The flag: ${endWords}`}>
+      <span class=${cls("trail-end__flag", { "is-raising": raising })}><${Icon} name="flag" /></span>
+      <span class="ok-font-status">${endWords}</span>
+      ${g.verdict?.met && g.verdict.tally && html`<span class="trail-end__tally ok-font-status ok-tone-muted">${tallyWords(g.verdict.tally)}</span>`}
     </div>
   </div>
   ${doneOpen && html`<ul class="map-done__list" aria-label=${`Done in ${g.title}`}>${done.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} leader=${g.leader} team=${g.team} />`)}</ul>`}
@@ -189,11 +238,39 @@ function Goal({ g, nodes, edges, titles, since }) {
   </section>`;
 }
 
+const FLAGS_OPEN = "@flags:open";                                   // in the folds kept with the tabs: the Flags fold is closed until it is opened
+
+/** The foot of the Map (spec 42 §2.4): *Flags (3)*, the goals met, with their tally; the list is asked for when the fold is opened. */
+function MapFoot({ m }) {
+  const met = m.goals.filter((g) => g.verdict?.met).length;
+  const open = mapFolded.value.includes(FLAGS_OPEN);
+  const [flags, setFlags] = useState(null);
+  useEffect(() => {
+    if (!open || !met) return undefined;
+    let on = true;
+    ask("ideas.flags").then((got) => { if (on && got) setFlags(got.flags || []); });
+    return () => { on = false; };
+  }, [open, met, m.rev]);
+  if (!met) return null;
+  const fold = () => { mapFolded.value = open ? mapFolded.value.filter((x) => x !== FLAGS_OPEN) : [...mapFolded.value, FLAGS_OPEN]; };
+  return html`<div class="map-foot">
+    <section class="map-flags" aria-label="Flags">
+      <button type="button" class="board-link map-flags__btn" aria-expanded=${open} onClick=${fold}>Flags (${met})</button>
+      ${open && html`<ul class="map-flags__list">${(flags || []).map((f) => html`<li key=${f.goal}>
+        <button type="button" class="map-flag" onClick=${() => showGoal(f.goal, { via: "flags" })}>
+          <span class="map-flag__mark" aria-hidden="true"><${Icon} name="flag" /></span>
+          <span class="map-flag__body"><b>${f.title}</b><span class="ok-font-status ok-tone-muted">${flagWords(f)}</span>
+            <span class="ok-font-status ok-tone-muted">${tallyWords(f.tally)}</span></span></button></li>`)}</ul>`}
+    </section>
+  </div>`;
+}
+
 export function MapView() {
   const m = mapData.value, since = mapSince.value;
   const el = useRef();
   useLayoutEffect(() => { if (el.current) el.current.scrollTop = mapView.top; }, []);       // the Map keeps its scroll when its tab comes back
   if (!m) return html`<p class="ok-tone-muted map-note">Reading the Map…</p>`;
+  seedRaised(m);
   const titles = Object.fromEntries(m.nodes.map((n) => [n.slug, n.title]));
   const goalOf = Object.fromEntries(m.nodes.map((n) => [n.slug, n.goal]));
   return html`<div class="map" ref=${el} aria-label="Map" onScroll=${(e) => { mapView.top = e.currentTarget.scrollTop; }}>
@@ -201,5 +278,6 @@ export function MapView() {
     ${!m.goals.length ? html`<div class="shell-empty"><p>No goals yet</p><p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New goal</button></p></div>`
       : m.goals.map((g) => html`<${Goal} key=${g.slug} g=${g} nodes=${m.nodes.filter((n) => n.goal === g.slug)}
         edges=${m.edges.filter((e) => goalOf[e.to] === g.slug)} titles=${titles} since=${since} />`)}
+    <${MapFoot} m=${m} />
   </div>`;
 }

@@ -465,3 +465,8 @@ only if the pusher's tick cannot ride the host's), `gui/static/pwa/util.js` (A, 
 - `board_recap.build(root, state_dir, since, now, rows, into="dev")`: `root` is the project's folder (where `.orkcraft/usage/events.jsonl` is, as `ideas._ev` writes it), `rows` the `ideas.board` object (`ideas` and `tracks`), and `into` the Board's merge branch (`ideas.recap` passes `_into()`); the contract's five arguments stay as they are.
 - `merged.tasks` counts every `merged` event of the period, a deleted idea's too; only the lists leave a deleted idea out. `failed` names each idea once per failed task.
 - The desktop's `look.js` keeps the cards to show in a signal (`cards`), so Last week (G) can go ahead of the recap; the project's key is the tabs' (`store.js` `lookKey`), and a failed `ideas.recap` does not move the last look (it asks again at the next press).
+
+### B. The flag
+- `goal_flags.tally(root, state_dir, goal)`: `root` is the Board's tree (where the pages are); the event log it reads for a goal's first `goal_saved` is the project's, `state_dir`'s parent. The log is read again only when it changed.
+- A flag is raised when its trail is on screen: an `IntersectionObserver` on the trail's end, with the page visible, so a trail scrolled out of sight (or on a tab not shown, or folded) waits. The desktop's Flags fold is remembered as `@flags:open` among the Map's folds kept with the tabs; the phone's is a `<details>` kept as `orkboard.map.flags.<project>`.
+- The phone's Flags fold asks `ideas.flags` through `core.call`, and a raise logs `opened` through it too (no change to `board.js`).

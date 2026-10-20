@@ -91,6 +91,10 @@ class MapHost(StubHost):
         if name == "ideas.map":
             self.log.append((name, a))
             return self.map_doc()
+        if name == "ideas.flags":
+            self.log.append((name, a))
+            return {"flags": [{"goal": g["slug"], "title": g["title"], "short": g["title"], "by": g["verdict"]["by"], "at": g["verdict"]["at"],
+                               "tally": g["verdict"].get("tally")} for g in self.map_doc()["goals"] if (g.get("verdict") or {}).get("met")]}
         if name == "files.tree":
             self.log.append((name, a))
             return {"entries": [{"name": n, "path": n, "dir": False, "secret": False, "ignored": False} for n in self.files]}
@@ -548,5 +552,102 @@ def test_a_chip_and_a_task_show_their_short_names_on_two_lines_with_the_title_in
     task = pg.locator(".map-task", has_text="Tk2")
     assert task.get_attribute("title").startswith("Add the queue") and task.locator(".map-task__title").inner_text() == "Tk2"
     assert pg.get_by_label("Goal", exact=True).locator("option").first.get_attribute("title")           # the goal select keeps the title on its options
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+# -- spec 42 B: the flag raised once, its tally and Flags -------------------------------------------------------------
+
+TALLY = {"ideas": 7, "results": 23, "first_time": 19, "usd": 38.4, "days": 9}
+MET = {"met": True, "by": "Product manager", "at": "2026-10-18T10:00:00", "tally": TALLY}
+
+
+def flags_key(path: str) -> str:
+    return key(path).replace("orkboard.tabs.", "orkboard.flags.")
+
+
+def with_list(slugs, path=SHOP):
+    """The flags this device raised, written once (a reload keeps what the page wrote)."""
+    k = json.dumps(flags_key(path))
+    return f"if (!localStorage.getItem({k})) localStorage.setItem({k}, {json.dumps(json.dumps(slugs))});"
+
+
+def met_host():
+    host = MapHost()
+    host.extra_goal = {"verdict": MET}
+    return host
+
+
+def test_a_met_goal_not_in_the_list_is_raised_once_and_its_slug_kept(gui):
+    pg, host, errors = _open(gui, met_host(), init=with_list([]), ready=".trail-end.is-met")
+    flag = pg.locator(".map-goal[data-goal=grow] .trail-end__flag")
+    flag.wait_for(timeout=WAIT_MS)
+    assert pg.locator(".is-raising").count() == 1 and flag.evaluate("e => getComputedStyle(e).animationName") == "map-flag-raise"
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}))
+    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == ["grow"]
+    pg.wait_for_function("document.querySelectorAll('.is-raising').length === 0", timeout=WAIT_MS)       # it moved once
+    pg.reload()
+    pg.locator(".trail-end.is-met").wait_for(timeout=WAIT_MS)
+    pg.wait_for_timeout(300)
+    assert pg.locator(".is-raising").count() == 0 and len(_calls(pg, host, "ideas.log", at_least=1)) and \
+        [a for n, a in host.log if n == "ideas.log" and a.get("what") == "flag"] == [{"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}]
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_under_reduced_motion_nothing_moves_and_the_slug_is_kept_all_the_same(gui):
+    server, browser = gui
+    pg = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
+    pg.add_init_script(with_list([]))
+    host = met_host()
+    pg.route_web_socket("**/ws*", host.on_socket)
+    pg.goto(server.url)
+    pg.wait_for_selector(".trail-end.is-met", timeout=WAIT_MS)
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}))
+    assert pg.locator(".is-raising").count() == 0
+    assert pg.locator(".map-goal[data-goal=grow] .trail-end__flag").evaluate("e => getComputedStyle(e).animationName") == "none"
+    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == ["grow"]
+    pg.close()
+
+
+def test_a_device_with_no_list_raises_nothing_and_adds_every_met_goal(gui):
+    pg, host, errors = _open(gui, met_host(), ready=".trail-end.is-met")
+    pg.wait_for_timeout(500)
+    assert pg.locator(".is-raising").count() == 0
+    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == ["grow"]
+    assert not [a for n, a in host.log if n == "ideas.log" and a.get("what") == "flag"]
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_the_tally_stays_under_a_met_flag_and_a_goal_not_met_has_none(gui):
+    host = met_host()
+    pg, host, errors = _open(gui, host, init=with_list(["grow"]), ready=".trail-end.is-met")
+    tally = pg.locator(".map-goal[data-goal=grow] .trail-end__tally")
+    assert " ".join(tally.inner_text().split()) == "7 ideas · 23 results · 19 the first time · ≈$38 · 9 days"
+    assert pg.locator(".map-goal[data-goal=ship-sync] .trail-end__tally").count() == 0
+    host.extra_goal = {"verdict": {**MET, "tally": {**TALLY, "usd": None, "days": None}}}
+    host.bump({})
+    pg.wait_for_function("document.querySelector('.trail-end__tally').textContent === '7 ideas · 23 results · 19 the first time'", timeout=WAIT_MS)
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_flags_opens_with_its_rows_and_a_row_opens_the_goal(gui):
+    pg, host, errors = _open(gui, met_host(), init=with_list(["grow"]), ready=".trail-end.is-met")
+    fold = pg.get_by_role("button", name="Flags (1)")
+    assert fold.get_attribute("aria-expanded") == "false" and not [1 for n, _a in host.log if n == "ideas.flags"]     # closed at first: not asked for
+    fold.click()
+    row = pg.locator(".map-flag")
+    row.wait_for(timeout=WAIT_MS)
+    assert " ".join(row.inner_text().split()) == "Grow installs met, says Product manager · 18 October 7 ideas · 23 results · 19 the first time · ≈$38 · 9 days"
+    row.click()
+    pg.locator(".shell-ptab.is-on[data-tab='goal:grow::']").wait_for(timeout=WAIT_MS)
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "goal:grow", "device": "desktop", "via": "flags"}))
+    pg.locator(".shell-tabstrip").get_by_role("tab", name="Map").click()
+    assert pg.get_by_role("button", name="Flags (1)").get_attribute("aria-expanded") == "true"        # remembered with the folds
+    pg.reload()
+    pg.locator(".trail-end.is-met").wait_for(timeout=WAIT_MS)
+    assert pg.get_by_role("button", name="Flags (1)").get_attribute("aria-expanded") == "true"
     pg.close()
     assert not errors, "\n".join(errors)

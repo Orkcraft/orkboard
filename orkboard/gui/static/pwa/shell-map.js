@@ -38,6 +38,24 @@ export function waitsWords(node) {
   return "";
 }
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** *7 ideas · 23 results · 19 the first time · ≈$38 · 9 days* (spec 42 §2.3): under a met goal's flag; a part that is null is left out. */
+export function tallyWords(t) {
+  if (!t) return "";
+  return [count(t.ideas, "idea", "ideas"), count(t.results, "result", "results"), `${t.first_time} the first time`,
+    t.usd != null && `≈$${Math.round(t.usd)}`, t.days != null && count(t.days, "day", "days")].filter(Boolean).join(" · ");
+}
+
+/** *met, says Product manager · 18 October* (spec 42 §2.4). */
+export function flagWords(f) {
+  const d = new Date(f.at);
+  return [`met, says ${f.by}`, Number.isNaN(d.getTime()) ? "" : `${d.getDate()} ${MONTHS[d.getMonth()]}`].filter(Boolean).join(" · ");
+}
+
+const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /** `core`: the board's frame; `goalSheet`: New goal. Returns {section(), enter()}. */
 export function makeMap(core, goalSheet) {
   const st = core.st;
@@ -49,6 +67,76 @@ export function makeMap(core, goalSheet) {
     let prev = 0;
     try { prev = Number(localStorage.getItem(key)) || 0; localStorage.setItem(key, String(Date.now())); } catch { /* the Map works without it */ }
     since = prev;
+  }
+
+  // -- the flag raised once on this phone, and the Flags fold (spec 42 §2) -----------------------------------------------------
+  const flagsKey = () => `orkboard.flags.${st.snap?.project || ""}`;
+  const foldKey = () => `orkboard.map.flags.${st.snap?.project || ""}`;
+  const raisedList = () => {
+    try {
+      const got = JSON.parse(localStorage.getItem(flagsKey()) || "null");
+      return Array.isArray(got) ? got.filter((x) => typeof x === "string") : null;
+    } catch { return null; }
+  };
+  const keepRaised = (slugs) => {
+    try { localStorage.setItem(flagsKey(), JSON.stringify([...new Set([...(raisedList() || []), ...slugs])])); } catch { /* raised again next time */ }
+  };
+  let watch = null;                                      // the one trail on screen waits to raise its flag
+
+  /** A phone with no list adds every met goal without raising any (the first start after this part). */
+  function seedRaised(goals) {
+    if (raisedList() === null) keepRaised(goals.filter((g) => g.verdict?.met).map((g) => g.slug));
+  }
+
+  /** The chosen goal's flag is raised once, when its trail is on screen (this tab shown, the page visible): six steps up from the foot
+   *  of its box (not under reduced motion); the slug is kept and `opened` `flag` is logged. */
+  function raiseWhenSeen(goal, end) {
+    watch?.disconnect();
+    watch = null;
+    const list = goal.verdict?.met ? raisedList() : null;
+    if (!list || list.includes(goal.slug)) return;
+    let done = false;
+    const raise = () => {
+      if (done || document.visibilityState !== "visible") return;
+      done = true;
+      watch?.disconnect();
+      document.removeEventListener("visibilitychange", raise);
+      keepRaised([goal.slug]);
+      core.call("ideas.log", { event: "opened", what: "flag", ref: goal.slug, device: "phone" });
+      const mark = end.querySelector(".trail-flag");
+      if (mark && !reducedMotion()) { mark.classList.add("is-raising"); setTimeout(() => mark.classList.remove("is-raising"), 700); }
+    };
+    document.addEventListener("visibilitychange", raise);
+    if (typeof IntersectionObserver === "function") {
+      watch = new IntersectionObserver((seen) => { if (seen.some((e) => e.isIntersecting)) raise(); });
+      watch.observe(end);
+    } else raise();
+  }
+
+  let flagsAt = null;                                    // {rev, list}: the flags as `ideas.flags` gave them for this Map
+  /** *Flags (3)*, the goals met, a fold at the foot of the Map; the list is asked for when it is opened. */
+  function flagsFold(goals) {
+    const met = goals.filter((g) => g.verdict?.met).length;
+    if (!met) return null;
+    const list = h("ul", { class: "map-flags-list" });
+    let open = false;
+    try { open = localStorage.getItem(foldKey()) === "open"; } catch { /* closed */ }
+    const fill = (flags) => list.replaceChildren(...flags.map((f) => h("li", {}, h("button", { class: "map-flag", type: "button", onclick: () => core.open({ kind: "goal", slug: f.goal }, "flags") },
+      h("span", { class: "map-flag-mark", "aria-hidden": "true" }, icon("flag")),
+      h("span", { class: "map-flag-body" }, h("b", {}, f.title), h("small", { class: "muted" }, flagWords(f)), h("small", { class: "muted" }, tallyWords(f.tally)))))));
+    async function load() {
+      const rev = st.map?.rev;
+      if (flagsAt && flagsAt.rev === rev) { fill(flagsAt.list); return; }
+      const got = await core.call("ideas.flags");
+      if (got) { flagsAt = { rev, list: got.flags || [] }; fill(flagsAt.list); }
+    }
+    const el = h("details", { class: "map-flags", "aria-label": "Flags", open: open ? "" : null }, h("summary", {}, `Flags (${met})`), list);
+    el.addEventListener("toggle", () => {
+      try { localStorage.setItem(foldKey(), el.open ? "open" : "closed"); } catch { /* not kept */ }
+      if (el.open) load();
+    });
+    if (open) load();
+    return el;
   }
 
   const LANES = 2;                                      // stops side by side in a step, before "+N more"
@@ -219,7 +307,9 @@ export function makeMap(core, goalSheet) {
     const flag = goal.verdict ? (goal.verdict.met ? "is-met" : "is-not") : "";
     const board = (st.board?.tracks || []).find((t) => t.slug === goal.slug), onBoard = Boolean(board);
     const line = String(board?.summary || "").split("\n").find((l) => l.trim()) || "";
-    const flagWords = goal.verdict ? (goal.verdict.met ? `Met · ${goal.verdict.by}` : `Not met yet · ${goal.verdict.by}`) : open.length ? "The goal" : "Its ideas are done";
+    const endWords = goal.verdict ? (goal.verdict.met ? `Met · ${goal.verdict.by}` : `Not met yet · ${goal.verdict.by}`) : open.length ? "The goal" : "Its ideas are done";
+    const endMark = h("div", { class: `trail-end ${flag}`, "aria-label": `The flag: ${endWords}` }, h("span", { class: "trail-flag" }, icon("flag")), h("span", {}, endWords));
+    raiseWhenSeen(goal, endMark);
     return h("section", { class: "map-goal", "data-goal": goal.slug, "aria-label": goal.title },        // its title: its tab's
       line ? h("p", { class: "goal-line" }, line) : null,
       h("p", { class: "map-goal-meta" }, h("span", { class: `prio prio-${goal.priority}` }, PRIORITY_WORDS[goal.priority] || "Normal"),
@@ -238,7 +328,8 @@ export function makeMap(core, goalSheet) {
           step.length > LANES ? h("button", { class: "linkish trail-more", type: "button", onclick: () => { if (all) wide.delete(goal.slug); else wide.add(goal.slug); core.draw(); } },
             all ? "Fewer side by side" : `+${step.length - LANES} more side by side`) : null)))
           : h("p", { class: "muted trail-empty" }, "No idea left on the way."),
-        h("div", { class: `trail-end ${flag}`, "aria-label": `The flag: ${flagWords}` }, h("span", { class: "trail-flag" }, icon("flag")), h("span", {}, flagWords))),
+        endMark,
+        goal.verdict?.met && goal.verdict.tally ? h("p", { class: "muted trail-tally" }, tallyWords(goal.verdict.tally)) : null),
       done.length ? h("details", { class: "done-ideas" }, h("summary", {}, `Done (${done.length})`),
         h("ol", { class: "ideas map-ideas" }, ...done.map((n) => row(n, titleOf, goal.leader, goal.team)))) : null);
   }
@@ -270,7 +361,8 @@ export function makeMap(core, goalSheet) {
     const titles = new Map(st.map.nodes.map((n) => [n.slug, n.title]));
     const titleOf = (slug) => titles.get(slug) || slug;
     const on = goals.find((g) => g.slug === st.mapGoal) || goals.find((g) => g.slug === st.track) || goals[0];
-    return [tabs(goals, st.map.nodes, on.slug), goalSection(on, st.map.nodes, titleOf)];
+    seedRaised(goals);
+    return [tabs(goals, st.map.nodes, on.slug), goalSection(on, st.map.nodes, titleOf), flagsFold(goals)].filter(Boolean);
   }
 
   return { section, enter, sheets: [skipSheet.el] };

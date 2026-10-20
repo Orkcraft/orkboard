@@ -88,8 +88,9 @@ async def test_close_removes_the_card_and_it_is_not_shown_again(fake_repo, monke
         await card.wait_for(timeout=WAIT_MS)
         await card.get_by_role("button", name="Close").click()
         assert await card.count() == 0
-        await page.reload()
-        await page.locator(".board-tab-pane").wait_for(timeout=WAIT_MS)
+        key = json.dumps("orkboard.look." + fake_repo.name)
+        assert await page.evaluate(f"Date.now() - Number(localStorage.getItem({key})) < 60000")        # the last look moved with the question
+        await page.locator(".board-tab-pane").click(position={"x": 5, "y": 5})                         # a press: not away any more, nothing asked again
         await page.wait_for_timeout(500)
         assert await card.count() == 0 and len([c for c in stub.calls if c[0] == "ideas.recap"]) == 1
 
