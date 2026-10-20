@@ -118,3 +118,11 @@ def test_the_reserve_by_day_and_at_night_and_none_without_limits():
     assert idea_target.reserve_held(rows(0.25), s, night) is None                             # night: 0.25 > 0.10
     assert idea_target.reserve_held(rows(0.08), s, night) is not None
     assert idea_target.reserve_held([], s, noon) is None
+
+
+def test_a_party_member_s_ask_step_is_quality_only_with_its_own_budget_and_the_goal_keeps_its_questions():
+    """Spec 46 §2, §1: no tools, a tenth of a dollar (doubled in quality), at most 3 · 3 · 5 questions of a goal's read."""
+    assert idea_target.pick("ask", "thrift") is None and idea_target.pick("ask", "balance") is None
+    assert idea_target.pick("ask", "quality") == ("warrior", "low")
+    assert idea_target.budget("ask", "quality") == 0.20 and idea_target.READS["ask"] == 0 and idea_target.CONTEXT["ask"] == 4_000
+    assert idea_target.GOAL_QUESTIONS == {"thrift": 3, "balance": 3, "quality": 5}

@@ -2,7 +2,7 @@
 the one it recommends and why — taken strictly from the model's answer, kept in the page as one line, read back.
 
     q = idea_questions.of({"ask": "Which store first?", "choices": ["App Store", "Google Play"], "pick": 0,
-                           "why": "most of its users are on iPhone"})
+                           "why": "most of its users are on iPhone"})   # a goal's may say `by`: the slug of the member it is for
     idea_questions.all_of(answer["questions"], 3)       # the model's questions, each taken by `of`
     idea_questions.line(q)       # "Which store first? (**App Store** / Google Play) — most of its users are on iPhone"
     idea_questions.parse(line)   # {"ask", "choices", "pick", "why"}; a line of before ("… (one / other)") too
@@ -19,6 +19,7 @@ ASK_CHARS = 300
 CHOICES = (2, 4)                 # a question's choices: at least, at most
 CHOICE_CHARS = 40
 WHY_CHARS = 120
+BY_CHARS = 60                    # a role slug
 
 # "<ask> (<choice> / **<pick>** / …)<?.!> — <why>": the choices in the last brackets that hold a slash.
 _LINE = re.compile(r"^(.*?)\s*\(([^()]*/[^()]*)\)\s*([?.!]?)\s*(?:[—–]\s*(.*))?$")
@@ -55,7 +56,10 @@ def of(raw: object) -> dict | None:
     if isinstance(pick, str):
         pick = next((n for n, c in enumerate(choices) if c.lower() == " ".join(pick.split()).lower()), None)
     pick = pick if isinstance(pick, int) and not isinstance(pick, bool) and 0 <= pick < len(choices) else None
-    return {"ask": ask, "choices": choices, "pick": pick, "why": _plain(raw.get("why"), WHY_CHARS) if choices else ""}
+    q = {"ask": ask, "choices": choices, "pick": pick, "why": _plain(raw.get("why"), WHY_CHARS) if choices else ""}
+    if by := _plain(raw.get("by"), BY_CHARS).lower():          # whose view it answers (a goal's read, spec 46 §1); the page does not keep it
+        q["by"] = by
+    return q
 
 
 def all_of(raw: object, limit: int) -> list[dict]:
@@ -87,6 +91,12 @@ def parse(text: str) -> dict:
         ask += m.group(3)
     return {"ask": ask, "choices": choices, "pick": bold.index(True) if sum(bold) == 1 else None,
             "why": (m.group(4) or "").strip()}
+
+
+def asked_by(questions: list[dict], members: list[str], leader: str) -> list[str]:
+    """Who asks each question of a goal's read, one slug per question in their order: the member whose view it answers
+    (its `by`), else the leader (`taskmaster` with none) for its own and for a `by` that is no member (spec 46 §1)."""
+    return [q["by"] if q.get("by") in members else leader for q in questions]
 
 
 def picks(lines: list[str]) -> list[str]:

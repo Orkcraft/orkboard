@@ -23,7 +23,7 @@ from orkboard.realm import plans
 TARGETS = ("thrift", "balance", "quality")
 DEFAULT = "balance"
 EFFORTS = ("low", "medium", "high", "xhigh", "max")      # the Claude CLI's `--effort` levels
-STEPS = ("goal", "draft", "answer", "talk", "plan", "refresh", "propose", "task")
+STEPS = ("goal", "ask", "draft", "answer", "talk", "plan", "refresh", "propose", "task")
 PROPOSALS = {"thrift": 0, "balance": 2, "quality": 3}  # the night's proposals by the Target (§8)
 MAX_WAITING = 3                                          # never more proposals than this waiting in all
 TIER_ROLE = "elder"                                      # the Taskmaster's default: its model is not the person's pick
@@ -31,6 +31,8 @@ TIER_ROLE = "elder"                                      # the Taskmaster's defa
 # step → target → (tier, effort); a task's tier is relative: -1 one lighter, 0 its own, +1 one heavier.
 MATRIX: dict[str, dict[str, tuple[Any, str] | None]] = {
     "goal": {"thrift": ("elder", "medium"), "balance": ("elder", "high"), "quality": ("elder", "xhigh")},
+    # a member of a goal's party asks before its leader reads the goal (quality only: docs/specs/46-goal-trail.md §2)
+    "ask": {"thrift": None, "balance": None, "quality": ("warrior", "low")},
     "draft": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     # the answer to a spec's questions (§0) is not in the spec's table: it finishes the draft, so it runs as the draft
     "answer": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
@@ -53,10 +55,11 @@ OP_STEPS = ("op_prepare", "op_act", "op_learn")
 # call's own instructions not counted); how many files it may read; its budget in USD (`--max-budget-usd`) in balance,
 # half in thrift, double in quality.
 CONTEXT = {"goal": 12_000, "draft": 8_000, "answer": 8_000, "talk": 6_000, "plan": 10_000, "refresh": 12_000, "accept": 10_000,
-           "propose": 10_000, "op_prepare": 12_000, "op_act": 6_000, "op_learn": 6_000}
-READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0, "accept": 4}
-CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30, "accept": 0.60,
+           "propose": 10_000, "ask": 4_000, "op_prepare": 12_000, "op_act": 6_000, "op_learn": 6_000}
+READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0, "ask": 0, "accept": 4}
+CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30, "ask": 0.10, "accept": 0.60,
         "op_prepare": 0.30, "op_act": 0.10, "op_learn": 0.10}
+GOAL_QUESTIONS = {"thrift": 3, "balance": 3, "quality": 5}   # a goal's read keeps at most this many questions, its party's too (spec 46 §1)
 BUDGET_SHARE = {"thrift": 0.5, "balance": 1.0, "quality": 2.0}
 
 

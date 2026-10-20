@@ -163,6 +163,7 @@ TERMS: tuple[Term, ...] = (
     _t("race.lich", "lich", "liches"),
     _t("leader", "leader", "leaders"),                             # a goal's party's: its steps run as it (core/idea_lead.py)
     _t("party", "party", "parties"),                               # a goal's leader, builders and checkers (realm/goal_team.py)
+    _t("member", "member", "members"),                             # one of a goal's party who is not its leader: a builder or a checker (spec 46 §0)
     _t("verdict", "verdict", "verdicts"),
     _t("lens", "lens", "lenses"),                                  # what a new idea points at, the party's way: code, a screen, a pain (realm/idea_lens.py)
     _t("segment", "segment", "segments"),                          # whom an idea is for, a product manager's lens                          # a goal accepted, or not, against its metrics (realm/goal_verdict.py)

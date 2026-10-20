@@ -137,15 +137,15 @@ class GoalsMixin:
         if pid and g["party"] == pid:
             own_parties.used(pid, own_parties.project_id(self.host.repo_root), Path(self.host.repo_root).name, got)
         if new or before is None or _what_it_says(before) != _what_it_says(g):
-            self._read_goal(got)                      # a save of its party alone reads nothing again (spec 41 §7)
+            self._read_goal(got, party=new)           # a save of its party alone reads nothing again (spec 41 §7)
         self.changed(f"goal:{got}")
         return {"slug": got, **({"notes": notes} if notes else {})}
 
-    def _read_goal(self, slug: str, said: str = "") -> None:
+    def _read_goal(self, slug: str, said: str = "", party: bool = False) -> None:
         """The keeper reads the goal at once, in the background; a keeper that may not run (the demo, the spend limit)
-        leaves it `raw` with the reason on it."""
+        leaves it `raw` with the reason on it. `party`: a new goal, whose members the keeper asks first (quality)."""
         try:
-            self.keeper.read_goal(slug, said)
+            self.keeper.read_goal(slug, said, party=party)
         except idea_keeper.KeeperError as e:
             if said:
                 raise IdeasError(str(e)) from None
@@ -193,23 +193,41 @@ class GoalsMixin:
         self._seen[f"goal:{slug}"] = (st, now)
         if st in ("asks", "ready", "raw") and was == "reading":
             got = ideas.goal_state(self.state_dir, slug)
-            m = got["measure"] or {}
+            m, kept = got["measure"] or {}, self._goal_extra(slug)
             self._ev(event_log.GOAL_READ, goal=slug, state=st, seconds=round(now - since, 1) if since else None,
                      tier=got["tier"], effort=got["effort"], step=m.get("step") or "goal", prompt_chars=m.get("prompt_chars"),
-                     tokens=m.get("tokens"), cost=m.get("cost"))
+                     tokens=m.get("tokens"), cost=m.get("cost"), party=_count(kept.get("party")), by_party=_count(kept.get("by_party")))
+
+    def _goal_extra(self, slug: str) -> dict:
+        """What a goal's read kept beside its state (spec 46 §1): `asks_by`, `party`, `by_party`."""
+        return ideas._json(ideas.goal_folder(self.state_dir, slug) / "state.json") or {}
+
+    def _asker(self, slug: str, leader: dict) -> dict:
+        """Who asks: {slug, name, head} of the member `slug`, the goal's leader's for its own or for a member that has left."""
+        role = roles.role(self.state_dir, slug) if slug != leader["slug"] else None
+        return {"slug": role["slug"], "name": role["name"], "head": roles.head(role, self._target())} if role else dict(leader)
 
     def goal_needs(self, goals: list[dict]) -> list[dict[str, Any]]:
-        """A goal that asks is in Needs you (spec 35 §10: its own priority, oldest first)."""
+        """A goal that asks is in Needs you (spec 35 §10: its own priority, oldest first); each of its questions says who
+        asks it: `by` {slug, name, head}, the leader's for its own (spec 46 §1)."""
         out = []
         for g in goals:
             if g["state"] == "asks":
                 asked = [idea_questions.parse(q) for q in g["questions"][:5]]
+                by = self._goal_extra(g["slug"]).get("asks_by")
+                for n, q in enumerate(asked):
+                    slug = by[n] if isinstance(by, list) and n < len(by) and isinstance(by[n], str) else g["leader"]["slug"]
+                    q["by"] = self._asker(slug, g["leader"])
                 out.append({"idea": "", "goal": g["slug"], "kind": "goal", "title": g["title"],
                             "text": asked[0]["ask"] if asked else "The keeper asks you about this goal",
                             "questions": g["questions"][:5], "asked": asked,
                             "priority": g["priority"], "blocks": False,
                             "at": ideas.goal_state(self.state_dir, g["slug"])["read_time"]})
         return out + party_proposals.rows(self.root(False), self.state_dir)         # the night's party proposals (spec 43 D)
+
+
+def _count(value: object) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
 def _what_it_says(g: dict) -> tuple:
