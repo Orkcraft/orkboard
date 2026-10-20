@@ -383,3 +383,31 @@ answers are seldom the ones taken. So:
    Board runs on Claude Code (`core/idea_runner.py` `HARNESS`).
 An improvement of v1's existing mechanics (§27): the look, the words and the order of what is there; two fields
 (`short`, a question's `pick`), one command (`ideas.role_add`), one flag (`ideas.answer`'s `decide`). Spec 41.
+
+## 55. Coming back: the Board says what it did, not only what it costs; the game only reads, and rewards results and thrift (20 October, the owner and the PM)
+
+Why: a product manager's review (20 October). The Board says loudly what it costs, what waits and what failed (the
+spend, the limits, Stop all, Needs you's warning) and quietly what it did: a merged result goes into *Done (n)*, the
+night's work is said nowhere (`night_run` and `night.json` are read by no face), an accepted goal is a flag of another
+colour. The only reason to open it is Needs you, a duty, and that reaches the phone only while its page is alive (no
+`push` handler in `pwa/sw.js`, no producer of the phone's `news`) and the desktop never. AgentCraft (§37, §45) showed
+that a game's picture brings views, not a habit; what brings a person back is their own work, seen. So, a game layer
+that only reads (§50.5):
+1. **It rewards results and thrift, never volume or spend:** merged, merged the first time, $ a merged result, a
+   goal's flag, a template that goes by itself. No points, levels, badges, leaderboards, sounds or confetti, and no
+   streak of the person's: a day away costs nothing. The one run it counts is the Board's own (nights in a row with
+   work done), kept by adding ideas, which is what the Board needs.
+2. **Said once, in one place, closed by one press:** a card shows when it has something to say and not again; nothing
+   pops over the work; a mark that moves moves once, and never under `prefers-reduced-motion`.
+3. **Eight pieces, built in this order:** (A) *While you were away*, the card of what the Board did since this device's
+   last look; (B) the flag raised once when a goal is accepted, with its tally, and *Flags*, the goals met; (C)
+   notifications on the paired phone (Web Push from the desktop, no server of ours and no app store) for an answer that
+   waits and the morning's summary, and Needs you's count on the app's icon; (D) an agent's record in its dialog (its
+   line stays §54.6's); (E) a template's way to by itself as progress (*2 of 3 clean checks*); (F) this week's work
+   beside the limits (≈$ at API prices, the results, what the nights did, *Nothing waits for tonight*); (G) *Last week*,
+   a card on the first look of a week; (H) nights in a row, said only where A, F and G already speak.
+4. **Measured:** each piece logs when it is seen and what was opened from it (`via`), read against §45.11's second
+   measure (two come back within seven days unasked) and §52.4's first screen of the morning.
+The owner's call: all eight now, before the testers' numbers: a named exception to §27 and §50.8 (as §45.8, §50.10 and
+§51). Views of existing data, but C, which is how a question reaches the person, and two counters (`done_alone`,
+`alone_since`) in a template's trust. Spec 42.
