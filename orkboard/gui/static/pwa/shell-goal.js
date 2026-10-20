@@ -130,6 +130,7 @@ export function goalBody(g, core, act, asked, setAsked) {
     g.state_error && g.state !== "raw" && /^Not accepted/.test(g.state_error) ? h("p", { class: "warn" }, g.state_error) : null,
     verdictSec(g, core, act, sec, lead),
     teamSec(g, core, sec),
+    h("section", { class: "goal-sec", "aria-label": "What the party did" }, partyFold(core, g.slug)),
     sec("Description", h("p", { class: "brief" }, g.description || "No description yet.")),
     sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? `${the} is reading the goal…` : "Not written yet."))),
     sec("Metrics", g.metrics.length ? h("div", { class: "metrics" }, ...g.metrics.map((m) => h("div", { class: "card metric" }, h("b", {}, m.name),
@@ -183,4 +184,33 @@ function verdictSec(g, core, act, sec, lead) {
       ...v.next.map((x) => h("div", { class: "row" }, h("span", {}, x),
         h("button", { class: "ork-btn", type: "button", "aria-label": `Add as idea: ${x}`, onclick: () => add(x) }, "Add as idea")))) : null,
     h("div", { class: "row" }, ask));
+}
+
+const usdWords = (usd) => (usd == null ? "" : ` · ≈$${usd.toFixed(2)}`);
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** The lines of *What the party did* (spec 43 §2.3) from `ideas.party`'s object: [{text, head?}], the leader, each member, each check. */
+export function partyLines(w) {
+  if (!w.ideas) return [{ text: "No work yet" }];
+  const lead = w.leader;
+  return [
+    { head: lead.head, text: `${lead.name} (leads): ${lead.usd != null ? `≈$${lead.usd.toFixed(2)} for the goal, the drafts and the plans` : "the goal, the drafts and the plans"}` },
+    ...w.members.map((m) => ({ head: m.head, text: `${m.name}: ${count(m.tasks, "task", "tasks")}, ${m.first_time} merged the first time${usdWords(m.usd)}` })),
+    ...w.checks.map((c) => ({ head: c.head, text: `${c.name}: ${c.applied || c.clean || c.caught
+      ? `checked ${count(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}` : "no idea checked yet"}`
+      + `${usdWords(c.usd)}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} before findings were kept` : ""}` })),
+  ];
+}
+
+/** *What the party did*: a fold, closed at first; what a goal's party did is read when it is opened, and logged (spec 43 §2.3). */
+export function partyFold(core, slug) {
+  const list = h("ul", { class: "party-work-list", "aria-label": "What the party did" });
+  const el = h("details", { class: "party-work" }, h("summary", {}, "What the party did"), list);
+  el.addEventListener("toggle", async () => {
+    if (!el.open) return;
+    core.call("ideas.log", { event: "opened", what: "party", ref: slug, device: "phone" });
+    const got = await core.call("ideas.party", { goal: slug });
+    if (got && el.open) list.replaceChildren(...partyLines(got).map((l) => h("li", {}, l.head ? whoHead(l.head, true) : "", l.head ? " " : "", h("span", {}, l.text))));
+  });
+  return el;
 }

@@ -237,3 +237,45 @@ async def test_a_goal_s_team_is_changed_from_its_screen_and_saved_alone(fake_rep
         assert not any(c[0] == "ideas.goal_save" and "about" in c[1] and c[1].get("slug") == "land" for c in stub.calls)   # the party alone: no words sent
         await sheet.wait_for(state="hidden", timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
+
+
+PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},
+         "members": [{"slug": "grunt", "name": "Grunt", "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tasks": 14, "merged": 13, "first_time": 12, "usd": 9.2}],
+         "checks": [{"by": "accessibility-reviewer", "name": "Accessibility reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "warrior"},
+                     "applied": 6, "skipped": 1, "clean": 4, "caught": 2, "left": 1, "before": 2, "usd": 1.8}]}
+PARTY_LINES = ['Product manager (leads): ≈$4.10 for the goal, the drafts and the plans', 'Grunt: 14 tasks, 12 merged the first time · ≈$9.20', 'Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 before findings were kept']
+
+
+@pytest.mark.asyncio
+async def test_the_goals_screen_has_a_fold_for_what_its_party_did_closed_at_first_and_read_when_opened(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.party = PARTY
+        stub.goals["land"] = stub.goal("land", "Landing page", "high", "ready", craft="marketing", race="gnome", leader=stub.leader("growth"))
+        stub.ideas["page"] = stub.idea("page", "The landing page", "working", 2, track="land")
+        stub.bump({})
+        await _pick_goal(page, "land")
+        await page.locator('.map-goal[data-goal="land"]').get_by_role("button", name="Open goal Landing page").click()
+        sec = page.locator(".screen").get_by_role("region", name="What the party did")
+        fold = sec.locator("details.party-work")
+        await fold.wait_for(timeout=WAIT_MS)
+        assert await fold.locator("summary").inner_text() == "What the party did" and await fold.get_attribute("open") is None
+        assert not any(c[0] == "ideas.party" for c in stub.calls)                                  # closed at first: not asked for
+        await fold.locator("summary").click()
+        await sec.locator("li").first.wait_for(timeout=WAIT_MS)
+        assert [" ".join(t.split()) for t in await sec.locator("li").all_inner_texts()] == PARTY_LINES
+        assert await _called(stub, "ideas.party", {"goal": "land"})
+        assert await _called(stub, "ideas.log", {"event": "opened", "what": "party", "ref": "land", "device": "phone"})
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_goal_with_no_work_yet_says_so(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.goals["land"] = stub.goal("land", "Landing page", "high", "ready", craft="marketing", race="gnome")
+        stub.ideas["page"] = stub.idea("page", "The landing page", "working", 2, track="land")
+        stub.bump({})
+        await _pick_goal(page, "land")
+        await page.locator('.map-goal[data-goal="land"]').get_by_role("button", name="Open goal Landing page").click()
+        sec = page.locator(".screen").get_by_role("region", name="What the party did")
+        await sec.locator("summary").click()
+        await sec.get_by_text("No work yet").wait_for(timeout=WAIT_MS)

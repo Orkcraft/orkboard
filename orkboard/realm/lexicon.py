@@ -169,6 +169,7 @@ TERMS: tuple[Term, ...] = (
     _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
     _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
     _t("flag", "flag", "flags"),                                   # a goal accepted by its leader against its metrics (spec 42 §2)
+    _t("party_work", "What the party did"),                       # a goal's party's work, member by member, check by check (spec 43 B)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)

@@ -337,3 +337,11 @@ else: stop and write it in §11 first.
 - **Leave them** is `ideas.merge`: a check task with a findings list and no changed file becomes `merged` (`commit: ""`, `note: "<n> left"`) and nothing lands; a check with changes lands as any result.
 - **A clean check's `merged`** is also not a night worked (`board_week.nights`) and not an idea's first merge (*Fastest from idea to dev*); `board_recap.is_result` is the one test.
 - **Review's row**: `check` and `findings` appear only for a check task; another task's row is as it was.
+
+### B. What the party did
+- **The term.** `lexicon.TERMS` gained `party_work` (*What the party did*), the fold's one name on both faces.
+- **Arguments.** `party_work.work(root, state_dir, goal, target=idea_target.DEFAULT)`: `target` (the project's Target) only sets the heads' tiers; `ideas.party` passes it. A role the project dropped keeps its library name (else its slug) and the Grunt's head.
+- **What counts.** `applied` and `skipped` are read from the kept checks of the goal's ideas *with a plan*, after every task is read, so a checker outside the party whose check ran gets them too. A check task in `review` with findings counts (a round that read findings is `caught`) as well as a `merged` one; `clean` is a task with no findings in round 1. A check task that ended without a findings list and `merged` is `before`; a `failed` one is in no count. A member's task with no `role` is counted under its type's role (the Grunt when none).
+- **Lines.** The leader is always said *(leads)* (the Taskmaster too); an unpriced leader reads *the goal, the drafts and the plans* with no $. A checker with nothing yet reads *no idea checked yet*. The order inside a check's line is *$ · skipped · before findings were kept*.
+- **Where.** The fold (`partyFold`, one per face: `js/shell/goalview.js` `PartyFold`, `pwa/shell-goal.js`) is its own section under Team, on a goal with no team too; the Map's Flags import it. `ideas.party` is in `gui/ideas_party.py` (`PartyMixin`).
+- **A test that changed.** `tests/test_gui_recap.py` used `party` as an example of a `what` that is refused; it now uses `nothing`.

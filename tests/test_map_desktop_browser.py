@@ -651,3 +651,22 @@ def test_flags_opens_with_its_rows_and_a_row_opens_the_goal(gui):
     assert pg.get_by_role("button", name="Flags (1)").get_attribute("aria-expanded") == "true"
     pg.close()
     assert not errors, "\n".join(errors)
+
+
+def test_a_met_goals_row_in_flags_has_the_fold_for_what_its_party_did(gui):
+    from tests.test_shell_browser import PARTY, PARTY_LINES
+    host = met_host()
+    host.party = PARTY
+    pg, host, errors = _open(gui, host, init=with_list(["grow"]), ready=".trail-end.is-met")
+    pg.get_by_role("button", name="Flags (1)").click()
+    pg.locator(".map-flag").wait_for(timeout=WAIT_MS)
+    fold = pg.locator(".map-flags__list").get_by_role("button", name="What the party did")
+    assert fold.get_attribute("aria-expanded") == "false" and not [1 for n, _a in host.log if n == "ideas.party"]
+    fold.click()
+    rows = pg.locator(".map-flags__list").get_by_role("list", name="What the party did")
+    rows.wait_for(timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in rows.locator("li").all_inner_texts()] == PARTY_LINES
+    assert ("ideas.party", {"goal": "grow"}) in host.log
+    assert " ".join(pg.locator(".map-flag").inner_text().split()).startswith("Grow installs met, says Product manager")     # the row itself is as it was
+    pg.close()
+    assert not errors, "\n".join(errors)

@@ -356,6 +356,10 @@
 .shell-check-row { display: grid; grid-template-columns: 12px 1fr auto; gap: var(--ork-3); align-items: center; }
 .shell-check-every { display: inline-flex; align-items: center; gap: var(--ork-2); white-space: nowrap; }
 .shell-goal__team { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
+/* What the party did (goalview.js `PartyFold`, also in the Map's Flags): a fold, its lines the text face. */
+.party-work { display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; }
+.party-work__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); overflow-wrap: anywhere; }
+.party-work__btn { align-self: flex-start; }
 /* A goal's verdict (goalview.js): the next ideas, each with Add as idea; the button that asks its leader to accept it. */
 .shell-goal__next { display: flex; flex-direction: column; gap: var(--ork-2); }
 .shell-goal__next-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-3); }
