@@ -67,7 +67,7 @@ export function makeGoalSheet(core) {
   // -- a goal's team from its own screen (spec 41 §7): the Team and Checks folds of New goal, saved alone -----------------------
   const party = makeParty(core);
   const teamSave = h("button", { class: "ork-btn primary big", type: "button" }, "Save team");
-  const teamSheet = sheet("Team", party.team, party.checks, foot(teamSave));
+  const teamSheet = sheet("Team", party.own, party.team, party.price, party.checks, foot(teamSave));
   let teamOf = "";
   teamSave.addEventListener("click", async () => {
     const p = party.get();
@@ -75,7 +75,7 @@ export function makeGoalSheet(core) {
     const got = await core.call("ideas.goal_save", { slug: teamOf, team: p.team, every: p.every, leader: p.leader, ...(p.party ? { party: p.party } : {}) });
     teamSave.disabled = false;
     if (!got?.slug) return;
-    for (const note of got.notes || []) core.flash(note);
+    (got.notes || []).forEach((n) => core.flash(n));       // an agent of the party's the project has already: kept as it is
     teamSheet.close();
     core.refresh();
   });
@@ -87,6 +87,7 @@ export function makeGoalSheet(core) {
       teamOf = g.slug;
       party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [], party: g.party || "" }, () => g.craft || "");
       teamSheet.open();
+      party.open();
     },
     open(which = "", after = null) {
       if (!which) { wizard.open(after); return; }
@@ -230,8 +231,34 @@ function teamSec(g, core, sec) {
   };
   return sec("Team", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the team",
-      onclick: () => core.editTeam(g) }, "Change")),
-    savePartyEl(g, core));
+      onclick: () => core.editTeam(g) }, "Change")), saveParty(g, core));
+}
+
+/** *Save this party*, quiet, beside Change (spec 43 §6.3): asks a name (filled with *Engineering party*), saves the goal's party among the person's,
+ * and says where to pick it. A taken name asks *Replace your party “…”?* first. */
+function saveParty(g, core) {
+  const name = h("input", { class: "ork-field", type: "text", "aria-label": "Name of your party", maxlength: "40" });
+  const go = h("button", { class: "ork-btn primary", type: "submit" }, "Save");
+  const cancel = h("button", { class: "ork-btn", type: "button" }, "Cancel");
+  const form = h("form", { class: "party-save-form", "aria-label": "Save this party", hidden: true }, name, h("div", { class: "row" }, go, cancel));
+  const open = h("button", { class: "ork-btn quiet", type: "button", "data-save-party": "" }, "Save this party");
+  open.addEventListener("click", () => { name.value = `${CRAFT_WORDS[g.craft] || "Your"} party`; form.hidden = false; open.hidden = true; name.focus(); });
+  cancel.addEventListener("click", () => { form.hidden = true; open.hidden = false; });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const typed = name.value.trim().replace(/\s+/g, " ");
+    if (!typed) return;
+    go.disabled = true;
+    const taken = ((await core.call("ideas.parties", {}))?.parties || []).find((p) => p.name.toLowerCase() === typed.toLowerCase());
+    const got = !taken || confirm(`Replace your party “${taken.name}”?`)
+      ? await core.call("ideas.party_save", { goal: g.slug, name: typed, ...(taken ? { replace: true } : {}) }) : null;
+    go.disabled = false;
+    if (!got) return;
+    form.hidden = true;
+    open.hidden = false;
+    core.flash("Saved: pick it for a goal in any project.");
+  });
+  return h("span", { class: "party-save" }, open, form);
 }
 
 /** The goal's verdict: met or not, each metric's status and why, the next ideas (each added with a tap); and the button that
@@ -258,4 +285,33 @@ function verdictSec(g, core, act, sec, lead) {
       ...v.next.map((x) => h("div", { class: "row" }, h("span", {}, x),
         h("button", { class: "ork-btn", type: "button", "aria-label": `Add as idea: ${x}`, onclick: () => add(x) }, "Add as idea")))) : null,
     h("div", { class: "row" }, ask));
+}
+
+const usdWords = (usd) => (usd == null ? "" : ` · ≈$${usd.toFixed(2)}`);
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** The lines of *What the party did* (spec 43 §2.3) from `ideas.party`'s object: [{text, head?}], the leader, each member, each check. */
+export function partyLines(w) {
+  if (!w.ideas) return [{ text: "No work yet" }];
+  const lead = w.leader;
+  return [
+    { head: lead.head, text: `${lead.name} (leads): ${lead.usd != null ? `≈$${lead.usd.toFixed(2)} for the goal, the drafts and the plans` : "the goal, the drafts and the plans"}` },
+    ...w.members.map((m) => ({ head: m.head, text: `${m.name}: ${count(m.tasks, "task", "tasks")}, ${m.first_time} merged the first time${usdWords(m.usd)}` })),
+    ...w.checks.map((c) => ({ head: c.head, text: `${c.name}: ${c.applied || c.clean || c.caught
+      ? `checked ${count(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}` : "no idea checked yet"}`
+      + `${usdWords(c.usd)}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} before findings were kept` : ""}` })),
+  ];
+}
+
+/** *What the party did*: a fold, closed at first; what a goal's party did is read when it is opened, and logged (spec 43 §2.3). */
+export function partyFold(core, slug) {
+  const list = h("ul", { class: "party-work-list", "aria-label": "What the party did" });
+  const el = h("details", { class: "party-work" }, h("summary", {}, "What the party did"), list);
+  el.addEventListener("toggle", async () => {
+    if (!el.open) return;
+    core.call("ideas.log", { event: "opened", what: "party", ref: slug, device: "phone" });
+    const got = await core.call("ideas.party", { goal: slug });
+    if (got && el.open) list.replaceChildren(...partyLines(got).map((l) => h("li", {}, l.head ? whoHead(l.head, true) : "", l.head ? " " : "", h("span", {}, l.text))));
+  });
+  return el;
 }

@@ -129,17 +129,17 @@ else: stop and write it in §9 first.
 
 ## 9. As built (notes, no change of the contract)
 
-### A. The pace
-- `idea_target.week(limits, now, provider)` takes the tightest weekly window when a tool has several; `rest` is clamped to 0–1. `reserve_held` is the per-window rule (a copy of the old one is the oracle of `tests/test_week_pace.py`, which compares them on a grid); `pace` is `ahead` from `MARGIN` above the share to come (inclusive), `behind` below it, else `even`. `WeekHold` is a float (the week's reset): what `gate` answers for a hold of kind `week`. `board_low(plan, board)` and `by_pace(plan, limits, board, now)` are its helpers.
-- The state keeps `night_by` (in `STATE_DEFAULT`, `""` before; `ideas.night_by_of` reads `""` as `"person"`); a plan keeps `start_at_by`. `ideas.add` sets `"board"` for a Low idea and `"person"` for any `night: true`; `ideas.queue` night sets `"person"`; `pass_plan` sets `start_at_by` (`"board"` for `by == "auto"`). `plan_passed` by `auto` carries `pace` (true when it is passed to go on by day, the week having room).
-- `pace_tick` (`core/idea_night.py`, from the keeper's `tick`) runs `run_pace` on a thread: it starts the Board's oldest Low plan waiting for the night (`start_night`) and drafts the oldest Board's Low idea, unless one is being drafted. The gate does the rest: it lets the plan's tasks start by day and the runner marks the plan `by_pace` when it launches a task; a second Board's Low plan waits (`gate` = `"night"`) while another plan with `by_pace` is not finished. A held task of kind `week` (note *week · after HH:MM*) is let go as soon as the gate no longer answers a `WeekHold` (the pace changed), not only at the reset.
-- The night leaves the Board's Low ideas when the week is behind and `autostart` is on; `night_run` carries `paced` (also `0`), the returned counts do not (they stay as they were). The Board's Low plan is started by the night as today, and held by the gate at night while the week is behind.
-- `ideas.map`'s nodes carry `night_by` (only for a new idea waiting for the night and a plan to start at night; `""` otherwise), `by_pace`, and `waits` kind `week` with `until` as `YYYY-MM-DDTHH:MM` (the week's reset, local time) for work held at night by the pace; `ideas.board`'s rows carry `night_by`. `gui/ideas_map.py` now passes the host's limits (`Limit` rows) to `board_map.build` (it passed the page's own dicts, which `build` did not read) — outside A's file list, written here.
-- `week_reset` is written by `BoardLimits._read` when the weekly reset read is more than a day later than the one before and a project is shown (the rows are read for the home folder when none is). This week's `week` carries `reset` in epoch seconds; `ideas.week_work` passes the host's limits.
+**A**
+- The hold kind `week` is the task note `week · after HH:MM`; `waits.until` for kind `week` is a local ISO time, falling back
+  to the note's HH:MM.
+- `week_reset` fires when the reset is more than 1 h later than the previous read.
+- `ideas.map` now receives the raw `Limit` rows, so `gui/ideas_map.py` changed.
+- A Board's Low plan started by `pace_tick`, or launched by day by the runner, gets `by_pace`.
+- Taking a Low proposal writes no `night_by`, so it reads as the person's.
+- This week's `week` and `last_unused` come from `realm/board_week.py` `this_week(..., limits=)`, carried by `ideas.week_work`
+  (`gui/ideas_recap.py`, the host's limits); `last_unused` is the newest `week_reset` event's `left`.
 
-### B. The words
-- Rows: `night_by === "board"` reads *tonight, or sooner if the week has room* (idea) / *starts tonight, or sooner if the week has room* (plan), on the desktop (`rowOf`) and the phone (`rowState`); an empty `night_by` stays *tonight*, as the person's.
-- Stops: `waitsWords` on both faces answers *waits: the week is behind · until Mon 09:00* for kind `week` (`dayAt`: short weekday and the time of the local `until`); `week` is a timed wait, so its chip carries the clock like the others.
-- Agents: a chip with `pace: true` reads *by itself: the week has room* (desktop `shell-chip__tag`, phone `chip-why`).
-- This week: `weekPace(w)` (in `cards.js` and `shell-cards.js`) gives *The week: 55 % left with 2 days to go: Low work starts by day / waits for the night / waits until the week comes back*, placed after the nights' lines; the days to go are `rest` × 7 rounded up (at least 1, *1 day*). *Last week ended with 30 % unused* follows when `last_unused` is set. No line when `week` is null. No meter, colour or toast.
-- `sw.js` is `orkcraft-app-v52`. Tests: `test_week_desktop_browser`, `test_pwa_week_browser` (the lines, the row and wait words through the modules).
+**B**
+- The week's wait is said `waits: the week is behind · until Mon 09:00` (weekday and time of `waits.until`) by `rowOf` and `waitsWords` on the desktop and `rowState`/`waitsWords` on the phone; the Map's clock mark also shows for kind `week`.
+- This week's lines (`weekPaceWords`, `lastUnusedWords`) are a pair of helpers in `js/board/store.js` and `pwa/shell-words.js`; days to go is `round(rest * 7)`; `Last week ended with ... unused` shows only with `week` non-null.
+- Cache `orkcraft-app-v51`. Stubs: `night_by`/`by_pace` on map nodes and board rows, `week`/`last_unused` on This week; a chip's `pace` through `chip_extra`.

@@ -19,7 +19,7 @@ from orkboard.realm import event_log, idea_target
 from orkboard.sources.limits import Limit, fetch_limits
 
 LIMITS_REFRESH_S = 10 * 60      # as the Town Hall's worker (core/workers/town_hall.py)
-WEEK_BACK_S = 24 * 3600         # a weekly reset read this much later than the one before: the week came back (a few minutes' jitter is not)
+WEEK_MOVED_S = 3600             # a weekly reset this much later than the one read before: the week came back
 
 
 class BoardLimits:
@@ -32,7 +32,7 @@ class BoardLimits:
         self.rows: list[Limit] = []
         self.reading = False
         self._at = float("-inf")
-        self._week: dict | None = None          # the week as the last read showed it: {"left", "rest", "reset"}
+        self._week: dict | None = None      # the weekly window as last read: {"left", "reset"} (spec 44 §4)
 
     def __call__(self) -> list[Limit]:
         return list(self.rows)
@@ -54,15 +54,15 @@ class BoardLimits:
 
     def _read(self, found: list[Limit]) -> None:
         self.rows, self.reading = list(found), False
-        self._watch_week(found)
+        self._note_week(found)
 
-    def shown(self) -> bool:
-        """A project is shown (else the rows are read for the machine, from the home folder)."""
-        return self.repo_root != Path.home()
-
-    def _watch_week(self, found: list[Limit]) -> None:
-        got, before = idea_target.week(found, time.time()), self._week
-        if got is not None:
-            self._week = got
-        if got is not None and before is not None and got["reset"] - before["reset"] > WEEK_BACK_S and self.shown():
-            event_log.record(self.repo_root, event_log.WEEK_RESET, left=before["left"], provider="claude")      # how much of the week was left
+    def _note_week(self, found: list[Limit]) -> None:
+        """`week_reset` (spec 44 §4): the weekly reset moved later than the one read before, so the week came back; the
+        share left before it is written once to the log of the project shown (none open: not written)."""
+        got = idea_target.week(found, time.time())
+        if got is None:
+            return
+        before, self._week = self._week, {"left": got["left"], "reset": got["reset"]}
+        if before is None or got["reset"] <= before["reset"] + WEEK_MOVED_S or self.demo or self.repo_root == Path.home():
+            return
+        event_log.record(self.repo_root, event_log.WEEK_RESET, left=round(before["left"], 4), provider="claude")

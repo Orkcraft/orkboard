@@ -7,7 +7,7 @@ import { useEffect, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { say, town } from "../link.js";
 import { WhoHead, CRAFT_WORDS } from "../orkui.js";
-import { board, track, stateWords, goalList, hhmm, PRIORITY_WORDS, OPS } from "./store.js";
+import { board, track, stateWords, goalList, hhmm, dayAt, PRIORITY_WORDS, OPS } from "./store.js";
 import { act as run, preview, showIdea, showGoal, roles } from "../shell/store.js";
 import { currentProject } from "../shell/projects.js";
 import { openDialog } from "../shell/modals.js";
@@ -79,14 +79,15 @@ export function rowOf(i, titles) {
   const waits = (i.waits_on || []).map((s) => titles[s] || s);
   const limits = i.held_until ? `waits for limits · after ${hhmm(i.held_until)}` : "";
   if ((i.state === "raw" || i.state === "ready") && limits) return [limits, false, ["delete"]];
+  const week = i.waits?.kind === "week" ? `waits: the week is behind${i.waits.until ? ` · until ${dayAt(i.waits.until)}` : ""}` : "";
   if (i.state === "raw") {
     if (i.queue === "hold") return ["stopped", false, ["now", "tonight", "delete"]];
     if (i.queue === "now") return ["drafting", true, ["stop"]];
-    return [i.night_by === "board" ? "tonight, or sooner if the week has room" : "tonight", false, ["now", "delete"]];
+    return [week || (i.night_by === "board" ? "tonight, or sooner if the week has room" : "tonight"), false, ["now", "delete"]];
   }
   if (i.state === "reading") return ["drafting", true, ["stop"]];
   if (i.state === "planning") return ["planning", true, ["stop"]];
-  if (i.state === "plan" && i.start_at === "night") return [i.night_by === "board" ? "starts tonight, or sooner if the week has room" : "starts tonight", false, ["start_now"]];
+  if (i.state === "plan" && i.start_at === "night") return [week || (i.night_by === "board" ? "starts tonight, or sooner if the week has room" : "starts tonight"), false, ["start_now"]];
   if (i.state === "working") return [`${stateWords(i)}${waits.length ? ` · waits for ${waits.join(", ")}` : ""}`, false, ["halt"]];
   return [stateWords(i), false, []];
 }

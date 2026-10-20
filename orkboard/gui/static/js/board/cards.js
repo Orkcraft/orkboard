@@ -7,7 +7,7 @@ import { html } from "../html.js";
 import { cards, closeCard } from "../shell/look.js";
 import { showIdea, showGoal, showNeeds, logOpened } from "../shell/store.js";
 import { Modal, closeDialog, openDialog } from "../shell/modals.js";
-import { ask, goalList, track } from "./store.js";
+import { ask, goalList, track, weekPaceWords, lastUnusedWords } from "./store.js";
 
 const SHOWN = 5;                                     // ideas named under the results, then *and 3 more*
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -164,6 +164,8 @@ export function WeekDialog() {
       ${w.streak >= 2 && html`<p class="week__streak">${w.streak} nights in a row</p>`}
       ${w.night_on && (w.tonight > 0 ? html`<p class="week__tonight">Tonight: ${w.tonight} wait</p>`
         : html`<p class="week__tonight">Nothing waits for tonight · <button type="button" class="board-link" onClick=${newIdea}>New idea</button></p>`)}
+      ${weekPaceWords(w) && html`<p class="week__pace">${weekPaceWords(w)}</p>`}
+      ${w.week && lastUnusedWords(w) && html`<p class="week__unused">${lastUnusedWords(w)}</p>`}
     </div>`}
   <//>`;
 }

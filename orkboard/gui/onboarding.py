@@ -25,12 +25,12 @@ from urllib.parse import urlencode
 from orkboard import settings, tools
 from orkboard.env import getenv
 from orkboard.realm import harnesses, tool_errors, tool_run
+from orkboard.realm.sign_in import CHECK_PROMPT   # noqa: F401  (a short real request, on the tool's cheapest tier)
 
 TOOLS, WHO, MCP, TOWN, SURVEY, RAISING = "tools", "who", "mcp", "town", "survey", "raising"
 RAISE_STEP_S = 0.8          # between two raising steps of the town (gui/onboarding_town.py): each building seen going up
 ISSUES = "https://github.com/Orkcraft/orkcraft/issues/new"
 RECOMMENDED = ("claude", "codex", "cursor")    # what the step offers to install when no AI tool is here
-CHECK_PROMPT = "Reply with the one word: ok"   # Check: a short real request, on the tool's cheapest tier
 
 
 class OnboardingError(Exception):
@@ -107,13 +107,15 @@ class Onboarding:
     def _check_run(self, tid: str) -> None:
         start = time.monotonic()
         try:
-            self._ask(tid, CHECK_PROMPT, "laborer")
+            with tool_errors.doing("check"):
+                self._ask(tid, CHECK_PROMPT, "laborer")
             out = {"state": "ok", "ms": round((time.monotonic() - start) * 1000)}
         except Exception as e:                      # a timeout or 🛑 Halt All is a failure like any other
             err = e if isinstance(e, tool_errors.ToolError) else tool_errors.ToolError(tid, str(e))
             title = harnesses.title(tid)
             out = {"state": "failed", "kind": err.kind, "line": tool_errors.LINES[err.kind].format(tool=title),
-                   "action": tool_errors.what_to_do(err), "detail": err.detail or str(err)}
+                   "action": tool_errors.what_to_do(err), "detail": err.detail or str(err),
+                   "sign_in": tool_errors.helped(err)}      # its own sign-in can help (spec 45 §7): the row says Sign in
         self.host.town.call(self._checked, tid, out)
 
     def _checked(self, tid: str, out: dict) -> None:

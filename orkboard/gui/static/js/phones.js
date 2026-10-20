@@ -17,13 +17,13 @@ const WHAT = "A paired phone sees the town small: each building, the questions t
   + "quotas. It may answer a question, stop all, drop a text or a file into Drop file here and ask the Workchief. It never builds, "
   + "types into a terminal or changes a setting.";
 
-/** "Keep this Mac awake so your phone can reach the town all day?" Yes / Not now, once (`machine`: "Mac" or ""). */
-function AwakeOffer({ machine, onDone }) {
+/** "Keep this Mac awake so your phone can reach it all day?" Yes / Not now, once (`machine`: "Mac" or ""). */
+export function AwakeOffer({ machine, onDone }) {
   const [gone, setGone] = useState(false);
   if (!machine || gone) return null;
   const answer = (yes) => { setGone(true); command("awake.offer", { yes }).then(() => onDone && onDone(), () => {}); };
   return html`<span class="gui-phones__awake" role="group" aria-label=${say("Keep the computer awake")}>
-    <span class="ok-font-status">${say(`Keep this ${machine} awake so your phone can reach the town all day? Only on power.`)}</span>
+    <span class="ok-font-status">${say(`Keep this ${machine} awake so your phone can reach it all day? Only on power.`)}</span>
     <span><button class="ork-btn primary" onClick=${() => answer(true)}>${say("Yes")}</button>
       <button class="ork-btn" onClick=${() => answer(false)}>${say("Not now")}</button></span>
   </span>`;

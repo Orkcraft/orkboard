@@ -34,10 +34,26 @@ export function mergeReason(r, into) {
   return why.length ? `${why.join(" · ")}: send it back to fix ${why.length > 1 ? "them" : r.conflict ? "the conflict" : "them"}` : "";
 }
 
+/** A check's findings left (spec 43 §1.4), and how many it found: "Found 3: 1 fixed, 2 left". */
+export const leftOf = (r) => (r.check ? (r.findings || []).filter((f) => !f.fixed) : []);
+export function foundWords(r) {
+  const all = r.findings || [], left = leftOf(r).length;
+  return `Found ${all.length}: ${all.length - left} fixed, ${left} left`;
+}
+
 export function fixLine(r, into) {
   if (r.conflict) return `Resolve the conflict with ${into}`;
   if (isRed(r)) return `Fix the failing tests${r.tests.failing?.[0] ? `: ${r.tests.failing[0]}` : ""}`;
-  return "";
+  const left = leftOf(r);
+  return left.length ? `Fix the findings left: ${left.map((f) => `${f.where}: ${f.what}`).join("; ")}`.slice(0, 1000) : "";
+}
+
+/** The findings left of a check's result, in the text face: they are the checker's words. */
+function Findings({ r }) {
+  const left = leftOf(r);
+  if (!left.length) return null;
+  return html`<div class="shell-findings"><p class="shell-findings__head">${foundWords(r)}</p>
+    <ul class="shell-findings__list">${left.map((f, i) => html`<li key=${i}><span class="shell-findings__where">${f.where}</span> · ${f.what}</li>`)}</ul></div>`;
 }
 
 /** What a check found (spec 43 §1.4): *Found 3: 1 fixed, 2 left*; "" for a result that is not a check's or found nothing. */
@@ -66,7 +82,7 @@ export function ResultActions({ r, pinned = false }) {
   const into = review.value?.into || "dev";
   const [line, setLine] = useState(null);       // null: the one-line box is closed
   const [working, setWorking] = useState(false);
-  const reason = mergeReason(r, into), fix = isRed(r) || !!r.conflict, check = r.check && leftOf(r).length > 0;
+  const reason = mergeReason(r, into), fix = isRed(r) || !!r.conflict, found = leftOf(r).length > 0;
   const key = { slug: r.idea, task: r.task };
   const fixThem = async () => { setWorking(true); const got = await act("ideas.back", { ...key, why: fixThemWhy(r) }); setWorking(false); if (got?.ok) done(); };
   const done = () => { if (preview.value?.task === r.task && preview.value?.slug === r.idea) closePreview(); };
@@ -81,20 +97,17 @@ export function ResultActions({ r, pinned = false }) {
   };
   return html`<div class=${cls("shell-actions", { "is-pinned": pinned })} onClick=${(e) => e.stopPropagation()}>
     <div class="shell-actions__main">
-      ${check ? html`<button class="ork-btn primary" disabled=${working} onClick=${fixThem}>Fix them</button>
-        <button class="ork-btn" disabled=${!!reason || working} title=${reason || (r.diff.files ? `Merge the fixes into ${into}` : "Nothing is merged")}
-          onClick=${merge}>Leave them</button>`
-        : html`<button class="ork-btn primary" disabled=${!!reason || working} title=${reason || `Merge into ${into}`}
-          onClick=${merge}>Merge into ${into}</button>
-        <button class="ork-btn" aria-expanded=${line !== null} onClick=${() => setLine(line === null ? fixLine(r, into) : null)}>${fix ? "Fix" : "Send back"}</button>`}
+      <button class="ork-btn primary" disabled=${!!reason || working} title=${reason || (found ? "Leave the findings as they are: nothing is changed" : `Merge into ${into}`)}
+        onClick=${merge}>${found ? "Leave them" : `Merge into ${into}`}</button>
+      <button class="ork-btn" aria-expanded=${line !== null} onClick=${() => setLine(line === null ? fixLine(r, into) : null)}>${found ? "Fix them" : fix ? "Fix" : "Send back"}</button>
       <button class="shell-quiet" onClick=${() => openDialog("drop", { r })}>Drop…</button>
     </div>
     ${reason && html`<p class="shell-actions__why ok-tone-error" role="status">${reason}</p>`}
-    ${!check && line !== null && html`<form class="shell-actions__line" onSubmit=${back}>
-      <input class="ork-field" autofocus value=${line} aria-label=${fix ? "What to fix, in one line" : "Why you send it back, in one line"}
+    ${line !== null && html`<form class="shell-actions__line" onSubmit=${back}>
+      <input class="ork-field" autofocus value=${line} aria-label=${fix || found ? "What to fix, in one line" : "Why you send it back, in one line"}
         placeholder="One line: what should change?" onInput=${(e) => setLine(e.target.value)}
         onKeyDown=${(e) => e.key === "Escape" && (e.stopPropagation(), setLine(null))} />
-      <button class="ork-btn primary" disabled=${!line.trim() || working}>${fix ? "Fix" : "Send back"}</button></form>`}
+      <button class="ork-btn primary" disabled=${!line.trim() || working}>${found ? "Fix them" : fix ? "Fix" : "Send back"}</button></form>`}
   </div>`;
 }
 
@@ -119,6 +132,7 @@ function Card({ r, selected }) {
       <dt>Changes</dt><dd>${changesWords(r.diff)}</dd>
       ${r.cost != null && html`<dt>Cost</dt><dd>${usd(r.cost)}</dd>`}
     </dl>
+    <${Findings} r=${r} />
     ${r.conflict && html`<p class="ok-tone-error shell-conflict">⚠ ${r.conflict}</p>`}
     <${ResultActions} r=${r} />
   </article>`;

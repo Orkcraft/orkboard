@@ -1,50 +1,66 @@
-"""Quiet hints while a party is picked (docs/specs/43-party-measured.md §5): at most two lines, in this order, never a block —
-a checker that has found nothing lately, a checker that seldom applies to the goal's craft, no one in the party who writes code, and a
-leader with no builder. A pure read of the plans and the library: no face, no model, it writes nothing.
+"""Hints while a party is picked (docs/specs/43-party-measured.md §5): at most two plain lines about a party the person is
+choosing, from what its checkers found lately and what the library says they fit. A hint never blocks Save and has no button.
+No face, no model, it writes nothing.
 
-    party_hints.hints(root, state_dir, "data", "analyst", ["accessibility-reviewer"], [])   # ["Accessibility reviewer seldom checks a Data goal: …"]
+    party_hints.hints(root, state_dir, "data", "analyst", ["data-engineer", "accessibility-reviewer"], [])
+    # ["Accessibility reviewer seldom checks a Data goal: it checks when the idea changes what people see or use."]
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-from orkboard.realm import goal_team, library, party_work, roles
+from orkboard.realm import library, party_work, roles
 
-MOST = 2                            # hints at most
-LONG_QUIET = 8                      # checks (the last 30 days) with none caught before a checker is said to find nothing
-
-
-def _article(word: str) -> str:
-    return "an" if word[:1].lower() in "aeiou" else "a"
+MOST = 2                   # hints at most
+ENOUGH = 8                 # checks a checker needs in the last 30 days before "found nothing" is said
+DAYS = 30
+CODE_CRAFTS = ("engineering", "product")    # the goals whose party should hold someone who writes code
 
 
-def takes_code(state_dir: Path, slug: str) -> bool:
-    """Whether an agent of the party takes `code`: the library's, else the person's own (a role's `takes`, or the project's task types given to it)."""
+def _name(state_dir: Path, slug: str) -> str:
     a = library.get(slug)
     if a is not None:
-        return "code" in a.takes
+        return a.name
     r = roles.role(state_dir, slug)
-    return r is not None and "code" in roles.takes_of(r, roles.kinds(state_dir))
+    return r["name"] if r else slug
 
 
-def hints(root: Path, state_dir: Path, craft: str, leader: str, team: list[str], every: list[str] | None = None) -> list[str]:
-    """The hints for a party of `leader` and `team` of a goal of `craft` ("" when it has none, a Mixed goal), at most two."""
-    members = [s for s in team if goal_team.band_of(s) == "build" or goal_team.band_of(s) == "check"]
-    checkers = [s for s in team if goal_team.band_of(s) == "check" and library.get(s) is not None and library.get(s).check is not None]
-    lead = leader or roles.TASKMASTER
+def _takes(state_dir: Path, slug: str) -> list[str]:
+    """The task types an agent takes in a party: the library's, else the project's role's own."""
+    a = library.get(slug)
+    if a is not None:
+        return list(a.takes)
+    r = roles.role(state_dir, slug)
+    return sorted(roles.takes_of(r, roles.kinds(state_dir))) if r else []
+
+
+def _band(slug: str) -> str:
+    a = library.get(slug)
+    return a.band if a is not None else "build"
+
+
+def _craft_words(craft: str) -> str:
+    return f"{'an' if craft == 'engineering' else 'a'} {craft.capitalize()} goal"
+
+
+def hints(root: Path, state_dir: Path, craft: str, leader: str, team: list[str], every: list[str]) -> list[str]:
+    """§5's hints for the party (`craft` the goal's, "" when not known), in the spec's order and at most two."""
+    root, state_dir = Path(root), Path(state_dir)
+    checkers = [(i, a) for i in team if (a := library.get(i)) is not None and a.check is not None]
     out: list[str] = []
-    for by in checkers:                                                                           # 1. a check that has found nothing lately
-        record = party_work.check_record(root, state_dir, by, 30)
-        if record["checks"] >= LONG_QUIET and record["caught"] == 0:
-            out.append(f"{party_work.who(state_dir, by)['name']} found nothing in its last {record['checks']} checks.")
+    if checkers:
+        records = party_work.check_records(root, state_dir, DAYS)
+        for i, a in checkers:
+            r = records.get(i) or {}
+            if int(r.get("checks") or 0) >= ENOUGH and not int(r.get("caught") or 0):
+                out.append(f"{a.name} found nothing in its last {r['checks']} checks.")
     if craft in roles.CRAFTS:
-        word = roles.CRAFT_LABELS[craft]
-        for by in checkers:                                                                       # 2. a check that seldom applies to this craft
-            a = library.get(by)
-            if craft not in a.check.fits:
-                out.append(f"{a.name} seldom checks {_article(word)} {word} goal: it checks {a.check.applies}.")
-        if craft in ("engineering", "product") and not any(takes_code(state_dir, s) for s in [*members, *([lead] if lead != roles.TASKMASTER else [])]):
-            out.append("No one in the party writes code: code tasks go to this project's agent for code (the Grunt when none).")   # 3.
-    if lead != roles.TASKMASTER and not any(goal_team.band_of(s) == "build" for s in team):       # 4. a leader and no builder
+        for _i, a in checkers:
+            if a.check.fits and craft not in a.check.fits:
+                out.append(f"{a.name} seldom checks {_craft_words(craft)}: it checks {a.check.applies}.")
+    leader = leader or roles.TASKMASTER
+    if craft in CODE_CRAFTS and not any("code" in _takes(state_dir, m) for m in [leader, *team]):
+        out.append("No one in the party writes code: code tasks go to this project's agent for code (the Grunt when none).")
+    if leader != roles.TASKMASTER and not any(_band(i) == "build" for i in team):
         out.append("No builders: each task goes to this project's agent for its type (the Grunt when none).")
     return out[:MOST]

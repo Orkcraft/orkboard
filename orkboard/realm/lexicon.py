@@ -97,6 +97,7 @@ TERMS: tuple[Term, ...] = (
     _t("tier.warrior", "Seasoned", "", "Warrior", "Warriors"),
     _t("tier.elder", "Veteran", "Veterans", "Elder"),                          # a CLI an ork thinks with: Claude Code, Codex… (realm/harnesses.py)
     _t("tool_error", "Tool error", "Tool errors"),                 # an AI tool failed: Switch, Retry, Details (realm/tool_errors.py)
+    _t("sign_in", "Sign-in", "Sign-ins"),                          # a tool's own way to sign in to its account (realm/sign_in.py; Sign in the button)
     _t("main_tool", "Main tool", "Main tools"),                    # the AI tool decisions run on (realm/harnesses.py)                               # tokens kept on this machine (realm/logins.py)
     # screens and actions
     _t("war_horn", "Stop all", "", "War Horn"),
@@ -168,6 +169,7 @@ TERMS: tuple[Term, ...] = (
     _t("race.lich", "lich", "liches"),
     _t("leader", "leader", "leaders"),                             # a goal's party's: its steps run as it (core/idea_lead.py)
     _t("party", "party", "parties"),                               # a goal's leader, builders and checkers (realm/goal_team.py)
+    _t("member", "member", "members"),                             # one of a goal's party who is not its leader: a builder or a checker (spec 46 §0)
     _t("verdict", "verdict", "verdicts"),
     _t("lens", "lens", "lenses"),                                  # what a new idea points at, the party's way: code, a screen, a pain (realm/idea_lens.py)
     _t("segment", "segment", "segments"),                          # whom an idea is for, a product manager's lens                          # a goal accepted, or not, against its metrics (realm/goal_verdict.py)
@@ -175,6 +177,11 @@ TERMS: tuple[Term, ...] = (
     _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
     _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
     _t("flag", "flag", "flags"),                                   # a goal accepted by its leader against its metrics (spec 42 §2)
+    _t("party_work", "What the party did"),                       # a goal's party's work, member by member, check by check (spec 43 B)
+    _t("party_proposal", "party's proposal", "party's proposals"),   # the night's proposal to take a checker out of a goal's party (spec 43 D)
+    _t("own_party", "your party", "your parties"),                  # a party the person saved from a goal, picked for a goal in any project (spec 43 F)
+    _t("party_hint", "hint", "hints"),                             # a plain line about a party while it is picked (spec 43 E)
+    _t("party_price", "price"),                                    # about what an idea costs with a party, said while it is picked (spec 43 C)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)
@@ -185,7 +192,9 @@ TERMS: tuple[Term, ...] = (
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)
     _t("proposal", "proposal", "proposals"),                       # an idea the keeper proposes at night, for the morning (spec 35 §8)
     _t("scribble", "note", "notes", "scribble", "scribbles"),       # an idea or a note on the board
+    _t("week_pace", "pace"),                                       # the Claude week's share left against the share still to come (spec 44; realm/idea_target.py `pace`)
     # Operations (docs/specs/38-operations.md §0): the person's everyday work by templates, across projects
+    _t("keep_awake", "Keep the computer awake"),                   # the computer does not sleep by itself, on power (spec 47 §0)
     _t("operations", "Operations"),                                # the person's list, one for all projects; not a goal
     _t("operation", "operation", "operations"),                    # one piece of it, from one template
     _t("op_template", "template", "templates"),                    # a Claude skill with Orkboard's manifest beside it
@@ -244,7 +253,7 @@ TERMS: tuple[Term, ...] = (
     _t("fold", "Fold"),                                             # a hut shows its title bar only (docs/design/folded-cards.md)
     _t("map_view", "Map view"),                                     # the town from above, no cards (docs/design/map-view.md)
     # the Mine's research (docs/design/mine.md)
-    _t("finding", "Finding", "Findings"),                           # one claim of a report, with its sources
+    _t("finding", "finding", "findings"),                           # one thing a check found: where, what goes wrong, whether it fixed it (spec 43 A); a clean check has none
     _t("confirmed", "Confirmed"),                                   # two models, two sites (realm/research.py check)
     _t("disputed", "Disputed"),                                     # the tools disagree; the person decides
     _t("single", "One source"),                                     # one tool or one site said it

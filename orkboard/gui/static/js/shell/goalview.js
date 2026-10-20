@@ -2,7 +2,7 @@
 // measured, the target, how it is counted), Links (a repository path or Wiki page opens in the preview; a web address in
 // the browser), the Open questions with a box to answer — the same talk as an idea's, on the goal. Its party's leader speaks in it
 // (the Taskmaster when none) and, when its ideas are done, accepts it against its metrics: the Verdict (realm/goal_verdict.py).
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, openLink } from "../link.js";
 import { goal, act, showDoc, roles, logOpened } from "./store.js";
@@ -71,8 +71,8 @@ export function GoalView() {
         const check = (roles.value?.library || []).find((a) => a.id === s)?.check;
         return html`<li key=${s}>${r?.head && html`<${WhoHead} head=${r.head} small />`} <b>${r?.name || s}</b>
           ${check && html` <span class="ok-tone-muted">· checks ${(g.every || []).includes(s) ? "every idea" : check.applies}</span>`}</li>`;
-      })}</ul><${SaveParty} goal=${g.slug} craft=${g.craft} /></section>`}
-    <section class="shell-goal__sec" aria-label="What the party did"><${PartyWork} goal=${g.slug} /></section>
+      })}</ul><${SaveParty} goal=${g} /></section>`}
+    <section class="shell-goal__sec" aria-label="What the party did"><${PartyFold} slug=${g.slug} /></section>
     <section class="shell-goal__sec" aria-label="Summary"><h3 class="board-sub">Summary ${g.title_by === "keeper" && html`<span class="ok-tone-muted">· title by the Taskmaster</span>`}</h3>
       <p class="shell-brief">${g.summary || html`<span class="ok-tone-muted">${g.state === "reading" ? `${lead} is reading the goal…` : "Not written yet."}</span>`}</p></section>
     <section class="shell-goal__sec" aria-label="Metrics"><h3 class="board-sub">Metrics ${g.metrics_by === "keeper" && html`<span class="ok-tone-muted">· by the Taskmaster</span>`}</h3>
@@ -119,4 +119,41 @@ function Verdict({ g, lead }) {
       ${v.next.map((x) => html`<div key=${x} class="shell-goal__next-row"><span>${x}</span>
         <button type="button" class="ork-btn" aria-label=${`Add as idea: ${x}`} onClick=${() => act("ideas.add", { text: x, track: g.slug, priority: "normal" })}>Add as idea</button></div>`)}</div>`}
     <div class="shell-goal__acts">${ask}</div></section>`;
+}
+
+const usdWords = (usd) => (usd == null ? "" : ` · ≈$${usd.toFixed(2)}`);
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** The lines of *What the party did* (spec 43 §2.3) from `ideas.party`'s object: the leader, each member, each check. */
+export function partyLines(w) {
+  if (!w.ideas) return [{ key: "none", text: "No work yet" }];
+  const lead = w.leader;
+  return [
+    { key: `lead:${lead.slug}`, head: lead.head, text: `${lead.name} (leads): ${lead.usd != null ? `≈$${lead.usd.toFixed(2)} for the goal, the drafts and the plans` : "the goal, the drafts and the plans"}` },
+    ...w.members.map((m) => ({ key: `m:${m.slug}`, head: m.head,
+      text: `${m.name}: ${count(m.tasks, "task", "tasks")}, ${m.first_time} merged the first time${usdWords(m.usd)}` })),
+    ...w.checks.map((c) => ({ key: `c:${c.by}`, head: c.head,
+      text: `${c.name}: ${c.applied || c.clean || c.caught
+        ? `checked ${count(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}` : "no idea checked yet"}`
+        + `${usdWords(c.usd)}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} before findings were kept` : ""}` })),
+  ];
+}
+
+/** *What the party did*: a fold, closed at first; what a goal's party did is read when it is opened (spec 43 §2.3), and logged. */
+export function PartyFold({ slug }) {
+  const [open, setOpen] = useState(false);
+  const [work, setWork] = useState(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    let on = true;
+    ask("ideas.party", { goal: slug }).then((got) => { if (on && got) setWork(got); });
+    return () => { on = false; };
+  }, [open, slug]);
+  const toggle = () => { if (!open) logOpened("party", slug); setOpen(!open); };
+  return html`<div class="party-work">
+    <button type="button" class="board-link party-work__btn" aria-expanded=${open} onClick=${toggle}>What the party did</button>
+    ${open && (work ? html`<ul class="party-work__list" aria-label="What the party did">${partyLines(work).map((l) => html`<li key=${l.key}>
+      ${l.head && html`<${WhoHead} head=${l.head} small />`} <span>${l.text}</span></li>`)}</ul>`
+      : html`<p class="ok-tone-muted">Reading…</p>`)}
+  </div>`;
 }

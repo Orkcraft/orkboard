@@ -6,7 +6,7 @@ import { h, icon } from "./util.js";
 import { pointedAt } from "./shell-lens.js";
 import { steady } from "./shell-util.js";
 import { stateWords } from "./shell-board.js";
-import { resultActions, factsOf, foundOf, mergeReason } from "./shell-review.js";
+import { resultActions, factsOf, findingsOf, mergeReason } from "./shell-review.js";
 import { gruntWords } from "./shell-agents.js";
 import { goalBody } from "./shell-goal.js";
 import { heldWords } from "./shell-words.js";
@@ -147,8 +147,9 @@ export function makePreview(core, ctx) {
   function checksLine(p, cur) {
     const checks = p.checks;
     if (!(checks || []).length) return null;
-    const found = (c) => (c.found === 0 ? "clean" : `found ${c.found}: ${[c.fixed && `${c.fixed} fixed`, c.left && `${c.left} left`].filter(Boolean).join(", ")}`);
-    const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.found != null ? found(c) : c.state === "passed" ? "passed" : c.state ? TASK_WORDS[c.state] || c.state : "in the plan to come");
+    const found = (c) => (c.found == null ? "" : c.found === 0 ? "clean" : `found ${c.found}: ${c.fixed} fixed, ${c.left} left`);       // spec 43 §1.5
+    const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.state === "passed" ? found(c) || "passed"
+      : c.state === "review" && found(c) ? `${found(c)} · at Review` : c.state ? TASK_WORDS[c.state] || c.state : "in the plan to come");
     const skippable = (c) => c.applies && !c.skipped && (!c.state || ["waiting", "ready", "held"].includes(c.state));
     const spares = (c) => { const usd = Number(core.st.roles?.tier_costs?.[c.tier]); return usd > 0 ? ` · spares ≈ $${usd.toFixed(2)}` : ""; };
     const skip = (c, on) => act("ideas.check_skip", { slug: p.slug, by: c.by, ...(on ? {} : { skip: false }) },
@@ -277,7 +278,7 @@ export function makePreview(core, ctx) {
       h("p", { class: "muted" }, t.idea_title),
       spend ? h("p", { class: "muted spend-line", title: "At API prices, not your bill" }, spendLine(spend)) : null,
       r ? factsOf(r) : h("p", { class: "muted" }, "This result is no longer waiting at Review."),
-      r ? foundOf(r) : null,
+      r ? findingsOf(r) : null,
       r?.conflict ? h("p", { class: "warn" }, `⚠ ${r.conflict}`) : null,
       !diff ? h("p", { class: "muted" }, "Reading the code…") : h("div", { class: "code" },
         h("h3", {}, "Commits"), h("ol", { class: "commits" }, ...diff.commits.map((c) => h("li", {}, h("code", {}, c.sha), ` ${c.subject}`))),

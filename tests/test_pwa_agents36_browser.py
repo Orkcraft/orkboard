@@ -241,3 +241,44 @@ async def test_an_agents_sheet_says_its_record_of_the_last_30_days_in_each_wordi
         await agents.get_by_role("button", name="+ Add agent").click()
         await page.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
         assert await page.get_by_role("dialog", name="Add agent").get_by_label("The last 30 days").is_hidden()
+
+
+@pytest.mark.asyncio
+async def test_a_checkers_line_ends_with_its_check_of_the_week_and_its_sheet_has_its_check_of_30_days(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.check_week = {"grunt": {"checks": 6, "clean": 4, "caught": 2, "left": 1, "usd_per_check": None}}
+        stub.roles["scribe"] = {"slug": "scribe", "name": "Scribe", "model": "", "max_parallel": 2, "instruction": "", "builtin": False}
+        stub.record = {"scribe": {"days": 30, "finished": 20, "merged": 18, "first_time": 15, "usd_per_merged": 0.5,
+                                  "check": {"checks": 14, "clean": 11, "caught": 3, "left": 1, "usd_per_check": 0.35}},
+                       "grunt": {"days": 30, "finished": 41, "merged": 38, "first_time": 36, "usd_per_merged": 0.6}}
+        stub.bump({})
+        agents = await _agents(page)
+        await expect(_grunt_head(agents).locator(".role-facts")).to_have_text("≈$1.25 today · its check: 6 ideas, caught 2", timeout=WAIT_MS)
+
+        async def said(button):
+            await agents.get_by_role("button", name=button).click()
+            sheet = page.get_by_role("dialog", name="Edit agent")
+            line = sheet.get_by_label("Its check")
+            await sheet.get_by_label("Name").wait_for(timeout=WAIT_MS)
+            text = " ".join((await line.text_content()).split()) if await line.is_visible() else ""
+            await sheet.get_by_role("button", name="Cancel").click()
+            return text
+        assert await said("Edit Scribe") == "Its check, the last 30 days: 14 ideas: 11 clean, caught 3 · ≈$0.35 a check"
+        assert await said("Edit Grunts") == ""
+        stub.record = {"scribe": {"days": 30, "finished": 20, "merged": 18, "first_time": 15, "usd_per_merged": 0.5,
+                                  "check": {"checks": 2, "clean": 2, "caught": 0, "left": 0, "usd_per_check": None}}}
+        stub.bump({})
+        await page.wait_for_timeout(3500)
+        assert await said("Edit Scribe") == "Its check, the last 30 days: 2 ideas: too few to say more"
+
+
+@pytest.mark.asyncio
+async def test_a_chip_started_by_the_pace_says_the_week_has_room(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.chip_extra = {"k3": {"by": "auto", "pace": True}, "k2": {"by": "auto"}}
+        stub.bump({})
+        agents = await _agents(page)
+        pace = agents.locator(".chip", has_text="Retry on a lost signal")
+        await pace.wait_for(timeout=WAIT_MS)
+        assert await pace.locator(".chip-why").inner_text() == "by itself: the week has room"
+        assert await agents.locator(".chip", has_text="Add the queue").locator(".chip-why").inner_text() == "by itself"

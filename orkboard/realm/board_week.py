@@ -54,7 +54,7 @@ def nights(root: Path, settings: dict, now: dt.datetime, n: int = 7) -> list[dic
     for date, start, end in spans:
         inside = [r for r in log if start <= board_recap.when(r["at"]) < end]
         ran = [r for r in inside if r["event"] == event_log.NIGHT_RUN]
-        worked = any(r["event"] == event_log.TASK_STATE and r.get("state") in WORKED_STATES for r in inside) or \
+        worked = any(r["event"] == event_log.TASK_STATE and r.get("state") in WORKED_STATES and r.get("clean") is not True for r in inside) or \
             any(board_recap._int(r.get(k)) > 0 for r in ran for k in _WORK_KEYS)
         out.append({"date": date.isoformat(), "kind": "worked" if worked else "idle" if ran else "off"})
     return out
@@ -92,7 +92,9 @@ def last_unused(root: Path) -> float | None:
 
 
 def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, rows: dict, ops_base: Path | None = None,
-              into: str = "dev", limits=()) -> dict[str, Any]:
+              into: str = "dev", limits=None) -> dict[str, Any]:
+    """§6.2's object; `limits` the tool's limits as read (spec 44 §4: `week` is None without a weekly one, `last_unused` the newest
+    `week_reset`'s `left`)."""
     now = now.astimezone()
     since = now - WEEK
     spent = idea_spend.between(state_dir, since, now)
@@ -106,7 +108,21 @@ def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
             "usd_per_merged": round(spent / merged, 2) if merged >= idea_spend.TOO_FEW and spent is not None else None,
             "nights": {k: kinds.count(k) for k in ("worked", "idle", "off")}, "tonight": tonight,
             "night_on": window((settings or {}).get("night")) is not None, "into": into, "streak": streak(root, settings, now),
-            "week": week_of(limits, now), "last_unused": last_unused(root)}
+            "week": _pace_of(limits, now), "last_unused": last_unused(root)}
+
+
+def _pace_of(limits, now: dt.datetime) -> dict | None:
+    got = idea_target.week(list(limits or []), now.timestamp())
+    return None if got is None else {**got, "pace": idea_target.pace(limits, now.timestamp())}
+
+
+def last_unused(root: Path) -> float | None:
+    """The share left when the last week came back (the newest `week_reset`'s `left`); None with none."""
+    left = [r for r in event_log.read(root) if r.get("event") == event_log.WEEK_RESET]
+    try:
+        return float(max(left, key=lambda r: board_recap.when(r.get("at")) or dt.datetime.min.astimezone())["left"]) if left else None
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 # -- last week (spec 42 §7) ------------------------------------------------------------------------------------
@@ -176,7 +192,7 @@ def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
     first_merge: dict[str, dt.datetime] = {}
     for r in everything:
         at = board_recap.when(r.get("at"))
-        if r.get("event") == event_log.TASK_STATE and r.get("state") == "merged" and r.get("clean") is not True and at is not None:
+        if r.get("event") == event_log.TASK_STATE and board_recap.is_result(r) and at is not None:
             first_merge[str(r.get("idea") or "")] = min(first_merge.get(str(r.get("idea") or ""), at), at)
     quick = [(int((at - added[s]).total_seconds() // 60), s) for s, at in first_merge.items()
              if s in by_idea and s in added and added[s] is not None and since <= at < until]

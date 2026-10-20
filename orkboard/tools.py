@@ -264,6 +264,26 @@ def _cursor_login(env: dict, home: Path) -> tuple[bool | None, str]:
     return None, "subscription"
 
 
+def _login_of(tool_id: str, path: str, run: Callable, version: str) -> Callable[[dict, Path], tuple[bool | None, str]] | None:
+    """The reader of one tool's sign-in: (env, home) → (signed in, billing); None for a tool with none."""
+    return {"claude": lambda e, h: _claude_login(e, h, path, run, version), "agy": _agy_login, "hermes": _hermes_login,
+            "pi": _pi_login, "cursor": _cursor_login, "codex": lambda e, h: _codex_login(e, h, path, run)}.get(tool_id)
+
+
+def signed_in(harness_id: str, env: dict | None = None, run: Callable = subprocess.run, home: Path | None = None,
+              which: Callable[[str], str | None] = shutil.which) -> bool | None:
+    """One tool's sign-in as `detect` tells it (spec 45 §1): True, False, or None when it cannot be told; no model call.
+    Claude's `auth status` is asked only of a version that has it (one `--version` reads it)."""
+    if harnesses.get(harness_id) is None:
+        return None
+    env = dict(os.environ) if env is None else env
+    home = Path.home() if home is None else home
+    path = which(_bin(harness_id)) or ""
+    version = _version(path, run) if path and harness_id == "claude" else ""
+    login = _login_of(harness_id, path, run, version)
+    return login(env, home)[0] if login is not None else None
+
+
 def detect(which: Callable[[str], str | None] = shutil.which, run: Callable = subprocess.run,
            env: dict | None = None, home: Path | None = None) -> list[ToolStatus]:
     env = dict(os.environ) if env is None else env
@@ -274,8 +294,7 @@ def detect(which: Callable[[str], str | None] = shutil.which, run: Callable = su
         if tool.available and (path := which(_bin(tool.id))):
             status.found, status.path = True, path
             status.version = _version(path, run)
-            login = {"claude": lambda e, h: _claude_login(e, h, path, run, status.version), "agy": _agy_login, "hermes": _hermes_login, "pi": _pi_login,
-                     "cursor": _cursor_login, "codex": lambda e, h: _codex_login(e, h, path, run)}.get(tool.id)
+            login = _login_of(tool.id, path, run, status.version)
             if login is not None:
                 status.logged_in, status.billing = login(env, home)
         out.append(status)

@@ -371,3 +371,30 @@ async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_wh
         await _stop(page, "Offline mode").locator(".map-open").click()
         await page.locator(".screen .limits-note").wait_for(timeout=WAIT_MS) if await page.locator(".screen .action-bar, .screen-foot").count() else None
         assert await page.evaluate(NO_SCROLL)
+
+
+PARTY_ROW = {"kind": "party", "idea": "", "goal": "docs", "by": "reviewer", "title": "Take Reviewer out of Docs' party?",
+             "text": "It found nothing in the last 8 ideas; a check costs about $0.35.", "priority": "low", "blocks": False, "at": ""}
+
+
+@pytest.mark.asyncio
+async def test_a_party_proposal_is_answered_in_its_row_taken_out_or_kept_with_a_reason(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.extra_needs = [dict(PARTY_ROW)]
+        stub.bump({})
+        await _needs(page)
+        row = page.locator(".need-party")
+        await row.wait_for(timeout=WAIT_MS)
+        text = await row.inner_text()
+        assert "Take Reviewer out of Docs' party?" in text and "It found nothing in the last 8 ideas; a check costs about $0.35." in text
+        assert await row.get_by_label("Why not: " + PARTY_ROW["title"]).get_attribute("placeholder") == "Why not? (optional, one line)"
+        await row.get_by_label("Why not: " + PARTY_ROW["title"]).fill("it guards the docs")
+        await row.get_by_role("button", name="Keep it: " + PARTY_ROW["title"]).click()
+        assert await _called(stub, "ideas.party_answer", {"goal": "docs", "take": False, "reason": "it guards the docs"})
+        await page.wait_for_function("() => document.querySelectorAll('.need-party').length === 0", timeout=WAIT_MS * 2)
+        stub.extra_needs = [dict(PARTY_ROW)]
+        stub.bump({})
+        await page.locator(".need-party").wait_for(timeout=WAIT_MS)
+        await page.get_by_role("button", name="Take it out: " + PARTY_ROW["title"]).click()
+        assert await _called(stub, "ideas.party_answer", {"goal": "docs", "take": True})
+        assert await page.evaluate(NO_SCROLL)

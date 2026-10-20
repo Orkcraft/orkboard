@@ -38,7 +38,7 @@ def pip(tid, title, state, after=()):
 
 def node(slug, goal, title, state, tier, **more):
     base = {"slug": slug, "goal": goal, "title": title, "short": short_of(title), "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal",
-            "size": "M", "risk": "low", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "",
+            "size": "M", "risk": "low", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "", "night_by": "person", "by_pace": False,
             "progress": {"done": 0, "total": 0}, "tasks": [], "estimate": None, "by_itself": False, "folded": False, "updated": ago(30)}
     return base | more
 
@@ -677,17 +677,46 @@ def test_flags_opens_with_its_rows_and_a_row_opens_the_goal(gui):
     assert not errors, "\n".join(errors)
 
 
-def test_a_met_goal_s_row_in_flags_has_what_the_party_did_closed_at_first(gui):
-    """Spec 43 B: the same fold under a flag's row."""
-    pg, host, errors = _open(gui, met_host(), init=with_list(["grow"]), ready=".trail-end.is-met")
+def test_a_met_goals_row_in_flags_has_the_fold_for_what_its_party_did(gui):
+    from tests.test_shell_browser import PARTY, PARTY_LINES
+    host = met_host()
+    host.party = PARTY
+    pg, host, errors = _open(gui, host, init=with_list(["grow"]), ready=".trail-end.is-met")
     pg.get_by_role("button", name="Flags (1)").click()
     pg.locator(".map-flag").wait_for(timeout=WAIT_MS)
-    fold = pg.locator(".map-flags__list .shell-party")
-    assert fold.get_attribute("open") is None and not [1 for n, _a in host.log if n == "ideas.party"]
-    fold.locator("summary").click()
-    pg.wait_for_function("() => document.querySelectorAll('.map-flags__list .shell-party li').length === 4", timeout=WAIT_MS)
-    assert [" ".join(t.split()) for t in fold.locator("li").all_inner_texts()] == PARTY_LINES
-    assert _sent(pg, host, ("ideas.party", {"goal": "grow"}))
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "party", "ref": "grow", "device": "desktop"}))
+    fold = pg.locator(".map-flags__list").get_by_role("button", name="What the party did")
+    assert fold.get_attribute("aria-expanded") == "false" and not [1 for n, _a in host.log if n == "ideas.party"]
+    fold.click()
+    rows = pg.locator(".map-flags__list").get_by_role("list", name="What the party did")
+    rows.wait_for(timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in rows.locator("li").all_inner_texts()] == PARTY_LINES
+    assert ("ideas.party", {"goal": "grow"}) in host.log
+    assert " ".join(pg.locator(".map-flag").inner_text().split()).startswith("Grow installs met, says Product manager")     # the row itself is as it was
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+# -- spec 44 B: the words of the week's pace ---------------------------------------------------------------------------
+
+def test_a_stop_says_tonight_by_who_put_it_off_and_when_the_week_holds_it(gui):
+    host = MapHost()
+    night = {"kind": "night", "ref": "", "title": "", "until": ""}
+    week = {"kind": "week", "ref": "", "title": "", "until": "2026-10-26T09:00:00"}
+    host.nodes += [
+        node("b-idea", "ship-sync", "Board idea", "raw", 3, queue="night", night_by="board", waits=night),
+        node("p-idea", "ship-sync", "Person idea", "raw", 4, queue="night", night_by="person", waits=night),
+        node("b-plan", "ship-sync", "Board plan", "plan", 5, start_at="night", night_by="board", waits=night),
+        node("p-plan", "ship-sync", "Person plan", "plan", 6, start_at="night", night_by="person", waits=night),
+        node("w-idea", "ship-sync", "Week idea", "raw", 7, queue="night", night_by="board", waits=week),
+        node("w-plan", "ship-sync", "Week plan", "plan", 8, start_at="night", night_by="board", waits=week)]
+    pg, host, errors = _open(gui, host=host)
+    said = lambda title: card(pg, title).get_attribute("title")                                   # noqa: E731
+    assert "tonight, or sooner if the week has room" in said("Board idea")
+    assert "starts tonight, or sooner if the week has room" in said("Board plan")
+    for title, words in (("Person idea", "tonight"), ("Person plan", "starts tonight")):
+        assert words in said(title) and "sooner" not in said(title) and "week" not in said(title)
+    for title in ("Week idea", "Week plan"):
+        assert "waits: the week is behind · until Mon 09:00" in said(title) and "sooner" not in said(title)
+    assert card(pg, "Week idea").locator("use[href$='#clock']").count() == 1                      # a timed wait: a clock
     pg.close()
     assert not errors, "\n".join(errors)

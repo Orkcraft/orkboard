@@ -148,3 +148,36 @@ def _codex_beside_claude_and_agy(monkeypatch, billing: str) -> None:
     monkeypatch.setattr(codex_quota, "_converse", lambda cmd, messages, timeout, cwd: raw)
     monkeypatch.setattr(codex_quota, "datetime", type("D", (datetime,), {"now": staticmethod(
         lambda tz=None: datetime(2026, 10, 6, 12, 0, tzinfo=timezone.utc))}))
+
+
+class FakeAwake:
+    """`gui/awake.py` `Awake` without a process: what a test's host holds with (spec 47 §7)."""
+
+    def __init__(self, *a, **k) -> None:
+        self.running, self.how, self.platform, self.applied = False, "", "linux", []
+
+    def can(self) -> bool:
+        return True
+
+    def apply(self, want: bool) -> None:
+        self.applied.append(want)
+        self.how = "systemd-inhibit" if want and self.running else ""
+
+    def stop(self) -> None:
+        self.how = ""
+
+
+@pytest.fixture(autouse=True)
+def fake_awake(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test starts `caffeinate` or `systemd-inhibit`, nor reads the power: every host's `Awake` is a fake."""
+    from orkboard.gui import awake
+    monkeypatch.setattr(awake, "Awake", FakeAwake)
+
+
+@pytest.fixture(autouse=True)
+def _nothing_watches_the_tools():
+    """A host that watches the AI tools' failures (core/sign_ins.py, spec 45) stops watching with its test."""
+    yield
+    from orkboard.realm import tool_errors
+    tool_errors._WATCHERS.clear()
+    tool_errors._OK_WATCHERS.clear()

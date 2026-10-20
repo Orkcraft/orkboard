@@ -29,7 +29,7 @@ from orkboard import settings
 from orkboard.realm import call_log, event_log, ideas
 
 RUN_KEYS = ("id", "template", "version", "state", "fields", "found", "draft", "args", "doubts", "edited", "alone",
-            "device", "link", "done_id", "why", "acted", "at", "done_at", "cost", "held_until", "held", "step",
+            "device", "link", "done_id", "why", "acted", "at", "done_at", "cost", "held_until", "held", "held_for", "step",
             "again", "keep", "changes")       # Prepare again's: it was asked for, the parts kept, before → after
 KEPT_KEYS = ("id", "template", "state", "link", "alone", "cost", "at", "done_at")      # after keep_days (§9)
 STATES = ("preparing", "check", "acting", "done", "held", "failed", "dropped")

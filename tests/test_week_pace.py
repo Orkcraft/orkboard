@@ -1,5 +1,6 @@
-"""Spec 44 A (docs/specs/44-week-pace.md §1–§4, Tests → A): the week's pace, the reserve per window, who put work off to the night, `pace_tick`,
-the gate and the runner, the night when the week is behind, `week_reset`, the Map's waits and This week. Code, no model."""
+"""Spec 44 A (docs/specs/44-week-pace.md, Tests → A): the Claude week's pace, the reserve per window, who put work off
+to the night, when the Board's Low work goes (by day when the week is ahead, held at night when it is behind), the
+`week_reset` event and the Map's data. Code, a fake clock and fake limits, no model."""
 from __future__ import annotations
 
 import datetime as dt
@@ -10,452 +11,482 @@ from types import SimpleNamespace
 
 import pytest
 
+from orkboard.core import idea_night
 from orkboard.core.board_limits import BoardLimits
-from orkboard.core.idea_runner import IdeaRunner
 from orkboard.gui.board_host import Orkboard
 from orkboard.realm import board_map, event_log, idea_target, ideas
 from orkboard.sources.limits import Limit
-from tests.test_idea_draft import DRAFT, PLAN, Model
-from tests.test_idea_night import _events, _goal, keeper  # noqa: F401  (a fixture)
-from tests.test_idea_runner import plan_of, tasks_of, town, wait_idle  # noqa: F401  (a fixture)
 
-WEEK = 7 * 24 * 3600
+from tests.test_idea_night import _goal, keeper  # noqa: F401  (the keeper on a fixture repository)
+from tests.test_idea_runner import plan_of, town  # noqa: F401  (the fixture repository with a stub claude)
+from tests.test_runner_35 import _now_in, _pass, _runner
 
-
-def at(now: float, days: float = 0, hours: float = 0) -> dt.datetime:
-    return dt.datetime.fromtimestamp(now + days * 86400 + hours * 3600)
-
-
-def weekly(left: float, days: float, now: float | None = None) -> Limit:
-    now = time.time() if now is None else now
-    return Limit("claude", "", "weekly", left, at(now, days))
+NOON = dt.datetime(2026, 10, 20, 12, 0).timestamp()
+NIGHT = dt.datetime(2026, 10, 21, 3, 0).timestamp()
+DAY = 24 * 3600
 
 
-def session(left: float, hours: float, now: float | None = None) -> Limit:
-    now = time.time() if now is None else now
-    return Limit("claude", "", "session", left, at(now, hours=hours))
+def at(ts: float) -> dt.datetime:
+    return dt.datetime.fromtimestamp(ts)
 
 
-def night_around_now() -> str:
-    """A night window the clock is inside, and one it is not (the Board reads the machine's time)."""
-    n = dt.datetime.now()
-    return f"{(n - dt.timedelta(hours=1)):%H:%M}-{(n + dt.timedelta(hours=1)):%H:%M}"
+def wk(left, days, now=NOON, **more):
+    """The Claude week: `left` of it, `days` to go."""
+    return Limit("claude", "", "weekly", left, at(now + days * DAY), **more)
 
 
-def day_around_now() -> str:
-    n = dt.datetime.now()
-    return f"{(n + dt.timedelta(hours=5)):%H:%M}-{(n + dt.timedelta(hours=6)):%H:%M}"
+def five(left, minutes, now=NOON):
+    return Limit("claude", "", "session", left, at(now + minutes * 60))
 
 
-# -- §1: the week, its pace and the reserve per window ---------------------------------------------------------------
+# -- §1 the pace --------------------------------------------------------------------------------------------------
 
-def test_the_week_is_its_share_left_the_share_to_come_and_its_reset_and_none_without_one():
-    now = 1_800_000_000.0
-    got = idea_target.week([weekly(0.55, 2, now)], now)
-    assert got["left"] == 0.55 and got["rest"] == pytest.approx(2 / 7) and got["reset"] == pytest.approx(now + 2 * 86400)
-    assert idea_target.week([weekly(0.5, 7.5, now)], now)["rest"] == 1.0                       # a week and more away: the whole week to come
-    assert idea_target.week([weekly(0.5, -1, now)], now)["rest"] == 0.0                         # a reset passed: nothing to come
-    assert idea_target.week([weekly(0.5, 3, now), weekly(0.2, 3, now)], now)["left"] == 0.2    # the tightest, when a tool has several
-    assert idea_target.week([], now) is None and idea_target.week(None, now) is None
-    assert idea_target.week([session(0.5, 2, now)], now) is None                                # not a weekly window
-    assert idea_target.week([Limit("claude", "", "weekly", None, at(now, 2), "Not logged in")], now) is None          # an error
-    assert idea_target.week([Limit("claude", "", "weekly", 0.5, None)], now) is None                                  # no reset read
-    assert idea_target.week([Limit("codex", "", "weekly", 0.5, at(now, 2))], now) is None                             # another tool
-    assert idea_target.week([Limit("codex", "", "weekly", 0.5, at(now, 2))], now, "codex")["left"] == 0.5
-    assert idea_target.pace([], now) is None
+def test_week_reads_the_weekly_limit_and_the_share_of_the_week_still_to_come():
+    got = idea_target.week([five(0.9, 30), wk(0.6, 3.5)], NOON)
+    assert got["left"] == 0.6 and got["rest"] == pytest.approx(0.5) and got["reset"] == pytest.approx(NOON + 3.5 * DAY)
+    assert idea_target.week([wk(0.5, 8)], NOON)["rest"] == 1.0                    # more than a week away: the whole week
+    assert idea_target.week([wk(0.5, -1)], NOON)["rest"] == 0.0                   # a reset that has passed: none to come
+    assert idea_target.week([wk(0.5, 7)], NOON)["rest"] == pytest.approx(1.0)
 
 
-@pytest.mark.parametrize("left,expected", [(0.2857 + 0.10 + 0.001, "ahead"), (2 / 7 + 0.10, "ahead"), (2 / 7 + 0.0999, "even"), (2 / 7, "even"),
-                                           (2 / 7 - 0.0001, "behind"), (0.0, "behind"), (1.0, "ahead")])
-def test_the_pace_is_ahead_from_ten_points_above_the_share_to_come_behind_below_it_else_even(left, expected):
-    now = 1_800_000_000.0
-    assert idea_target.pace([weekly(left, 2, now)], now) == expected
+@pytest.mark.parametrize("limits", [
+    [], [five(0.5, 30)], [wk(None, 3)], [Limit("claude", "", "weekly", 0.5, None)],            # not read · no reset
+    [wk(0.5, 3, error="Not logged in")], [Limit("codex", "", "weekly", 0.5, at(NOON + DAY))],   # an error · another tool
+    [Limit("claude", "API key", "weekly", None, None, "an API key has no limits")]])
+def test_no_weekly_limit_read_is_no_week_and_no_pace(limits):
+    assert idea_target.week(limits, NOON) is None and idea_target.pace(limits, NOON) is None
 
 
-def _old_reserve(limits, settings, now, provider="claude"):
-    """The rule before spec 44 (`reserve_held`): the smallest window against one share."""
-    from orkboard.realm import status
-    left = idea_target.left_of(limits, provider)
-    if left is None:
-        return None
-    night = idea_target.in_night(str((settings or {}).get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
-    share = idea_target.reserve(settings, night)
-    if left > share:
-        return None
-    return status.reset_of(limits, provider, now, share) or now + status.UNKNOWN_RESET_S
+@pytest.mark.parametrize("left,want", [(0.61, "ahead"), (0.60, "ahead"), (0.59, "even"), (0.50, "even"),
+                                       (0.49, "behind"), (0.0, "behind")])
+def test_the_pace_is_ahead_at_ten_points_above_the_share_to_come_and_behind_below_it(left, want):
+    assert idea_target.pace([wk(left, 3.5)], NOON) == want                       # 3.5 days to go: 0.50 of the week to come
 
 
-def test_the_reserve_per_window_is_todays_rule_when_no_window_is_near_its_reset():
-    now = time.time()
-    for night in (night_around_now(), day_around_now()):
-        settings = {"night": night, "reserve_day": 0.3, "reserve_night": 0.1}
-        for s in (0.05, 0.1, 0.25, 0.3, 0.31, 0.9):
-            for w in (0.05, 0.12, 0.3, 0.5, 0.9):
-                for hours in (2, 5, 40):                                                    # no session reset within the hour
-                    rows = [session(s, hours, now), weekly(w, 3, now)]
-                    assert idea_target.reserve_held(rows, settings, now) == _old_reserve(rows, settings, now), (night, s, w, hours)
-    assert idea_target.reserve_held([], {}, now) is None
-    assert idea_target.reserve_held([Limit("claude", "", "session", None, None, "error")], {}, now) is None
+def test_the_pace_at_the_ends_of_the_week():
+    assert idea_target.pace([wk(1.0, 7)], NOON) == "even"                          # the week has just come back: all of it left
+    assert idea_target.pace([wk(1.0, 6)], NOON) == "ahead" and idea_target.pace([wk(0.85, 6)], NOON) == "behind"
+    assert idea_target.pace([wk(0.1, 0)], NOON) == "ahead" and idea_target.pace([wk(0.05, 0)], NOON) == "even"
+    assert idea_target.pace([wk(0.1, -1)], NOON) == "ahead"                        # a reset that has passed: nothing to come
 
 
-def test_the_hour_before_the_five_hours_come_back_eases_their_reserve_by_day_while_the_week_is_not_behind():
-    now = time.time()
-    day = {"night": day_around_now(), "reserve_day": 0.3, "reserve_night": 0.1}
-    ahead = [weekly(0.9, 2, now)]                                       # the week is ahead of its pace
-    rows = lambda hours: [session(0.2, hours, now), *ahead]             # noqa: E731
-    assert idea_target.reserve_held(rows(3), day, now) is not None                                     # 0.2 ≤ the day's 0.3: held
-    assert idea_target.reserve_held(rows(0.9), day, now) is None                                      # within the hour: the night's 0.1 is the share
-    assert idea_target.reserve_held(rows(1.1), day, now) is not None                                  # a little more than an hour away: not yet
-    assert idea_target.reserve_held([session(0.08, 0.5, now), *ahead], day, now) is not None          # still under the night's share
-    even = [weekly(0.4, 2, now)]                                                                       # even: eased too
-    assert idea_target.reserve_held([session(0.2, 0.5, now), *even], day, now) is None
-    behind = [weekly(0.5, 6, now)]                                                                     # behind (0.5 < 6/7), above the reserve itself
-    assert idea_target.pace(behind, now) == "behind"
-    assert idea_target.reserve_held([session(0.2, 0.5, now), *behind], day, now) == pytest.approx(now + 0.5 * 3600, abs=1)       # not eased
-    assert idea_target.reserve_held([session(0.2, 0.5, now)], day, now) is not None                    # no week read: today's rule
-    night = {**day, "night": night_around_now()}
-    assert idea_target.reserve_held([session(0.2, 0.5, now), *ahead], night, now) is None              # at night the share is the night's anyway
-    assert idea_target.reserve_held([session(0.2, 3, now), weekly(0.9, 2, now)], {**night, "reserve_night": 0.25}, now) is not None
+# -- §1 the reserve, per window -----------------------------------------------------------------------------------
+
+S = {"night": "01:00-07:00", "reserve_day": 0.3, "reserve_night": 0.1}
 
 
-# -- §2: who put it off -----------------------------------------------------------------------------------------------
+def test_the_reserve_equals_todays_rule_with_no_window_near_its_reset():
+    far = [five(0.25, 120), wk(0.9, 3)]
+    assert idea_target.reserve_held(far, S, NOON) == pytest.approx(NOON + 120 * 60)       # day: 0.25 ≤ 0.30
+    assert idea_target.reserve_held([five(0.35, 120), wk(0.9, 3)], S, NOON) is None
+    assert idea_target.reserve_held([five(0.25, 120), wk(0.9, 3)], S, NIGHT) is None      # night: 0.25 > 0.10
+    assert idea_target.reserve_held([five(0.08, 120), wk(0.9, 3)], S, NIGHT) is not None
+    assert idea_target.reserve_held([five(0.9, 120), wk(0.25, 3)], S, NOON) == pytest.approx(NOON + 3 * DAY)
+    assert idea_target.reserve_held([], S, NOON) is None
+
+
+def test_by_day_within_an_hour_of_the_five_hour_reset_its_reserve_is_the_nights_unless_the_week_is_behind():
+    soon = [five(0.2, 30), wk(0.9, 3.5)]                                                 # the week is ahead
+    assert idea_target.reserve_held(soon, S, NOON) is None                               # 0.2 > the night's 0.1
+    assert idea_target.reserve_held([five(0.08, 30), wk(0.9, 3.5)], S, NOON) == pytest.approx(NOON + 30 * 60)
+    assert idea_target.reserve_held([five(0.2, 30), wk(0.52, 3.5)], S, NOON) is None     # even: not behind
+    assert idea_target.reserve_held([five(0.2, 30)], S, NOON) is None                    # no week read: not behind
+    assert idea_target.reserve_held([five(0.2, 30), wk(0.35, 3.5)], S, NOON) == pytest.approx(NOON + 30 * 60)   # behind
+    assert idea_target.reserve_held([five(0.2, 61), wk(0.9, 3.5)], S, NOON) is not None                        # not soon
+    assert idea_target.reserve_held([five(0.2, 60), wk(0.9, 3.5)], S, NOON) is None                            # SOON_S
+    # only the five-hour window is eased: the week's own share is held as today
+    assert idea_target.reserve_held([five(0.9, 30), wk(0.2, 0.1)], S, NOON) is not None
+
+
+# -- §2 who put it off --------------------------------------------------------------------------------------------
 
 @pytest.fixture
-def host(fake_repo) -> Orkboard:
-    return Orkboard(fake_repo)
+def host(fake_repo):
+    import sys
+    h = Orkboard(fake_repo)
+    yield h
+    sys.modules.pop("orkboard.core.idea_runner", None)
 
 
-def _add(host, text, **more):
+def _goal_of(host):
     root = host.ideas.root()
-    goal = next((t["slug"] for t in ideas.tracks(root, make=False) if t["slug"] != "general"), None) or ideas.add_track(root, "First goal")
-    return host.command("ideas.add", {"text": text, "track": goal, **more})["slug"]
+    return next((t["slug"] for t in ideas.tracks(root, make=False) if t["slug"] != "general"), None) or ideas.add_track(root, "First goal")
 
 
-def test_a_low_idea_is_put_off_by_the_board_the_persons_own_night_and_tonight_by_them_and_before_reads_person(host):
+def test_an_idea_keeps_who_put_it_off_to_the_night_and_a_state_of_before_reads_the_person(host):
+    g = _goal_of(host)
+    low = host.command("ideas.add", {"text": "a low one", "track": g, "priority": "low"})["slug"]
+    tonight = host.command("ideas.add", {"text": "tonight by the person", "track": g, "priority": "low", "night": True})["slug"]
+    high = host.command("ideas.add", {"text": "a high one tonight", "track": g, "priority": "high", "night": True})["slug"]
     state = host.ideas.state_dir
-    low = _add(host, "a low idea", priority="low")
-    mine = _add(host, "my night idea", priority="high", night=True)
-    both = _add(host, "low, and mine too", priority="low", night=True)
-    now = _add(host, "an idea for now", priority="high")
-    assert [ideas.state(state, s)["night_by"] for s in (low, mine, both, now)] == ["board", "person", "person", ""]
-    assert [ideas.night_by_of(ideas.state(state, s)) for s in (low, mine, both)] == ["board", "person", "person"]
-    ideas.save_state(state, now, state="raw", queue="")
-    host.command("ideas.queue", {"slug": low, "queue": "night"})                                   # Tonight, on the Board's own: now the person's
+    assert ideas.state(state, low)["night_by"] == "board" and ideas.state(state, tonight)["night_by"] == "person"
+    assert ideas.state(state, high)["night_by"] == "person"
+    ideas.save_state(state, low, night_by="")                                         # a state of before
+    assert ideas.night_by_of(ideas.state(state, low)) == "person" and ideas.night_by_of({"state": "raw"}) == "person"
+    host.command("ideas.queue", {"slug": low, "queue": "night"})                       # Tonight is the person's
     assert ideas.state(state, low)["night_by"] == "person"
-    old = ideas.add_idea(host.ideas.root(), "an idea from before", "first-goal", state, queue="night")
-    (state / "ideas" / old / "state.json").write_text(json.dumps({"state": "raw", "queue": "night"}))
-    assert ideas.state(state, old)["night_by"] == "" and ideas.night_by_of(ideas.state(state, old)) == "person"       # nothing before was moved
+    assert {i["slug"]: i["night_by"] for i in host.command("ideas.board")["ideas"]}[tonight] == "person"
 
 
-def _plan(host, slug, state="plan"):
-    ideas.save_plan(host.ideas.state_dir, slug, {"idea": slug, "made_at": "2026-10-20T09:00:00", "passed_at": None, "todos": [],
-                                                 "tasks": [{"id": "k1", "title": "Do it", "brief": "b", "tier": "warrior", "after": [], "state": "ready"}]})
-    ideas.save_state(host.ideas.state_dir, slug, state=state)
+def _ready_plan(host, slug, risk="low", priority="low"):
+    root = host.ideas.root()
+    ideas.set_meta(root, slug, risk=risk, priority=priority)
+    ideas.save_plan(host.ideas.state_dir, slug, {"idea": slug, "made_at": "2026-10-20T09:00:00", "todos": [],
+                                                  "tasks": [{"id": "k1", "title": "Do it", "tier": "warrior", "after": [],
+                                                             "state": "ready"}]})
+    ideas.save_state(host.ideas.state_dir, slug, state="plan")
 
 
-def test_a_plan_put_off_to_the_night_says_who_did_it_and_a_plan_of_before_reads_person(host):
-    a, b, c = (_add(host, f"idea {n}", priority="low") for n in range(3))
-    for s in (a, b, c):
-        _plan(host, s)
-    host.ideas.pass_plan(a, "auto", night=True)                                                     # autostart's Low
-    host.ideas.pass_plan(b, "person", night=True)                                                   # the person's Start tonight
-    assert ideas.plan(host.ideas.state_dir, a)["start_at_by"] == "board" and ideas.plan(host.ideas.state_dir, b)["start_at_by"] == "person"
-    host.ideas.pass_plan(c, "person", night=False)
-    assert "start_at_by" not in ideas.plan(host.ideas.state_dir, c)
-    assert ideas.night_by_of({}) == "person"
-    plan = {"start_at": "night", "passed_at": "x"}                                                   # a plan of before
-    assert not idea_target.board_low(plan, {}) and idea_target.board_low({**plan, "start_at_by": "board"}, {}) and \
-        not idea_target.board_low({**plan, "start_at_by": "board"}, {"autostart": False})
-    logs = [r for r in event_log.read(host.repo_root) if r["event"] == "plan_passed"]
-    assert [r.get("pace") for r in logs if r["by"] == "auto"] == [False] and "pace" not in [r for r in logs if r["by"] == "person"][0]
+def test_a_plan_keeps_who_put_its_start_off_to_the_night(host):
+    g = _goal_of(host)
+    started = []
+    host.ideas._runner = SimpleNamespace(start=started.append, tick=lambda: None)
+    host.limits.rows = []                                                              # no week read: today's rule
+    auto = host.command("ideas.add", {"text": "low, by itself", "track": g, "priority": "low"})["slug"]
+    _ready_plan(host, auto)
+    assert host.ideas.autostart(auto) == "night"
+    plan = ideas.plan(host.ideas.state_dir, auto)
+    assert plan["start_at"] == "night" and plan["start_at_by"] == "board" and not plan.get("by_pace") and started == []
+    (passed,) = [e for e in event_log.read(host.repo_root) if e["event"] == "plan_passed"]
+    assert passed["by"] == "auto" and passed["pace"] is False
+    legacy = {"start_at": "night"}                                                      # a plan of before
+    assert idea_target.board_low(legacy) is False and idea_target.board_low({**legacy, "start_at_by": "person"}) is False
 
 
-# -- §3: pace_tick ----------------------------------------------------------------------------------------------------
-
-def _ready(keeper, *texts, by="board", priority="low"):
-    g = _goal(keeper, "Table")
-    slugs = [ideas.add_idea(keeper.root, t, g, keeper.state, priority=priority, queue="night", night_by=by) for t in texts]
-    return g, slugs
-
-
-def _pace(keeper):
-    keeper._pace_at = float("-inf")
-    got = keeper.pace_tick(time.time())
-    for _ in range(300):
-        if not keeper._pace_busy:
-            break
-        time.sleep(0.01)
-    return got
-
-
-def _drafting(keeper):
-    keeper.call = model = Model(draft=lambda p: {**DRAFT, "questions": []}, plan=PLAN)
-    return model
-
-
-def test_by_day_with_the_week_ahead_the_oldest_boards_low_idea_is_drafted_one_a_time(keeper):
-    _g, (first, second) = _ready(keeper, "first low idea", "second low idea")
-    keeper.settings_now["night"] = day_around_now()
-    keeper.limits_now = [weekly(0.9, 2)]
-    model = _drafting(keeper)
-    assert _pace(keeper) is True
-    assert ideas.state(keeper.state, first)["state"] != "raw" and ideas.state(keeper.state, second)["state"] == "raw"
-    assert [a["step"] for a in model.asked if a["step"] == "draft"] == ["draft"] and "first low idea" in model.asked[0]["prompt"]
-    assert _pace(keeper) is True                                                                   # the next tick, the next idea
-    assert ideas.state(keeper.state, second)["state"] != "raw"
-    goal = ideas.tracks(keeper.root, make=False)[0]["slug"]
-    running = ideas.add_idea(keeper.root, "a low idea being drafted", goal, keeper.state, priority="low", queue="night", night_by="board")
-    waiting = ideas.add_idea(keeper.root, "a low idea that waits", goal, keeper.state, priority="low", queue="night", night_by="board")
-    keeper._claim(running, "drafting")                                                             # a draft of the Board's Low is running here: no other
-    keeper.run_pace()
-    assert ideas.state(keeper.state, waiting)["state"] == "raw"
-    keeper._busy.pop(running)
-    keeper.run_pace()
-    assert ideas.state(keeper.state, running)["state"] != "raw"                                    # the oldest, once nothing runs
-
-
-def test_pace_tick_waits_every_ten_minutes_not_in_the_night_and_not_when_the_week_is_not_ahead(keeper):
-    _ready(keeper, "a low idea")
-    model = _drafting(keeper)
-    keeper.limits_now = [weekly(0.9, 2)]
-    keeper.settings_now["night"] = night_around_now()                                               # the night window: the night's own
-    assert _pace(keeper) is False and model.asked == []
-    keeper.settings_now["night"] = day_around_now()
-    keeper.limits_now = [weekly(0.3, 2)]                                                            # even
-    assert _pace(keeper) is False
-    keeper.limits_now = [weekly(0.1, 2)]                                                            # behind
-    assert _pace(keeper) is False
-    keeper.limits_now = []                                                                          # no week read
-    assert _pace(keeper) is False and model.asked == []
-    keeper.limits_now = [weekly(0.9, 2)]
-    keeper._pace_at = float("-inf")
-    assert keeper.pace_tick(time.time()) is True                                                    # ahead
-    for _ in range(300):
-        if not keeper._pace_busy:
-            break
-        time.sleep(0.01)
-    asked = len(model.asked)
-    assert keeper.pace_tick(time.time() + 30) is False and len(model.asked) == asked               # asked again within PACE_S: not read again
-
-
-def test_pace_tick_does_nothing_while_the_reserve_holds_with_autostart_off_or_for_the_persons_own(keeper):
-    _g, (mine,) = _ready(keeper, "the person's own", by="person")
-    keeper.settings_now["night"] = day_around_now()
-    model = _drafting(keeper)
-    keeper.limits_now = [weekly(0.9, 2)]
-    assert _pace(keeper) is True and model.asked == [] and ideas.state(keeper.state, mine)["state"] == "raw"      # Tonight is not the Board's to move
-    ideas.add_idea(keeper.root, "the board's own", ideas.tracks(keeper.root, make=False)[0]["slug"], keeper.state, priority="low", queue="night", night_by="board")
-    keeper.limits_now = [weekly(0.9, 2), session(0.2, 3)]                                           # the day's reserve holds
-    assert _pace(keeper) is False and model.asked == []
-    keeper.limits_now = [weekly(0.9, 2)]
-    keeper.settings_now["autostart"] = False
-    assert _pace(keeper) is False and model.asked == []
-    keeper.settings_now["autostart"] = True
-    assert _pace(keeper) is True and [a["step"] for a in model.asked][0] == "draft"
-
-
-def test_pace_tick_starts_the_boards_low_plan_waiting_for_the_night_and_not_the_persons(keeper):
-    g, (a, b) = _ready(keeper, "board plan", "person plan")
-    for s, by in ((a, "board"), (b, "person")):
-        ideas.save_plan(keeper.state, s, {"idea": s, "made_at": "x", "passed_at": "x", "start_at": "night", "start_at_by": by, "tasks": [], "todos": []})
-        ideas.save_state(keeper.state, s, state="plan", queue="")
-    keeper.settings_now["night"] = day_around_now()
-    keeper.limits_now = [weekly(0.9, 2)]
-    _drafting(keeper)
-    assert _pace(keeper) is True
-    assert keeper.started == [a]
-
-
-# -- §3: the night when the week is behind ------------------------------------------------------------------------------
-
-def test_the_night_leaves_the_boards_low_ideas_when_the_week_is_behind_and_drafts_the_persons_own(keeper):
-    g, (boards, mine) = _ready(keeper, "the board's low", "the person's own", by="board")
-    ideas.save_state(keeper.state, mine, night_by="person")
-    keeper.limits_now = [weekly(0.35, 6)]                                                          # behind, above the reserve
-    model = _drafting(keeper)
-    keeper.call = model = Model(draft=lambda p: {**DRAFT, "questions": []}, plan=PLAN, propose={"proposals": []})
-    counts = keeper.run_night("2026-10-20T01:00")
-    assert counts["drafted"] == 1 and ideas.state(keeper.state, boards)["state"] == "raw" and ideas.state(keeper.state, mine)["state"] != "raw"
-    assert "paced" not in counts
-    (run,) = _events(keeper, "night_run")
-    assert run["paced"] == 1 and run["drafted"] == 1
-    keeper.limits_now = [weekly(0.9, 2)]                                                           # ahead: the night drafts it, as today
-    keeper.call = Model(draft=lambda p: {**DRAFT, "questions": []}, plan=PLAN, propose={"proposals": []})
-    keeper.run_night("2026-10-21T01:00")
-    assert ideas.state(keeper.state, boards)["state"] != "raw" and _events(keeper, "night_run")[-1]["paced"] == 0
-    keeper.settings_now["autostart"] = False                                                       # autostart off: nothing is moved
-    again = ideas.add_idea(keeper.root, "another low", g, keeper.state, priority="low", queue="night", night_by="board")
-    keeper.limits_now = [weekly(0.35, 6)]
-    keeper.call = Model(draft=lambda p: {**DRAFT, "questions": []}, plan=PLAN, propose={"proposals": []})
-    keeper.run_night("2026-10-22T01:00")
-    assert ideas.state(keeper.state, again)["state"] != "raw"
-
-
-# -- §3: the gate and the runner ------------------------------------------------------------------------------------------
-
-def test_the_gate_lets_the_boards_low_plan_start_by_day_only_ahead_and_holds_it_at_night_when_behind():
+def test_a_low_plan_the_board_passes_starts_by_day_at_once_when_the_week_is_ahead_one_at_a_time(host):
+    g = _goal_of(host)
+    started = []
+    host.ideas._runner = SimpleNamespace(start=started.append, tick=lambda: None)
     now = time.time()
-    day, night = {"night": day_around_now(), "autostart": True}, {"night": night_around_now(), "autostart": True}
-    low = {"start_at": "night", "start_at_by": "board", "passed_by": "auto"}
-    person = {"start_at": "night", "start_at_by": "person", "passed_by": "person"}
-    ahead, even, behind = [weekly(0.9, 2, now)], [weekly(0.3, 2, now)], [weekly(0.35, 6, now)]
-    assert idea_target.gate(low, ahead, day, now) is None and idea_target.by_pace(low, ahead, day, now) is True
-    assert idea_target.gate(low, even, day, now) == "night" and idea_target.gate(low, behind, day, now) == "night" and idea_target.gate(low, [], day, now) == "night"
-    assert idea_target.gate(person, ahead, day, now) == "night" and not idea_target.by_pace(person, ahead, day, now)
-    assert idea_target.gate(low, ahead, {**day, "autostart": False}, now) == "night"
-    assert idea_target.gate(low, ahead, night, now) is None and idea_target.gate(low, even, night, now) is None and idea_target.gate(low, [], night, now) is None
-    held = idea_target.gate(low, behind, night, now)
-    assert isinstance(held, idea_target.WeekHold) and held == pytest.approx(now + 6 * 86400)          # the week's reset
-    assert idea_target.gate(person, behind, night, now) is None                                       # the person's night stays theirs
-    assert idea_target.gate({**low, "start_at_by": "person"}, behind, night, now) is None
-    assert idea_target.gate({"passed_by": "auto"}, behind, day, now) is None                          # High and Normal: as today
-    assert idea_target.gate(low, ahead + [session(0.2, 3, now)], day, now) == pytest.approx(now + 3 * 3600, abs=1)          # the reserve, as for any autostart
+    day = dt.datetime.fromtimestamp(now)
+    host.board_settings = lambda: {"target": "balance", "autostart": True, "night": _now_in(False),
+                                   "reserve_day": 0.3, "reserve_night": 0.1}
+    host.limits.rows = [wk(0.9, 3.5, now)]
+    first = host.command("ideas.add", {"text": "low one", "track": g, "priority": "low"})["slug"]
+    second = host.command("ideas.add", {"text": "low two", "track": g, "priority": "low"})["slug"]
+    for s in (first, second):
+        _ready_plan(host, s)
+    assert host.ideas.autostart(first) == "night"
+    plan = ideas.plan(host.ideas.state_dir, first)
+    assert started == [first] and plan["by_pace"] is True and plan["start_at_by"] == "board"
+    assert ideas.state(host.ideas.state_dir, first)["state"] == "working"
+    assert host.ideas.autostart(second) == "night" and started == [first]                # a second waits for the night
+    assert not ideas.plan(host.ideas.state_dir, second).get("by_pace")
+    events = {e["idea"]: e for e in event_log.read(host.repo_root) if e["event"] == "plan_passed"}
+    assert events[first]["pace"] is True and events[second]["pace"] is False
+    assert day.year >= 2026
 
 
-def _board_low(town, slug="demo", tasks=None, by="board"):
-    plan_of(town, tasks or [{"id": "k1"}], slug=slug)
-    p = json.loads((town.state / "ideas" / slug / "plan.json").read_text())
-    p.update(passed_by="auto" if by == "board" else "person", start_at="night", start_at_by=by)
-    (town.state / "ideas" / slug / "plan.json").write_text(json.dumps(p))
+# -- §3 when it goes: pace_tick -----------------------------------------------------------------------------------
+
+def _board_low(k, g, text, by="board", priority="low"):
+    return ideas.add_idea(k.root, text, g, k.state, priority=priority, queue="night", night_by=by)
 
 
-def _runner(town, limits, night, max_parallel=1):
-    settings = SimpleNamespace(ideas={"max_parallel": max_parallel, "merge_into": "main", "push": True, "review": False, "night": night, "autostart": True})
-    return IdeaRunner(town.repo, town.state, settings, SimpleNamespace(publish=lambda *a, **k: None), limits=lambda: limits)
+@pytest.fixture
+def paced(keeper):
+    """A keeper whose draft is a recording stub, in a project with a goal; the week is ahead at noon."""
+    keeper.drafted, keeper.release = [], threading.Event()
+    keeper.release.set()
+
+    def draft(slug):
+        keeper.drafted.append(slug)
+        assert keeper.release.wait(10)
+    keeper.draft_one = draft
+    keeper.limits_now = [wk(0.9, 3.5)]
+    keeper.goal = _goal(keeper, "Table")
+    return keeper
 
 
-def test_by_day_with_the_week_ahead_the_boards_low_plan_starts_and_says_it_went_by_the_pace(town):
-    _board_low(town)
-    runner = _runner(town, [weekly(0.9, 2)], day_around_now())
-    runner.start("demo")
-    assert wait_idle(runner)["state"] == "done"
-    assert json.loads((town.state / "ideas" / "demo" / "plan.json").read_text())["by_pace"] is True and tasks_of(town)["k1"]["state"] == "merged"
+def _quiet(k):
+    for _ in range(300):
+        if not k._pace_busy:
+            return
+        time.sleep(0.01)
+    raise AssertionError("the pace's draft never finished")
 
 
-def test_by_day_when_the_week_is_not_ahead_it_waits_for_the_night_unheld_and_the_persons_own_always_does(town):
-    for limits in ([weekly(0.3, 2)], [weekly(0.1, 2)], []):
-        _board_low(town)
-        runner = _runner(town, limits, day_around_now())
-        runner.start("demo")
-        time.sleep(0.6)
-        runner.tick()
-        assert tasks_of(town)["k1"]["state"] == "ready" and not runner.busy()
-        assert "by_pace" not in json.loads((town.state / "ideas" / "demo" / "plan.json").read_text())
-        runner.stop("demo")
-    _board_low(town, by="person")
-    runner = _runner(town, [weekly(0.9, 2)], day_around_now())
-    runner.start("demo")
-    time.sleep(0.6)
-    runner.tick()
-    assert tasks_of(town)["k1"]["state"] == "ready"                                                 # by day, whatever the week: the person's night is theirs
+def test_by_day_and_ahead_the_clock_drafts_the_oldest_board_low_idea_once_and_one_at_a_time(paced):
+    k = paced
+    first, second = _board_low(k, k.goal, "first low"), _board_low(k, k.goal, "second low")
+    k.release.clear()
+    assert k.pace_tick(NOON) is True
+    for _ in range(300):
+        if k.drafted:
+            break
+        time.sleep(0.01)
+    assert k.drafted == [first] and k._pace_busy                                       # it is running now
+    assert k.pace_tick(NOON + idea_night.PACE_S) is False and k.drafted == [first]     # one at a time
+    k.release.set()
+    _quiet(k)
+    assert k.pace_tick(NOON + 10) is False                                             # not before PACE_S
+    ideas.save_state(k.state, first, state="plan", queue="")                           # the first is drafted
+    assert k.pace_tick(NOON + 2 * idea_night.PACE_S) is True
+    _quiet(k)
+    assert k.drafted == [first, second]
 
 
-def test_only_one_boards_low_plan_runs_by_day_in_a_project_a_second_waits(town, monkeypatch):
-    monkeypatch.setenv("STUB_SLEEP", "1.5")
-    _board_low(town, "demo")
-    _board_low(town, "second", [{"id": "k2"}])                                                       # (another file than the first's)
-    (town.state / "ideas" / "second" / "state.json").write_text(json.dumps({"state": "plan"}))
-    runner = _runner(town, [weekly(0.9, 2)], day_around_now(), max_parallel=2)
-    runner.start("demo")
-    runner.start("second")
-    time.sleep(0.5)
-    runner.tick()
-    states = {s: next(iter(tasks_of(town, s).values()))["state"] for s in ("demo", "second")}
-    assert sorted(states.values()) in (["ready", "running"], ["ready", "testing"]), states               # one runs by day, the other waits
-    end = time.time() + 60
-    while time.time() < end and not (json.loads((town.state / "ideas" / "second" / "state.json").read_text())["state"] == "done"
-                                     and json.loads((town.state / "ideas" / "demo" / "state.json").read_text())["state"] == "done"):
-        runner.tick()
-        time.sleep(0.2)
-    assert tasks_of(town, "demo")["k1"]["state"] == "merged" and tasks_of(town, "second")["k2"]["state"] == "merged"      # the second went on after the first
+def test_the_clock_leaves_alone_what_the_pace_does_not_move(paced):
+    k = paced
+    mine, theirs = _board_low(k, k.goal, "the person put it off", by="person"), None
+    board = _board_low(k, k.goal, "the board put it off")
+    assert theirs is None
+    t = NOON
+    steps = [("even", [wk(0.52, 3.5)]), ("behind", [wk(0.35, 3.5)]), ("no week", []), ("the reserve holds", [wk(0.9, 3.5), five(0.2, 200)])]
+    for name, limits in steps:
+        k.limits_now, t = limits, t + idea_night.PACE_S
+        assert k.pace_tick(t) is False, name
+    k.limits_now = [wk(0.9, 3.5)]
+    k.settings_now["autostart"] = False
+    assert k.pace_tick(t + idea_night.PACE_S) is False                                 # autostart off: never moved
+    k.settings_now["autostart"] = True
+    assert k.pace_tick(NIGHT) is False                                                 # never inside the night window
+    assert k.drafted == [] and ideas.state(k.state, mine)["state"] == "raw" and board
+    later = NOON + 2 * DAY
+    k.limits_now = [wk(0.9, 3.5, later)]
+    assert k.pace_tick(later) is True
+    _quiet(k)
+    assert k.drafted == [board]                                                        # only the Board's, never the person's
 
 
-def test_at_night_with_the_week_behind_the_boards_low_plan_is_held_until_the_reset_and_let_go_when_it_is_not_behind(town):
-    _board_low(town)
-    limits = [weekly(0.1, 2)]
-    runner = _runner(town, limits, night_around_now())
-    runner.start("demo")
-    time.sleep(0.6)
-    runner.tick()
-    task = tasks_of(town)["k1"]
-    assert task["state"] == "held" and task["note"].startswith("week · after ") and not runner.busy()
-    assert runner._until[("demo", "k1")] == pytest.approx(time.time() + 2 * 86400, abs=60)
-    limits[:] = [weekly(0.9, 2)]                                                                    # the week is not behind any more
-    assert wait_idle(runner)["state"] == "done" and tasks_of(town)["k1"]["state"] == "merged"
+def test_the_clock_starts_a_waiting_board_low_plan_by_day_when_ahead_one_at_a_time(paced):
+    k = paced
+
+    def waiting(text, by="board"):
+        slug = ideas.add_idea(k.root, text, k.goal, k.state, priority="low")
+        ideas.save_plan(k.state, slug, {"idea": slug, "passed_at": "x", "start_at": "night", "start_at_by": by, "tasks": [], "todos": []})
+        ideas.save_state(k.state, slug, state="plan")
+        return slug
+    theirs, one, two = waiting("the person's", "person"), waiting("one"), waiting("two")
+    assert k.pace_tick(NOON) is True and k.started == [one]
+    assert ideas.plan(k.state, one)["by_pace"] is True and not ideas.plan(k.state, theirs).get("by_pace")
+    ideas.save_state(k.state, one, state="working")
+    assert k.pace_tick(NOON + idea_night.PACE_S) is False and k.started == [one]       # one at a time
+    ideas.save_state(k.state, one, state="done")
+    assert k.pace_tick(NOON + 2 * idea_night.PACE_S) is True and k.started == [one, two]
+    assert two and theirs
 
 
-# -- §4: week_reset, the Map, This week ---------------------------------------------------------------------------------------
+def test_the_keepers_clock_reaches_pace_tick(paced):
+    k = paced
+    seen = []
+    k.pace_tick = lambda now: seen.append(now) or False
+    k.tick(NOON)
+    assert seen == [NOON]
+
+
+def test_the_night_leaves_the_boards_low_ideas_queued_when_the_week_is_behind_and_drafts_the_persons(paced):
+    k = paced
+    mine, board = _board_low(k, k.goal, "the person's", by="person"), _board_low(k, k.goal, "the board's")
+    k.limits_now = [wk(0.35, 3.5, time.time())]
+    k.call = lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("no model"))
+    counts = k.run_night("2026-10-20T01:00")
+    assert k.drafted == [mine] and counts["paced"] == 1
+    assert ideas.state(k.state, board)["state"] == "raw" and ideas.queue_of(ideas.state(k.state, board)) == "night"
+    (run,) = [r for r in event_log.read(k.repo_root) if r["event"] == "night_run"]
+    assert run["paced"] == 1
+    k.drafted.clear()
+    ideas.save_state(k.state, mine, state="plan", queue="")                           # the person's is drafted
+    k.limits_now = [wk(0.52, 3.5, time.time())]                                        # even: the night drafts it as today
+    assert k.run_night("2026-10-21T01:00")["paced"] == 0 and k.drafted == [board]
+    k.drafted.clear()
+    ideas.save_state(k.state, board, state="raw", queue="night")
+    k.limits_now, k.settings_now["autostart"] = [wk(0.35, 3.5, time.time())], False      # autostart off: never moved
+    assert k.run_night("2026-10-22T01:00")["paced"] == 0 and k.drafted == [board]
+
+
+# -- §3 the gate and the runner -----------------------------------------------------------------------------------
+
+def _gate_board(night):
+    return {"night": _now_in(night), "reserve_day": 0.3, "reserve_night": 0.1, "autostart": True}
+
+
+LOW = {"start_at": "night", "start_at_by": "board", "passed_by": "auto"}
+
+
+def test_the_gate_lets_the_boards_low_plan_start_by_day_only_when_ahead_and_free():
+    now = time.time()
+    day = _gate_board(False)
+    assert idea_target.gate(LOW, [wk(0.9, 3.5, now)], day, now) is None
+    assert idea_target.gate(LOW, [wk(0.9, 3.5, now)], day, now, day_free=False) == "night"
+    assert idea_target.gate(LOW, [wk(0.52, 3.5, now)], day, now) == "night"            # even
+    assert idea_target.gate(LOW, [wk(0.2, 3.5, now)], day, now) == "night"             # behind
+    assert idea_target.gate(LOW, [], day, now) == "night"                              # no week read
+    assert idea_target.gate({**LOW, "start_at_by": "person"}, [wk(0.9, 3.5, now)], day, now) == "night"
+    assert idea_target.gate({"start_at": "night", "passed_by": "auto"}, [wk(0.9, 3.5, now)], day, now) == "night"
+    assert idea_target.gate(LOW, [wk(0.9, 3.5, now)], {**day, "autostart": False}, now) == "night"
+    held = idea_target.gate(LOW, [wk(0.9, 3.5, now), five(0.2, 200, now)], day, now)    # the reserve, as for any autostart
+    assert held == pytest.approx(now + 200 * 60)
+
+
+def test_the_gate_holds_the_boards_low_plan_at_night_with_the_week_behind_until_the_weeks_reset():
+    now = time.time()
+    night = _gate_board(True)
+    assert idea_target.gate(LOW, [wk(0.2, 3.5, now)], night, now) == pytest.approx(now + 3.5 * DAY)
+    assert idea_target.week_hold(LOW, [wk(0.2, 3.5, now)], night, now) == pytest.approx(now + 3.5 * DAY)
+    assert idea_target.gate(LOW, [wk(0.52, 3.5, now)], night, now) is None             # even: starts as today
+    assert idea_target.gate(LOW, [wk(0.9, 3.5, now)], night, now) is None
+    assert idea_target.gate(LOW, [], night, now) is None
+    assert idea_target.gate({**LOW, "start_at_by": "person"}, [wk(0.2, 3.5, now)], night, now) is None
+    assert idea_target.gate(LOW, [wk(0.2, 3.5, now)], {**night, "autostart": False}, now) is None
+    assert idea_target.gate({"passed_by": "auto"}, [wk(0.2, 3.5, now)], night, now) is None   # High, Normal: today's
+
+
+def test_the_runner_starts_the_boards_low_plan_by_day_only_when_ahead_and_marks_it(town):
+    now = time.time()
+    for limits, starts in (([wk(0.9, 3.5, now)], True), ([wk(0.52, 3.5, now)], False), ([wk(0.35, 3.5, now)], False), ([], False)):
+        plan_of(town, [{"id": "k1"}])
+        _pass(town, start_at="night", start_at_by="board", passed_by="auto")
+        r, launched = _runner(town, limits=lambda l=limits: l, night=_now_in(False))
+        r.start("demo")
+        plan = r.plan("demo")
+        assert (launched == [("demo", "k1")]) is starts and bool(plan.get("by_pace")) is starts
+        assert plan["tasks"][0]["state"] == ("running" if starts else "ready")
+
+
+def test_a_second_board_low_plan_waits_while_the_first_runs_by_day(town):
+    now = time.time()
+    for slug in ("one", "two"):
+        plan_of(town, [{"id": "k1"}], slug=slug)
+        _pass(town, slug, start_at="night", start_at_by="board", passed_by="auto")
+    r, launched = _runner(town, limits=lambda: [wk(0.9, 3.5, now)], night=_now_in(False), max_parallel=3)
+    r._spawn = lambda slug, tid, cancel, again: (launched.append((slug, tid)),
+                                                 r._runs.__setitem__((slug, tid), SimpleNamespace(role="", why="", cancel=threading.Event())))
+    r.start("one")
+    r.start("two")
+    assert launched == [("one", "k1")] and r.plan("one")["by_pace"] and not r.plan("two").get("by_pace")
+    assert r.plan("two")["tasks"][0]["state"] == "ready"                               # waits, unheld, for the night or the first
+
+
+def test_at_night_with_the_week_behind_the_boards_low_plan_is_held_with_kind_week_until_the_reset(town):
+    now = time.time()
+    plan_of(town, [{"id": "k1"}])
+    _pass(town, start_at="night", start_at_by="board", passed_by="auto")
+    r, launched = _runner(town, limits=lambda: [wk(0.2, 3.5, now)], night=_now_in(True))
+    r.start("demo")
+    (task,) = r.plan("demo")["tasks"]
+    assert launched == [] and task["state"] == "held" and task["note"].startswith("week · after ")
+    assert r._until[("demo", "k1")] == pytest.approx(now + 3.5 * DAY)
+    plan_of(town, [{"id": "k1"}])                                                      # the person's: starts as today
+    _pass(town, start_at="night", start_at_by="person", passed_by="auto")
+    r, launched = _runner(town, limits=lambda: [wk(0.2, 3.5, now)], night=_now_in(True))
+    r.start("demo")
+    assert launched == [("demo", "k1")]
+
+
+# -- §4 events, payloads ------------------------------------------------------------------------------------------
+
+def _read_rows(lim, rows):
+    lim._read(rows)
+
 
 def test_week_reset_is_written_once_when_the_weekly_reset_moves_later_to_the_project_shown(tmp_path):
-    shown = tmp_path / "shop"
-    shown.mkdir()
+    lim = BoardLimits(tmp_path, lambda fn, *a: fn(*a), fetch=lambda root: [])
     now = time.time()
-    limits = BoardLimits(shown, lambda fn, *a: fn(*a), fetch=lambda p: [])
-    log = lambda: [r for r in event_log.read(shown) if r["event"] == "week_reset"]           # noqa: E731
-    limits._read([weekly(0.42, 1, now)])                                                       # the first read: nothing before it
-    limits._read([weekly(0.40, 1, now + 120)])                                                  # a few minutes of jitter in the reset: not a new week
-    assert log() == []
-    limits._read([weekly(0.18, 1, now + 600)])
-    limits._read([weekly(0.95, 8, now + 700)])                                                  # a week later: it came back
-    assert [(r["left"], r["provider"]) for r in log()] == [(0.18, "claude")]                   # the last share left read before it
-    limits._read([weekly(0.9, 8, now + 800)])
-    limits._read([session(0.5, 2, now)])                                                        # no week read: nothing
-    assert len(log()) == 1
-    home = BoardLimits(__import__("pathlib").Path.home(), lambda fn, *a: fn(*a), fetch=lambda p: [])
-    home._read([weekly(0.4, 1, now)])
-    home._read([weekly(0.9, 8, now)])                                                           # no project open: not written
-    assert not event_log.path(__import__("pathlib").Path.home()).exists() or not [r for r in event_log.read(__import__("pathlib").Path.home()) if r["event"] == "week_reset"]
+    _read_rows(lim, [wk(0.3, 1, now)])
+    _read_rows(lim, [wk(0.25, 1, now)])                                                # the same reset: nothing
+    assert [e for e in event_log.read(tmp_path) if e["event"] == "week_reset"] == []
+    _read_rows(lim, [wk(0.95, 7, now)])                                                # the week came back
+    _read_rows(lim, [wk(0.9, 7, now)])
+    (got,) = [e for e in event_log.read(tmp_path) if e["event"] == "week_reset"]
+    assert got["left"] == 0.25 and got["provider"] == "claude"                          # the last share left before it
+    _read_rows(lim, [Limit("claude", "", "weekly", None, None, "unreadable")])         # a failed read changes nothing
+    _read_rows(lim, [wk(0.8, 7, now)])
+    assert len([e for e in event_log.read(tmp_path) if e["event"] == "week_reset"]) == 1
 
 
-def test_the_map_says_week_for_the_boards_low_work_held_at_night_and_night_by_and_by_pace(host):
-    state = host.ideas.state_dir
-    low = _add(host, "a low idea", priority="low")
-    mine = _add(host, "my own night idea", priority="high", night=True)
-    plan_idea = _add(host, "a low plan", priority="low")
-    _plan(host, plan_idea)
-    host.ideas.pass_plan(plan_idea, "auto", night=True)
-    by_day = _add(host, "went by day", priority="low")
-    _plan(host, by_day, "working")
-    ideas.edit_plan(state, by_day, lambda p: p.update(by_pace=True, passed_at="x", tasks=[{**p["tasks"][0], "state": "running"}]))
-    ideas.save_state(state, by_day, state="working")
-
-    def nodes(**settings):
-        host.ideas.save_settings({**host.ideas.settings_now(), **settings})
-        return {n["slug"]: n for n in host.command("ideas.map")["nodes"]}
-
-    host.limits.rows = [weekly(0.1, 2)]                                                             # behind
-    got = nodes(night=night_around_now())
-    reset = at(time.time(), 2).strftime("%Y-%m-%dT%H:%M")
-    assert got[low]["waits"]["kind"] == "week" and got[low]["waits"]["until"] == reset and got[plan_idea]["waits"]["kind"] == "week"
-    assert got[mine]["waits"]["kind"] == "night" and got[low]["night_by"] == "board" and got[mine]["night_by"] == "person" and got[plan_idea]["night_by"] == "board"
-    assert got[by_day]["by_pace"] is True and got[low]["by_pace"] is False and got[by_day]["night_by"] == ""
-    assert nodes(night=day_around_now())[low]["waits"]["kind"] == "night"                          # by day it waits for the night, as it did
-    host.limits.rows = [weekly(0.9, 2)]
-    assert nodes(night=night_around_now())[low]["waits"]["kind"] == "night"                        # not behind: only the night
-    host.limits.rows = [weekly(0.1, 2)]
-    assert nodes(night=night_around_now(), autostart=False)[low]["waits"]["kind"] == "night"      # autostart off: nothing is moved
-
-
-def test_this_week_carries_the_week_and_what_the_last_one_left_unused(host):
+def test_week_reset_is_not_written_with_no_project_open_or_in_the_demo(tmp_path, monkeypatch):
+    from pathlib import Path
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    lim = BoardLimits(tmp_path, lambda fn, *a: fn(*a), fetch=lambda root: [])         # no project: the host points at home
     now = time.time()
-    assert host.command("ideas.week_work")["week"] is None and host.command("ideas.week_work")["last_unused"] is None
-    host.limits.rows = [weekly(0.55, 2, now)]
-    got = host.command("ideas.week_work")
-    assert got["week"]["left"] == 0.55 and got["week"]["pace"] == "ahead" and got["week"]["rest"] == pytest.approx(2 / 7, abs=0.01)
-    assert got["week"]["reset"] == pytest.approx(now + 2 * 86400, abs=5)
-    event_log.record(host.repo_root, event_log.WEEK_RESET, left=0.5, provider="claude")
-    event_log.record(host.repo_root, event_log.WEEK_RESET, left=0.3, provider="claude")
-    assert host.command("ideas.week_work")["last_unused"] == 0.3                                    # the newest
+    _read_rows(lim, [wk(0.3, 1, now)])
+    _read_rows(lim, [wk(0.95, 7, now)])
+    assert event_log.read(tmp_path) == []
+
+
+# -- §4 the Map ---------------------------------------------------------------------------------------------------
+
+def _map_of(host):
+    return host.ideas.root(), host.ideas.state_dir
+
+
+def test_the_map_says_who_put_work_off_what_the_week_holds_and_what_started_by_the_pace(host):
+    root, state = _map_of(host)
+    g = _goal_of(host)
+    now = dt.datetime(2026, 10, 21, 3, 0).timestamp()
+    behind = [wk(0.2, 3.5, now)]
+    settings = {"night": "01:00-07:00", "autostart": True}
+    mine = ideas.add_idea(root, "the person's", g, state, queue="night", night_by="person")
+    board = ideas.add_idea(root, "the board's", g, state, queue="night", night_by="board")
+    plan_board = ideas.add_idea(root, "plan of the board", g, state)
+    plan_person = ideas.add_idea(root, "plan of the person", g, state)
+    paced = ideas.add_idea(root, "started by day", g, state)
+    for slug, by, st in ((plan_board, "board", "plan"), (plan_person, "person", "plan")):
+        ideas.save_plan(state, slug, {"idea": slug, "passed_at": "x", "start_at": "night", "start_at_by": by, "tasks": [], "todos": []})
+        ideas.save_state(state, slug, state=st)
+    ideas.save_plan(state, paced, {"idea": paced, "passed_at": "x", "start_at": "night", "start_at_by": "board", "by_pace": True,
+                                   "tasks": [{"id": "k1", "title": "T", "state": "running", "after": []}], "todos": []})
+    ideas.save_state(state, paced, state="working")
+
+    def nodes(limits, when=now, s=settings):
+        return {n["slug"]: n for n in board_map.build(root, state, s, limits, when)["nodes"]}
+    got = nodes(behind)
+    reset = at(now + 3.5 * DAY).isoformat(timespec="seconds")
+    assert got[mine]["night_by"] == "person" and got[mine]["waits"]["kind"] == "night"
+    assert got[board]["night_by"] == "board" and got[board]["waits"] == {"kind": "week", "ref": "", "title": "", "until": reset}
+    assert got[plan_board]["night_by"] == "board" and got[plan_board]["waits"]["kind"] == "week"
+    assert got[plan_person]["night_by"] == "person" and got[plan_person]["waits"]["kind"] == "night"
+    assert got[paced]["by_pace"] is True and got[paced]["waits"] is None and got[mine]["by_pace"] is False
+    # not at night, not behind, no week read, autostart off: waits for the night, as today
+    day = dt.datetime(2026, 10, 21, 12, 0).timestamp()
+    assert nodes([wk(0.2, 3.5, day)], day)[board]["waits"]["kind"] == "night"
+    assert nodes([wk(0.52, 3.5, now)])[board]["waits"]["kind"] == "night"
+    assert nodes([])[board]["waits"]["kind"] == "night"
+    assert nodes(behind, s={**settings, "autostart": False})[board]["waits"]["kind"] == "night"
     json.dumps(got)
+    # a task held by the week at night
+    ideas.edit_plan(state, plan_board, lambda p: p.update(tasks=[{"id": "k1", "title": "T", "state": "held", "after": [],
+                                                                  "note": "week · after 09:00"}]))
+    ideas.save_state(state, plan_board, state="working")
+    assert nodes(behind)[plan_board]["waits"] == {"kind": "week", "ref": "", "title": "", "until": reset}
+    assert nodes([])[plan_board]["waits"] == {"kind": "week", "ref": "", "title": "", "until": "09:00"}
 
 
-def test_a_chip_of_a_task_of_a_plan_that_went_by_day_says_pace(host):
+def test_the_board_rows_carry_night_by_beside_queue_and_start_at(host):
+    g = _goal_of(host)
+    low = host.command("ideas.add", {"text": "low", "track": g, "priority": "low"})["slug"]
+    rows = {i["slug"]: i for i in host.command("ideas.board")["ideas"]}
+    assert rows[low]["queue"] == "night" and rows[low]["night_by"] == "board"
     state = host.ideas.state_dir
-    s = _add(host, "went by day", priority="low")
-    _plan(host, s, "working")
-    ideas.edit_plan(state, s, lambda p: p.update(by_pace=True, passed_at="x", tasks=[{**p["tasks"][0], "state": "running"}]))
-    other = _add(host, "went at once", priority="high")
-    _plan(host, other, "working")
-    ideas.edit_plan(state, other, lambda p: p.update(passed_at="x", tasks=[{**p["tasks"][0], "state": "running"}]))
-    chips = [c for b in host.command("ideas.agents")["roles"] for c in b["chips"] if c.get("task")]
-    assert {c["idea"]: c.get("pace") for c in chips} == {s: True, other: None}
+    ideas.save_plan(state, low, {"idea": low, "passed_at": "x", "start_at": "night", "start_at_by": "board", "tasks": [], "todos": []})
+    ideas.save_state(state, low, state="plan")
+    row = {i["slug"]: i for i in host.command("ideas.board")["ideas"]}[low]
+    assert row["start_at"] == "night" and row["night_by"] == "board"
+
+
+def test_an_agents_chip_says_when_its_task_started_by_the_pace(host):
+    g = _goal_of(host)
+    slug = host.command("ideas.add", {"text": "low", "track": g, "priority": "low"})["slug"]
+    state = host.ideas.state_dir
+    task = {"id": "k1", "title": "T", "state": "running", "after": [], "role": "grunt"}
+    ideas.save_plan(state, slug, {"idea": slug, "passed_at": "x", "passed_by": "auto", "start_at": "night", "start_at_by": "board",
+                                  "by_pace": True, "tasks": [task], "todos": []})
+    ideas.save_state(state, slug, state="working")
+    chips = [c for block in host.command("ideas.agents")["roles"] for c in block["chips"] if c.get("task") == "k1"]
+    assert chips and all(c["pace"] is True for c in chips)
+    ideas.edit_plan(state, slug, lambda p: p.pop("by_pace"))
+    chips = [c for block in host.command("ideas.agents")["roles"] for c in block["chips"] if c.get("task") == "k1"]
+    assert chips and all(c["pace"] is False for c in chips)
+
+
+def test_this_weeks_week_and_last_unused_come_through_ideas_week_work(host, monkeypatch):
+    nowts = time.time()
+    monkeypatch.setattr(host, "limits", lambda: [wk(0.9, 2, nowts)])
+    got = host.command("ideas.week_work", {})
+    json.dumps(got)
+    assert got["week"]["pace"] == "ahead" and got["week"]["left"] == 0.9 and got["last_unused"] is None
+    event_log.record(host.repo_root, event_log.WEEK_RESET, left=0.4, provider="claude")
+    assert host.command("ideas.week_work", {})["last_unused"] == 0.4
+    monkeypatch.setattr(host, "limits", lambda: [])
+    assert host.command("ideas.week_work", {})["week"] is None

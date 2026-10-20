@@ -10,6 +10,7 @@ from pathlib import Path
 
 from orkboard import settings
 from orkboard.gui.ideas_args import IdeasError, _device, _text
+from orkboard.core.idea_task import checker_of, is_check
 from orkboard.realm import event_log, idea_checks, idea_spend, ideas, library, roles
 from orkboard.realm.idea_git import IdeaGit
 
@@ -40,7 +41,7 @@ class ReviewMixin:
                 if t.get("state") == "review":
                     split = split or idea_spend.of_idea(self.state_dir, slug)["tasks"]
                     est = idea_spend.estimate_of(t, costs)
-                    out.append({"idea": slug, "idea_title": title, "task": t.get("id"), "title": t.get("title", ""),
+                    out.append({**self._found(t), "idea": slug, "idea_title": title, "task": t.get("id"), "title": t.get("title", ""),
                                 "round": int(t.get("round") or 1), "tests": t.get("tests") or _NO_TESTS,
                                 "diff": t.get("diff") or {"files": 0, "added": 0, "removed": 0},
                                 "cost": t.get("cost"), "conflict": t.get("conflict") or "",
@@ -51,16 +52,16 @@ class ReviewMixin:
                                 **self._check_of(t)})
         return sorted(out, key=lambda r: r["finished"])
 
-    def _check_of(self, task: dict) -> dict:
-        """A check task's result: `check` (its checker's name) and `findings` (spec 43 §1.4); another task's has neither."""
-        if task.get("kind") not in idea_checks.TAGS:
+    def _found(self, t: dict) -> dict:
+        """A check's result (spec 43 §1.4): `check` (the checker's name) and `findings`; nothing for another task."""
+        if not is_check(t):
             return {}
-        slug = str(task.get("role") or "")
-        if not idea_checks.is_checker(slug):
-            slug = idea_checks.checker_of_tag(str(task.get("kind")))
-        role, agent = roles.role(self.state_dir, slug), library.get(slug)
-        return {"check": (role or {}).get("name") or (agent.name if agent else slug),
-                "findings": [f for f in task.get("findings") or [] if isinstance(f, dict)]}
+        by = checker_of(t)
+        r = roles.role(self.state_dir, by) if by else None
+        a = library.get(by)
+        rows = t.get("findings")
+        return {"check": (r or {}).get("name") or (a.name if a else by) or "Check",
+                "findings": [dict(f) for f in rows if isinstance(f, dict)] if isinstance(rows, list) else []}
 
     def review_list(self, args: dict) -> dict:
         m = self.settings_now()

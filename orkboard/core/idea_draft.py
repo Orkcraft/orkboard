@@ -93,7 +93,7 @@ class DraftMixin:
             self.refuse_spent()
         elif self.hold(slug):
             return False
-        ideas.save_state(self.state_dir, slug, queue="now", held_until="", error="")
+        ideas.save_state(self.state_dir, slug, queue="now", held_until="", held_for="", error="")
         self._start(slug, "drafting", lambda: self.draft_one(slug))
         return True
 
@@ -172,12 +172,15 @@ class DraftMixin:
         if ideas.idea_page(root, slug) is None:
             return
         began = time.monotonic()
-        ideas.save_state(self.state_dir, slug, state="reading", error="", held_until="")
+        ideas.save_state(self.state_dir, slug, state="reading", error="", held_until="", held_for="")
         self.publish(slug)
         try:
             text, *_rest = self.ask("draft", self.draft_prompt(root, slug))
             answer = self.parse(text)
         except Exception as e:                      # the idea stays new; stopped by the person: it waits for them
+            if self.sign_in_held(slug, e, "raw"):    # its tool needs a sign-in: it waits for it, then the clock drafts it
+                self.publish(slug)
+                return
             stopped = isinstance(e, InterruptedError)
             ideas.save_state(self.state_dir, slug, state="raw", error="" if stopped else kw._why(e),
                              **({"queue": "hold"} if stopped else {}))

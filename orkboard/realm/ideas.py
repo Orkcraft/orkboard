@@ -38,6 +38,7 @@ GOAL_STATES = ("raw", "reading", "asks", "ready")
 MAX_METRICS, MAX_LINKS = 12, 12
 KEEPER_METRICS, KEEPER_LINKS = 3, 8   # what the keeper writes of a goal (spec 35 §2)
 STATES = ("raw", "reading", "asks", "ready", "planning", "plan", "working", "done", "failed", "proposed")
+NIGHT_BY = ("board", "person")      # who put work off to the night: the Board (a Low idea), or the person (spec 44 §2)
 QUEUES = ("now", "night", "hold")    # a raw idea: drafted at once, tonight, or stopped by the person (spec 35 §3)
 TITLE_KEEPER = 60                    # a goal's title as the keeper writes it
 SIZES = ("S", "M", "L")
@@ -145,7 +146,7 @@ def _track(slug: str, page: Page, count: int = 0) -> dict:
             "metrics_by": _metrics_by(page),
             "criteria": items(page.section("Success criteria")), "deadline": page.get("deadline"),
             "order": _int(page.get("order")), "count": count, "priority": _priority(page.get("priority")),
-            "craft": page.get("craft") if page.get("craft") in CRAFTS else CRAFTS[0], "team": _json_list(page.get("team")), "every": _json_list(page.get("team_every")), "leader": page.get("leader") or "", "metrics": _metrics(page), "summary": page.section("Summary"),
+            "craft": page.get("craft") if page.get("craft") in CRAFTS else CRAFTS[0], "team": _json_list(page.get("team")), "every": _json_list(page.get("team_every")), "leader": page.get("leader") or "", "party": page.get("party") or "", "metrics": _metrics(page), "summary": page.section("Summary"),
             "links": _links(page),
             "questions": items(page.section("Open questions"))}
 
@@ -360,7 +361,8 @@ def ideas(root: Path, track: str | None = None) -> list[dict]:
 def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None = None, priority: str = "",
              queue: str = "", night_by: str = "") -> str:
     """A dropped idea: its text under Gist, the rest empty, last in its track. No model. `priority`: the person's
-    (else its goal's); `queue`: where a raw idea waits (spec 35 §3); `night_by`: who put it off to the night (spec 44 §2)."""
+    (else its goal's); `queue`: where a raw idea waits (spec 35 §3); `night_by`: who put it off to the night, "board"
+    or "person" (spec 44 §2)."""
     text = str(text or "").strip()
     if not text:
         raise ValueError("An idea needs a few words")
@@ -384,7 +386,7 @@ def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None
         _reindex(root)
     if state_dir is not None:
         save_state(state_dir, slug, state="raw", **({"queue": queue} if queue in QUEUES else {}),
-                   **({"night_by": night_by} if queue == "night" and night_by in ("board", "person") else {}))
+                   **({"night_by": night_by} if queue == "night" and night_by in NIGHT_BY else {}))
     return slug
 
 
@@ -482,19 +484,18 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
 # -- what runs on an idea: <state_dir>/ideas/<slug>/ ------------------------------------------------
 
 STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": "",
-                 "queue": "", "held_until": "", "measure": None, "night_by": ""}
-
-
-def night_by_of(st: dict) -> str:
-    """Who put a raw idea off to the night (spec 44 §2): "board" (a Low idea's draft) or "person" (*Tonight*, New idea's night);
-    a state of before this spec reads "person"."""
-    return "board" if st.get("night_by") == "board" else "person"
+                 "queue": "", "held_until": "", "held_for": "", "measure": None, "night_by": ""}
 
 
 def queue_of(st: dict) -> str:
     """Where a raw idea waits: its queue; a raw idea from before spec 35, with none, waits for the night."""
     q = st.get("queue")
     return q if q in QUEUES else ("night" if st.get("state") == "raw" else "")
+
+
+def night_by_of(st: dict) -> str:
+    """Who put a queued idea off to the night: "board" only when it says so; a state of before reads "person"."""
+    return "board" if st.get("night_by") == "board" else "person"
 
 
 def state_folder(state_dir: Path, slug: str) -> Path:

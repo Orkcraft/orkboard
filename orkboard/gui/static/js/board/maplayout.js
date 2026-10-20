@@ -2,7 +2,7 @@
 // words (those are `rowOf`'s), the tiers and the waves, the edges' lines. The backend writes no words; these are the Map's own
 // only for `waits`, the same as the Agents chips'.
 import { say } from "../link.js";
-import { hhmm } from "./store.js";
+import { hhmm, dayAt } from "./store.js";
 import { rowOf } from "./tracks.js";
 
 /** The Needs you kinds on a node, in words (§4.3). */

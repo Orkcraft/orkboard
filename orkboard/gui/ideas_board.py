@@ -14,7 +14,7 @@ from typing import Any
 from orkboard import settings
 from orkboard.core import idea_keeper, idea_night
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text, _via
-from orkboard.realm import board_map, event_log, idea_questions, idea_risk, idea_secrets, idea_target, ideas
+from orkboard.realm import board_map, event_log, goal_team, idea_questions, idea_risk, idea_secrets, ideas
 from orkboard.realm.idea_git import BoardTree
 
 NEEDS_IDEA = ("asks", "plan", "failed", "proposed")
@@ -158,7 +158,9 @@ class BoardMixin:
         what = idea_risk.decide(page.get("risk"), page.get("priority"))
         if what != "wait":
             try:
-                self.pass_plan(slug, "auto", night=what == "night")
+                # a Low plan goes by day when the week is ahead of its pace, one at a time (spec 44 §3)
+                pace = what == "night" and self.keeper.pace_open(time.time()) and self.keeper.pace_day_free(slug)
+                self.pass_plan(slug, "auto", night=what == "night", pace=pace)
             except IdeasError:
                 return "wait"
         return what
@@ -171,9 +173,11 @@ class BoardMixin:
             pass
         self._publish(slug)
 
-    def pass_plan(self, slug: str, by: str, night: bool = False, args: dict | None = None) -> None:
+    def pass_plan(self, slug: str, by: str, night: bool = False, args: dict | None = None, pace: bool = False) -> None:
         """A plan passed: by the person's press ("person") or the board ("auto"); `night`: it starts inside the night
-        window. From now on it is the runner's."""
+        window (`start_at_by` keeps who put it off); `pace`: the week is ahead, so it starts by day all the same
+        (`by_pace`, spec 44 §3). From now on it is the runner's."""
+        pace = pace and night and by == "auto"
         plan = ideas.plan(self.state_dir, slug)
         if plan is None:
             raise IdeasError("This idea has no plan yet: Take it to work first")
@@ -185,18 +189,18 @@ class BoardMixin:
                 p.update(passed_at=time.strftime("%Y-%m-%dT%H:%M:%S"), passed_by=by)
                 p["start_at"] = "night" if night else None
                 if night:
-                    p["start_at_by"] = "board" if by == "auto" else "person"          # who put the start off (spec 44 §2)
-                else:
-                    p.pop("start_at_by", None)
+                    p["start_at_by"] = "board" if by == "auto" else "person"
+                if pace:
+                    p["by_pace"] = True
                 p.pop("stopped", None)
             ideas.edit_plan(self.state_dir, slug, passing)
             self._ev(event_log.PLAN_PASSED, args, idea=slug, tasks=len(plan.get("tasks") or []), seconds=self._since(plan.get("made_at")),
                      by=by, risk=idea_risk.level(page.get("risk")) if page else "", priority=page.get("priority") if page else "",
                      **({"via": _via(args)} if args is not None else {}),
-                     **({"pace": night and self._by_pace()} if by == "auto" else {}))
+                     **({"pace": pace} if by == "auto" else {}))
         elif by == "person" and plan.get("start_at"):
             ideas.edit_plan(self.state_dir, slug, lambda p: p.update(start_at=None))
-        if night:
+        if night and not pace:
             ideas.save_state(self.state_dir, slug, error="")
             self._publish(slug)
             return
@@ -261,7 +265,7 @@ class BoardMixin:
         else:
             if self._state(slug)["state"] != "raw":
                 raise IdeasError("Only a new idea waits for the night")
-            ideas.save_state(self.state_dir, slug, queue="night", held_until="", error="", night_by="person")      # Tonight is the person's
+            ideas.save_state(self.state_dir, slug, queue="night", night_by="person", held_until="", error="")
         self._ev(event_log.IDEA_QUEUED, args, idea=slug, queue=q, via=_via(args))
         self.changed(slug)
         return {"ok": True}
@@ -290,12 +294,16 @@ class BoardMixin:
                 raise IdeasError("That goal is gone")
             if decide:
                 answers = idea_questions.picks(g["questions"])
+            asks_by = self._goal_extra(slug).get("asks_by")          # read before the keeper reads again (spec 46 §1)
+            lead = goal_team.leader_of(self.root(), slug)
+            by_party = sum(1 for n, b in enumerate(asks_by if isinstance(asks_by, list) else [])
+                           if b != lead and n < len(answers) and answers[n].strip())
             said = "\n".join(f"{q} — {(answers[n] if n < len(answers) else '').strip() or '(no answer: decide)'}"
                              for n, q in enumerate(g["questions"]))      # a phone's quick answer may answer one
             self.keeper.read_goal(slug, said, answered=True)
             how = idea_questions.tally(g["questions"], [] if decide else answers)
             self._ev(event_log.GOAL_ANSWERED, args, goal=slug, answers=sum(1 for a in answers if a.strip()),
-                     decided=decide, **how)
+                     decided=decide, by_party=by_party, **how)
             self._what[f"goal:{slug}"] = "answered"
             self.changed(f"goal:{slug}")
             return {"ok": True}
@@ -359,9 +367,9 @@ class BoardMixin:
 
 
 def sort_needs(needs: list[dict]) -> list[dict]:
-    """What blocks work in progress first, then the priority, then the oldest; proposals last (§10), Operations' rules
-    proposals with them (spec 38 §8)."""
+    """What blocks work in progress first, then the priority, then the oldest; proposals last (§10), a party's proposal and Operations' rules
+    with them (spec 38 §8)."""
     def key(n: dict) -> tuple:
         prio = n.get("priority") if n.get("priority") in ideas.PRIORITIES else "normal"
-        return n["kind"] in ("proposal", "op_rules", "party"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
+        return n["kind"] in ("proposal", "party", "op_rules"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
     return sorted(needs, key=key)

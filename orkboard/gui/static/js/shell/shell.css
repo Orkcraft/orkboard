@@ -96,28 +96,10 @@
 .shell-facts .is-danger { color: var(--ork-danger); }
 .shell-facts .is-muted { color: var(--ork-ink-muted); }
 .shell-conflict { margin: 0; }
-.shell-own-parties { display: flex; flex-direction: column; gap: var(--ork-3); margin: 0 0 var(--ork-5); }
-.shell-own-parties h3 { margin: 0; }
-.shell-own-chips { display: flex; flex-wrap: wrap; gap: var(--ork-4); }
-.shell-own-chip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2); min-width: 0; }
-.shell-own-chip__pick { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-3); cursor: pointer; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-edge); }
-.shell-own-chip.is-on .shell-own-chip__pick, .shell-own-chip__pick:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
-.shell-own-heads { display: inline-flex; gap: 2px; }
-.shell-own-chip__close { all: unset; cursor: pointer; padding: var(--ork-2); color: var(--ork-ink-muted); }
-.shell-own-chip__close:focus-visible { outline: 2px solid var(--ork-ink); }
-.shell-own-ask, .shell-party-save-ask { flex-basis: 100%; margin: 0; }
-.shell-party-save-form { display: flex; gap: var(--ork-4); align-items: center; margin-top: var(--ork-3); }
-.shell-party-save { margin-top: var(--ork-3); }
-.shell-price { margin: var(--ork-4) 0 var(--ork-2); }
-.shell-hint { margin: 0 0 var(--ork-2); }
-.shell-party > summary { cursor: pointer; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
-.shell-party__lines { margin: var(--ork-2) 0 0; padding-left: var(--ork-5); }
-.shell-party__lines li { overflow-wrap: anywhere; }
-.shell-found { display: flex; flex-direction: column; gap: var(--ork-2); }
-.shell-found__sum { margin: 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
-.shell-found__list { margin: 0; padding-left: var(--ork-5); }
-.shell-found__list li { overflow-wrap: anywhere; }
-.shell-found__where { color: var(--ork-ink-muted); }
+.shell-findings { display: flex; flex-direction: column; gap: var(--ork-2); font-family: var(--ork-font-text); }      /* the checker's words: never the pixel face */
+.shell-findings__head { margin: 0; font-weight: 600; }
+.shell-findings__list { margin: 0; padding-left: var(--ork-5); display: flex; flex-direction: column; gap: var(--ork-1); }
+.shell-findings__where { color: var(--ork-ink-muted); font-family: var(--ork-font-code); }
 .shell-actions { display: flex; flex-direction: column; gap: var(--ork-4); }
 .shell-actions__main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); }
 .shell-actions__main .shell-quiet { margin-left: auto; }
@@ -196,6 +178,7 @@
 .shell-pair .gui-you__qr, .shell-pair .gui-phones__qr { width: 200px; height: 200px; image-rendering: pixelated; background: var(--ork-raised); }
 .shell-pair__steps { margin: 0; padding-left: 20px; }
 .shell-pair__reach { margin: 0; padding-left: 20px; }
+.shell-pair .gui-phones__awake { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); }
 .shell-gear__logs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); }
 .shell-gear__logs .ork-btn { text-decoration: none; }
 
@@ -370,10 +353,30 @@
 .shell-team-row[aria-pressed="true"] .shell-team-mark { color: var(--ork-action); }
 .shell-team-craft { margin: var(--ork-4) 0 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
 .shell-check-badge { margin-left: var(--ork-2); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
+.shell-party-price { margin: var(--ork-4) 0 0; overflow-wrap: anywhere; }
+.shell-party-hint { margin: var(--ork-2) 0 0; overflow-wrap: anywhere; }
+/* Your parties (party.js `OwnParties`, `SaveParty`): chips above the bands, and the quiet button under a goal's Team. */
+.shell-own { display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-3) 0; }
+.shell-own__title { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.shell-own__list { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+.shell-own__chip { display: inline-flex; align-items: center; max-width: 100%; border: var(--ork-line) solid var(--ork-edge); }
+.shell-own__pick { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2) var(--ork-3);
+  padding: var(--ork-3) var(--ork-4); min-width: 0; overflow-wrap: anywhere; }
+.shell-own__pick:hover { background: var(--ork-raised); }
+.shell-own__pick:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.shell-own__pick[aria-pressed="true"] { background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.shell-own__heads { display: inline-flex; gap: var(--ork-2); }
+.shell-party-save { margin-top: var(--ork-3); }
+.shell-party-save-form { display: flex; flex-wrap: wrap; gap: var(--ork-3); align-items: center; margin-top: var(--ork-3); }
+.shell-party-save-form .ork-field { flex: 1 1 12rem; min-width: 0; }
 .shell-checks { display: flex; flex-direction: column; gap: var(--ork-3); margin-top: var(--ork-4); }
 .shell-check-row { display: grid; grid-template-columns: 12px 1fr auto; gap: var(--ork-3); align-items: center; }
 .shell-check-every { display: inline-flex; align-items: center; gap: var(--ork-2); white-space: nowrap; }
 .shell-goal__team { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
+/* What the party did (goalview.js `PartyFold`, also in the Map's Flags): a fold, its lines the text face. */
+.party-work { display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; }
+.party-work__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); overflow-wrap: anywhere; }
+.party-work__btn { align-self: flex-start; }
 /* A goal's verdict (goalview.js): the next ideas, each with Add as idea; the button that asks its leader to accept it. */
 .shell-goal__next { display: flex; flex-direction: column; gap: var(--ork-2); }
 .shell-goal__next-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-3); }

@@ -215,3 +215,33 @@ first.
 - Switching to another tool when one is not signed in (Orkline's toast's Switch stays where it is).
 
 ## 12. As built (notes, no change of the contract)
+
+**Part A, built.** Where it differs from the text above:
+- **Files beyond §10, each one line or a mixin**: `realm/ideas.py` (`held_for` in `STATE_DEFAULT`, so `ideas.state` keeps it),
+  `realm/op_runs.py` (`held_for` in `RUN_KEYS`), `gui/ideas.py` and `gui/ops.py` (the keeper, the runner and Operations are
+  given the host's `sign_ins`), `core/idea_sign_in.py` (new: the keeper's holds, as a mixin, so `idea_keeper.py` does not grow
+  further past ~600 lines), `tests/conftest.py` (an autouse fixture drops every `tool_errors` watcher after a test: a host
+  watches for the life of its process), `tests/test_gui_ideas.py` (that test sets a key so a sign-in cannot help: it is about
+  the line).
+- **`tool_errors`**: besides `watch`, `watch_ok`, `helps` and `ran`, `doing(where)` / `where_now()` name what a thread does
+  (`task`, `draft`, `plan`, `op`, `check`, else `ask`) for the episode's `where`; `helped(err)` asks `helps` once for an error
+  (`err.helped`). `what_to_do` says *Sign in opens …* only for an error a host's watcher judged `helps` (`err.helped is True`),
+  so Orkline's runs and the tests keep today's words. `ran` is called by `tool_run.result_of` (every `jobs` run that ended
+  without a failure reads its result there) and by `tool_run.ask`.
+- **`realm/sign_in.py`**: `Outcome.state` is `done` | `failed` | `none`; `timeout` and `cancelled` are `failed` with that
+  `why`. The process is registered in `realm/halt.py` (so Stop all also kills it, and `tests/test_architecture.py` needs no
+  exception); `Run.told()` is *Done*. A script on Windows is `<tool>.cmd`.
+- **`core/sign_ins.py`**: a failure within 60 s after a `done`, of a tool that says it is signed in, begins no episode (a run
+  that began before the sign-in is held and let go at once). A tool that needs its sign-in with no run open is asked
+  `signed_in` every 30 s: `True` after a `False` ends the episode as `elsewhere` (nothing runs to tell it while the work is
+  held). A Codex sign-in whose port is busy stays `open` and starts when the port is free (or fails `timeout`).
+  `SignIns(…, threaded=False)` runs polls and *Done* on the caller's thread (tests).
+- **Holds**: a task keeps `held_for`, `harness`, `held_until` (ISO, `HOLD_H` from the hold) and `held_line` (the line it fails
+  with); an idea `held_for` + `held_until` in its state; an operation `held_for` + `held_until`. A task, an idea or an
+  operation that would start by itself while the tool is not signed in is held at once, without a call. The draft and the
+  plan are held whoever asked for them (*Process now*, *Re-plan* too); an answer in a dialog, a talk and a goal's read fail
+  with the line.
+- **The need** is `board_map.sign_in_needs(entries)`; the host adds it to `ideas.board`'s `needs_you` and to the snapshot's
+  `needs_you` count, with the snapshot's `sign_in`. The phone's snapshot carries neither `sign_in` nor a command for it; B
+  reads the need from `ideas.board`. `waits` kind `sign_in` is `{kind, ref: harness, title: tool, tool, until: ISO}`.
+- **Events** go to the shown project's log only (`root()` of the host); none in the demo, where nothing is watched.

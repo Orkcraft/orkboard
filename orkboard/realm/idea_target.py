@@ -8,7 +8,7 @@
     task_pick("warrior", "thrift", "")             # ("laborer", "low"): Grunt runs on the shifted tier
     in_night("01:00-07:00", now)                   # inside the night window (the machine's local time)
     reserve_held(limits, settings, now)            # the reserve left for the person: None, or until when
-    week(limits, now), pace(limits, now)           # the Claude week's share left against the share of it still to come (spec 44 §1)
+    pace(limits, now)                              # the Claude week's pace: "ahead" · "even" · "behind" · None (spec 44)
 
 One Target per Board, for the whole route board → pool → gate (decisions §44.3, §47.6). A role with a model set
 (spec 34 §3) runs on it; the Target still gives the effort. No face, no model.
@@ -23,7 +23,7 @@ from orkboard.realm import plans
 TARGETS = ("thrift", "balance", "quality")
 DEFAULT = "balance"
 EFFORTS = ("low", "medium", "high", "xhigh", "max")      # the Claude CLI's `--effort` levels
-STEPS = ("goal", "draft", "answer", "talk", "plan", "refresh", "propose", "task")
+STEPS = ("goal", "ask", "draft", "answer", "talk", "plan", "refresh", "propose", "task")
 PROPOSALS = {"thrift": 0, "balance": 2, "quality": 3}  # the night's proposals by the Target (§8)
 MAX_WAITING = 3                                          # never more proposals than this waiting in all
 TIER_ROLE = "elder"                                      # the Taskmaster's default: its model is not the person's pick
@@ -31,6 +31,8 @@ TIER_ROLE = "elder"                                      # the Taskmaster's defa
 # step → target → (tier, effort); a task's tier is relative: -1 one lighter, 0 its own, +1 one heavier.
 MATRIX: dict[str, dict[str, tuple[Any, str] | None]] = {
     "goal": {"thrift": ("elder", "medium"), "balance": ("elder", "high"), "quality": ("elder", "xhigh")},
+    # a member of a goal's party asks before its leader reads the goal (quality only: docs/specs/46-goal-trail.md §2)
+    "ask": {"thrift": None, "balance": None, "quality": ("warrior", "low")},
     "draft": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     # the answer to a spec's questions (§0) is not in the spec's table: it finishes the draft, so it runs as the draft
     "answer": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
@@ -53,10 +55,11 @@ OP_STEPS = ("op_prepare", "op_act", "op_learn")
 # call's own instructions not counted); how many files it may read; its budget in USD (`--max-budget-usd`) in balance,
 # half in thrift, double in quality.
 CONTEXT = {"goal": 12_000, "draft": 8_000, "answer": 8_000, "talk": 6_000, "plan": 10_000, "refresh": 12_000, "accept": 10_000,
-           "propose": 10_000, "op_prepare": 12_000, "op_act": 6_000, "op_learn": 6_000}
-READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0, "accept": 4}
-CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30, "accept": 0.60,
+           "propose": 10_000, "ask": 4_000, "op_prepare": 12_000, "op_act": 6_000, "op_learn": 6_000}
+READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0, "ask": 0, "accept": 4}
+CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30, "ask": 0.10, "accept": 0.60,
         "op_prepare": 0.30, "op_act": 0.10, "op_learn": 0.10}
+GOAL_QUESTIONS = {"thrift": 3, "balance": 3, "quality": 5}   # a goal's read keeps at most this many questions, its party's too (spec 46 §1)
 BUDGET_SHARE = {"thrift": 0.5, "balance": 1.0, "quality": 2.0}
 
 
@@ -163,18 +166,47 @@ def reserve(settings: dict | None, night: bool) -> float:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else default
 
 
-MARGIN = 0.10                                            # the week is ahead of its pace by at least this much (spec 44 §1)
-SOON_S = 3600                                            # within this long of the five-hour window's reset, its reserve is the night's
+# -- the week's pace (docs/specs/44-week-pace.md §1) --------------------------------------------------------------
+
+MARGIN = 0.10                     # the week is `ahead` when its share left is this far above the share still to come
+SOON_S = 3600                     # by day, within this of the five-hour window's reset its reserve is the night's
 WEEK_S = 7 * 24 * 3600
+_EDGE = 1e-9                      # a percent read is a float: the edges are compared with this much room
 
 
 def week(limits, now: float, provider: str = "claude") -> dict | None:
-    """The tool's weekly window as {"left", "rest", "reset"}: its share left, the share of the week still to come
-    ((reset − now) / 7 days, between 0 and 1) and its reset in epoch seconds. None when no weekly limit has a share
-    and a reset read (not read, an error, another tool, an API key): every rule that reads the pace is then today's."""
+    """The tool's weekly window as read: `{"left", "rest", "reset"}` (its share left, the share of the week still to
+    come, 0..1, and when it comes back, epoch seconds); None with no such window (not read, an error, another tool)."""
     from orkboard.realm import status
-    rows = [(lim.remaining, r) for lim in limits or () if getattr(lim, "provider", "") == provider and getattr(lim, "window", "") == "weekly"
-            and getattr(lim, "remaining", None) is not None and (r := status._reset_s(lim)) is not None]
+    for lim in limits or ():
+        if getattr(lim, "provider", "") != provider or getattr(lim, "window", "") != "weekly" or getattr(lim, "error", None):
+            continue
+        left, reset = getattr(lim, "remaining", None), status.reset_at(lim)
+        if left is None or reset is None:
+            continue
+        return {"left": float(left), "rest": min(max((reset - now) / WEEK_S, 0.0), 1.0), "reset": reset}
+    return None
+
+
+def pace(limits, now: float, provider: str = "claude") -> str | None:
+    """The week's pace: "ahead" (its share left at least MARGIN above the share to come), "behind" (below it), else
+    "even"; None with no `week`."""
+    w = week(limits, now, provider)
+    if w is None:
+        return None
+    if w["left"] - w["rest"] >= MARGIN - _EDGE:
+        return "ahead"
+    return "behind" if w["left"] < w["rest"] else "even"
+
+
+def reserve_held(limits, settings: dict | None, now: float, provider: str = "claude") -> float | None:
+    """What starts by itself waits while any of the tool's windows has its share or less left: the day's reserve by day,
+    the night's inside the night window (the five-hour window's, by day within SOON_S of its reset and while the week's
+    pace is not behind, is the night's: spec 44 §1). Until when (epoch seconds), else None. With no limits read for the
+    tool, no reserve applies."""
+    from orkboard.realm import status
+    rows = [lim for lim in limits or () if getattr(lim, "provider", "") == provider
+            and getattr(lim, "remaining", None) is not None]
     if not rows:
         return None
     left, reset = min(rows)                               # the tightest, when a tool has several
@@ -202,49 +234,45 @@ def reserve_held(limits, settings: dict | None, now: float, provider: str = "cla
         return None
     from orkboard.realm import status
     night = in_night(str((settings or {}).get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
-    eased = not night and pace(limits, now, provider) in ("ahead", "even")
-    spent = []
+    easing = False if night else pace(limits, now, provider) != "behind"
+    held, resets = False, []
     for lim in rows:
-        share = reserve(settings, night)
-        reset = status._reset_s(lim)
-        if eased and getattr(lim, "window", "") == "session" and reset is not None and 0 < reset - now <= SOON_S:
-            share = reserve(settings, True)               # the hour before the five hours come back: they ease the reserve
-        if lim.remaining <= share:
-            spent.append(lim)
-    if not spent:
+        reset = status.reset_at(lim)
+        soon = easing and getattr(lim, "window", "") == "session" and reset is not None and 0 < reset - now <= SOON_S
+        if lim.remaining <= reserve(settings, night or soon):
+            held = True
+            if reset is not None and reset > now:
+                resets.append(reset)
+    if not held:
         return None
-    resets = [r for lim in spent if (r := status._reset_s(lim)) is not None and r > now]
     return max(resets) if resets else now + status.UNKNOWN_RESET_S
 
 
-class WeekHold(float):
-    """What `gate` answers when the week holds a Board's Low plan's tasks at night: the week's reset (a hold of kind `week`)."""
+def board_low(plan: dict, board: dict | None = None) -> bool:
+    """A plan the Board itself put off to the night (a Low plan its autostart passed), while `autostart` is on: the
+    only work the week's pace moves (spec 44 §2, §3). A plan of before reads as the person's."""
+    return plan.get("start_at") == "night" and plan.get("start_at_by") == "board" \
+        and bool((board or {}).get("autostart", True))
 
 
-def board_low(plan: dict, board: dict) -> bool:
-    """A plan the Board itself put off to the night (a Low plan's start) while it may still decide: autostart is on."""
-    return plan.get("start_at") == "night" and plan.get("start_at_by") == "board" and bool(board.get("autostart", True))
+def week_hold(plan: dict, limits, board: dict, now: float) -> float | None:
+    """The week's reset when the Board's Low plan is held for the week: at night, with the week `behind`."""
+    if not board_low(plan, board) or not in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)) \
+            or pace(limits, now) != "behind":
+        return None
+    return (week(limits, now) or {}).get("reset")
 
 
-def by_pace(plan: dict, limits, board: dict, now: float) -> bool:
-    """The Board's Low plan may start by day: the week is ahead of its pace (spec 44 §3)."""
-    night = in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
-    return board_low(plan, board) and not night and pace(limits, now) == "ahead"
-
-
-def gate(plan: dict, limits, board: dict, now: float) -> str | float | None:
+def gate(plan: dict, limits, board: dict, now: float, day_free: bool = True) -> str | float | None:
     """What holds a passed plan's tasks besides the spent window: "night" (it starts at night and the window is not
-    open: its tasks wait, unheld), the reserve's reset (it started by itself), the week's reset (`WeekHold`: the Board's
-    Low plan at night while the week is behind), else None (spec 35 §5, §6; spec 44 §3). The Board's Low plan is the one
-    exception to "night": by day, with the week ahead of its pace, it starts, the reserve as for any autostart."""
-    night = in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
-    if plan.get("start_at") == "night":
-        low = board_low(plan, board)
-        if not night and not (low and pace(limits, now) == "ahead"):
+    open: its tasks wait, unheld), the week's reset (the Board's Low plan, at night, the week behind: spec 44 §3), the
+    reserve's reset (it started by itself), else None (spec 35 §5, §6). The Board's Low plan starts by day while the
+    week is `ahead`, one at a time (`day_free`: no other starts by day in this project)."""
+    if plan.get("start_at") == "night" and not in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)):
+        if not (board_low(plan, board) and day_free and pace(limits, now) == "ahead"):
             return "night"
-        if night and low and pace(limits, now) == "behind":
-            got = week(limits, now)
-            return WeekHold(got["reset"])
+    elif (until := week_hold(plan, limits, board, now)) is not None:
+        return until
     if plan.get("passed_by") == "auto" or plan.get("start_at") == "night":
         return reserve_held(limits, board, now)
     return None

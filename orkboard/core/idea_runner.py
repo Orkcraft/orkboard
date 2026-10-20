@@ -32,8 +32,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from orkboard.core.sign_ins import HOLD_H
 from orkboard.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
-from orkboard.core.idea_task import FINDINGS_ASK, NO_DIFF, NO_FINDINGS, NO_RUN, TaskMixin, is_check
+from orkboard.core.idea_task import FINDINGS_ASK, NO_CHANGE, NO_FINDINGS, TaskMixin, is_check
 from orkboard.realm import call_log, event_log, halt, harnesses, idea_checks, idea_spend, idea_target, jobs, roles, status, tool_errors
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths  # noqa: F401
 
@@ -72,6 +73,14 @@ def setting(settings: Any, key: str, default: Any = None) -> Any:
     return default
 
 
+def _epoch(iso: object) -> float | None:
+    """A task's `held_until` (local ISO time) as seconds; None when it holds none."""
+    try:
+        return dt.datetime.fromisoformat(str(iso)).timestamp()
+    except ValueError:
+        return None
+
+
 def _until_of(note: str, now: float) -> float | None:
     """The time an "after HH:MM" note means: today's, else tomorrow's when it has passed by more than an hour."""
     try:
@@ -85,9 +94,10 @@ def _until_of(note: str, now: float) -> float | None:
 
 
 class Held(Exception):
-    def __init__(self, until: float) -> None:
+    def __init__(self, until: float, line: str = "") -> None:
+        """`line`: the tool's refused sign-in in words, when the work is held for the tool's sign-in (spec 45 §6)."""
         super().__init__("held")
-        self.until = until
+        self.until, self.line = until, line
 
 
 @dataclass
@@ -101,10 +111,12 @@ class Run:
 class IdeaRunner(TaskMixin, ReviewMixin):
     def __init__(self, repo_root: Path, state_dir: Path, settings: Any, bus: Any = None, *,
                  limits: Callable[[], list] | None = None, events: bool = True,
-                 on_held: Callable[[], None] | None = None, rank: Callable[[str], Any] | None = None) -> None:
+                 on_held: Callable[[], None] | None = None, rank: Callable[[str], Any] | None = None,
+                 sign_ins: Any = None) -> None:
         """`limits`: the quota readers' last read (the town's `limits`); without it the runner reads it itself.
         `events`: write the task's events to the local event log (spec 33 §9); `on_held`: a task was held (the limits are read);
-        `rank(slug)`: the idea's place (its priority, then the person's order): the ideas are served in that order."""
+        `rank(slug)`: the idea's place (its priority, then the person's order): the ideas are served in that order;
+        `sign_ins`: the host's sign-ins (core/sign_ins.py): a task whose tool is not signed in is held for it, not failed."""
         self.repo_root, self.state_dir = Path(repo_root), Path(state_dir)
         self.settings, self.bus = settings, bus
         self.git = IdeaGit(self.repo_root)
@@ -116,7 +128,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         self._gate_runs: dict[str, object] = {}              # a worktree's last gate run, until the task reads it
         self._active: list[str] = []
         self._until: dict[tuple[str, str], float] = {}
-        self.events, self.on_held, self.rank = events, on_held, rank
+        self.events, self.on_held, self.rank, self.sign_ins = events, on_held, rank, sign_ins
         self._since: dict[tuple[str, str], float] = {}     # when a task entered the state it is in (the event log)
         self._tls = threading.local()                       # Merge's `dear`, on the thread that merges
         self._resume_working()
@@ -171,7 +183,8 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1),
                        tier=t.get("tier") or "", role=t.get("role") or "", seconds=round(now - since, 1) if since else None, tokens=t.get("tokens"),
                        cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "",
-                       tool=t.get("tool") or "", model=t.get("model") or "", **check)
+                       tool=t.get("tool") or "", model=t.get("model") or "",
+                       **({"check": True, **({"clean": True} if new == "merged" and t.get("note") == "clean" else {})} if is_check(t) else {}))
             if new == "review":
                 tests, diff = t.get("tests") or {}, t.get("diff") or {}
                 self._emit(event_log.RESULT_READY, idea=slug, task=tid, round=int(t.get("round") or 1), passed=tests.get("passed"),
@@ -232,6 +245,8 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     continue
                 if t.get("state") not in ("merged", "review"):
                     t.update(state="waiting", error="", note="")
+                    for key in ("held_for", "held_until", "held_line"):
+                        t.pop(key, None)
                 self._until.pop((slug, t.get("id")), None)
             self._save_tasks(slug, plan["tasks"])
             self._set_idea(slug, "working")
@@ -295,10 +310,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                         self._changed(slug)
                     continue
                 board = self.board()
-                gate = idea_target.gate(plan, limits, board, now)
-                paced = idea_target.by_pace(plan, limits, board, now)            # the Board's Low plan, started by day: the week has room (spec 44 §3)
-                if paced and self._paced_elsewhere(slug):
-                    gate = "night"                   # at most one of them by day in a project: a second waits for the first to end
+                gate = idea_target.gate(plan, limits, board, now, day_free=self._pace_free(slug))
                 for t in tasks:
                     if slots <= 0 or gate == "night":       # starts at night: only inside the window
                         break
@@ -308,10 +320,16 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     if self._running_as(role["slug"]) >= role["max_parallel"]:
                         continue                     # this role's own limit (spec 34 §3): the task waits its turn
                     until = status.reset_of(limits, HARNESS, now, status.NEARLY)
-                    if until is not None or gate is not None:     # the window, else the person's reserve (§6), else the week (spec 44)
+                    if until is not None or gate is not None:     # the window, else the week (spec 44), else the reserve (§6)
+                        week = until is None and idea_target.week_hold(plan, limits, board, now) == gate
                         self._hold(slug, t, until if until is not None else gate,
-                                   "" if until is not None else "week · " if isinstance(gate, idea_target.WeekHold) else "reserve · ")
+                                   "" if until is not None else ("week · " if week else "reserve · "))
+                    elif self.signed_out():                       # its tool needs a sign-in: held for it (spec 45 §6)
+                        self._hold_sign_in(t, "")
                     else:
+                        if plan.get("start_at") == "night" and idea_target.board_low(plan, board) and not plan.get("by_pace") \
+                                and not idea_target.in_night(str(board.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)):
+                            self._mark_pace(slug)                  # it goes by day because the week is ahead (spec 44 §3)
                         self._launch(slug, t)
                         slots -= 1
                         if paced:
@@ -346,9 +364,21 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             return (1, 0)
 
     def board(self) -> dict:
-        """The Board's own settings as the runner reads them (spec 35): its Target, night, reserves."""
+        """The Board's own settings as the runner reads them (spec 35): its Target, night, reserves, and whether it
+        starts plans by itself (spec 44: the week's pace moves only the Board's own work)."""
         return {k: setting(self.settings, k, d) for k, d in (("target", "balance"), ("night", "01:00-07:00"),
-                                                             ("reserve_day", 0.3), ("reserve_night", 0.1), ("autostart", True))}
+                                                             ("reserve_day", 0.3), ("reserve_night", 0.1),
+                                                             ("autostart", True))}
+
+    def _pace_free(self, slug: str) -> bool:
+        """No other plan of this project goes by day by the week's pace (one at a time, spec 44 §3)."""
+        return not any(o != slug and (self.plan(o) or {}).get("by_pace") for o in self._active)
+
+    def _mark_pace(self, slug: str) -> None:
+        plan = self.plan(slug)
+        if plan is not None:
+            plan["by_pace"] = True
+            self._write(self._dir(slug) / "plan.json", plan)
 
     def ran_on(self, task: dict) -> tuple[str, str]:
         """(the model or tier a task runs on, its effort): the Target's shift of its tier, a role's own model winning."""
@@ -365,10 +395,15 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         changed = False
         for t in tasks:
             tid, state = t.get("id"), t.get("state")
-            if state == "held" and str(t.get("note") or "").startswith("week") and limits is not None \
-                    and not isinstance(idea_target.gate(plan, limits, self.board(), now), idea_target.WeekHold):
-                self._until.pop((slug, tid), None)             # the week is not behind any more: no reason left to hold it
-                t.update(state="waiting", note="")
+            if state == "held" and t.get("held_for") == "sign_in":
+                if self.signed_out(t.get("harness") or HARNESS):
+                    if (due := _epoch(t.get("held_until"))) and now >= due:      # a day: it fails as it did, with the line
+                        t.update(state="failed", error=t.get("held_line") or tool_errors.LINES[tool_errors.LOGIN].format(
+                                     tool=harnesses.title(t.get("harness") or HARNESS)),
+                                 finished=now_iso(), held_for="", held_until="", held_line="")
+                        changed = True
+                    continue
+                t.update(state="waiting", note="", held_for="", held_until="", held_line="")     # signed in: it goes on
                 state, changed = "waiting", True
             if state == "held":
                 until = self._until.get((slug, tid)) or _until_of(t.get("note", ""), now) or now
@@ -398,6 +433,24 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             why = failed.get("error") or "it failed"
             self._set_idea(slug, "failed", f"{failed.get('title') or failed.get('id')}: {why}")
         self._changed(slug)
+
+    def signed_out(self, harness: str = HARNESS) -> bool:
+        """Whether the host says this tool needs its sign-in: what runs by itself waits for it."""
+        return self.sign_ins is not None and bool(self.sign_ins.blocked(harness))
+
+    def _hold_sign_in(self, task: dict, line: str) -> None:
+        """The task waits for its tool's sign-in: at most `HOLD_H` hours, then it fails with `line`."""
+        task.update(state="held", note="", held_for="sign_in", harness=HARNESS, held_line=line[:600],
+                    held_until=dt.datetime.fromtimestamp(time.time() + HOLD_H * 3600).isoformat(timespec="seconds"))
+
+    def held_for(self, harness: str) -> int:
+        """How many tasks wait for this tool's sign-in now."""
+        n = 0
+        for state_file in (self.state_dir / "ideas").glob("*/plan.json"):
+            plan = self._read(state_file) or {}
+            n += sum(1 for t in plan.get("tasks") or [] if isinstance(t, dict) and t.get("state") == "held"
+                     and t.get("held_for") == "sign_in" and (t.get("harness") or HARNESS) == harness)
+        return n
 
     def _hold(self, slug: str, task: dict, until: float, why: str = "") -> None:
         self._until[(slug, task.get("id"))] = until
@@ -431,8 +484,8 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         task.update(tool=HARNESS, model=(h.pick(run) if h else run) or run)    # the model the run names (spec 35 §12)
         task.update(state="running", started=now_iso(), finished="", error="", note="",
                     branch=f"idea/{slug}/{tid}", commit="", session="", cost=None, tokens=None,
-                    tests=None, diff=None, round=1, conflict="", why="", base="", role=self._role(task)["slug"],
-                    ran_tier=idea_target.tier_of(run), effort=effort, **({"findings": None} if is_check(task) else {}))
+                    tests=None, diff=None, round=1, conflict="", why="", base="", findings=None, role=self._role(task)["slug"],
+                    ran_tier=idea_target.tier_of(run), effort=effort)
         self._clear_log(slug, tid)
         self._spawn(slug, tid, cancel, None)
 
@@ -456,7 +509,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             h = harnesses.need(HARNESS)
             run, effort = self.ran_on(task)
             model = h.pick(run)                          # the role's model, else the tier the Target gives
-            rnd = int(task.get("round") or 1)
+            rnd, chk = int(task.get("round") or 1), is_check(task)
             if again is None:
                 self.git.ensure_branch(base)
                 path, branch = self.git.prepare(slug, tid, base)
@@ -477,6 +530,8 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 if tests and not tests.get("green", not tests.get("failed")):
                     extra += f"The tests were red:\n{tests.get('tail', '')}\n\n"
                 prompt, resume = BACK.format(why=again["why"], extra=extra), str(task.get("session") or "")
+                if chk and resume:
+                    prompt += "\n\n" + FINDINGS_ASK
                 if not resume:
                     prompt = self._prompt(slug, plan, task) + "\n\n" + prompt
                 elif is_check(task):
@@ -485,52 +540,32 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     self._set_task(slug, tid, findings=None)       # replaced by this round's
             self._log(slug, tid, f"== round {rnd} · {now_iso()} · {model}\n{prompt}\n", env)
             session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent, effort)
-            check_task, findings, changed = is_check(task), None, True
-            problem, out = None, ""
+            problem, out, findings = None, "", None
             for attempt in (1, 2):
                 self._set_task(slug, tid, state="testing")
-                if check_task:                                # spec 43 §1.3: a check that changes no file says so in its findings
-                    got, changed = self._findings_round(path, start_sha, str(task.get("title") or ""))
-                    findings = got if got is not None else findings
-                if check_task and not changed:
-                    problem, out = (None, "") if findings is not None else (NO_FINDINGS, "")
-                else:
-                    problem, out = self._check(path, start_sha, cancel, str(task.get("title") or ""))
+                if chk:                              # spec 43 §1.3: what it found decides how it ends
+                    done, findings = self._check_round(slug, tid, path, start_sha, task, spent, env, attempt > 1 and findings is not None)
+                    if done:
+                        return
+                problem, out = self._check(path, start_sha, cancel, str(task.get("title") or ""), chk)
                 self._log(slug, tid, f"== the gate, try {attempt}\n{out or problem}\n", env)
                 if problem is None:
                     break
                 if attempt == 2:
-                    if check_task and not changed and findings is None:
-                        raise RuntimeError("the check said nothing: no findings file")
+                    if chk and findings is None and problem.startswith(NO_CHANGE):
+                        raise RuntimeError(NO_FINDINGS)
                     if out and setting(self.settings, "review"):    # red after the one fix: the person decides
                         break
                     raise RuntimeError(f"the gate is still red after one fix: {problem[-600:]}")
                 self._set_task(slug, tid, state="running")
-                session = self._session(slug, tid, path, cancel, model, env,
-                                        FIX.format(problem=problem) + (f"\n\n{FINDINGS_ASK}" if check_task else ""), session,
+                session = self._session(slug, tid, path, cancel, model, env, FIX.format(problem=problem) + (f"\n\n{FINDINGS_ASK}" if chk else ""), session,
                                         spent, effort, "fix")
-            left, note = 0, ""
-            if check_task and findings is not None:
-                if not changed:                               # nothing changed: nothing was fixed
-                    findings = [{**f, "fixed": False} for f in findings]
-                found = idea_checks.counts(findings)
-                left, note = found["left"], f"{found['left']} left" if found["left"] else ""
-                self._emit(event_log.CHECK_DONE, idea=slug, task=tid, by=self._checker_of(task), found=found["found"],
-                           fixed=found["fixed"], left=left, round=rnd, cost=spent["cost"])
-                self._set_task(slug, tid, findings=findings)
-            if check_task and not changed and findings == []:    # clean: nothing to gate, to review or to land
-                self._set_task(slug, tid, state="merged", commit="", subjects=[], note="clean", tests=dict(NO_RUN), diff=dict(NO_DIFF),
-                               finished=now_iso(), error="")
-                self.git.remove(path)
-                return
-            if check_task and not changed:
-                tests, diff = dict(NO_RUN), dict(NO_DIFF)
-            else:
-                tests = self._tests_of(path, out, problem)
-                diff = self.git.stats(path, start_sha)
-            if setting(self.settings, "review") or not tests["ran"] or left:     # nothing ran, or findings left: never lands by itself
+            tests = self._tests_of(path, out, problem)
+            diff = self.git.stats(path, start_sha)
+            left = idea_checks.counts(findings)["left"] or 0 if chk else 0      # findings left always wait at Review
+            if setting(self.settings, "review") or not tests["ran"] or left:     # nothing ran: never lands by itself
                 self._set_task(slug, tid, state="review", tests=tests, diff=diff, conflict="", finished=now_iso(),
-                               error="" if problem is None else "the tests are red", note=note)
+                               error="" if problem is None else "the tests are red", note=f"{left} left" if left else "")
                 self._log(slug, tid, f"== at Review · {now_iso()}\n", env)
                 return
             commit, subjects, note = self.git.land(path, branch, base, bool(setting(self.settings, "push")))
@@ -540,8 +575,14 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         except Held as e:
             with self._lock:
                 self._until[(slug, tid)] = e.until
-            self._set_task(slug, tid, state="held" if again is None else "review",
-                           note=f"after {dt.datetime.fromtimestamp(e.until):%H:%M}", finished="")
+            if e.line:                      # held for its tool's sign-in (spec 45 §6), not for a window
+                hold: dict = {}
+                self._hold_sign_in(hold, e.line)
+                self._set_task(slug, tid, finished="", **({**hold, "note": ""} if again is None
+                                                          else {"state": "review", "note": e.line[:300]}))
+            else:
+                self._set_task(slug, tid, state="held" if again is None else "review",
+                               note=f"after {dt.datetime.fromtimestamp(e.until):%H:%M}", finished="")
         except (InterruptedError, halt.Halted) as e:
             run = self._runs.get((slug, tid))
             why = (run.why if run else "") or (str(e) if isinstance(e, halt.Halted) else STOPPED)
@@ -569,11 +610,13 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         """One turn of the task's Claude session (work mode); its cost and tokens add up on the task, and its line
         goes to the idea's ledger (spec 36 §1: `task`, or `fix` for the gate's retry)."""
         try:
-            with call_log.of_project(self.repo_root):        # its log and spend are this project's, shown or not
+            with call_log.of_project(self.repo_root), tool_errors.doing("task"):     # its log and spend: this project's
                 _text, cost, tokens, session = jobs.run_work(HARNESS, prompt, path, cancel, model=model, env=env,
                                                              resume=resume, effort=effort)
         except tool_errors.ToolError as e:
             if e.kind != tool_errors.LIMIT:
+                if self.sign_ins is not None and self.sign_ins.holds(e):      # its sign-in helps: the task waits for it
+                    raise Held(time.time() + HOLD_H * 3600, tool_errors.plainly(e)) from e
                 raise
             now = time.time()
             raise Held(status.reset_of(self._read_limits(now), HARNESS, now, 1.0)

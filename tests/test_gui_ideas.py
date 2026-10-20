@@ -73,9 +73,8 @@ def test_drop_an_idea_and_read_the_board_and_its_page(host):
     assert i["progress"] == {"done": 0, "total": 0} and i["updated"]
     assert set(i) == {"slug", "title", "short", "track", "order", "state", "size", "thesis", "asks", "progress", "updated",
                       "priority",                 # spec 34 §4: ideas gain a priority
-                      "queue", "held_until", "risk", "risk_triggers", "depends_on", "waits_on", "start_at",
-                      "in_needs_you",             # spec 35 §12
-                      "night_by"}                 # spec 44 §4: who put it off to the night
+                      "queue", "held_until", "risk", "risk_triggers", "depends_on", "waits_on", "start_at", "night_by",
+                      "in_needs_you"}             # spec 35 §12
     assert i["priority"] == "normal" and board["tracks"][0]["priority"] == "normal" and board["tracks"][0]["state"] == "raw"
     assert board["needs_you"] == [] and board["rev"] > rev      # spec 35 §10: `today` became `needs_you`, the batch went
     page = host.command("ideas.page", {"slug": slug})
@@ -285,17 +284,15 @@ def test_review_list_has_the_spec_shape_and_the_phones_may_call_it(host):
     assert BoardPhone.allowed(host, "ideas.merge", {"slug": slug, "task": "k1"})
 
 
-def test_a_check_s_result_has_the_checker_and_its_findings_and_another_task_s_has_neither(host):
-    """Spec 43 A: a row of a check task gains `check` (the checker's name) and `findings`."""
-    found = [{"where": "a.py:1", "what": "a bug", "fixed": False}, {"where": "b.py:2", "what": "another", "fixed": True}]
-    plain = _review(host)
+def test_a_checks_result_gains_the_checker_and_its_findings(host):
+    """Spec 43 A §1.4: a check task's row has `check` (the checker's name) and `findings`; another task's has neither."""
+    rows = [{"where": "a.py:1", "what": "it breaks", "fixed": True}, {"where": "b.py:2", "what": "it leaks", "fixed": False}]
+    slug = _review(host, kind="review", role="reviewer", findings=rows)
     (r,) = host.command("ideas.review_list")["results"]
-    assert "check" not in r and "findings" not in r
-    slug = _review(host, kind="review", role="reviewer", findings=found, note="1 left")
-    rows = {x["idea"]: x for x in host.command("ideas.review_list")["results"]}
-    assert rows[slug]["check"] == "Reviewer" and rows[slug]["findings"] == found and "check" not in rows[plain]
-    other = _review(host, kind="security", findings=[])                     # a role of another slug: the checker of its tag
-    assert {x["idea"]: x for x in host.command("ideas.review_list")["results"]}[other]["check"] == "Security reviewer"
+    assert r["check"] == "Reviewer" and r["findings"] == rows
+    ideas.edit_plan(host.ideas.state_dir, slug, lambda p: p["tasks"][0].update(kind="code", role=""))
+    (plain,) = host.command("ideas.review_list")["results"]
+    assert "check" not in plain and "findings" not in plain
 
 
 def test_the_snapshot_counts_results_and_the_phone_is_pushed_when_one_arrives(host):
@@ -350,6 +347,7 @@ def test_a_draft_the_tool_failed_says_why_on_the_page_not_as_its_error(host, mon
         raise tool_run.failure(harness, 1, said, "")
 
     monkeypatch.setattr(jobs, "run_read", run_read)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")                   # a key is set: a sign-in cannot help (spec 45 §3)
     slug = _add(host, "Dark mode", night=False)["slug"]                  # Normal: drafted at once
     _wait(host, slug)
     page = host.command("ideas.page", {"slug": slug})

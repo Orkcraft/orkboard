@@ -26,7 +26,7 @@ class Check:
     applies: str              # when it applies to an idea, for the Taskmaster ("when the idea changes code")
     done: str                 # the line it adds to the spec's Done when
     task: str                 # the brief of the task it adds to the plan, after the work it checks
-    fits: tuple[str, ...] = ()  # the goal crafts it usually applies to (a hint while a party is picked, never a limit)
+    fits: tuple[str, ...] = ()  # the goal crafts it usually applies to (a hint while a party is picked, never a limit: spec 43 §5)
 
 
 @dataclass(frozen=True)

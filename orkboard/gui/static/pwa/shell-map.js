@@ -11,7 +11,7 @@ import { foot } from "./shell-forms.js";
 import { keepGoal } from "./shell-top.js";
 import { rowState } from "./shell-ideas.js";
 import { goalState, partyFold } from "./shell-goal.js";
-import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
+import { PRIORITY_WORDS, hhmm, dayAt } from "./shell-words.js";
 import { whoHead } from "./shell-who.js";
 import { price } from "./shell-preview.js";
 
@@ -33,6 +33,7 @@ export function waitsWords(node) {
   if (w.kind === "files") return `same files as ${w.title || w.ref}`;
   if (w.kind === "limits") return at ? `waits for limits · after ${at}` : "waits for limits";
   if (w.kind === "reserve") return at ? `keeps your reserve · after ${at}` : "keeps your reserve";
+  if (w.kind === "week") return w.until ? `waits: the week is behind · until ${dayAt(w.until)}` : "waits: the week is behind";
   if (w.kind === "night") return "tonight";
   if (w.kind === "stopped") return "stopped";
   if (w.kind === "week") return `waits: the week is behind${w.until ? ` · until ${dayAt(w.until)}` : ""}`;
@@ -136,8 +137,7 @@ export function makeMap(core, goalSheet) {
     try { open = localStorage.getItem(foldKey()) === "open"; } catch { /* closed */ }
     const fill = (flags) => list.replaceChildren(...flags.map((f) => h("li", {}, h("button", { class: "map-flag", type: "button", onclick: () => core.open({ kind: "goal", slug: f.goal }, "flags") },
       h("span", { class: "map-flag-mark", "aria-hidden": "true" }, icon("flag")),
-      h("span", { class: "map-flag-body" }, h("b", {}, f.title), h("small", { class: "muted" }, flagWords(f)), h("small", { class: "muted" }, tallyWords(f.tally)))),
-      partyFold(core, f.goal))));
+      h("span", { class: "map-flag-body" }, h("b", {}, f.title), h("small", { class: "muted" }, flagWords(f)), h("small", { class: "muted" }, tallyWords(f.tally)))), partyFold(core, f.goal))));
     async function load() {
       const rev = st.map?.rev;
       if (flagsAt && flagsAt.rev === rev) { fill(flagsAt.list); return; }

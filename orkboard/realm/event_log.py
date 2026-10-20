@@ -54,16 +54,16 @@ IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it
 IDEA_SAID = "idea_said"           # idea, section, chars, text, device (the person's turn to the Taskmaster)
 KEEPER_STATE = "keeper_state"     # idea, state, was, seconds in the previous state
 PLAN_MADE = "plan_made"           # idea, tasks, todos, usd_low, usd_high
-PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority, via, pace (by auto: it goes on by day, the week having room)
+PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority, via,
+#                                    pace (with by "auto": it started by day, the week ahead of its pace; spec 44)
 PLAN_STARTED_NOW = "plan_started_now"   # idea, device, via ("map" · "idea"): a plan held for the night started now (spec 41 §4)
 IDEA_QUEUED = "idea_queued"       # idea, queue ("now" · "night"), device, via ("map" · "idea") (spec 41 §4)
 TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan (a secret's value never)
-TASK_STATE = "task_state"         # idea, task, state, was, round, tier, role, seconds in the previous state, tokens, cost, ran_tier, effort,
-#                                    check (true: a check task's), clean (true: a check that found nothing, merged with no commit; spec 43 §1.3)
-CHECK_DONE = "check_done"         # idea, task, by (the checker's slug), found, fixed, left, round, cost: a round of a check task ended with findings read
+TASK_STATE = "task_state"         # idea, task, state, was, round, tier, role, seconds in the previous state, tokens, cost, ran_tier, effort; check, clean (a check task; a clean one's merged)
 RESULT_READY = "result_ready"     # idea, task, round, passed, failed, files, added, removed, cost, role
 RESULT_DECIDED = "result_decided"  # idea, task, round, decision, why, into, pushed, conflict, device, seconds from result_ready,
 #                                    dear (on a merge: the person said it cost too much for this, spec 36 §4)
+CHECK_DONE = "check_done"         # idea, task, by (the checker), found, fixed, left, round, cost: a round of a check task that read its findings (spec 43 A)
 TASK_STOPPED = "task_stopped"     # idea, task, device
 TASK_SKIPPED = "task_skipped"     # idea, task, device: a task taken out of its plan before it ran (a check skipped)
 CHECK_SKIPPED = "check_skipped"   # idea, by (the checker), skipped (false: taken again), task ("" before a plan), usd (what it spares), device
@@ -72,9 +72,9 @@ INTO_CHANGED = "into_changed"     # branch, push, device
 OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map · recap · flag · week · push · party), ref, via (map · board · needs · agents · review · recap · week · flags · push; old lines ""), device
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
-GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device, party (the id of the saved party it was picked from, else "")
+GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device; party (the id of a saved party picked, "" without)
 GOAL_ACCEPTED = "goal_accepted"   # goal, met, by (its leader's name), and the call's measure
-GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took, tier, effort
+GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took, tier, effort, party (members' views it had), by_party (its questions that are a member's)
 ROLE_SAVED = "role_saved"         # role, model, max_parallel, new, device, kinds (the types it takes), instruction_chars
 ROLE_DROPPED = "role_dropped"     # role, kinds (the task types sent back to Grunt), device
 KIND_SET = "kind_set"             # kind, role, device
@@ -82,13 +82,19 @@ KIND_SET = "kind_set"             # kind, role, device
 BOARD_SET = "board_set"           # target, autostart, night, device
 IDEA_DRAFTED = "idea_drafted"     # idea, risk, triggers, questions, tier, effort, seconds
 IDEA_ANSWERED = "idea_answered"   # idea, answers (how many), picked, recommended, typed, decided (spec 41 §10)
-GOAL_ANSWERED = "goal_answered"   # goal, answers, picked, recommended, typed, decided, device (spec 41 §10)
+GOAL_ANSWERED = "goal_answered"   # goal, answers, picked, recommended, typed, decided, by_party (answered questions that were a member's), device (spec 41 §10)
 # … and every keeper event (goal_read, idea_drafted, idea_answered, idea_said, plan_made, night_run) carries §0's
 # step, prompt_chars, tokens ({"in", "out", "cache_read"}) and cost (null when unpriced, never 0)
 KEEPER_STOPPED = "keeper_stopped"  # idea (the person stopped the keeper's run on it)
-NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, paced (the Board's Low ideas the week's pace left for later), seconds
+NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, paced (the Board's Low ideas left for the week), seconds
+WEEK_RESET = "week_reset"         # left (the share left when the week came back), provider (spec 44 §4)
 PROPOSAL_MADE = "proposal_made"   # idea, goal
 PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
+PARTY_ASKED = "party_asked"       # goal, by (the member), questions, step ("ask"), prompt_chars, tokens, cost: a member's call before the leader's read (spec 46 §2)
+PARTY_PROPOSED = "party_proposed"   # goal, by (the checker), runs: the night's proposal to take a checker out of a party (spec 43 D)
+PARTY_ANSWERED = "party_answered"   # goal, by, take, has_reason, device
+PARTY_SAVED = "party_saved"       # party, members, own, replaced, device: a goal's party saved among the person's (spec 43 F)
+PARTY_DROPPED = "party_dropped"   # party, device
 BOARD_COMMITTED = "board_committed"   # commit, pages, what, seconds (spec 35 §13: the Board's pages on the work branch)
 BOARD_HELD = "board_held"         # why (the work branch could not move to the Board's commit)
 # Spec 37 §8: the project, as in an IDE (in the project's own log).
@@ -125,13 +131,18 @@ PARTY_DROPPED = "party_dropped"   # party, device
 PUSH_SET = "push_set"             # on, device
 PUSH_SENT = "push_sent"           # tag, devices, gone
 
+# Spec 45 §7: a tool's own sign-in (how often and how fast, nothing more).
+SIGN_IN_NEEDED = "sign_in_needed"   # harness, where (task · draft · plan · op · check · ask)
+SIGNED_IN = "signed_in"             # harness, by (browser · terminal · elsewhere), s (seconds from the episode's start)
+SIGN_IN_FAILED = "sign_in_failed"   # harness, why (timeout · cancelled · refused · no_browser · check)
+
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
-          TODO_DONE, TASK_STATE, CHECK_DONE, RESULT_READY, RESULT_DECIDED, TASK_STOPPED, TASK_SKIPPED, CHECK_SKIPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, GOAL_ACCEPTED, ROLE_SAVED,
-          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
+          TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, CHECK_DONE, TASK_STOPPED, TASK_SKIPPED, CHECK_SKIPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, GOAL_ACCEPTED, ROLE_SAVED,
+          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED, PARTY_ASKED, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET)
+          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, WEEK_RESET, SIGN_IN_NEEDED, SIGNED_IN, SIGN_IN_FAILED)
 
 _LOCK = threading.Lock()
 

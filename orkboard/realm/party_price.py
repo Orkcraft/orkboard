@@ -1,107 +1,107 @@
-"""What a party costs, before it starts (docs/specs/43-party-measured.md §3): about what an idea costs with a leader, its builders
-and its checkers, from this project's own ideas once there are enough of them, a first guess before. A pure read of the plans and the
-ledgers: no face, no model, it writes nothing.
+"""About what an idea costs with a party, before it starts (docs/specs/43-party-measured.md §3): the leader's steps, the work
+of the builders and each checker's check, from the project's last ideas when it has them, else from the defaults. No face,
+no model, it writes nothing.
 
-    party_price.price(root, state_dir, settings, "architect", ["grunt", "tester", "reviewer"], every=["reviewer"])   # §3.1's object
+    party_price.price(root, state_dir, settings, "product-manager", ["tester", "reviewer"], ["reviewer"])
+    # {"low", "high", "learned", "ideas", "checks": [{"by", "name", "usd", "share", "every"}]}
 
-`root` is the Board's tree (the ideas' pages), `settings` the Board's (its Target). The basis is the project's newest `BASIS` ideas
-with a plan; the price is *learned* from `idea_spend.TOO_FEW` of them with priced lines. A task costs what `ideas.roles` says an
-agent's task costs (its week's spend by its tasks that ended from `TOO_FEW` of them, else a task at its head's tier).
+`root` is the Board's tree (where the pages are), `state_dir` the project's state, `settings` the Board's (its Target).
 """
 from __future__ import annotations
 
-import datetime as dt
 from pathlib import Path
-from typing import Any
 
 from orkboard.realm import goal_team, idea_checks, idea_spend, idea_target, ideas, library, plans, roles
+from orkboard.realm.board_map import list_of_dicts
 
-BASIS = 20                          # the project's newest ideas with a plan
-GUESS_TASKS = 3                     # tasks (not checks) an idea has, before the project has any
-GUESS_SHARE = 0.5                   # the share of ideas a check applies to, before the project says
-SPREAD = (0.5, 1.5)                 # low and high, as `idea_keeper.estimate` spreads a plan's
+BASIS = 20                 # the newest ideas with a plan that a price is learned from
+GUESS_TASKS = 3            # tasks of the work an idea has, before the project's own are known
+GUESS_SHARE = 0.5          # the share of ideas a check applies to, before the project's own is known
+STEPS_PER_TIER = 2         # a first guess of the leader's steps: this many runs at its tier
+SPREAD = (0.5, 1.5)        # as `idea_keeper.estimate` spreads a plan's
 
 
-def _who(state_dir: Path, slug: str) -> dict:
-    """An agent as the project has it; a library agent not installed yet as the library has it."""
-    r = roles.role(state_dir, slug)
+def _role(state_dir: Path, slug: str, known: dict[str, dict]) -> dict:
+    """A role as the project has it; an agent of the library not installed yet, as it will be installed (its tier its model)."""
+    r = known.get(slug)
     if r is not None:
         return r
     a = library.get(slug)
-    return {"slug": slug, "name": a.name if a else slug, "model": "", "craft": a.craft if a else roles.DEFAULT_CRAFT,
-            "tier": a.tier if a else "warrior"}
+    if a is not None:
+        return {"slug": a.id, "name": a.name, "craft": a.craft, "model": a.tier}
+    return known[roles.GRUNT]
 
 
-def task_usd(state_dir: Path, slug: str, target: str, week: dict, costs: dict) -> float:
-    """About what a task of this agent costs (as `gui/ideas_roles.py` `_usd_task` says it): its week's spend by its tasks that ended,
-    from `TOO_FEW` of them on; else a task at its head's tier."""
-    r = _who(state_dir, slug)
-    mine = week.get(slug) or {}
-    if mine.get("spent") and int(mine.get("finished") or 0) >= idea_spend.TOO_FEW:         # (tasks that ended with no priced line say nothing)
+def _task_usd(r: dict, week: dict, costs: dict, target: str) -> float:
+    """About what a task of a role costs (`gui/ideas_roles.py` `_usd_task`): its week's spend by its tasks that ended, from
+    `idea_spend.TOO_FEW` of them on; else a task's at its head's tier."""
+    mine = week.get(r["slug"]) or {}
+    if mine.get("spent") is not None and int(mine.get("finished") or 0) >= idea_spend.TOO_FEW:
         return float(mine["spent"]) / int(mine["finished"])
-    tier = roles.head_tier(str(r.get("model") or ""), target, str(r.get("tier") or "warrior"))
-    return float(costs.get(tier, plans.DEFAULT_COST["warrior"]))
+    tier = roles.head(r, target)["tier"]
+    return float(costs.get(tier, plans.DEFAULT_COST.get(tier, plans.DEFAULT_COST["warrior"])))
 
 
-def _made(state_dir: Path, slug: str, plan: dict) -> str:
-    if plan.get("made_at"):
-        return str(plan["made_at"])
-    try:
-        return dt.datetime.fromtimestamp((Path(state_dir) / "ideas" / slug / "plan.json").stat().st_mtime).isoformat(timespec="seconds")
-    except OSError:
-        return ""
+def _basis(root: Path, state_dir: Path) -> list[tuple[str, dict]]:
+    """(slug, plan) of the project's newest `BASIS` ideas with a plan, by the time of the plan's file."""
+    found = []
+    for i in ideas.ideas(root):
+        plan = ideas.plan(state_dir, i["slug"])
+        if plan:
+            try:
+                at = (ideas.state_folder(state_dir, i["slug"]) / "plan.json").stat().st_mtime
+            except OSError:
+                at = 0.0
+            found.append((at, i["slug"], plan))
+    found.sort(key=lambda x: x[0], reverse=True)
+    return [(slug, plan) for _at, slug, plan in found[:BASIS]]
 
 
-def basis(root: Path, state_dir: Path) -> list[tuple[str, dict]]:
-    """The project's newest ideas with a plan, newest first: [(slug, plan)]."""
-    got = [(s, p) for i in ideas.ideas(root) if (p := ideas.plan(state_dir, i["slug"])) and (p.get("tasks") or []) for s in [i["slug"]]]
-    return sorted(got, key=lambda sp: _made(state_dir, *sp), reverse=True)[:BASIS]
+def _usd(value: float) -> float:
+    return round(float(value), 2)
 
 
-def _round(usd: float) -> float:
-    return round(usd, 2)
-
-
-def price(root: Path, state_dir: Path, settings: dict, leader: str, team: list[str], every: list[str]) -> dict[str, Any]:
-    """§3.1's object: {low, high, learned, ideas, checks: [{by, name, usd, share, every}]}."""
+def price(root: Path, state_dir: Path, settings: dict | None, leader: str, team: list[str], every: list[str]) -> dict:
+    """§3.1's object for a party: `leader`, `team` (its builders and checkers) and `every` (the checkers whose check applies
+    to every idea) as the picker has them."""
+    root, state_dir = Path(root), Path(state_dir)
     target = idea_target.target_of(settings)
-    rows = basis(root, state_dir)
-    spend = {s: idea_spend.of_idea(state_dir, s) for s, _p in rows}
-    priced = [s for s, _p in rows if spend[s]["usd"] is not None and sum(v["calls"] for v in spend[s]["stages"].values())]
+    known = {r["slug"]: r for r in roles.roles(state_dir)}
+    week, costs = idea_spend.by_role(state_dir), idea_spend.tier_costs(state_dir)
+    basis = _basis(root, state_dir)
+    spend = {slug: idea_spend.of_idea(state_dir, slug) for slug, _p in basis}
+    priced = [slug for slug, s in spend.items() if s["usd"] is not None]
     learned = len(priced) >= idea_spend.TOO_FEW
 
-    # the leader's steps
-    lead = _who(state_dir, leader or roles.TASKMASTER)
-    steps = [sum(v for k in ("spec", "plan") if (v := spend[s]["stages"][k]["usd"]) is not None) for s in priced
-             if any(spend[s]["stages"][k]["usd"] is not None for k in ("spec", "plan"))]
-    if learned and steps:
-        steps_usd = sum(steps) / len(steps)
+    lead = _role(state_dir, leader or roles.TASKMASTER, known)
+    if learned:
+        steps_each = [sum(spend[s]["stages"][st]["usd"] or 0.0 for st in ("spec", "plan")) for s in priced]
+        steps = sum(steps_each) / len(steps_each)
     else:
-        tier = roles.head_tier(str(lead.get("model") or ""), target, str(lead.get("tier") or "elder"))
-        steps_usd = plans.DEFAULT_COST[tier] * 2
+        tier = roles.head(lead, target)["tier"]
+        steps = plans.DEFAULT_COST[tier] * STEPS_PER_TIER
 
-    # the work: the tasks that are not checks, at what a task of the party's builders costs
-    week, costs = idea_spend.by_role(state_dir), idea_spend.tier_costs(state_dir)
-    builders = [s for s in team if goal_team.band_of(s) == "build"] or [roles.GRUNT]
-    per_task = sum(task_usd(state_dir, s, target, week, costs) for s in builders) / len(builders)
-    counts = [sum(1 for t in p["tasks"] if str(t.get("kind") or "") not in idea_checks.TAGS) for _s, p in rows]
-    tasks = sum(counts) / len(counts) if learned and counts else GUESS_TASKS
-    work = tasks * per_task
+    builders = [s for s in team if goal_team.band_of(s) == "build"]
+    each = [_task_usd(_role(state_dir, s, known), week, costs, target) for s in builders] or [_task_usd(known[roles.GRUNT], week, costs, target)]
+    tasks = (sum(sum(1 for t in p.get("tasks") or [] if isinstance(t, dict) and str(t.get("kind") or "") not in idea_checks.TAGS)
+                 for _s, p in basis) / len(basis)) if learned else GUESS_TASKS
+    work = tasks * (sum(each) / len(each))
 
-    # each check: what a task of its checker costs, and the share of ideas it applies to
-    drafted: dict[str, list[bool]] = {}
-    for s, _p in rows:
-        page = ideas.idea_page(root, s)
-        for x in (ideas._json_list(page.get("checks")) if page is not None else []):
-            if isinstance(x, dict) and isinstance(x.get("by"), str):
-                drafted.setdefault(x["by"], []).append(bool(x.get("applies")) and not x.get("skipped"))
+    drafted: dict[str, list[bool]] = {}                    # per checker: for each idea drafted with it, whether it applied
+    for slug, _p in basis:
+        page = ideas.idea_page(root, slug)
+        for k in list_of_dicts(page.get("checks")) if page else []:
+            drafted.setdefault(str(k.get("by") or ""), []).append(k.get("applies") is not False and k.get("skipped") is not True)
     checks, added = [], 0.0
-    for by in [s for s in team if goal_team.band_of(s) == "check"]:
-        usd, always = task_usd(state_dir, by, target, week, costs), by in (every or [])
-        said = drafted.get(by, [])
-        share = 1.0 if always else (sum(said) / len(said) if len(said) >= idea_spend.TOO_FEW else GUESS_SHARE)
+    for slug in team:
+        a = library.get(slug)
+        if a is None or a.check is None or goal_team.band_of(slug) != "check":
+            continue
+        each_check = slug in every
+        seen = drafted.get(slug, [])
+        share = 1.0 if each_check else (sum(seen) / len(seen) if len(seen) >= idea_spend.TOO_FEW else GUESS_SHARE)
+        usd = _task_usd(_role(state_dir, slug, known), week, costs, target)
+        checks.append({"by": slug, "name": a.name, "usd": _usd(usd), "share": round(share, 2), "every": each_check})
         added += usd * share
-        checks.append({"by": by, "name": _who(state_dir, by)["name"], "usd": _round(usd), "share": round(share, 2), "every": always})
-
-    base = steps_usd + work + added
-    return {"low": _round(base * SPREAD[0]), "high": _round(base * SPREAD[1]), "learned": learned, "ideas": len(rows), "checks": checks}
+    base = steps + work + added
+    return {"low": _usd(base * SPREAD[0]), "high": _usd(base * SPREAD[1]), "learned": learned, "ideas": len(basis), "checks": checks}

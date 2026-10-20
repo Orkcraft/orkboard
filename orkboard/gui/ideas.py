@@ -79,7 +79,7 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin, RolesMixin, ReviewMixin, BoardMixin):
+class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, PartyMixin, RolesMixin, ReviewMixin, BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
         host makes one from its town, Orkboard its own."""
@@ -99,7 +99,8 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
         self.keeper = idea_keeper.IdeaKeeper(
             self.host.repo_root, self.state_dir, self.keeper_root, self.settings_now, self._publish,
             demo=bool(self.host.demo), budget_ok=lambda: self.host.budget_ok(), limits=lambda: list(self.host.limits() or []),
-            on_plan=self._on_plan, start_night=self.start_night, events=not self.host.demo)
+            on_plan=self._on_plan, start_night=self.start_night, events=not self.host.demo,
+            sign_ins=getattr(self.host, "sign_ins", None))
         self.keeper.index_root = self.wiki
         self.host.bus.subscribe(idea_keeper.CHANGED, self._changed)
 
@@ -215,7 +216,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
                 from orkboard.core.idea_runner import IdeaRunner
                 self._runner = IdeaRunner(self.host.repo_root, self.state_dir, _Settings(self.host), _Hop(self.host),
                                           events=not self.host.demo, on_held=lambda: self.log_limits(force=True),
-                                          rank=self.rank)
+                                          rank=self.rank, sign_ins=getattr(self.host, "sign_ins", None))
             except ImportError:
                 self._runner_error = "The runner is not in this build yet: plans cannot start"
             except Exception as e:              # a runner that cannot start never stops the board
@@ -247,6 +248,15 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
     def running(self) -> int:
         """How many of the project's tasks are running now (Close project asks first when some are)."""
         return len(getattr(self._runner, "_runs", {}) or {})
+
+    def working(self) -> bool:
+        """The keeper is at work or a task runs (spec 47: the computer is kept awake meanwhile); a runner not built
+        is not at work."""
+        return bool(self.keeper.at_work() or (self._runner is not None and self._runner.busy()))
+
+    def tonight(self) -> int:
+        """How much work waits for tonight (core/idea_night.py `tonight`)."""
+        return self.keeper.tonight()
 
     def stop_all(self, device: str = "desktop") -> None:
         self._ev(event_log.STOP_ALL, count=self.running(), device=device or "desktop")
@@ -325,8 +335,8 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
             raise IdeasError(str(e)) from None
         pointed = self._lens_args(args)
         queue = "night" if priority == "low" or args.get("night") is True else "now"
-        slug = ideas.add_idea(self.root(), text, track, self.state_dir, priority, queue,
-                              night_by="person" if args.get("night") is True else "board")      # a Low idea the Board puts off itself; the person's own night is theirs (spec 44 §2)
+        by = "person" if args.get("night") is True else "board"       # who put it off (spec 44 §2): Low is the Board's
+        slug = ideas.add_idea(self.root(), text, track, self.state_dir, priority, queue, by)
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
         idea_lens.save(self.state_dir, slug, pointed)
@@ -514,7 +524,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
                     raise IdeasError(str(e)) from None
             return run
 
-        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.flags": self.flags, "ideas.week_work": self.week_work, "ideas.week": self.week, "ideas.party": self.party, "ideas.party_price": self.party_price, "ideas.party_answer": self.party_answer, "ideas.parties": self.parties, "ideas.party_save": self.party_save, "ideas.party_drop": self.party_drop, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
+        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.flags": self.flags, "ideas.party": self.party, "ideas.party_price": self.party_price, "ideas.party_answer": self.party_answer, "ideas.parties": self.parties, "ideas.party_save": self.party_save, "ideas.party_drop": self.party_drop, "ideas.week_work": self.week_work, "ideas.week": self.week, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
                  "ideas.add": self.add, "ideas.say": self.say, "ideas.plan": self.plan, "ideas.start": self.start,
                  "ideas.move": self.move, "ideas.edit": self.edit, "ideas.track_add": self.track_add,
                  "ideas.track_set": self.track_set, "ideas.todo": self.todo, "ideas.drop": self.drop,

@@ -45,9 +45,14 @@ class Stub:
 
     def __init__(self) -> None:
         self.rev = 1
+        self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
+        self.price_hints = []
+        self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
+        self.own_parties: list[dict] = []                                             # ideas.parties (spec 43 F)
         self.calls: list[tuple[str, dict]] = []
         self.into, self.push = "dev", False
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
+        self.sleep = ""                                    # the phone snapshot's `sleep` (spec 47 §3): what the phone says of the computer's sleep
         self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
         self.party: dict = {}                             # ideas.party (spec 43 B)
         self.learned = True                               # ideas.party_price (spec 43 C): learned, or a first guess
@@ -81,6 +86,7 @@ class Stub:
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`; null for the Taskmaster)
         self.check_week: dict[str, dict] = {}             # spec 43 §4.1: a checker's check of the last 7 days by slug (`check_week`)
         self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
+        self.check_week: dict[str, dict | None] = {}      # spec 43 §4.1: a checker's check of the last 7 days by slug
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}   # `told`
 
     @staticmethod
@@ -116,7 +122,7 @@ class Stub:
                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}} for t in self.plan["tasks"]] if i["slug"] == "sync" else []
             nodes.append({"slug": i["slug"], "goal": i["track"], "title": i["title"], "state": i["state"], "queue": i.get("queue", ""),
                           "held_until": i.get("held_until", ""), "start_at": i.get("start_at", ""), "priority": i["priority"], "size": "M", "risk": "",
-                          "tier": max(1, step[i["track"]]), "depends_on": list(i.get("depends_on") or []), "waits_on": list(i.get("waits_on") or []),
+                          "tier": max(1, step[i["track"]]), "depends_on": list(i.get("depends_on") or []), "waits_on": list(i.get("waits_on") or []), "night_by": i.get("night_by", "person"), "by_pace": False,
                           "waits": {"kind": "you", "ref": "", "title": "", "until": ""} if needs
                           else {"kind": "limits", "ref": "", "title": "", "until": i["held_until"]} if i.get("held_until")
                           else {"kind": "night", "ref": "", "title": "", "until": ""} if i.get("queue") == "night" or i.get("start_at") == "night" else None,
@@ -141,8 +147,7 @@ class Stub:
     def results(self):
         return [{"idea": "sync", "idea_title": self.ideas["sync"]["title"], "task": t["id"], "title": t["title"], "round": t["round"], "tests": t["tests"],
                  "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"],
-                 **({"check": t["check"], "findings": t["findings"]} if "check" in t else {})}       # spec 43 A: a check's result
-                for t in self.plan["tasks"] if t["state"] == "review"]
+                 **({"check": t["check"], "findings": t["findings"]} if "check" in t else {})} for t in self.plan["tasks"] if t["state"] == "review"]
 
     def find(self, a):
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])
@@ -191,12 +196,11 @@ class Stub:
                        "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": [],
                        "week": self.week.get("taskmaster"), "usd_task": None, "head": {"craft": "engineering", "race": "peon", "tier": "elder"}},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
-                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt"), "usd_task": self.usd_task.get("grunt"),
+                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt"), "check_week": self.check_week.get("grunt"), "usd_task": self.usd_task.get("grunt"),
                        "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
-                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"]), "usd_task": self.usd_task.get(r["slug"]),
-                        "head": r.get("head"), **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})}
-                       for r in self.roles.values() if not r["builtin"]]
+                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"]), "check_week": self.check_week.get(r["slug"]), "usd_task": self.usd_task.get(r["slug"]),
+                        "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
             names = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
@@ -236,23 +240,16 @@ class Stub:
                                          metrics=old.get("metrics", []), links=old.get("links", []), craft=a.get("craft", old.get("craft", "engineering")),
                                          race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft", old.get("craft")), "peon"),
                                          team=a.get("team", old.get("team", [])), every=a.get("every", old.get("every", [])),
-                                         leader=self.leader(a.get("leader")) or old.get("leader"), party=a.get("party", old.get("party", "")))
-            return self.bump({"slug": slug, **({"notes": self.goal_notes} if self.goal_notes else {})})
-        if name == "ideas.parties":                     # spec 43 F: the person's own parties
-            return {"parties": copy.deepcopy(self.own)}
-        if name == "ideas.party_save":
-            taken = next((p for p in self.own if p["name"].lower() == a["name"].lower()), None)
-            if taken and not a.get("replace"):
-                return {"error": f"You have a party named “{taken['name']}”"}
-            if taken:
-                taken.update(name=a["name"])
-                return {"id": taken["id"]}
-            self.own.append({"id": f"p-{len(self.own):08x}", "name": a["name"], "craft": "engineering", "leader": "architect", "team": [], "every": [], "own": [],
-                             "goals": 0, "projects": 0, "met": 0, "saved": ""})
-            return {"id": self.own[-1]["id"]}
-        if name == "ideas.party_drop":
-            self.own = [p for p in self.own if p["id"] != a["id"]]
-            return {"ok": True}
+                                         leader=self.leader(a.get("leader")) or old.get("leader"))
+            return self.bump({"slug": slug})
+        if name == "ideas.party":
+            return copy.deepcopy(self.party)
+        if name == "ideas.party_price":                                            # spec 43 C: a price, each checker adds $0.35
+            checkers = [i for i in a.get("team", []) if i in ("reviewer", "accessibility-reviewer", "editor", "data-reviewer", "security-reviewer")]
+            return {"low": self.price_low, "high": self.price_high, "learned": self.price_learned, "ideas": 12 if self.price_learned else 0,
+                    "hints": list(self.price_hints),
+                    "checks": [{"by": i, "name": i, "usd": 0.35, "share": 1 if i in a.get("every", []) else 0.5, "every": i in a.get("every", [])}
+                               for i in checkers]}
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
             return self.bump({"ok": True})
@@ -319,6 +316,26 @@ class Stub:
         if name == "ideas.start_now":
             self.ideas[a["slug"]].update(state="working", start_at="")
             return self.bump({"ok": True})
+        if name == "ideas.parties":                                                # spec 43 F: the person's parties
+            return {"parties": copy.deepcopy(self.own_parties)}
+        if name == "ideas.party_save":
+            g = self.goals[a["goal"]]
+            taken = next((p for p in self.own_parties if p["name"].lower() == a["name"].lower()), None)
+            if taken and not a.get("replace"):
+                return {"error": f"You have a party named “{taken['name']}”"}
+            keep = {"name": a["name"], "craft": g.get("craft", "engineering"), "leader": (g.get("leader") or {}).get("slug", "taskmaster"),
+                    "team": list(g.get("team", [])), "every": list(g.get("every", [])), "own": [], "goals": 0, "projects": 0, "met": 0, "saved": "2026-10-20T10:00:00"}
+            if taken:
+                taken.update(keep)
+                return {"id": taken["id"]}
+            self.own_parties.append({"id": f"p-{len(self.own_parties) + 1}", **keep})
+            return {"id": self.own_parties[-1]["id"]}
+        if name == "ideas.party_drop":
+            self.own_parties = [p for p in self.own_parties if p["id"] != a["id"]]
+            return {"ok": True}
+        if name == "ideas.party_answer":
+            self.extra_needs = [n for n in self.extra_needs if n.get("goal") != a["goal"] or n["kind"] != "party"]
+            return self.bump({"ok": True})
         if name == "ideas.proposal":
             self.extra_needs = [n for n in self.extra_needs if n["idea"] != a["slug"]]
             return self.bump({"ok": True})
@@ -346,7 +363,7 @@ async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
 
     def snap(host):
         s = real(host)
-        return {**s, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
+        return {**s, "sleep": stub.sleep, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
                 "review_count": len(stub.results()),
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
                             "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
@@ -602,6 +619,46 @@ async def test_review_merge_is_off_on_red_send_back_needs_a_line_and_a_patch_scr
         assert ("ideas.merge", {"slug": "sync", "task": "k2"}) in stub.calls
         await page.locator(".result").first.wait_for(state="detached", timeout=WAIT_MS)                 # the list drawn again
         assert await page.get_by_role("tab", name="Needs you").locator(".count").count() == 1 and await page.locator(".result").count() == 0
+
+
+@pytest.mark.asyncio
+async def test_a_checks_card_says_what_it_found_and_has_fix_them_and_leave_them(fake_repo, monkeypatch):
+    """Spec 43 A §1.4 on the phone: "Found 3: 1 fixed, 2 left", the findings left, Fix them (the why filled) and Leave them."""
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        none = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False}
+        stub.plan["tasks"].append(task("k6", "Check: Reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0},
+                                       check="Reviewer", findings=[{"where": "sync.py:12", "what": "the retry never stops", "fixed": True},
+            {"where": "queue.py:3", "what": "a lost signal drops the item", "fixed": False},
+            {"where": "queue.py:40", "what": "the queue is not emptied", "fixed": False}], note="2 left"))
+        stub.plan["tasks"].append(task("k8", "Check: Security reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0},
+                                       check="Security reviewer", findings=[{"where": "auth.py:9", "what": "a token is logged", "fixed": False}]))
+        stub.bump({})
+        await page.get_by_role("tab", name="Needs you").click()
+        card = page.locator(".result", has_text="Check: Reviewer")
+        await card.wait_for(timeout=WAIT_MS)
+        text = await card.inner_text()
+        assert "Found 3: 1 fixed, 2 left" in text and "queue.py:3 · a lost signal drops the item" in text and "the retry never stops" not in text
+        await card.get_by_role("button", name="Fix them").click()
+        why = "Fix the findings left: queue.py:3: a lost signal drops the item; queue.py:40: the queue is not emptied"
+        assert await card.get_by_label("What to fix, in one line").input_value() == why
+        await card.locator(".back-line .ork-btn.primary").click()
+        assert await _called(stub, "ideas.back", {"slug": "sync", "task": "k6", "why": why})
+        await page.locator(".result", has_text="Check: Security reviewer").get_by_role("button", name="Leave them").click()
+        assert await _called(stub, "ideas.merge", {"slug": "sync", "task": "k8"})
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_ideas_checks_say_clean_or_what_they_found_on_the_phone(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed", "found": 0, "fixed": 0, "left": 0},
+                       {"by": "editor", "name": "Editor", "applies": True, "why": "", "state": "passed", "found": 2, "fixed": 1, "left": 1}]
+        stub.bump({})
+        await page.locator(".map-row", has_text="Sync ideas").locator(".map-open").click()
+        line = page.locator(".screen").get_by_role("list", name="Checks")
+        await line.wait_for(timeout=WAIT_MS)
+        assert [" ".join(t.split()) for t in await line.get_by_role("listitem").all_inner_texts()] == [
+            "Reviewer clean", "Editor found 2: 1 fixed, 1 left"]
 
 
 @pytest.mark.asyncio
@@ -880,3 +937,21 @@ async def test_the_drawer_holds_stop_all_spend_the_projects_this_project_and_thi
         await drawer.get_by_role("button", name="What is left").click()                                 # the limits' sheet, as the chip opens it
         await page.get_by_role("dialog", name="What is left").wait_for(timeout=WAIT_MS)
         assert await drawer.is_hidden()
+
+
+@pytest.mark.asyncio
+async def test_the_drawer_says_what_the_computers_sleep_means_under_this_phone_when_the_snapshot_has_a_line(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        drawer = await _menu(page)
+        assert await drawer.locator(".board-sleep").is_hidden() and "may sleep" not in await drawer.inner_text()      # none without
+        await page.keyboard.press("Escape")
+        stub.sleep = "Your Mac is on battery and may sleep."
+        stub.bump({})
+        drawer = await _menu(page)
+        line = drawer.locator(".board-sleep")
+        await line.wait_for(timeout=WAIT_MS)
+        assert await line.inner_text() == "Your Mac is on battery and may sleep."
+        text = await drawer.inner_text()
+        text = text.lower()
+        assert text.index("this phone") < text.index("may sleep") < text.index("pair a phone")
+        assert await page.evaluate(NO_SCROLL)

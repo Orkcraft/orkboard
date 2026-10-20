@@ -247,14 +247,31 @@ def test_the_recap_carries_the_streak(fake_repo):
     assert host.command("ideas.recap", {"since": int((dt.datetime.now().timestamp() - 3600) * 1000)})["nights"] == (3 if ended else 2)
 
 
-def test_a_check_that_found_nothing_is_no_result_in_the_week_or_in_last_week(root, tmp_path):
-    """Spec 43 A: a clean check is not counted in `merged` or `first_time`, nor is it the fastest from idea to dev."""
-    log(root, "task_state", NOW - dt.timedelta(days=1), idea="a", task="k1", state="merged", was="review", round=1)
-    log(root, "task_state", NOW - dt.timedelta(days=1, hours=1), idea="a", task="k2", state="merged", was="running", round=1, check=True, clean=True)
-    got = board_week.this_week(root, tmp_path / "state", SETTINGS, NOW, {"ideas": []})
-    assert (got["merged"], got["first_time"]) == (1, 1)
-    log(root, "idea_added", at(14, 8), idea="export", track="offline")
-    log(root, "task_state", at(14, 8, 5), idea="export", task="k1", state="merged", was="running", round=1, check=True, clean=True)
-    log(root, "task_state", at(14, 10), idea="export", task="k2", state="merged", was="review", round=1)
-    last = board_week.last_week(root, tmp_path / "state", SETTINGS, NOW, _rows())
-    assert (last["merged"], last["first_time"]) == (1, 1) and last["fastest"]["minutes"] == 120
+def test_a_clean_check_is_not_a_result_nor_a_night_worked(root, tmp_path):
+    """Spec 43 A: a clean check's `merged` is not counted in the week, is not the first merge of an idea, and works no night."""
+    state = tmp_path / "state"
+    log(root, "idea_added", at(19, 9), idea="a")
+    run(root, at(19, 1, 5))
+    log(root, "task_state", at(19, 3), idea="a", task="k1", state="merged", was="testing", round=1, check=True, clean=True)
+    assert [x["kind"] for x in board_week.nights(root, SETTINGS, NOW, 2) if x["date"] == "2026-10-19"] == ["idle"]
+    log(root, "task_state", NOW - dt.timedelta(hours=2), idea="a", task="k1", state="merged", was="testing", round=1, check=True, clean=True)
+    got = board_week.this_week(root, state, SETTINGS, NOW, {})
+    assert (got["merged"], got["first_time"]) == (0, 0)
+    log(root, "task_state", NOW - dt.timedelta(hours=1), idea="a", task="k2", state="merged", was="review", round=1)
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["merged"] == 1
+
+
+def test_this_week_says_the_weeks_pace_and_the_share_left_unused_last_time(root, tmp_path):
+    from orkboard.sources.limits import Limit
+    state = tmp_path / "state"
+    nowts = NOW.timestamp()
+    wk = Limit("claude", "", "weekly", 0.8, dt.datetime.fromtimestamp(nowts + 2 * 86400))
+    got = board_week.this_week(root, state, SETTINGS, NOW, {}, limits=[wk])["week"]
+    assert set(got) == {"left", "rest", "pace", "reset"} and got["left"] == 0.8 and got["pace"] == "ahead"
+    assert abs(got["rest"] - 2 / 7) < 0.01
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["week"] is None
+    assert board_week.this_week(root, state, SETTINGS, NOW, {}, limits=[Limit("claude", "", "session", 0.5, None)])["week"] is None
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["last_unused"] is None
+    log(root, "week_reset", NOW - dt.timedelta(days=14), left=0.5, provider="claude")
+    log(root, "week_reset", NOW - dt.timedelta(days=7), left=0.31, provider="claude")
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["last_unused"] == 0.31

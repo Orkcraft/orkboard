@@ -268,3 +268,9 @@ proposal, shared with the trail), `tests/test_shell_browser.py`'s `StubHost` and
 - A trail for Operations.
 
 ## 12. As built (notes, no change of the contract)
+
+### A. The party asks
+- **Where.** The members' calls, the views and `asks_by` are in `core/idea_goals.py` (`members`, `party_view`, `ask_members`); a member's voice is `idea_lead.py` `voice` (a member is a role dict with `member: True`, which `leader()` returns on the member's thread, so `keeper.ask` picks its model and writes its ledger line as it does a leader's). `idea_target.py` has no new function: a member with a model of its own runs on it through `keeper_pick`, like a leader.
+- **First read only.** Members are asked on a goal's *first* read, which is `ideas.goal_save` of a new goal (`read_goal(..., party=True)`); an Edit's save, `ideas.say`, the answers, a read run again while busy and the night's refresh ask none. In balance and quality those reads still carry the views.
+- **What is kept.** `asks_by`, `party` and `by_party` are kept in the goal's `state.json` (not read by `ideas.goal_state`, which is in a module past its size); `GoalsMixin._goal_extra` reads them. `goal_answered`'s `by_party` counts the member's questions with a non-empty answer.
+- **`by` is a question's own key**, kept by `idea_questions.of` only when the model wrote one (an idea's questions have none); `idea_questions.asked_by` makes `asks_by`.

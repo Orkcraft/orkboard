@@ -76,10 +76,16 @@ class StubHost:
 
     def __init__(self, look="camp", onboarding=None):
         self.look, self.onboarding, self.rev, self.log, self.ws = look, onboarding, 1, [], None
+        self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
+        self.price_hints = []
+        self.own_parties: list[dict] = []                                             # ideas.parties (spec 43 F)
+        self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
         self.plan = make_plan()
         self.into, self.push = "dev", False
         self.paired = [{"id": "p1", "name": "Pixel 8", "seen": "2026-10-17T09:30:00"}]
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
+        self.awake = {"mode": "carts", "why": "", "holding": False, "battery": False, "can": True, "how": "systemd-inhibit", "machine": "Mac", "paired": True}   # awake.state (spec 47 §3)
+        self.awake_offer = ""                         # phones.list's awake_offer: "Mac" while the offer is to be asked
         self.goals = {"general": self.goal("general", "General", "normal", "ready", order=0),
                       "ship-sync": self.goal("ship-sync", "Ship sync", "normal", "ready", summary="Sync is the first thing a second device needs.\nIt touches sync.py.")}
         self.roles = {"taskmaster": {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "builtin": True},
@@ -88,8 +94,8 @@ class StubHost:
         self.chip_extra: dict[str, dict] = {}             # spec 41 §3: a chip's short / idea_short, by task id
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`)
         self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
-        self.check_week: dict[str, dict] = {}             # spec 43 §4.1: a checker's check of the last 7 days by slug (`check_week`)
-        self.party_rows: list[dict] = []                  # spec 43 §4.2: Needs you's `party` rows
+        self.check_week: dict[str, dict | None] = {}      # spec 43 §4.1: a checker's check of the last 7 days by slug
+        self.party_needs: list[dict] = []                 # spec 43 §4.2: the night's party proposals waiting (Needs you's `party` rows)
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}
         self.limits = [{"provider": "claude", "name": "Claude", "left": 0.62,
                         "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
@@ -133,7 +139,7 @@ class StubHost:
                        **({"asked": self.goals["grow"]["asked"]} if self.goals.get("grow", {}).get("asked") else {})},
                base | {"kind": "proposal", "idea": "tags", "goal": "grow", "title": "Tag the notes", "text": "Tags make a long list findable."}]
         gone = set(self.proposals) | set(self.asked)            # answered: out of the list
-        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + self.party_rows
+        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + [base | n for n in self.party_needs]
 
     def goal(self, slug, title, priority, state, order=1, **more):
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": order, "count": 0, "priority": priority,
@@ -155,7 +161,7 @@ class StubHost:
     def results(self):
         return [{"idea": "sync", "idea_title": "Sync ideas between the phone and the town", "task": t["id"], "title": t["title"], "round": t["round"],
                  "tests": t["tests"], "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"],
-                 **({"check": t["check"], "findings": t["findings"]} if "check" in t else {})}       # spec 43 A: a check's result
+                 **({"check": t["check"], "findings": t["findings"]} if "check" in t else {})}
                 for t in self.plan["tasks"] if t["state"] == "review"]
 
     def snapshot(self):
@@ -213,15 +219,14 @@ class StubHost:
                            waits_title="Sync ideas between the phone and the town", by="auto", night=False)]
             chips = [c | self.chip_extra.get(c["task"], {}) for c in chips]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "usd_task": None,
-                       "head": {"craft": "engineering", "race": "peon", "tier": "elder"},
+                       "check_week": None, "head": {"craft": "engineering", "race": "peon", "tier": "elder"},
                        "state": "waiting", "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": []},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
                        "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "usd_task": self.usd_task.get("grunt"),
-                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
+                       "check_week": self.check_week.get("grunt"), "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
                         "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "usd_task": self.usd_task.get(r["slug"]),
-                        "head": r.get("head"), **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})}
-                       for r in self.roles.values() if not r["builtin"]]
+                        "check_week": self.check_week.get(r["slug"]), "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
             return {"roles": [r | {"spend_today": 0, "record": self.record.get(r["slug"])} | ({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {}) | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
@@ -257,31 +262,16 @@ class StubHost:
             title = a.get("title") or old.get("title") or a["about"][:30]
             self.goals[slug] = self.goal(slug, title, a["priority"], "reading", about=a["about"], summary=old.get("summary", ""),
                                          title_by="person" if a.get("title") else old.get("title_by", "keeper"),
-                                         leader=self.leader(a.get("leader")) or old.get("leader"), party=a.get("party", ""),
-                                         team=a.get("team", old.get("team", [])), every=a.get("every", old.get("every", [])), craft=a.get("craft", old.get("craft", "engineering")))
-            return self.bump({"slug": slug, **({"notes": self.goal_notes} if self.goal_notes else {})})
-        if name == "ideas.parties":                    # spec 43 F: the person's own parties
-            return {"parties": copy.deepcopy(self.own)}
-        if name == "ideas.party_save":
-            taken = next((p for p in self.own if p["name"].lower() == a["name"].lower()), None)
-            if taken and not a.get("replace"):
-                return {"error": f"You have a party named “{taken['name']}”"}
-            if taken:
-                taken.update(name=a["name"])
-                return {"id": taken["id"]}
-            self.own.append({"id": f"p-{len(self.own):08x}", "name": a["name"], "craft": "engineering", "leader": "architect", "team": [], "every": [], "own": [],
-                             "goals": 0, "projects": 0, "met": 0, "saved": ""})
-            return {"id": self.own[-1]["id"]}
-        if name == "ideas.party_drop":
-            self.own = [p for p in self.own if p["id"] != a["id"]]
-            return {"ok": True}
-        if name == "ideas.party_answer":               # spec 43 D: a party's proposal answered
-            self.party_rows = [n for n in self.party_rows if n["goal"] != a["goal"]]
-            return self.bump({"ok": True})
-        if name == "ideas.party_price":                # spec 43 C: about what an idea costs with this party
-            return party_price(a, self.learned, self.hints)
-        if name == "ideas.party":                      # spec 43 B: what the goal's party did
-            return copy.deepcopy(self.party)
+                                         leader=self.leader(a.get("leader")) or old.get("leader"))
+            return self.bump({"slug": slug})
+        if name == "ideas.party":
+            return json.loads(json.dumps(self.party))
+        if name == "ideas.party_price":                                            # spec 43 C: a price, each checker adds $0.35
+            checkers = [i for i in a.get("team", []) if i in ("reviewer", "accessibility-reviewer", "editor", "data-reviewer", "security-reviewer")]
+            return {"low": self.price_low, "high": self.price_high, "learned": self.price_learned, "ideas": 12 if self.price_learned else 0,
+                    "hints": list(self.price_hints),
+                    "checks": [{"by": i, "name": i, "usd": 0.35, "share": 1 if i in a.get("every", []) else 0.5, "every": i in a.get("every", [])}
+                               for i in checkers]}
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
             return self.bump({"ok": True})
@@ -299,6 +289,26 @@ class StubHost:
             return self.bump({"ok": True})
         if name == "ideas.drop":
             self.ideas.pop(a["slug"], None)
+            return self.bump({"ok": True})
+        if name == "ideas.parties":                                                # spec 43 F: the person's parties
+            return {"parties": json.loads(json.dumps(self.own_parties))}
+        if name == "ideas.party_save":
+            g = self.goals[a["goal"]]
+            taken = next((p for p in self.own_parties if p["name"].lower() == a["name"].lower()), None)
+            if taken and not a.get("replace"):
+                return {"error": f"You have a party named “{taken['name']}”"}
+            keep = {"name": a["name"], "craft": g.get("craft", "engineering"), "leader": (g.get("leader") or {}).get("slug", "taskmaster"),
+                    "team": list(g.get("team", [])), "every": list(g.get("every", [])), "own": [], "goals": 0, "projects": 0, "met": 0, "saved": "2026-10-20T10:00:00"}
+            if taken:
+                taken.update(keep)
+                return {"id": taken["id"]}
+            self.own_parties.append({"id": f"p-{len(self.own_parties) + 1}", **keep})
+            return {"id": self.own_parties[-1]["id"]}
+        if name == "ideas.party_drop":
+            self.own_parties = [p for p in self.own_parties if p["id"] != a["id"]]
+            return {"ok": True}
+        if name == "ideas.party_answer":
+            self.party_needs = [n for n in self.party_needs if n["goal"] != a["goal"]]
             return self.bump({"ok": True})
         if name == "ideas.proposal":
             self.proposals.append(a["slug"])
@@ -322,7 +332,17 @@ class StubHost:
                     "dns_qr": QR, "install": "https://tailscale.com/download", "dns": "https://login.tailscale.com/admin/dns", "account": "me@example.com"}
         if name == "phones.list":
             return {"phones": self.paired, "listening": True, "address": "https://192.168.1.20:8443", "tail_address": "https://studio.tail1234.ts.net:8443",
-                    "tail_trusted": True, "tailscale": True, "fingerprint": "AB:CD", "open": [], "pairing": 100, "awake_offer": ""}
+                    "tail_trusted": True, "tailscale": True, "fingerprint": "AB:CD", "open": [], "pairing": 100, "awake_offer": self.awake_offer}
+        if name == "awake.state":
+            return dict(self.awake)
+        if name == "awake.set":
+            self.awake["mode"] = a["mode"]
+            return dict(self.awake)
+        if name == "awake.offer":
+            self.awake_offer = ""
+            if a.get("yes"):
+                self.awake["mode"] = "phone"
+            return dict(self.awake)
         if name == "phones.forget":
             self.paired = [d for d in self.paired if d["id"] != a["id"]]
             return {"phones": self.paired, "listening": True, "address": "", "tail_address": "", "open": [], "pairing": 0}
@@ -590,6 +610,48 @@ def test_merge_is_off_on_red_with_its_reason_and_send_back_needs_a_line(shell):
     assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k2"}))
     pg.locator(".shell-card").first.wait_for(state="detached", timeout=WAIT_MS) if pg.locator(".shell-card").count() else None
     assert pg.locator(".shell-card", has_text="Add the queue").count() == 0
+
+
+def test_a_checks_card_says_what_it_found_and_has_fix_them_and_leave_them(shell):
+    """Spec 43 A §1.4: under the title "Found 3: 1 fixed, 2 left" and the findings left; Fix them sends back with them as its why; Leave them merges."""
+    pg, host = shell
+    none = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False}
+    host.plan["tasks"].append(task("k6", "Check: Reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0}, check="Reviewer",
+                                   findings=[{"where": "sync.py:12", "what": "the retry never stops", "fixed": True},
+            {"where": "queue.py:3", "what": "a lost signal drops the item", "fixed": False},
+            {"where": "queue.py:40", "what": "the queue is not emptied", "fixed": False}], note="2 left"))
+    host.plan["tasks"].append(task("k7", "Check: Editor", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0}, check="Editor",
+                                   findings=[{"where": "a", "what": "b", "fixed": True}]))
+    host.plan["tasks"].append(task("k8", "Check: Security reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0},
+                                   check="Security reviewer", findings=[{"where": "auth.py:9", "what": "a token is logged", "fixed": False}]))
+    host.bump({})
+    card = pg.locator(".shell-card", has_text="Check: Reviewer")
+    card.wait_for(timeout=WAIT_MS)
+    text = card.inner_text()
+    assert "Found 3: 1 fixed, 2 left" in text and "queue.py:3 · a lost signal drops the item" in text and "queue.py:40 · the queue is not emptied" in text
+    assert "the retry never stops" not in text                                                            # only the findings left are listed
+    assert "Found" not in pg.locator(".shell-card", has_text="Check: Editor").inner_text()                # nothing left: today's card
+    assert pg.locator(".shell-card", has_text="Check: Editor").get_by_role("button", name="Merge into dev").is_enabled()
+    card.get_by_role("button", name="Fix them").click()
+    line = card.get_by_label("What to fix, in one line")
+    why = "Fix the findings left: queue.py:3: a lost signal drops the item; queue.py:40: the queue is not emptied"
+    assert line.input_value() == why
+    card.locator(".shell-actions__line .ork-btn.primary").click()
+    assert _sent(pg, host, ("ideas.back", {"slug": "sync", "task": "k6", "why": why}))
+    pg.locator(".shell-card", has_text="Check: Security reviewer").get_by_role("button", name="Leave them").click()
+    assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k8"}))
+
+
+def test_the_ideas_checks_say_clean_or_what_they_found(shell):
+    pg, host = shell
+    host.checks[0].update(found=0, fixed=0, left=0)
+    host.checks[1].update(applies=True, why="", state="passed", found=2, fixed=1, left=1)
+    host.bump({})
+    pg.locator(".board-card", has_text="Sync ideas").click()
+    checks = pg.locator(".shell-preview").get_by_role("list", name="Checks")
+    checks.wait_for(timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in checks.get_by_role("listitem").all_inner_texts()] == [
+        "Reviewer clean", "Accessibility reviewer found 2: 1 fixed, 1 left"]
 
 
 def test_drop_asks_first_and_merge_into_changes_the_branch(shell):
@@ -880,6 +942,81 @@ def test_edit_goal_changes_the_party_and_sends_it_only_when_changed(shell):
     assert (got["leader"], got["team"], got["every"]) == ("product-manager", ["grunt", "reviewer", "tester"], ["reviewer"])
 
 
+def _prices(host):
+    return [a for n, a in host.log if n == "ideas.party_price"]
+
+
+def _price_calls(pg, host, n, ms=WAIT_MS):
+    for _ in range(ms // 50):
+        if len(_prices(host)) >= n:
+            break
+        pg.wait_for_timeout(50)
+    return _prices(host)
+
+
+def test_new_goal_says_a_partys_price_when_the_picker_opens_and_after_a_seat_changes(shell):
+    pg, host = shell
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    assert not _prices(host)                                                                        # step 1 picks a craft: no party yet
+    dlg.locator('.shell-craft-tile[data-craft="design"]').click()
+    line = dlg.locator(".shell-party-price")
+    line.wait_for(timeout=WAIT_MS)
+    assert " ".join(line.inner_text().split()) == "This party: about $2–6 an idea from this project's last 12 ideas"
+    assert _price_calls(pg, host, 1) == [{"leader": "product-designer", "team": ["ui-kit", "artist", "accessibility-reviewer"], "every": [], "craft": "design"}]
+    dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # two changes inside 300 ms: one call
+    dlg.get_by_role("button", name="Take in: Analyst").click()
+    got = _price_calls(pg, host, 2)
+    pg.wait_for_timeout(600)
+    assert len(_prices(host)) == 2 and got[-1]["leader"] == "analyst" and "copywriter" in got[-1]["team"]
+    host.price_learned, host.price_low, host.price_high = False, 0.4, 1.2
+    dlg.get_by_role("button", name="Take out: Copywriter").click()
+    pg.wait_for_function("() => document.querySelector('.shell-party-price')?.textContent.includes('a first guess')", timeout=WAIT_MS)
+    assert " ".join(line.inner_text().split()) == "This party: about $0.40–1.20 an idea a first guess: it learns from this project's ideas"
+    dlg.get_by_role("button", name="Next").click()
+    checks = dlg.get_by_role("group", name="Checks")
+    row = checks.locator(".shell-check-row", has_text="Accessibility reviewer")
+    assert "adds about $0.35 to an idea it checks · about half of them" in row.inner_text()
+    assert "an idea they all apply to" not in checks.inner_text()                                   # the tier-cost sum is gone
+    row.get_by_label("Every idea: Accessibility reviewer").check()
+    pg.wait_for_function("() => document.querySelector('.shell-check-row')?.textContent.includes('every idea')", timeout=WAIT_MS)
+    assert "adds about $0.35 to an idea it checks · every idea" in row.inner_text()
+    assert _prices(host)[-1]["every"] == ["accessibility-reviewer"]
+
+
+def test_edit_goal_says_the_price_when_the_party_is_changed(shell):
+    pg, host = shell
+    host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
+    host.bump({})
+    pg.locator(".board-goal", has_text="Led by Architect").wait_for(timeout=WAIT_MS)
+    pg.get_by_role("button", name="Edit goal Ship sync").click()
+    party = pg.get_by_role("dialog", name="Edit goal").get_by_role("group", name="Party")
+    assert not _prices(host) and party.locator(".shell-party-price").count() == 0                   # not asked before the picker opens
+    party.get_by_role("button", name="Change the party").click()
+    party.locator(".shell-party-price").wait_for(timeout=WAIT_MS)
+    assert _price_calls(pg, host, 1) == [{"leader": "architect", "team": ["grunt", "reviewer"], "every": [], "craft": "engineering"}]
+    assert "This party: about $2–6 an idea" in party.locator(".shell-party-price").inner_text()
+    assert "adds about $0.35 to an idea it checks · about half of them" in party.get_by_role("group", name="Checks").inner_text()
+
+
+def test_the_hints_are_said_under_the_price_line_muted_and_save_stays_enabled(shell):
+    pg, host = shell
+    host.price_hints = ["Reviewer found nothing in its last 12 checks.", "No builders: each task goes to this project's agent for its type (the Grunt when none)."]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.locator('.shell-craft-tile[data-craft="data"]').click()
+    hints = dlg.locator(".shell-party-hint")
+    hints.first.wait_for(timeout=WAIT_MS)
+    assert hints.all_inner_texts() == host.price_hints and "ok-tone-muted" in hints.first.get_attribute("class")
+    assert _prices(host)[-1]["craft"] == "data"
+    host.price_hints = []                                                                            # a change that fits: the hints go
+    dlg.get_by_role("button", name="Take in: Copywriter").click()
+    pg.wait_for_function("() => document.querySelectorAll('.shell-party-hint').length === 0", timeout=WAIT_MS)
+    dlg.get_by_role("button", name="Next").click()                                                   # Save is the last step's, never held by a hint
+    dlg.get_by_label("Description").fill("Count the sign-ups.")
+    assert dlg.get_by_role("button", name="Save goal").is_enabled()
+
+
 def test_the_target_chip_shows_and_sets_the_boards_one_target(shell):
     pg, host = shell
     chip = pg.get_by_role("button", name="Target: Balance")
@@ -1030,6 +1167,55 @@ def test_a_proposal_declined_with_a_reason_or_without(shell):
     prop.get_by_role("button", name="Decline: Tag the notes").click()
     pg.wait_for_function("() => document.querySelectorAll('.board-proposal').length === 0", timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.proposal", {"slug": "tags", "take": False, "reason": "not now"}))
+
+
+PARTY_ROW = {"kind": "party", "idea": "", "goal": "grow", "by": "reviewer", "title": "Take Reviewer out of Grow installs' party?",
+             "text": "It found nothing in the last 8 ideas; a check costs about $0.35.", "priority": "high"}
+
+
+def test_a_party_proposal_is_answered_in_its_row_taken_out_or_kept_and_is_never_counted(shell):
+    pg, host = shell
+    host.party_needs = [dict(PARTY_ROW)]
+    host.bump({})
+    assert "4" in pg.locator(".shell-board").get_by_role("tab", name="Needs you").inner_text()         # a party's proposal is no count either
+    _needs(pg)
+    kinds = pg.locator(".board-need, .board-proposal").evaluate_all("els => els.map(e => e.dataset.kind)")
+    assert kinds[-2:] == ["proposal", "party"]                                                          # sorted last with the proposals
+    row = pg.locator(".board-proposal[data-kind=party]")
+    text = row.inner_text()
+    assert "Take Reviewer out of Grow installs' party?" in text and "It found nothing in the last 8 ideas; a check costs about $0.35." in text
+    assert "A party's proposal" in text
+    row.get_by_role("button", name="Keep it: " + PARTY_ROW["title"]).click()                           # Keep it asks why, optional
+    row.get_by_label("Why not: " + PARTY_ROW["title"]).fill("it guards the invoices")
+    row.get_by_role("button", name="Keep: " + PARTY_ROW["title"]).click()
+    pg.wait_for_function("() => document.querySelectorAll('.board-proposal[data-kind=party]').length === 0", timeout=WAIT_MS)
+    assert _sent(pg, host, ("ideas.party_answer", {"goal": "grow", "take": False, "reason": "it guards the invoices"}))
+
+
+def test_a_party_proposal_taken_out_sends_no_reason(shell):
+    pg, host = shell
+    host.party_needs = [dict(PARTY_ROW)]
+    host.bump({})
+    _needs(pg)
+    pg.get_by_role("button", name="Take it out: " + PARTY_ROW["title"]).click()
+    pg.wait_for_function("() => document.querySelectorAll('.board-proposal[data-kind=party]').length === 0", timeout=WAIT_MS)
+    assert _sent(pg, host, ("ideas.party_answer", {"goal": "grow", "take": True}))
+
+
+def test_a_checkers_line_ends_with_its_check_of_the_week(shell):
+    pg, host = shell
+    host.usd_task = {"grunt": 0.4}
+    host.check_week = {"grunt": {"checks": 6, "clean": 4, "caught": 2, "left": 1, "usd_per_check": None}}      # any role with a check_week says it
+    host.bump({})
+    week = pg.locator(".shell-agents .shell-role[data-role=grunt] .shell-role__week")
+    pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__week')?.textContent.includes('its check')", timeout=WAIT_MS)
+    assert week.inner_text() == "≈$1.25 today · its check: 6 ideas, caught 2"
+    host.check_week = {"grunt": {"checks": 1, "clean": 1, "caught": 0, "left": 0, "usd_per_check": None}}
+    host.bump({})
+    pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__week')?.textContent.endsWith('its check: 1 idea, caught 0')", timeout=WAIT_MS)
+    host.check_week = {"grunt": {"checks": 0, "clean": 0, "caught": 0, "left": 0, "usd_per_check": None}}
+    host.bump({})
+    pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__week')?.textContent === '≈$1.25 today'", timeout=WAIT_MS)
 
 
 def test_a_check_that_has_not_run_is_skipped_from_the_spec_and_a_skipped_one_is_taken_again_before_a_plan(shell):
@@ -1352,19 +1538,261 @@ def test_add_agent_opens_two_ways_from_the_library_and_your_own_and_the_built_in
     assert dlg.get_by_label("Added to what it is told").is_visible()
 
 
-def test_the_goal_s_screen_has_what_the_party_did_closed_at_first_and_read_when_opened(shell):
-    """Spec 43 B: a fold under the goal's Team; its lines, the logged `opened`; *No work yet* while no idea has a plan."""
+PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},
+         "members": [{"slug": "grunt", "name": "Grunt", "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tasks": 14, "merged": 13, "first_time": 12, "usd": 9.2}],
+         "checks": [{"by": "accessibility-reviewer", "name": "Accessibility reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "warrior"},
+                     "applied": 6, "skipped": 1, "clean": 4, "caught": 2, "left": 1, "before": 2, "usd": 1.8}]}
+PARTY_LINES = ['Product manager (leads): ≈$4.10 for the goal, the drafts and the plans', 'Grunt: 14 tasks, 12 merged the first time · ≈$9.20', 'Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 before findings were kept']
+
+
+def test_the_goals_screen_has_a_fold_for_what_its_party_did_closed_at_first_and_read_when_opened(shell):
     pg, host = shell
+    host.party = PARTY
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
     pg.get_by_role("button", name="Open goal Ship sync").click()
-    pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)
-    fold = pg.locator(".shell-goal .shell-party")
-    assert fold.get_attribute("open") is None and not [1 for n, _a in host.log if n == "ideas.party"]          # closed at first: not asked for
-    fold.locator("summary").click()
-    pg.wait_for_function("() => document.querySelectorAll('.shell-goal .shell-party li').length === 4", timeout=WAIT_MS)
-    assert [" ".join(t.split()) for t in fold.locator("li").all_inner_texts()] == PARTY_LINES
+    sec = pg.locator(".shell-goal").get_by_role("region", name="What the party did")
+    fold = sec.get_by_role("button", name="What the party did")
+    fold.wait_for(timeout=WAIT_MS)
+    assert fold.get_attribute("aria-expanded") == "false" and not [1 for n, _a in host.log if n == "ideas.party"]    # closed: not asked for
+    fold.click()
+    sec.get_by_role("list", name="What the party did").wait_for(timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in sec.locator("li").all_inner_texts()] == PARTY_LINES
+    assert sec.locator("li img.ork-race__head").count() == 3                                       # a head each, the words in the text face
     assert _sent(pg, host, ("ideas.party", {"goal": "ship-sync"}))
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "party", "ref": "ship-sync", "device": "desktop"}))
-    host.party = {"ideas": 0, "leader": PARTY["leader"], "members": [], "checks": []}
-    fold.locator("summary").click()
-    fold.locator("summary").click()
-    pg.wait_for_function("() => document.querySelector('.shell-goal .shell-party li')?.innerText === 'No work yet'", timeout=WAIT_MS)
+    fold.click()
+    assert fold.get_attribute("aria-expanded") == "false" and sec.locator("li").count() == 0
+
+
+def test_a_goal_with_no_work_yet_says_so(shell):
+    pg, host = shell
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    sec = pg.locator(".shell-goal").get_by_role("region", name="What the party did")
+    sec.get_by_role("button", name="What the party did").click()
+    sec.get_by_text("No work yet").wait_for(timeout=WAIT_MS)
+
+
+# -- spec 43 F: your parties ---------------------------------------------------------------------------------------------------
+
+LEAN = {"id": "p-1", "name": "Lean web", "craft": "design", "leader": "product-designer", "team": ["ui-kit", "accessibility-reviewer"],
+        "every": ["accessibility-reviewer"], "own": [], "goals": 3, "projects": 2, "met": 2, "saved": "2026-10-20T10:00:00"}
+
+
+def _dialogs(pg, answer=True):
+    """Every native confirm from now on is answered; the messages are kept."""
+    said = []
+    pg.on("dialog", lambda d: (said.append(d.message), d.accept() if answer else d.dismiss()))
+    return said
+
+
+def test_save_this_party_asks_a_name_saves_it_and_a_taken_name_asks_to_replace(shell):
+    pg, host = shell
+    host.goals["ship-sync"].update(craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    team = pg.locator(".shell-goal").get_by_role("region", name="Team")
+    team.get_by_role("button", name="Save this party").click()
+    name = team.get_by_label("Name of your party")
+    assert name.input_value() == "Engineering party"                                               # filled with the craft's
+    name.fill("Lean web")
+    team.get_by_role("button", name="Save", exact=True).click()
+    assert _sent(pg, host, ("ideas.party_save", {"goal": "ship-sync", "name": "Lean web"}))
+    pg.get_by_text("Saved: pick it for a goal in any project.").wait_for(timeout=WAIT_MS)
+    said = _dialogs(pg)
+    team.get_by_role("button", name="Save this party").click()
+    team.get_by_label("Name of your party").fill("lean WEB")
+    team.get_by_role("button", name="Save", exact=True).click()
+    assert _sent(pg, host, ("ideas.party_save", {"goal": "ship-sync", "name": "lean WEB", "replace": True}))
+    assert said == ["Replace your party “Lean web”?"] and len(host.own_parties) == 1
+
+
+def test_a_replace_that_is_declined_saves_nothing(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    host.goals["ship-sync"].update(craft="engineering", leader=host.leader("architect"), team=["grunt"], every=[])
+    pg.get_by_label("Goal", exact=True).select_option("ship-sync")
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    team = pg.locator(".shell-goal").get_by_role("region", name="Team")
+    said = _dialogs(pg, answer=False)
+    team.get_by_role("button", name="Save this party").click()
+    team.get_by_label("Name of your party").fill("Lean web")
+    team.get_by_role("button", name="Save", exact=True).click()
+    for _ in range(10):
+        if said:
+            break
+        pg.wait_for_timeout(50)
+    assert said == ["Replace your party “Lean web”?"] and not [1 for n, _a in host.log if n == "ideas.party_save"]
+    assert team.get_by_label("Name of your party").is_visible()                                     # the name stays to be changed
+
+
+def test_your_parties_fill_the_craft_and_the_seats_in_new_goal_and_the_id_goes_with_the_save(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    assert dlg.get_by_role("region", name="Your parties").count() == 0                              # step 1 picks a craft: no party yet
+    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
+    mine = dlg.get_by_role("region", name="Your parties")
+    mine.wait_for(timeout=WAIT_MS)
+    chip = mine.get_by_role("button", name="Pick your party “Lean web”")
+    assert " ".join(chip.inner_text().split()) == "Lean web 3 goals in 2 projects · 2 met" and chip.locator("img.ork-race__head").count() == 3
+    chip.click()
+    assert chip.get_attribute("aria-pressed") == "true"
+    assert [dlg.locator(f'[data-agent="{a}"]').get_attribute("aria-pressed") for a in ("product-designer", "ui-kit", "accessibility-reviewer")] == ["true"] * 3
+    assert dlg.locator('[data-agent="grunt"]').get_attribute("aria-pressed") == "false"             # the engineering party's seats are gone
+    dlg.get_by_role("button", name="Next").click()
+    assert "Design · led by Product designer" in " ".join(dlg.locator(".shell-party-line").inner_text().split())      # the craft is the party's
+    assert dlg.get_by_role("group", name="Checks").get_by_label("Every idea: Accessibility reviewer").is_checked()
+    dlg.get_by_label("Description").fill("A landing page.")
+    dlg.get_by_role("button", name="Save goal").click()
+    got = _calls(pg, host, "ideas.goal_save")[-1]
+    assert (got["party"], got["craft"], got["leader"], got["team"], got["every"]) == (
+        "p-1", "design", "product-designer", ["ui-kit", "accessibility-reviewer"], ["accessibility-reviewer"])
+
+
+def test_a_seat_changed_after_picking_a_party_drops_its_id_and_the_save_sends_none(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
+    chip = dlg.get_by_role("button", name="Pick your party “Lean web”")
+    chip.click()
+    dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # a seat changed
+    assert chip.get_attribute("aria-pressed") == "false"
+    dlg.get_by_role("button", name="Next").click()
+    dlg.get_by_label("Description").fill("A landing page.")
+    dlg.get_by_role("button", name="Save goal").click()
+    got = _calls(pg, host, "ideas.goal_save")[-1]
+    assert "party" not in got and "copywriter" in got["team"]
+
+
+def test_a_party_picked_in_edit_goal_is_sent_and_remove_asks_first(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt"], every=[])
+    host.bump({})
+    pg.locator(".board-goal", has_text="Led by Architect").wait_for(timeout=WAIT_MS)
+    pg.get_by_role("button", name="Edit goal Ship sync").click()
+    party = pg.get_by_role("dialog", name="Edit goal").get_by_role("group", name="Party")
+    assert party.get_by_role("region", name="Your parties").count() == 0                            # not before the picker opens
+    party.get_by_role("button", name="Change the party").click()
+    mine = party.get_by_role("region", name="Your parties")
+    said = _dialogs(pg, answer=False)
+    mine.get_by_role("button", name="Remove your party “Lean web”").click()
+    for _ in range(10):
+        if said:
+            break
+        pg.wait_for_timeout(50)
+    assert said == ["Remove your party “Lean web”? Goals that use it keep their agents."]
+    assert not [1 for n, _a in host.log if n == "ideas.party_drop"] and mine.get_by_role("button", name="Pick your party “Lean web”").is_visible()
+    mine.get_by_role("button", name="Pick your party “Lean web”").click()
+    pg.get_by_role("dialog", name="Edit goal").get_by_role("button", name="Save goal").click()
+    got = _calls(pg, host, "ideas.goal_save")[-1]
+    assert (got["party"], got["leader"], got["team"]) == ("p-1", "product-designer", ["ui-kit", "accessibility-reviewer"])
+
+
+def test_remove_your_party_drops_it_after_the_person_agrees(shell):
+    pg, host = shell
+    host.own_parties = [dict(LEAN)]
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
+    said = _dialogs(pg)
+    dlg.get_by_role("button", name="Remove your party “Lean web”").click()
+    assert _sent(pg, host, ("ideas.party_drop", {"id": "p-1"}))
+    dlg.get_by_role("region", name="Your parties").wait_for(state="detached", timeout=WAIT_MS)       # the row goes with its last party
+    assert said == ["Remove your party “Lean web”? Goals that use it keep their agents."]
+
+
+def _awake_field(pg):
+    pg.get_by_role("button", name="Settings").click()
+    group = pg.get_by_role("group", name="Keep the computer awake")
+    group.wait_for(timeout=WAIT_MS)
+    return group
+
+
+def test_keep_the_computer_awake_has_three_choices_and_the_lines_of_its_state(shell):
+    pg, host = shell
+    group = _awake_field(pg)
+    assert _sent(pg, host, ("awake.state", {}))
+    assert [t.strip() for t in group.locator(".shell-seg__one").all_inner_texts()] == ["Never", "While the orks work", "Stay reachable from your phone"]
+    assert group.locator(".shell-seg__one.is-on").inner_text().strip() == "While the orks work"
+    text = group.inner_text()
+    assert "On power, it does not sleep by itself while an ork or an operation is at work" in text
+    assert "Not holding now: nothing to do." in text and "The screen still turns off." in text
+    for why, line in (("work", "Holding now: an ork is at work."), ("tonight", "Holding now: the Board has work for tonight."),
+                      ("phone", "Holding now: a phone is paired.")):
+        host.awake |= {"why": why}
+        pg.keyboard.press("Escape")
+        group = _awake_field(pg)
+        assert line in group.inner_text(), why
+    host.awake |= {"battery": True}
+    pg.keyboard.press("Escape")
+    group = _awake_field(pg)
+    assert "On battery now, so it may sleep." in group.inner_text() and "Holding now" not in group.inner_text()
+    host.awake |= {"battery": False, "can": False}
+    pg.keyboard.press("Escape")
+    group = _awake_field(pg)
+    text = group.inner_text()
+    assert "This computer gives Orkline no way to keep it awake: set its power settings" in text and "The screen still turns off." not in text
+    host.awake |= {"can": True, "mode": "phone", "paired": False}
+    pg.keyboard.press("Escape")
+    group = _awake_field(pg)
+    text = group.inner_text()
+    assert "On power, it does not sleep by itself while Orkline is open and a phone is paired" in text and "No phone is paired yet: Pair a phone, above." in text
+    if os.environ.get("ORKCRAFT_SHOTS"):
+        pg.screenshot(path=str(SHOTS / "desktop-awake-1440x900.png"))
+
+
+def test_a_choice_of_keep_the_computer_awake_is_sent_at_once_and_never_says_the_old_word(shell):
+    pg, host = shell
+    group = _awake_field(pg)
+    group.get_by_text("Never", exact=True).click()
+    assert _sent(pg, host, ("awake.set", {"mode": "off"}))
+    group.get_by_text("The computer sleeps as its power settings say.").wait_for(timeout=WAIT_MS)
+    assert "Holding now" not in group.inner_text() and "The screen still turns off." not in group.inner_text()
+    group.get_by_text("Stay reachable from your phone").click()
+    assert _sent(pg, host, ("awake.set", {"mode": "phone"}))
+    assert "carts" not in group.inner_text().lower()
+
+
+def _after_pairing(pg, host, answer):
+    host.awake_offer = "Mac"
+    pg.get_by_role("button", name="Settings").click()
+    pg.get_by_role("button", name="Pair a phone").click()
+    dlg = pg.get_by_role("dialog", name="Pair a phone")
+    dlg.locator("img.gui-phones__qr").wait_for(timeout=WAIT_MS)
+    host.paired = host.paired + [{"id": "p2", "name": "iPhone 15", "seen": "2026-10-20T09:30:00"}]       # a phone scans the code
+    offer = dlg.get_by_role("group", name="Keep the computer awake")
+    offer.wait_for(timeout=5000)
+    assert "Paired: iPhone 15." in dlg.inner_text()
+    assert "Keep this Mac awake so your phone can reach it all day? Only on power." in offer.inner_text()
+    offer.get_by_role("button", name=answer).click()
+    offer.wait_for(state="detached", timeout=WAIT_MS)
+    return dlg
+
+
+def test_after_pairing_the_offer_to_keep_the_mac_awake_is_asked_once_and_yes_is_sent(shell):
+    pg, host = shell
+    _after_pairing(pg, host, "Yes")
+    assert _sent(pg, host, ("awake.offer", {"yes": True}))
+
+
+def test_not_now_to_the_offer_is_sent_and_the_offer_is_gone(shell):
+    pg, host = shell
+    dlg = _after_pairing(pg, host, "Not now")
+    assert _sent(pg, host, ("awake.offer", {"yes": False}))
+    assert dlg.get_by_role("group", name="Keep the computer awake").count() == 0 and "Paired: iPhone 15." in dlg.inner_text()
+
+def test_an_agents_chip_started_by_the_pace_says_the_week_has_room(gui):
+    host = StubHost()
+    host.chip_extra = {"k3": {"pace": True}}
+    pg, host, errors = _open(gui, host=host)
+    _show_goal(pg)
+    chips = pg.locator(".shell-agents .shell-chip")
+    assert "by itself: the week has room" in chips.filter(has_text="Retry on a lost signal").inner_text()
+    assert "the week has room" not in chips.filter(has_text="Dark palette").inner_text()             # by itself, but not by the pace
+    pg.close()
+    assert not errors, "\n".join(errors)

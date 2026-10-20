@@ -1,196 +1,172 @@
-"""What a goal's party did (docs/specs/43-party-measured.md §2): each member's tasks, merged the first time and $, each checker's
-ideas checked, clean, caught, left and $, from the goal's ideas' plans. A pure read: no face, no model, it writes nothing.
+"""What a goal's party did (docs/specs/43-party-measured.md §2): its leader's steps, each member's tasks, each checker's
+checks, read from the goal's ideas' plans, their kept checks and the ledgers. No face, no model, it writes nothing.
 
-    party_work.work(root, state_dir, "billing")        # §2.1's object
+    party_work.work(root, state_dir, "billing")   # {"ideas", "leader", "members", "checks"}
 
-`root` is the Board's tree (where the goal's and the ideas' pages are), `state_dir` the project's state. A goal's party is its
-leader, its builders and its checkers (realm/goal_team.py). A *check task* is one whose `kind` is a checker's tag
-(realm/idea_checks.py `TAGS`); the others are the work. Times and costs are the ledgers' own: a `usd` is `None` when nothing
-of it was priced, never 0.
+`root` is the Board's tree (where the pages are); `target` (the project's Target) only sets the heads' tiers.
 """
 from __future__ import annotations
 
 import datetime as dt
-import time
 from pathlib import Path
-from typing import Any
 
-from orkboard.realm import board_recap, goal_team, idea_checks, idea_spend, ideas, library, roles
+from orkboard.realm import goal_team, idea_checks, idea_spend, idea_target, ideas, library, roles
+from orkboard.realm.board_map import list_of_dicts
 
-QUIET_RUN = 8                            # check tasks of a goal that all ended clean in round 1: the night proposes to take the checker out
-ENDED = ("merged", "failed")             # a task that has an end: the work counts from here
-CHECKED = ("merged", "review")          # a check task that has said what it found: merged, or waiting for the person
-
-
-def who(state_dir: Path, slug: str, target: str = "balance") -> dict:
-    """{slug, name, head} of an agent of the project (a library agent not installed yet by its library name)."""
-    r = roles.role(state_dir, slug)
-    if r is None:
-        a = library.get(slug)
-        r = {"slug": slug, "name": a.name if a else slug, "model": "", "craft": a.craft if a else roles.DEFAULT_CRAFT}
-    return {"slug": slug, "name": r["name"], "head": roles.head(r, target)}
+LEAD_STAGES = ("goal", "spec", "plan")        # the leader's steps in the ledger (idea_spend.STAGES)
+ENDED = ("merged", "failed")
+QUIET_RUN = 8                                 # a checker whose newest eight checks in a goal all ended clean in round 1 (spec 43 §4.2)
 
 
 def _sum(values: list[float | None]) -> float | None:
-    """The priced values' sum, rounded to cents; None when none was priced."""
+    """The priced values' sum, rounded; None when none is priced (never 0 for nothing priced)."""
     priced = [v for v in values if v is not None]
     return round(sum(priced), 2) if priced else None
 
 
-def _kept(root: Path, slug: str) -> list[dict]:
-    page = ideas.idea_page(root, slug)
-    return [x for x in (ideas._json_list(page.get("checks")) if page is not None else []) if isinstance(x, dict)]
+def _who(state_dir: Path, slug: str, target: str, known: dict[str, dict]) -> dict:
+    """{slug, name, head} of a role; one the project dropped is the library's name (or its slug) with the Grunt's head."""
+    r = known.get(slug)
+    if r is not None:
+        return {"slug": slug, "name": r["name"], "head": roles.head(r, target)}
+    a = library.get(slug)
+    return {"slug": slug, "name": a.name if a is not None else slug, "head": roles.head(known[roles.GRUNT], target)}
 
 
-def _builders(root: Path, goal: str) -> list[str]:
-    return [s for s in goal_team.team_of(root, goal) if goal_team.band_of(s) == "build"]
+def _checker_of(task: dict) -> str:
+    """Whose check task it is (core/idea_task.py `checker_of`, which realm may not import): its role, else the library's."""
+    return str(task.get("role") or "") or next((a.id for a in library.LIBRARY if a.check is not None and a.takes[0] == task.get("kind")), "")
 
 
-def _checkers(root: Path, goal: str) -> list[str]:
-    return [s for s in goal_team.team_of(root, goal) if goal_team.band_of(s) == "check"]
+def _leader_usd(state_dir: Path, goal: str, slugs: list[str]) -> float | None:
+    stages = idea_spend.of_goal(state_dir, goal, slugs)["stages"]
+    return _sum([stages[s]["usd"] for s in LEAD_STAGES if stages[s]["calls"]])
 
 
-def check_by(task: dict) -> str:
-    """The checker of a check task: its role when it is a library checker, else the library's checker of its tag."""
-    role = str(task.get("role") or "")
-    return role if idea_checks.is_checker(role) else idea_checks.checker_of_tag(str(task.get("kind") or ""))
-
-
-def work(root: Path, state_dir: Path, goal: str, target: str = "balance") -> dict[str, Any]:
-    """§2.1's object for a goal. `target`: the Board's Target, for the heads' gear."""
-    slugs = [i["slug"] for i in ideas.ideas(root, goal)]
-    plans = {s: p for s in slugs if (p := ideas.plan(state_dir, s)) and (p.get("tasks") or [])}
-    split = {s: idea_spend.of_idea(state_dir, s)["tasks"] for s in plans}
-    team = goal_team.team_of(root, goal)
-
-    spent = idea_spend.of_goal(state_dir, goal, slugs)["stages"]
-    steps = [spent[k] for k in ("goal", "spec", "plan")]
-    leader = {**who(state_dir, goal_team.leader_of(root, goal), target),
-              "usd": _sum([s["usd"] for s in steps]) if sum(s["calls"] for s in steps) else None}
-
-    by_role: dict[str, list[tuple[str, dict]]] = {}
-    by_check: dict[str, list[tuple[str, dict]]] = {}
-    for slug, plan in plans.items():
-        for t in plan["tasks"]:
-            if str(t.get("kind") or "") in idea_checks.TAGS:
-                if (c := check_by(t)):
-                    by_check.setdefault(c, []).append((slug, t))
-            elif t.get("state") in ENDED:
-                r = str(t.get("role") or "") or roles.role_for(state_dir, str(t.get("kind") or ""), team)["slug"]
-                by_role.setdefault(r, []).append((slug, t))
-
-    def usd_of(rows: list[tuple[str, dict]]) -> float | None:
-        return _sum([(split[s].get(str(t.get("id"))) or {}).get("usd") for s, t in rows])
-
-    order = [s for s in _builders(root, goal) if s in by_role] + [s for s in by_role if s not in _builders(root, goal)]
-    members = []
-    for slug in order:
-        rows = by_role[slug]
-        merged = [t for _s, t in rows if t.get("state") == "merged"]
-        members.append({**who(state_dir, slug, target), "tasks": len(rows), "merged": len(merged),
-                        "first_time": sum(1 for t in merged if int(t.get("round") or 1) <= 1), "usd": usd_of(rows)})
-
-    team_checks = {c["by"]: c for c in idea_checks.of_team(state_dir, team, goal_team.every_of(root, goal))}
-    kept = {s: _kept(root, s) for s in plans}
-    names = _checkers(root, goal) + [s for s in by_check if s not in _checkers(root, goal)]
-    checks = []
-    for by in names:
-        applied = skipped = 0
-        for slug in plans:
-            said = {x.get("by"): x for x in kept[slug]}
-            if by in team_checks:                            # the team's checker: a draft that left it out means it applies
-                row = idea_checks.kept(kept[slug], [team_checks[by]])[0]
-            else:
-                row = said.get(by) or {"applies": False}
-            if row.get("applies") and row.get("skipped"):
-                skipped += 1
-            elif row.get("applies"):
-                applied += 1
-        rows = by_check.get(by, [])
-        clean = caught = before = left = 0
-        for _slug, t in rows:
-            if t.get("state") not in CHECKED:
-                continue
-            found = t.get("findings") if isinstance(t.get("findings"), list) else None
-            if found:
-                caught += 1
-                left += idea_checks.counts(found)["left"]
-            elif int(t.get("round") or 1) > 1:
-                caught += 1                                   # sent back: the round before had something to fix
-            elif found is None:
-                before += 1
-            else:
-                clean += 1
-        checks.append({"by": by, **{k: v for k, v in who(state_dir, by, target).items() if k != "slug"},
-                       "applied": applied, "skipped": skipped, "clean": clean, "caught": caught, "left": left, "before": before,
-                       "usd": usd_of(rows)})
-    return {"ideas": len(plans), "leader": leader, "members": members, "checks": checks}
-
-
-# -- what a check is worth (spec 43 §4) ------------------------------------------------------------------------
-
-def _verdict(t: dict) -> str:
-    """What a check task that has said what it found found: "clean" (round 1, nothing found), "caught" (a finding, or sent back),
-    "" when it has not said (running, failed, or kept before findings were)."""
-    found = t.get("findings") if isinstance(t.get("findings"), list) else None
-    if t.get("state") not in CHECKED or found is None:
-        return ""
-    return "caught" if found or int(t.get("round") or 1) > 1 else "clean"
-
-
-_CACHE: dict[tuple[str, str, int], tuple[float, dict[str, dict]]] = {}
-CACHE_S = 30.0
-
-
-def forget() -> None:
-    """The cache of `check_record` cleared (a test, or a change the person should see at once)."""
-    _CACHE.clear()
-
-
-def _scan(root: Path, state_dir: Path, days: int, now: dt.datetime) -> dict[str, dict]:
-    """Every checker's record over the last `days`, from one read of the plans."""
-    since = now - dt.timedelta(days=days)
-    sums: dict[str, dict] = {}
-    for i in ideas.ideas(root):
-        plan = ideas.plan(state_dir, i["slug"])
-        per = None
-        for t in (plan or {}).get("tasks") or []:
-            at = board_recap.when(t.get("finished"))
-            if str(t.get("kind") or "") not in idea_checks.TAGS or not (v := _verdict(t)) or at is None or not since <= at <= now:
-                continue
-            per = per if per is not None else idea_spend.of_idea(state_dir, i["slug"])["tasks"]
-            row = sums.setdefault(check_by(t), {"checks": 0, "clean": 0, "caught": 0, "left": 0, "spent": []})
-            row["checks"] += 1
-            row["clean"] += v == "clean"
-            row["caught"] += v == "caught"
-            row["left"] += idea_checks.counts(t["findings"])["left"]
-            row["spent"].append((per.get(str(t.get("id"))) or {}).get("usd"))
-    return sums
-
-
-def check_record(root: Path, state_dir: Path, by: str, days: int, now: dt.datetime | None = None) -> dict[str, Any]:
-    """{checks, clean, caught, left, usd_per_check}: the checker's check tasks that ended with findings in the last `days`, across the
-    project's goals. `usd_per_check` from `idea_spend.TOO_FEW` checks, else None (and None while they are unpriced). Cached for 30 s
-    (as `idea_spend.by_role` is) unless `now` is given."""
-    key, mono = (str(root), str(state_dir), int(days)), time.monotonic()
-    hit = _CACHE.get(key) if now is None else None
-    if hit is None or mono - hit[0] >= CACHE_S:
-        hit = (mono, _scan(root, state_dir, days, (now or dt.datetime.now()).astimezone()))
-        if now is None:
-            _CACHE[key] = hit
-    row = hit[1].get(by) or {"checks": 0, "clean": 0, "caught": 0, "left": 0, "spent": []}
-    usd = _sum(row["spent"])
-    return {"checks": row["checks"], "clean": row["clean"], "caught": row["caught"], "left": row["left"],
-            "usd_per_check": round(usd / row["checks"], 2) if row["checks"] >= idea_spend.TOO_FEW and usd is not None else None}
-
-
-def quiet_run(root: Path, state_dir: Path, goal: str, by: str) -> str | None:
-    """When the checker's newest `QUIET_RUN` check tasks in this goal's ideas all ended clean in round 1: the time the newest of them
-    finished (a decline of it is older than that); else None. A check that failed, was sent back or found something ends the run."""
-    done: list[tuple[str, str]] = []
+def work(root: Path, state_dir: Path, goal: str, target: str = idea_target.DEFAULT) -> dict:
+    """§2.1's object for a goal: `ideas` (those with a plan), the leader with its $, the members (the goal's builders first,
+    in the party's order, then the others) with their tasks, and the checks (the party's checkers, then any other whose check
+    task ran)."""
+    root, state_dir = Path(root), Path(state_dir)
+    known = {r["slug"]: r for r in roles.roles(state_dir)}
+    kinds = roles.kinds(state_dir)
+    team, every = goal_team.team_of(root, goal), goal_team.every_of(root, goal)
+    planned = []
     for i in ideas.ideas(root, goal):
-        for t in (ideas.plan(state_dir, i["slug"]) or {}).get("tasks") or []:
-            if str(t.get("kind") or "") in idea_checks.TAGS and check_by(t) == by and t.get("finished") and t.get("state") in ("merged", "review", "failed"):
-                done.append((str(t["finished"]), _verdict(t)))
-    newest = sorted(done, reverse=True)[:QUIET_RUN]
-    return newest[0][0] if len(newest) == QUIET_RUN and all(v == "clean" for _at, v in newest) else None
+        plan = ideas.plan(state_dir, i["slug"])
+        if plan:
+            planned.append((i["slug"], plan))
+    slugs = [s for s, _p in planned]
+    lead = _who(state_dir, goal_team.leader_of(root, goal), target, known)
+    members: dict[str, dict] = {}
+    checks: dict[str, dict] = {}
+
+    def check_row(by: str) -> dict:
+        if by not in checks:
+            checks[by] = {**{k: v for k, v in _who(state_dir, by, target, known).items() if k != "slug"}, "by": by, "applied": 0,
+                          "skipped": 0, "clean": 0, "caught": 0, "left": 0, "before": 0, "usd": [], "ran": False}
+        return checks[by]
+
+    for slug in team:                                                   # the party's checkers, in its order
+        a = library.get(slug)
+        if a is not None and a.check is not None:
+            check_row(slug)
+    for slug, plan in planned:
+        spent = idea_spend.of_idea(state_dir, slug)["tasks"]
+        for t in plan.get("tasks") or []:
+            if not isinstance(t, dict):
+                continue
+            usd = (spent.get(str(t.get("id") or "")) or {}).get("usd")
+            if str(t.get("kind") or "") in idea_checks.TAGS:
+                row = check_row(_checker_of(t))
+                row["ran"] = True
+                row["usd"].append(usd)
+                findings, state = t.get("findings"), t.get("state")
+                if isinstance(findings, list):
+                    left = idea_checks.counts(findings)["left"]
+                    row["left"] += left
+                    if state in ("merged", "review"):
+                        clean = not findings and int(t.get("round") or 1) <= 1
+                        row["clean" if clean else "caught"] += 1
+                elif state == "merged":
+                    row["before"] += 1
+                continue
+            if t.get("state") not in ENDED:
+                continue
+            slug_ = str(t.get("role") or "") or kinds.get(str(t.get("kind") or ""), roles.GRUNT)
+            m = members.setdefault(slug_, {"tasks": 0, "merged": 0, "first_time": 0, "usd": []})
+            m["tasks"] += 1
+            m["usd"].append(usd)
+            if t["state"] == "merged":
+                m["merged"] += 1
+                m["first_time"] += int(t.get("round") or 1) <= 1
+    for slug in slugs:                                                  # what the drafts said of each check, once every task is read
+        page = ideas.idea_page(root, slug)
+        for k in list_of_dicts(page.get("checks")) if page else []:
+            row = checks.get(str(k.get("by") or ""))
+            if row is None:
+                continue
+            if k.get("skipped") is True:
+                row["skipped"] += 1
+            elif k.get("applies") is not False:
+                row["applied"] += 1
+    builders = [s for s in team if s in members and goal_team.band_of(s) == "build"]
+    order = builders + [s for s in members if s not in builders]
+    return {"ideas": len(planned),
+            "leader": {**lead, "usd": _leader_usd(state_dir, goal, slugs)},
+            "members": [{**_who(state_dir, s, target, known), "tasks": members[s]["tasks"], "merged": members[s]["merged"],
+                         "first_time": members[s]["first_time"], "usd": _sum(members[s]["usd"])} for s in order],
+            "checks": [{**{k: v for k, v in c.items() if k not in ("usd", "ran")}, "usd": _sum(c["usd"])}
+                       for by, c in checks.items() if by in team or c["ran"]]}
+
+
+# -- what a check is worth (spec 43 §4) ---------------------------------------------------------------------------
+
+def _read_checks(root: Path, state_dir: Path, goal: str | None = None):
+    """(task, checker, usd) of every check task that read its findings and ended (merged, or in review with findings),
+    over the ideas of a goal, or of the project's goals."""
+    for i in ideas.ideas(root, goal) if goal else ideas.ideas(root):
+        plan = ideas.plan(state_dir, i["slug"])
+        spent = idea_spend.of_idea(state_dir, i["slug"])["tasks"] if plan else {}
+        for t in (plan or {}).get("tasks") or []:
+            if isinstance(t, dict) and str(t.get("kind") or "") in idea_checks.TAGS and isinstance(t.get("findings"), list) \
+                    and t.get("state") in ("merged", "review"):
+                yield t, _checker_of(t), (spent.get(str(t.get("id") or "")) or {}).get("usd")
+
+
+def check_records(root: Path, state_dir: Path, days: int) -> dict[str, dict]:
+    """{checker: check_record} of every checker whose check tasks ended with findings read in the last `days`."""
+    since = (dt.datetime.now() - dt.timedelta(days=days)).isoformat(timespec="seconds")
+    out: dict[str, dict] = {}
+    for t, by, usd in _read_checks(Path(root), Path(state_dir)):
+        if str(t.get("finished") or "") < since:
+            continue
+        row = out.setdefault(by, {"checks": 0, "clean": 0, "caught": 0, "left": 0, "usd": []})
+        row["checks"] += 1
+        row["clean" if not t["findings"] and int(t.get("round") or 1) <= 1 else "caught"] += 1
+        row["left"] += idea_checks.counts(t["findings"])["left"]
+        row["usd"].append(usd)
+    return {by: {**{k: v for k, v in r.items() if k != "usd"}, "usd_per_check": _per_check(r["usd"], r["checks"])} for by, r in out.items()}
+
+
+def _per_check(usd: list[float | None], checks: int) -> float | None:
+    """What a check costs: the mean of the checks priced, said from `idea_spend.TOO_FEW` checks on."""
+    priced = [u for u in usd if u is not None]
+    return round(sum(priced) / len(priced), 2) if checks >= idea_spend.TOO_FEW and priced else None
+
+
+def check_record(root: Path, state_dir: Path, by: str, days: int) -> dict:
+    """§4.1: the checker's check tasks that ended with findings in the last `days`, across the project's goals:
+    `{"checks", "clean", "caught", "left", "usd_per_check"}` (`usd_per_check` null under `TOO_FEW` checks)."""
+    return check_records(root, state_dir, days).get(by) or {"checks": 0, "clean": 0, "caught": 0, "left": 0, "usd_per_check": None}
+
+
+def quiet_run(root: Path, state_dir: Path, goal: str, by: str, runs: int = QUIET_RUN) -> dict | None:
+    """The checker's newest `runs` check tasks in this goal's ideas, when all of them ended clean in round 1:
+    `{"at": <when the newest ended>, "usd": <a check's mean cost, or null>}`; None otherwise (fewer, or one caught)."""
+    mine = sorted(((str(t.get("finished") or ""), t, usd) for t, who, usd in _read_checks(Path(root), Path(state_dir), goal) if who == by),
+                  key=lambda x: x[0])[-runs:]
+    if len(mine) < runs or any(t["findings"] or int(t.get("round") or 1) > 1 for _at, t, _u in mine):
+        return None
+    priced = [u for _at, _t, u in mine if u is not None]
+    return {"at": mine[-1][0], "usd": round(sum(priced) / len(priced), 2) if priced else None}

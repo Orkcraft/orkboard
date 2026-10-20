@@ -325,8 +325,10 @@ def test_needs_you_carries_every_question_with_its_likely_answers_and_one_answer
     assert '"choices": ["two to four likely answers, each at most 40 characters"]' in model.seen[0]["prompt"]
     row = next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "goal")
     assert row["questions"] == ["Which channel first? (npm / brew)", "Which week?"] and row["text"] == "Which channel first?"
-    assert row["asked"] == [{"ask": "Which channel first?", "choices": ["npm", "brew"], "pick": None, "why": ""},
-                            {"ask": "Which week?", "choices": [], "pick": None, "why": ""}]     # a plain string of before
+    assert [{k: v for k, v in a.items() if k != "by"} for a in row["asked"]] == [
+        {"ask": "Which channel first?", "choices": ["npm", "brew"], "pick": None, "why": ""},
+        {"ask": "Which week?", "choices": [], "pick": None, "why": ""}]                           # a plain string of before
+    assert [a["by"]["slug"] for a in row["asked"]] == ["taskmaster", "taskmaster"]               # the leader's own (spec 46 §1)
     host.command("ideas.answer", {"slug": slug, "answers": ["npm"], "goal": True})
     _wait(host, slug, goal=True)
     said = model.seen[-1]["prompt"]
@@ -343,10 +345,19 @@ def test_a_goals_question_comes_with_its_answer_picked_and_may_be_left_to_the_ta
     _wait(host, slug, goal=True)
     row = next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "goal")
     assert row["questions"][0] == "Which channel first? (npm / **brew**) — most testers are on a Mac"
-    assert [q["pick"] for q in row["asked"]] == [1, 1, None] and row["asked"][2] == {"ask": "Bad choices?", "choices": [], "pick": None, "why": ""}
+    assert [q["pick"] for q in row["asked"]] == [1, 1, None] and {k: v for k, v in row["asked"][2].items() if k != "by"} == {"ask": "Bad choices?", "choices": [], "pick": None, "why": ""}
     host.command("ideas.answer", {"slug": slug, "decide": True, "goal": True})
     _wait(host, slug, goal=True)
     said = model.seen[-1]["prompt"]
     assert "— brew" in said and "Which week? (this / **next**) — next" in said and "Bad choices? — (no answer: decide)" in said
     got = _events(host, "goal_answered")[-1]
     assert got["decided"] is True and got["answers"] == 2 and got["recommended"] == 0
+
+
+def test_a_goal_row_says_the_saved_party_it_was_picked_from_and_goal_saved_logs_it(host, model):
+    from orkboard.realm import own_parties
+    pid = own_parties.save("Lean web", "engineering", "taskmaster", ["reviewer"], [], [])
+    slug = host.command("ideas.goal_save", {"about": "Ship it.", "team": ["reviewer"], "party": pid})["slug"]
+    assert next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == slug)["party"] == pid
+    assert host.command("ideas.goal", {"slug": slug})["party"] == pid
+    assert [e for e in event_log.read(Path(host.repo_root)) if e["event"] == "goal_saved"][-1]["party"] == pid

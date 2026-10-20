@@ -31,10 +31,26 @@ export function mergeReason(r) {
   return why.length ? `${why.join(" · ")}: send it back to fix ${why.length > 1 ? "them" : r.conflict ? "the conflict" : "them"}` : "";
 }
 
+/** A check's findings left (spec 43 §1.4), and how many it found: "Found 3: 1 fixed, 2 left". */
+export const leftOf = (r) => (r.check ? (r.findings || []).filter((f) => !f.fixed) : []);
+export function foundWords(r) {
+  const all = r.findings || [], left = leftOf(r).length;
+  return `Found ${all.length}: ${all.length - left} fixed, ${left} left`;
+}
+
 export function fixLine(r, into) {
   if (r.conflict) return `Resolve the conflict with ${into}`;
   if (isRed(r)) return `Fix the failing tests${r.tests.failing?.[0] ? `: ${r.tests.failing[0]}` : ""}`;
-  return "";
+  const left = leftOf(r);
+  return left.length ? `Fix the findings left: ${left.map((f) => `${f.where}: ${f.what}`).join("; ")}`.slice(0, 1000) : "";
+}
+
+/** The findings left of a check's result, in the text face: they are the checker's words. */
+export function findingsOf(r) {
+  const left = leftOf(r);
+  if (!left.length) return null;
+  return h("div", { class: "findings" }, h("p", { class: "findings-head" }, foundWords(r)),
+    h("ul", { class: "findings-list" }, ...left.map((f) => h("li", {}, h("span", { class: "findings-where" }, f.where), ` · ${f.what}`))));
 }
 
 /** What a check found (spec 43 §1.4): *Found 3: 1 fixed, 2 left*; "" for a result that found nothing. */
@@ -94,17 +110,16 @@ function askDrop(r, run) {
 export function resultActions(core, r, done = () => {}) {
   const mine = halfOf(r);
   const into = core.st.review?.into || "dev";
-  const reason = mergeReason(r), fix = isRed(r) || Boolean(r.conflict), check = Boolean(r.check) && leftOf(r).length > 0;
+  const reason = mergeReason(r), fix = isRed(r) || Boolean(r.conflict), found = leftOf(r).length > 0;
   const key = { slug: r.idea, task: r.task };
-  const merge = h("button", { class: `ork-btn ${check ? "" : "primary "}big`, type: "button", disabled: Boolean(reason),
-    title: reason || (check ? (r.diff.files ? `Merge the fixes into ${into}` : "Nothing is merged") : null) }, check ? "Leave them" : `Merge into ${into}`);
-  const fixThem = h("button", { class: "ork-btn primary big", type: "button" }, "Fix them");
-  const back = h("button", { class: "ork-btn", type: "button", "aria-expanded": "false" }, fix ? "Fix" : "Send back");
+  const merge = h("button", { class: "ork-btn primary big", type: "button", disabled: Boolean(reason),
+    title: reason || (found ? "Leave the findings as they are: nothing is changed" : null) }, found ? "Leave them" : `Merge into ${into}`);
+  const back = h("button", { class: "ork-btn", type: "button", "aria-expanded": "false" }, found ? "Fix them" : fix ? "Fix" : "Send back");
   const drop = h("button", { class: "linkish", type: "button" }, "Drop…");
   const why = reason ? h("p", { class: "warn why", role: "status" }, reason) : null;
-  const line = h("input", { class: "ork-field", type: "text", "aria-label": fix ? "What to fix, in one line" : "Why you send it back, in one line",
+  const line = h("input", { class: "ork-field", type: "text", "aria-label": fix || found ? "What to fix, in one line" : "Why you send it back, in one line",
     placeholder: "One line: what should change?", maxlength: "1000", enterkeyhint: "send" });
-  const go = h("button", { class: "ork-btn primary", type: "submit", disabled: true }, fix ? "Fix" : "Send back");
+  const go = h("button", { class: "ork-btn primary", type: "submit", disabled: true }, found ? "Fix them" : fix ? "Fix" : "Send back");
   const form = h("form", { class: "row back-line", hidden: mine.line === null }, line, go);
   if (mine.line !== null) { line.value = mine.line; go.disabled = !line.value.trim(); back.setAttribute("aria-expanded", "true"); }
   line.addEventListener("input", () => { mine.line = line.value; go.disabled = !line.value.trim(); });
@@ -174,6 +189,7 @@ export function makeReview(core) {
       h("button", { class: "result-open", type: "button", "aria-label": `${r.title}: open its code`, onclick: () => core.open({ kind: "result", slug: r.idea, task: r.task }) },
         h("b", {}, r.title), h("small", { class: "muted" }, r.idea_title, r.round > 1 ? h("span", { class: "round" }, ` · round ${r.round}`) : null), foundOf(r), fact,
         r.conflict ? h("small", { class: "warn" }, `⚠ ${r.conflict}`) : null),
+      findingsOf(r),
       resultActions(core, r));
   }
 

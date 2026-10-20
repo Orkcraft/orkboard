@@ -66,7 +66,7 @@ def test_the_night_runs_its_steps_in_order_and_says_so(keeper):
     order = [s for s in model.steps() if s != "plan"]
     assert order == ["draft", "draft", "draft", "goal", "propose"]               # 1. queue 3. refresh 4. proposals
     assert keeper.started == [tonight] and set(keeper.plans) == {low, high, old}   # 2. the plans that start at night
-    assert counts == {"drafted": 3, "started": 1, "refreshed": 1, "proposed": 2, "held": 0}
+    assert counts == {"drafted": 3, "started": 1, "refreshed": 1, "proposed": 2, "held": 0, "paced": 0}
     proposed = [i for i in ideas.ideas(keeper.root) if ideas.state(keeper.state, i["slug"])["state"] == "proposed"]
     assert {i["title"] for i in proposed} == {"Sort the table", "Filter it"}       # balance: 2, never into General
     assert all(i["track"] == g for i in proposed)
@@ -74,7 +74,7 @@ def test_the_night_runs_its_steps_in_order_and_says_so(keeper):
     assert page.section("Done when") == "" and page.section("Gist") in ("People sort.\nOften.", "They filter.")
     assert next(a for a in model.asked if a["step"] == "goal")["prompt"].count("docs/notes.md") >= 1
     (run,) = _events(keeper, "night_run")
-    assert {k: run[k] for k in ("drafted", "started", "refreshed", "proposed", "held")} == counts
+    assert {k: run[k] for k in ("drafted", "started", "refreshed", "proposed", "held", "paced")} == counts
     assert run["step"] == "propose" and run["seconds"] is not None and run["cost"] is None
     assert [e["goal"] for e in _events(keeper, "proposal_made")] == [g, g]
     refreshed = ideas.goal_state(keeper.state, g)
@@ -136,3 +136,27 @@ def test_the_proposals_call_reads_nothing_and_keeps_no_session(keeper, monkeypat
     keeper.run_night()
     (call,) = seen
     assert call["tools"] is False and call["one_shot"] is True and call["resume"] == "" and call["budget"] == 0.3
+
+
+def test_at_work_and_tonight_are_what_the_computer_is_kept_awake_for(keeper):
+    """Spec 47 §3: `at_work` is a draft, a plan, a read, a check or the night's run; `tonight` the rows of the night's
+    steps 1 and 2, never its proposals."""
+    g = _goal(keeper, "Table")
+    assert not keeper.at_work() and keeper.tonight() == 0
+    ideas.add_idea(keeper.root, "for the day", g, keeper.state, queue="hold")            # held by the person: not tonight's
+    ideas.add_idea(keeper.root, "from before", g, keeper.state)                          # raw, no queue: the night's
+    ideas.add_idea(keeper.root, "for tonight", g, keeper.state, queue="night")
+    passed = ideas.add_idea(keeper.root, "passed for tonight", g, keeper.state)
+    ideas.save_plan(keeper.state, passed, {"idea": passed, "passed_at": "x", "start_at": "night", "tasks": [], "todos": []})
+    ideas.save_state(keeper.state, passed, state="plan")
+    soon = ideas.add_idea(keeper.root, "passed to start now", g, keeper.state)
+    ideas.save_plan(keeper.state, soon, {"idea": soon, "passed_at": "x", "start_at": "now", "tasks": [], "todos": []})
+    ideas.save_state(keeper.state, soon, state="plan")
+    proposed = ideas.add_idea(keeper.root, "proposed", g, keeper.state)
+    ideas.save_state(keeper.state, proposed, state="proposed", queue="")
+    assert keeper.tonight() == 3
+    keeper._busy["some-idea"] = "drafting"
+    assert keeper.at_work()
+    keeper._busy.clear()
+    keeper._night_busy = True
+    assert keeper.at_work()

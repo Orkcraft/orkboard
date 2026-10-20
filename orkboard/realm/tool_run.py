@@ -41,7 +41,9 @@ def harness_stdin(harness: str, prompt: str) -> str | None:
 def result_of(harness: str, stdout: str, before: int | dict = 0,
               model: str = "") -> tuple[str, float | None, int | None, str]:
     """(text, cost, tokens, session) of one run of a tool; `model` is what it was asked to run on
-    (a tool that prints tokens and no price is priced from it)."""
+    (a tool that prints tokens and no price is priced from it). It is read when a run ended without a failure, so a host
+    that watches hears it (`tool_errors.ran`, spec 45 §3)."""
+    tool_errors.ran(harness)
     h = harnesses.get(harness)
     return h.outcome(stdout, before, model) if h else harnesses.json_result(stdout, before)
 
@@ -158,6 +160,7 @@ def ask(harness_id: str, prompt: str, model: str | None = None,
                         time.monotonic() - start, who=f"{h.id} -p")
         why = h.error(proc.stdout) or (proc.stderr or proc.stdout).strip()
         raise tool_errors.ToolError(h.id, why, proc.returncode)
+    tool_errors.ran(h.id)
     text, cost, tokens, _ = h.outcome(proc.stdout, 0, model or "")
     call_log.record(None, "ask", h.id, model or "", prompt, proc.stdout, proc.stderr, proc.returncode,
                     time.monotonic() - start, cost, tokens, who=f"{h.id} -p")

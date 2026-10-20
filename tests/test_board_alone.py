@@ -77,7 +77,7 @@ def test_orkboards_wiki_is_the_setting_else_the_general_one(fake_repo):
 def test_the_snapshot_holds_only_what_the_shell_reads(host):
     snap = host.snapshot()
     assert set(snap) == {"focus", "onboarding", "ideas_rev", "ops_rev", "needs_you", "idea_states", "review_count",
-                         "review_results", "limits", "hud", "repo", "projects", "update"}
+                         "review_results", "limits", "hud", "repo", "projects", "update", "sign_in"}
     assert snap["projects"] == host.command("projects.list")                         # the switcher (spec 37 §8)
     assert snap["focus"] == "board" and set(snap["hud"]) == {"show_gold", "gold", "lumber"}
     assert snap["repo"] == str(host.repo_root) and snap["onboarding"] is None      # a machine set up: no first screen
@@ -92,6 +92,16 @@ def test_the_commands_are_the_boards_stop_all_updates_and_links(host):
         host.command("link.open", {"url": "file:///etc/passwd"})
     with pytest.raises(CommandError, match="Unknown command"):
         host.command("town.build", {})
+
+
+def test_awake_is_the_desktops_command_and_the_phones_snapshot_says_sleep(host):
+    """Spec 47 §3: `awake.*` among the host's commands and not the phone's; `sleep` only in the phone's snapshot."""
+    for name in ("awake.state", "awake.set", "awake.offer"):
+        assert name in host.commands and not BoardPhone.allowed(host, name, {})
+    assert "sleep" not in host.snapshot() and BoardPhone.phone_snapshot(host)["sleep"] == ""
+    host.command("awake.set", {"mode": "off"})
+    assert "may sleep" in BoardPhone.phone_snapshot(host)["sleep"]
+    assert host.keep_awake.state()["mode"] == "off"
 
 
 def test_the_budget_is_the_towns_cap_on_this_runs_spend(fake_repo):

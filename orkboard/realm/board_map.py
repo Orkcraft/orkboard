@@ -14,12 +14,28 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_questions, idea_risk, idea_spend, idea_target, ideas, roles
+from orkboard.realm import (goal_flags, goal_verdict, harnesses, idea_checks, idea_questions, idea_risk, idea_spend,
+                            idea_target, ideas, roles, tool_errors)
 from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
 _AFTER = re.compile(r"after (\d{1,2}:\d{2})")
+SIGN_IN_TOOL = "claude"          # what the Board runs by itself runs on Claude (core/idea_runner.py `HARNESS`)
+
+
+def sign_in_needs(entries: list[dict]) -> list[dict]:
+    """The Needs you rows of the tools that need a sign-in and hold work (spec 45 §7): one per tool, from the host's
+    `sign_in` entries (core/sign_ins.py). It blocks: the work in progress waits for it."""
+    out = []
+    for e in entries:
+        if e.get("state") == "done" or not e.get("waiting"):
+            continue
+        tool = str(e.get("tool") or harnesses.title(str(e.get("harness") or "")))
+        out.append({"kind": "sign_in", "harness": e["harness"], "tool": tool, "title": tool, "blocks": True,
+                    "priority": "normal", "at": dt.datetime.fromtimestamp(float(e.get("since") or 0)).isoformat(timespec="seconds"),
+                    "text": tool_errors.LINES[tool_errors.LOGIN].format(tool=tool), "waiting": int(e["waiting"])})
+    return out
 
 
 def list_of_dicts(text: object) -> list[dict]:
@@ -82,6 +98,16 @@ def task_short(t: dict) -> str:
     return str(t.get("short") or "") or short_of(str(t.get("title") or ""))
 
 
+def night_by(st: dict, plan: dict | None) -> str:
+    """Who put the idea off to the night (spec 44 §2): "board" or "person" for a queued idea and a plan to start at
+    night, else ""."""
+    if st.get("state") == "raw" and ideas.queue_of(st) == "night":
+        return ideas.night_by_of(st)
+    if (plan or {}).get("start_at") == "night":
+        return "board" if plan.get("start_at_by") == "board" else "person"
+    return ""
+
+
 def row(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, page: ideas.Page | None, asks: list[str],
         states: dict[str, dict], mine: list[dict]) -> dict:
     """An idea as `ideas.board` lists it: the state and what words it (queue, held_until, start_at, progress, waits_on)."""
@@ -94,13 +120,12 @@ def row(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, page:
             "progress": {"done": sum(1 for t in tasks if t.get("state") == "merged"), "total": len(tasks)},
             "updated": ideas.touched_at(root, state_dir, slug),
             "queue": ideas.queue_of(st), "held_until": st["held_until"],
+            **({"held_for": st["held_for"]} if st.get("held_for") and st["held_until"] else {}),
             "risk": idea_risk.level(page.get("risk")) if page and page.get("risk") else "",
             "risk_triggers": list_of(page.get("risk_triggers")) if page else [],
             "depends_on": depends,
             "waits_on": [d for d in depends if states.get(d, {}).get("state") != "done"],
-            "start_at": str((plan or {}).get("start_at") or ""),
-            "night_by": ideas.night_by_of(st) if st["state"] == "raw" and ideas.queue_of(st) == "night" else
-            ("board" if (plan or {}).get("start_at_by") == "board" else "person") if st["state"] == "plan" and (plan or {}).get("start_at") == "night" else "",
+            "start_at": str((plan or {}).get("start_at") or ""), "night_by": night_by(st, plan),
             "in_needs_you": any(n["kind"] in ("asks", "plan", "proposal") for n in mine)}
 
 
@@ -126,18 +151,33 @@ def _tiers(order: list[str], depends: dict[str, list[str]]) -> dict[str, int]:
     return tier
 
 
-def _waits(node: dict, tasks: list[dict], titles: dict[str, str], page_waits: list[str], week: dict | None = None) -> dict | None:
-    """Why a node that is not done does not move: the first that holds (spec 39 §1). Data, not words. `week`: {"until": the week's reset (local
-    time, to the minute), "held": the Board's own Low work waits at night for the week} (spec 44 §4), or None with no week read."""
+def _sign_in_wait(harness: str, until: str) -> dict:
+    """`waits` kind `sign_in`: `ref` the tool, `tool` its title, `until` when it fails as it did (a day from the hold)."""
+    title = harnesses.title(harness)
+    return {"kind": "sign_in", "ref": harness, "title": title, "tool": title, "until": until}
+
+
+def _waits(node: dict, tasks: list[dict], titles: dict[str, str], page_waits: list[str], week_until: str = "") -> dict | None:
+    """Why a node that is not done does not move: the first that holds (spec 39 §1). Data, not words. `week_until`: the
+    week's reset (a time) while it is night, the week is behind its pace and the Board's Low work is held (spec 44)."""
     if node["needs_you"]:
         return {"kind": "you", "ref": "", "title": "", "until": ""}
     if page_waits:
         return {"kind": "idea", "ref": page_waits[0], "title": titles.get(page_waits[0], page_waits[0]), "until": ""}
     held = [t for t in tasks if t.get("state") == "held"]
+    for t in held:                                    # a task held for its tool's sign-in (spec 45 §7)
+        if t.get("held_for") == "sign_in":
+            return _sign_in_wait(str(t.get("harness") or SIGN_IN_TOOL), str(t.get("held_until") or ""))
+    if node.get("held_for") == "sign_in":
+        return _sign_in_wait(SIGN_IN_TOOL, node["held_until"])
     for t in held:
         m = _HELD_FILES.match(str(t.get("note") or ""))
         if m:
             return {"kind": "files", "ref": m.group(1), "title": titles.get(m.group(1), m.group(1)), "until": ""}
+    for t in held:
+        got = _AFTER.search(str(t.get("note") or ""))
+        if got and str(t.get("note") or "").startswith("week"):
+            return {"kind": "week", "ref": "", "title": "", "until": week_until or got.group(1)}
     if node["held_until"]:
         return {"kind": "limits", "ref": "", "title": "", "until": node["held_until"]}
     for t in held:
@@ -150,30 +190,25 @@ def _waits(node: dict, tasks: list[dict], titles: dict[str, str], page_waits: li
         got = _AFTER.search(note)
         if got and note.startswith("reserve"):
             return {"kind": "reserve", "ref": "", "title": "", "until": got.group(1)}
-    for t in held:
-        note = str(t.get("note") or "")
-        got = _AFTER.search(note)
-        if got and note.startswith("week"):
-            return {"kind": "week", "ref": "", "title": "", "until": (week or {}).get("until") or got.group(1)}
-    if (node["queue"] == "night" or node["start_at"] == "night") and node.get("night_by") == "board" and (week or {}).get("held"):
-        return {"kind": "week", "ref": "", "title": "", "until": week["until"]}      # the Board's own Low work, held at night by the pace
-    if node["queue"] == "night" or node["start_at"] == "night":
+    begun = any(t.get("state") not in (None, "waiting", "ready", "held") for t in tasks)
+    if week_until and node["night_by"] == "board" and not begun and (node["queue"] == "night" or node["start_at"] == "night"):
+        return {"kind": "week", "ref": "", "title": "", "until": week_until}
+    if node["queue"] == "night" or (node["start_at"] == "night" and not node["by_pace"]):
         return {"kind": "night", "ref": "", "title": "", "until": ""}
     if node["queue"] == "hold":
         return {"kind": "stopped", "ref": "", "title": "", "until": ""}
     return None
 
 
-def _week_of(settings: dict | None, limits: list | None, now: float) -> dict | None:
-    """The Claude week as the Map words a wait on it: {"until": its reset, "held": the Board's own Low work waits at night for it}; None with no
-    week read (spec 44 §4)."""
-    got = idea_target.week(limits or [], now)
-    if got is None:
-        return None
+def _week_until(settings: dict | None, limits: list | None, now: float) -> str:
+    """The week's reset as a time when the Board's Low work is held for the week: night now, `autostart` on, the week
+    behind its pace (spec 44 §3); else ""."""
     s = settings or {}
-    night = idea_target.in_night(str(s.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now))
-    return {"until": dt.datetime.fromtimestamp(got["reset"]).strftime("%Y-%m-%dT%H:%M"),
-            "held": night and bool(s.get("autostart", True)) and idea_target.pace(limits or [], now) == "behind"}
+    if not now or not limits or s.get("autostart", True) is False \
+            or not idea_target.in_night(str(s.get("night") or "01:00-07:00"), dt.datetime.fromtimestamp(now)) \
+            or idea_target.pace(limits, now) != "behind":
+        return ""
+    return dt.datetime.fromtimestamp(idea_target.week(limits, now)["reset"]).isoformat(timespec="seconds")
 
 
 def build(root: Path, state_dir: Path, settings: dict | None = None, limits: list | None = None, now: float = 0.0, *,
@@ -203,7 +238,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                 todo.append(d)
 
     goals, nodes, edges = [], [], []
-    week = _week_of(settings, limits, now)
+    week_until = _week_until(settings, limits, now)
     target, read = idea_target.target_of(settings), roles.known(state_dir)         # a task's head: who does it, at what tier
     for g in shown:
         mine = [i for i in found if i["track"] == g["slug"]]
@@ -238,9 +273,10 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             started = any(t.get("state") not in (None, "waiting", "ready", "held") for t in tasks)
             est = (plan or {}).get("estimate")
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
-                    "held_until": r["held_until"], "start_at": r["start_at"], "night_by": r["night_by"], "by_pace": bool((plan or {}).get("by_pace")),
-                    "priority": r["priority"], "size": r["size"],
+                    "held_until": r["held_until"], **({"held_for": r["held_for"]} if r.get("held_for") else {}),
+                    "start_at": r["start_at"], "priority": r["priority"], "size": r["size"],
                     "risk": r["risk"], "tier": tier[slug], "depends_on": r["depends_on"], "waits_on": r["waits_on"],
+                    "night_by": r["night_by"], "by_pace": (plan or {}).get("by_pace") is True,
                     "waits": None, "needs_you": next((k for k in NEEDS if any(n["kind"] == k for n in needs)), "")
                     if r["state"] != "done" else "",
                     "progress": r["progress"],
@@ -255,7 +291,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                     "by_itself": bool(plan) and plan.get("passed_by") == "auto",
                     "folded": slug not in kept, "updated": r["updated"]}
             if r["state"] != "done":
-                node["waits"] = _waits(node, tasks, titles, r["waits_on"], week)
+                node["waits"] = _waits(node, tasks, titles, r["waits_on"], week_until)
             nodes.append(node)
             edges += [{"from": d, "to": slug} for d in r["depends_on"] if d in tier and slug in kept and d in kept]
     return {"goals": goals, "nodes": nodes, "edges": edges, "rev": rev}

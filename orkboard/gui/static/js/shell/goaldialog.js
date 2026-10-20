@@ -9,7 +9,7 @@ import { board, track } from "../board/store.js";
 import { act, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { GoalWizard } from "./goalwizard.js";
-import { PartyBands, PriceLine, ChecksBlock, OwnParties, TASKMASTER, partyWords, usePartyPrice, useOwnParties } from "./party.js";
+import { PartyBands, ChecksBlock, PriceLine, OwnParties, TASKMASTER, partyWords, usePartyPrice, useOwnParties } from "./party.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
 
@@ -28,11 +28,11 @@ function GoalEdit({ slug, then = "" }) {
   const [team, setTeam] = useState(was.team);
   const [every, setEvery] = useState(was.every);
   const [changing, setChanging] = useState(false);
-  const [partyId, setPartyId] = useState("");                // a saved party of the person's picked here, until a seat changes
-  const [owns, loadOwns] = useOwnParties(changing);
-  const seat = (set) => (v) => { set(v); setPartyId(""); };
-  const pickOwn = (p) => { setLeader(p.leader || TASKMASTER); setTeam([...p.team]); setEvery([...p.every]); setPartyId(p.id); };
-  const price = usePartyPrice(changing, leader, team, every, g?.craft || "");          // asked when the party is picked (Change the party)
+  const [party, setParty] = useState(g?.party || "");            // the saved party of the person's the seats come from; a seat changed drops it
+  const [mine, reload] = useOwnParties(changing);
+  const seats = (set) => (v) => { setParty(""); set(v); };
+  const takeParty = (p) => { setLeader(p.leader || TASKMASTER); setTeam([...p.team]); setEvery([...p.every]); setParty(p.id); };
+  const price = usePartyPrice(changing, leader, team, every, g?.craft || "");   // what an idea costs with this party and its hints (spec 43 C, E)
   const moved = leader !== was.leader || JSON.stringify(team) !== JSON.stringify(was.team) || JSON.stringify(every) !== JSON.stringify(was.every);
   const save = async (e) => {
     e?.preventDefault();
@@ -40,11 +40,11 @@ function GoalEdit({ slug, then = "" }) {
     setSaving(true);
     const args = { ...(slug ? { slug } : {}), about: about.trim(), priority };
     if (slug && title.trim() && title.trim() !== g?.title) args.title = title.trim();     // a title typed is the person's
-    if (moved || partyId) Object.assign(args, { leader, team, every: every.filter((id) => team.includes(id)), ...(partyId ? { party: partyId } : {}) });   // the party, when changed
+    if (moved) Object.assign(args, { leader, team, every: every.filter((id) => team.includes(id)), ...(party ? { party } : {}) });   // the party, when changed
     const got = await act("ideas.goal_save", args);
     setSaving(false);
     if (!got?.slug) return;
-    for (const note of got.notes || []) toast(note);
+    (got.notes || []).forEach((n) => toast(n));          // an agent of the party's the project has already: kept as it is
     closeDialog();
     track.value = got.slug;
     if (then === "idea") openDialog("idea", { goal: got.slug });
@@ -65,10 +65,10 @@ function GoalEdit({ slug, then = "" }) {
       <p class="ok-font-status ok-tone-muted">${say(`${g?.leader?.slug && g.leader.slug !== TASKMASTER ? g.leader.name : "The Taskmaster"} reads the repository and writes the title, the summary, the metrics and the links.`)}</p>
       ${g && html`<div class="shell-field" role="group" aria-label="Party"><span class="ok-font-label">Party</span>
         <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p>
-        ${changing ? html`<${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
-          <${PartyBands} craft=${g.craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
+        ${changing ? html`<${OwnParties} parties=${mine} picked=${party} onPick=${takeParty} reload=${reload} />
+          <${PartyBands} craft=${g.craft} leader=${leader} setLeader=${seats(setLeader)} team=${team} setTeam=${seats(setTeam)} />
           <${PriceLine} price=${price} />
-          <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />`
+          <${ChecksBlock} team=${team} every=${every} setEvery=${seats(setEvery)} price=${price} />`
           : html`<button type="button" class="ork-btn" onClick=${() => setChanging(true)}>Change the party</button>`}</div>`}
     </form>
   <//>`;

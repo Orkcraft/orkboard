@@ -21,7 +21,7 @@ pytestmark = pytest.mark.browser
 
 def node(slug, title, tier, state, **more):
     return {"slug": slug, "goal": "ship", "title": title, "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal",
-            "size": "M", "risk": "", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "",
+            "size": "M", "risk": "", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "", "night_by": "person", "by_pace": False,
             "progress": {"done": 0, "total": 0}, "tasks": [], "estimate": None, "by_itself": False, "folded": False,
             "updated": "2026-10-01T10:00:00", **more}
 
@@ -316,9 +316,8 @@ async def test_the_tally_stays_under_the_flag_and_flags_opens_with_its_rows(fake
 
 
 @pytest.mark.asyncio
-async def test_a_met_goal_s_row_in_flags_has_what_the_party_did_closed_at_first(fake_repo, monkeypatch):
-    """Spec 43 B: the same fold under a flag's row."""
-    from tests.test_shell_browser import PARTY, PARTY_LINES
+async def test_a_met_goals_row_in_flags_has_the_fold_for_what_its_party_did(fake_repo, monkeypatch):
+    from tests.test_pwa_goal_team_browser import PARTY, PARTY_LINES
     _met()
     async with _phone(fake_repo, monkeypatch, init=with_list(fake_repo, ["docs"])) as (stub, page):
         stub.party = PARTY
@@ -326,11 +325,37 @@ async def test_a_met_goal_s_row_in_flags_has_what_the_party_did_closed_at_first(
         await _docs(page)
         await page.locator("details.map-flags summary").click()
         await page.locator(".map-flag").wait_for(timeout=WAIT_MS)
-        fold = page.locator(".map-flags-list .party-work")
+        fold = page.locator("details.map-flags details.party-work")
         assert await fold.get_attribute("open") is None and not any(c[0] == "ideas.party" for c in stub.calls)
         await fold.locator("summary").click()
-        await page.wait_for_function("() => document.querySelectorAll('.map-flags-list .party-work li').length === 4", timeout=WAIT_MS)
+        await fold.locator("li").first.wait_for(timeout=WAIT_MS)
         assert [" ".join(t.split()) for t in await fold.locator("li").all_inner_texts()] == PARTY_LINES
         assert await _called(stub, "ideas.party", {"goal": "docs"})
-        assert await _called(stub, "ideas.log", {"event": "opened", "what": "party", "ref": "docs", "device": "phone"})
+        assert " ".join((await page.locator(".map-flag").inner_text()).split()).startswith("Docs met, says Product manager")
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_stop_says_tonight_by_who_put_it_off_and_when_the_week_holds_it(fake_repo, monkeypatch):
+    night = {"kind": "night", "ref": "", "title": "", "until": ""}
+    week = {"kind": "week", "ref": "", "title": "", "until": "2026-10-26T09:00:00"}
+    ANSWER["nodes"] = [
+        node("b-idea", "Board idea", 1, "raw", queue="night", night_by="board", waits=night),
+        node("p-idea", "Person idea", 1, "raw", queue="night", night_by="person", waits=night),
+        node("b-plan", "Board plan", 2, "plan", start_at="night", night_by="board", waits=night, tasks=_tasks("waiting")),
+        node("p-plan", "Person plan", 2, "plan", start_at="night", night_by="person", waits=night, tasks=_tasks("waiting")),
+        node("w-idea", "Week idea", 3, "raw", queue="night", night_by="board", waits=week),
+        node("w-plan", "Week plan", 3, "plan", start_at="night", night_by="board", waits=week, tasks=_tasks("waiting"))]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        await page.locator(".map-row").first.wait_for(timeout=WAIT_MS)
+        said = lambda slug: page.locator(f'.map-row[data-slug="{slug}"] .map-open').get_attribute("data-words")      # noqa: E731
+        assert "tonight, or sooner if the week has room" in await said("b-idea")
+        assert "starts tonight, or sooner if the week has room" in await said("b-plan")
+        for slug, words in (("p-idea", "tonight"), ("p-plan", "starts tonight")):
+            got = await said(slug)
+            assert got.startswith(words) and "sooner" not in got and "week" not in got
+        for slug in ("w-idea", "w-plan"):
+            got = await said(slug)
+            assert "waits: the week is behind · until Mon 09:00" in got and "sooner" not in got
         assert await page.evaluate(NO_SCROLL)

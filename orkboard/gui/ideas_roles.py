@@ -62,28 +62,29 @@ class RolesMixin:
             return {"days": RECORD_DAYS, **{k: row.get(k, 0) for k in ("plans", "finished", "first_time")}}
         return {"days": RECORD_DAYS, **{k: row.get(k) for k in ("finished", "merged", "first_time", "usd_per_merged")}}
 
-    def _checker_record(self, slug: str, days: int) -> dict | None:
-        """A checker's check over the last `days` (realm/party_work.py `check_record`); None for an agent that brings no check."""
-        a = library.get(slug)
-        return party_work.check_record(self.root(False), self.state_dir, slug, days) if a is not None and a.check is not None else None
+    @staticmethod
+    def _check_of(slug: str, found: dict) -> dict | None:
+        """A checker's check in a window (spec 43 §4.1): {checks, clean, caught, left, usd_per_check}; None for one that is no checker."""
+        agent = library.get(slug)
+        if agent is None or agent.check is None:
+            return None
+        return found.get(slug) or {"checks": 0, "clean": 0, "caught": 0, "left": 0, "usd_per_check": None}
 
-    def _with_check(self, record: dict | None, slug: str) -> dict | None:
-        """An agent's record with its check of the last 30 days when it is a checker (spec 43 §4.1); a checker with no task has the record
-        of its check alone."""
-        check = self._checker_record(slug, RECORD_DAYS)
-        if check is None:
-            return record
-        return {**(record or {"days": RECORD_DAYS}), "check": check}
+    def _with_check(self, record: dict | None, month: dict | None, slug: str) -> dict | None:
+        """An agent's record with its check of the last 30 days when it is a checker (spec 43 §4.1)."""
+        check = self._check_of(slug, {slug: month} if month else {})
+        return record if check is None or record is None else {**record, "check": check}
 
     def roles(self, args: dict) -> dict:
         spent, week, kinds = self._role_spend(), idea_spend.by_role(self.state_dir), roles.kinds(self.state_dir)
         record = idea_spend.by_role(self.state_dir, days=RECORD_DAYS)
+        root = self.root(False)
+        checks_week, checks_month = party_work.check_records(root, self.state_dir, 7), party_work.check_records(root, self.state_dir, RECORD_DAYS)
         target, costs = self._target(), idea_spend.tier_costs(self.state_dir)
         mine = [{**r, "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]),
                  "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r),
-                 "head": roles.head(r, target), "record": self._with_check(self._record(record.get(r["slug"]), r["slug"]), r["slug"]),
-                 "usd_task": self._usd_task(r, week, costs, target),
-                 **({"check_week": c} if (c := self._checker_record(r["slug"], CHECK_WEEK)) is not None else {}),
+                 "head": roles.head(r, target), "record": self._with_check(self._record(record.get(r["slug"]), r["slug"]), checks_month.get(r["slug"]), r["slug"]),
+                 "check_week": self._check_of(r["slug"], checks_week), "usd_task": self._usd_task(r, week, costs, target),
                  **({"told": roles.TOLD[r["slug"]]} if r["slug"] in roles.TOLD else {})}
                 for r in roles.roles(self.state_dir)]
         have = {r["slug"] for r in mine}
@@ -197,16 +198,15 @@ class RolesMixin:
                          # spec 35 §11.5: who started it, and whether it waits for the night
                          "by": "auto" if plan.get("passed_by") == "auto" else "person",
                          "night": plan.get("start_at") == "night" and not t.get("started"),
-                         # spec 44 §4: a task of a plan that started by day because the week had room
-                         **({"pace": True} if plan.get("by_pace") else {})})
+                         "pace": plan.get("by_pace") is True})            # spec 44: it started by day, the week has room
         spent, week, out = self._role_spend(), idea_spend.by_role(self.state_dir), []
         costs = idea_spend.tier_costs(self.state_dir)
+        checks_week = party_work.check_records(self.root(False), self.state_dir, 7)
         for r in roles.roles(self.state_dir):
             block = {"role": r["slug"], "name": "Grunts" if r["slug"] == roles.GRUNT and r["name"] == "Grunt" else r["name"],
                      "model": r["model"], "max_parallel": r["max_parallel"], "builtin": r["builtin"],
                      "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]), "head": roles.head(r, target),
-                     "usd_task": self._usd_task(r, week, costs, target),
-                     **({"check_week": c} if (c := self._checker_record(r["slug"], CHECK_WEEK)) is not None else {})}
+                     "usd_task": self._usd_task(r, week, costs, target), "check_week": self._check_of(r["slug"], checks_week)}
             if r["slug"] == roles.TASKMASTER:
                 out.append({**block, "state": mode, "waits_on": waits, "chips": chips})
             else:

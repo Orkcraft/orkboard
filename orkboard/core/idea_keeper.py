@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orkboard.core.idea_draft import DraftMixin
+from orkboard.core.idea_sign_in import SignInMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
 from orkboard.core.idea_lead import LeadMixin
@@ -93,14 +94,15 @@ def _iso(at: float) -> str:
     return dt.datetime.fromtimestamp(at).isoformat(timespec="seconds")
 
 
-class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
+class IdeaKeeper(SignInMixin, DraftMixin, GoalMixin, NightMixin, LeadMixin):
     def __init__(self, repo_root: Path, state_dir: Path, wiki_root: Callable[[], Path],
                  settings: Callable[[], dict], publish: Callable[[str], None] = lambda slug: None,
                  demo: bool = False, budget_ok: Callable[[], bool] = lambda: True,
                  taskmaster: Callable[[], str] | None = None, limits: Callable[[], list] | None = None,
                  on_plan: Callable[[str], None] | None = None, start_night: Callable[[str], bool] | None = None,
-                 events: bool = True) -> None:
-        """`limits`: the quota readers' last read (spent windows hold the keeper); `on_plan(slug)`: a plan was made
+                 events: bool = True, sign_ins: Any = None) -> None:
+        """`sign_ins`: the host's sign-ins (core/sign_ins.py): what runs by itself waits while Claude Code needs its
+        sign-in (`held_for` "sign_in", spec 45 §6). `limits`: the quota readers' last read (spent windows hold the keeper); `on_plan(slug)`: a plan was made
         or its risk changed (the face's autostart); `start_night(slug)`: a plan passed to start at night is started
         (the night's step 2); `events`: the keeper's own events go to the local event log (spec 35 §12)."""
         self.repo_root, self.state_dir = Path(repo_root), Path(state_dir)
@@ -108,7 +110,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
         self._again: set[str] = set()                # a busy key asked again while it ran
         self.wiki_root, self.settings, self.publish = wiki_root, settings, publish
         self.index_root = wiki_root                  # where the Wiki's index is read (the person's Wiki, spec 35 §13)
-        self.demo, self.budget_ok, self.events = demo, budget_ok, events
+        self.demo, self.budget_ok, self.events, self.sign_ins = demo, budget_ok, events, sign_ins
         self.limits = limits or (lambda: [])
         self.on_plan = on_plan or (lambda slug: None)
         self.start_night = start_night or (lambda slug: False)
@@ -120,7 +122,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
         self._cancels: dict[str, threading.Event] = {}   # key → its run's own cancel (read_stop)
         self._tick_at = float("-inf")
         self._night_busy, self._night_tried = False, float("-inf")
-        self._pace_busy, self._pace_at = False, float("-inf")        # the week's pace (core/idea_night.py `pace_tick`)
+        self._pace_busy, self._pace_at = False, float("-inf")      # the week's pace (core/idea_night.py `pace_tick`)
 
     # -- the model call -------------------------------------------------------------------------------------
 
@@ -237,7 +239,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
             ev = self._cancels.get(slug)
         if ev is not None:
             ev.set()
-        ideas.save_state(self.state_dir, slug, queue="hold", held_until="")
+        ideas.save_state(self.state_dir, slug, queue="hold", held_until="", held_for="")
         self._ev(event_log.KEEPER_STOPPED, idea=slug)
         self.publish(slug)
         return ev is not None
@@ -264,11 +266,12 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
             raise KeeperError(f"Claude's window is spent: try again after {dt.datetime.fromtimestamp(until):%H:%M}")
 
     def hold(self, slug: str) -> bool:
-        """What runs by itself, in a spent window: not made; the idea waits with `held_until` (the reset)."""
+        """What runs by itself, in a spent window or while Claude Code needs its sign-in: not made; the idea waits with
+        `held_until` (the reset; for a sign-in, a day from the hold, with `held_for`)."""
         until = self.window_until()
         if until is None:
-            return False
-        ideas.save_state(self.state_dir, slug, held_until=_iso(until))
+            return self.hold_sign_in(slug)
+        ideas.save_state(self.state_dir, slug, held_until=_iso(until), held_for="")
         self.publish(slug)
         return True
 
@@ -286,11 +289,16 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
                 st = ideas.state(self.state_dir, slug)
                 if self.busy(slug) or (not st["held_until"] and (st["error"] or st["state"] != "raw")):
                     continue
+                if st["held_for"] == "sign_in" and st["held_until"] and not self._release(slug, st, now):
+                    continue                          # waits for the sign-in (spec 45 §6)
+                if self.signed_out():
+                    continue
                 if st["state"] == "raw" and ideas.queue_of(st) == "now":
                     started |= self._quiet(lambda: self.draft(slug))
                 elif st["state"] == "ready" and st["held_until"] and ideas.plan(self.state_dir, slug) is None:
                     started |= self._quiet(lambda: self.plan(slug, auto=True))
-        return self.night_tick(now) or self.pace_tick(now) or started
+        night, paced = self.night_tick(now), self.pace_tick(now)
+        return night or paced or started
 
     def _quiet(self, fn: Callable[[], Any]) -> bool:
         try:
@@ -305,7 +313,8 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
             self._cancels[key] = cancel
         self._tls.cancel, self._tls.slug, self._tls.key = cancel, slug or key, key
         try:
-            fn()
+            with tool_errors.doing({"drafting": "draft", "planning": "plan"}.get(what, "ask")):
+                fn()
         finally:
             with self._lock:
                 self._busy.pop(key, None)
@@ -443,7 +452,7 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         elif self.hold(slug):
             return False
         was = ideas.state(self.state_dir, slug)["state"]
-        ideas.save_state(self.state_dir, slug, state="planning", error="", held_until="")
+        ideas.save_state(self.state_dir, slug, state="planning", error="", held_until="", held_for="")
         try:
             self._start(slug, "planning", lambda: self.plan_one(slug, was))
         except KeeperError:
@@ -509,13 +518,16 @@ Answer with one JSON object and nothing else:
             data["estimate"] = estimate(data["tasks"], runs, idea_spend.tier_costs(self.state_dir))   # learned (spec 36 §6)
             ideas.save_plan(self.state_dir, slug, data)
         except Exception as e:
+            if self.sign_in_held(slug, e, back):             # it waits for the sign-in, then plans again (the clock)
+                self.publish(slug)
+                return
             stopped = isinstance(e, InterruptedError)
             ideas.save_state(self.state_dir, slug, state=back, error="" if stopped else f"No plan: {_why(e)}",
                              **({"queue": "hold"} if stopped else {}))
             return
         self.write_stages(slug, data)
         self.assess(slug)
-        ideas.save_state(self.state_dir, slug, state="plan", error="", held_until="", measure=self.measure())
+        ideas.save_state(self.state_dir, slug, state="plan", error="", held_until="", held_for="", measure=self.measure())
         self.publish(slug)
         self.on_plan(slug)
 

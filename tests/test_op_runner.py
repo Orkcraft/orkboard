@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import shutil
+import threading
 import time
 
 import pytest
@@ -481,3 +482,15 @@ def test_a_learn_call_waits_for_the_cap_and_its_template_gone_drops_it(tmp_path,
     r.start()
     assert r.wait_idle()
     assert len(stub.calls()) == 1 and not list((base / "templates").glob("*/learn.json"))
+
+
+def test_busy_is_a_call_running_or_waiting_in_the_queue(runner):
+    """Spec 47 §3: the computer is kept awake while an operation's call runs or waits."""
+    assert not runner.busy()
+    runner._queue.append(("op-1", "prepare"))
+    assert runner.busy()
+    runner._queue.clear()
+    runner._running["op-1"] = threading.Event()
+    assert runner.busy()
+    runner._running.clear()
+    assert not runner.busy()
