@@ -54,7 +54,7 @@ IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it
 IDEA_SAID = "idea_said"           # idea, section, chars, text, device (the person's turn to the Taskmaster)
 KEEPER_STATE = "keeper_state"     # idea, state, was, seconds in the previous state
 PLAN_MADE = "plan_made"           # idea, tasks, todos, usd_low, usd_high
-PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority, via
+PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority, via, pace (by auto: it goes on by day, the week having room)
 PLAN_STARTED_NOW = "plan_started_now"   # idea, device, via ("map" · "idea"): a plan held for the night started now (spec 41 §4)
 IDEA_QUEUED = "idea_queued"       # idea, queue ("now" · "night"), device, via ("map" · "idea") (spec 41 §4)
 TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan (a secret's value never)
@@ -86,7 +86,7 @@ GOAL_ANSWERED = "goal_answered"   # goal, answers, picked, recommended, typed, d
 # … and every keeper event (goal_read, idea_drafted, idea_answered, idea_said, plan_made, night_run) carries §0's
 # step, prompt_chars, tokens ({"in", "out", "cache_read"}) and cost (null when unpriced, never 0)
 KEEPER_STOPPED = "keeper_stopped"  # idea (the person stopped the keeper's run on it)
-NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, seconds
+NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held, paced (the Board's Low ideas the week's pace left for later), seconds
 PROPOSAL_MADE = "proposal_made"   # idea, goal
 PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
 BOARD_COMMITTED = "board_committed"   # commit, pages, what, seconds (spec 35 §13: the Board's pages on the work branch)
@@ -114,6 +114,9 @@ OP_TRUST = "op_trust"             # template, alone, why (clean · edit · rules
 PARTY_PROPOSED = "party_proposed"   # goal, by (the checker's slug), runs
 PARTY_ANSWERED = "party_answered"   # goal, by, take, has_reason, device
 
+# Spec 44 §4: the Claude week came back; what was left of it unused.
+WEEK_RESET = "week_reset"         # left (the share left, read just before it came back), provider
+
 # Spec 43 §6: the person's own parties, saved from a goal and picked again in any project.
 PARTY_SAVED = "party_saved"       # party (its id), members, own (agents of the person's own it carries), replaced, device
 PARTY_DROPPED = "party_dropped"   # party, device
@@ -128,7 +131,7 @@ EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LE
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED)
+          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET)
 
 _LOCK = threading.Lock()
 

@@ -86,7 +86,7 @@ def test_this_week_sums_the_seven_days_the_ops_ledger_and_what_waits_for_tonight
     assert got["usd"] == 40.0 and got["ops_usd"] == 3.2 and (got["merged"], got["first_time"]) == (4, 3)
     assert got["usd_per_merged"] == 10.0 and got["tonight"] == 2 and got["night_on"] is True and got["into"] == "dev"
     assert sum(got["nights"].values()) == 7 and set(got["nights"]) == {"worked", "idle", "off"}
-    assert set(got) == {"usd", "ops_usd", "merged", "first_time", "usd_per_merged", "nights", "tonight", "night_on", "into", "streak"}
+    assert set(got) == {"usd", "ops_usd", "merged", "first_time", "usd_per_merged", "nights", "tonight", "night_on", "into", "streak", "week", "last_unused"}
 
 
 def test_the_price_of_a_result_is_said_from_three_merged_on_and_null_when_unpriced(root, tmp_path):

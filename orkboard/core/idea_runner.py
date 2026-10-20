@@ -283,7 +283,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 if plan is None:
                     self._active.remove(slug)
                     continue
-                tasks, changed = plan["tasks"], self._advance(slug, plan, now)
+                tasks, changed = plan["tasks"], self._advance(slug, plan, now, limits)
                 running = [t for t in tasks if (slug, t.get("id")) in self._runs]
                 failed = next((t for t in tasks if t.get("state") == "failed"), None)
                 if failed is not None or all(t.get("state") == "merged" for t in tasks):
@@ -294,7 +294,11 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     elif changed:
                         self._changed(slug)
                     continue
-                gate = idea_target.gate(plan, limits, self.board(), now)
+                board = self.board()
+                gate = idea_target.gate(plan, limits, board, now)
+                paced = idea_target.by_pace(plan, limits, board, now)            # the Board's Low plan, started by day: the week has room (spec 44 §3)
+                if paced and self._paced_elsewhere(slug):
+                    gate = "night"                   # at most one of them by day in a project: a second waits for the first to end
                 for t in tasks:
                     if slots <= 0 or gate == "night":       # starts at night: only inside the window
                         break
@@ -304,11 +308,14 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                     if self._running_as(role["slug"]) >= role["max_parallel"]:
                         continue                     # this role's own limit (spec 34 §3): the task waits its turn
                     until = status.reset_of(limits, HARNESS, now, status.NEARLY)
-                    if until is not None or gate is not None:     # the window, else the person's reserve (§6)
-                        self._hold(slug, t, until if until is not None else gate, "" if until is not None else "reserve · ")
+                    if until is not None or gate is not None:     # the window, else the person's reserve (§6), else the week (spec 44)
+                        self._hold(slug, t, until if until is not None else gate,
+                                   "" if until is not None else "week · " if isinstance(gate, idea_target.WeekHold) else "reserve · ")
                     else:
                         self._launch(slug, t)
                         slots -= 1
+                        if paced:
+                            self._mark_pace(slug)
                     changed = True
                 if changed:
                     self._save_tasks(slug, tasks)
@@ -341,7 +348,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
     def board(self) -> dict:
         """The Board's own settings as the runner reads them (spec 35): its Target, night, reserves."""
         return {k: setting(self.settings, k, d) for k, d in (("target", "balance"), ("night", "01:00-07:00"),
-                                                             ("reserve_day", 0.3), ("reserve_night", 0.1))}
+                                                             ("reserve_day", 0.3), ("reserve_night", 0.1), ("autostart", True))}
 
     def ran_on(self, task: dict) -> tuple[str, str]:
         """(the model or tier a task runs on, its effort): the Target's shift of its tier, a role's own model winning."""
@@ -351,13 +358,18 @@ class IdeaRunner(TaskMixin, ReviewMixin):
     def _running_as(self, slug: str) -> int:
         return sum(1 for r in self._runs.values() if r.role == slug)
 
-    def _advance(self, slug: str, plan: dict, now: float) -> bool:
+    def _advance(self, slug: str, plan: dict, now: float, limits: list | None = None) -> bool:
         tasks = plan["tasks"]
         merged = {t.get("id") for t in tasks if t.get("state") == "merged"}
         todos = [d for d in plan.get("todos") or [] if isinstance(d, dict)]
         changed = False
         for t in tasks:
             tid, state = t.get("id"), t.get("state")
+            if state == "held" and str(t.get("note") or "").startswith("week") and limits is not None \
+                    and not isinstance(idea_target.gate(plan, limits, self.board(), now), idea_target.WeekHold):
+                self._until.pop((slug, tid), None)             # the week is not behind any more: no reason left to hold it
+                t.update(state="waiting", note="")
+                state, changed = "waiting", True
             if state == "held":
                 until = self._until.get((slug, tid)) or _until_of(t.get("note", ""), now) or now
                 if until > now:

@@ -4,6 +4,9 @@ thread, on the Town Hall's clock (every LIMITS_REFRESH_S), the rows kept for the
     limits = BoardLimits(repo_root, call)   # call: runs a function on the host's thread
     limits.tick(now)                         # from the host's clock: reads again when due
     limits()                                 # the last rows read ([] until the first read is in)
+
+A read that shows the Claude week's reset moved later than the one read before (the week came back) writes `week_reset` to the log of
+the project shown (spec 44 §4): how much of the week was left unused.
 """
 from __future__ import annotations
 
@@ -12,9 +15,11 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from orkboard.realm import event_log, idea_target
 from orkboard.sources.limits import Limit, fetch_limits
 
 LIMITS_REFRESH_S = 10 * 60      # as the Town Hall's worker (core/workers/town_hall.py)
+WEEK_BACK_S = 24 * 3600         # a weekly reset read this much later than the one before: the week came back (a few minutes' jitter is not)
 
 
 class BoardLimits:
@@ -27,6 +32,7 @@ class BoardLimits:
         self.rows: list[Limit] = []
         self.reading = False
         self._at = float("-inf")
+        self._week: dict | None = None          # the week as the last read showed it: {"left", "rest", "reset"}
 
     def __call__(self) -> list[Limit]:
         return list(self.rows)
@@ -48,3 +54,15 @@ class BoardLimits:
 
     def _read(self, found: list[Limit]) -> None:
         self.rows, self.reading = list(found), False
+        self._watch_week(found)
+
+    def shown(self) -> bool:
+        """A project is shown (else the rows are read for the machine, from the home folder)."""
+        return self.repo_root != Path.home()
+
+    def _watch_week(self, found: list[Limit]) -> None:
+        got, before = idea_target.week(found, time.time()), self._week
+        if got is not None:
+            self._week = got
+        if got is not None and before is not None and got["reset"] - before["reset"] > WEEK_BACK_S and self.shown():
+            event_log.record(self.repo_root, event_log.WEEK_RESET, left=before["left"], provider="claude")      # how much of the week was left
