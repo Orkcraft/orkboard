@@ -411,3 +411,28 @@ that only reads (§50.5):
 The owner's call: all eight now, before the testers' numbers: a named exception to §27 and §50.8 (as §45.8, §50.10 and
 §51). Views of existing data, but C, which is how a question reaches the person, and two counters (`done_alone`,
 `alone_since`) in a template's trust. Spec 42.
+
+## 56. A goal's party is measured: a check says what it found, the party's work is shown, its price is seen before it starts (20 October, the owner and the PM)
+
+Why: a product manager's review (20 October). A goal's party is a deck-builder at heart — a library to pick from, a
+craft, seats (one leader, three builders, two checkers), a party of each craft to start from, a checker's check that
+holds every idea of the goal to it — and that is the right game for Orkboard, because the choice is the work's own:
+what a goal costs against how carefully it is done. But it is half a loop: a party is picked once, and nothing says
+afterwards whether it was a good one. Worse, a check cannot say "nothing found": a check task that changes no file
+fails at the gate (`core/idea_task.py`: *You changed no file*), so a clean check is a failure in Needs you or a file
+made to pass. So:
+1. **A check says what it found** (`findings`, in a file the runner reads and never commits): none is clean and passes
+   without a change; what it fixed goes through the gate as any work; what it left goes to Review, whatever
+   `ideas.review` says, with *Fix them* and *Leave them*. The engine's one change here; the rest only reads.
+2. **What the party did**, on the goal's screen and under its flag: each member's tasks, merged the first time and $;
+   each checker's ideas checked, clean, caught, left and $.
+3. **A party's price before it starts**, while it is picked: *about $2–4 an idea*, and what each check adds, from the
+   project's own ideas once there are enough, a first guess before.
+4. **What a check is worth**, in its agent's record (spec 42 D), and the night's one proposal from it: a checker that
+   found nothing in the last eight ideas of a goal is proposed to leave that party, taken or kept by the person (as
+   §48.5 means the night to turn signals into proposals; the first of them).
+5. **Hints while picking**: at most two quiet lines (a check that seldom applies to the goal's craft, no builder for its
+   code, a check that has found nothing lately); never a block.
+Not a game's words: no cards, decks, mana or rarity in what a person reads (CLAUDE.md: everything by what it does); no
+agent unlocked, no tier raised by use, no party ranked against another's. Built after spec 42, before the testers'
+numbers: the owner's named exception to §27 (as §55). Spec 43.

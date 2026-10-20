@@ -276,7 +276,9 @@ a push; any server of ours (each computer sends its own, with its own key).
   - with fewer: *The last 30 days: 2 tasks: too few to say more*;
   - with none, or `null`: *No tasks in the last 30 days*;
   - the Taskmaster: *The last 30 days: 12 plans; of their 41 tasks, 36 merged the first time*.
-- **Not on the agent's line** (decisions §54.6, spec 41 §12): the line stays its head, its name, ×n and ≈$ a task.
+- **Not on the agent's line** (decisions §54.6, spec 41 §12): the line and the muted week under it stay exactly as they
+  are (the owner put the week back on 20 October, commit `8369511`: today's spend, from three merged a result's cost and
+  the first-time share); the record is the dialog's and the sheet's only.
 
 ## 5. The way to by itself (E)
 - **Kept** (`realm/op_runs.py`, the template's `trust.json`): `alone_since` (the date it went by itself; `""` while it
@@ -437,7 +439,7 @@ midnight starts the evening before `date`):
   Home Screen line without `PushManager`; the badge set. `tests/test_pwa.py`: `sw.js` has a `push` handler that always
   shows, `notificationclick` opens `data.url`.
 - **D**: `record` on every role of `ideas.roles` (30 days, the Taskmaster's shape, `null`); browser: each of the four
-  wordings in the dialog and the sheet; the agent's line unchanged.
+  wordings in the dialog and the sheet; the agent's line and its muted week unchanged (`8369511`).
 - **E**: the trust moves set and clear `alone_since` and `done_alone`; a file of before; the row's new fields; browser:
   the pips and their words, *since … · N done*, a high risk without pips, the phone's `clean`.
 - **F**: `nights` (worked by a task or by a night run, idle, off, a window across midnight), `this_week` (`ops_usd`,
