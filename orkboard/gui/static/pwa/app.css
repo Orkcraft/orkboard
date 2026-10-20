@@ -509,7 +509,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .lens { display: flex; flex-direction: column; gap: var(--ork-3); }
 .lens-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--ork-2); }
 .lens-bar[hidden], .lens .field-label[hidden] { display: none; }
-.lens-chip { display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; padding-left: var(--ork-2); padding-right: var(--ork-2); }
+.lens-chip { display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; height: auto; padding: var(--ork-2); }
 .lens-chip small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lens-chip[aria-checked="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }
 .lens-chip small { font: var(--ork-type-caption); text-transform: none; }

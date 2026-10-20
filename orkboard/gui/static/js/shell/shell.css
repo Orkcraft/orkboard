@@ -347,7 +347,7 @@
 /* The lens of New idea (lens.js, lensscreen.js): a row of lenses, then the open one's pane. */
 .shell-lens, .shell-lens-pane, .shell-lens-screen { display: flex; flex-direction: column; gap: var(--ork-3); }
 .shell-lens-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--ork-2); }
-.shell-lens-chip { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.shell-lens-chip { display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; height: auto; padding-top: var(--ork-2); padding-bottom: var(--ork-2); }
 .shell-lens-chip small { font: var(--ork-type-caption); text-transform: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shell-lens-chip[aria-checked="true"], .shell-lens-pick[aria-pressed="true"], .shell-lens-chips .ork-btn[aria-pressed="true"] {
   --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }
@@ -361,8 +361,9 @@
 .shell-lens-part.is-near { box-shadow: inset 2px 0 0 var(--ork-frame); }
 .shell-lens-part:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
 .shell-lens-part small { font: var(--ork-type-caption); }
-.shell-lens-stage { position: relative; touch-action: none; user-select: none; cursor: crosshair; border: var(--ork-line) solid var(--ork-edge); }
-.shell-lens-shot { display: block; width: 100%; height: auto; pointer-events: none; }
+.shell-lens-stage { position: relative; align-self: flex-start; max-width: 100%; touch-action: none; user-select: none; cursor: crosshair;
+  border: var(--ork-line) solid var(--ork-edge); }
+.shell-lens-shot { display: block; max-width: 100%; max-height: 420px; width: auto; height: auto; pointer-events: none; }
 .shell-lens-mark { position: absolute; border: 2px solid var(--ork-alert); }
 .shell-lens-mark b { position: absolute; top: 0; left: 0; padding: 0 var(--ork-1); background: var(--ork-alert); color: var(--ork-canvas); font: var(--ork-type-caption); }
 .shell-lens-marks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--ork-2); }
