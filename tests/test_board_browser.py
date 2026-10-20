@@ -132,7 +132,7 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 await page.goto(f"{server.phones.address}/app/#pair={offer['code']}")
                 await page.locator(".board-tabs").wait_for(timeout=WAIT_MS)
                 tabs = [await b.get_attribute("aria-label") for b in await page.locator(".board-tabs").get_by_role("tab").all()]
-                assert [t.split(",")[0] for t in tabs] == ["Board", "Agents", "Review"]
+                assert [t.split(",")[0] for t in tabs] == ["Board", "Agents", "Needs you"]          # Review: in Needs you
                 await page.locator(".board-bar .needs-chip").click()                             # Needs you: the top bar's !
                 await page.get_by_text("Which channel first?").first.wait_for(timeout=WAIT_MS)   # the goal's question, as on the desktop
                 bar = page.locator(".board-bar")                                                 # the project over the goal, !, the gear

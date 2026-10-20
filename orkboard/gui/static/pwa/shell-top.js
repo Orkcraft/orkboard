@@ -10,7 +10,6 @@ import { makeProjects } from "./shell-projects.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
 import { CRAFT_WORDS, goalHead, goalMark } from "./shell-who.js";
 import { OPS_VIEW } from "./shell-ops.js";
-import { MAP_VIEW } from "./shell-map.js";
 
 import { WARN, DANGER, levelOf, pct } from "./shell-limits.js";
 
@@ -60,19 +59,18 @@ export function makeTop(core, ctx) {
     window.scrollTo(0, 0);
   }
   function drawGoals() {
-    const now = st.view === OPS_VIEW || st.view === MAP_VIEW ? st.view : st.track;
+    const now = st.view === OPS_VIEW ? st.view : st.track;
     const row = (key, label, onclick, mark = null, line = null) => h("li", {}, h("button", { class: "goal-row", type: "button", "data-goal": key,
       "aria-current": key === now ? "true" : null, onclick }, mark, h("b", {}, label), line));
     goalList.replaceChildren(
       ...goals().map((g) => row(g.slug, g.title, () => show(g.slug), goalMark(g, st.roles?.roles, (g.team || []).length > 1),
         h("small", { class: "muted" }, [CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering, PRIORITY_WORDS[g.priority] || "Normal", GOAL_SHORT[g.state]].filter(Boolean).join(" · ")))),
-      row(OPS_VIEW, "Operations", () => show("", OPS_VIEW)),
-      row(MAP_VIEW, "Map", () => { show("", MAP_VIEW); core.showMap(); }, null, h("small", { class: "muted" }, "Every goal, its ideas and tasks on one screen")));
+      row(OPS_VIEW, "Operations", () => show("", OPS_VIEW)));
   }
   goalChip.addEventListener("click", () => { drawGoals(); goalsSheet.open(); });
   function drawChip() {
     const g = goals().find((x) => x.slug === st.track);
-    const word = st.view === OPS_VIEW ? "Operations" : st.view === MAP_VIEW ? "Map" : g ? g.title : st.board ? "No goal yet" : "";
+    const word = st.view === OPS_VIEW ? "Operations" : g ? g.title : st.board ? "No goal yet" : "";
     goalChip.hidden = !word;
     goalChip.replaceChildren(h("small", { class: "goal-chip__project" }, st.snap?.project || ""),
       h("span", { class: "goal-chip__goal" }, ...(g ? [goalHead(g)] : []), h("b", {}, word), h("span", { "aria-hidden": "true" }, "▾")));   // the craft's head: the team's are on its card

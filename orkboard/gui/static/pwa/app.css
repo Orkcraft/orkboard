@@ -559,8 +559,8 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .trail-pct { font: var(--ork-type-title); }
 .trail-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-5); }
 .trail-step { position: relative; display: flex; flex-direction: column; gap: var(--ork-2); }
-.trail-lanes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: var(--ork-3); }
-.trail-lanes.is-two { grid-template-columns: 1fr 1fr; }
+.trail-lanes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ork-3); }
+.trail-lanes.is-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .trail-lanes .map-open { padding: var(--ork-4); }
 .trail-gate { display: flex; align-items: center; gap: var(--ork-2); padding: var(--ork-1) var(--ork-4) 0; font: var(--ork-type-caption); font-weight: 600; color: var(--ork-alert); }
 .map-row .map-tasks { display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-2) var(--ork-4) var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
@@ -579,3 +579,26 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .trail-end.is-not .trail-flag { border-color: var(--ork-alert); }
 .trail-more { align-self: flex-start; }
 .trail-empty { margin: 0; }
+/* The trail's chips on the phone (shell-map.js): a stop in one line, its tasks smaller under it. */
+.trail-lanes .map-open.trail-chip { flex-direction: row; align-items: center; gap: var(--ork-2); min-height: var(--ork-tap); padding: 0 var(--ork-3); }
+.trail-chip .idea-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.trail-chip-nohead { width: 12px; height: 11px; flex: none; }
+.trail-mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
+.trail-mark.is-gate { color: var(--ork-alert); }
+.trail-chip .map-new { flex: none; }
+.map-row.needs-hand { border-color: var(--ork-alert); }
+.map-row .map-tasks { flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); padding: var(--ork-1) var(--ork-3) var(--ork-2); }
+.map-row .map-wave { flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); }
+.map-row .map-wave + .map-wave { border-top: 0; padding-top: 0; }
+.map-row .map-task { display: inline-flex; align-items: center; gap: var(--ork-1); min-height: 26px; max-width: 100%; min-width: 0; padding: 0 var(--ork-2); border: var(--ork-line) solid var(--ork-frame); }
+.map-row .map-task[data-state="running"], .map-row .map-task[data-state="testing"] { border-color: var(--ork-ink); }
+.map-row .map-task[data-state="failed"] { border-color: var(--ork-danger); color: var(--ork-danger); }
+.map-goal-meta .ork-btn.small { height: 32px; padding: 0 var(--ork-3); }
+/* Needs you holds Review under what waits for an answer (board.js). */
+.needs-body { display: flex; flex-direction: column; gap: var(--ork-4); }
+.needs-pane .review { padding-top: var(--ork-5); border-top: var(--ork-line) solid var(--ork-edge); }
+.needs-pane .review .section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
+.needs-pane .review h3 { margin: 0; display: inline-flex; align-items: center; gap: var(--ork-2); }
+.map-row .map-wave, .map-row .map-tasks { min-width: 0; max-width: 100%; }
+.map-row .map-task-title { min-width: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

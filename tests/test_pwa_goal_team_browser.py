@@ -76,14 +76,13 @@ async def test_the_goal_s_card_wears_its_team_s_heads_and_names_them_and_the_top
         stub.bump({})
         await page.locator(".board-bar .goal-chip").click()
         await page.get_by_role("dialog", name="Goals").locator('.goal-row[data-goal="land"]').click()
-        chip, card = page.locator(".board-bar .goal-chip"), page.locator(".goal-now")
-        await card.locator(".team-mark-heads img").nth(2).wait_for(timeout=WAIT_MS)
-        assert [await i.get_attribute("src") for i in await card.locator(".team-mark-heads img").all()] == [
+        chip, card = page.locator(".board-bar .goal-chip"), page.locator('.map-goal[data-goal="land"]')
+        await card.locator(".map-team .team-mark-heads img").nth(2).wait_for(timeout=WAIT_MS)
+        assert [await i.get_attribute("src") for i in await card.locator(".map-team .team-mark-heads img").all()] == [
             "races/elf-elder.png", "races/elf-warrior.png", "races/goblin-warrior.png"]
         assert await chip.locator("img").get_attribute("src") == "races/elf-laborer.png"                # the bar: the craft's one head
-        assert "Team: Product designer, Accessibility reviewer, Analyst" in await page.locator(".goal-now").inner_text()
+        assert "Team: Product designer, Accessibility reviewer, Analyst" in await card.locator(".map-team").inner_text()
         await _shot(page, "phone-goal-team-board-390x844")
-        await page.locator(".idea-card").first.wait_for(state="attached", timeout=WAIT_MS) if await page.locator(".idea-card").count() else None
         assert await page.evaluate(NO_SCROLL)
 
 
@@ -111,7 +110,7 @@ async def test_the_team_s_checkers_say_what_they_add_every_idea_is_kept_and_the_
                        {"by": "seo", "name": "SEO", "applies": False, "why": "It adds no public page", "state": ""}]
         await page.locator(".screen-head").get_by_role("button", name="Back").click()                  # from the new goal's screen
         await _pick_goal(page, "general")
-        await page.locator(".idea-card", has_text="Sync ideas").locator(".idea-open").click()
+        await page.locator(".map-row", has_text="Sync ideas").locator(".map-open").click()
         line = page.locator(".screen").get_by_role("list", name="Checks")
         await line.wait_for(timeout=WAIT_MS)
         chips = [" ".join(t.split()) for t in await line.get_by_role("listitem").all_inner_texts()]
@@ -128,7 +127,7 @@ async def test_a_goal_whose_ideas_are_done_is_accepted_by_its_leader_against_its
         stub.bump({})
         await _pick_goal(page, "land")
         assert await page.locator(".board-bar .goal-chip img").get_attribute("src") == "races/gnome-elder.png"   # the goal's head: its leader's
-        await page.locator(".goal-now").get_by_role("button", name="Open").click()
+        await page.locator('.map-goal[data-goal="land"]').get_by_role("button", name="Open goal Landing page").click()
         verdict = page.locator(".screen").get_by_role("region", name="Verdict")
         await verdict.get_by_role("button", name="Ask Growth to accept").click()
         assert await _called(stub, "ideas.goal_accept", {"slug": "land"})

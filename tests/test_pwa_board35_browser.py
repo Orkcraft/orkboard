@@ -9,7 +9,7 @@ import base64
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _needs, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import _said, _stop, NO_SCROLL, WAIT_MS, Stub, _called, _needs, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -71,10 +71,11 @@ async def test_the_board_shows_one_goal_s_ideas_its_card_and_how_far_it_is_and_n
         stub.ideas["shipped"] = stub.idea("shipped", "Shipped one", "done", 8, track="ship")
         stub.bump({})
         await _pick_goal(page, "ship")
-        assert await page.locator(".idea-card", has_text="Write the guide").count() == 0 and await page.locator(".idea-card", has_text="Offline mode").count() == 1
-        now = page.locator(".goal-now")
-        assert "Ship the first release." in await now.inner_text() and "More." not in await now.inner_text()      # the summary's first line
-        assert "1 of 2 ideas done" in await now.locator(".goal-progress").inner_text()                   # how far, in words
+        await _stop(page, "Offline mode").wait_for(timeout=WAIT_MS)
+        assert await _stop(page, "Write the guide").count() == 0
+        now = page.locator('.map-goal[data-goal="ship"]')
+        assert "Ship the first release." in await now.locator(".goal-line").inner_text() and "More." not in await now.inner_text()   # the summary's first line
+        assert "1 of 2 ideas" in await now.locator(".trail-start").inner_text()                          # how far
         assert await page.locator(".needs-pane").is_hidden()                                             # Needs you: its own screen
         await _needs(page)
         await page.locator(".need-proposal").wait_for(timeout=WAIT_MS)                                   # a docs proposal, though Ship v1 is shown
@@ -82,11 +83,11 @@ async def test_the_board_shows_one_goal_s_ideas_its_card_and_how_far_it_is_and_n
         await now.get_by_role("button", name="Edit goal Ship v1").click()
         assert await page.get_by_role("dialog", name="Edit goal").get_by_label("Title").input_value() == "Ship v1"
         await page.keyboard.press("Escape")
-        await now.get_by_role("button", name="Open", exact=True).click()
+        await now.get_by_role("button", name="Open goal Ship v1").click()
         await page.locator(".screen").get_by_text("Ship v1").first.wait_for(timeout=WAIT_MS)
         await page.get_by_role("button", name="Back", exact=True).click()
         await _pick_goal(page, "docs")
-        await page.locator(".idea-card", has_text="Write the guide").wait_for(timeout=WAIT_MS)
+        await _stop(page, "Write the guide").wait_for(timeout=WAIT_MS)
         assert "docs" in await page.evaluate("localStorage.getItem('orkcraft.goal')")                    # the goal shown last, kept on this phone
         assert "Docs" in await page.locator(".board-bar .goal-chip").inner_text()
         assert await page.evaluate(NO_SCROLL)
@@ -103,34 +104,39 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         stub.ideas["fin"] = stub.idea("fin", "Finished one", "done", 12, track="ship")
         stub.bump({})
         await _pick_goal(page, "ship")
-        hi = page.locator(".idea-card[data-slug=hi]")
+        hi = page.locator(".map-row[data-slug=hi]")
         await hi.wait_for(timeout=WAIT_MS)
-        assert await hi.locator(".spin").count() == 1 and "drafting" in await hi.inner_text()
+        assert await hi.locator(".spin").count() == 1 and "drafting" in await _said(page, "Fast sync")
         await hi.scroll_into_view_if_needed()
         await _shot(page, "phone-ideas-390x844")
-        await hi.get_by_role("button", name="Stop: Fast sync").click()                                   # Stop → stopped
+        screen = page.locator(".screen")
+        await hi.locator(".map-open").click()                                                            # its screen holds what its row held
+        await screen.get_by_role("button", name="Stop").click()                                         # Stop → stopped
         assert await _called(stub, "ideas.read_stop", {"slug": "hi"})
-        await hi.locator(".state-word", has_text="stopped").wait_for(timeout=WAIT_MS)
+        await page.get_by_role("button", name="Back", exact=True).click()
+        stub.ideas["hi"].update(state="raw", queue="hold")
+        stub.bump({})
+        await _until(page, "document.querySelector('.map-row[data-slug=hi] .map-open')?.getAttribute('aria-label') || ''", lambda v: "stopped" in v)
         assert await hi.locator(".spin").count() == 0
-        for name in ("Process now: Fast sync", "Tonight: Fast sync", "Delete: Fast sync"):
-            assert await hi.get_by_role("button", name=name).is_visible()
-        await hi.get_by_role("button", name="Tonight: Fast sync").click()
+        await hi.locator(".map-open").click()
+        for name in ("Process now", "Tonight"):
+            assert await screen.get_by_role("button", name=name, exact=True).is_visible()
+        await screen.get_by_role("button", name="Tonight", exact=True).click()
         assert await _called(stub, "ideas.queue", {"slug": "hi", "queue": "night"})
-        lim = page.locator(".idea-card", has_text="Wait for limits")
-        assert "waits for limits · after 18:00" in await lim.inner_text() and await lim.get_by_role("button").count() == 2   # the open area and Delete
-        nt = page.locator(".idea-card", has_text="Starts tonight")
-        assert "starts tonight" in await nt.inner_text()
-        await nt.get_by_role("button", name="Start now: Starts tonight").click()
+        await page.get_by_role("button", name="Back", exact=True).click()
+        lim = _stop(page, "Wait for limits")
+        assert "waits for limits · after 18:00" in await _said(page, "Wait for limits") and await lim.locator(".trail-mark use[href$='#clock']").count() == 1
+        assert "starts tonight" in await _said(page, "Starts tonight")
+        await _stop(page, "Starts tonight").locator(".map-open").click()
+        await screen.get_by_role("button", name="Start now").click()
         assert await _called(stub, "ideas.start_now", {"slug": "nt"})
-        assert "waits for Fast sync" in await page.locator(".idea-card", has_text="Needs the sync").inner_text()
+        await page.get_by_role("button", name="Back", exact=True).click()
+        assert "waits for Fast sync" in await _said(page, "Needs the sync")
         done = page.locator("details.done-ideas")                                                       # done ideas folded at the end
         assert "Done (1)" in await done.inner_text() and not await done.evaluate("e => e.open")
-        await page.locator(".idea-card", has_text="Offline mode").get_by_role("button", name="Delete: Offline mode").click()   # Delete asks first, on a sheet
-        sheet = page.get_by_role("dialog", name="Delete this idea?")
-        await sheet.get_by_role("button", name="Keep it").click()
-        assert not any(c[0] == "ideas.drop" for c in stub.calls)
-        await page.locator(".idea-card", has_text="Offline mode").get_by_role("button", name="Delete: Offline mode").click()
-        await sheet.get_by_role("button", name="Delete", exact=True).click()
+        page.once("dialog", lambda d: d.accept())                                                       # Delete asks first
+        await _stop(page, "Offline mode").locator(".map-open").click()
+        await screen.get_by_role("button", name="Delete this idea…").click()
         assert await _called(stub, "ideas.drop", {"slug": "offline"})
         assert await page.evaluate(NO_SCROLL)
 
@@ -187,7 +193,7 @@ async def test_the_specs_stages_say_each_tasks_state_and_a_file_todo_has_its_ste
         stub.todos.append({"idea": "sync", "id": "t2", "title": "The Firebase config, google-services.json", "kind": "file", "why": "The app needs it to start",
                            "choices": [], "steps": ["Open the Firebase console", "Download google-services.json"], "accept": [".json"], "done": False})
         stub.bump({})
-        await page.locator(".idea-card", has_text="Sync ideas").click()
+        await _stop(page, "Sync ideas").locator(".map-open").click()
         screen = page.locator(".screen")
         await screen.locator(".plan").wait_for(timeout=WAIT_MS)
         stages = await screen.locator(".tasks").inner_text()
@@ -244,21 +250,19 @@ async def test_the_top_bar_names_the_project_and_the_goal_with_its_craft_s_head_
         bar = page.locator(".board-bar")
         await bar.locator(".goal-chip").click()
         rows = page.get_by_role("dialog", name="Goals").locator(".goal-row")
-        await rows.nth(4).wait_for(timeout=WAIT_MS)
+        await rows.nth(3).wait_for(timeout=WAIT_MS)
         assert [" ".join(t.split()) for t in await rows.all_inner_texts()] == [
-            "General Engineering · Normal · ready", "Ship v1 Design · High · ready", "Docs Engineering · Low · ready", "Operations",
-            "Map Every goal, its ideas and tasks on one screen"]
+            "General Engineering · Normal · ready", "Ship v1 Design · High · ready", "Docs Engineering · Low · ready", "Operations"]   # the Map is the Board
         await _shot(page, "phone-goals-390x844")
         await page.keyboard.press("Escape")
         await _pick_goal(page, "ship")
-        await page.locator(".idea-card", has_text="Idea number 13").wait_for(timeout=WAIT_MS)
+        await _stop(page, "Idea number 13").wait_for(timeout=WAIT_MS)
         chip = bar.locator(".goal-chip")
         assert "Ship v1" in await chip.inner_text() and await chip.get_attribute("aria-label") == "Goal: Ship v1. Choose another"
         assert await chip.locator("img").get_attribute("src") == "races/elf-laborer.png"                 # the goal's craft, its race's head
         assert await chip.locator("img").get_attribute("title") == "Design"
         assert await bar.locator(".project-chip").is_visible() and "project" in await chip.locator(".goal-chip__project").inner_text()   # the project over the goal
         assert (await bar.bounding_box())["height"] < 80
-        assert "Design" in await page.locator(".goal-now").inner_text()
         away = "(() => { const b = document.querySelector('.board-bar'); return [b.classList.contains('is-away'), b.getBoundingClientRect().bottom]; })()"
         await page.mouse.wheel(0, 600)
         assert await _until(page, away, lambda v: v[0] and v[1] <= 1)                                  # scrolling down: it slides away
@@ -296,7 +300,8 @@ async def test_a_question_is_answered_in_its_card_with_a_likely_answer_and_later
         assert await asks.get_by_role("button", name="yes", exact=True).count() == 1
         await asks.get_by_role("button", name="Later: Sync ideas").click()                              # put away on this phone
         await asks.wait_for(state="detached", timeout=WAIT_MS)
-        assert await page.locator(".board-bar .needs-chip").get_attribute("aria-label") == "Needs you, 2"   # answered, and one put away
+        want = f"Needs you, {2 + len(stub.results())}"                                                  # answered and one put away; the results to check
+        assert await _until(page, "document.querySelector('.board-bar .needs-chip').getAttribute('aria-label')", lambda v: v == want)
         await page.get_by_role("button", name="Put away for later (1): show").click()
         await page.locator(".need-asks").wait_for(timeout=WAIT_MS)
         plan = page.locator(".need-plan")                                                              # a swipe to the left: Later too
@@ -322,7 +327,7 @@ async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_wh
         await fab.click()
         await page.get_by_role("dialog", name="New idea").wait_for(timeout=WAIT_MS)
         await page.keyboard.press("Escape")
-        await page.get_by_role("tab", name="Review").click()
+        await page.get_by_role("tab", name="Needs you").click()
         assert await fab.is_hidden()                                                                    # the Board's own
         await page.get_by_role("tab", name="Board").click()
         await page.locator(".board-bar .goal-chip").click()
@@ -332,7 +337,7 @@ async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_wh
         await sheet.get_by_role("button", name="Next").click()
         assert "What is left: Claude 62 % · Antigravity 15 %" in await sheet.locator(".limits-note").inner_text()
         await page.keyboard.press("Escape")
-        await page.locator(".idea-card", has_text="Offline mode").locator(".idea-open").click()
+        await _stop(page, "Offline mode").locator(".map-open").click()
         await page.locator(".screen .limits-note").wait_for(timeout=WAIT_MS) if await page.locator(".screen .action-bar, .screen-foot").count() else None
         assert await page.evaluate(NO_SCROLL)
 

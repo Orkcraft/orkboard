@@ -172,9 +172,17 @@ export function makePreview(core, ctx) {
     const btn = (label, onclick, cls = "primary") => h("button", { class: `ork-btn ${cls} big`, type: "button", onclick }, label);
     const slug = p.slug;
     const left = limitsNote(core.st.snap);              // what is left of the AI tools, where a choice spends them
+    const row = (core.st.board?.ideas || []).find((i) => i.slug === slug) || {};    // its queue: the Board's row says it
     switch (p.state) {
+      case "raw": {                                     // the Board's list had these; the Board is the Map now (shell-map.js)
+        if (row.held_until) return [left];
+        const now = btn("Process now", () => act("ideas.queue", { slug, queue: "now" }, "The Taskmaster drafts it now.").then(() => read(cur)));
+        return (row.queue || "night") === "hold" ? [left, now, btn("Tonight", () => act("ideas.queue", { slug, queue: "night" }, "Kept for tonight.").then(() => read(cur)), "")]
+          : row.queue === "now" ? [] : [left, now];
+      }
+      case "reading": case "planning": return [btn("Stop", () => act("ideas.read_stop", { slug }, "Stopped.").then(() => read(cur)), "danger")];
       case "ready": case "asks": return [left, btn("Take it to work", () => act("ideas.plan", { slug }, "The Taskmaster is planning.").then(() => read(cur)))];
-      case "plan": if (p.plan?.start_at === "night") return [left, btn("Start now", () => act("ideas.start_now", { slug }, "Started.").then(() => read(cur)))];
+      case "plan": if (p.plan?.start_at === "night" || row.start_at === "night") return [left, btn("Start now", () => act("ideas.start_now", { slug }, "Started.").then(() => read(cur)))];
         return [left, btn(`Start · ${n} tasks · ${price(p.plan?.estimate)}`, () => act("ideas.start", { slug }, "Started.").then(() => read(cur)))];
       case "working": return [btn("Stop", () => act("ideas.stop", { slug }, "Stopped.").then(() => read(cur)), "danger")];
       case "failed": {

@@ -245,3 +245,21 @@
 .board-goal__heads { display: inline-flex; gap: var(--ork-2); }
 .board-goal p { margin: 0; }
 .board-goal__progress { display: flex; align-items: center; gap: var(--ork-3); color: var(--ork-ink-muted); }
+/* The trail's chips (map.js): a stop in one line — the head of who does it, its title, a mark — and its tasks smaller under it. */
+.trail .map-node { width: auto; max-width: 260px; align-items: flex-start; }
+.trail-step { align-items: flex-start; }
+.trail .map-card.trail-chip, .map-done__list .map-card.trail-chip { width: auto; max-width: 260px; height: 30px; min-height: 0; padding: 0 var(--ork-3);
+  flex-direction: row; align-items: center; gap: var(--ork-2); overflow: hidden; }
+.trail-chip .map-card__title { display: block; min-width: 0; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.trail-chip__nohead { width: 12px; height: 11px; flex: none; }
+.trail-chip__mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
+.trail-chip__mark.is-gate { color: var(--ork-alert); }
+.trail-chip .map-card__new { flex: none; font: var(--ork-type-caption); }
+.trail .map-tasks { width: auto; max-width: 260px; flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); padding: var(--ork-1) 0 0 var(--ork-4);
+  background: none; border: 0; border-left: var(--ork-line) dotted var(--ork-frame); margin-left: var(--ork-3); }
+.trail .map-wave { flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); }
+.trail .map-wave + .map-wave { border-top: 0; padding-top: 0; border-left: var(--ork-line) dotted var(--ork-frame); padding-left: var(--ork-1); }
+.trail .map-task { width: auto; max-width: 150px; display: inline-flex; gap: var(--ork-1); padding: 1px var(--ork-2); border: var(--ork-line) solid var(--ork-frame); }
+.trail .map-task[data-state="running"], .trail .map-task[data-state="testing"] { border-color: var(--ork-ink); }
+.trail .map-task[data-state="failed"] { border-color: var(--ork-danger); color: var(--ork-danger); }
+.trail-step { gap: var(--ork-3); }

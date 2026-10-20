@@ -1,16 +1,15 @@
-// The Board tab (docs/specs/35-goals-window.md §11, one column; 33-v1-shell.md §6): the Target chip in its header; the goal shown (chosen in
-// the top bar: the one this phone showed last, else the first) — its head, summary line, how far its ideas are, Open and Edit; then its
-// Ideas, the done ones folded at the end. Needs you is a screen of its own (board.js). Operations and the Map take the tab's place, Board
-// back. A tap opens the idea's spec, or the plan, on its own screen; every dialog is a sheet. A secret or a file is entered only over
-// this paired link (29a).
+// The Board tab (docs/specs/35-goals-window.md §11, one column; 33-v1-shell.md §6; decisions §53): the Target chip in its header; the Map
+// — the goals as tabs with how far each is, the goal shown (the top bar's: the one this phone showed last, else the first) as a trail
+// from its % through its ideas left to its flag (shell-map.js). Needs you is a tab of its own, with Review (board.js). Operations takes
+// the tab's place, Board back. A tap opens the idea's spec, or a task, on its own screen; every dialog is a sheet. A secret or a file is
+// entered only over this paired link (29a).
 import { h, sheet } from "./util.js";
 import { steady } from "./shell-util.js";
-import { makeGoalSheet, goalState } from "./shell-goal.js";
+import { makeGoalSheet } from "./shell-goal.js";
 import { makeIdeas, BUSY } from "./shell-ideas.js";
 import { makeOps, OPS_VIEW } from "./shell-ops.js";
-import { makeMap, MAP_VIEW } from "./shell-map.js";
-import { PRIORITY_WORDS, TARGETS, targetWord } from "./shell-words.js";
-import { CRAFT_WORDS, goalMark } from "./shell-who.js";
+import { makeMap } from "./shell-map.js";
+import { TARGETS, targetWord } from "./shell-words.js";
 import { keptGoal } from "./shell-top.js";
 
 export { BUSY };
@@ -36,21 +35,23 @@ export function makeBoardTab(core, ctx) {
   const map = makeMap(core, goalSheet);
   let mapRev;                                        // the board's rev the Map was read at
 
-  /** The Map is read again when the board's rev moves, not on a clock of its own (spec 39 §4.8). */
+  /** The Map — the Board's trails — is read again when the board's rev moves, not on a clock of its own (spec 39 §4.8). */
   async function loadMap() {
     const rev = st.board?.rev;
+    if (mapRev === undefined) {                       // the first time this Board is shown: *new* since the last time
+      map.enter();
+      ctx.send("ideas.log", { event: "opened", what: "map", device: "phone" });
+    }
     mapRev = rev;
     const r = await ctx.send("ideas.map");
-    if (mapRev !== rev || st.view !== MAP_VIEW) return;
+    if (mapRev !== rev || st.view === OPS_VIEW) return;
     if (r.ok && r.result && !r.result.error) { st.map = r.result; st.mapError = ""; }
     else st.mapError = r.error || r.result?.error || "Loading…";
     core.draw();
   }
+  /** The Map is the Board: showing it is showing the Board. */
   function showMap() {
-    st.view = MAP_VIEW;
-    mapRev = undefined;
-    map.enter();
-    ctx.send("ideas.log", { event: "opened", what: "map", device: "phone" });
+    st.view = "";
     core.draw();
   }
 
@@ -67,28 +68,6 @@ export function makeBoardTab(core, ctx) {
     for (const [id, input] of picks) input.checked = id === (st.board?.target || "balance");
     targetSheet.open();
   } });
-
-  // -- the goal shown (§11.1, chosen in the top bar, shell-top.js): its card — the summary's first line, its craft, priority and state,
-  // Open and Edit — and how far its ideas are, in words. With no goal yet: New goal.
-  function goalBlock() {
-    const g = goals().find((x) => x.slug === st.track);
-    if (!g) {
-      return h("div", { class: "card goal-now" }, h("p", {}, "No goal yet. A goal says what the ideas are for; the Taskmaster reads it first."),
-        h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open() }, "New goal")));
-    }
-    const line = String(g.summary || "").split("\n").find((l) => l.trim()) || (g.state === "reading" ? `${g.leader?.name && g.leader.slug !== "taskmaster" ? g.leader.name : "The Taskmaster"} is reading the goal…` : "");
-    const mine = (st.board.ideas || []).filter((i) => i.track === g.slug);
-    const done = mine.filter((i) => i.state === "done").length, working = mine.filter((i) => i.state === "working").length;
-    return h("div", { class: "card goal-now", "data-goal": g.slug },
-      line ? h("p", { class: "goal-line" }, line) : null,
-      h("span", { class: "goal-meta" }, goalMark(g, st.roles?.roles, true), h("span", { class: "craft-word" }, CRAFT_WORDS[g.craft] || CRAFT_WORDS.engineering),
-        h("span", { class: `prio prio-${g.priority}` }, PRIORITY_WORDS[g.priority] || "Normal"),
-        goalState(g) ? h("span", { class: `state-word ${g.state === "reading" ? "work" : g.state}` }, goalState(g)) : null),
-      (g.team || []).length ? h("p", { class: "goal-team muted" }, `Team: ${g.team.map((s) => (st.roles?.roles || []).find((r) => r.slug === s)?.name || s).join(", ")}`) : null,
-      mine.length ? h("p", { class: "goal-progress muted" }, `${done} of ${mine.length} ideas done${working ? ` · ${working} working` : ""}`) : null,
-      h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => core.open({ kind: "goal", slug: g.slug }) }, "Open"),
-        h("button", { class: "ork-btn", type: "button", "aria-label": `Edit goal ${g.title}`, onclick: () => goalSheet.open(g.slug) }, "Edit")));
-  }
 
   /** The New… and Settings buttons beside Operations' heading, with no project open. */
   function opsButtons() {
@@ -122,13 +101,12 @@ export function makeBoardTab(core, ctx) {
       target.replaceChildren(h("span", { class: "word" }, "Target:"), " ", h("b", {}, targetWord(st.board.target)));
       target.setAttribute("aria-label", `Target: ${targetWord(st.board.target)}`);
       const inOps = st.view === OPS_VIEW;
-      const inMap = st.view === MAP_VIEW;
-      if (inMap && mapRev !== st.board.rev) { if (mapRev === undefined) { st.map = null; st.mapError = ""; } loadMap(); }
+      if (!inOps && mapRev !== st.board.rev) { if (mapRev === undefined) { st.map = null; st.mapError = ""; } loadMap(); }
       const gear = h("button", { class: "ork-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
       const back = h("div", { class: "row goal-pick" }, inOps ? h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…") : null,
         h("button", { class: "ork-btn", type: "button", "aria-label": "Back to the Board", onclick: () => { st.view = ""; core.draw(); } }, "Board"));
-      pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, inMap ? "Map" : inOps ? "Operations" : "Board"), inOps ? gear : target),
-        ...(inOps ? [back, ...ops.section()] : inMap ? [back, ...map.section()] : [goalBlock(), ...ideas.section()]), unpair);
+      pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, inOps ? "Operations" : "Board"), inOps ? gear : target),
+        ...(inOps ? [back, ...ops.section()] : map.section()), unpair);
     },
   };
 }

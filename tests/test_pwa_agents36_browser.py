@@ -127,7 +127,7 @@ async def test_grunts_types_are_shown_not_editable_the_taskmaster_has_no_takes_a
 async def test_a_result_says_what_its_idea_cost_so_far_by_stage(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.spend = SPEND
-        await page.get_by_role("tab", name="Review").click()
+        await page.get_by_role("tab", name="Needs you").click()
         await page.get_by_role("button", name="Add the queue: open its code").click()
         line = page.locator(".screen .spend-line")
         await line.wait_for(timeout=WAIT_MS)

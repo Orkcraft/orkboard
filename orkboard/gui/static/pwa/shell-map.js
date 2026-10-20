@@ -75,15 +75,21 @@ export function makeMap(core, goalSheet) {
   }
 
   const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "at Review", failed: "needs you", held: "held" };
+  const leftOf = (node) => (node.tasks || []).filter((t) => t.state !== "merged" && t.state !== "dropped");
+  /** Who does an idea now: the agent of its running task, else of its next one, else the goal's leader (it drafts and plans). */
+  function stopHead(node, leader) {
+    const left = leftOf(node);
+    const t = left.find((x) => x.state === "running" || x.state === "testing") || left[0];
+    return t?.head || leader?.head || null;
+  }
   function tasksLeft(node) {
-    const left = (node.tasks || []).filter((t) => t.state !== "merged" && t.state !== "dropped");
+    const left = leftOf(node);
     if (!left.length || node.state === "done") return null;
     const done = node.tasks.length - left.length;
     return h("div", { class: "map-tasks", "aria-label": `Tasks of ${node.title}` },
       ...wavesOf(left).map((wave, i) => h("div", { class: "map-wave", "data-wave": String(i + 1) },
-        ...wave.map((t) => h("button", { class: "map-task", type: "button", "data-state": t.state,
-          onclick: () => core.open({ kind: "task", slug: node.slug, task: t.id }, "map") },
-          t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.title), h("small", {}, TASK_WORDS[t.state] || t.state))))),
+        ...wave.map((t) => h("span", { class: "map-task", "data-state": t.state, title: `${t.title} · ${TASK_WORDS[t.state] || t.state}` },   // the idea's screen opens it
+          t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.title), h("span", { class: "sr-only" }, ` · ${TASK_WORDS[t.state] || t.state}`))))),
       done ? h("small", { class: "muted map-tasks-done" }, `${done} done`) : null);
   }
 
@@ -105,24 +111,29 @@ export function makeMap(core, goalSheet) {
       leader ? ` Led by ${leader.name}${words ? ` · ${words}` : ""}` : ` Team: ${words}`);
   }
 
-  function row(node, titleOf) {
+  /** A stop: a chip — the head of who does it, its title, a mark of its state (its words for a screen reader, all of them on its
+   *  screen) — and, for the idea at work, its tasks left as smaller chips with their agents' heads. */
+  function row(node, titleOf, leader) {
     const s = rowState(node, titleOf);
     const why = waitsWords(node);
     const needsHand = node.needs_you && node.state !== "done";
     const isNew = since && node.updated && Date.parse(node.updated) > since;
+    const on = (node.checks || []).filter((c) => c.applies), passed = on.filter((c) => c.state === "passed").length;
+    const words = [s.text, why && why !== s.text && !s.text.includes(why) ? why : "", node.by_itself ? "by itself" : "",
+      node.estimate ? `≈$${node.estimate.usd_low.toFixed(2)}–${node.estimate.usd_high.toFixed(2)}` : "", on.length ? `checks ${passed}/${on.length}` : "", isNew ? "new" : ""]
+      .filter(Boolean).join(" · ");
+    const head = stopHead(node, leader);
+    const timed = ["night", "limits", "reserve"].includes(node.waits?.kind) && node.state !== "done";
     return h("li", { class: `map-row state-${node.state}${needsHand ? " needs-hand" : ""}${node.waits && !needsHand ? " is-waiting" : ""}${node.state === "proposed" ? " is-proposed" : ""}`,
       "data-slug": node.slug },
-      needsHand ? h("span", { class: "trail-gate" }, icon("warning-diamond"), " Waits for you") : null,
-      h("button", { class: "map-open", type: "button", onclick: () => core.open({ kind: "idea", slug: node.slug }, "map") },
+      h("button", { class: "map-open trail-chip", type: "button", "aria-label": `${node.title}: ${words}`, "data-words": words,
+        onclick: () => core.open({ kind: "idea", slug: node.slug }, "map") },
+        head ? whoHead(head, true) : h("span", { class: "trail-chip-nohead", "aria-hidden": "true" }),
         h("span", { class: "idea-title" }, node.title),
-        h("span", { class: "idea-meta" },
-          needsHand ? h("span", { class: "map-hand", title: "Needs your hand" }, "●") : null,
-          h("span", { class: `state-word ${s.cls}` }, s.spin ? h("span", { class: "spin", "aria-hidden": "true" }, "↻") : null, s.spin ? " " : null, s.text),
-          why && why !== s.text && !s.text.includes(why) ? h("span", { class: "map-why" }, why) : null,
-          node.by_itself ? h("span", { class: "map-mark" }, "by itself") : null,
-          node.estimate ? h("span", { class: "map-mark" }, `≈$${node.estimate.usd_low.toFixed(2)}–${node.estimate.usd_high.toFixed(2)}`) : null,
-          isNew ? h("span", { class: "map-new" }, "new") : null,
-          checksMark(node.checks))),
+        needsHand ? h("span", { class: "trail-mark is-gate", "aria-hidden": "true" }, icon("warning-diamond"))
+          : s.spin ? h("span", { class: "spin trail-mark", "aria-hidden": "true" }, "↻")
+            : timed ? h("span", { class: "trail-mark", "aria-hidden": "true" }, icon("clock")) : null,
+        isNew ? h("span", { class: "map-new", "aria-hidden": "true" }, "new") : null),
       tasksLeft(node));
   }
 
@@ -140,11 +151,16 @@ export function makeMap(core, goalSheet) {
     const pct = progressOf(mine);
     const all = wide.has(goal.slug);
     const flag = goal.verdict ? (goal.verdict.met ? "is-met" : "is-not") : "";
+    const board = (st.board?.tracks || []).find((t) => t.slug === goal.slug), onBoard = Boolean(board);
+    const line = String(board?.summary || "").split("\n").find((l) => l.trim()) || "";
     const flagWords = goal.verdict ? (goal.verdict.met ? `Met · ${goal.verdict.by}` : `Not met yet · ${goal.verdict.by}`) : open.length ? "The goal" : "Its ideas are done";
     return h("section", { class: "map-goal", "data-goal": goal.slug, "aria-label": goal.title },        // its title: its tab's
+      line ? h("p", { class: "goal-line" }, line) : null,
       h("p", { class: "map-goal-meta" }, h("span", { class: `prio prio-${goal.priority}` }, PRIORITY_WORDS[goal.priority] || "Normal"),
         goalState(goal) ? h("span", { class: `state-word ${goal.state === "reading" ? "work" : goal.state}` }, goalState(goal)) : null,
-        h("span", {}, money)),
+        h("span", {}, money),
+        h("button", { class: "ork-btn small", type: "button", "aria-label": `Open goal ${goal.title}`, onclick: () => core.open({ kind: "goal", slug: goal.slug }) }, "Open"),
+        onBoard ? h("button", { class: "ork-btn small", type: "button", "aria-label": `Edit goal ${goal.title}`, onclick: () => goalSheet.open(goal.slug) }, "Edit") : null),
       teamLine(goal.team, goal.leader),
       (goal.done_when || []).length ? h("details", { class: "map-done-when" }, h("summary", {}, `Done when · ${goal.done_when[0]}`),
         h("ul", {}, ...goal.done_when.map((l) => h("li", {}, l)))) : null,
@@ -152,13 +168,13 @@ export function makeMap(core, goalSheet) {
         h("div", { class: "trail-start" }, h("b", { class: "trail-pct", "aria-label": `${pct} % of the way` }, `${pct} %`),
           h("span", { class: "muted" }, `${done.length} of ${mine.length} ideas`)),
         open.length ? h("ol", { class: "trail-steps" }, ...steps(open).map((step) => h("li", { class: "trail-step", "data-tier": String(step[0].tier || 1) },
-          h("ul", { class: `trail-lanes${all || step.length < 2 ? "" : " is-two"}` }, ...(all ? step : step.slice(0, LANES)).map((n) => row(n, titleOf))),
+          h("ul", { class: `trail-lanes${all || step.length < 2 ? "" : " is-two"}` }, ...(all ? step : step.slice(0, LANES)).map((n) => row(n, titleOf, goal.leader))),
           step.length > LANES ? h("button", { class: "linkish trail-more", type: "button", onclick: () => { if (all) wide.delete(goal.slug); else wide.add(goal.slug); core.draw(); } },
             all ? "Fewer side by side" : `+${step.length - LANES} more side by side`) : null)))
           : h("p", { class: "muted trail-empty" }, "No idea left on the way."),
         h("div", { class: `trail-end ${flag}`, "aria-label": `The flag: ${flagWords}` }, h("span", { class: "trail-flag" }, icon("flag")), h("span", {}, flagWords))),
       done.length ? h("details", { class: "done-ideas" }, h("summary", {}, `Done (${done.length})`),
-        h("ol", { class: "ideas map-ideas" }, ...done.map((n) => row(n, titleOf)))) : null);
+        h("ol", { class: "ideas map-ideas" }, ...done.map((n) => row(n, titleOf, goal.leader)))) : null);
   }
 
   /** The goals as tabs along the top, each with how far it is; a tap shows its trail (and is the goal the Board shows). */

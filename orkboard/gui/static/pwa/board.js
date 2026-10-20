@@ -1,7 +1,7 @@
 // The v1 shell on a phone (docs/specs/33-v1-shell.md §6, §8; decisions §45.2): the one face when the compact snapshot's `focus` is
-// "board". Three tabs at the foot — Board · Agents · Review, Review with its count when it is not zero — under a top bar (the project
-// over the goal shown, ! with what Needs you — its own screen —, what is left of the AI tools when one is low, the gear with Spend and
-// Stop all). New idea is the button at the bottom right of the Board, with Speak beside it. An idea's spec, a plan, a task or a result's code opens on its own full
+// "board". Three tabs at the foot — Board (the Map: the goals' trails) · Agents · Needs you (what waits for an answer, then Review's
+// results to check), Needs you with its count when it is not zero — under a top bar (the project over the goal shown, ! with the same
+// count, what is left of the AI tools when one is low, the gear with Spend and Stop all). New idea is the button at the bottom right of the Board, with Speak beside it. An idea's spec, a plan, a task or a result's code opens on its own full
 // screen over the tab, with Back (and the system back gesture) to the tab it came from and its actions pinned at the bottom.
 // It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's
 // `ideas_rev` changes (and every POLL_MS while the Taskmaster or a task works). Always Office's calm look.
@@ -15,8 +15,8 @@ import { makeNeeds } from "./shell-needs.js";
 import { steady } from "./shell-util.js";
 
 const POLL_MS = 10000;
-const TABS = [["board", "Board"], ["agents", "Agents"], ["review", "Review"]];
-const MARKS = { board: () => icon("list-box"), agents: () => icon("robot"), review: () => icon("eye") };   // a head says a craft, not every agent
+const TABS = [["board", "Board"], ["agents", "Agents"], ["needs", "Needs you"]];
+const MARKS = { board: () => icon("map"), agents: () => icon("robot"), needs: () => icon("eye") };   // a head says a craft, not every agent
 const LIVE = new Set(["running", "testing"]);
 
 export { stateWords } from "./shell-board.js";
@@ -52,11 +52,12 @@ export function makeBoard(ctx) {
   const review = makeReview(core);
   const preview = makePreview(core, ctx);
   const needs = makeNeeds(core, ctx, boardTab.ops);
-  const needsPane = h("section", { class: "pane needs-pane", "aria-label": "Needs you" });
-  const panes = { board: boardTab.el, agents: agents.el, review: review.el, needs: needsPane };
+  const needsBody = h("div", { class: "needs-body" });
+  const needsPane = h("section", { class: "pane needs-pane", "aria-label": "Needs you" }, needsBody, review.el);   // the answers, then Review
+  const panes = { board: boardTab.el, agents: agents.el, needs: needsPane };
 
   const tabs = {};
-  const tabBar = h("nav", { class: "board-tabs ork-tabbar", role: "tablist", "aria-label": "Board, Agents, Review" });
+  const tabBar = h("nav", { class: "board-tabs ork-tabbar", role: "tablist", "aria-label": "Board, Agents, Needs you" });
   for (const [id, label] of TABS) {
     tabs[id] = h("button", { class: "board-tab ork-tabbar__tab", type: "button", role: "tab", onclick: () => go(id) }, MARKS[id](), h("span", {}, label),
       h("span", { class: "count ork-count on", hidden: true }));
@@ -85,12 +86,13 @@ export function makeBoard(ctx) {
     window.scrollTo(0, 0);
   }
 
-  const needsFresh = steady(needsPane);
+  const needsFresh = steady(needsBody);
   function drawNeeds() {
     if (!needsFresh(needs.key())) return;                // drawn again only when what it shows changed: a choice half made stays
-    needsPane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Needs you"),
-      h("button", { class: "ork-btn", type: "button", onclick: () => go("board") }, "Board")), ...needs.draw());
+    needsBody.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Needs you")), ...needs.draw());
   }
+  /** What waits on the person: the rows to answer (the ones put away aside) and the results to check. */
+  const waiting = () => (st.board ? needs.count() : st.snap?.needs_you || 0) + (st.review ? st.review.results.length : st.snap?.review_count || 0);
 
   function drawPanes() {
     for (const [id, p] of Object.entries(panes)) p.hidden = st.tab !== id;
@@ -100,7 +102,7 @@ export function makeBoard(ctx) {
   }
 
   function counts() {
-    const n = { board: 0, agents: 0, review: st.review ? st.review.results.length : st.snap?.review_count || 0 };   // Needs you: the top bar's !
+    const n = { board: 0, agents: 0, needs: waiting() };   // the top bar's ! says the same
     for (const [id, b] of Object.entries(tabs)) {
       const c = b.querySelector(".count");
       c.hidden = !n[id];
@@ -110,7 +112,7 @@ export function makeBoard(ctx) {
   }
 
   function drawAll() {
-    top.draw(st.board ? needs.count() : st.snap?.needs_you || 0);
+    top.draw(waiting());
     drawNeeds();
     boardTab.draw();
     agents.draw();
@@ -176,7 +178,7 @@ export function makeBoard(ctx) {
     el,
     sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets],
     // What is acted on only while the town answers: not the bar's Stop all, nor New idea (kept with no signal).
-    content: () => [panes.board, panes.agents, panes.review, panes.needs, preview.el],
+    content: () => [panes.board, panes.agents, panes.needs, preview.el],
     render(s) {
       st.snap = s;
       top.render(s, s.rev !== seenSnap ? s.rev : undefined);

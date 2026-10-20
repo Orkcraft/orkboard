@@ -186,7 +186,7 @@ async def test_operations_is_among_the_goals_new_lists_the_templates_and_the_for
         await page.locator(".board-bar .goal-chip").click()
         rows = page.get_by_role("dialog", name="Goals").locator(".goal-row")
         await rows.first.wait_for(timeout=WAIT_MS)
-        assert (await rows.all_inner_texts())[-2:] == ["Operations", "Map\nEvery goal, its ideas and tasks on one screen"]
+        assert (await rows.all_inner_texts())[-1:] == ["Operations"]                                    # the Map is the Board
         await rows.filter(has_text="Operations").click()
         assert await page.get_by_role("heading", name="Needs you").count() == 0 and await page.locator(".target-chip").count() == 0
         await page.get_by_role("button", name="Operations settings").wait_for(timeout=WAIT_MS)

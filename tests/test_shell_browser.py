@@ -787,6 +787,7 @@ def test_edit_goal_changes_the_party_and_sends_it_only_when_changed(shell):
     pg, host = shell
     host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
     host.bump({})
+    pg.locator(".board-goal", has_text="Led by Architect").wait_for(timeout=WAIT_MS)                 # the Board has read it
     pg.get_by_role("button", name="Edit goal Ship sync").click()
     dlg = pg.get_by_role("dialog", name="Edit goal")
     party = dlg.get_by_role("group", name="Party")

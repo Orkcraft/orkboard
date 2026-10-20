@@ -92,7 +92,7 @@ async def test_with_the_taskmaster_leading_text_is_open_first_and_the_text_alone
                                        lens=[{"kind": "pain", "segment": "Shop owners", "pain": "Orders get lost"},
                                              {"kind": "code", "paths": ["app/core"], "note": "Keep each order"}])
         stub.bump({})
-        await page.locator(".idea-card", has_text="The orders page").locator(".idea-open").click()
+        await page.locator(".map-row", has_text="The orders page").locator(".map-open").click()
         pointed = page.locator(".screen").get_by_role("list", name="Pointed at")
         await pointed.wait_for(timeout=WAIT_MS)
         assert [" ".join(t.split()) for t in await pointed.get_by_role("listitem").all_inner_texts()] == [

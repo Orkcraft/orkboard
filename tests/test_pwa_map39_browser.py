@@ -10,9 +10,8 @@ from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _pho
 
 
 async def _open_map(page):
-    """The Map: a row of the top bar's Goals sheet."""
-    await page.locator(".board-bar .goal-chip").click()
-    await page.get_by_role("dialog", name="Goals").locator('.goal-row[data-goal="map"]').click()
+    """The Map: it is the Board."""
+    await page.locator(".board-tab-pane").wait_for(timeout=WAIT_MS)
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -83,11 +82,13 @@ async def test_the_goals_are_tabs_with_how_far_each_is_and_a_goal_is_a_trail_dow
         first = [await t.inner_text() for t in await steps.nth(0).locator(".idea-title").all()]
         assert first == ["Draft the pricing page", "Write the changelog"]                      # side by side; the hand first; done not on the trail
         gate = steps.nth(0).locator(".map-row").first
-        assert "Waits for you" in await gate.locator(".trail-gate").inner_text() and "plan ready" in await gate.inner_text()
+        assert await gate.locator(".trail-mark.is-gate").count() == 1 and "plan ready" in await gate.locator(".map-open").get_attribute("aria-label")   # a gate: ! on its chip
         sync = steps.nth(1).locator('.map-row[data-slug="sync"]')
-        assert "working 1/3" in await sync.inner_text()
+        assert "working 1/3" in await sync.locator(".map-open").get_attribute("aria-label")
+        assert (await sync.locator(".map-open").bounding_box())["height"] <= 48                        # a chip: one line
         tasks = sync.get_by_label("Tasks of Sync between phone and town")
         assert [await t.locator(".map-task-title").inner_text() for t in await tasks.locator(".map-task").all()] == ["Task 2", "Task 3"]
+        assert await tasks.locator(".map-task").first.locator("img").count() == 1                      # the head of who does it
         assert "1 done" in await tasks.inner_text()
         assert "The goal" in await goal.locator(".trail-end").inner_text()
         for row in await goal.locator(".trail-step .map-open").all():                         # tap targets of at least 44 px
@@ -104,10 +105,8 @@ async def test_the_goals_are_tabs_with_how_far_each_is_and_a_goal_is_a_trail_dow
         await page.locator(".screen .sec").first.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "phone", "via": "map"})
         await page.get_by_role("button", name="Back", exact=True).click()
-        await page.locator(".map-goal").wait_for(timeout=WAIT_MS)                            # back on the Map
-        await page.locator(".goal-pick").get_by_role("button", name="Board").click()
-        await page.locator(".pane-head h2", has_text="Board").wait_for(timeout=WAIT_MS)
-        assert await page.locator(".map-goal").count() == 0
+        await page.locator(".map-goal").wait_for(timeout=WAIT_MS)                            # back on the Board: its trails
+        assert await page.locator(".pane-head h2", has_text="Board").count() == 1
 
 
 @pytest.mark.asyncio
@@ -139,7 +138,7 @@ async def test_the_phone_map_says_a_goal_s_team_and_an_idea_s_checks(fake_repo, 
         team = page.locator('.map-goal[data-goal="ship"] .map-team')
         await team.wait_for(timeout=WAIT_MS)
         assert "Team: Product designer, Reviewer (checks every idea)" in await team.inner_text()
-        mark = page.locator('.map-row[data-slug="sync"] .map-checks')
-        assert await mark.inner_text() == "checks 1/2"
+        said = await page.locator('.map-row[data-slug="sync"] .map-open').get_attribute("aria-label")
+        assert "checks 1/2" in said
         await _shot(page, "phone-map-team-390x844")
         assert await page.evaluate(NO_SCROLL)

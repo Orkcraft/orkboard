@@ -2,8 +2,8 @@
 // runs from how far the goal is (in %, at its start) through the ideas left to do — stops, from left to right, an idea right of
 // the ideas it depends on, the ones that can go at once side by side (three at most, the rest a click away) — to the goal's flag,
 // raised when its leader accepts it against its metrics (the verdict). An idea at work shows its tasks left, each with the head
-// of the agent who does it, in the waves they go in; what is done is not on the trail (a click shows it). A stop that waits for
-// the person is a gate on the trail. A view of `ideas.map`: it changes nothing, its one action is open. Words of a stop's state
+// of the agent who does it, in the waves they go in; what is done is not on the trail (a click shows it). A stop is a chip: the
+// head of who does it, its title, a mark of its state (its words on hover); one that waits for the person is a gate (! on it). A view of `ideas.map`: it changes nothing, its one action is open. Words of a stop's state
 // are the Board row's (`rowOf`).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -22,13 +22,12 @@ const toggle = (key, id) => {
   mapUi.value = { ...mapUi.value, [key]: list.includes(id) ? list.filter((x) => x !== id) : [...list, id] };
 };
 
-/** "checks 1/2": how many of the checks that apply to an idea passed; the names and states in its title. */
-function checksMark(checks) {
+/** "checks 1/2 passed: Reviewer: passed · …": the checks that apply to an idea, for its chip's words. */
+function checksWords(checks) {
   const on = (checks || []).filter((c) => c.applies);
-  if (!on.length) return null;
+  if (!on.length) return "";
   const passed = on.filter((c) => c.state === "passed").length;
-  const words = on.map((c) => `${c.name}: ${c.state === "passed" ? "passed" : TASK_STATE[c.state] || "to come"}`).join(" · ");
-  return html`<span class=${cls("map-card__checks", { "is-passed": passed === on.length })} title=${words} aria-label=${`Checks: ${passed} of ${on.length} passed. ${words}`}>checks ${passed}/${on.length}</span>`;
+  return `checks ${passed}/${on.length} passed: ${on.map((c) => `${c.name}: ${c.state === "passed" ? "passed" : TASK_STATE[c.state] || "to come"}`).join(" · ")}`;
 }
 
 /** The goal's party: its leader, then its builders and checkers (a checker says so). */
@@ -43,28 +42,43 @@ function Team({ team, leader }) {
 /** An idea not yet planned is in the fog: its tasks are not known yet. */
 const fog = (n) => !n.tasks.length && ["raw", "reading", "asks", "ready", "planning", "proposed"].includes(n.state);
 
-/** A stop: the idea's card, a gate above it when it waits for the person, its tasks left with their agents' heads. */
-function Stop({ n, titles, since }) {
+/** Who does an idea now: the agent of its running task, else of its next task, else the goal's leader (it drafts and plans). */
+export function stopHead(n, leader) {
+  const left = n.tasks.filter(leftToDo);
+  const t = left.find((x) => x.state === "running" || x.state === "testing") || left[0];
+  return t?.head || leader?.head || null;
+}
+
+/** A timed wait (the night, the limits, the reserve) is a clock on the chip. */
+const timed = (w) => ["night", "limits", "reserve"].includes(w?.kind);
+
+/** A stop: a chip — the head of who does it, its title, a mark of its state (its words on hover and to a screen reader) — and,
+ *  for the idea at work, its tasks left as smaller chips, each with its agent's head, in the waves they go in. */
+function Stop({ n, titles, since, leader }) {
   const v = nodeView(n, titles);
   const fresh = !!since && n.updated > since;
   const left = n.tasks.filter(leftToDo), doneTasks = n.tasks.length - left.length;
-  const whole = [n.title, v.needs ? `${v.needs}` : v.words, v.wait, n.by_itself ? "by itself" : "", v.cost].filter(Boolean).join(" · ");
+  const words = [v.needs && !v.words.includes(v.needs) ? `${v.words} · ${v.needs}` : v.words, v.wait, n.by_itself ? "by itself" : "", v.cost,
+    checksWords(n.checks), fresh ? "new" : ""].filter(Boolean).join(" · ");
+  const head = stopHead(n, leader);
   return html`<li class=${cls("map-node", { "is-gate": !!v.needs })} data-slug=${n.slug}>
-    ${v.needs && html`<span class="trail-gate"><${Icon} name="warning-diamond" /> Waits for you</span>`}
-    <button class=${cls("map-card", { "is-needs": !!v.needs, "is-wait": !!v.wait, "is-fog": fog(n), "is-done": n.state === "done", "is-on": preview.value?.kind === "idea" && preview.value.slug === n.slug })}
-      data-slug=${n.slug} data-state=${n.state} data-needs=${n.needs_you || ""} title=${whole}
+    <button class=${cls("map-card trail-chip", { "is-needs": !!v.needs, "is-wait": !!v.wait, "is-fog": fog(n), "is-done": n.state === "done", "is-on": preview.value?.kind === "idea" && preview.value.slug === n.slug })}
+      data-slug=${n.slug} data-state=${n.state} data-needs=${n.needs_you || ""} title=${`${n.title} · ${words}`} aria-label=${`${n.title}: ${words}`}
       onClick=${() => showIdea(n.slug, { via: "map" })}>
+      ${head ? html`<${WhoHead} head=${head} small />` : html`<span class="trail-chip__nohead" aria-hidden="true"></span>`}
       <b class="map-card__title">${n.title}</b>
-      <span class="map-card__words">
-        ${v.needs && html`<span class="map-card__needs" aria-hidden="true">●</span> `}${v.spin && html`<span class="shell-spin" aria-hidden="true">↻</span> `}<span>${v.needs && !v.words.includes(v.needs) ? `${v.words} · ${v.needs}` : v.words}</span>${v.wait && html` <span class="map-card__wait">· ${v.wait}</span>`}
-        ${fresh && html` <span class="map-card__new">new</span>`}</span>
-      <span class="map-card__marks">${n.by_itself && html`<span>by itself</span>`}${v.cost && html`<span>${v.cost}</span>`}${checksMark(n.checks)}</span>
+      ${v.needs ? html`<span class="trail-chip__mark is-gate" aria-hidden="true"><${Icon} name="warning-diamond" /></span>`
+        : v.spin ? html`<span class="shell-spin trail-chip__mark" aria-hidden="true">↻</span>`
+          : timed(n.waits) && n.state !== "done" ? html`<span class="trail-chip__mark" aria-hidden="true"><${Icon} name="clock" /></span>` : ""}
+      ${fresh && html`<span class="map-card__new" aria-hidden="true">new</span>`}
     </button>
     ${left.length > 0 && n.state !== "done" && html`<div class="map-tasks" aria-label=${`Tasks of ${n.title}`}>
       ${wavesOf(left).map((wave, i) => html`<div key=${i} class="map-wave" data-wave=${i + 1}>
-        ${wave.slice(0, TASKS).map((t) => html`<button key=${t.id} type="button" class="map-task" data-state=${t.state} title=${`${t.id} ${t.title} · ${t.tag ? `${t.tag} · ` : ""}${TASK_STATE[t.state] || t.state}`}
-          onClick=${() => showTask(n.slug, t.id, { via: "map" })}><${WhoHead} head=${t.head} small /><span class="map-task__title">${t.title}</span>
-          <small>${TASK_STATE[t.state] || t.state}</small></button>`)}</div>`)}
+        ${wave.slice(0, TASKS).map((t) => {
+          const said = `${t.title} · ${t.tag ? `${t.tag} · ` : ""}${TASK_STATE[t.state] || t.state}`;
+          return html`<button key=${t.id} type="button" class="map-task" data-state=${t.state} title=${said} aria-label=${said}
+            onClick=${() => showTask(n.slug, t.id, { via: "map" })}>${t.head && html`<${WhoHead} head=${t.head} small />`}<span class="map-task__title">${t.title}</span></button>`;
+        })}</div>`)}
       ${doneTasks > 0 && html`<small class="map-tasks__done ok-tone-muted">${doneTasks} done</small>`}</div>`}
   </li>`;
 }
@@ -117,7 +131,7 @@ function Trail({ g, nodes, edges, titles, since }) {
     ${steps.map((step, i) => {
       const shown = wide ? step : step.slice(0, LANES);
       return html`<ul key=${i} class="map-tier trail-step" data-tier=${step[0].tier}>
-        ${shown.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} />`)}
+        ${shown.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} leader=${g.leader} />`)}
         ${step.length > LANES && html`<li class="trail-more"><button class="board-link" aria-expanded=${wide} onClick=${() => toggle("lanes", g.slug)}>
           ${wide ? "Fewer side by side" : `+${step.length - LANES} more side by side`}</button></li>`}</ul>`;
     })}
@@ -127,7 +141,7 @@ function Trail({ g, nodes, edges, titles, since }) {
       <span class="ok-font-status">${flagWords}</span>
     </div>
   </div>
-  ${doneOpen && html`<ul class="map-done__list" aria-label=${`Done in ${g.title}`}>${done.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} />`)}</ul>`}
+  ${doneOpen && html`<ul class="map-done__list" aria-label=${`Done in ${g.title}`}>${done.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} leader=${g.leader} />`)}</ul>`}
   </div>`;
 }
 

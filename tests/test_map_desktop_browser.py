@@ -201,19 +201,21 @@ def test_each_goal_is_a_trail_from_how_far_it_is_through_its_ideas_left_to_its_f
       const r = document.querySelector('.map-goal[data-goal=ship-sync] .map-lines').getBoundingClientRect(); return [d[0] + r.left, d[1] + r.top, d[d.length - 2] + r.left, d[d.length - 1] + r.top]; }""")
     assert abs(ends[0] - (first["x"] + first["width"])) < 3 and abs(ends[2] - later["x"]) < 3        # from the right of one to the left of the next
 
-    assert "tonight" in card(pg, "Offline mode").inner_text()
-    assert "waits for Tag the notes" in card(pg, "Grow the list").inner_text()
+    said = lambda title: card(pg, title).get_attribute("title")                                   # noqa: E731  a chip's words, on hover
+    assert "tonight" in said("Offline mode") and card(pg, "Offline mode").locator("use[href$='#clock']").count() == 1   # a timed wait: a clock
+    assert "waits for Tag the notes" in said("Grow the list")
     assert card(pg, "Grow the list").evaluate("e => getComputedStyle(e).borderStyle") == "dashed"
     assert pg.locator(".map-card[data-slug=tags]").evaluate("e => getComputedStyle(e).borderStyle") == "dotted"   # proposed
     need = card(pg, "Dark mode")
-    assert need.get_attribute("data-needs") == "plan" and "plan ready" in need.inner_text() and "●" in need.inner_text()
-    assert "Waits for you" in pg.locator(".map-node[data-slug=dark] .trail-gate").inner_text()        # a gate on the trail
-    assert "≈$0.40–1.20" in need.inner_text()
-    assert "by itself" in card(pg, "Sync ideas").inner_text() and "working 1/4" in card(pg, "Sync ideas").inner_text()
+    assert need.get_attribute("data-needs") == "plan" and "plan ready" in said("Dark mode")
+    assert need.locator(".trail-chip__mark.is-gate").count() == 1                                    # a gate on the trail: ! on its chip
+    assert "≈$0.40–1.20" in said("Dark mode")
+    assert "by itself" in said("Sync ideas") and "working 1/4" in said("Sync ideas")
+    assert card(pg, "Sync ideas").bounding_box()["height"] <= 32                                      # a chip: one line
     assert card(pg, "Sync ideas").locator(".shell-spin").count() == 1                               # working: a spinner
     assert pg.locator(".map-card", has_text="Export notes").count() == 0                            # done: not on the trail
     pg.get_by_role("button", name="Done (1)").click()
-    assert card(pg, "Export notes").is_visible() and "done" in card(pg, "Export notes").inner_text()
+    assert card(pg, "Export notes").is_visible() and "done" in card(pg, "Export notes").get_attribute("title")
     assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
 
 
@@ -253,8 +255,8 @@ def test_an_idea_at_work_shows_its_tasks_left_with_their_agents_in_waves_and_the
     tasks = pg.get_by_label("Tasks of Sync ideas between the phone and the town")
     waves = tasks.locator(".map-wave")
     assert waves.count() == 2                                                                         # k1 merged: not on the trail
-    assert [t.inner_text().split("\n")[0] for t in waves.nth(0).locator(".map-task").all()] == ["Add the queue", "Retry on a lost signal"]
-    assert "working" in waves.nth(0).locator(".map-task").first.inner_text()
+    assert [t.inner_text().strip() for t in waves.nth(0).locator(".map-task").all()] == ["Add the queue", "Retry on a lost signal"]
+    assert "working" in waves.nth(0).locator(".map-task").first.get_attribute("title")
     assert waves.nth(1).locator(".map-task").count() == 1 and "1 done" in tasks.inner_text()
     assert waves.nth(0).locator(".map-task").first.locator("img.ork-race__head").count() == 1          # who does it
     waves.nth(0).locator(".map-task").first.click()
@@ -514,8 +516,8 @@ def test_a_goal_says_its_team_and_an_idea_how_many_of_its_checks_passed(mapped):
     team.wait_for(timeout=WAIT_MS)
     assert "Team: Product designer, Reviewer (checks every idea)" in team.inner_text()
     assert team.locator("img.ork-race__head").count() == 2
-    mark = goal.locator('.map-card[data-slug="growth"] .map-card__checks')
-    assert mark.inner_text() == "checks 1/2" and "Accessibility reviewer: working" in mark.get_attribute("title")
+    said = goal.locator('.map-card[data-slug="growth"]').get_attribute("title")                    # a chip says its checks on hover
+    assert "checks 1/2 passed" in said and "Accessibility reviewer: working" in said
     assert pg.locator('.map-goal[data-goal="ship-sync"] .map-goal__team').count() == 0               # no team, no line
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)

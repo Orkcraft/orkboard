@@ -1,14 +1,13 @@
-// The ideas on the phone (docs/specs/35-goals-window.md §3, §11.3): New idea in a sheet — the text (with the goal's words to complete with,
-// Photo and Speak: shell-idea-field.js), the goal and the priority, one button, Add — and one row per idea: its title, its priority as a mark, its state in words, and its actions. An idea that is in Needs you is
-// not listed here; the done ones are folded at the end.
+// New idea on the phone (docs/specs/35-goals-window.md §3): a sheet — the text (with the goal's words to complete with, Photo and Speak:
+// shell-idea-field.js), the goal, the lens of its party (shell-lens.js) and the priority, one button, Add — opened by the button at the
+// bottom right. An idea's state in words (`rowState`) is said the same on the Board's trail (shell-map.js) and its screen.
 import { h, sheet, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
-import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
+import { hhmm } from "./shell-words.js";
 import { makeIdeaField } from "./shell-idea-field.js";
 import { makeLens } from "./shell-lens.js";
 import { keepGoal } from "./shell-top.js";
 
-const HOLD_MS = 450;                    // a card held this long can be dragged
 const RANK = { high: 0, normal: 1, low: 2 };
 const STATE_WORDS = { raw: "new", reading: "drafting", asks: "asks you", ready: "ready", planning: "planning",
   plan: "plan ready", working: "working", done: "done", failed: "needs you", proposed: "proposed" };
@@ -116,106 +115,5 @@ export function makeIdeas(core, ctx, goalSheet) {
     more.speaks ? h("button", { class: "fab small", type: "button", "aria-label": "Speak a new idea", onclick: () => openNew(true) }, "Speak") : null,
     h("button", { class: "fab", type: "button", "aria-label": "New idea", onclick: () => openNew() }, icon("plus")));
 
-  // -- Delete asks first, on a sheet --------------------------------------------------------------------------------
-  let doomed = null;
-  const doomText = h("p", {});
-  const sure = h("button", { class: "ork-btn danger big", type: "button" }, "Delete");
-  const dropSheet = sheet("Delete this idea?", doomText, foot(h("button", { class: "ork-btn big", type: "button", onclick: () => dropSheet.close() }, "Keep it"), sure));
-  sure.addEventListener("click", async () => {
-    dropSheet.close();
-    if (doomed && await core.call("ideas.drop", { slug: doomed.slug })) core.refresh();
-  });
-
-  // -- one row each ---------------------------------------------------------------------------------------------------
-  const run = async (name, args) => { if (await core.call(name, args)) core.refresh(); };
-  function actions(idea) {
-    const btn = (label, onclick, cls = "") => h("button", { class: `ork-btn ${cls}`.trim(), type: "button", "aria-label": `${label}: ${idea.title}`, onclick }, label);
-    const del = btn("Delete", () => { doomed = idea; doomText.textContent = `“${idea.title}” and its page are removed.`; dropSheet.open(); });
-    const now = btn("Process now", () => run("ideas.queue", { slug: idea.slug, queue: "now" }), "now");
-    if (idea.state === "raw" || idea.state === "ready") {
-      if (idea.held_until) return [del];
-      if (idea.state === "ready") return [];
-      return (idea.queue || "night") === "hold" ? [now, btn("Tonight", () => run("ideas.queue", { slug: idea.slug, queue: "night" })), del] : [now, del];
-    }
-    if (idea.state === "reading" || idea.state === "planning") return [btn("Stop", () => run("ideas.read_stop", { slug: idea.slug }))];
-    if (idea.state === "plan" && idea.start_at === "night") return [btn("Start now", () => run("ideas.start_now", { slug: idea.slug }), "now")];
-    return [];
-  }
-  function card(idea) {
-    const s = rowState(idea, (slug) => (st.board?.ideas || []).find((i) => i.slug === slug)?.title || slug);
-    const acts = actions(idea);
-    return h("li", { class: `idea-card state-${idea.state}`, "data-slug": idea.slug },
-      h("button", { class: "idea-open", type: "button", onclick: () => core.open({ kind: "idea", slug: idea.slug }) },
-        h("span", { class: "idea-title" }, idea.title),
-        idea.thesis ? h("span", { class: "idea-thesis" }, idea.thesis) : null,
-        h("span", { class: "idea-meta" },
-          idea.size ? h("span", { class: "size", title: "Size" }, idea.size) : null,
-          h("span", { class: `prio prio-${idea.priority || "normal"}` }, PRIORITY_WORDS[idea.priority] || "Normal"),
-          h("span", { class: `state-word ${s.cls}` }, s.spin ? h("span", { class: "spin", "aria-hidden": "true" }, "↻") : null, s.spin ? " " : null, s.text))),
-      acts.length ? h("div", { class: "idea-actions" }, ...acts) : null);
-  }
-
-  // Long-press, then drag: the held card lifts and follows the finger, the others make room; letting go says where
-  // it goes (`ideas.move` with the card it goes before). A finger that moves before the hold scrolls instead.
-  function wireDrag(list) {
-    let timer = 0, from = null, y0 = 0, dragging = null, cards = [], mids = [], sticky = false;
-    const stopTimer = () => { clearTimeout(timer); timer = 0; };
-    list.addEventListener("contextmenu", (e) => e.preventDefault());
-    list.addEventListener("pointerdown", (e) => {
-      const li = e.target.closest?.(".idea-card");
-      if (!li || (e.button !== undefined && e.button > 0)) return;
-      from = { li, x: e.clientX, y: e.clientY, id: e.pointerId };
-      timer = setTimeout(() => {
-        dragging = li;
-        cards = [...list.children];
-        mids = cards.map((c) => { const b = c.getBoundingClientRect(); return b.top + b.height / 2; });
-        y0 = from.y;
-        li.classList.add("is-dragging");
-        try { list.setPointerCapture(from.id); } catch { /* the finger stays on the card */ }
-        navigator.vibrate?.(30);
-      }, HOLD_MS);
-    });
-    list.addEventListener("pointermove", (e) => {
-      if (!dragging) {
-        if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > 8) stopTimer();
-        return;
-      }
-      dragging.style.transform = `translateY(${e.clientY - y0}px)`;
-    });
-    list.addEventListener("touchmove", (e) => { if (dragging) e.preventDefault(); }, { passive: false });
-    const drop_ = async (e) => {
-      stopTimer();
-      if (!dragging) return;
-      const li = dragging;
-      dragging = null;
-      sticky = true;                                                               // the click that follows is not a tap
-      setTimeout(() => { sticky = false; }, 400);
-      li.classList.remove("is-dragging");
-      li.style.transform = "";
-      if (e.type === "pointercancel") return;
-      const others = cards.filter((c) => c !== li);
-      const at = Math.max(0, mids.filter((m, i) => cards[i] !== li && m < e.clientY).length);
-      if (others[at] === cards[cards.indexOf(li) + 1]) return;                      // where it was
-      const args = { slug: li.dataset.slug };
-      if (others[at]?.dataset.slug) args.before = others[at].dataset.slug;
-      await core.call("ideas.move", args);
-      core.refresh();
-    };
-    list.addEventListener("click", (e) => { if (sticky) { e.stopPropagation(); e.preventDefault(); } }, true);
-    list.addEventListener("pointerup", drop_);
-    list.addEventListener("pointercancel", drop_);
-  }
-
-  /** The section's nodes: New idea at its head, the rows, and the done ones folded. */
-  function section() {
-    const mine = (st.board?.ideas || []).filter((i) => i.track === st.track && !i.in_needs_you).sort((a, b) => a.order - b.order);
-    const open_ = mine.filter((i) => i.state !== "done"), done = mine.filter((i) => i.state === "done");
-    const list = h("ol", { class: "ideas" }, ...open_.map(card));
-    wireDrag(list);
-    return [h("div", { class: "section-head" }, h("h3", {}, "Ideas")),
-      open_.length ? list : h("p", { class: "muted" }, "No ideas here yet. Drop one with + at the bottom: it costs nothing, the Taskmaster drafts it."),
-      done.length ? h("details", { class: "done-ideas" }, h("summary", {}, `Done (${done.length})`), h("ol", { class: "ideas" }, ...done.map(card))) : null].filter(Boolean);
-  }
-
-  return { sheets: [addSheet.el, dropSheet.el], section, openNew, fab };
+  return { sheets: [addSheet.el], openNew, fab };
 }

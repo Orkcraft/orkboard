@@ -1,4 +1,5 @@
-// Review, the third tab (docs/specs/33-v1-shell.md §3, §6, §8): Merge into `dev` ▾ at the top, then the results oldest first,
+// Review, in the Needs you tab under what waits for an answer (docs/specs/33-v1-shell.md §3, §6, §8; board.js): Merge into `dev` ▾
+// at its head, then the results oldest first,
 // one card each. Three answers, on the card and pinned at the foot of the result's screen: Merge (only when the tests are
 // green and nothing conflicts), Send back / Fix (one line, required), Drop (quiet, apart, asks first).
 import { h, sheet } from "./util.js";
@@ -147,11 +148,11 @@ export function makeReview(core) {
     draw() {
       const rv = core.st.review;
       if (!fresh(JSON.stringify(rv))) return;
-      if (!rv) { el.replaceChildren(h("h2", {}, "Review"), h("p", { class: "muted" }, "Loading…")); return; }
+      if (!rv) { el.replaceChildren(h("h3", {}, "Review"), h("p", { class: "muted" }, "Loading…")); return; }
       intoBtn.replaceChildren("Merge into ", h("b", {}, rv.into), h("i", { class: "ork-chev", "aria-hidden": "true" }));
-      el.replaceChildren(h("h2", {}, "Review"), intoBtn,
+      el.replaceChildren(h("div", { class: "section-head" }, h("h3", {}, "Review", rv.results.length ? h("span", { class: "count ork-count on" }, String(rv.results.length)) : null), intoBtn),
         rv.results.length ? h("div", { class: "results" }, ...rv.results.map(card))
-          : h("p", { class: "muted" }, "Nothing waits at Review. A result lands here when a Grunt's work has been tested."));
+          : h("p", { class: "muted" }, "No result to check. A result lands here when a Grunt's work has been tested."));
     },
   };
 }

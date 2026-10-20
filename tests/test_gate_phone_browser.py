@@ -19,7 +19,7 @@ async def test_phone_review_card_reads_ran_then_the_exit_code_then_the_counts(fa
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.plan["tasks"] = tasks()
         stub.bump(None)
-        await page.get_by_role("tab", name="Review").click()
+        await page.get_by_role("tab", name="Needs you").click()                                       # Review: in Needs you
         await page.locator(".result", has_text="Pytest counts").wait_for(timeout=WAIT_MS)
         for title, line in LINES.items():
             facts = page.locator(".result", has_text=title).locator(".facts dd").first
