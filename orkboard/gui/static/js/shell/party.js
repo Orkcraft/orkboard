@@ -1,9 +1,12 @@
 // A goal's party on the desktop (decisions §53; realm/goal_team.py), as New goal (goalwizard.js) and Edit goal (goaldialog.js)
 // pick it: three bands of seats from the library (ideas.roles `library`, `seats`) — Leads (one: the goal's steps run as it, and
 // it accepts the goal; the Taskmaster when none), Builds (three at most), Checks (two at most) —; a click takes an agent in or out of
-// its band, a full band says so. Then the checkers' checks: where each applies or on every idea, and what it adds to an idea.
+// its band, a full band says so. Under them what the party costs (`ideas.party_price`: about what an idea costs, asked when the picker
+// opens and 300 ms after a seat or *Every idea* changes), then the checkers' checks: where each applies or on every idea, and what each
+// adds to an idea.
+import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
-import { toast } from "../link.js";
+import { command, toast } from "../link.js";
 import { roles } from "./store.js";
 import { Head, Icon, RACE_WORDS, TIER_WORDS } from "../orkui.js";
 
@@ -54,18 +57,56 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
   });
 }
 
-/** The party's checks: each checker's, where it applies or on every idea, and what a check adds to an idea, in dollars. */
-export function ChecksBlock({ team, every, setEvery }) {
-  const costs = roles.value?.tier_costs || {};
+const PRICE_MS = 300;
+/** What the party costs (spec 43 §3): `ideas.party_price` once the picker is open (`active`), again 300 ms after a seat or *Every idea* changes. null until answered. */
+export function usePartyPrice(active, leader, team, every) {
+  const [price, setPrice] = useState(null);
+  const asked = useRef(false);
+  const key = JSON.stringify([leader, team, every.filter((id) => team.includes(id))]);
+  useEffect(() => {
+    if (!active) { asked.current = false; return undefined; }
+    let live = true;
+    const run = () => command("ideas.party_price", { leader, team, every: every.filter((id) => team.includes(id)) })
+      .then((got) => { if (live && got && !got.error) setPrice(got); }).catch(() => {});
+    const first = !asked.current;
+    asked.current = true;
+    const timer = first ? 0 : setTimeout(run, PRICE_MS);
+    if (first) run();
+    return () => { live = false; clearTimeout(timer); };
+  }, [active, key]);
+  return price;
+}
+
+/** *about $2–6 an idea*; below $1 (its low end) in cents, *about $0.40–1.20*. */
+export function rangeWords(price) {
+  const { low, high } = price;
+  if (low < 1) return `about $${low.toFixed(2)}–${high.toFixed(2)}`;
+  const a = Math.round(low), b = Math.round(high);
+  return a === b ? `about $${a}` : `about $${a}–${b}`;
+}
+
+/** Under the bands: *This party: about $2–6 an idea* and, muted, where it comes from. */
+export function PriceLine({ price }) {
+  if (!price) return null;
+  return html`<p class="shell-price" role="status">This party: ${rangeWords(price)} an idea
+    <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}</small></p>`;
+}
+
+/** *adds about $0.35 to an idea it checks · about half of them* (*· every idea* when it checks every idea). */
+export function addsWords(c) {
+  const share = c.every ? "every idea" : Math.abs(c.share - 0.5) < 0.03 ? "about half of them" : `about ${Math.round(c.share * 100)} % of them`;
+  return `adds about $${c.usd.toFixed(2)} to an idea it checks · ${share}`;
+}
+
+/** The party's checks: each checker's, where it applies or on every idea, and what a check adds to an idea (`price`: `ideas.party_price`). */
+export function ChecksBlock({ team, every, setEvery, price = null }) {
   const checkers = team.map(agentOf).filter((a) => a?.check);
   if (!checkers.length) return html`<p class="ok-tone-muted">No checker in the party: an idea is done when its own Done when lines are.</p>`;
-  const priced = checkers.every((a) => Number(costs[a.tier]) > 0);       // no price known: no number said
-  const usd = (n) => (priced ? ` · ≈ $${Number(n).toFixed(2)}` : "");
-  const total = checkers.reduce((sum, a) => sum + Number(costs[a.tier] || 0), 0);
+  const adds = (a) => { const c = (price?.checks || []).find((x) => x.by === a.id); return c ? ` · ${addsWords(c)}` : ""; };
   return html`<div class="shell-checks" role="group" aria-label="Checks"><span class="ok-font-label">Checks</span>
-    <p class="ok-tone-muted">How deep each idea is worked: every check adds a line to its Done when and a task to its plan${priced ? `, ≈ $${total.toFixed(2)} an idea they all apply to` : ""}.</p>
+    <p class="ok-tone-muted">How deep each idea is worked: every check adds a line to its Done when and a task to its plan.</p>
     ${checkers.map((a) => html`<div key=${a.id} class="shell-check-row"><${Head} race=${RACE[a.craft]} tier=${a.tier} small=${true} />
-      <span><b>${a.name}</b> <small class="ok-tone-muted">${a.check.done} · applies ${a.check.applies}${usd(costs[a.tier])}</small></span>
+      <span><b>${a.name}</b> <small class="ok-tone-muted">${a.check.done} · applies ${a.check.applies}${adds(a)}</small></span>
       <label class="shell-check-every"><input type="checkbox" aria-label=${`Every idea: ${a.name}`} checked=${every.includes(a.id)}
         onChange=${(e) => setEvery(e.target.checked ? [...every, a.id] : every.filter((x) => x !== a.id))} /> Every idea</label></div>`)}</div>`;
 }

@@ -114,7 +114,8 @@ async def test_the_team_s_checkers_say_what_they_add_every_idea_is_kept_and_the_
         block = sheet.get_by_role("group", name="Checks")
         text = await block.inner_text()
         assert "Accessibility reviewer" in text and "Reviewer" in text and "Product designer" not in text   # checkers only
-        assert "applies when the idea changes what people see or use" in text and "≈ $1.30 an idea they all apply to" in text   # a seasoned and a veteran check
+        assert "applies when the idea changes what people see or use" in text and "≈ $1.30 an idea they all apply to" not in text   # the sum goes: each check says what it adds (spec 43 C)
+        assert "adds about $0.35 to an idea it checks · about half of them" in text
         await block.get_by_label("Every idea: Reviewer").check()
         await block.get_by_role("button", name="Done").click()
         assert await sheet.locator(".party-checks .party-line").inner_text() == "2 checks, 1 on every idea"
