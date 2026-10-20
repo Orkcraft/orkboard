@@ -440,3 +440,25 @@ made to pass. So:
 Not a game's words: no cards, decks, mana or rarity in what a person reads (CLAUDE.md: everything by what it does); no
 agent unlocked, no tier raised by use, no party ranked against another's. Built after spec 42, before the testers'
 numbers: the owner's named exception to §27 (as §55). Spec 43.
+
+## 57. Low work spends the week's room: by day when the week is ahead of its pace, at night when it is not behind (20 October, the owner and the PM)
+
+Why: the owner's idea (20 October): start waiting work while a window has room that would otherwise be lost. Today Low
+work waits for the night whatever the week says (`realm/idea_risk.py` `AUTOSTART`: low risk, Low priority → night), and
+at night it may spend down to 10 % of the smaller window (`idea_target.reserve`), the week's too: a tight week is spent
+at night on Low work and High work finds nothing the next day; a loose one ends with its room unused. Normal work of
+low risk starts at once already, and work of medium or high risk waits for the person on purpose. The week is the
+budget; the five hours are a rate that comes back. So:
+1. **One rule in place of "Low at night":** what the Board itself put off to the night (a Low idea's draft, a Low plan's
+   start) goes **by day when the week is ahead of its pace** (its share left at least 10 points above the share of the
+   week still to come) and **at night when the week is not behind** (its share left at least the share to come). What
+   the person put off (*Tonight*) stays the person's: the night, as today.
+2. **The five hours only ease the reserve:** within the hour before the five-hour window comes back, and while the week
+   is not behind, the day's reserve on that window is the night's.
+3. **Only "when", never "whether":** risk still decides what may start without the person; no forecast of a burn rate
+   (whole percents read every ten minutes, and the person's own use in the same window, make it noise): a straight
+   line from the week's reset is the pace.
+4. **Measured first among it:** the week's share left when it resets (`week_reset`), said in This week (spec 42 F) as
+   *Last week ended with 30 % unused*; if weeks end spent, the rule mostly holds Low work at night, which is its other
+   use.
+Improvements of v1's existing mechanics (§27): the same autostart, the same reserve, read against the week. Spec 44.
