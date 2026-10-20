@@ -247,6 +247,15 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, RolesMixin
         """How many of the project's tasks are running now (Close project asks first when some are)."""
         return len(getattr(self._runner, "_runs", {}) or {})
 
+    def working(self) -> bool:
+        """The keeper is at work or a task runs (spec 47: the computer is kept awake meanwhile); a runner not built
+        is not at work."""
+        return bool(self.keeper.at_work() or (self._runner is not None and self._runner.busy()))
+
+    def tonight(self) -> int:
+        """How much work waits for tonight (core/idea_night.py `tonight`)."""
+        return self.keeper.tonight()
+
     def stop_all(self, device: str = "desktop") -> None:
         self._ev(event_log.STOP_ALL, count=self.running(), device=device or "desktop")
         self.keeper.stop_all()

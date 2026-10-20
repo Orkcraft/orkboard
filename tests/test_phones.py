@@ -405,11 +405,15 @@ async def test_a_listener_stopped_while_it_comes_up_never_comes_back_by_itself(f
         await asyncio.wait_for(task, 10)
 
 
-def test_orkboard_offers_no_keeping_the_computer_awake(fake_repo):
-    """Keeping the computer awake for a paired phone is Orkline's (gui/away.py): Orkboard's host has no Away."""
-    listener = phones.Listener(Orkboard(fake_repo))
+def test_a_paired_phone_is_offered_keeping_the_computer_awake_once(fake_repo):
+    """Spec 47 §3: `awake_offer` is the machine's word until `awake.offer` answers it."""
+    host = Orkboard(fake_repo)
+    listener = phones.Listener(host)
+    assert listener.read()["awake_offer"] == ""                                  # no phone paired yet
     listener.pairing.pair(listener.pairing.new_code(), "Vadim's phone")
-    assert listener.read()["awake_offer"] == ""
+    assert listener.read()["awake_offer"] == "computer"                          # the fake Awake says Linux
+    host.command("awake.offer", {"yes": False})
+    assert listener.read()["awake_offer"] == "" and host.machine.keep_awake == "carts"
 
 
 @pytest.mark.asyncio

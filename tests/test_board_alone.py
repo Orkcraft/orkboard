@@ -94,6 +94,16 @@ def test_the_commands_are_the_boards_stop_all_updates_and_links(host):
         host.command("town.build", {})
 
 
+def test_awake_is_the_desktops_command_and_the_phones_snapshot_says_sleep(host):
+    """Spec 47 §3: `awake.*` among the host's commands and not the phone's; `sleep` only in the phone's snapshot."""
+    for name in ("awake.state", "awake.set", "awake.offer"):
+        assert name in host.commands and not BoardPhone.allowed(host, name, {})
+    assert "sleep" not in host.snapshot() and BoardPhone.phone_snapshot(host)["sleep"] == ""
+    host.command("awake.set", {"mode": "off"})
+    assert "may sleep" in BoardPhone.phone_snapshot(host)["sleep"]
+    assert host.keep_awake.state()["mode"] == "off"
+
+
 def test_the_budget_is_the_towns_cap_on_this_runs_spend(fake_repo):
     board = Orkboard(fake_repo)
     assert board.budget_ok()

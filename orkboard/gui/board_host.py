@@ -174,7 +174,7 @@ class Orkboard:
     def __init__(self, repo_root: Path | None = None, demo: bool = False, restore: bool = False) -> None:
         """`repo_root`: the folder opened and shown (refused in words: `ideas.IdeasError`); `restore`: the projects
         open when Orkboard last closed are opened again too (`orkboard` does it; a test's host has only its own)."""
-        from orkboard.gui import board_files, board_git, board_projects, folder_dialog, logs_save, onboarding, ops, phone_push, updates
+        from orkboard.gui import awake, board_files, board_git, board_projects, folder_dialog, keep_awake, logs_save, onboarding, ops, phone_push, updates
         self.demo = demo
         self.machine = settings.load()
         self.bus = b.Bus()
@@ -191,6 +191,8 @@ class Orkboard:
         self.town = self                # what gui/updates.py, gui/onboarding.py and gui/server.py read as `host.town`:
         self.phone_face = BoardPhone    # the machine, demo, call and toast — the host's own here, there is no town
         self.bus.subscribe(b.ANY, self._event)
+        self.awake = awake.Awake()                    # the system's hold (spec 47): never before `run` serves
+        self.keep_awake = keep_awake.KeepAwake(self)  # when it holds
         self.projects = board_projects.Projects(self)
         self.commands: dict[str, Callable[[dict], Any]] = {
             "halt": self._halt,
@@ -212,6 +214,7 @@ class Orkboard:
         self.commands.update(logs_save.commands(self))   # Save logs into the Downloads folder (desktop only, as well)
         self.ops = ops.Ops(self)                  # the person's, one per host: showing a project changes nothing of it
         self.commands.update(self.ops.commands())
+        self.commands.update(self.keep_awake.commands())   # awake.* (desktop only: not BoardPhone's)
         shown_board = self.commands["ideas.board"]
         self.commands["ideas.board"] = lambda a: self._with_ops(shown_board(a))
         if restore:
@@ -313,6 +316,7 @@ class Orkboard:
         s = self.snapshot()
         root = self.repo_root
         out = {"v": 1, "project": root.name if root is not None else "", "focus": "board", "look": "office",
+               "sleep": self.keep_awake.phone_line(),
                **{k: s[k] for k in ("ideas_rev", "ops_rev", "needs_you", "idea_states", "review_count", "review_results",
                                     "limits")},
                "hud": dict(s["hud"])}
@@ -350,6 +354,7 @@ class Orkboard:
         self.projects.tick(now)           # every open project's Board: showing another stops nothing
         self.ops.tick(now)
         self.pusher.tick()
+        self.keep_awake.tick(now)
 
     def attach_phones(self, listener: Any) -> None:
         """The phone listener (gui/phones.py) made: the pusher reads its devices and its open sockets."""
@@ -460,7 +465,8 @@ def run(repo_root: Path | None, browser: bool = False, port: int = 0, demo: bool
     host = Orkboard(repo_root, demo=demo, restore=True)
     server = Server(host, port)
     thread = server.start_thread()
-    show(host, server, thread, browser, attach=folder_dialog.attach, dress=mac_app.dress)
+    host.keep_awake.start()                     # the server is up: the computer is kept awake while a reason holds
+    show(host, server, thread, browser, attach=folder_dialog.attach, dress=mac_app.dress, stop=host.keep_awake.stop)
     return core_updates.RESTART if host.updates.restart_wanted else 0
 
 
