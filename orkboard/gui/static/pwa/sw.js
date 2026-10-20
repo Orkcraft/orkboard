@@ -1,12 +1,12 @@
 // The app's worker (gui/pwa.py): the shell opens without the network, the town never does. Every file is
 // asked of the town first, so a new version arrives the next time it is reachable; the cache is only for
 // when it is not. The socket is never cached: what the town is comes live or not at all.
-const CACHE = "orkcraft-app-v38";
+const CACHE = "orkcraft-app-v39";
 // Orkboard's phone (pwa/board-app.js; docs/specs/37-board-and-line.md §4) keeps the shell's files only: no camp file
 // in its cache; orkUI's styles and faces (docs/specs/40-design-system.md), its race heads as they are drawn.
 const SHELL = ["./", "board-app.js", "util.js", "board.js", "shell-top.js", "shell-board.js", "shell-agents.js",
   "shell-review.js", "shell-preview.js", "shell-util.js", "shell-forms.js", "shell-goal.js", "shell-agent.js", "shell-words.js",
-  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-drawer.js", "shell-ops.js", "shell-map.js", "shell-who.js", "shell-idea-field.js", "shell-limits.js", "shell-goal-new.js", "shell-lens.js", "shell-lens-screen.js", "shell-cards.js", "fonts.css", "tokens.css", "components.css",
+  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-drawer.js", "shell-ops.js", "shell-map.js", "shell-who.js", "shell-idea-field.js", "shell-limits.js", "shell-goal-new.js", "shell-lens.js", "shell-lens-screen.js", "shell-cards.js", "shell-push.js", "fonts.css", "tokens.css", "components.css",
   "icons/icons.svg", "app.css", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png",
   "fonts/ibm-plex-mono-latin-400-normal.woff2", "fonts/ibm-plex-mono-latin-600-normal.woff2", "fonts/pixelify-sans-latin-500-normal.woff2"];
 const CACHE_PREFIXES = ["fonts/"];
@@ -132,7 +132,26 @@ self.addEventListener("message", (e) => {
   }
 });
 
+// A push from the computer (gui/phone_push.py): it always shows a notification (a browser revokes a push that does not), and sets the
+// icon's badge to the number of answers that wait.
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch {}
+  const tag = d.tag || "orkline";
+  const badge = typeof d.badge === "number" && self.navigator.setAppBadge ? (d.badge > 0 ? self.navigator.setAppBadge(d.badge) : self.navigator.clearAppBadge()).catch(() => {}) : null;
+  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Orkline", { body: d.body || "", tag, icon: "icon-192.png", data: { url: d.url || "./", tag } }), badge]));
+});
+
+// A tap: the app's window is focused (and told which push it came from) or opened at the push's address, `#from=push-<tag>` added so the
+// page logs that it was opened from a push once and takes it out of its address.
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: "window" }).then((all) => (all[0] ? all[0].focus() : self.clients.openWindow("./"))));
+  const { url = "./", tag = "" } = e.notification.data || {};
+  const from = `from=push-${tag}`;
+  const target = url.includes("#") ? `${url}&${from}` : `${url}#${from}`;
+  e.waitUntil(self.clients.matchAll({ type: "window" }).then((all) => {
+    if (!all[0]) return self.clients.openWindow(target);
+    all[0].postMessage({ type: "push-open", tag, url });
+    return all[0].focus();
+  }));
 });

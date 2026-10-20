@@ -564,3 +564,60 @@ async def test_the_connection_header_is_a_list_of_options(fake_repo):
     finally:
         server.stop()
         await asyncio.wait_for(task, 10)
+
+
+# -- spec 42 C: a phone's Web Push subscription ---------------------------------------------------------------
+
+_PUSH = {"endpoint": "https://push.example.com/send/abc", "p256dh": "BCVxsr7N_eNgVRqvHtD0", "auth": "BTBZMqHH6r4T", "at": "2026-10-01T10:00:00",
+         "morning": "2026-10-19"}
+
+
+def _device(**more):
+    return {"id": "0123456789abcdef", "name": "Pixel", "hash": "a" * 64, "paired": "", "seen": "", **more}
+
+
+def test_clean_phones_keeps_a_good_push_and_drops_a_bad_one_and_anything_else_in_it():
+    (good,) = settings.clean_phones([_device(push={**_PUSH, "extra": "gone"})])
+    assert good["push"] == _PUSH
+    for bad in ({**_PUSH, "endpoint": "http://insecure"}, {**_PUSH, "endpoint": "https://x/" + "a" * 1100}, {**_PUSH, "p256dh": "no spaces allowed"},
+                {**_PUSH, "auth": ""}, {**_PUSH, "morning": "yesterday"}, "text", None):
+        (kept,) = settings.clean_phones([_device(push=bad)])
+        assert "push" not in kept and kept["id"] == "0123456789abcdef"             # the phone stays paired, the subscription goes
+
+
+def test_a_subscription_is_kept_with_the_device_and_forgotten_with_it(tmp_path):
+    p = pairing.Pairing(tmp_path / "settings.json")
+    device_id, _token, _name = p.add("Pixel")
+    assert p.set_push(device_id, _PUSH) and p.get(device_id)["push"] == _PUSH
+    assert "push" not in p.public()[0] and not p.set_push(device_id, {**_PUSH, "endpoint": "nope"}) and p.set_push(device_id, None)
+    assert "push" not in p.get(device_id)
+    p.set_push(device_id, _PUSH)
+    assert p.forget(device_id) and p.get(device_id) is None and not p.set_push(device_id, _PUSH)
+
+
+@pytest.mark.asyncio
+async def test_a_phone_with_its_socket_open_is_known_and_its_push_commands_carry_its_own_id(fake_repo):
+    server, task = await _serve(fake_repo)
+    try:
+        device_id, token = await _pair(server)
+        auth = {"Authorization": f"Bearer {token}"}
+        assert server.phones.open_ids() == set()
+        async with connect(_ws_url(server), ssl=_pinned(), additional_headers=auth) as ws:
+            await asyncio.wait_for(ws.recv(), 5)
+            assert server.phones.open_ids() == {device_id}
+
+            async def cmd(i, name, args=None):
+                await ws.send(json.dumps({"t": "cmd", "id": i, "name": name, "args": args or {}}))
+                while True:
+                    msg = json.loads(await asyncio.wait_for(ws.recv(), 5))
+                    if msg["t"] == "reply" and msg["id"] == i:
+                        return msg
+            got = await cmd(1, "mobile.push_on", {"endpoint": _PUSH["endpoint"], "p256dh": _PUSH["p256dh"], "auth": _PUSH["auth"], "device_id": "someone-else"})
+            assert got["ok"] and got["result"]["ok"]
+            assert server.phones.pairing.get(device_id)["push"]["endpoint"] == _PUSH["endpoint"]            # its own, not the one it named
+            assert (await cmd(2, "mobile.push_off"))["ok"] and "push" not in server.phones.pairing.get(device_id)
+        await asyncio.sleep(0.2)
+        assert server.phones.open_ids() == set()
+    finally:
+        server.stop()
+        await asyncio.wait_for(task, 10)

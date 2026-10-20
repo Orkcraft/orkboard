@@ -306,8 +306,8 @@ class Stub:
 
 
 @asynccontextmanager
-async def _phone(repo: Path, monkeypatch, init: str = ""):
-    """The phone paired with a served Orkboard whose Board is the stub's; `init`: a script run before the app's (a browser API stood in)."""
+async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
+    """The phone paired with a served Orkboard whose Board is the stub's; `init`: a script run before the app's (a browser API stood in); `extra`: more of the address's fragment (`&from=push-needs`)."""
     stub = Stub()
     real = BoardPhone.phone_snapshot
 
@@ -341,7 +341,7 @@ async def _phone(repo: Path, monkeypatch, init: str = ""):
                 page = await ctx.new_page()
                 errors: list[str] = []
                 page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
-                await page.goto(f"{server.phones.address}/app/#pair={offer['code']}")
+                await page.goto(f"{server.phones.address}/app/#pair={offer['code']}{extra}")
                 await page.locator(".board-tabs").wait_for(timeout=WAIT_MS)
                 try:                                  # the Board's trails read (its Map comes after its ideas): drawn once more then
                     await page.locator(".map-goal").first.wait_for(timeout=3000)

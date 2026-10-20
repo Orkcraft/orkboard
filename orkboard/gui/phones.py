@@ -159,6 +159,8 @@ class Listener:
         self.tail_cert: Callable[[tailnet.Tail], tuple[Path, Path] | None] = \
             lambda tail: tailnet.cert(tail, self.cert_folder)
         self.phones: set[Phone] = set()
+        if hasattr(host, "attach_phones"):
+            host.attach_phones(self)               # the Board's notifications (gui/phone_push.py) need its devices and sockets
         self.on_push: Callable[[dict | None], None] = lambda snap: None   # gui/notify.py: what came, said once
         self._pushed = 0.0
         self._snap: dict | None = None             # the last compact snapshot, while one is open
@@ -291,6 +293,10 @@ class Listener:
         elif not self.phones:
             self._snap = None
             self.on_push(None)
+
+    def open_ids(self) -> set[str]:
+        """The devices with a socket open now: an open page says what waits for itself, so no push goes to it."""
+        return {p.id for p in self.phones}
 
     def compact(self) -> dict:
         return self.host.phone_face.phone_snapshot(self.host)

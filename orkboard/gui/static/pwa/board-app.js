@@ -6,6 +6,7 @@
 
 import { h, store, kept, outbox, clock, guessName } from "./util.js";
 import { makeBoard } from "./board.js";
+import { renewPush, dropPush } from "./shell-push.js";
 
 const PROTOCOL = "orkcraft.v1";
 const API = 1;
@@ -26,6 +27,8 @@ if (hash.get("k") && !device) {                  // an iOS Home Screen app's fir
   store.set(device);
 }
 const code = hash.get("pair");
+// Opened from a notification (sw.js `notificationclick`): which push, logged once; `needs` asks for the Needs you tab.
+let arrival = hash.get("from")?.startsWith("push-") ? { tag: hash.get("from").slice(5), needs: hash.has("needs") } : null;
 // Nothing of it stays in the address: a code is once, a token is this phone's own.
 if (location.hash || location.search) history.replaceState(null, "", location.pathname);
 
@@ -120,7 +123,7 @@ function connect() {
   }
   opened = false;
   ws = new WebSocket(`wss://${location.host}/ws`, [PROTOCOL, `bearer.${device.token}`]);
-  ws.onopen = () => { opened = true; retry = 1; status(""); flush(); };
+  ws.onopen = () => { opened = true; retry = 1; status(""); flush(); renewPush(send); arrive(); };
   ws.onmessage = (e) => {
     let msg;
     try { msg = JSON.parse(e.data); } catch { return; }
@@ -215,6 +218,19 @@ function layout() {
   return parts;
 }
 
+/** The person came from a notification: `opened` `push` is logged once and, for an answer that waits, the Needs you tab is shown. */
+function arrive(from = arrival) {
+  if (!from || !ui) return;
+  arrival = null;
+  send("ideas.log", { event: "opened", what: "push", ref: from.tag, device: "phone" });
+  if (from.needs) ui.board.el.querySelector(".board-tab:nth-of-type(3)")?.click();
+}
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    if (e.data?.type === "push-open") arrive({ tag: String(e.data.tag || ""), needs: String(e.data.url || "").includes("#needs") });
+  });
+}
+
 function status(text) {
   if (!ui) return;
   ui.status.textContent = text;
@@ -235,6 +251,9 @@ function render(s, keptAt = 0) {
   seenAt = keptAt || Date.now();
   if (!keptAt) kept.set(s);
   document.title = s.needs_you ? `(${s.needs_you}) Orkline` : "Orkline";
+  try {                                          // the icon's badge: how many answers wait
+    Promise.resolve(s.needs_you ? navigator.setAppBadge?.(s.needs_you) : navigator.clearAppBadge?.()).catch(() => {});
+  } catch { /* a browser without badges */ }
   ui.board.render(s);
 }
 
@@ -248,8 +267,9 @@ function news(items) {
   if (items.length && navigator.vibrate) navigator.vibrate(80);
 }
 
-function unpairHere() {
+async function unpairHere() {
   if (!confirm("Unpair this phone here? Forget it on the computer too: the gear → Phones.")) return;
+  await dropPush();                              // its notifications stop with the pairing
   store.clear();
   device = null;
   ws?.close(1000);
