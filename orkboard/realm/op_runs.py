@@ -174,7 +174,7 @@ def _folder(base: Path, name: str) -> Path:
 
 
 def fresh_trust(version: str = "") -> dict:
-    return {"version": version, "clean": 0, "alone": False, "why": "", "today": {"date": "", "alone_done": 0}}
+    return {"version": version, "clean": 0, "alone": False, "why": "", "today": {"date": "", "alone_done": 0}, "alone_since": "", "done_alone": 0}
 
 
 def trust(base: Path, name: str) -> dict:
@@ -184,6 +184,10 @@ def trust(base: Path, name: str) -> dict:
     if isinstance(got.get("clean"), int) and not isinstance(got.get("clean"), bool):
         out["clean"] = max(0, got["clean"])
     out["alone"] = got.get("alone") is True
+    since = got.get("alone_since")                  # a file of before spec 42 has neither: "" and 0
+    out["alone_since"] = since if isinstance(since, str) and out["alone"] else ""
+    done = got.get("done_alone")
+    out["done_alone"] = max(0, done) if isinstance(done, int) and not isinstance(done, bool) and out["alone"] else 0
     today = got.get("today") if isinstance(got.get("today"), dict) else {}
     out["today"] = {"date": str(today.get("date") or ""), "alone_done": int(today.get("alone_done") or 0)}
     return out
@@ -194,23 +198,28 @@ def save_trust(base: Path, name: str, t: dict) -> None:
 
 
 def _back(t: dict, why: str) -> dict:
-    return {**t, "clean": 0, "alone": False, "why": why}
+    return {**t, "clean": 0, "alone": False, "why": why, "alone_since": "", "done_alone": 0}
 
 
-def after_check(t: dict, edited: bool, trust_after: int) -> dict:
-    """A check passed: clean (no correction) counts towards by itself, at `trust_after` it goes by itself; a corrected
-    one sends it back (`edit`)."""
+def _today(today: str = "") -> str:
+    return today or dt.date.today().isoformat()
+
+
+def after_check(t: dict, edited: bool, trust_after: int, today: str = "") -> dict:
+    """A check passed: clean (no correction) counts towards by itself, at `trust_after` it goes by itself (from `today`,
+    with none done yet); a corrected one sends it back (`edit`)."""
     if edited:
         return _back(t, "edit")
     clean = int(t.get("clean") or 0) + 1
     if clean >= max(1, int(trust_after)):
-        return {**t, "clean": clean, "alone": True, "why": "clean"}
+        went = {} if t.get("alone") else {"alone_since": _today(today), "done_alone": 0}      # already by itself: its day stays
+        return {**t, "clean": clean, "alone": True, "why": "clean", **went}
     return {**t, "clean": clean}
 
 
-def after_rules(t: dict) -> dict:
-    """The person took the rules a correction made: it goes by itself (the owner's rule)."""
-    return {**t, "alone": True, "why": "rules"}
+def after_rules(t: dict, today: str = "") -> dict:
+    """The person took the rules a correction made: it goes by itself (the owner's rule), from `today`."""
+    return {**t, "alone": True, "why": "rules", "alone_since": _today(today), "done_alone": 0}
 
 
 def after_not_right(t: dict) -> dict:
@@ -237,7 +246,7 @@ def alone_today(t: dict, today: str) -> int:
 
 def after_alone(t: dict, today: str) -> dict:
     """One more done by itself today."""
-    return {**t, "today": {"date": today, "alone_done": alone_today(t, today) + 1}}
+    return {**t, "today": {"date": today, "alone_done": alone_today(t, today) + 1}, "done_alone": int(t.get("done_alone") or 0) + 1}
 
 
 def stops(t: dict, risk: str, doubts: list, daily_alone: int, today: str) -> str:

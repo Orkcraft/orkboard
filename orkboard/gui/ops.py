@@ -88,7 +88,8 @@ class Ops:
                 f["default"] = last[f["name"]]
         tr = self.runner.trust(t) if not t.problem else op_runs.fresh_trust()
         state = "always" if t.risk == "high" else ("alone" if tr["alone"] else "checks")
-        row.update(state=state, state_words=STATE_WORDS[state], clean=tr["clean"], why=tr.get("why") or "")
+        row.update(state=state, state_words=STATE_WORDS[state], clean=tr["clean"], why=tr.get("why") or "",
+                   trust_after=self.runner.ops()["trust_after"], alone_since=tr.get("alone_since") or "", done_alone=tr.get("done_alone") or 0)
         why = op_templates.unusable(t, servers, claude)
         if why:
             row["unusable"] = why

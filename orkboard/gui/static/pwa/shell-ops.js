@@ -304,10 +304,27 @@ export function makeOps(core, ctx) {
       r.link ? h("a", { class: "ork-btn", href: r.link, target: "_blank", rel: "noopener noreferrer", "aria-label": `Open the result of ${r.title}` }, "Open") : null,
       r.alone ? h("button", { class: "ork-btn", type: "button", "aria-label": `Not right: ${r.title}`, onclick: () => openWrong(r.id) }, "Not right") : null);
   }
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  /** *since 18 October · 12 done* (spec 42 §5): *since today* the day it went by itself; nothing after it while none is done. */
+  function sinceWords(t) {
+    const [y, m, d] = String(t.alone_since || "").split("-").map(Number);
+    if (!y) return "";
+    const when = new Date(y, m - 1, d).toDateString() === new Date().toDateString() ? "today" : `${d} ${MONTHS[m - 1]}`;
+    return `since ${when}${t.done_alone > 0 ? ` · ${t.done_alone} done` : ""}`;
+  }
+  /** *Checks with you: 2 of 3 clean checks, then it goes by itself* with a pip for each check it asks for. */
+  function waysLine(t) {
+    const need = Math.max(1, t.trust_after || 1), clean = Math.min(t.clean || 0, need);
+    const words = need === 1 ? "Checks with you: one clean check and it goes by itself" : `Checks with you: ${clean} of ${need} clean checks, then it goes by itself`;
+    return h("small", { class: "muted ops-way", "data-way": "checks" },
+      h("span", { class: "ork-pips", "aria-hidden": "true" }, ...Array.from({ length: need }, (_, i) => h("i", { class: i < clean ? "d" : null }))), " ", words);
+  }
   function templateRow(t) {
     return h("div", { class: "card ops-template", "data-template": t.name },
       h("span", { class: "need-text" }, h("b", {}, t.title), h("small", { class: "muted" }, t.state_words || t.state),
+        t.state === "checks" && !t.unusable ? waysLine(t) : null,
         t.state === "alone" ? h("small", { class: "muted" }, `goes by itself: ${String(t.act_label).toLowerCase()} without asking you`) : null,
+        t.state === "alone" && t.alone_since ? h("small", { class: "muted", "data-since": "" }, sinceWords(t)) : null,
         t.unusable ? h("small", { class: "warn" }, t.unusable) : null),
       t.proposal ? proposalBlock(t.name, t.proposal.lines || []) : null,
       h("div", { class: "row" },

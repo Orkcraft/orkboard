@@ -113,12 +113,32 @@ function DoneRow({ r, t }) {
   </li>`;
 }
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** *since 18 October · 12 done* (spec 42 §5): *since today* the day it went by itself; nothing after it while none is done. */
+export function sinceWords(t) {
+  const [y, m, d] = String(t.alone_since || "").split("-").map(Number);
+  if (!y) return "";
+  const day = new Date(y, m - 1, d), now = new Date();
+  const when = day.toDateString() === now.toDateString() ? "today" : `${d} ${MONTHS[m - 1]}`;
+  return `since ${when}${t.done_alone > 0 ? ` · ${t.done_alone} done` : ""}`;
+}
+
+/** *Checks with you: 2 of 3 clean checks, then it goes by itself*, with a pip for each check it asks for (spec 42 §5). */
+export function waysWords(t) {
+  const need = Math.max(1, t.trust_after || 1), clean = Math.min(t.clean || 0, need);
+  return need === 1 ? "Checks with you: one clean check and it goes by itself" : `Checks with you: ${clean} of ${need} clean checks, then it goes by itself`;
+}
+
 function TemplateRow({ t }) {
+  const need = Math.max(1, t.trust_after || 1), clean = Math.min(t.clean || 0, need);
   return html`<li class="board-op board-op--template" data-template=${t.name} data-state=${t.state}>
     <span class="board-op__title"><b>${t.title}</b>
       <span class="board-state" data-template-state=${t.state}>${t.unusable || t.state_words}</span>
-      ${t.state === "checks" && t.clean > 0 && html`<span class="ok-tone-muted">${t.clean} clean check${t.clean === 1 ? "" : "s"}</span>`}
-      ${t.state === "alone" && html`<span class="ok-tone-muted">${`goes by itself: ${String(t.act_label || "").toLowerCase()} without asking you`}</span>`}</span>
+      ${t.state === "checks" && !t.unusable && html`<span class="board-op__way ok-tone-muted" data-way="checks">
+        <span class="ork-pips" aria-hidden="true">${Array.from({ length: need }, (_, i) => html`<i key=${i} class=${i < clean ? "d" : ""}></i>`)}</span> ${waysWords(t)}</span>`}
+      ${t.state === "alone" && html`<span class="ok-tone-muted">${`goes by itself: ${String(t.act_label || "").toLowerCase()} without asking you`}</span>
+        ${t.alone_since && html`<span class="ok-tone-muted" data-since>${sinceWords(t)}</span>`}`}</span>
     <span class="board-card__acts">
       ${t.state === "alone" && html`<button class="ork-btn" aria-label=${`Check again: ${t.title}`}
         title="It checks with you again until you pass it" onClick=${() => run("ops.trust_reset", { template: t.name })}>Check again</button>`}

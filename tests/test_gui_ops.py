@@ -67,6 +67,7 @@ def test_operations_is_the_hosts_and_works_with_no_project_open(stub):
     jira = next(t for t in listed["templates"] if t["name"] == "jira-task")
     assert {"name", "title", "risk", "fields", "draft", "act_label", "state", "clean"} <= set(jira)
     assert jira["state"] == "checks" and "unusable" not in jira and jira["act_label"] == "Create in Jira"
+    assert (jira["trust_after"], jira["alone_since"], jira["done_alone"]) == (1, "", 0)                  # spec 42 §5: the way to by itself
     run = checked(host, stub)
     assert run["state"] == "check" and host.snapshot()["needs_you"] == 1
     row = next(r for r in host.command("ops.list")["runs"] if r["id"] == run["id"])

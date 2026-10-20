@@ -267,6 +267,7 @@ def test_a_clean_check_sends_it_by_itself_and_the_next_one_goes_without_asking(r
     done = wait(runner, runner.add("jira-task", WHAT), "done", "failed")
     assert done["state"] == "done" and done["alone"] is True
     assert trust(runner)["today"]["alone_done"] == 1
+    assert trust(runner)["done_alone"] == 1 and trust(runner)["alone_since"] != ""             # spec 42 §5: since the day it went, one done
 
 
 def test_three_clean_checks_when_trust_after_is_three(runner, stub):
