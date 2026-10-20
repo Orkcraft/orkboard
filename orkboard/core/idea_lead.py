@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orkboard.realm import event_log, goal_team, goal_verdict, idea_target, ideas, roles
+from orkboard.realm import event_log, goal_team, goal_verdict, idea_target, ideas, own_parties, roles
 
 
 def _kw():
@@ -92,4 +92,6 @@ not, against its metrics, not against the work done. You may read the repository
                 ideas.save_goal_state(self.state_dir, slug, error=f"Not accepted: {_kw()._why(e)}")
             return
         self._ev(event_log.GOAL_ACCEPTED, goal=slug, met=got["met"], by=got["by"], **self.measure())
+        if goal_team.party_of(root, slug):                    # a goal that picked a saved party: its use is marked (spec 43 §6.2)
+            own_parties.mark(own_parties.project_key(self.repo_root), slug, got["met"])
         self.publish(f"goal:{slug}")

@@ -64,7 +64,9 @@ def leader_of(root: Path, slug: str) -> str:
     return (page.get("leader") if page is not None else "") or "taskmaster"
 
 
-def set_team(root: Path, slug: str, team: list[str], every: list[str] | None = None, leader: str | None = None) -> None:
+def set_team(root: Path, slug: str, team: list[str], every: list[str] | None = None, leader: str | None = None, party: str = "") -> None:
+    """The goal's party kept. `party`: the id of the saved party it was picked from (realm/own_parties.py); any change of the party without
+    one clears it (a goal never changes a saved party, and a changed party is no longer that one)."""
     with ideas.LOCK:
         page = ideas.track_page(root, slug)
         if page is None:
@@ -72,9 +74,19 @@ def set_team(root: Path, slug: str, team: list[str], every: list[str] | None = N
         kept = clean(team)
         page.set("team", json.dumps(kept))
         page.set("team_every", json.dumps([s for s in clean(every or []) if s in kept]))
+        if re.fullmatch(r"p-[0-9a-f]{8}", party or ""):
+            page.set("party", party)
+        elif page.get("party"):
+            page.set("party", "")
         if leader is not None:
             page.set("leader", leader if leader != "taskmaster" else "")
         ideas._write(Path(root) / ideas.TRACKS / f"{slug}.md", page.text())
+
+
+def party_of(root: Path, slug: str) -> str:
+    """The id of the saved party the goal's party was picked from; "" with none."""
+    page = ideas.track_page(root, slug)
+    return (page.get("party") or "") if page is not None else ""
 
 
 def team_of(root: Path, slug: str) -> list[str]:

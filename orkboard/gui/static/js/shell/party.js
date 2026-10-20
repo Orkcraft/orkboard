@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { command, toast } from "../link.js";
 import { roles } from "./store.js";
-import { Head, Icon, RACE_WORDS, TIER_WORDS } from "../orkui.js";
+import { Head, Icon, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
 
 export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["design", "elf", "Screens, flows and words on them"],
   ["data", "goblin", "Numbers, queries and reports"], ["marketing", "gnome", "Pages, posts and search"],
@@ -27,6 +27,76 @@ export const inBand = (band, leader, team) => (band === "lead" ? [leader] : team
 export function partyWords(leader, team) {
   const names = (b) => inBand(b, leader, team).map((id) => agentOf(id)?.name).filter(Boolean).join(", ") || "none";
   return `led by ${agentOf(leader)?.name || "Taskmaster"} · builds: ${names("build")} · checks: ${names("check")}`;
+}
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/** *3 goals in 2 projects · 2 met*: said only once a party has been used. */
+export function usedWords(p) {
+  return p.goals ? `${plural(p.goals, "goal", "goals")} in ${plural(p.projects, "project", "projects")} · ${p.met} met` : "";
+}
+
+/** The person's own parties (spec 43 §6): asked when the picker opens (`active`); [parties, ask again]. */
+export function useOwnParties(active) {
+  const [parties, setParties] = useState([]);
+  const load = () => command("ideas.parties", {}).then((got) => { if (got && !got.error) setParties(got.parties || []); }).catch(() => {});
+  useEffect(() => { if (active) load(); }, [active]);
+  return [parties, load];
+}
+
+/** **Your parties**, above the bands when there is one: each a chip with its members' small heads, its name and, muted, where it was used; a tap
+ *  fills the seats (`onPick`), its `close` mark removes it after asking. */
+export function OwnParties({ parties, onPick, reload, picked = "" }) {
+  const [asking, setAsking] = useState("");
+  if (!parties.length) return null;
+  const drop = async (p) => {
+    const got = await command("ideas.party_drop", { id: p.id }).catch(() => null);
+    if (got?.error) toast(got.error, "error");
+    setAsking("");
+    reload();
+  };
+  return html`<section class="shell-own-parties" aria-label="Your parties"><h3 class="ok-font-label">Your parties</h3>
+    <div class="shell-own-chips">${parties.map((p) => html`<div key=${p.id} class=${`shell-own-chip${picked === p.id ? " is-on" : ""}`} data-party=${p.id}>
+      <button type="button" class="shell-own-chip__pick" aria-pressed=${String(picked === p.id)} aria-label=${`Pick your party “${p.name}”`} onClick=${() => onPick(p)}>
+        <span class="shell-own-heads">${[p.leader, ...p.team].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${RACE[agentOf(id).craft]} tier=${agentOf(id).tier} small=${true} />`)}</span>
+        <b>${p.name}</b>${usedWords(p) && html`<small class="ok-tone-muted">${usedWords(p)}</small>`}</button>
+      <button type="button" class="shell-own-chip__close" aria-label=${`Remove your party “${p.name}”`} onClick=${() => setAsking(p.id)}><${Icon} name="close" /></button>
+      ${asking === p.id && html`<p class="shell-own-ask" role="alert">Remove your party “${p.name}”? Goals that use it keep their agents.
+        <button type="button" class="ork-btn danger" onClick=${() => drop(p)}>Remove it</button>
+        <button type="button" class="ork-btn" onClick=${() => setAsking("")}>Keep it</button></p>`}</div>`)}</div></section>`;
+}
+
+/** On a goal's screen, under its Team: **Save this party**. It asks a name (*Engineering party*), asks again before it replaces a party of that
+ *  name, and says after: *Saved: pick it for a goal in any project.* */
+export function SaveParty({ goal, craft }) {
+  const [name, setName] = useState(null);                       // null: the button; a string: the name being typed
+  const [replace, setReplace] = useState("");                   // the name of the party the save would replace
+  const [busy, setBusy] = useState(false);
+  const send = async (replacing) => {
+    setBusy(true);
+    const got = await command("ideas.party_save", { goal, name: name.trim(), ...(replacing ? { replace: true } : {}) }).catch((e) => ({ error: String(e) }));
+    setBusy(false);
+    if (got?.error) {
+      const taken = /^You have a party named “(.+)”$/.exec(got.error);
+      if (taken && !replacing) { setReplace(taken[1]); return; }
+      toast(got.error, "error");
+      return;
+    }
+    toast("Saved: pick it for a goal in any project.");
+    setName(null);
+    setReplace("");
+  };
+  if (name === null) {
+    return html`<button type="button" class="board-link shell-party-save" onClick=${() => setName(`${CRAFT_WORDS[craft] || "Engineering"} party`)}>Save this party</button>`;
+  }
+  if (replace) {
+    return html`<p class="shell-party-save-ask" role="alert">Replace your party “${replace}”?
+      <button type="button" class="ork-btn primary" disabled=${busy} onClick=${() => send(true)}>Replace it</button>
+      <button type="button" class="ork-btn" onClick=${() => setReplace("")}>Cancel</button></p>`;
+  }
+  return html`<form class="shell-party-save-form" onSubmit=${(e) => { e.preventDefault(); if (name.trim() && !busy) send(false); }}>
+    <input class="ork-field" autofocus value=${name} aria-label="Name of your party" maxlength="40" onInput=${(e) => setName(e.target.value)} />
+    <button class="ork-btn primary" disabled=${!name.trim() || busy}>Save</button>
+    <button type="button" class="ork-btn" onClick=${() => setName(null)}>Cancel</button></form>`;
 }
 
 /** The three bands. `craft`: the goal's, its agents listed first in each band. */

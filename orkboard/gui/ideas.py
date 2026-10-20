@@ -513,7 +513,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
                     raise IdeasError(str(e)) from None
             return run
 
-        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.flags": self.flags, "ideas.week_work": self.week_work, "ideas.week": self.week, "ideas.party": self.party, "ideas.party_price": self.party_price, "ideas.party_answer": self.party_answer, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
+        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.flags": self.flags, "ideas.week_work": self.week_work, "ideas.week": self.week, "ideas.party": self.party, "ideas.party_price": self.party_price, "ideas.party_answer": self.party_answer, "ideas.parties": self.parties, "ideas.party_save": self.party_save, "ideas.party_drop": self.party_drop, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
                  "ideas.add": self.add, "ideas.say": self.say, "ideas.plan": self.plan, "ideas.start": self.start,
                  "ideas.move": self.move, "ideas.edit": self.edit, "ideas.track_add": self.track_add,
                  "ideas.track_set": self.track_set, "ideas.todo": self.todo, "ideas.drop": self.drop,

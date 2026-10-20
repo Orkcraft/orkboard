@@ -52,6 +52,8 @@ class Stub:
         self.party: dict = {}                             # ideas.party (spec 43 B)
         self.learned = True                               # ideas.party_price (spec 43 C): learned, or a first guess
         self.hints: list[str] = []                        # ideas.party_price's hints (spec 43 E)
+        self.own: list[dict] = []                         # ideas.parties (spec 43 F)
+        self.goal_notes: list[str] = []                   # what ideas.goal_save says besides its slug
         self.checks: list[dict] = []                      # the idea's checks (realm/idea_checks.py `status`), the sync idea's
         self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
         self.todos = [{"idea": "sync", "id": "t1", "title": "API_KEY", "kind": "secret", "why": "The sync service needs it", "choices": [],
@@ -133,7 +135,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer", "parties", "party_save", "party_drop")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -234,8 +236,23 @@ class Stub:
                                          metrics=old.get("metrics", []), links=old.get("links", []), craft=a.get("craft", old.get("craft", "engineering")),
                                          race={"design": "elf", "data": "goblin", "marketing": "gnome"}.get(a.get("craft", old.get("craft")), "peon"),
                                          team=a.get("team", old.get("team", [])), every=a.get("every", old.get("every", [])),
-                                         leader=self.leader(a.get("leader")) or old.get("leader"))
-            return self.bump({"slug": slug})
+                                         leader=self.leader(a.get("leader")) or old.get("leader"), party=a.get("party", old.get("party", "")))
+            return self.bump({"slug": slug, **({"notes": self.goal_notes} if self.goal_notes else {})})
+        if name == "ideas.parties":                     # spec 43 F: the person's own parties
+            return {"parties": copy.deepcopy(self.own)}
+        if name == "ideas.party_save":
+            taken = next((p for p in self.own if p["name"].lower() == a["name"].lower()), None)
+            if taken and not a.get("replace"):
+                return {"error": f"You have a party named “{taken['name']}”"}
+            if taken:
+                taken.update(name=a["name"])
+                return {"id": taken["id"]}
+            self.own.append({"id": f"p-{len(self.own):08x}", "name": a["name"], "craft": "engineering", "leader": "architect", "team": [], "every": [], "own": [],
+                             "goals": 0, "projects": 0, "met": 0, "saved": ""})
+            return {"id": self.own[-1]["id"]}
+        if name == "ideas.party_drop":
+            self.own = [p for p in self.own if p["id"] != a["id"]]
+            return {"ok": True}
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
             return self.bump({"ok": True})

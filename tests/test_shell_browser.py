@@ -112,6 +112,8 @@ class StubHost:
         self.screen_png = ""                                                                         # ideas.lens_screen
         self.party = copy.deepcopy(PARTY)                                                            # ideas.party (spec 43 B)
         self.hints: list[str] = []                                                                   # ideas.party_price's hints (spec 43 E)
+        self.own: list[dict] = []                                                                    # ideas.parties (spec 43 F)
+        self.goal_notes: list[str] = []                                                              # what ideas.goal_save says besides its slug
         self.learned = True                                                                          # ideas.party_price: learned from the project's ideas, or a first guess
 
     def idea(self, slug, title, state, order, **more):
@@ -255,8 +257,24 @@ class StubHost:
             title = a.get("title") or old.get("title") or a["about"][:30]
             self.goals[slug] = self.goal(slug, title, a["priority"], "reading", about=a["about"], summary=old.get("summary", ""),
                                          title_by="person" if a.get("title") else old.get("title_by", "keeper"),
-                                         leader=self.leader(a.get("leader")) or old.get("leader"))
-            return self.bump({"slug": slug})
+                                         leader=self.leader(a.get("leader")) or old.get("leader"), party=a.get("party", ""),
+                                         team=a.get("team", old.get("team", [])), every=a.get("every", old.get("every", [])), craft=a.get("craft", old.get("craft", "engineering")))
+            return self.bump({"slug": slug, **({"notes": self.goal_notes} if self.goal_notes else {})})
+        if name == "ideas.parties":                    # spec 43 F: the person's own parties
+            return {"parties": copy.deepcopy(self.own)}
+        if name == "ideas.party_save":
+            taken = next((p for p in self.own if p["name"].lower() == a["name"].lower()), None)
+            if taken and not a.get("replace"):
+                return {"error": f"You have a party named “{taken['name']}”"}
+            if taken:
+                taken.update(name=a["name"])
+                return {"id": taken["id"]}
+            self.own.append({"id": f"p-{len(self.own):08x}", "name": a["name"], "craft": "engineering", "leader": "architect", "team": [], "every": [], "own": [],
+                             "goals": 0, "projects": 0, "met": 0, "saved": ""})
+            return {"id": self.own[-1]["id"]}
+        if name == "ideas.party_drop":
+            self.own = [p for p in self.own if p["id"] != a["id"]]
+            return {"ok": True}
         if name == "ideas.party_answer":               # spec 43 D: a party's proposal answered
             self.party_rows = [n for n in self.party_rows if n["goal"] != a["goal"]]
             return self.bump({"ok": True})

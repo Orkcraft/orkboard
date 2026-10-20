@@ -4,12 +4,12 @@
 // craft, its party from the library, what it is for.
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
-import { say } from "../link.js";
+import { say, toast } from "../link.js";
 import { board, track } from "../board/store.js";
 import { act, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { GoalWizard } from "./goalwizard.js";
-import { PartyBands, PriceLine, ChecksBlock, TASKMASTER, partyWords, usePartyPrice } from "./party.js";
+import { PartyBands, PriceLine, ChecksBlock, OwnParties, TASKMASTER, partyWords, usePartyPrice, useOwnParties } from "./party.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
 
@@ -28,6 +28,10 @@ function GoalEdit({ slug, then = "" }) {
   const [team, setTeam] = useState(was.team);
   const [every, setEvery] = useState(was.every);
   const [changing, setChanging] = useState(false);
+  const [partyId, setPartyId] = useState("");                // a saved party of the person's picked here, until a seat changes
+  const [owns, loadOwns] = useOwnParties(changing);
+  const seat = (set) => (v) => { set(v); setPartyId(""); };
+  const pickOwn = (p) => { setLeader(p.leader || TASKMASTER); setTeam([...p.team]); setEvery([...p.every]); setPartyId(p.id); };
   const price = usePartyPrice(changing, leader, team, every, g?.craft || "");          // asked when the party is picked (Change the party)
   const moved = leader !== was.leader || JSON.stringify(team) !== JSON.stringify(was.team) || JSON.stringify(every) !== JSON.stringify(was.every);
   const save = async (e) => {
@@ -36,10 +40,11 @@ function GoalEdit({ slug, then = "" }) {
     setSaving(true);
     const args = { ...(slug ? { slug } : {}), about: about.trim(), priority };
     if (slug && title.trim() && title.trim() !== g?.title) args.title = title.trim();     // a title typed is the person's
-    if (moved) Object.assign(args, { leader, team, every: every.filter((id) => team.includes(id)) });   // the party, when changed
+    if (moved || partyId) Object.assign(args, { leader, team, every: every.filter((id) => team.includes(id)), ...(partyId ? { party: partyId } : {}) });   // the party, when changed
     const got = await act("ideas.goal_save", args);
     setSaving(false);
     if (!got?.slug) return;
+    for (const note of got.notes || []) toast(note);
     closeDialog();
     track.value = got.slug;
     if (then === "idea") openDialog("idea", { goal: got.slug });
@@ -60,9 +65,10 @@ function GoalEdit({ slug, then = "" }) {
       <p class="ok-font-status ok-tone-muted">${say(`${g?.leader?.slug && g.leader.slug !== TASKMASTER ? g.leader.name : "The Taskmaster"} reads the repository and writes the title, the summary, the metrics and the links.`)}</p>
       ${g && html`<div class="shell-field" role="group" aria-label="Party"><span class="ok-font-label">Party</span>
         <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p>
-        ${changing ? html`<${PartyBands} craft=${g.craft} leader=${leader} setLeader=${setLeader} team=${team} setTeam=${setTeam} />
+        ${changing ? html`<${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
+          <${PartyBands} craft=${g.craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
           <${PriceLine} price=${price} />
-          <${ChecksBlock} team=${team} every=${every} setEvery=${setEvery} price=${price} />`
+          <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />`
           : html`<button type="button" class="ork-btn" onClick=${() => setChanging(true)}>Change the party</button>`}</div>`}
     </form>
   <//>`;

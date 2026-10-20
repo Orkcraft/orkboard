@@ -13,7 +13,7 @@ from typing import Any
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, party_proposals, roles
+from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, own_parties, party_proposals, roles
 
 
 DOC_CHARS = 100_000
@@ -39,6 +39,7 @@ class GoalsMixin:
         lead = roles.role(self.state_dir, g.get("leader") or roles.TASKMASTER) or roles.role(self.state_dir, roles.TASKMASTER)
         return {**g, "race": roles.RACES[g["craft"]], "state": st["state"], "state_error": st["error"], "ideas": g["count"],
                 "leader": {"slug": lead["slug"], "name": lead["name"], "head": roles.head(lead, self._target())},
+                "party": goal_team.party_of(self.root(False), g["slug"]),
                 "verdict": goal_verdict.read(self.state_dir, g["slug"])}
 
     def goal(self, args: dict) -> dict:
@@ -92,6 +93,19 @@ class GoalsMixin:
         if metrics is not None and not isinstance(metrics, list) or links is not None and not isinstance(links, list):
             raise IdeasError("Metrics and links are lists")
         deadline = args.get("deadline") if isinstance(args.get("deadline"), str) else None
+        notes: list[str] = []
+        party = _opt(args, "party")
+        if party:                                              # a saved party picked (spec 43 §6.2): its own agents the project has not are made
+            saved = own_parties.get(party)
+            if saved is None:
+                raise IdeasError("That party is gone")
+            if args.get("team") is None and args.get("leader") is None:        # only its id was sent: the party as it was saved
+                args = {**args, "team": saved.get("team") or [], "every": saved.get("every") or [], "leader": saved.get("leader") or roles.TASKMASTER}
+            for o in saved.get("own") or []:
+                if roles.install_own(self.state_dir, o):
+                    continue
+                if roles.role(self.state_dir, str(o.get("slug") or "")) is not None:
+                    notes.append(f"{o.get('name') or o.get('slug')} is this project's already: kept as it is")
         team = None
         if args.get("team") is not None:
             try:
@@ -112,18 +126,21 @@ class GoalsMixin:
         if team is not None:
             library.install(self.state_dir, [s for s in team if library.get(s) is not None])
             every = args.get("every") if isinstance(args.get("every"), list) else []
-            goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)], leader)
+            goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)], leader, party)
         elif leader is not None:
-            goal_team.set_team(self.root(), got, goal_team.team_of(self.root(), got), goal_team.every_of(self.root(), got), leader)
+            goal_team.set_team(self.root(), got, goal_team.team_of(self.root(), got), goal_team.every_of(self.root(), got), leader, party)
+        if party:
+            own_parties.used(party, own_parties.project_key(self.host.repo_root), Path(self.host.repo_root).name, got)
         if leader:
             library.install(self.state_dir, [leader])
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
-                 priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER)
+                 priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER,
+                 party=goal_team.party_of(self.root(), got))
         if new or before is None or _what_it_says(before) != _what_it_says(g):
             self._read_goal(got)                      # a save of its party alone reads nothing again (spec 41 §7)
         self.changed(f"goal:{got}")
-        return {"slug": got}
+        return {"slug": got, **({"notes": notes} if notes else {})}
 
     def _read_goal(self, slug: str, said: str = "") -> None:
         """The keeper reads the goal at once, in the background; a keeper that may not run (the demo, the spend limit)
