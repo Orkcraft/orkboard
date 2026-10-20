@@ -194,3 +194,33 @@ def test_the_night_runs_the_party_step_after_its_proposals(host, goal):
     assert (row["goal"], row["by"], row["runs"]) == (goal, "reviewer", 8) and published == [f"goal:{goal}"]
     steps = [s.__name__ for s in (keeper._night_queue, keeper._night_starts, keeper._night_refresh, keeper._night_proposals, keeper._night_parties)]
     assert steps[-1] == "_night_parties"
+
+
+# -- fixes after review ----------------------------------------------------------------------------------------
+
+def test_a_proposal_whose_checker_left_the_party_goes_and_the_goal_is_proposed_again(host, goal):
+    root, state = host.ideas.root(), host.ideas.state_dir
+    quiet(host, goal, 8)
+    party_proposals.propose(root, state)
+    file = state / "goals" / goal / "party-proposal.json"
+    assert file.exists()
+    goal_team.set_team(root, goal, ["grunt", "accessibility-reviewer"], leader="product-manager")        # the checker left by hand
+    host.command("ideas.goal_save", {"slug": goal, "team": ["grunt", "accessibility-reviewer"], "every": [], "leader": "product-manager"})
+    assert not file.exists()                                                                              # a saved party removes it
+    goal_team.set_team(root, goal, ["grunt", "reviewer"], every=["reviewer"], leader="product-manager")  # back again
+    assert party_proposals.propose(root, state) == [{"goal": goal, "by": "reviewer", "runs": 8}]
+    goal_team.set_team(root, goal, ["grunt"], leader="product-manager")
+    assert party_proposals.propose(root, state) == [] and not file.exists()                               # and the night removes one that is left
+
+
+def test_a_decline_holds_until_eight_new_clean_checks_after_it(host, goal):
+    root, state = host.ideas.root(), host.ideas.state_dir
+    quiet(host, goal, 8)
+    party_proposals.propose(root, state)
+    party_proposals.answer(root, state, goal, False)
+    later = dt.datetime.now() + dt.timedelta(seconds=60)
+    for i in range(7):
+        add(host, goal, f"After {i}", [check("k1", finished=(later + dt.timedelta(seconds=i)).isoformat(timespec="seconds"))])
+        assert party_proposals.propose(root, state) == []                                                 # one, two ... seven new ones: still held
+    add(host, goal, "After 7", [check("k1", finished=(later + dt.timedelta(seconds=7)).isoformat(timespec="seconds"))])
+    assert party_proposals.propose(root, state) == [{"goal": goal, "by": "reviewer", "runs": 8}]          # the eighth new one

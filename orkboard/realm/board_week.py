@@ -54,7 +54,7 @@ def nights(root: Path, settings: dict, now: dt.datetime, n: int = 7) -> list[dic
     for date, start, end in spans:
         inside = [r for r in log if start <= board_recap.when(r["at"]) < end]
         ran = [r for r in inside if r["event"] == event_log.NIGHT_RUN]
-        worked = any(r["event"] == event_log.TASK_STATE and r.get("state") in WORKED_STATES for r in inside) or \
+        worked = any(r["event"] == event_log.TASK_STATE and r.get("state") in WORKED_STATES and r.get("clean") is not True for r in inside) or \
             any(board_recap._int(r.get(k)) > 0 for r in ran for k in _WORK_KEYS)
         out.append({"date": date.isoformat(), "kind": "worked" if worked else "idle" if ran else "off"})
     return out

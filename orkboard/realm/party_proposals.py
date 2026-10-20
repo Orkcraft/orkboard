@@ -7,7 +7,7 @@ tasks of a goal is proposed to leave that goal's party. Code decides, no model i
     party_proposals.answer(root, state_dir, goal, take)   # the party without the checker, or a decline; the file goes
 
 A goal has one proposal waiting (`<state_dir>/goals/<slug>/party-proposal.json`); a decline is kept in `party-declined.jsonl` and holds
-until a newer run of eight. No face, no model.
+until eight new clean checks come after it. No face, no model.
 """
 from __future__ import annotations
 
@@ -50,24 +50,36 @@ def declines(state_dir: Path, goal: str) -> list[dict]:
     return out
 
 
-def _declined_after(state_dir: Path, goal: str, by: str, newest: str) -> bool:
-    """The pair (goal, checker) has a decline after the newest of the eight check tasks (a later run of eight holds a new question)."""
+def _declined_after(state_dir: Path, goal: str, by: str, oldest: str) -> bool:
+    """The pair (goal, checker) has a decline after the oldest of the eight check tasks: it holds until eight new clean checks come after it."""
     for row in declines(state_dir, goal):
-        if row.get("by") == by and str(row.get("at") or "") > newest:
+        if row.get("by") == by and str(row.get("at") or "") > oldest:
             return True
     return False
 
 
+def drop_left(root: Path, state_dir: Path, goal: str) -> None:
+    """The goal's waiting proposal removed when its checker is no longer in the goal's party."""
+    p = waiting(state_dir, goal)
+    if p is not None and p["by"] not in goal_team.team_of(root, goal):
+        try:
+            (_folder(state_dir, goal) / PROPOSAL).unlink()
+        except OSError:
+            pass
+
+
 def propose(root: Path, state_dir: Path) -> list[dict]:
-    """The night's step: for each goal with a party and no met verdict, no proposal waiting, the first checker of its party whose newest
-    eight check tasks in the goal all ended clean in round 1 and that has no decline after the newest of them. One a goal."""
+    """The night's step: for each goal with a party and no met verdict, no proposal waiting (one whose checker left the party goes), the
+    first checker of its party whose newest eight check tasks in the goal all ended clean in round 1 and that has no decline after the
+    oldest of them. One a goal."""
     out = []
     for g in ideas.tracks(root, make=False):
         goal = g["slug"]
+        drop_left(root, state_dir, goal)
         if goal == ideas.GENERAL or waiting(state_dir, goal) or (goal_verdict.read(state_dir, goal) or {}).get("met"):
             continue
         for by in [s for s in goal_team.team_of(root, goal) if goal_team.band_of(s) == "check"]:
-            newest = party_work.quiet_run(root, state_dir, goal, by)
+            newest = party_work.quiet_run(root, state_dir, goal, by, oldest=True)
             if newest is None or _declined_after(state_dir, goal, by, newest):
                 continue
             usd = party_work.check_record(root, state_dir, by, 30)["usd_per_check"]

@@ -95,7 +95,8 @@ class GoalsMixin:
         deadline = args.get("deadline") if isinstance(args.get("deadline"), str) else None
         notes: list[str] = []
         party = _opt(args, "party")
-        if party:                                              # a saved party picked (spec 43 §6.2): its own agents the project has not are made
+        same_party = bool(party and slug and party == goal_team.party_of(self.root(), slug))      # sent again as it is: nothing is picked
+        if party and not same_party:                           # a saved party picked (spec 43 §6.2): its own agents the project has not are made
             saved = own_parties.get(party)
             if saved is None:
                 raise IdeasError("That party is gone")
@@ -127,9 +128,10 @@ class GoalsMixin:
             library.install(self.state_dir, [s for s in team if library.get(s) is not None])
             every = args.get("every") if isinstance(args.get("every"), list) else []
             goal_team.set_team(self.root(), got, team, [s for s in every if isinstance(s, str)], leader, party)
+            party_proposals.drop_left(self.root(), self.state_dir, got)
         elif leader is not None:
             goal_team.set_team(self.root(), got, goal_team.team_of(self.root(), got), goal_team.every_of(self.root(), got), leader, party)
-        if party:
+        if party and not same_party:
             own_parties.used(party, own_parties.project_key(self.host.repo_root), Path(self.host.repo_root).name, got)
         if leader:
             library.install(self.state_dir, [leader])

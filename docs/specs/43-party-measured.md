@@ -126,7 +126,7 @@ No face, no model, writes nothing. `work(root, state_dir, goal) -> dict`, over t
   - *Product manager (leads): ≈$4.10 for the goal, the drafts and the plans*;
   - *Grunt: 14 tasks, 12 merged the first time · ≈$9.20*;
   - *Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80* (*· skipped 1* when it was;
-    *· 2 before findings were kept* when `before` > 0);
+    *· 2 ended without findings* when `before` > 0);
   - *No work yet* while `ideas` is 0.
 - **Flags** (spec 42 B): a met goal's row gains the same fold.
 - Logged when opened: `opened` `{what: "party", ref: "<goal slug>"}` (`OPENED` gains `party`).
@@ -340,7 +340,7 @@ else: stop and write it in §11 first.
 
 ### B. What the party did
 - `party_work.work(root, state_dir, goal, target="balance")`: `root` is the Board's tree (where the goal's and the ideas' pages are, as `goal_team` and `goal_flags.tally` take it); `target` is the Board's Target, for the heads' gear (`ideas.party` passes it). The leader's `usd` is `null` while no call of the goal's `goal`, `spec` or `plan` stages was made. A `usd` is the priced lines' sum in cents, `null` when none was priced (a member's from its tasks' lines in the ideas' ledgers).
-- A member is a role with a task that ended (`merged` or `failed`) which is not a check task; the party's builders come first in its order, then the others in the order the plans name them (the leader too, when it ran a task). A checker's tasks count once they said what they found (`merged`, or waiting at Review); a task sent back (round 2 and on) is a catch whatever its findings, a task at round 1 with `[]` is clean, one with no findings kept (before part A) is counted in `before` only.
+- A member is a role with a task that ended (`merged` or `failed`) which is not a check task; the party's builders come first in its order, then the others in the order the plans name them (the leader too, when it ran a task). A checker's tasks count once they said what they found (`merged`, or waiting at Review); a task sent back (round 2 and on) is a catch whatever its findings, a task at round 1 with `[]` is clean, one with no findings kept (before part A, or ended without a findings file) is counted in `before` only, said on both faces as *· N ended without findings*.
 - The fold is in `js/shell/goalview.js` (`PartyWork`, `partyLines`; `map.js` imports it for the Flags row) and `pwa/shell-goal.js` (`partyFold`, `partyLines`; `shell-map.js` imports it). A member with no merge the first time says *none merged the first time*; a lead or a check with no price leaves the $ out. Each time the fold is opened it asks again and logs `opened` `party`.
 - The phone's cache is `orkcraft-app-v47`.
 
@@ -354,7 +354,7 @@ else: stop and write it in §11 first.
 
 ### D. What a check is worth
 - `party_work.check_record(root, state_dir, by, days, now=None)` counts the checker's check tasks that have said what they found (`merged`, or waiting at Review, with a findings list) and finished in the last `days`; a task sent back (round 2 on) is a catch whatever its findings, a task at round 1 with `[]` is clean. It reads the plans once for every checker and keeps the answer for 30 s (`party_work.forget()` clears it; `now` given skips the cache). `usd_per_check` is the checks' priced lines over their number, from `TOO_FEW` checks.
-- `party_work.quiet_run(root, state_dir, goal, by)` answers the time the newest of the eight finished (a string) when the newest `QUIET_RUN = 8` check tasks of that checker in the goal's ideas all ended clean in round 1, else `None`; a failed check, a send back or a finding ends the run. The decline holds while its time is after that string.
+- `party_work.quiet_run(root, state_dir, goal, by)` answers the time the newest of the eight finished (a string) when the newest `QUIET_RUN = 8` check tasks of that checker in the goal's ideas all ended clean in round 1, else `None`; a failed check, a send back or a finding ends the run. The decline holds while its time is after the *oldest* of the eight (`quiet_run(..., oldest=True)`, which `propose` uses): it holds until eight new clean checks come after it, so one more clean check does not bring the same proposal back.
 - The night's step is `IdeaKeeper._night_parties` (the fifth step of `run_night`), `party_proposals.propose(root, state_dir)`: for each goal but General, with no met verdict and no proposal waiting, the first checker of its party that is quiet and has no decline after its newest eight. It writes `party-proposal.json`, logs `party_proposed` and publishes the goal; the night's counts (`night_run`) do not change.
 - Needs you's row comes from `goal_needs` (`gui/ideas_goals.py`) through `party_proposals.rows`; it is sorted with the proposals, last, and `ideas.snapshot`'s `needs_you`, the desktop's counts, the phone's `needs.count()` leave it out. The row has `idea: ""`, `goal`, `by`; its title uses the goal's title (*Take Reviewer out of Billing's party?*) and its text leaves the price out while it is unknown. A row of a checker who has left the party since is not shown.
 - `ideas.party_answer {goal, take, reason?}` answers (`take` is a boolean): take is `goal_team.set_team` without the checker and without it in `every`, the goal is not read again; keep is a row in `party-declined.jsonl` (`reason` cut to 300 characters). `party_answered` also carries the device.
@@ -374,3 +374,11 @@ else: stop and write it in §11 first.
 - `ideas.goal_save` with `party` and neither `team` nor `leader` takes the party as it was saved; `party` is refused if it is gone (*That party is gone*). Its answer carries `notes` (a list) when an own agent was the project's already: *Docs scribe is this project's already: kept as it is*; both faces say each note as a toast.
 - `core/idea_lead.py` marks a use `met` after the leader accepts a goal that has a `party`; the use is found by the project's key and the goal's slug.
 - Desktop: `OwnParties`, `SaveParty`, `useOwnParties` in `party.js` (the save is inline in the goal's Team, not a dialog); New goal sets the craft to the party's; Edit goal's *Change the party* sends `party` when one was picked and no seat changed since. Phone: `makeParty(core, {onCraft})` has the row and the removal, and `get()` gives `party`; a goal's own Team sheet keeps the goal's `party` as the id until a seat changes, so saving it unchanged keeps it. Save this party's typed name survives a redraw (`naming` in `shell-goal.js`). The phone's cache is `orkcraft-app-v51`.
+
+### Fix-ups after review
+- A proposal whose checker has left the party is removed (`party_proposals.drop_left`), by the night's `propose` and when a goal's party is saved (`ideas.goal_save`), so that goal can be proposed again.
+- Saving a goal with the `party` it already has (the phone's Team sheet resends it) installs nothing, says no note and does not call `used()`; it is not refused when the saved party is gone. `own_parties.used` keeps `met` of the same (project, goal, party) use.
+- `own_parties.mark(project, goal, met, party_id)`: the leader's acceptance marks only the use of the party the goal has now (`core/idea_lead.py` passes it).
+- A decline holds until eight new clean checks come after it (§4.2 above: the oldest of the eight is compared, not the newest).
+- A night where only a clean check merged (`task_state` `merged`, `clean: true`) is not worked (§1.4).
+- A check task that changed files and wrote no findings file stays in `before`, and both faces say *· N ended without findings*. The phone's cache is `orkcraft-app-v53`.

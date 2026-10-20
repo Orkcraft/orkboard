@@ -244,3 +244,33 @@ def test_ideas_parties_counts_goals_projects_and_met(host, tmp_path):
     own_parties.save("With scribe", "design", "product-designer", [scribe], [], [{"slug": scribe, "name": "Scribe"}])
     assert host.command("ideas.parties")["parties"][2]["own"] == ["Scribe"]
     json.dumps(host.command("ideas.parties"))
+
+
+def test_saving_a_goal_s_party_unchanged_keeps_the_use_and_its_met_and_works_when_the_saved_party_is_gone(host):
+    party = lean(team=["grunt"], every=[], name="Small")
+    goal = pick(host, party)["slug"]
+    own_parties.mark(own_parties.project_key(host.repo_root), goal, True, party)
+    assert own_parties.list()[0]["uses"][0]["met"] is True
+    got = host.command("ideas.goal_save", {"slug": goal, "party": party})                                   # the phone's Team sheet resends the id
+    assert "notes" not in got and own_parties.list()[0]["uses"][0]["met"] is True
+    pick(host, party, slug=goal)                                                                            # the same party sent with its seats, unchanged
+    assert own_parties.list()[0]["uses"][0]["met"] is True and len(own_parties.list()[0]["uses"]) == 1
+    own_parties.drop(party)
+    host.command("ideas.goal_save", {"slug": goal, "party": party, "title": "Renamed"})                     # not refused: it is the goal's own
+    assert goal_team.party_of(host.ideas.root(), goal) == party
+
+
+def test_used_keeps_met_of_the_same_goal_s_use():
+    party = lean()
+    own_parties.used(party, "aaaaaaaaaaaa", "shop", "billing")
+    own_parties.mark("aaaaaaaaaaaa", "billing", False, party)
+    own_parties.used(party, "aaaaaaaaaaaa", "shop", "billing")
+    assert own_parties.get(party)["uses"][0]["met"] is False
+
+
+def test_mark_with_a_party_marks_only_that_party_s_use():
+    a, b = lean(), lean(name="Another")
+    for p in (a, b):
+        own_parties.used(p, "aaaaaaaaaaaa", "shop", "billing")
+    own_parties.mark("aaaaaaaaaaaa", "billing", True, b)                                                    # the goal has party b now
+    assert [own_parties.get(p)["uses"][0]["met"] for p in (a, b)] == [None, True]

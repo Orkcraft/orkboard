@@ -121,18 +121,23 @@ def used(party_id: str, project: str, name: str, goal: str) -> None:
         got = next((p for p in parties if p["id"] == party_id), None)
         if got is None:
             return
+        earlier = [u for u in got.get("uses") or [] if u.get("project") == project and u.get("goal") == goal]
         uses = [u for u in got.get("uses") or [] if not (u.get("project") == project and u.get("goal") == goal)]
-        uses.append({"project": project, "name": str(name)[:100], "goal": goal, "at": dt.datetime.now().isoformat(timespec="seconds"), "met": None})
+        uses.append({"project": project, "name": str(name)[:100], "goal": goal, "at": dt.datetime.now().isoformat(timespec="seconds"),
+                     "met": earlier[-1].get("met") if earlier else None})
         got["uses"] = uses[-USES:]
         _write(parties)
 
 
-def mark(project: str, goal: str, met: bool) -> None:
-    """The goal was accepted (or not) by its leader: the last verdict, on its use of a party (asked again, the later one)."""
+def mark(project: str, goal: str, met: bool, party_id: str = "") -> None:
+    """The goal was accepted (or not) by its leader: the last verdict, on its use of the party the goal has now (asked again, the later
+    one); without `party_id` every use of the goal."""
     with _LOCK:
         parties = list()
         hit = False
         for p in parties:
+            if party_id and p.get("id") != party_id:
+                continue
             for u in p.get("uses") or []:
                 if u.get("project") == project and u.get("goal") == goal:
                     u["met"], hit = bool(met), True
