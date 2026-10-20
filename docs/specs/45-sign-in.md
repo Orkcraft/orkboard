@@ -261,3 +261,7 @@ first.
 - **Needs you**: the `sign_in` row is not a button that opens something; it has *Sign in* and *Later*. The phone's row has neither.
 - No change in `js/board/map.js`: `nodeView` already says the wait `waitsWords` gives, now `waits: Claude Code's sign-in` (before
   *waits for limits*, since a hold sets `held_until` for both).
+
+### Follow-up: the terminal button
+- `tools.sign_in {harness, by}` takes `by`: `"browser"` | `"terminal"` | omitted (the tool's own way). `"terminal"` opens the terminal way whatever the tool's own is; this is what the page's *Sign in in a terminal* sends after a sign-in ended `no_browser`. Any other `by` is refused.
+- A snapshot's `sign_in` entry carries `type` (the tool's `sign_in_type`), so the open-terminal toast says what to type from the entry; the page keeps pi's `/login` only as a fallback.
