@@ -21,7 +21,7 @@ pytestmark = pytest.mark.browser
 
 def node(slug, title, tier, state, **more):
     return {"slug": slug, "goal": "ship", "title": title, "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal",
-            "size": "M", "risk": "", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "",
+            "size": "M", "risk": "", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "", "night_by": "person", "by_pace": False,
             "progress": {"done": 0, "total": 0}, "tasks": [], "estimate": None, "by_itself": False, "folded": False,
             "updated": "2026-10-01T10:00:00", **more}
 
@@ -309,4 +309,30 @@ async def test_a_met_goals_row_in_flags_has_the_fold_for_what_its_party_did(fake
         assert [" ".join(t.split()) for t in await fold.locator("li").all_inner_texts()] == PARTY_LINES
         assert await _called(stub, "ideas.party", {"goal": "docs"})
         assert " ".join((await page.locator(".map-flag").inner_text()).split()).startswith("Docs met, says Product manager")
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_stop_says_tonight_by_who_put_it_off_and_when_the_week_holds_it(fake_repo, monkeypatch):
+    night = {"kind": "night", "ref": "", "title": "", "until": ""}
+    week = {"kind": "week", "ref": "", "title": "", "until": "2026-10-26T09:00:00"}
+    ANSWER["nodes"] = [
+        node("b-idea", "Board idea", 1, "raw", queue="night", night_by="board", waits=night),
+        node("p-idea", "Person idea", 1, "raw", queue="night", night_by="person", waits=night),
+        node("b-plan", "Board plan", 2, "plan", start_at="night", night_by="board", waits=night, tasks=_tasks("waiting")),
+        node("p-plan", "Person plan", 2, "plan", start_at="night", night_by="person", waits=night, tasks=_tasks("waiting")),
+        node("w-idea", "Week idea", 3, "raw", queue="night", night_by="board", waits=week),
+        node("w-plan", "Week plan", 3, "plan", start_at="night", night_by="board", waits=week, tasks=_tasks("waiting"))]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        await page.locator(".map-row").first.wait_for(timeout=WAIT_MS)
+        said = lambda slug: page.locator(f'.map-row[data-slug="{slug}"] .map-open').get_attribute("data-words")      # noqa: E731
+        assert "tonight, or sooner if the week has room" in await said("b-idea")
+        assert "starts tonight, or sooner if the week has room" in await said("b-plan")
+        for slug, words in (("p-idea", "tonight"), ("p-plan", "starts tonight")):
+            got = await said(slug)
+            assert got.startswith(words) and "sooner" not in got and "week" not in got
+        for slug in ("w-idea", "w-plan"):
+            got = await said(slug)
+            assert "waits: the week is behind · until Mon 09:00" in got and "sooner" not in got
         assert await page.evaluate(NO_SCROLL)

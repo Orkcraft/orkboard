@@ -2,7 +2,7 @@
 // words (those are `rowOf`'s), the tiers and the waves, the edges' lines. The backend writes no words; these are the Map's own
 // only for `waits`, the same as the Agents chips'.
 import { say } from "../link.js";
-import { hhmm } from "./store.js";
+import { hhmm, dayAt } from "./store.js";
 import { rowOf } from "./tracks.js";
 
 /** The Needs you kinds on a node, in words (§4.3). */
@@ -19,7 +19,8 @@ export function waitsWords(w) {
   if (!w) return "";
   const who = w.title || w.ref || "another idea";
   return { idea: `waits for ${who}`, files: `same files as ${who}`, limits: `waits for limits${after(w.until)}`,
-    reserve: `keeps your reserve${after(w.until)}`, night: "tonight", stopped: "stopped" }[w.kind] || "";
+    reserve: `keeps your reserve${after(w.until)}`, night: "tonight", stopped: "stopped",
+    week: `waits: the week is behind${w.until ? ` · until ${dayAt(w.until)}` : ""}` }[w.kind] || "";
 }
 
 /** `≈$0.40–1.20` while a plan has not started. */

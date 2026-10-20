@@ -37,7 +37,7 @@ def pip(tid, title, state, after=()):
 
 def node(slug, goal, title, state, tier, **more):
     base = {"slug": slug, "goal": goal, "title": title, "short": short_of(title), "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal",
-            "size": "M", "risk": "low", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "",
+            "size": "M", "risk": "low", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "", "night_by": "person", "by_pace": False,
             "progress": {"done": 0, "total": 0}, "tasks": [], "estimate": None, "by_itself": False, "folded": False, "updated": ago(30)}
     return base | more
 
@@ -668,5 +668,31 @@ def test_a_met_goals_row_in_flags_has_the_fold_for_what_its_party_did(gui):
     assert [" ".join(t.split()) for t in rows.locator("li").all_inner_texts()] == PARTY_LINES
     assert ("ideas.party", {"goal": "grow"}) in host.log
     assert " ".join(pg.locator(".map-flag").inner_text().split()).startswith("Grow installs met, says Product manager")     # the row itself is as it was
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+# -- spec 44 B: the words of the week's pace ---------------------------------------------------------------------------
+
+def test_a_stop_says_tonight_by_who_put_it_off_and_when_the_week_holds_it(gui):
+    host = MapHost()
+    night = {"kind": "night", "ref": "", "title": "", "until": ""}
+    week = {"kind": "week", "ref": "", "title": "", "until": "2026-10-26T09:00:00"}
+    host.nodes += [
+        node("b-idea", "ship-sync", "Board idea", "raw", 3, queue="night", night_by="board", waits=night),
+        node("p-idea", "ship-sync", "Person idea", "raw", 4, queue="night", night_by="person", waits=night),
+        node("b-plan", "ship-sync", "Board plan", "plan", 5, start_at="night", night_by="board", waits=night),
+        node("p-plan", "ship-sync", "Person plan", "plan", 6, start_at="night", night_by="person", waits=night),
+        node("w-idea", "ship-sync", "Week idea", "raw", 7, queue="night", night_by="board", waits=week),
+        node("w-plan", "ship-sync", "Week plan", "plan", 8, start_at="night", night_by="board", waits=week)]
+    pg, host, errors = _open(gui, host=host)
+    said = lambda title: card(pg, title).get_attribute("title")                                   # noqa: E731
+    assert "tonight, or sooner if the week has room" in said("Board idea")
+    assert "starts tonight, or sooner if the week has room" in said("Board plan")
+    for title, words in (("Person idea", "tonight"), ("Person plan", "starts tonight")):
+        assert words in said(title) and "sooner" not in said(title) and "week" not in said(title)
+    for title in ("Week idea", "Week plan"):
+        assert "waits: the week is behind · until Mon 09:00" in said(title) and "sooner" not in said(title)
+    assert card(pg, "Week idea").locator("use[href$='#clock']").count() == 1                      # a timed wait: a clock
     pg.close()
     assert not errors, "\n".join(errors)
