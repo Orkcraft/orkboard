@@ -5,11 +5,14 @@ import { h, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { TARGETS } from "./shell-words.js";
 import { makePush } from "./shell-push.js";
+import { makeWeek } from "./shell-cards.js";
 
 /** `core`: the board's frame; `ctx`: {send, flash, unpair}; `drawer`: the sheet these live in; `limits`: opens What is left.
  *  Returns {head, project, phone, sheets, sync(), render(snapshot)}. */
 export function makeSettings(core, ctx, drawer, limits) {
   const spend = h("p", { class: "board-spend muted" });
+  // This week (spec 42 §6): the Spend today row opens a sheet of the week's work. New idea is the Board's button, pressed from here.
+  const week = makeWeek(core, () => { drawer.close(); document.querySelector(".fab")?.click(); });
 
   // Stop all: a tap asks first (the confirm is a sheet whose button sits away from this one), as the town's does.
   const stop = h("button", { class: "ork-btn danger board-stop", type: "button" }, "Stop all");
@@ -97,7 +100,7 @@ export function makeSettings(core, ctx, drawer, limits) {
     head: [h("div", { class: "row" }, stop), spend],
     project,
     phone,
-    sheets: [stopSheet.el, pairSheet.el],
+    sheets: [stopSheet.el, pairSheet.el, week.el],
     /** The settings' values from what the Board read last. */
     sync() {
       push.draw();
@@ -109,7 +112,8 @@ export function makeSettings(core, ctx, drawer, limits) {
     },
     render(s) {
       const gold = s.hud?.show_gold ? s.hud.gold : "";
-      spend.replaceChildren(...(gold ? [h("span", { class: "word" }, "Spend today"), " ", h("b", {}, gold)] : []));
+      spend.replaceChildren(...(gold ? [h("button", { class: "linkish board-spend__open", type: "button", "aria-label": `Spend today: ${gold}. This week’s work`,
+        onclick: () => { drawer.close(); week.open(); } }, h("span", { class: "word" }, "Spend today"), " ", h("b", {}, gold))] : []));
       spend.hidden = !gold;
     },
   };

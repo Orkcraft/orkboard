@@ -8,7 +8,7 @@ import datetime as dt
 from pathlib import Path
 
 from orkboard.gui.ideas_args import IdeasError
-from orkboard.realm import board_recap, goal_flags
+from orkboard.realm import board_recap, board_week, goal_flags, op_runs
 
 RECAP_DAYS = 30                          # a last look older than this is taken as this many days ago
 
@@ -35,3 +35,8 @@ class RecapMixin:
     def flags(self, args: dict) -> dict:
         """`{}`: the project's flags, goals accepted by their leader against their metrics, newest first (spec 42 §2)."""
         return {"flags": goal_flags.flags(self.root(False), self.state_dir)}
+
+    def week_work(self, args: dict) -> dict:
+        """`{}`: the work of the last seven days beside today's spend, and the nights (spec 42 §6)."""
+        return board_week.this_week(Path(self.host.repo_root), self.state_dir, self.settings_now(), dt.datetime.now().astimezone(),
+                                    self.board(make=False), ops_base=op_runs.root(), into=self._into())

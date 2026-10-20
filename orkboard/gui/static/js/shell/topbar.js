@@ -58,7 +58,8 @@ export function TopBar() {
     <span class="shell-top__brand">Orkline</span>
     <${Limits} />
     <span class="shell-top__spacer"></span>
-    <span class="shell-top__spend" title="What was spent today"><span class="ok-tone-muted">Spend</span> <b>${spend ?? "—"}</b></span>
+    <button type="button" class="shell-top__spend" title="What was spent today. This week's work" aria-haspopup="dialog"
+      aria-label=${`Spend today: ${spend ?? "—"}. This week's work`} onClick=${() => openDialog("this_week")}><span class="ok-tone-muted">Spend</span> <b>${spend ?? "—"}</b></button>
     <button class="ork-btn danger" title=${say("Stop every ork, script and browser at once")}
       onClick=${() => command("halt").catch(() => {})}>Stop all</button>
     <${Gear} />

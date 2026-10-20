@@ -14,10 +14,11 @@ import { LeaveDialog } from "./editor.js";
 import { SwitchDialog } from "./gitpane.js";
 import { OpFormDialog, OpSettingsDialog, OpRulesDialog } from "./opdialog.js";
 import { OpCheckDialog } from "./opcheck.js";
+import { WeekDialog } from "../board/cards.js";
 
 const KINDS = { goal: GoalDialog, idea: IdeaDialog, ask: AskDialog, todo: TodoDialog, agent: AgentDialog, settings: SettingsDialog, pair: PairDialog, into: IntoDialog, drop: DropDialog,
   "open-folder": OpenFolderDialog, "close-project": CloseProjectDialog, leave: LeaveDialog, "switch-branch": SwitchDialog,
-  opform: OpFormDialog, opcheck: OpCheckDialog, opsettings: OpSettingsDialog, oprules: OpRulesDialog };
+  this_week: WeekDialog, opform: OpFormDialog, opcheck: OpCheckDialog, opsettings: OpSettingsDialog, oprules: OpRulesDialog };
 
 export function Dialogs() {
   const d = dialog.value;
