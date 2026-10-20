@@ -37,6 +37,7 @@ from orkboard.gui.ideas_args import IdeasError, _device, _opt, _str, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_goals import GoalsMixin
 from orkboard.gui.ideas_map import MapMixin
+from orkboard.gui.ideas_recap import RecapMixin
 from orkboard.gui.ideas_review import ReviewMixin
 from orkboard.gui.ideas_lens import LensMixin
 from orkboard.gui.ideas_limits import LimitsMixin
@@ -45,8 +46,8 @@ from orkboard.gui.ideas_roles import RolesMixin
 RUNNER_TICK_S = 3.0               # how often the runner looks at its tasks
 SNAPSHOT_S = 10.0                 # the most a cached Needs you count is kept without a change
 PHONE_ZIP_MAX = 8 * 1024 * 1024   # a zip the phone is handed in a message: larger waits for the computer
-OPENED = ("idea", "plan", "todo", "task", "result", "tab", "map")
-VIA = ("map", "board", "needs", "agents", "review")      # where an opened idea was reached from (spec 39 §2)
+OPENED = ("idea", "plan", "todo", "task", "result", "tab", "map", "recap", "flag", "week", "push")
+VIA = ("map", "board", "needs", "agents", "review", "recap", "week", "flags", "push")      # where an opened idea was reached from (spec 39 §2, spec 42 §1.2)
 
 
 def focus_of(machine) -> str:
@@ -77,7 +78,7 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixin, BoardMixin):
+class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, RolesMixin, ReviewMixin, BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
         host makes one from its town, Orkboard its own."""
@@ -511,7 +512,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RolesMixin, ReviewMixi
                     raise IdeasError(str(e)) from None
             return run
 
-        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
+        table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
                  "ideas.add": self.add, "ideas.say": self.say, "ideas.plan": self.plan, "ideas.start": self.start,
                  "ideas.move": self.move, "ideas.edit": self.edit, "ideas.track_add": self.track_add,
                  "ideas.track_set": self.track_set, "ideas.todo": self.todo, "ideas.drop": self.drop,

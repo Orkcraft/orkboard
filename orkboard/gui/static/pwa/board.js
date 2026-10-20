@@ -26,7 +26,7 @@ export { price } from "./shell-preview.js";
 
 /** `ctx`: {send, deliver, flash, unpair}. Returns {el, sheets, content(), render(snapshot), dispose()}. */
 export function makeBoard(ctx) {
-  const st = { board: null, review: null, agents: null, roles: null, snap: null, tab: "board", track: "", view: "", ops: null, boardError: "", preview: null };
+  const st = { board: null, review: null, agents: null, roles: null, snap: null, tab: "board", track: "", view: "", ops: null, boardError: "", preview: null, cards: [] };
   let poll = 0;
   let seenRev;                          // the snapshot's ideas_rev read last
   let seenSnap;                         // the snapshot's rev read last (the project switcher's)
@@ -81,6 +81,43 @@ export function makeBoard(ctx) {
     if (next) await ctx.send("ideas.log", next);
     draining = opened.length ? setTimeout(drain, 800) : 0;
   }
+
+  // -- the last look (spec 42 §1.3): `orkboard.look.<project>` holds when the person last pressed or had the page in front of them ----------
+  const AWAY_H = 6;
+  const WRITE_GAP_MS = 60 * 1000;                       // a press moves the look at most once a minute
+  let lastWrite = 0;
+  let lookBusy = false;
+  let lookProject;                                      // the project the look was last asked about
+  const lookKey = () => (st.snap?.project ? `orkboard.look.${st.snap.project}` : "");
+  const readLook = (key) => { try { return Number(localStorage.getItem(key)) || 0; } catch { return 0; } };
+  function touch(now = Date.now()) {
+    const key = lookKey();
+    if (!key) return;
+    try { localStorage.setItem(key, String(now)); } catch { /* the page works without it */ }
+    lastWrite = now;
+  }
+  /** The page is in front of the person: when the last look is AWAY_H hours old, ask what happened since; else keep the look fresh. */
+  async function away() {
+    const key = lookKey();
+    if (!key || lookBusy || document.visibilityState === "hidden") return;
+    const last = readLook(key), now = Date.now();
+    if (!last) { touch(now); return; }                  // no last look: written, nothing shown
+    if (now - last < AWAY_H * 3600 * 1000) { if (now - lastWrite >= WRITE_GAP_MS) touch(now); return; }
+    lookBusy = true;
+    try {
+      const r = await ctx.send("ideas.recap", { since: last });
+      if (!r.ok || !r.result || r.result.error || key !== lookKey()) return;       // not answered: asked again at the next press
+      touch(Date.now());
+      if (r.result.merged && !r.result.empty) {
+        st.cards = [...st.cards, { kind: "recap", data: r.result }];
+        logOpened("recap", `${r.result.hours}h`);
+        drawAll();
+      }
+    } finally { lookBusy = false; }
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") touch(); else away(); });
+  window.addEventListener("pagehide", () => touch());
+  for (const type of ["pointerdown", "keydown"]) window.addEventListener(type, () => away(), true);
 
   function go(id) {
     logOpened("tab", id);
@@ -165,6 +202,7 @@ export function makeBoard(ctx) {
     st.track = st.view = st.boardError = "";
     st.map = null;
     st.mapError = "";
+    st.cards = [];
   }
 
   // -- reading the town ------------------------------------------------------------------------------------------
@@ -198,6 +236,7 @@ export function makeBoard(ctx) {
     content: () => [panes.board, panes.agents, panes.needs, preview.el],
     render(s) {
       st.snap = s;
+      if (s.project !== lookProject) { lookProject = s.project; st.cards = []; away(); }       // another project is shown, or the page starts
       top.render(s, s.rev !== seenSnap ? s.rev : undefined);
       boardTab.ops.sync(s.ops_rev ?? 0);
       seenSnap = s.rev;

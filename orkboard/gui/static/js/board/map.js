@@ -11,6 +11,7 @@ import { Chev, Icon, WhoHead } from "../orkui.js";
 import { PRIORITY_WORDS } from "./store.js";
 import { mapData, mapSince, mapFolded, mapUi, mapView, preview, showIdea, showTask, act as run } from "../shell/store.js";
 import { skippable, spares } from "./idea.js";
+import { Cards } from "./cards.js";
 import { openDialog } from "../shell/modals.js";
 import { TASK_STATE, nodeView, tiersOf, wavesOf, spentWords, goalState, progressOf, leftToDo, trailCurve, trailEdges } from "./maplayout.js";
 
@@ -196,6 +197,7 @@ export function MapView() {
   const titles = Object.fromEntries(m.nodes.map((n) => [n.slug, n.title]));
   const goalOf = Object.fromEntries(m.nodes.map((n) => [n.slug, n.goal]));
   return html`<div class="map" ref=${el} aria-label="Map" onScroll=${(e) => { mapView.top = e.currentTarget.scrollTop; }}>
+    <${Cards} />
     ${!m.goals.length ? html`<div class="shell-empty"><p>No goals yet</p><p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New goal</button></p></div>`
       : m.goals.map((g) => html`<${Goal} key=${g.slug} g=${g} nodes=${m.nodes.filter((n) => n.goal === g.slug)}
         edges=${m.edges.filter((e) => goalOf[e.to] === g.slug)} titles=${titles} since=${since} />`)}

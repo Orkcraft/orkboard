@@ -438,6 +438,13 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .fab { all: unset; box-sizing: border-box; cursor: pointer; width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center;
   background: var(--ork-action); color: var(--ork-on-ink); clip-path: var(--ork-notch); }
 .fab .ork-icon { width: 28px; height: 28px; }
+/* The cards at the top of the Board tab (spec 42 §1.4): they cover nothing and take their place in the column. */
+.ork-card.away { display: flex; flex-direction: column; gap: var(--ork-3); margin-bottom: var(--ork-4); min-width: 0; text-align: left; }
+.away-head h3 { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.away-lines { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.away-lines p { margin: 0; overflow-wrap: anywhere; }
+.away-failed { color: var(--ork-danger); }
+.away-foot { display: flex; justify-content: flex-end; }
 .board-tab-pane { padding-bottom: 96px; }                           /* the last card never under the + */
 dialog.sheet.drawer { margin: 0 auto 0 0; top: 0; bottom: 0; height: 100dvh; max-height: 100dvh; width: min(86vw, 360px); max-width: 86vw; }
 dialog.sheet.drawer .sheet-in { height: 100%; }

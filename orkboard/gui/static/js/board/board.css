@@ -152,6 +152,12 @@
 
 /* spec 39 §4: the Map — a section per goal, its ideas as a tree under the ideas they depend on. Monochrome: weight, dashes and dots carry the meaning. */
 .map { height: 100%; overflow-y: auto; overflow-x: hidden; padding: var(--ork-5) var(--ork-6); box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-6); }
+/* The cards at the top of the Map (spec 42 §1.4): they cover nothing and take their place in the column. */
+.away { flex: none; display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; }
+.away__title { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.away__lines { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.away__lines p { margin: 0; overflow-wrap: anywhere; }
+.away__foot { display: flex; justify-content: flex-end; }
 .map-note { padding: var(--ork-5) var(--ork-6); }
 .map-goal { display: flex; flex-direction: column; gap: var(--ork-4); min-width: 0; }
 .map-goal__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ork-4) var(--ork-5); }
