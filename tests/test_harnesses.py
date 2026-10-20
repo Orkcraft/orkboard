@@ -94,13 +94,34 @@ def test_a_refused_claude_sign_in_says_what_is_different_here():
     key = tool_errors.claude_sign_in("Invalid API key · Fix external API key", env={"ANTHROPIC_API_KEY": "sk-x"})
     assert key.startswith("ANTHROPIC_API_KEY is set where Orkline runs, and claude -p uses it before your sign-in")
     assert "sk-x" not in key
-    assert tool_errors.claude_sign_in("Login expired · Please run /login", env={}) == "Sign in again in a terminal: claude, then /login."
+    assert tool_errors.claude_sign_in("OAuth token revoked · Please run /login", env={}) == "Sign in again in a terminal: claude, then /login."
     err = tool_errors.ToolError("claude", "Not logged in · Please run /login", 1)
     line = tool_errors.plainly(err)
     assert line.startswith("Claude Code is not signed in, or its sign-in has expired. Claude Code said: Not logged in")
     assert line.endswith("Else sign in in a terminal: claude, then /login.")
     long = tool_errors.plainly(tool_errors.ToolError("claude", "Not logged in " + "x" * 2000, 1))
     assert len(long) <= tool_errors.PLAIN_CHARS and "…" in long and long.endswith("then /login.")   # its words cut, the step kept
+
+
+def test_a_claude_sign_in_it_could_not_renew_says_retry_waits_for_a_new_one():
+    # the owner's 20 October: "Claude Code said: Failed to authenticate: OAuth session expired and could not be
+    # refreshed Sign in again in a terminal: …", its words and the step run together; Claude Code had deleted the
+    # saved sign-in (code.claude.com/docs/en/errors#login-expired), so Retry alone never helps
+    from orkboard.realm import tool_errors
+    said = "Failed to authenticate: OAuth session expired and could not be refreshed"
+    err = tool_errors.ToolError("claude", said, 1)
+    assert err.kind == "login"
+    assert tool_errors.plainly(err) == (
+        "Claude Code is not signed in, or its sign-in has expired. Claude Code said: Failed to authenticate: OAuth "
+        "session expired and could not be refreshed. Claude Code could not renew its sign-in and removed it, so Retry "
+        "fails until you sign in again in a terminal: claude, then /login.")
+    assert tool_errors.claude_sign_in("Login expired · Please run /login", env={}).startswith(
+        "Claude Code could not renew its sign-in and removed it")
+    # another claude was renewing it (Orkline runs several at once): wait, no new sign-in needed
+    busy = tool_errors.claude_sign_in("Failed to refresh OAuth token: another Claude Code process is refreshing it or "
+                                      "exited mid-refresh. This is usually transient; retry in a minute", env={})
+    assert busy.startswith("Another Claude Code was renewing the sign-in: Retry in a minute.")
+    assert tool_errors.plainly(tool_errors.ToolError("claude", "Login expired!", 1)).count("!.") == 0   # its own end kept
 
 
 def test_cursor_reads_its_result_line():

@@ -3,7 +3,8 @@
     raise ToolError("claude", why, code=1)    # a run of a tool failed (str(): "claude exited with 1: …")
     tool_errors.classify(text, code)          # "missing" | "login" | "limit" | "network" | "other"
     tool_errors.plainly(err)                  # the failure in one line for a page: what happened, its words, what to do
-    tool_errors.claude_sign_in(said)          # Claude Code's refused sign-in: a key set here, or another config folder
+    tool_errors.claude_sign_in(said)          # Claude Code's refused sign-in: a key set here, another config folder,
+                                              # a renewal it was refused (the sign-in deleted) or another claude's
     tool_errors.report(err, enabled, main)    # what the failure says on the bus (core: Town.tool_failed)
 
 A face shows the report as a toast: "<Tool> hit an error", the line, and Switch to another tool that is
@@ -139,8 +140,10 @@ def plainly(err: ToolError, cap: int = PLAIN_CHARS) -> str:
     tool's words are cut first when the line is longer than `cap`."""
     title = harnesses.title(err.harness)
     line, step = LINES[err.kind].format(tool=title), what_to_do(err)
-    room = cap - len(line) - len(step) - len(title) - 9
+    room = cap - len(line) - len(step) - len(title) - 10
     words = err.detail if len(err.detail) <= room else err.detail[:max(0, room - 1)].rstrip() + "…"
+    if not words.endswith((".", "!", "?", "…")):
+        words += "."                     # the step after the tool's words reads as its own sentence
     said = f"{title} said: {words}" if err.detail and room > 20 else ""
     return " ".join(x for x in (line, said, step) if x)[:cap]
 
@@ -158,6 +161,14 @@ def claude_sign_in(said: str, env: dict | None = None) -> str:
     if "not logged in" in low or "no valid credential" in low:
         return ("If claude works in your terminal, Orkline runs it with another config folder (CLAUDE_CONFIG_DIR) or "
                 "another claude: Save logs shows which. Else sign in in a terminal: claude, then /login.")
+    if "another claude code process is refreshing" in low:
+        # its sign-in was being renewed by another claude (Orkline runs several at once): no sign-in was refused
+        return ("Another Claude Code was renewing the sign-in: Retry in a minute. If it keeps happening, close other "
+                "Claude Code windows, or sign in again in a terminal: claude, then /login.")
+    if "could not be refreshed" in low or "login expired" in low:
+        # its renewal was refused, and Claude Code deleted the saved sign-in: only a new one helps
+        return ("Claude Code could not renew its sign-in and removed it, so Retry fails until you sign in again in a "
+                "terminal: claude, then /login.")
     return "Sign in again in a terminal: claude, then /login."
 
 
