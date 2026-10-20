@@ -10,6 +10,7 @@ import { makeIdeas, BUSY } from "./shell-ideas.js";
 import { makeOps, OPS_VIEW } from "./shell-ops.js";
 import { makeMap } from "./shell-map.js";
 import { keptGoal } from "./shell-top.js";
+import { makeCards } from "./shell-cards.js";
 
 export { BUSY };
 
@@ -32,6 +33,7 @@ export function makeBoardTab(core, ctx) {
   const ops = makeOps(core, ctx);
   const ideas = makeIdeas(core, ctx, goalSheet);
   const map = makeMap(core, goalSheet);
+  const cards = makeCards(core);
   let mapRev;                                        // the board's rev the Map was read at
 
   /** The Map — the Board's trails — is read again when the board's rev moves, not on a clock of its own (spec 39 §4.8). */
@@ -71,7 +73,7 @@ export function makeBoardTab(core, ctx) {
     /** New idea's button is on the Board of a goal (not Operations', nor the Map's). */
     fabOn: () => Boolean(st.board) && !st.view,
     draw() {
-      if (!fresh(JSON.stringify([st.board, st.track, st.mapGoal, st.view, st.ops, st.boardError, st.map, st.mapError, st.roles?.roles?.length]))) return;
+      if (!fresh(JSON.stringify([st.board, st.track, st.mapGoal, st.view, st.ops, st.boardError, st.map, st.mapError, st.cards, st.roles?.roles?.length]))) return;
       if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
         pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),
           h("div", { class: "section-head" }, h("h3", {}, "Operations"), opsButtons()), ...ops.section());
@@ -88,7 +90,7 @@ export function makeBoardTab(core, ctx) {
       const gear = h("button", { class: "ork-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
       const back = h("div", { class: "row goal-pick" }, inOps ? h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…") : null,
         h("button", { class: "ork-btn", type: "button", "aria-label": "Back to the Board", onclick: () => { st.view = ""; core.draw(); } }, "Board"));
-      pane.replaceChildren(...(inOps ? [h("div", { class: "pane-head" }, h("h2", {}, "Operations"), gear), back, ...ops.section()] : map.section()));
+      pane.replaceChildren(...(inOps ? [h("div", { class: "pane-head" }, h("h2", {}, "Operations"), gear), back, ...ops.section()] : [cards.section(st.cards[0]), ...map.section()].filter(Boolean)));
     },
   };
 }

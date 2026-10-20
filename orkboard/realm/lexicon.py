@@ -167,6 +167,7 @@ TERMS: tuple[Term, ...] = (
     _t("segment", "segment", "segments"),                          # whom an idea is for, a product manager's lens                          # a goal accepted, or not, against its metrics (realm/goal_verdict.py)
     _t("task_kind", "task type", "task types"),                    # code · tests · docs · text for people · research
     _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
+    _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
     _t("short_name", "short name", "short names"),                 # an idea's, a goal's or a task's name in 24 characters (spec 41 §3)
     _t("recommended_answer", "recommended answer", "recommended answers"),   # the choice the Taskmaster picks for its question (spec 41 §9)
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)

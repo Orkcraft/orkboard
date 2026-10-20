@@ -249,6 +249,21 @@ def _all_lines(state_dir: Path) -> list[dict]:
     return rows
 
 
+def between(state_dir: Path, since: dt.datetime, now: dt.datetime) -> float | None:
+    """The $ of every ledger line whose `at` is in `[since, now)` (the ledgers' `at` is local and naive: read as local
+    time); None when every such line is unpriced, 0.0 when there is none (docs/specs/42-coming-back.md §1.1)."""
+    got = []
+    for r in _all_lines(state_dir):
+        try:
+            at = dt.datetime.fromisoformat(str(r.get("at") or ""))
+        except ValueError:
+            continue
+        if since <= at.astimezone() < now:
+            got.append(r)
+    total = usd(got)
+    return None if total is None else float(total)
+
+
 def _finished(state_dir: Path, gone: list[dict]) -> dict[tuple[str, str], dict]:
     """(idea, task) → {"state", "finished", "round", "role"} of every task that ended (merged or failed): the plans'
     and the deleted ideas' (from their lines in `spend-gone.jsonl`)."""

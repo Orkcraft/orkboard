@@ -61,6 +61,9 @@ function sha1(text) {
 }
 
 let storeKey = "", seen = "";
+/** This device's last look at the project shown (js/shell/look.js): the storage key, "" with no project; `lookTick` moves when another is shown. */
+export const lookKey = () => (storeKey ? storeKey.replace("orkboard.tabs.", "orkboard.look.") : "");
+export const lookTick = signal(0);
 const pad = (n) => String(n).padStart(2, "0");
 const nowIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
 
@@ -186,7 +189,13 @@ export function resetForProject(project = "") {
     preview.value = now ? now.p : null;
     opened.value = now && (now.p.kind === "idea" || now.p.kind === "plan") ? now.p.slug : "";
   });
+  lookTick.value += 1;
   if (!now) mapNowShown();
+}
+
+/** Needs you, from a card: the left column's tab (the phone's layout: the Board tab, off the Map's screen). */
+export function showNeeds() {
+  batch(() => { leftTab.value = "needs"; tab.value = "board"; mapShown.value = false; });
 }
 
 function setActive(id) {
