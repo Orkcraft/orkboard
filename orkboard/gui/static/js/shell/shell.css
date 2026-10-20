@@ -178,6 +178,7 @@
 .shell-pair .gui-you__qr, .shell-pair .gui-phones__qr { width: 200px; height: 200px; image-rendering: pixelated; background: var(--ork-raised); }
 .shell-pair__steps { margin: 0; padding-left: 20px; }
 .shell-pair__reach { margin: 0; padding-left: 20px; }
+.shell-pair .gui-phones__awake { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); }
 .shell-gear__logs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); }
 .shell-gear__logs .ork-btn { text-decoration: none; }
 

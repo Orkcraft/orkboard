@@ -183,3 +183,6 @@ Nothing else: no mark in the top bar, no colour (a battery is not a signal), no 
   while `running` is false, and a refused hold is not tried again (`can()` turns false). `KeepAwake.start()` (from `run`)
   sets `awake.running`; `stop()` clears it. `tests/conftest.py` swaps `awake.Awake` for a fake in every test.
   An idea `raw` with no queue counts for `tonight`, as the night takes it (`ideas.queue_of`).
+- **B** (`spec/47-awake-faces`): `AwakeField` lives in `js/shell/settings.js`, `AwakeOffer` (exported from `js/phones.js`) is drawn
+  by `pair.js` under *Paired: <name>.* from `usePairing`'s `awake`. The phone's line is `.board-sleep` in `shell-drawer.js`
+  (hidden while `sleep` is empty). `pwa/sw.js` CACHE is `orkcraft-app-v52` (44 B builds v51 in parallel).

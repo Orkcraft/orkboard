@@ -52,6 +52,7 @@ class Stub:
         self.calls: list[tuple[str, dict]] = []
         self.into, self.push = "dev", False
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
+        self.sleep = ""                                    # the phone snapshot's `sleep` (spec 47 §3): what the phone says of the computer's sleep
         self.chip_extra: dict[str, dict] = {}              # spec 35 §11.5: a chip's by / night / state / note / waits_title, by task id
         self.checks: list[dict] = []                      # the idea's checks (realm/idea_checks.py `status`), the sync idea's
         self.extra_needs: list[dict] = []                 # spec 35: what a test adds to Needs you (a proposal, a goal's questions)
@@ -348,7 +349,7 @@ async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
 
     def snap(host):
         s = real(host)
-        return {**s, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
+        return {**s, "sleep": stub.sleep, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
                 "review_count": len(stub.results()),
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
                             "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
@@ -922,3 +923,21 @@ async def test_the_drawer_holds_stop_all_spend_the_projects_this_project_and_thi
         await drawer.get_by_role("button", name="What is left").click()                                 # the limits' sheet, as the chip opens it
         await page.get_by_role("dialog", name="What is left").wait_for(timeout=WAIT_MS)
         assert await drawer.is_hidden()
+
+
+@pytest.mark.asyncio
+async def test_the_drawer_says_what_the_computers_sleep_means_under_this_phone_when_the_snapshot_has_a_line(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        drawer = await _menu(page)
+        assert await drawer.locator(".board-sleep").is_hidden() and "may sleep" not in await drawer.inner_text()      # none without
+        await page.keyboard.press("Escape")
+        stub.sleep = "Your Mac is on battery and may sleep."
+        stub.bump({})
+        drawer = await _menu(page)
+        line = drawer.locator(".board-sleep")
+        await line.wait_for(timeout=WAIT_MS)
+        assert await line.inner_text() == "Your Mac is on battery and may sleep."
+        text = await drawer.inner_text()
+        text = text.lower()
+        assert text.index("this phone") < text.index("may sleep") < text.index("pair a phone")
+        assert await page.evaluate(NO_SCROLL)

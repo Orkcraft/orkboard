@@ -4,7 +4,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { html, linked } from "../html.js";
 import { command, say } from "../link.js";
-import { usePairing, PairQr } from "../phones.js";
+import { usePairing, PairQr, AwakeOffer } from "../phones.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 
 const when = (iso) => (iso ? iso.replace("T", " ").slice(0, 16) : "");
@@ -12,7 +12,7 @@ const hostOf = (url) => { try { return new URL(url).hostname; } catch { return S
 
 export function PairDialog() {
   const pairing = usePairing();
-  const { offer, left, paired, pair, cancel, step } = pairing;
+  const { offer, left, paired, awake, pair, cancel, step } = pairing;
   const [info, setInfo] = useState(null);          // phones.list: the paired phones, the addresses
   const read = () => command("phones.list").then(setInfo, () => {});
   useEffect(() => { pair(); read(); }, []);
@@ -27,6 +27,7 @@ export function PairDialog() {
         ${offer ? html`<${PairQr} pairing=${pairing} /><span class="ok-font-status shell-pair__left">The code is good for ${left} s, once.</span>
             <button type="button" class="ork-btn" onClick=${cancel}>Cancel the code</button>`
           : html`<p class="ok-font-status">${paired ? say(`Paired: ${paired}.`) : "No code is showing."}</p>
+            ${paired && html`<${AwakeOffer} machine=${awake} />`}
             <button type="button" class="ork-btn primary" onClick=${pair}>${paired ? "Pair another phone" : "Show a code"}</button>`}
       </div>
       <div class="shell-pair__how">

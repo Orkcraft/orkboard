@@ -66,6 +66,8 @@ class StubHost:
         self.into, self.push = "dev", False
         self.paired = [{"id": "p1", "name": "Pixel 8", "seen": "2026-10-17T09:30:00"}]
         self.target, self.autostart, self.night = "balance", True, "01:00-07:00"
+        self.awake = {"mode": "carts", "why": "", "holding": False, "battery": False, "can": True, "how": "systemd-inhibit", "machine": "Mac", "paired": True}   # awake.state (spec 47 §3)
+        self.awake_offer = ""                         # phones.list's awake_offer: "Mac" while the offer is to be asked
         self.goals = {"general": self.goal("general", "General", "normal", "ready", order=0),
                       "ship-sync": self.goal("ship-sync", "Ship sync", "normal", "ready", summary="Sync is the first thing a second device needs.\nIt touches sync.py.")}
         self.roles = {"taskmaster": {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "builtin": True},
@@ -307,7 +309,17 @@ class StubHost:
                     "dns_qr": QR, "install": "https://tailscale.com/download", "dns": "https://login.tailscale.com/admin/dns", "account": "me@example.com"}
         if name == "phones.list":
             return {"phones": self.paired, "listening": True, "address": "https://192.168.1.20:8443", "tail_address": "https://studio.tail1234.ts.net:8443",
-                    "tail_trusted": True, "tailscale": True, "fingerprint": "AB:CD", "open": [], "pairing": 100, "awake_offer": ""}
+                    "tail_trusted": True, "tailscale": True, "fingerprint": "AB:CD", "open": [], "pairing": 100, "awake_offer": self.awake_offer}
+        if name == "awake.state":
+            return dict(self.awake)
+        if name == "awake.set":
+            self.awake["mode"] = a["mode"]
+            return dict(self.awake)
+        if name == "awake.offer":
+            self.awake_offer = ""
+            if a.get("yes"):
+                self.awake["mode"] = "phone"
+            return dict(self.awake)
         if name == "phones.forget":
             self.paired = [d for d in self.paired if d["id"] != a["id"]]
             return {"phones": self.paired, "listening": True, "address": "", "tail_address": "", "open": [], "pairing": 0}
@@ -1669,3 +1681,84 @@ def test_remove_your_party_drops_it_after_the_person_agrees(shell):
     assert _sent(pg, host, ("ideas.party_drop", {"id": "p-1"}))
     dlg.get_by_role("region", name="Your parties").wait_for(state="detached", timeout=WAIT_MS)       # the row goes with its last party
     assert said == ["Remove your party “Lean web”? Goals that use it keep their agents."]
+
+
+def _awake_field(pg):
+    pg.get_by_role("button", name="Settings").click()
+    group = pg.get_by_role("group", name="Keep the computer awake")
+    group.wait_for(timeout=WAIT_MS)
+    return group
+
+
+def test_keep_the_computer_awake_has_three_choices_and_the_lines_of_its_state(shell):
+    pg, host = shell
+    group = _awake_field(pg)
+    assert _sent(pg, host, ("awake.state", {}))
+    assert [t.strip() for t in group.locator(".shell-seg__one").all_inner_texts()] == ["Never", "While the orks work", "Stay reachable from your phone"]
+    assert group.locator(".shell-seg__one.is-on").inner_text().strip() == "While the orks work"
+    text = group.inner_text()
+    assert "On power, it does not sleep by itself while an ork or an operation is at work" in text
+    assert "Not holding now: nothing to do." in text and "The screen still turns off." in text
+    for why, line in (("work", "Holding now: an ork is at work."), ("tonight", "Holding now: the Board has work for tonight."),
+                      ("phone", "Holding now: a phone is paired.")):
+        host.awake |= {"why": why}
+        pg.keyboard.press("Escape")
+        group = _awake_field(pg)
+        assert line in group.inner_text(), why
+    host.awake |= {"battery": True}
+    pg.keyboard.press("Escape")
+    group = _awake_field(pg)
+    assert "On battery now, so it may sleep." in group.inner_text() and "Holding now" not in group.inner_text()
+    host.awake |= {"battery": False, "can": False}
+    pg.keyboard.press("Escape")
+    group = _awake_field(pg)
+    text = group.inner_text()
+    assert "This computer gives Orkline no way to keep it awake: set its power settings" in text and "The screen still turns off." not in text
+    host.awake |= {"can": True, "mode": "phone", "paired": False}
+    pg.keyboard.press("Escape")
+    group = _awake_field(pg)
+    text = group.inner_text()
+    assert "On power, it does not sleep by itself while Orkline is open and a phone is paired" in text and "No phone is paired yet: Pair a phone, above." in text
+    if os.environ.get("ORKCRAFT_SHOTS"):
+        pg.screenshot(path=str(SHOTS / "desktop-awake-1440x900.png"))
+
+
+def test_a_choice_of_keep_the_computer_awake_is_sent_at_once_and_never_says_the_old_word(shell):
+    pg, host = shell
+    group = _awake_field(pg)
+    group.get_by_text("Never", exact=True).click()
+    assert _sent(pg, host, ("awake.set", {"mode": "off"}))
+    group.get_by_text("The computer sleeps as its power settings say.").wait_for(timeout=WAIT_MS)
+    assert "Holding now" not in group.inner_text() and "The screen still turns off." not in group.inner_text()
+    group.get_by_text("Stay reachable from your phone").click()
+    assert _sent(pg, host, ("awake.set", {"mode": "phone"}))
+    assert "carts" not in group.inner_text().lower()
+
+
+def _after_pairing(pg, host, answer):
+    host.awake_offer = "Mac"
+    pg.get_by_role("button", name="Settings").click()
+    pg.get_by_role("button", name="Pair a phone").click()
+    dlg = pg.get_by_role("dialog", name="Pair a phone")
+    dlg.locator("img.gui-phones__qr").wait_for(timeout=WAIT_MS)
+    host.paired = host.paired + [{"id": "p2", "name": "iPhone 15", "seen": "2026-10-20T09:30:00"}]       # a phone scans the code
+    offer = dlg.get_by_role("group", name="Keep the computer awake")
+    offer.wait_for(timeout=5000)
+    assert "Paired: iPhone 15." in dlg.inner_text()
+    assert "Keep this Mac awake so your phone can reach it all day? Only on power." in offer.inner_text()
+    offer.get_by_role("button", name=answer).click()
+    offer.wait_for(state="detached", timeout=WAIT_MS)
+    return dlg
+
+
+def test_after_pairing_the_offer_to_keep_the_mac_awake_is_asked_once_and_yes_is_sent(shell):
+    pg, host = shell
+    _after_pairing(pg, host, "Yes")
+    assert _sent(pg, host, ("awake.offer", {"yes": True}))
+
+
+def test_not_now_to_the_offer_is_sent_and_the_offer_is_gone(shell):
+    pg, host = shell
+    dlg = _after_pairing(pg, host, "Not now")
+    assert _sent(pg, host, ("awake.offer", {"yes": False}))
+    assert dlg.get_by_role("group", name="Keep the computer awake").count() == 0 and "Paired: iPhone 15." in dlg.inner_text()
