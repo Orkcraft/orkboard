@@ -696,3 +696,53 @@ def test_a_stop_says_tonight_by_who_put_it_off_and_when_the_week_holds_it(gui):
     assert card(pg, "Week idea").locator("use[href$='#clock']").count() == 1                      # a timed wait: a clock
     pg.close()
     assert not errors, "\n".join(errors)
+
+
+# -- Spec 46 C: New goal on the Map's head, and the Map's one action ---------------------------------------------------------------
+
+
+def test_the_maps_head_has_new_goal_above_the_goals_and_it_opens_new_goal(mapped):
+    pg, host = mapped
+    button = pg.locator(".shell-preview .map-head").get_by_role("button", name="New goal")
+    assert "primary" not in button.get_attribute("class") and "ork-btn" in button.get_attribute("class")      # the empty Map keeps its primary one
+    assert box(pg, ".map-head")["y"] < box(pg, ".map-goal")["y"]                                              # above the goals
+    button.click()
+    assert pg.get_by_role("dialog", name="New goal").is_visible()
+
+
+def _acting(host):
+    """Nodes that wait for the person alone, and ones that wait for something else too."""
+    soon = {"kind": "you", "ref": "", "title": "", "until": ""}
+    tasks = [pip("g1", "One", "waiting"), pip("g2", "Two", "waiting", ["g1"]), pip("g3", "Three", "waiting", ["g2"])]
+    host.nodes += [
+        node("go", "ship-sync", "Go live", "plan", 2, needs_you="plan", waits=soon, tasks=tasks, estimate={"usd_low": 2.0, "usd_high": 4.0}),
+        node("tonight", "ship-sync", "Ship it tonight", "plan", 3, start_at="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}, tasks=tasks[:1]),
+        node("limits", "ship-sync", "Held for limits", "raw", 5, queue="night", held_until=ago(-2), waits={"kind": "limits", "ref": "", "title": "", "until": ""}),
+        node("stopped", "ship-sync", "Stopped one", "raw", 6, queue="hold"),
+        node("busy", "ship-sync", "Planned but waiting", "plan", 4, needs_you="plan", waits_on=["go"], waits=soon, tasks=tasks[:1]),
+    ]
+    host.ideas["tonight"] = host.idea("tonight", "Ship it tonight", "plan", 40)
+    host.bump({})
+
+
+def test_the_maps_one_action_is_start_start_now_or_process_now_beside_the_chip_and_none_while_the_node_waits_for_anything_else(mapped):
+    pg, host = mapped
+    _acting(host)
+    pg.locator(".map-node[data-slug=go] .map-act").wait_for(timeout=WAIT_MS)
+    act = lambda slug: pg.locator(f".map-node[data-slug={slug}] .map-act")                                    # noqa: E731
+    assert act("go").get_attribute("aria-label").startswith("Start “Go live”: 3 tasks, about $2") and act("go").get_attribute("data-act") == "start"
+    assert "$2" in act("go").inner_text() and act("go").locator("svg").count() == 1                              # the play mark and the price
+    assert act("tonight").get_attribute("aria-label") == "Start “Ship it tonight” now, instead of tonight" and act("tonight").inner_text().strip() == "Start now"
+    assert act("offline").get_attribute("aria-label") == "Process “Offline mode” now" and act("stopped").inner_text().strip() == "Process now"
+    for none in ("dark", "limits", "busy", "sync", "export", "tags", "growth"):                                    # waits for something else, or is not the person's alone
+        assert act(none).count() == 0, none
+    assert pg.locator(".map-card .map-act").count() == 0                                                       # a sibling of the chip, never inside it
+    assert pg.locator(".map-node").evaluate_all("els => Math.max(...els.map(e => e.querySelectorAll('.map-act').length))") == 1   # at most one per node
+    act("go").click()
+    assert _sent(pg, host, ("ideas.start", {"slug": "go", "via": "map"}))
+    pg.get_by_text("Started.").first.wait_for(timeout=WAIT_MS)
+    act("tonight").click()
+    assert _sent(pg, host, ("ideas.start_now", {"slug": "tonight", "via": "map"}))
+    act("offline").click()
+    assert _sent(pg, host, ("ideas.queue", {"slug": "offline", "queue": "now", "via": "map"}))
+    pg.get_by_text("The Taskmaster drafts it now.").first.wait_for(timeout=WAIT_MS)

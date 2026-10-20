@@ -275,7 +275,7 @@ def test_a_held_run_says_why_the_limits_or_the_days_spend_cap(world):
 def test_operations_is_in_the_goal_select_and_new_lists_the_templates(world):
     def body(pg, stub):
         select = pg.get_by_label("Goal", exact=True)
-        assert select.locator("option").last.inner_text() == "Operations"           # last, after a divider
+        assert select.locator("option").all_inner_texts()[-2:] == ["Operations", "New goal…"]   # after a divider; New goal… is the last (spec 46 §6.1)
         assert pg.get_by_role("button", name="New idea").count() == 1 and pg.get_by_role("button", name="Target:", exact=False).count() == 1
         _operations(pg)
         assert pg.get_by_role("button", name="New idea").count() == 0               # New… takes the place of New idea and the Target
@@ -418,7 +418,7 @@ def test_a_rules_proposal_is_taken_in_its_row_in_needs_you_and_the_rules_are_sav
     stub.templates[1]["proposal"] = {"lines": ["Keep a reply under five lines"], "why": "you shortened two replies", "op": "op1", "at": ""}
 
     def body(pg, stub):
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()                    # Needs you: a tab of its own
+        pg.locator(".shell-review").get_by_role("heading", name="Needs you").wait_for(timeout=WAIT_MS)                    # Needs you: a tab of its own
         row = pg.locator(".board-proposal[data-kind=op_rules]")
         row.wait_for(timeout=WAIT_MS)
         assert "Keep a reply under five lines" in row.inner_text()
@@ -483,7 +483,7 @@ def test_needs_you_shows_an_op_row_in_another_project_too(world):
     failed = stub.seed("jira-task", "failed", why="Jira refused it", acted=False)
 
     def body(pg, stub):
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()                    # Needs you: a tab of its own
+        pg.locator(".shell-review").get_by_role("heading", name="Needs you").wait_for(timeout=WAIT_MS)                    # Needs you: a tab of its own
         row = pg.locator(f".board-need[data-kind=op]")
         row.wait_for(timeout=WAIT_MS)
         assert "Checkout fails on a full cart" in row.inner_text()
@@ -494,7 +494,7 @@ def test_needs_you_shows_an_op_row_in_another_project_too(world):
         dlg.get_by_role("button", name="Open folder").click()
         dlg.wait_for(state="detached", timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
+        pg.locator(".shell-review").get_by_role("heading", name="Needs you").wait_for(timeout=WAIT_MS)
         row = pg.locator(".board-need[data-kind=op]")                               # the person's: seen in every project
         row.wait_for(timeout=WAIT_MS)
         row.click()

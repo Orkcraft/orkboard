@@ -5,6 +5,7 @@
 // the picker opens and 300 ms after a seat or Every idea changes), and its hints (spec 43 E: at most two plain lines). Then the checkers' checks: where each applies or on every idea,
 // and what a check adds to an idea. Above the bands, Your parties (spec 43 F): the parties the person saved from a goal, each a chip
 // that fills the seats, with a mark to remove it; on a goal's screen, Save this party (`SaveParty`).
+// New goal (spec 46 §6.2) gives the bands `open`/`setOpen`: folds, one open at a time, closed by Done (`teamLine` is the folded line; `ChecksFold` the checks).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { toast } from "../link.js";
@@ -74,12 +75,20 @@ export function PriceLine({ price }) {
     ${(price.hints || []).map((t) => html`<p key=${t} class="shell-party-hint ok-tone-muted">${t}</p>`)}`;
 }
 
-/** The three bands. `craft`: the goal's, its agents listed first in each band. */
-export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
+/** The party in one line (New goal's Team fold): *Leads: Product manager · Builds: Product designer, Grunt · Checks: Reviewer*. */
+export function teamLine(leader, team) {
+  const names = (b) => inBand(b, leader, team).map(nameOf).join(", ") || "none";
+  return `Leads: ${names("lead")} · Builds: ${names("build")} · Checks: ${names("check")}`;
+}
+
+/** The three bands. `craft`: the goal's, its agents listed first in each band. With `setOpen` they are folds, one open (`open`: its
+ *  id, "" none) at a time, each head saying who is in it and each closed by Done; a pick in Leads folds it and opens Builds. */
+export function PartyBands({ craft = "", leader, setLeader, team, setTeam, open = "", setOpen = null }) {
   const seats = seatsOf();
+  const folds = setOpen !== null;
   const on = (a) => (a.band === "lead" ? leader === a.id : team.includes(a.id));
   const toggle = (a) => {
-    if (a.band === "lead") { setLeader(leader === a.id ? TASKMASTER : a.id); return; }
+    if (a.band === "lead") { setLeader(leader === a.id ? TASKMASTER : a.id); if (folds) setOpen(leader === a.id ? "lead" : "build"); return; }
     if (team.includes(a.id)) setTeam(team.filter((x) => x !== a.id));
     else if (inBand(a.band, leader, team).length < seats[a.band]) setTeam([...team, a.id]);
     else toast(`${BANDS.find((b) => b[0] === a.band)[1]} has ${seats[a.band]} seats: take one out first.`, "warning");
@@ -93,13 +102,21 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
     const taken = inBand(id, leader, team);
     const list = [...library().filter((a) => a.band === id), ...(id === "build" ? team.filter((x) => !agentOf(x)).map(ownAgent) : [])]
       .sort((x, y) => (x.craft === craft ? 0 : 1) - (y.craft === craft ? 0 : 1));
-    return html`<section key=${id} class=${`shell-party-band band-${id}`} aria-label=${words}>
-      <div class="shell-band-head"><h3>${words}</h3><small class="ok-tone-muted">${taken.length} of ${seats[id]} · ${what}</small></div>
+    if (folds && open !== id) {
+      return html`<section key=${id} class=${`shell-party-band is-fold band-${id}`} aria-label=${words}>
+        <button type="button" class="shell-fold-head" aria-expanded="false" onClick=${() => setOpen(id)}><b>${words}</b>
+          <small class="ok-tone-muted">${taken.length ? taken.map(nameOf).join(", ") : "none"}</small><span aria-hidden="true"><${Icon} name="plus" /></span></button></section>`;
+    }
+    return html`<section key=${id} class=${`shell-party-band band-${id}${folds ? " is-fold is-open" : ""}`} aria-label=${words}>
+      ${folds ? html`<button type="button" class="shell-fold-head" aria-expanded="true" onClick=${() => setOpen("")}><b>${words}</b>
+          <small class="ok-tone-muted">${taken.length} of ${seats[id]} · ${what}</small><span aria-hidden="true"><${Icon} name="close" /></span></button>`
+        : html`<div class="shell-band-head"><h3>${words}</h3><small class="ok-tone-muted">${taken.length} of ${seats[id]} · ${what}</small></div>`}
       <div class="shell-team-seats">${Array.from({ length: seats[id] }, (_, i) => {
         const a = agentOf(taken[i]) || (taken[i] ? ownAgent(taken[i]) : null);
         return html`<span key=${i} class=${`shell-team-seat${a ? "" : " is-empty"}${id === "lead" ? " is-lead" : ""}`} title=${a?.name || "A free seat"}>${a && html`<${Head} race=${RACE[a.craft]} tier=${a.tier} />`}</span>`;
       })}</div>
-      <div class="shell-team-list">${list.map(row)}</div></section>`;
+      <div class="shell-team-list">${list.map(row)}</div>
+      ${folds && html`<button type="button" class="ork-btn" data-done=${id} onClick=${() => setOpen("")}>Done</button>`}</section>`;
   });
 }
 
@@ -115,6 +132,22 @@ export function ChecksBlock({ team, every, setEvery, price = null }) {
       <span><b>${a.name}</b> <small class="ok-tone-muted">${a.check.done} · applies ${a.check.applies}${adds(a)}</small></span>
       <label class="shell-check-every"><input type="checkbox" aria-label=${`Every idea: ${a.name}`} checked=${every.includes(a.id)}
         onChange=${(e) => setEvery(e.target.checked ? [...every, a.id] : every.filter((x) => x !== a.id))} /> Every idea</label></div>`)}</div>`;
+}
+
+/** The checks folded to one line (*2 checks, where each applies*) with Change; opened, today's block closed by Done. */
+export function ChecksFold({ team, every, setEvery, price = null }) {
+  const [open, setOpen] = useState(false);
+  const checkers = team.map(agentOf).filter((a) => a?.check);
+  const mine = every.filter((id) => team.includes(id));
+  if (!checkers.length) return html`<section class="shell-checks-fold" aria-label="Checks"><h3 class="shell-fold-title">Checks</h3>
+    <p class="ok-tone-muted">No checker in the party: an idea is done when its own Done when lines are.</p></section>`;
+  if (!open) {
+    return html`<section class="shell-checks-fold" aria-label="Checks"><h3 class="shell-fold-title">Checks</h3>
+      <p class="shell-party-line">${checkers.length} ${checkers.length === 1 ? "check" : "checks"}, ${mine.length ? `${mine.length} on every idea` : "where each applies"}</p>
+      <button type="button" class="ork-btn" data-change="checks" onClick=${() => setOpen(true)}>Change</button></section>`;
+  }
+  return html`<section class="shell-checks-fold" aria-label="Checks"><${ChecksBlock} team=${team} every=${every} setEvery=${setEvery} price=${price} />
+    <button type="button" class="ork-btn" data-done="checks" onClick=${() => setOpen(false)}>Done</button></section>`;
 }
 
 /** The person's parties (ideas.parties), read when `on` (the picker is shown); `reload()` reads them again. */

@@ -4,12 +4,13 @@
 // tabs, the preview on its own screen. Always Office's calm look; no camp. The preview is tabs, the Map first (spec 39).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { TabMark } from "../orkui.js";
+import { Icon } from "../orkui.js";
 import { town } from "../link.js";
 import { board } from "../board/store.js";
+import { needsCount } from "../board/today.js";
 import { TopBar } from "./topbar.js";
 import { BoardPane } from "./boardpane.js";
-import { ReviewPane } from "./review.js";
+import { NeedsPane } from "./review.js";
 import { AgentsPane } from "./agents.js";
 import { Preview } from "./preview.js";
 import { Dialogs } from "./dialogs.js";
@@ -48,14 +49,19 @@ function useNarrow() {
 
 const typing = (el) => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 
+/** Below 1 024 px the shell is the phone's three tabs, in its order: Board · Agents · Needs you. Needs you is the signal (spec 41 §1, as the
+ *  phone's): while an answer waits its mark is the warning diamond and its count the warning colour; with results only, the eye and a plain count. */
 function Tabs() {
   const b = board.value, rv = review.value;
-  const counts = { board: b ? b.needs_you.filter((n) => n.kind !== "proposal" && n.kind !== "party" && n.kind !== "op_rules").length : 0,
-    agents: 0, review: rv ? rv.results.length : 0 };
-  return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents, Review">
-    ${[["board", "Board"], ["agents", "Agents"], ["review", "Review"]].map(([id, name]) => html`<button key=${id} role="tab"
-      aria-selected=${tab.value === id} class=${cls("shell-tab ork-tabbar__tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
-      <${TabMark} tab=${id} />${name}${counts[id] > 0 && html`<span class=${cls("shell-count ork-count", id === "board" ? "warning" : "on")}>${counts[id]}</span>`}</button>`)}
+  const asks = b ? needsCount() : 0, results = rv ? rv.results.length : 0;
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const said = [asks ? `${asks} ${asks === 1 ? "waits" : "wait"} for your answer` : "", results ? plural(results, "result to check", "results to check") : ""].filter(Boolean);
+  const count = { board: 0, agents: 0, needs: asks + results };
+  return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents, Needs you">
+    ${[["board", "Board"], ["agents", "Agents"], ["needs", "Needs you"]].map(([id, name]) => html`<button key=${id} role="tab"
+      aria-selected=${tab.value === id} aria-label=${id === "needs" ? (said.length ? `Needs you: ${said.join(", ")}` : name) : count[id] ? `${name}, ${count[id]}` : name}
+      class=${cls("shell-tab ork-tabbar__tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
+      <${Icon} name=${id === "needs" ? (asks > 0 ? "warning-diamond" : "eye") : id === "board" ? "list-box" : "robot"} />${name}${count[id] > 0 && html`<span class=${cls("shell-count ork-count", id === "needs" && asks > 0 ? "warning" : "on")}>${count[id]}</span>`}</button>`)}
   </nav>`;
 }
 
@@ -119,7 +125,7 @@ export function Shell() {
           aria-valuenow=${h || undefined} tabindex="0" onPointerDown=${drag} onKeyDown=${nudge}></div>`}
         <${AgentsPane} />
       </div>
-      <${ReviewPane} />
+      <${NeedsPane} />
     </div>
     ${narrow && html`<${Tabs} />`}
     <${Dialogs} />

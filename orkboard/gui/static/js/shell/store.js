@@ -13,7 +13,7 @@ export const detail = signal(null);        // the preview's own data: {task} (id
 export const goal = signal(null);          // ideas.goal of the goal in the preview
 export const roles = signal(null);         // ideas.roles: the agents, the task types and their agent, the models
 export const tab = signal("board");        // the narrow layout's tab (below 1 024 px the shell is the phone's layout)
-export const leftTab = signal("board");    // the left column's tab (spec 37 §8): "board" | "needs" | "files"
+export const leftTab = signal("board");    // the left column's tab (spec 37 §8, spec 46 §6.3): "board" | "files" (a "needs" kept from before reads "board")
 export const editing = signal(null);       // the file open in the editor: {path, dirty, save()}, null when none is
 
 // The preview's tabs (docs/specs/39-map.md §3): the Map first and pinned, every other thing in a tab of its own. A click opens
@@ -193,9 +193,15 @@ export function resetForProject(project = "") {
   if (!now) mapNowShown();
 }
 
-/** Needs you, from a card: the left column's tab (the phone's layout: the Board tab, off the Map's screen). */
+/** Needs you, from a card: the right column (the phone's layout: its tab, off the Map's screen), scrolled to its top and given the focus. */
 export function showNeeds() {
-  batch(() => { leftTab.value = "needs"; tab.value = "board"; mapShown.value = false; });
+  batch(() => { tab.value = "needs"; mapShown.value = false; });
+  requestAnimationFrame(() => {
+    const col = document.querySelector(".shell-review");
+    const body = col?.querySelector(".shell-pane__body");
+    if (body) body.scrollTop = 0;
+    col?.focus({ preventScroll: true });
+  });
 }
 
 function setActive(id) {
