@@ -37,7 +37,13 @@ export function weekWords(role) {
   const w = role.week, today = role.spend_today ? `${money(role.spend_today)} today` : "";
   if (role.role === "taskmaster") return [today, w && w.finished > 0 ? `${w.first_time}/${w.finished} tasks the first time` : ""].filter(Boolean).join(" · ");
   const said = w && w.merged >= 3 ? [w.usd_per_merged != null ? `${money(w.usd_per_merged)} a result` : "", `${w.first_time}/${w.finished} the first time`] : [];
-  return [today, ...said].filter(Boolean).join(" · ");
+  return [today, ...said, checkWords(role)].filter(Boolean).join(" · ");
+}
+
+/** A checker's check of the last 7 days, the end of its muted line (spec 43 §4.1): *its check: 6 ideas, caught 2*; "" before one. */
+export function checkWords(role) {
+  const c = role.check_week;
+  return c && c.checks > 0 ? `its check: ${c.checks} ${c.checks === 1 ? "idea" : "ideas"}, caught ${c.caught}` : "";
 }
 
 /** A role's words for a screen reader: "Docs scribe: an elf, Design, Seasoned; up to 2 at once; about $0.40 a task". */

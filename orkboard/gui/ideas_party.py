@@ -1,11 +1,11 @@
 """A goal's party measured (docs/specs/43-party-measured.md) as `gui/ideas.py`'s `Ideas` has it: `ideas.party`, what the party did
 (realm/party_work.py) and `ideas.party_price`, about what a party costs before it starts (realm/party_price.py). They read and change nothing;
-D to F add their commands here. Split from ideas.py to keep it under ~600 lines.
+`ideas.party_answer`, the person's answer to the night's proposal about a party (realm/party_proposals.py). E and F add their commands here. Split from ideas.py to keep it under ~600 lines.
 """
 from __future__ import annotations
 
-from orkboard.gui.ideas_args import IdeasError, _opt, _text
-from orkboard.realm import goal_team, ideas, library, party_price, party_work, roles
+from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
+from orkboard.realm import event_log, goal_team, ideas, library, party_price, party_proposals, party_work, roles
 
 
 class PartyMixin:
@@ -29,3 +29,18 @@ class PartyMixin:
         if why := goal_team.seats(team, "" if leader == roles.TASKMASTER else leader):
             raise IdeasError(why)
         return party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, [s for s in every if s in team])
+
+    def party_answer(self, args: dict) -> dict:
+        """`{"goal", "take", "reason"?}`: take the checker the night proposed out of the goal's party (the goal is not read again), or keep it
+        (a decline, which holds until a newer run of eight). Spec 43 §4.2."""
+        goal = _text(args, "goal", 100)
+        if not isinstance(args.get("take"), bool):
+            raise IdeasError("take is true or false")
+        reason = args.get("reason") if isinstance(args.get("reason"), str) else ""
+        try:
+            by = party_proposals.answer(self.root(), self.state_dir, goal, args["take"], reason)
+        except ValueError as e:
+            raise IdeasError(str(e)) from None
+        self._ev(event_log.PARTY_ANSWERED, args, goal=goal, by=by, take=args["take"], has_reason=bool(reason.strip()))
+        self.changed(f"goal:{goal}")
+        return {"ok": True}

@@ -88,6 +88,8 @@ class StubHost:
         self.chip_extra: dict[str, dict] = {}             # spec 41 §3: a chip's short / idea_short, by task id
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`)
         self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
+        self.check_week: dict[str, dict] = {}             # spec 43 §4.1: a checker's check of the last 7 days by slug (`check_week`)
+        self.party_rows: list[dict] = []                  # spec 43 §4.2: Needs you's `party` rows
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}
         self.limits = [{"provider": "claude", "name": "Claude", "left": 0.62,
                         "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
@@ -128,7 +130,7 @@ class StubHost:
                        **({"asked": self.goals["grow"]["asked"]} if self.goals.get("grow", {}).get("asked") else {})},
                base | {"kind": "proposal", "idea": "tags", "goal": "grow", "title": "Tag the notes", "text": "Tags make a long list findable."}]
         gone = set(self.proposals) | set(self.asked)            # answered: out of the list
-        return [n for n in out if (n["idea"] or n["goal"]) not in gone]
+        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + self.party_rows
 
     def goal(self, slug, title, priority, state, order=1, **more):
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": order, "count": 0, "priority": priority,
@@ -215,10 +217,11 @@ class StubHost:
                        "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
                         "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "usd_task": self.usd_task.get(r["slug"]),
-                        "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
+                        "head": r.get("head"), **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})}
+                       for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
-            return {"roles": [r | {"spend_today": 0, "record": self.record.get(r["slug"])} | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
+            return {"roles": [r | {"spend_today": 0, "record": self.record.get(r["slug"])} | ({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {}) | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
                     "kinds": self.kind_list(),
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
                                {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],
@@ -253,6 +256,9 @@ class StubHost:
                                          title_by="person" if a.get("title") else old.get("title_by", "keeper"),
                                          leader=self.leader(a.get("leader")) or old.get("leader"))
             return self.bump({"slug": slug})
+        if name == "ideas.party_answer":               # spec 43 D: a party's proposal answered
+            self.party_rows = [n for n in self.party_rows if n["goal"] != a["goal"]]
+            return self.bump({"ok": True})
         if name == "ideas.party_price":                # spec 43 C: about what an idea costs with this party
             return party_price(a, self.learned)
         if name == "ideas.party":                      # spec 43 B: what the goal's party did

@@ -24,7 +24,7 @@ const later = {
 };
 
 // What needs the person, by kind, as orkUI's pixel icon (as the desktop's js/orkui.js NEED_ICONS).
-const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb",
+const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb", party: "lightbulb",
   op: "checkbox", op_failed: "square-alert", op_rules: "sliders" };
 const MAX_FILE = 5 * 1024 * 1024;
 const isList = /^([-*+]|\d+[.)])\s+/;
@@ -222,8 +222,23 @@ export function makeNeeds(core, ctx, ops) {
           reason, h("button", { class: "ork-btn", type: "button", onclick: () => act(false) }, "No")), limitsNote(st.snap)));
   }
 
+  // -- the night's proposal about a party (spec 43 §4.2): Take it out, or Keep it with a line why, answered in its row; never counted --------------
+  function party(n) {
+    const reason = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: "Why not? (optional, one line)" });
+    const answer = async (take) => {
+      const r = await core.call("ideas.party_answer", { goal: n.goal, take, ...(!take && reason.value.trim() ? { reason: reason.value.trim() } : {}) });
+      if (r) core.refresh();
+    };
+    return h("div", { class: "card need need-party", "data-kind": "party", "data-goal": n.goal },
+      h("span", { class: "need-mark" }, icon(ICONS.party)),
+      h("span", { class: "need-text" }, h("b", {}, n.title), n.text ? h("small", {}, n.text) : null,
+        h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => answer(true) }, "Take it out"),
+          reason, h("button", { class: "ork-btn", type: "button", onclick: () => answer(false) }, "Keep it"))));
+  }
+
   function row(n) {
     if (n.kind === "proposal") return proposal(n);
+    if (n.kind === "party") return party(n);
     if (n.kind === "goal" || n.kind === "asks") return swipeable(quick(n), n);
     const go = () => {
       if (n.kind === "op") ops.openCheck(n.op);
@@ -247,7 +262,7 @@ export function makeNeeds(core, ctx, ops) {
     /** What the screen shows, to draw it again only when it changed. */
     key: () => JSON.stringify([waiting(), showLater, waiting().map((n) => later.has(n)), Boolean(st.snap?.limits)]),
     /** How many rows wait on the person now (the ones put away Later aside): the top bar's ! says it. */
-    count: () => waiting().filter((n) => !later.has(n)).length,
+    count: () => waiting().filter((n) => !later.has(n) && n.kind !== "party").length,
     /** The screen's nodes: every goal's rows, then the ones put away, folded. */
     draw() {
       const all = waiting(), now = all.filter((n) => !later.has(n)), away = all.filter((n) => later.has(n));

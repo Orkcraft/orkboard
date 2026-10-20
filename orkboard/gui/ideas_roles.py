@@ -13,11 +13,12 @@ from __future__ import annotations
 import datetime as dt
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import board_map, event_log, idea_spend, idea_target, ideas, library, roles
+from orkboard.realm import board_map, event_log, idea_spend, idea_target, ideas, library, party_work, roles
 from orkboard.realm.idea_words import short_of
 
 
 RECORD_DAYS = 30                   # an agent's record: the last 30 days (spec 42 §4)
+CHECK_WEEK = 7                     # a checker's check, the muted line under its name: the last 7 days (spec 43 §4.1)
 
 
 class RolesMixin:
@@ -61,13 +62,28 @@ class RolesMixin:
             return {"days": RECORD_DAYS, **{k: row.get(k, 0) for k in ("plans", "finished", "first_time")}}
         return {"days": RECORD_DAYS, **{k: row.get(k) for k in ("finished", "merged", "first_time", "usd_per_merged")}}
 
+    def _checker_record(self, slug: str, days: int) -> dict | None:
+        """A checker's check over the last `days` (realm/party_work.py `check_record`); None for an agent that brings no check."""
+        a = library.get(slug)
+        return party_work.check_record(self.root(False), self.state_dir, slug, days) if a is not None and a.check is not None else None
+
+    def _with_check(self, record: dict | None, slug: str) -> dict | None:
+        """An agent's record with its check of the last 30 days when it is a checker (spec 43 §4.1); a checker with no task has the record
+        of its check alone."""
+        check = self._checker_record(slug, RECORD_DAYS)
+        if check is None:
+            return record
+        return {**(record or {"days": RECORD_DAYS}), "check": check}
+
     def roles(self, args: dict) -> dict:
         spent, week, kinds = self._role_spend(), idea_spend.by_role(self.state_dir), roles.kinds(self.state_dir)
         record = idea_spend.by_role(self.state_dir, days=RECORD_DAYS)
         target, costs = self._target(), idea_spend.tier_costs(self.state_dir)
         mine = [{**r, "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]),
                  "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r),
-                 "head": roles.head(r, target), "record": self._record(record.get(r["slug"]), r["slug"]), "usd_task": self._usd_task(r, week, costs, target),
+                 "head": roles.head(r, target), "record": self._with_check(self._record(record.get(r["slug"]), r["slug"]), r["slug"]),
+                 "usd_task": self._usd_task(r, week, costs, target),
+                 **({"check_week": c} if (c := self._checker_record(r["slug"], CHECK_WEEK)) is not None else {}),
                  **({"told": roles.TOLD[r["slug"]]} if r["slug"] in roles.TOLD else {})}
                 for r in roles.roles(self.state_dir)]
         have = {r["slug"] for r in mine}
@@ -187,7 +203,8 @@ class RolesMixin:
             block = {"role": r["slug"], "name": "Grunts" if r["slug"] == roles.GRUNT and r["name"] == "Grunt" else r["name"],
                      "model": r["model"], "max_parallel": r["max_parallel"], "builtin": r["builtin"],
                      "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]), "head": roles.head(r, target),
-                     "usd_task": self._usd_task(r, week, costs, target)}
+                     "usd_task": self._usd_task(r, week, costs, target),
+                     **({"check_week": c} if (c := self._checker_record(r["slug"], CHECK_WEEK)) is not None else {})}
             if r["slug"] == roles.TASKMASTER:
                 out.append({**block, "state": mode, "waits_on": waits, "chips": chips})
             else:

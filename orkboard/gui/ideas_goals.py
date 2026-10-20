@@ -13,7 +13,7 @@ from typing import Any
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.hooks.warder import is_secret
-from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, roles
+from orkboard.realm import event_log, goal_team, goal_verdict, idea_questions, idea_words, ideas, library, party_proposals, roles
 
 
 DOC_CHARS = 100_000
@@ -193,7 +193,7 @@ class GoalsMixin:
                             "questions": g["questions"][:5], "asked": asked,
                             "priority": g["priority"], "blocks": False,
                             "at": ideas.goal_state(self.state_dir, g["slug"])["read_time"]})
-        return out
+        return out + party_proposals.rows(self.root(False), self.state_dir, goals)       # a party's proposal waits too (spec 43 §4.2)
 
 
 def _what_it_says(g: dict) -> tuple:
