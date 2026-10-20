@@ -32,6 +32,39 @@ export function waitsWords(w) {
 /** *≈$4.20 of work at API prices, not your bill.* */
 export const usdWords = (usd) => `≈$${usd.toFixed(2)} of work at API prices, not your bill.`;
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "12–18 October", or "28 September–4 October" across a month. */
+export function rangeWords(from, to) {
+  const [, m1, d1] = from.split("-").map(Number), [, m2, d2] = to.split("-").map(Number);
+  return m1 === m2 ? `${d1}–${d2} ${MONTHS[m2 - 1]}` : `${d1} ${MONTHS[m1 - 1]}–${d2} ${MONTHS[m2 - 1]}`;
+}
+
+/** 42 min · 3 h (from 2 hours) · 2 days (from 48 hours). */
+export function durationWords(minutes) {
+  if (minutes < 120) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} days`;
+}
+
+const dollars = (usd) => `≈$${usd < 10 ? usd.toFixed(2).replace(/\.00$/, "") : Math.round(usd)}`;
+
+/** The ISO week (`2026-W42`) of a date. */
+export function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const year = d.getUTCFullYear();
+  return `${year}-W${String(Math.ceil(((d - Date.UTC(year, 0, 1)) / 86400000 + 1) / 7)).padStart(2, "0")}`;
+}
+
+/** Last week's card ahead of the others (the recap's comes after it); `via`: where it was asked from (the drawer's row says "map"). */
+export function pushWeek(core, data, via = "") {
+  core.st.cards = [{ kind: "week", data }, ...core.st.cards.filter((c) => c.kind !== "week")];
+  core.call("ideas.log", { event: "opened", what: "week", ref: data.week, device: "phone", ...(via ? { via } : {}) });
+  core.draw();
+}
+
 /** `core`: the board's frame (open, go, draw). Returns {section(card), close()}. */
 export function makeCards(core) {
   const st = core.st;
@@ -66,13 +99,46 @@ export function makeCards(core) {
     return lines;
   }
 
+  const goalLink = (f, text) => link(text, () => core.open({ kind: "goal", slug: f.goal }, "week"));
+  const ideaLink = (i, text) => link(text, () => core.open({ kind: "idea", slug: i.slug }, "week"));
+
+  /** Last week's lines (spec 42 §7.2), each only when it has something to say. */
+  function week(w) {
+    const into = w.into || "dev", pct = (a) => `${Math.round((a.first_time / a.merged) * 100)} %`;
+    const lines = [];
+    if (w.merged > 0) {
+      const sure = w.first_time ? `${pct(w)}${w.before ? `; the week before ${pct(w.before)}` : ""}` : "";
+      lines.push(h("p", { class: "away-merged" }, `${resultsWords({ tasks: w.merged, first_time: w.first_time }, into)}${sure ? ` (${sure})` : ""}`));
+    }
+    if (w.usd_per_merged != null) {
+      lines.push(h("p", { class: "away-usd" }, `${dollars(w.usd_per_merged)} a result${w.before?.usd_per_merged != null ? ` (the week before ${dollars(w.before.usd_per_merged)})` : ""}`));
+    }
+    if ((w.goals || []).length) {
+      lines.push(h("p", { class: "away-goals" }, "Goals: ", ...joined(w.goals.map((g, n) => h("span", {}, goalLink(g, g.short), n === 0 ? `, ${g.done} ${g.done === 1 ? "idea" : "ideas"} done` : `, ${g.done}`)), " · ")));
+    }
+    if ((w.flags || []).length) {
+      lines.push(h("p", { class: "away-flag" }, "Flags: ", ...joined(w.flags.map((f) => h("span", {}, goalLink(f, f.short), f.met ? ", met" : ", not met yet")), "; ")));
+    }
+    const extremes = [w.dearest && h("span", {}, "Cost the most: ", ideaLink(w.dearest, w.dearest.short), `, ${dollars(w.dearest.usd)}`),
+      w.fastest && h("span", {}, `Fastest from idea to ${into}: `, ideaLink(w.fastest, w.fastest.short), `, ${durationWords(w.fastest.minutes)}`)].filter(Boolean);
+    if (extremes.length) lines.push(h("p", { class: "away-extremes" }, ...joined(extremes, " · ")));
+    if (w.answers) {
+      const left = w.answers.decided ? `; ${w.answers.decided} ${w.answers.decided === 1 ? "card" : "cards"} left to the Taskmaster` : "";
+      lines.push(h("p", { class: "away-answers" }, `Questions: ${w.answers.recommended} of ${w.answers.answers} answers were the recommended one${left}`));
+    }
+    const nights = weekNights(w.nights);
+    if (nights) lines.push(h("p", { class: "away-nights" }, nights.replace("The last 7 nights", "Nights")));
+    return lines.length ? lines : [h("p", { class: "muted" }, "Nothing was merged or finished.")];
+  }
+
   /** The card for the first one waiting; null when none. */
   function section(card) {
     if (!card) return null;
-    const label = "While you were away";
+    const isWeek = card.kind === "week";
+    const label = isWeek ? "Last week" : "While you were away";
     const el = h("section", { class: "ork-card away", "aria-label": label, "data-card": card.kind },
-      h("header", { class: "away-head" }, h("h3", {}, `${label} · ${awayWords(card.data.hours)}`)),
-      h("div", { class: "away-lines" }, ...recap(card.data)),
+      h("header", { class: "away-head" }, h("h3", {}, isWeek ? `${label} · ${rangeWords(card.data.from, card.data.to)}` : `${label} · ${awayWords(card.data.hours)}`)),
+      h("div", { class: "away-lines" }, ...(isWeek ? week(card.data) : recap(card.data))),
       h("footer", { class: "away-foot" }, h("button", { class: "ork-btn quiet", type: "button", onclick: close }, "Close")));
     el.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
     return el;

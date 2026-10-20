@@ -12,6 +12,7 @@ import { PRIORITY_WORDS, ask } from "./store.js";
 import { mapData, mapSince, mapFolded, mapUi, mapView, preview, lookKey, logOpened, showIdea, showTask, showGoal, act as run } from "../shell/store.js";
 import { skippable, spares } from "./idea.js";
 import { Cards } from "./cards.js";
+import { showWeek } from "../shell/look.js";
 import { openDialog } from "../shell/modals.js";
 import { TASK_STATE, nodeView, tiersOf, wavesOf, spentWords, goalState, progressOf, leftToDo, trailCurve, trailEdges, tallyWords, flagWords } from "./maplayout.js";
 
@@ -251,17 +252,17 @@ function MapFoot({ m }) {
     ask("ideas.flags").then((got) => { if (on && got) setFlags(got.flags || []); });
     return () => { on = false; };
   }, [open, met, m.rev]);
-  if (!met) return null;
   const fold = () => { mapFolded.value = open ? mapFolded.value.filter((x) => x !== FLAGS_OPEN) : [...mapFolded.value, FLAGS_OPEN]; };
   return html`<div class="map-foot">
-    <section class="map-flags" aria-label="Flags">
+    ${met > 0 && html`<section class="map-flags" aria-label="Flags">
       <button type="button" class="board-link map-flags__btn" aria-expanded=${open} onClick=${fold}>Flags (${met})</button>
       ${open && html`<ul class="map-flags__list">${(flags || []).map((f) => html`<li key=${f.goal}>
         <button type="button" class="map-flag" onClick=${() => showGoal(f.goal, { via: "flags" })}>
           <span class="map-flag__mark" aria-hidden="true"><${Icon} name="flag" /></span>
           <span class="map-flag__body"><b>${f.title}</b><span class="ok-font-status ok-tone-muted">${flagWords(f)}</span>
             <span class="ok-font-status ok-tone-muted">${tallyWords(f.tally)}</span></span></button></li>`)}</ul>`}
-    </section>
+    </section>`}
+    <button type="button" class="board-link map-foot__week" onClick=${showWeek}>Last week</button>
   </div>`;
 }
 

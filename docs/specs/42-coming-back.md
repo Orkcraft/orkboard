@@ -491,3 +491,10 @@ only if the pusher's tick cannot ride the host's), `gui/static/pwa/util.js` (A, 
 - `board_week.nights(root, settings, now, n)` and `this_week(...)` take the **project's folder** as `root` (where the event log is), as `board_recap.build` does; `this_week` also takes `ops_base` (Operations' folder, whose `spend.jsonl` is its ledger; `ideas.week_work` passes `op_runs.root()`) and `into`. `idea_spend` gained `between_file` for it.
 - `ops_usd` is `0.0` when Operations spent nothing and the face leaves a zero out as it leaves a null; with nothing priced in either, line 1 is not said. With no result in the week, line 2 says *No results in dev in the last 7 days*.
 - On the phone *New idea* presses the Board's own button (`.fab`) after the sheet closes, so New idea opens with the goal the Board shows.
+
+### G. Last week
+- `ideas.week` carries `into` (the Board's merge branch) beside §7.1's fields: line 1 and the *Fastest from idea to dev* part name it.
+- *3 h from 120 minutes* in §7.2 line 5 reads as a slip (120 minutes are 2 hours): a duration is minutes below 120 (*42 min*), hours (rounded down) below 48 hours (*2 h*), days from there.
+- `last_week` takes the project's folder as `root` (the event log) and its nights are the seven that end Monday to Sunday of that week. A week that has not ended counts only the nights that have. The recap and the week check ask their own question: the week's key is written when the answer is empty too, so it is not asked again before the next week.
+- Line 3 of the card names a goal by its short name, the first with *N ideas done*, the others with the number alone; *Nights* adds *N Orkline was not running* when a night was off, as This week does.
+- The phone's drawer row **Last week** is under *This phone*; the desktop's link is at the foot of the Map (it is there with no flag too).

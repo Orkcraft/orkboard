@@ -268,6 +268,20 @@ def between(state_dir: Path, since: dt.datetime, now: dt.datetime) -> float | No
     return _in(_all_lines(state_dir), since, now)
 
 
+def by_idea_between(state_dir: Path, since: dt.datetime, now: dt.datetime) -> dict[str, float]:
+    """What each idea's ledger lines in `[since, now)` cost (priced lines only); an idea with none priced is left out."""
+    out: dict[str, float] = {}
+    for r in _all_lines(state_dir):
+        try:
+            at = dt.datetime.fromisoformat(str(r.get("at") or ""))
+        except ValueError:
+            continue
+        cost = _num(r.get("cost"))
+        if r.get("idea") and cost is not None and since <= at.astimezone() < now:
+            out[r["idea"]] = out.get(r["idea"], 0.0) + float(cost)
+    return out
+
+
 def between_file(path: Path, since: dt.datetime, now: dt.datetime) -> float | None:
     """The same over one ledger file (Operations', `ops/spend.jsonl`)."""
     return _in(read(path), since, now)

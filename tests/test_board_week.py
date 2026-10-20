@@ -114,3 +114,82 @@ def test_ideas_week_work_is_the_hosts_and_a_phones_and_needs_a_project(fake_repo
     goal = ideas.save_goal(host.ideas.root(), None, "Offline", "About", None, "low")[0]
     host.command("ideas.add", {"text": "Wait for the night", "track": goal, "night": True})
     assert host.command("ideas.week_work", {})["tonight"] == 1
+
+
+# -- last week (spec 42 §7) ---------------------------------------------------------------------------------------
+
+def _rows():
+    return {"ideas": [{"slug": s, "short": s.title(), "title": f"The {s}", "track": g, "state": "done"}
+                      for s, g in (("export", "offline"), ("table", "offline"), ("queue", "offline"), ("bill", "billing"), ("loose", "general"))],
+            "tracks": [{"slug": g, "short": g.title(), "title": f"{g.title()} goal"} for g in ("offline", "billing", "general")]}
+
+
+def test_last_week_defaults_to_the_last_full_week_and_counts_results_and_the_week_before(root, tmp_path):
+    state = tmp_path / "state"
+    for n, (day, rnd) in enumerate(((13, 1), (14, 1), (15, 2), (16, 1))):                            # 4 results last week, 3 the first time
+        log(root, "task_state", at(day, 10), idea="export", task=f"k{n}", state="merged", was="review", round=rnd)
+    log(root, "task_state", at(20, 9), idea="export", task="now", state="merged", was="review", round=1)      # this week: not counted
+    for n, rnd in enumerate((1, 1, 2)):                                                                # the week before: 3 results, 2 first time
+        log(root, "task_state", at(7, 10 + n), idea="export", task=f"p{n}", state="merged", was="review", round=rnd)
+    _ledger(state, "export", at(14, 11), 8.0)
+    _ledger(state, "export", at(5, 11), 9.0)
+    got = board_week.last_week(root, state, SETTINGS, NOW, _rows())
+    assert (got["week"], got["from"], got["to"]) == ("2026-W42", "2026-10-12", "2026-10-18")
+    assert (got["merged"], got["first_time"], got["usd"], got["usd_per_merged"]) == (4, 3, 8.0, 2.0)
+    assert got["before"] == {"merged": 3, "first_time": 2, "usd_per_merged": 3.0} and got["into"] == "dev" and got["streak"] == 0
+    other = board_week.last_week(root, state, SETTINGS, NOW, _rows(), week="2026-W41")
+    assert (other["from"], other["merged"], other["before"], other["usd_per_merged"]) == ("2026-10-05", 3, None, 3.0)
+
+
+def test_last_week_goals_flags_dearest_fastest_answers_and_nights(root, tmp_path):
+    state = tmp_path / "state"
+    for slug, day in (("export", 13), ("table", 14), ("queue", 15), ("bill", 16), ("loose", 16)):
+        log(root, "keeper_state", at(day, 12), idea=slug, state="done", was="working")
+    log(root, "keeper_state", at(8, 12), idea="bill", state="done", was="working")                   # the week before: not counted
+    log(root, "goal_accepted", at(16, 9), goal="billing", met=False, by="Growth")
+    log(root, "goal_accepted", at(17, 9), goal="billing", met=True, by="Growth")
+    log(root, "goal_accepted", at(17, 9), goal="gone", met=True, by="Growth")
+    _ledger(state, "table", at(14, 9), 12.0)
+    _ledger(state, "export", at(14, 9), 3.0)
+    _ledger(state, "bill", at(14, 9), 0.004)
+    log(root, "idea_added", at(14, 8), idea="export", track="offline")
+    log(root, "idea_added", at(14, 9, 18), idea="table", track="offline")
+    log(root, "task_state", at(14, 10), idea="export", task="k1", state="merged", was="review", round=1)         # 2 h after it was added
+    log(root, "task_state", at(14, 10), idea="table", task="k1", state="merged", was="review", round=1)          # 42 min
+    log(root, "task_state", at(15, 10), idea="table", task="k2", state="merged", was="review", round=1)
+    log(root, "idea_answered", at(14, 12), idea="export", answers=5, picked=5, recommended=4, typed=0, decided=True)
+    log(root, "goal_answered", at(15, 12), goal="offline", answers=7, picked=7, recommended=5, typed=0, decided=False)
+    run(root, at(15, 2), drafted=1)
+    got = board_week.last_week(root, state, SETTINGS, NOW, _rows())
+    assert got["goals"] == [{"goal": "offline", "short": "Offline", "title": "Offline goal", "done": 3},
+                            {"goal": "billing", "short": "Billing", "title": "Billing goal", "done": 1}]       # General's idea is not a goal's
+    assert got["flags"] == [{"goal": "billing", "short": "Billing", "title": "Billing goal", "met": True, "by": "Growth"}]
+    assert got["dearest"] == {"slug": "table", "short": "Table", "title": "The table", "usd": 12.0}               # under a cent is no cost
+    assert got["fastest"] == {"slug": "table", "short": "Table", "title": "The table", "minutes": 42}
+    assert got["answers"] == {"answers": 12, "recommended": 9, "decided": 1}
+    assert got["nights"] == {"worked": 1, "idle": 0, "off": 6} and got["empty"] is False
+
+
+def test_a_quiet_week_is_empty_with_null_answers_and_a_deleted_idea_is_left_out(root, tmp_path):
+    state = tmp_path / "state"
+    got = board_week.last_week(root, state, SETTINGS, NOW, _rows())
+    assert got["empty"] is True and got["answers"] is None and got["dearest"] is None and got["fastest"] is None and got["before"] is None
+    log(root, "keeper_state", at(14, 12), idea="deleted", state="done", was="working")
+    _ledger(state, "deleted", at(14, 9), 5.0)
+    again = board_week.last_week(root, state, SETTINGS, NOW, _rows())
+    assert again["goals"] == [] and again["dearest"] is None and again["empty"] is True
+    log(root, "goal_accepted", at(14, 12), goal="offline", met=True, by="PM")
+    assert board_week.last_week(root, state, SETTINGS, NOW, _rows())["empty"] is False                          # a flag alone makes it
+
+
+def test_ideas_week_is_the_hosts_and_a_phones_and_checks_its_week(fake_repo):
+    with pytest.raises(CommandError, match="Open a folder first"):
+        Orkboard().command("ideas.week", {})
+    host = Orkboard(fake_repo)
+    assert BoardPhone.allowed(host, "ideas.week", {})
+    got = host.command("ideas.week", {})
+    json.dumps(got)
+    assert got["empty"] is True and got["week"] and host.command("ideas.week", {"week": "2026-W42"})["from"] == "2026-10-12"
+    for bad in ("last", 5, "2026-W99"):
+        with pytest.raises(CommandError, match="ISO week"):
+            host.command("ideas.week", {"week": bad})
