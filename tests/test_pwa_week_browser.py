@@ -69,6 +69,28 @@ async def test_tonight_says_how_many_wait(fake_repo, monkeypatch):
         assert lines[0] == "≈$46 of work at API prices in this project: not your bill" and lines[-1] == "Tonight: 3 wait"
 
 
+@pytest.mark.asyncio
+async def test_the_week_line_says_what_low_work_does_and_last_weeks_unused_share(fake_repo, monkeypatch):
+    ANSWER.update(week={"left": 0.2, "rest": 1 / 7, "pace": "behind", "reset": 0}, last_unused=0.3)
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        sheet = await _sheet(page)
+        lines = [" ".join(t.split()) for t in await sheet.locator(".week p").all_text_contents()]
+        assert "The week: 20 % left with 1 day to go: Low work waits until the week comes back" in lines
+        assert "Last week ended with 30 % unused" in lines
+
+
+@pytest.mark.asyncio
+async def test_the_phones_rows_and_stops_say_the_pace(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        got = await page.evaluate("""async () => {
+          const src = [...document.scripts].map((s) => s.src).find(Boolean) || document.baseURI;
+          const i = await import(new URL('shell-ideas.js', src).href), m = await import(new URL('shell-map.js', src).href);
+          return [i.rowState({ state: "raw", queue: "night", night_by: "board" }).text, i.rowState({ state: "raw", queue: "night" }).text,
+            i.rowState({ state: "plan", start_at: "night", night_by: "board" }).text, m.waitsWords({ state: "ready", waits: { kind: "week", until: "2026-10-26T09:00" } })]; }""")
+        assert got == ["tonight, or sooner if the week has room", "tonight", "starts tonight, or sooner if the week has room",
+                       "waits: the week is behind · until Mon 09:00"]
+
+
 # -- spec 42 G: Last week ----------------------------------------------------------------------------------------------
 
 import datetime as dt  # noqa: E402

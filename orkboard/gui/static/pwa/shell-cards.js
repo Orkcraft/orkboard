@@ -172,6 +172,15 @@ export function weekResults(w) {
   return `${resultsWords({ tasks: w.merged, first_time: w.first_time }, w.into || "dev")}${w.usd_per_merged != null ? ` · ≈$${w.usd_per_merged.toFixed(2)} a result` : ""}`;
 }
 
+/** *The week: 55 % left with 2 days to go: Low work starts by day*; "" with no week read (spec 44 §5). */
+export function weekPace(w) {
+  if (!w?.week) return "";
+  const { left, rest, pace } = w.week;
+  const days = Math.max(1, Math.ceil(rest * 7 - 1e-9));
+  const does = { ahead: "Low work starts by day", even: "Low work waits for the night", behind: "Low work waits until the week comes back" }[pace] || "";
+  return `The week: ${Math.round(left * 100)} % left with ${days} ${days === 1 ? "day" : "days"} to go${does ? `: ${does}` : ""}`;
+}
+
 /** *The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running*: parts at 0 left out. */
 export function weekNights(n) {
   const parts = [n.worked && `${n.worked} with work done`, n.idle && `${n.idle} with none`, n.off && `${n.off} Orkline was not running`].filter(Boolean);
@@ -191,6 +200,8 @@ export function makeWeek(core, newIdea) {
     const money = weekMoney(w), nights = weekNights(w.nights);
     body.replaceChildren(...[money ? h("p", { class: "week-usd" }, money) : null, h("p", { class: "week-results" }, weekResults(w)),
       nights ? h("p", { class: "week-nights" }, nights) : null,
+      weekPace(w) ? h("p", { class: "week-pace" }, weekPace(w)) : null,
+      w.last_unused != null ? h("p", { class: "week-unused" }, `Last week ended with ${Math.round(w.last_unused * 100)} % unused`) : null,
       w.streak >= 2 ? h("p", { class: "week-streak" }, `${w.streak} nights in a row`) : null,
       w.night_on ? (w.tonight > 0 ? h("p", { class: "week-tonight" }, `Tonight: ${w.tonight} wait`)
         : h("p", { class: "week-tonight" }, "Nothing waits for tonight · ", h("button", { class: "linkish", type: "button", onclick: () => { sh.close(); newIdea(); } }, "New idea"))) : null].filter(Boolean));
