@@ -182,3 +182,12 @@ changed.
   and Let the Taskmaster decide.
 - **C** (browser): the Board tab's warning count; short names on the Map and the goals' list; an agent's line;
   Recommended pressed in Needs you and the ask dialog; Let the Taskmaster decide.
+
+## 12. As built (notes, no change of the contract)
+- **A role's line** carries no week any more but the Taskmaster's: `usd_task` says what a task of the others costs (§8); the first-time share and
+  *today's spend* left the line with the model in words.
+- **Add agent** opens a sheet titled *Add an agent* (the library's agents, and *Your own*); *Your own* is today's *Add agent* sheet.
+- **The drawer's head** is the project's name (the sheet's title); the goal's documents are on the goal's screen only, not in the drawer.
+- **New goal** starts with *Engineering* picked (its party in the seats), so Save goal needs only the description.
+- **The desktop's count**: both the Board pane's *Needs you* tab and, below 1 024 px, the shell's Board tab carry `.ork-count.warning`.
+- **Speak**'s label is *Speak the idea* (so a test finds the field by `exact` name, "The idea").
