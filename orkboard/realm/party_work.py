@@ -184,13 +184,14 @@ def check_record(root: Path, state_dir: Path, by: str, days: int, now: dt.dateti
             "usd_per_check": round(usd / row["checks"], 2) if row["checks"] >= idea_spend.TOO_FEW and usd is not None else None}
 
 
-def quiet_run(root: Path, state_dir: Path, goal: str, by: str) -> str | None:
+def quiet_run(root: Path, state_dir: Path, goal: str, by: str, oldest: bool = False) -> str | None:
     """When the checker's newest `QUIET_RUN` check tasks in this goal's ideas all ended clean in round 1: the time the newest of them
-    finished (a decline of it is older than that); else None. A check that failed, was sent back or found something ends the run."""
+    finished (the oldest with `oldest`: a decline holds until all eight are after it); else None. A check that failed, was sent back or
+    found something ends the run."""
     done: list[tuple[str, str]] = []
     for i in ideas.ideas(root, goal):
         for t in (ideas.plan(state_dir, i["slug"]) or {}).get("tasks") or []:
             if str(t.get("kind") or "") in idea_checks.TAGS and check_by(t) == by and t.get("finished") and t.get("state") in ("merged", "review", "failed"):
                 done.append((str(t["finished"]), _verdict(t)))
     newest = sorted(done, reverse=True)[:QUIET_RUN]
-    return newest[0][0] if len(newest) == QUIET_RUN and all(v == "clean" for _at, v in newest) else None
+    return newest[-1 if oldest else 0][0] if len(newest) == QUIET_RUN and all(v == "clean" for _at, v in newest) else None

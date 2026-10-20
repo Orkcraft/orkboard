@@ -258,3 +258,11 @@ def test_a_check_that_found_nothing_is_no_result_in_the_week_or_in_last_week(roo
     log(root, "task_state", at(14, 10), idea="export", task="k2", state="merged", was="review", round=1)
     last = board_week.last_week(root, tmp_path / "state", SETTINGS, NOW, _rows())
     assert (last["merged"], last["first_time"]) == (1, 1) and last["fastest"]["minutes"] == 120
+
+
+def test_a_night_where_only_a_clean_check_merged_is_not_worked(root):
+    log(root, "task_state", at(19, 3), idea="a", task="k1", state="merged", was="running", round=1, check=True, clean=True)
+    run(root, at(19, 1, 5))
+    log(root, "task_state", at(18, 3), idea="a", task="k2", state="merged", was="review", round=1)
+    got = board_week.nights(root, SETTINGS, NOW, n=3)
+    assert [(n["date"], n["kind"]) for n in got] == [("2026-10-20", "off"), ("2026-10-19", "idle"), ("2026-10-18", "worked")]
