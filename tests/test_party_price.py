@@ -107,7 +107,7 @@ def test_ideas_party_price_is_the_hosts_and_a_phones_and_checks_the_party(host):
     assert BoardPhone.allowed(host, "ideas.party_price", {})
     got = host.command("ideas.party_price", {"leader": "architect", "team": ["grunt", "tester", "reviewer"], "every": ["reviewer", "not-in-the-team"]})
     json.dumps(got)
-    assert got["checks"][0]["every"] is True and got["checks"][0]["share"] == 1.0 and set(got) == {"low", "high", "learned", "ideas", "checks"}
+    assert got["checks"][0]["every"] is True and got["checks"][0]["share"] == 1.0 and set(got) == {"low", "high", "learned", "ideas", "checks", "hints"}
     assert host.command("ideas.party_price", {})["checks"] == []                                      # the Taskmaster alone
     for bad, why in (({"leader": "nobody"}, "No agent"), ({"team": "grunt"}, "list of agents"),
                      ({"leader": "architect", "team": ["grunt", "tester", "ui-kit", "artist"]}, "at most 3 builders"),

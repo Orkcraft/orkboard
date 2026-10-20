@@ -361,3 +361,9 @@ else: stop and write it in §11 first.
 - `ideas.roles` and `ideas.agents` gave a checker `check_week`; `record.check` (30 days) is in `ideas.roles` (a checker with no task has a record of its check alone). The check's line in the dialog and the sheet has `aria-label="Its check"` (not "…the last 30 days", which `get_by_label("The last 30 days")` of spec 42's tests would also match).
 - `tests/test_gui_recap.py` used `party` as an example of a word `opened` refuses; it is `OPENED`'s since part B, so the example is `nothing` now (the refusal is as tested before).
 - The phone's cache is `orkcraft-app-v49`.
+
+### E. Hints while picking
+- `Check.fits` is a tuple on the library's checks; `party_hints.hints(root, state_dir, craft, leader, team, every)` (`every` is not used by any of the four) answers at most two, in the spec's order. A checker's hint 1 counts its checks of the last 30 days (`check_record`, so the same 30 s cache), hint 2 is for a goal with a craft (a Mixed goal sends none, and gets no craft hint), hint 3 counts the party's builders and checkers and its leader when that is not the Taskmaster (a library agent by its `takes`, an own agent by its role's), hint 4 is any leader but the Taskmaster with no builder.
+- `ideas.party_price` takes `craft` (anything but a craft is none) and answers `hints`; the faces send the goal's craft (New goal: the picked one, nothing for Mixed; Edit goal and a goal's Team: the goal's), ask again when it changes, and show the hints as muted lines under the price line.
+- `tests/test_party_price.py` says the answer's keys now include `hints`; C's browser tests say the asked arguments include `craft`.
+- The phone's cache is `orkcraft-app-v50`.

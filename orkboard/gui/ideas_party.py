@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import event_log, goal_team, ideas, library, party_price, party_proposals, party_work, roles
+from orkboard.realm import event_log, goal_team, ideas, library, party_hints, party_price, party_proposals, party_work, roles
 
 
 class PartyMixin:
@@ -17,7 +17,8 @@ class PartyMixin:
         return party_work.work(self.root(False), self.state_dir, goal, self._target())
 
     def party_price(self, args: dict) -> dict:
-        """`{"leader", "team", "every"}`: about what an idea costs with this party, before it starts (spec 43 §3.1). Nothing is saved."""
+        """`{"leader", "team", "every", "craft"?}`: about what an idea costs with this party, before it starts (spec 43 §3.1), and `hints`, at
+        most two quiet lines about it (§5; `craft` is the goal's, left out for a Mixed goal). Nothing is saved."""
         leader = _opt(args, "leader") or roles.TASKMASTER
         if leader != roles.TASKMASTER and library.get(leader) is None:
             raise IdeasError(f"No agent {leader!r}")
@@ -28,7 +29,10 @@ class PartyMixin:
         every = [s for s in args.get("every") or [] if isinstance(s, str)] if isinstance(args.get("every"), list) else []
         if why := goal_team.seats(team, "" if leader == roles.TASKMASTER else leader):
             raise IdeasError(why)
-        return party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, [s for s in every if s in team])
+        every = [s for s in every if s in team]
+        craft = _opt(args, "craft")
+        return {**party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, every),
+                "hints": party_hints.hints(self.root(False), self.state_dir, craft, leader, team, every)}
 
     def party_answer(self, args: dict) -> dict:
         """`{"goal", "take", "reason"?}`: take the checker the night proposed out of the goal's party (the goal is not read again), or keep it

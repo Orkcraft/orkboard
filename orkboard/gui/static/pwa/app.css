@@ -307,7 +307,8 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .facts .is-success { color: var(--ork-success); }
 .facts .is-danger { color: var(--ork-danger); }
 .facts .is-muted { color: var(--ork-ink-muted); }
-.party-price { margin: var(--ork-3) 0; }
+.party-price { margin: var(--ork-3) 0 var(--ork-2); }
+.party-hint { margin: 0 0 var(--ork-2); font: var(--ork-type-caption); }
 .party-work > summary { cursor: pointer; color: var(--ork-ink-muted); }
 .party-lines { margin: var(--ork-2) 0 0; padding-left: var(--ork-5); }
 .party-lines li { overflow-wrap: anywhere; }
