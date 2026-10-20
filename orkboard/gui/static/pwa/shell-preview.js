@@ -3,6 +3,7 @@
 // patch folded and scrolling sideways inside its own box — the page never does). Back (and the system back gesture) returns
 // to the tab it came from; its actions sit in a bar pinned at the bottom.
 import { h, icon } from "./util.js";
+import { pointedAt } from "./shell-lens.js";
 import { steady } from "./shell-util.js";
 import { stateWords } from "./shell-board.js";
 import { resultActions, factsOf, mergeReason } from "./shell-review.js";
@@ -158,6 +159,7 @@ export function makePreview(core, ctx) {
     body.replaceChildren(...[
       h("p", { class: "muted" }, [p.size ? `Size ${p.size} · ` : "", stateWords({ state: p.state, progress: { done: (p.plan?.tasks || []).filter((t) => t.state === "merged").length, total: (p.plan?.tasks || []).length } })].join("")),
       stateError(p) ? h("p", { class: "warn", role: "alert" }, stateError(p)) : null,
+      pointedAt(p.lens),
       checksLine(p.checks),
       ...(p.sections || []).map(sectionBlock),
       p.plan && ["plan", "working", "failed", "done"].includes(p.state) ? planList(p.plan, p) : null,

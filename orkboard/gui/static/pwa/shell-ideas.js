@@ -5,6 +5,7 @@ import { h, sheet, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS, hhmm } from "./shell-words.js";
 import { makeIdeaField } from "./shell-idea-field.js";
+import { makeLens } from "./shell-lens.js";
 import { keepGoal } from "./shell-top.js";
 
 const HOLD_MS = 450;                    // a card held this long can be dragged
@@ -41,14 +42,16 @@ export function makeIdeas(core, ctx, goalSheet) {
   let touched = false;                               // the person chose the priority: a goal change leaves it
   priority.el.addEventListener("change", () => { touched = true; });
   const more = makeIdeaField(ctx, field_);
+  const lens = makeLens(core, ctx);                  // what the idea points at, the goal's party's way (shell-lens.js)
   goalPick.addEventListener("change", () => {
     if (!touched) priority.set(tracks().find((t) => t.slug === goalPick.value)?.priority || "normal");
     more.track(goalPick.value);
+    lens.track(goalPick.value);
   });
   const hint = h("p", { class: "muted hint" }, "High and Normal are drafted at once; Low waits for the night. Closing this with text in it keeps the idea for tonight."
     + (more.speaks ? "" : " Speak it with the keyboard’s microphone."));
   const add = h("button", { class: "ork-btn primary big", type: "button" }, "Add");
-  const addSheet = sheet("New idea", field("The idea", field_), more.el, field("Goal", goalPick),
+  const addSheet = sheet("New idea", field("The idea", field_), more.el, field("Goal", goalPick), lens.el,
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, foot(add));
   let saved = false;                                 // a button saved it: closing the sheet after it saves nothing more
   async function drop(night) {
@@ -58,13 +61,15 @@ export function makeIdeas(core, ctx, goalSheet) {
     add.disabled = true;
     const short = text.length > 40 ? `${text.slice(0, 40)}…` : text;
     more.stop();
-    const photos = more.photos();
-    const args = { text, track: goalPick.value, priority: priority.get(), ...(night ? { night: true } : {}), ...(photos.length ? { photos } : {}) };
+    const photos = more.photos(), pointed = lens.value();
+    const args = { text, track: goalPick.value, priority: priority.get(), ...(night ? { night: true } : {}), ...(photos.length ? { photos } : {}),
+      ...(pointed.length ? { lens: pointed } : {}) };
     const r = await ctx.deliver("ideas.add", args, `the idea “${short}”`);
     add.disabled = false;
     if (!r.ok || r.result?.error) { saved = false; ctx.flash(r.error || r.result?.error); return null; }
     field_.value = "";
     more.reset();
+    lens.reset();
     st.track = args.track;                            // the Board shows the goal the idea went to: it is there
     keepGoal(st.snap?.project, args.track);
     return r;
@@ -94,6 +99,8 @@ export function makeIdeas(core, ctx, goalSheet) {
     priority.set(on.priority || "normal");
     more.reset();
     more.track(on.slug);
+    lens.reset();
+    lens.track(on.slug);
     addSheet.open();
     field_.focus();
     if (voice) more.listen();

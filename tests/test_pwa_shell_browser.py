@@ -63,6 +63,9 @@ class Stub:
         self.ideas = {"sync": self.idea("sync", "Sync ideas between the phone and the town", "working", 0),
                       "dark": self.idea("dark", "Dark mode", "plan", 1, in_needs_you=True)}
         self.goals = {"general": self.goal("general", "General", "normal", "ready")}
+        self.lens = {"lenses": [{"id": "text"}], "default": "text", "segments": [], "screens": []}    # ideas.lens
+        self.parts: list[dict] = []                                                                  # ideas.lens_code
+        self.screen_png = ""                                                                         # ideas.lens_screen
         self.roles = {"taskmaster": {"slug": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "instruction": "", "builtin": True},
                       "grunt": {"slug": "grunt", "name": "Grunt", "model": "", "max_parallel": 8, "instruction": "", "builtin": True}}
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
@@ -92,7 +95,8 @@ class Stub:
     def commands(self) -> dict:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
-                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept")
+                 "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
+                 "lens_code", "lens_screen")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -127,7 +131,7 @@ class Stub:
             return {"slug": i["slug"], "title": i["title"], "track": "general", "state": i["state"], "size": "M",
                     "sections": [{"name": n, "thesis": f"{n} in one line", "text": f"{n} in one line\nAnd the {n} at length."} for n in SECTIONS],
                     "talk": [], "plan": copy.deepcopy(self.plan) if a["slug"] == "sync" else None, "busy": False,
-                    "checks": copy.deepcopy(self.checks) if a["slug"] == "sync" else []}
+                    "checks": copy.deepcopy(self.checks) if a["slug"] == "sync" else [], "lens": copy.deepcopy(i.get("lens", []))}
         if name == "ideas.review_list":
             return {"into": self.into, "push": self.push, "branches": ["dev", "main"], "results": self.results()}
         if name == "ideas.agents":
@@ -207,6 +211,12 @@ class Stub:
         if name == "ideas.todo":
             self.todos[0]["done"] = a["done"]
             return self.bump({"ok": True})
+        if name == "ideas.lens":                      # the goal's party's lenses (gui/ideas_lens.py)
+            return copy.deepcopy(self.lens) | {"track": a["track"]}
+        if name == "ideas.lens_code":
+            return {"parts": copy.deepcopy(self.parts)}
+        if name == "ideas.lens_screen":
+            return {"id": a["id"], "name": "Orders", "type": "image/png", "data": self.screen_png}
         if name == "ideas.words":
             g = self.goals.get(a["track"], {})
             return {"track": a["track"], "words": [g.get("title", ""), "Offline mode", "offline", "SyncQueue", "sync_queue.py"]}

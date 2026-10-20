@@ -11,7 +11,7 @@ const MIN_TYPED = 2;                     // letters typed before words are offer
 const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 /** A photo as a JPEG data URL of at most MAX_PX on its longer side. */
-async function shrink(file) {
+export async function shrink(file) {
   const url = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = fail; r.readAsDataURL(file); });
   const img = new Image();
   img.src = url;

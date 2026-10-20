@@ -505,3 +505,36 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .verdict-next { display: flex; flex-direction: column; gap: var(--ork-2); }
 .verdict-next h4 { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
 .verdict-next .row { justify-content: space-between; align-items: center; }
+/* The lens of New idea (shell-lens.js): a row of lenses, then the open one's pane. */
+.lens { display: flex; flex-direction: column; gap: var(--ork-3); }
+.lens-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--ork-2); }
+.lens-bar[hidden], .lens .field-label[hidden] { display: none; }
+.lens-chip { display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 0; padding-left: var(--ork-2); padding-right: var(--ork-2); }
+.lens-chip small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lens-chip[aria-checked="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }
+.lens-chip small { font: var(--ork-type-caption); text-transform: none; }
+.lens-pane { display: flex; flex-direction: column; gap: var(--ork-3); }
+.lens-pane[hidden] { display: none; }
+.lens-chips { flex-wrap: wrap; }
+.lens-parts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 40vh; overflow-y: auto; }
+.lens-part { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; flex-direction: column; gap: var(--ork-1);
+  padding: var(--ork-3) var(--ork-4); border-bottom: var(--ork-line) solid var(--ork-edge); }
+.lens-part[aria-pressed="true"] { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-action); }
+.lens-part.is-near { box-shadow: inset 2px 0 0 var(--ork-frame); }
+.lens-part:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.lens-part small { font: var(--ork-type-caption); }
+.lens-picked { margin: 0; font: var(--ork-type-caption); }
+.lens-screens { display: flex; flex-wrap: wrap; gap: var(--ork-2); }
+.lens-screen[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }
+.lens-stage { position: relative; touch-action: none; user-select: none; border: var(--ork-line) solid var(--ork-edge); }
+.lens-stage[hidden] { display: none; }
+.lens-shot { display: block; width: 100%; height: auto; pointer-events: none; }
+.lens-mark { position: absolute; border: 2px solid var(--ork-alert); background: transparent; }
+.lens-mark b { position: absolute; top: 0; left: 0; padding: 0 var(--ork-1); background: var(--ork-alert); color: var(--ork-canvas); font: var(--ork-type-caption); }
+.lens-marks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--ork-2); }
+.lens-marks li { display: flex; align-items: center; gap: var(--ork-2); }
+.lens-marks li input { flex: 1; min-width: 0; }
+.pointed { display: flex; flex-direction: column; gap: var(--ork-1); }
+.pointed p { margin: 0; }
+.lens-hint { margin: 0; font: var(--ork-type-caption); }
+.lens-chips .ork-btn { font: var(--ork-type-body); text-transform: none; letter-spacing: normal; }   /* the person's own words: never the pixel face */

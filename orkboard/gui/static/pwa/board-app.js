@@ -164,8 +164,9 @@ async function deliver(name, args, label) {
     if (r.ok || r.error !== "The town went away") return r;
   }
   if (outbox.add({ name, args, label, at: Date.now() })) return { ok: true, kept: true };
-  if (args?.photos) {                             // no room for the photos on this phone: the words are kept all the same
+  if (args?.photos || args?.lens?.some((a) => a.image)) {   // no room for the pictures on this phone: the words are kept all the same
     const { photos: _left, ...rest } = args;
+    if (rest.lens) rest.lens = rest.lens.filter((a) => !a.image);
     if (outbox.add({ name, args: rest, label, at: Date.now() })) return { ok: true, kept: true, unphotographed: true };
   }
   return { ok: true, kept: true };
