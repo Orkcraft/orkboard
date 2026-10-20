@@ -59,7 +59,8 @@ class Ops:
         self._servers: tuple[float, list[str]] = (float("-inf"), [])
         self.runner = op_runner.OpRunner(self.base, settings=lambda: self.host.machine.ops,
                                          limits=lambda: self.host.limits(), publish=self._published,
-                                         demo=bool(getattr(host, "demo", False)), cap=self._cap(host))
+                                         demo=bool(getattr(host, "demo", False)), cap=self._cap(host),
+                                         sign_ins=getattr(host, "sign_ins", None))
         if not self.runner.demo:
             self.runner.start()
 

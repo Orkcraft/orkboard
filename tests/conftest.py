@@ -172,3 +172,12 @@ def fake_awake(monkeypatch: pytest.MonkeyPatch) -> None:
     """No test starts `caffeinate` or `systemd-inhibit`, nor reads the power: every host's `Awake` is a fake."""
     from orkboard.gui import awake
     monkeypatch.setattr(awake, "Awake", FakeAwake)
+
+
+@pytest.fixture(autouse=True)
+def _nothing_watches_the_tools():
+    """A host that watches the AI tools' failures (core/sign_ins.py, spec 45) stops watching with its test."""
+    yield
+    from orkboard.realm import tool_errors
+    tool_errors._WATCHERS.clear()
+    tool_errors._OK_WATCHERS.clear()

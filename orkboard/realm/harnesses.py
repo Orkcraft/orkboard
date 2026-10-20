@@ -168,6 +168,12 @@ class Harness:
     # (agy's reasoning is in its model's name).
     run_args: Callable[..., list[str]] | None = None
     no_tools: tuple[str, ...] = ()   # what a reading argv gets to read nothing at all (the night's proposals)
+    # The tool's own sign-in (spec 45 §1): what follows its `bin` (`()`: its session alone), whether it signs in by itself
+    # in the browser it opens (`"browser"`) or only inside its session, which needs a terminal (`"terminal"`), and what the
+    # person types in that session ("" when nothing). `login` stays the words shown.
+    sign_in: tuple[str, ...] = ()
+    sign_in_by: str = "terminal"
+    sign_in_type: str = ""
 
     @property
     def bin(self) -> str:
@@ -283,7 +289,7 @@ register(Harness(
     resumable=True, deploys=True, web=True, priced=True, mark="✻", color="bold #f59e0b", error=claude_error,
     resume_cmd=lambda h, sid: [h.bin, "--resume", sid], call_cmd=_claude_call, read_dirs=_claude_read_dirs,
     read_session=lambda sid, reopen: ["--resume", sid] if reopen else ["--session-id", sid], run_args=_claude_run,
-    no_tools=("--disallowedTools", CLAUDE_NO_TOOLS)))
+    no_tools=("--disallowedTools", CLAUDE_NO_TOOLS), sign_in=("auth", "login"), sign_in_by="browser"))
 register(Harness(
     "agy", "Antigravity", "agy", "see antigravity.google", "agy login",
     {"elder": "gemini-pro-high", "warrior": "gemini-flash-high", "laborer": "gemini-flash-low"},
@@ -297,7 +303,7 @@ register(Harness(
     # `--print` denies every terminal command it would ask about and ends the turn with no answer (1.3.3), so a
     # task whose ork runs its tests first comes back empty. Unchained, it asks nothing; `--sandbox` still holds.
     free_args=("--dangerously-skip-permissions",),
-    resume_cmd=lambda h, sid: [h.bin, "--conversation", sid],
+    resume_cmd=lambda h, sid: [h.bin, "--conversation", sid], sign_in=("login",),
     # docs/design/decisions-2026-10.md §5: Google banned accounts in February 2026 for using Antigravity through
     # third-party tools; a second flag is permanent.
     experimental="Experimental, at your own risk. Google has banned Google accounts for using Antigravity "
@@ -313,7 +319,7 @@ register(Harness(
     # the catalog refreshed with its login, else the one its binary ships with
     models_cmd=lambda h: [[h.bin, "debug", "models"], [h.bin, "debug", "models", "--bundled"]],
     parse_models=model_families.parse_codex,
-    resume_cmd=lambda h, sid: [h.bin, "resume", sid]))
+    resume_cmd=lambda h, sid: [h.bin, "resume", sid], sign_in=("login",), sign_in_by="browser"))
 register(Harness(
     "hermes", "Hermes Agent", "hermes", "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash",
     "hermes setup", {},
@@ -323,7 +329,7 @@ register(Harness(
     result=hermes_result, error=hermes_error, resumable=True, stdin_prompt=True, deploys=True, web=True,
     env_cmd=_hermes_env,
     fits=("code", "docs"), mark="☤", color="bold #a855f7", deploy_args=("chat", "-q"),
-    resume_cmd=lambda h, sid: [h.bin, "chat", "--resume", sid]))
+    resume_cmd=lambda h, sid: [h.bin, "chat", "--resume", sid], sign_in=("setup",)))
 register(Harness(
     "pi", "pi", "pi", "npm install -g --ignore-scripts @earendil-works/pi-coding-agent", "pi  (then /login)", {},
     lambda h, p, f, m: _pi(h, p, m, ""),
@@ -331,7 +337,7 @@ register(Harness(
     lambda h, p, w, m, r: _pi(h, p, m, PI_WORK, session=r, keep=True),
     result=pi_result, error=pi_error, resumable=True, deploys=True, priced=True, mark="π", color="bold #e11d48",
     new_cmd=lambda h: [h.bin, *pi_guard()],
-    resume_cmd=lambda h, sid: [h.bin, *pi_guard(), "--session", sid]))
+    resume_cmd=lambda h, sid: [h.bin, *pi_guard(), "--session", sid], sign_in_type="/login"))
 register(Harness(
     "cursor", "Cursor", "cursor-agent", "curl https://cursor.com/install -fsS | bash", "cursor-agent login", {},
     lambda h, p, f, m: _cursor(h, m, "ask"),
@@ -339,7 +345,7 @@ register(Harness(
     lambda h, p, w, m, r: _cursor(h, m, resume=r),
     result=cursor_result, error=cursor_error, resumable=True, stdin_prompt=True, deploys=True,
     mark="◆", color="bold #94a3b8",
-    resume_cmd=lambda h, sid: [h.bin, f"--resume={sid}"]))
+    resume_cmd=lambda h, sid: [h.bin, f"--resume={sid}"], sign_in=("login",)))
 
 
 # -- lookups --------------------------------------------------------------------------------------

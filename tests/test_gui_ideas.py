@@ -347,6 +347,7 @@ def test_a_draft_the_tool_failed_says_why_on_the_page_not_as_its_error(host, mon
         raise tool_run.failure(harness, 1, said, "")
 
     monkeypatch.setattr(jobs, "run_read", run_read)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")                   # a key is set: a sign-in cannot help (spec 45 §3)
     slug = _add(host, "Dark mode", night=False)["slug"]                  # Normal: drafted at once
     _wait(host, slug)
     page = host.command("ideas.page", {"slug": slug})

@@ -98,7 +98,8 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, RolesMixin
         self.keeper = idea_keeper.IdeaKeeper(
             self.host.repo_root, self.state_dir, self.keeper_root, self.settings_now, self._publish,
             demo=bool(self.host.demo), budget_ok=lambda: self.host.budget_ok(), limits=lambda: list(self.host.limits() or []),
-            on_plan=self._on_plan, start_night=self.start_night, events=not self.host.demo)
+            on_plan=self._on_plan, start_night=self.start_night, events=not self.host.demo,
+            sign_ins=getattr(self.host, "sign_ins", None))
         self.keeper.index_root = self.wiki
         self.host.bus.subscribe(idea_keeper.CHANGED, self._changed)
 
@@ -214,7 +215,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, RecapMixin, RolesMixin
                 from orkboard.core.idea_runner import IdeaRunner
                 self._runner = IdeaRunner(self.host.repo_root, self.state_dir, _Settings(self.host), _Hop(self.host),
                                           events=not self.host.demo, on_held=lambda: self.log_limits(force=True),
-                                          rank=self.rank)
+                                          rank=self.rank, sign_ins=getattr(self.host, "sign_ins", None))
             except ImportError:
                 self._runner_error = "The runner is not in this build yet: plans cannot start"
             except Exception as e:              # a runner that cannot start never stops the board

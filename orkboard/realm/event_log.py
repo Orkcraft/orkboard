@@ -115,13 +115,18 @@ OP_TRUST = "op_trust"             # template, alone, why (clean · edit · rules
 PUSH_SET = "push_set"             # on, device
 PUSH_SENT = "push_sent"           # tag, devices, gone
 
+# Spec 45 §7: a tool's own sign-in (how often and how fast, nothing more).
+SIGN_IN_NEEDED = "sign_in_needed"   # harness, where (task · draft · plan · op · check · ask)
+SIGNED_IN = "signed_in"             # harness, by (browser · terminal · elsewhere), s (seconds from the episode's start)
+SIGN_IN_FAILED = "sign_in_failed"   # harness, why (timeout · cancelled · refused · no_browser · check)
+
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
           TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, CHECK_DONE, TASK_STOPPED, TASK_SKIPPED, CHECK_SKIPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, GOAL_ACCEPTED, ROLE_SAVED,
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, WEEK_RESET)
+          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, WEEK_RESET, SIGN_IN_NEEDED, SIGNED_IN, SIGN_IN_FAILED)
 
 _LOCK = threading.Lock()
 
