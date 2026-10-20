@@ -245,3 +245,16 @@ def test_the_recap_carries_the_streak(fake_repo):
         when = dt.datetime.combine(today - dt.timedelta(days=back), dt.time(1, 30)).astimezone()
         log(Path(host.ideas.host.repo_root), "night_run", when, drafted=1, started=0, refreshed=0, proposed=0)
     assert host.command("ideas.recap", {"since": int((dt.datetime.now().timestamp() - 3600) * 1000)})["nights"] == (3 if ended else 2)
+
+
+def test_a_check_that_found_nothing_is_no_result_in_the_week_or_in_last_week(root, tmp_path):
+    """Spec 43 A: a clean check is not counted in `merged` or `first_time`, nor is it the fastest from idea to dev."""
+    log(root, "task_state", NOW - dt.timedelta(days=1), idea="a", task="k1", state="merged", was="review", round=1)
+    log(root, "task_state", NOW - dt.timedelta(days=1, hours=1), idea="a", task="k2", state="merged", was="running", round=1, check=True, clean=True)
+    got = board_week.this_week(root, tmp_path / "state", SETTINGS, NOW, {"ideas": []})
+    assert (got["merged"], got["first_time"]) == (1, 1)
+    log(root, "idea_added", at(14, 8), idea="export", track="offline")
+    log(root, "task_state", at(14, 8, 5), idea="export", task="k1", state="merged", was="running", round=1, check=True, clean=True)
+    log(root, "task_state", at(14, 10), idea="export", task="k2", state="merged", was="review", round=1)
+    last = board_week.last_week(root, tmp_path / "state", SETTINGS, NOW, _rows())
+    assert (last["merged"], last["first_time"]) == (1, 1) and last["fastest"]["minutes"] == 120

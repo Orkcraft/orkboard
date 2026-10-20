@@ -10,7 +10,7 @@ from pathlib import Path
 
 from orkboard import settings
 from orkboard.gui.ideas_args import IdeasError, _device, _text
-from orkboard.realm import event_log, idea_checks, idea_spend, ideas, roles
+from orkboard.realm import event_log, idea_checks, idea_spend, ideas, library, roles
 from orkboard.realm.idea_git import IdeaGit
 
 _NO_TESTS = {"passed": 0, "failed": 0, "failing": [], "tail": ""}
@@ -47,8 +47,20 @@ class ReviewMixin:
                                 "finished": t.get("finished") or "",
                                 "work": (split.get(t.get("id")) or {}).get("work"),
                                 "rework": (split.get(t.get("id")) or {}).get("rework"),
-                                "estimate": est, "over": idea_spend.over(t.get("cost"), est)})
+                                "estimate": est, "over": idea_spend.over(t.get("cost"), est),
+                                **self._check_of(t)})
         return sorted(out, key=lambda r: r["finished"])
+
+    def _check_of(self, task: dict) -> dict:
+        """A check task's result: `check` (its checker's name) and `findings` (spec 43 §1.4); another task's has neither."""
+        if task.get("kind") not in idea_checks.TAGS:
+            return {}
+        slug = str(task.get("role") or "")
+        if not idea_checks.is_checker(slug):
+            slug = idea_checks.checker_of_tag(str(task.get("kind")))
+        role, agent = roles.role(self.state_dir, slug), library.get(slug)
+        return {"check": (role or {}).get("name") or (agent.name if agent else slug),
+                "findings": [f for f in task.get("findings") or [] if isinstance(f, dict)]}
 
     def review_list(self, args: dict) -> dict:
         m = self.settings_now()

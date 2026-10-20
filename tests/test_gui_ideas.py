@@ -284,6 +284,19 @@ def test_review_list_has_the_spec_shape_and_the_phones_may_call_it(host):
     assert BoardPhone.allowed(host, "ideas.merge", {"slug": slug, "task": "k1"})
 
 
+def test_a_check_s_result_has_the_checker_and_its_findings_and_another_task_s_has_neither(host):
+    """Spec 43 A: a row of a check task gains `check` (the checker's name) and `findings`."""
+    found = [{"where": "a.py:1", "what": "a bug", "fixed": False}, {"where": "b.py:2", "what": "another", "fixed": True}]
+    plain = _review(host)
+    (r,) = host.command("ideas.review_list")["results"]
+    assert "check" not in r and "findings" not in r
+    slug = _review(host, kind="review", role="reviewer", findings=found, note="1 left")
+    rows = {x["idea"]: x for x in host.command("ideas.review_list")["results"]}
+    assert rows[slug]["check"] == "Reviewer" and rows[slug]["findings"] == found and "check" not in rows[plain]
+    other = _review(host, kind="security", findings=[])                     # a role of another slug: the checker of its tag
+    assert {x["idea"]: x for x in host.command("ideas.review_list")["results"]}[other]["check"] == "Security reviewer"
+
+
 def test_the_snapshot_counts_results_and_the_phone_is_pushed_when_one_arrives(host):
     before = BoardPhone.phone_snapshot(host)
     assert before["review_count"] == 0

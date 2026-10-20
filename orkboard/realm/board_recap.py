@@ -40,8 +40,8 @@ def events_between(root: Path, since: dt.datetime, now: dt.datetime, *names: str
 
 def merges(events: list[dict]) -> tuple[int, int]:
     """(merged, merged the first time) over `task_state` lines: the person's merge and a result that lands by itself
-    both write one; the first time is round 1."""
-    merged = [r for r in events if r.get("state") == "merged"]
+    both write one; the first time is round 1. A check that found nothing (`clean`) is no result (spec 43 §1.4)."""
+    merged = [r for r in events if r.get("state") == "merged" and r.get("clean") is not True]
     return len(merged), sum(1 for r in merged if int(r.get("round") or 1) <= 1)
 
 
@@ -64,7 +64,7 @@ def build(root: Path, state_dir: Path, since: dt.datetime, now: dt.datetime, row
     mine: list[str] = []
     for r in states:
         slug = str(r.get("idea") or "")
-        if r.get("state") == "merged" and slug in by_idea and slug not in mine:
+        if r.get("state") == "merged" and r.get("clean") is not True and slug in by_idea and slug not in mine:
             mine.append(slug)
     done = [{**idea(s), "done": by_idea[s].get("state") == "done"} for s in mine]
 

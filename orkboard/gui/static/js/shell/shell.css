@@ -96,6 +96,11 @@
 .shell-facts .is-danger { color: var(--ork-danger); }
 .shell-facts .is-muted { color: var(--ork-ink-muted); }
 .shell-conflict { margin: 0; }
+.shell-found { display: flex; flex-direction: column; gap: var(--ork-2); }
+.shell-found__sum { margin: 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.shell-found__list { margin: 0; padding-left: var(--ork-5); }
+.shell-found__list li { overflow-wrap: anywhere; }
+.shell-found__where { color: var(--ork-ink-muted); }
 .shell-actions { display: flex; flex-direction: column; gap: var(--ork-4); }
 .shell-actions__main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); }
 .shell-actions__main .shell-quiet { margin-left: auto; }

@@ -163,7 +163,7 @@ def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
     first_merge: dict[str, dt.datetime] = {}
     for r in everything:
         at = board_recap.when(r.get("at"))
-        if r.get("event") == event_log.TASK_STATE and r.get("state") == "merged" and at is not None:
+        if r.get("event") == event_log.TASK_STATE and r.get("state") == "merged" and r.get("clean") is not True and at is not None:
             first_merge[str(r.get("idea") or "")] = min(first_merge.get(str(r.get("idea") or ""), at), at)
     quick = [(int((at - added[s]).total_seconds() // 60), s) for s, at in first_merge.items()
              if s in by_idea and s in added and added[s] is not None and since <= at < until]

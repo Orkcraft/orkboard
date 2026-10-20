@@ -9,18 +9,62 @@ to `every` idea applies always.
     skip(kept_, checks, "reviewer")   # the person skips a check: kept with `skipped`
     plan_lines(kept_, checks)         # for the plan prompt: the checks that apply, each one task
     with_check_tasks(tasks, kept_, checks)  # the plan's tasks, a check task added where the plan left one out
-    status(kept_, checks, tasks)      # for a face: each check, whether it applies, why not, its task's state
+    status(kept_, checks, tasks)      # for a face: each check, whether it applies, why not, its task's state, what it found
+    parse_findings(text)              # a check task's findings file (FINDINGS_FILE) as the list it holds, or None
 
 A check is its checker's: an agent of the library the project has as a role (its instruction may be the person's now),
 its check the library's. No face, no model.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from orkboard.realm import library, roles
 
 DONE = ("merged",)                   # a check task in these states has passed
+TAGS = tuple(a.takes[0] for a in library.LIBRARY if a.check is not None)       # a check task's `kind`: the checkers' first tag
+FINDINGS_FILE = ".orkcraft-findings.json"      # what a check task writes at its worktree's root; read and removed, never committed
+FINDINGS_MAX = 20
+FINDINGS_BYTES = 64 * 1024
+WHERE_MAX, WHAT_MAX = 200, 300
+
+
+def is_checker(slug: str) -> bool:
+    a = library.get(slug)
+    return a is not None and a.check is not None
+
+
+def checker_of_tag(tag: str) -> str:
+    """The library's checker whose check task has this tag ("" for another tag)."""
+    return next((a.id for a in library.LIBRARY if a.check is not None and a.takes[0] == tag), "")
+
+
+def parse_findings(text: object) -> list[dict] | None:
+    """A findings file as `[{"where", "what", "fixed"}]`; None for bad JSON, a bad shape, more than FINDINGS_MAX findings or a
+    `where` or `what` that is too long. `{"findings": []}` is a clean check."""
+    try:
+        data = json.loads(text) if isinstance(text, str) else None
+    except ValueError:
+        return None
+    rows = data.get("findings") if isinstance(data, dict) else None
+    if not isinstance(rows, list) or len(rows) > FINDINGS_MAX:
+        return None
+    out = []
+    for x in rows:
+        if not isinstance(x, dict) or not isinstance(x.get("where"), str) or not isinstance(x.get("what"), str) \
+                or not isinstance(x.get("fixed"), bool) or len(x["where"]) > WHERE_MAX or len(x["what"]) > WHAT_MAX:
+            return None
+        out.append({"where": x["where"], "what": x["what"], "fixed": x["fixed"]})
+    return out
+
+
+def counts(findings: list[dict] | None) -> dict:
+    """{found, fixed, left} of a check task's findings; all `None` before it ends with a findings file read."""
+    if findings is None:
+        return {"found": None, "fixed": None, "left": None}
+    fixed = sum(1 for f in findings if f.get("fixed"))
+    return {"found": len(findings), "fixed": fixed, "left": len(findings) - fixed}
 
 
 def of_team(state_dir: Path, team: list[str], every: list[str] | None = None) -> list[dict]:
@@ -101,8 +145,9 @@ def with_check_tasks(tasks: list[dict], kept_: list[dict], checks: list[dict], m
 
 
 def status(kept_: list[dict], checks: list[dict], tasks: list[dict]) -> list[dict]:
-    """Each check for a face: {by, name, applies, why, state, task, skipped, tier}: its task's state ("" before a plan;
-    "passed" merged), its task's id ("" with none), whether the person skipped it, the tier it runs at."""
+    """Each check for a face: {by, name, applies, why, state, task, skipped, tier, found, fixed, left}: its task's state ("" before
+    a plan; "passed" merged), its task's id ("" with none), whether the person skipped it, the tier it runs at, and what it found
+    (`null` until its task ends with findings read)."""
     byc = {c["by"]: c for c in checks}
     out = []
     for k in kept_:
@@ -113,5 +158,6 @@ def status(kept_: list[dict], checks: list[dict], tasks: list[dict]) -> list[dic
         state = "" if t is None else "passed" if t.get("state") in DONE else str(t.get("state") or "")
         skipped = bool(k.get("skipped")) and (t is None or t.get("state") not in DONE)
         out.append({"by": k["by"], "name": c["name"], "applies": k["applies"], "why": k["why"], "state": state if k["applies"] and not skipped else "",
-                    "task": (t or {}).get("id") or "", "skipped": skipped, "tier": c["tier"]})
+                    "task": (t or {}).get("id") or "", "skipped": skipped, "tier": c["tier"],
+                    **counts((t or {}).get("findings") if isinstance((t or {}).get("findings"), list) else None)})
     return out

@@ -6,8 +6,23 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from orkboard.realm import idea_secrets
+from orkboard.realm import idea_checks, idea_secrets
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, env_name, has_summary, parse_tests, read_secret, spec_paths
+
+
+FINDINGS_ASK = (
+    f"When you are done, write what you found to `{idea_checks.FINDINGS_FILE}` at the worktree's root, as JSON: "
+    '`{"findings": [{"where": "file:line, or the screen", "what": "one line: what goes wrong", "fixed": true}]}`, the worst first, '
+    'at most 20. Write `{"findings": []}` when you found nothing that blocks, and then change nothing else. Fix only what is small '
+    'and certain; leave the rest as findings with `"fixed": false`.')
+NO_FINDINGS = "You left no findings file and changed no file. Write your findings file, as the task asks."
+NO_RUN = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False, "command": ""}      # a check that changed no file: no gate ran
+NO_DIFF = {"files": 0, "added": 0, "removed": 0}
+
+
+def is_check(task: dict) -> bool:
+    """A check task: its `kind` is a checker's tag (realm/idea_checks.py `TAGS`)."""
+    return str(task.get("kind") or "") in idea_checks.TAGS
 
 
 def _r():
@@ -32,6 +47,36 @@ class TaskMixin:
             if not has_summary(out):
                 tests["passed"] = tests["failed"] = None
         return tests
+
+    def _checker_of(self, task: dict) -> str:
+        """The checker's slug of a check task: its role, else the library's checker of its tag."""
+        role = str(task.get("role") or "")
+        if role and idea_checks.is_checker(role):
+            return role
+        return idea_checks.checker_of_tag(str(task.get("kind") or ""))
+
+    def _again_ask(self, task: dict) -> str:
+        """What a check task is told besides a send back's line: the findings left of the last round, and the ask for the file again."""
+        left = [f for f in task.get("findings") or [] if isinstance(f, dict) and not f.get("fixed")]
+        rows = "".join(f"\n- {f.get('where')}: {f.get('what')}" for f in left)
+        return (f"\n\nThe findings left from the last round:{rows}" if rows else "") + "\n\n" + FINDINGS_ASK
+
+    def _findings_round(self, path: Path, start_sha: str, title: str) -> tuple[list[dict] | None, bool]:
+        """(the findings a check task wrote, whether it changed a file): its findings file is read (at most 64 KB) and removed before
+        the commit, so it is never committed; `None` for a missing file, bad JSON or a bad shape. What it left is committed here."""
+        target, text = path / idea_checks.FINDINGS_FILE, ""
+        try:
+            with target.open("rb") as f:
+                raw = f.read(idea_checks.FINDINGS_BYTES + 1)
+            text = raw.decode("utf-8") if len(raw) <= idea_checks.FINDINGS_BYTES else ""
+        except (OSError, UnicodeDecodeError):
+            pass
+        try:
+            target.unlink()
+        except OSError:
+            pass
+        self.git.commit_left(path, title)
+        return idea_checks.parse_findings(text), bool(self.git.commits(path, start_sha))
 
     def _check(self, path: Path, start_sha: str, cancel: threading.Event, title: str = "") -> tuple[str | None, str]:
         """(None, the gate's run) when the task's work passes; else (what is wrong, in words the session can act on,
@@ -96,4 +141,6 @@ class TaskMixin:
             parts.append("The environment holds " + ", ".join(secrets) + ": use them from the environment, never "
                          "print them, write them to a file or commit them.")
         parts += [f"The file is at ${name}; copy it into the repository only if the task says so." for name in files]
+        if is_check(task):
+            parts.append(FINDINGS_ASK)
         return "\n\n".join(parts)

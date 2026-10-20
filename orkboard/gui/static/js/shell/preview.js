@@ -12,7 +12,7 @@ import { MapView } from "../board/map.js";
 import { TASK_STATE } from "../board/maplayout.js";
 import { preview, detail, review, goal, editing, active, mapShown, goneWords, kindWords, keepTab, setTabTitle, act, closePreview, showIdea, showResult, showGoal, refreshShell } from "./store.js";
 import { TabStrip } from "./tabs.js";
-import { ResultActions, testsWords, changesWords, isRed } from "./review.js";
+import { ResultActions, Found, testsWords, changesWords, isRed } from "./review.js";
 import { GoalView } from "./goalview.js";
 import { File } from "./diffview.js";
 import { FileView } from "./files.js";
@@ -69,6 +69,7 @@ function Result({ d, p }) {
         <dt>Tests</dt><dd class=${`is-${t.tone}`}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</dd>
         <dt>Changes</dt><dd>${changesWords(r.diff)}</dd>${r.round > 1 ? html`<dt>Round</dt><dd>${r.round}</dd>` : ""}</dl>
         ${r.conflict && html`<p class="ok-tone-error">⚠ ${r.conflict}</p>`}
+        <${Found} r=${r} />
         ${isRed(r) && r.tests.tail && html`<details class="shell-file"><summary>What the tests said</summary><pre class="shell-log">${r.tests.tail}</pre></details>`}`
         : html`<p class="ok-tone-muted">This result is no longer waiting at Review.</p>`}
       ${!diff ? html`<p class="ok-tone-muted">Reading the code…</p>` : html`

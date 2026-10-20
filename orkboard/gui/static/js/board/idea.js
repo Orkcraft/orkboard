@@ -108,7 +108,8 @@ export const spares = (c) => { const usd = Number(roles.value?.tier_costs?.[c.ti
  *  skipped by the person; Skip spares a check that has not run (its task taken out of the plan), Take again before a plan. */
 function Checks({ checks, slug, planned }) {
   if (!(checks || []).length) return null;
-  const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : CHECK_STATE[c.state] || c.state || "in the plan to come");
+  const found = (c) => (c.found === 0 ? "clean" : `found ${c.found}: ${[c.fixed && `${c.fixed} fixed`, c.left && `${c.left} left`].filter(Boolean).join(", ")}`);
+  const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.found != null ? found(c) : c.state === "passed" ? "passed" : CHECK_STATE[c.state] || c.state || "in the plan to come");
   return html`<div class="board-checks" role="list" aria-label="Checks"><span class="ok-font-label">Checks</span>
     ${checks.map((c) => html`<span key=${c.by} role="listitem" class=${cls("board-check", { "is-off": !c.applies || c.skipped, "is-passed": c.state === "passed" })}>
       <b>${c.state === "passed" && html`<${Icon} name="check" />`}${c.name}</b><small>${words(c)}</small>
