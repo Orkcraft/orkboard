@@ -482,3 +482,7 @@ only if the pusher's tick cannot ride the host's), `gui/static/pwa/util.js` (A, 
 
 ### D. An agent's record
 - The Taskmaster's `record` is `null` only without a row; a Taskmaster that made no plan in 30 days shows *No tasks in the last 30 days*, as an agent with none. The `TOO_FEW` of the dialog and the sheet is a constant (3) kept in step with `idea_spend.TOO_FEW` by hand.
+
+### E. The way to by itself
+- `after_check` and `after_rules` take an optional `today` (default: the machine's date), as `after_alone` does. A template that is already by itself keeps its day when a check it stopped at passes (`after_check` sets `alone_since` and `done_alone` only on the check that makes it go by itself). `op_runs.trust` reads `""` and 0 for a template that checks with you, whatever the file says.
+- Two existing assertions of `tests/test_op_runs.py` that compared a whole trust dict gained the two new keys; nothing else of them changed.

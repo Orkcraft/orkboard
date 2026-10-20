@@ -293,3 +293,6 @@
 .map-task__skip .ork-icon { width: 10px; height: 10px; }
 .map-task-pair.is-skipped .map-task { opacity: .5; text-decoration: line-through; }
 .trail .map-checks .map-task { cursor: default; }
+
+/* A template's way to going by itself (spec 42 §5): its pips and the words beside them. */
+.board-op__way { display: inline-flex; align-items: center; gap: var(--ork-3); }

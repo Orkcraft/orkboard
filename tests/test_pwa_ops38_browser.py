@@ -394,3 +394,24 @@ async def test_with_no_project_open_operations_is_still_offered(fake_repo, monke
         await pane.get_by_role("button", name="New…").click()
         await page.get_by_role("dialog", name="New…").get_by_role("button", name="New Jira task").wait_for(timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_phone_shows_the_way_to_by_itself_and_since_the_day_it_went_spec_42_e(fake_repo, monkeypatch, _ops):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        ops = _ops["ops"]
+        ops.templates[0].update(trust_after=3, clean=2)
+        ops.templates[1].update(unusable="", state="alone", state_words="goes by itself", trust_after=3, alone_since="2026-10-18", done_alone=12)
+        ops.templates.append(_template("wire", "Wire money", risk="high", state="always", state_words="always checks with you", trust_after=3))
+        ops.changed()
+        await _ops_view(page)
+        await page.locator(".ops-fold", has_text="Templates").locator("summary").click()
+        jira = page.locator(".ops-template", has_text="New Jira task")
+        await jira.locator("[data-way]").wait_for(timeout=WAIT_MS)
+        assert " ".join((await jira.locator("[data-way]").inner_text()).split()) == "Checks with you: 2 of 3 clean checks, then it goes by itself"
+        assert await jira.locator(".ork-pips > i").evaluate_all("els => els.map(e => e.className)") == ["d", "d", ""]
+        mail = page.locator(".ops-template", has_text="Reply to an email")
+        assert await mail.locator("[data-since]").inner_text() == "since 18 October · 12 done" and await mail.locator(".ork-pips").count() == 0
+        wire = page.locator(".ops-template", has_text="Wire money")
+        assert "always checks with you" in await wire.inner_text() and await wire.locator("[data-way]").count() == 0
+        assert await page.evaluate(NO_SCROLL)

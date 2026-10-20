@@ -49,8 +49,8 @@ def test_a_correction_not_right_a_new_version_and_check_again_send_it_back():
         assert not back["alone"] and back["clean"] == 0 and back["why"] == why
     assert op_runs.after_version(alone, "v1") == alone                    # the same version: nothing changes
     assert op_runs.after_version(op_runs.fresh_trust(), "v1")["version"] == "v1"     # a first one is only kept
-    assert op_runs.after_rules(op_runs.after_check(alone, True, 1)) == {**op_runs.after_check(alone, True, 1),
-                                                                        "alone": True, "why": "rules"}
+    assert op_runs.after_rules(op_runs.after_check(alone, True, 1), "2026-10-18") == {
+        **op_runs.after_check(alone, True, 1), "alone": True, "why": "rules", "alone_since": "2026-10-18", "done_alone": 0}
 
 
 def test_a_doubt_a_high_risk_and_the_days_cap_stop_it_at_the_check():
@@ -131,3 +131,39 @@ def test_an_event_is_plain_data_in_the_persons_folder(tmp_path):
     assert not op_runs.event(base, "op_nothing", op="op-1")
     row = json.loads((base / "events.jsonl").read_text())
     assert row["event"] == "op_added" and mode(base / "events.jsonl") == 0o600
+
+
+# -- the way to by itself (spec 42 §5) ---------------------------------------------------------------------------
+
+def test_the_day_it_went_by_itself_and_how_many_it_did_since_are_kept_and_cleared():
+    t = op_runs.fresh_trust("v1")
+    assert t["alone_since"] == "" and t["done_alone"] == 0
+    for n in (1, 2):
+        t = op_runs.after_check(t, False, 3, "2026-10-14")
+        assert t["alone_since"] == "" and t["done_alone"] == 0                               # while it checks with you
+    t = op_runs.after_check(t, False, 3, "2026-10-14")
+    assert t["alone"] and t["alone_since"] == "2026-10-14" and t["done_alone"] == 0
+    for _ in range(12):
+        t = op_runs.after_alone(t, "2026-10-18")
+    assert t["done_alone"] == 12 and t["alone_since"] == "2026-10-14"
+    t = op_runs.after_check(t, False, 3, "2026-10-18")                                        # a check it stopped at: its day stays
+    assert t["alone_since"] == "2026-10-14" and t["done_alone"] == 12
+    for back in (op_runs.after_check(t, True, 3), op_runs.after_not_right(t), op_runs.after_reset(t), op_runs.after_version(t, "v2")):
+        assert back["alone_since"] == "" and back["done_alone"] == 0 and not back["alone"]
+    taken = op_runs.after_rules(op_runs.fresh_trust("v1"), "2026-10-19")
+    assert taken["alone"] and taken["alone_since"] == "2026-10-19" and taken["done_alone"] == 0
+    assert op_runs.after_check(op_runs.fresh_trust(), False, 1)["alone_since"] == __import__("datetime").date.today().isoformat()
+
+
+def test_a_trust_file_of_before_reads_empty_and_a_stray_value_is_not_believed(tmp_path):
+    import json
+    folder = tmp_path / "templates" / "jira-task"
+    folder.mkdir(parents=True)
+    (folder / "trust.json").write_text(json.dumps({"version": "v1", "clean": 2, "alone": True, "why": "clean"}))
+    got = op_runs.trust(tmp_path, "jira-task")
+    assert got["alone"] and got["alone_since"] == "" and got["done_alone"] == 0
+    (folder / "trust.json").write_text(json.dumps({"version": "v1", "clean": 1, "alone": False, "alone_since": "2026-10-01", "done_alone": 9}))
+    got = op_runs.trust(tmp_path, "jira-task")
+    assert got["alone_since"] == "" and got["done_alone"] == 0                                  # it checks with you: no day, none done
+    op_runs.save_trust(tmp_path, "jira-task", op_runs.after_check(got, False, 1, "2026-10-18"))
+    assert op_runs.trust(tmp_path, "jira-task")["alone_since"] == "2026-10-18"

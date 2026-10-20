@@ -517,3 +517,34 @@ def test_the_start_screen_offers_operations(tmp_path, monkeypatch):
         pg.get_by_role("button", name="New…").click()
         assert pg.get_by_role("menuitem", name="Email reply").count() == 1
     _run(host, body, wait=".shell-start")
+
+
+def test_the_way_to_by_itself_is_pips_and_words_then_since_the_day_it_went_and_a_high_risk_has_none_spec_42_e(world):
+    import datetime as dt
+    stub = world[0].ops
+    stub.templates[0].update(trust_after=3, clean=2)
+    stub.templates[1].update(trust_after=3, alone_since="2026-10-18", done_alone=12)
+    stub.templates.append({**JIRA, "name": "wire-money", "title": "Wire money", "risk": "high", "state": "always", "state_words": "always checks with you",
+                           "trust_after": 3, "clean": 0})
+
+    def body(pg, stub):
+        _operations(pg)
+        pg.get_by_text("Templates (4)").click()
+        jira = pg.locator(".board-op--template[data-template=jira-task]")
+        jira.wait_for(timeout=WAIT_MS)
+        assert " ".join(jira.locator("[data-way]").inner_text().split()) == "Checks with you: 2 of 3 clean checks, then it goes by itself"
+        assert [c for c in jira.locator(".ork-pips > i").evaluate_all("els => els.map(e => e.className)")] == ["d", "d", ""]       # 2 of 3 filled
+        mail = pg.locator(".board-op--template[data-template=email-reply]")
+        assert "goes by itself: save as a draft in gmail without asking you" in mail.inner_text()
+        assert mail.locator("[data-since]").inner_text() == "since 18 October · 12 done" and mail.locator(".ork-pips").count() == 0
+        stub.templates[1]["done_alone"] = 0
+        stub.templates[1]["alone_since"] = dt.date.today().isoformat()
+        stub.changed()
+        expect(mail.locator("[data-since]")).to_have_text("since today", timeout=WAIT_MS)
+        stub.templates[0].update(trust_after=1, clean=0)
+        stub.changed()
+        expect(jira.locator("[data-way]")).to_contain_text("Checks with you: one clean check and it goes by itself", timeout=WAIT_MS)
+        assert jira.locator(".ork-pips > i").count() == 1
+        money = pg.locator(".board-op--template[data-template=wire-money]")
+        assert "always checks with you" in money.inner_text() and money.locator(".ork-pips").count() == 0 and money.locator("[data-way]").count() == 0
+    _run(world[0], body)
