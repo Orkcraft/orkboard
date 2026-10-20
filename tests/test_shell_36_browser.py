@@ -82,10 +82,11 @@ def test_agents_has_no_task_types_and_a_role_is_one_line_with_what_a_task_costs(
     assert agents.get_by_role("button", name="+ Add agent").is_visible()
     line = agents.locator(".shell-role[data-slug='grunt'] .shell-role__head")
     pg.wait_for_function("() => document.querySelector(\".shell-role[data-slug='grunt'] .shell-role__head\")?.getAttribute('aria-label')?.includes('$0.90')", timeout=WAIT_MS)
-    assert " ".join(line.inner_text().split()) == "Grunts ×8 ≈ $0.90 a task Edit"                      # spec 41 §8: no model, no week, no spend today
-    assert line.locator("[title='At API prices, not your bill']").count() == 1
+    assert " ".join(line.inner_text().split()).startswith("Grunts ×8 ≈ $0.90 a task Edit")            # spec 41 §8: no model in words
+    assert line.locator(".shell-role__week").inner_text() == "≈$1.25 today · ≈$0.90 a result · 6/10 the first time"   # its day and week, muted under the line
+    assert line.locator("[title='At API prices, not your bill']").count() == 2
     scribe = agents.locator(".shell-role[data-slug='scribe']")
-    assert "a result" not in scribe.inner_text() and "first time" not in scribe.inner_text()
+    assert "a result" not in scribe.inner_text() and "first time" not in scribe.inner_text()                # two merged: too few to say
     assert "Takes: docs" in scribe.inner_text() and "Does:" not in agents.inner_text()
     assert "Takes: code, tests" in agents.locator(".shell-role[data-slug='grunt']").inner_text()
     tm = agents.locator(".shell-role[data-role='taskmaster'] .shell-role__head").inner_text()          # its cost is its steps: its week stays

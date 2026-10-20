@@ -38,7 +38,8 @@ async def test_agents_is_a_monitor_a_role_is_one_line_with_what_a_task_costs_and
         assert "Task types" not in await agents.inner_text() and await agents.get_by_label("Agent for Code").count() == 0
         line = _grunt_head(agents)
         await expect(line).to_have_attribute("aria-label", "Grunts: an ork, Engineering, Seasoned; up to 8 at once; about $0.40 a task", timeout=WAIT_MS)
-        assert " ".join((await line.inner_text()).split()) == "Grunts ×8 ≈ $0.40 a task Edit"             # its head, its name, ×8, the cost of a task
+        assert " ".join((await line.inner_text()).split()).startswith("Grunts ×8 ≈ $0.40 a task Edit")   # its head, its name, ×8, the cost of a task
+        assert await line.locator(".role-facts").inner_text() == "≈$1.25 today"                          # its day, muted under the line (the owner, 20 October)
         assert await line.locator("img").count() == 1 and await line.locator(".role-usd").get_attribute("title") == "At API prices, not your bill"
         assert "up to" not in await line.inner_text() and "By Target" not in await line.inner_text()      # no model in words (spec 41 §8)
         assert "Takes: code, tests, docs, text for people, research" in await agents.locator(".role[data-role='grunt']").inner_text()

@@ -1,8 +1,8 @@
 // Agents, the second tab, a monitor (docs/specs/33-v1-shell.md §6, §8; spec 34 §3; spec 36 §5; spec 41 §8): a block per role — the Taskmaster
 // says what it waits on or reads, the Grunt and the agents of your own are a card per live task (needs you first), each with its idea's
 // short name small, and Edit — with + Add agent at the top (from the library, or your own). A role is one line: its head, its name, how many
-// at once (×2) and what a task of it costs (≈ $0.40 a task); the Taskmaster's cost is its steps, so it says its week. A card opens its task
-// on its own screen.
+// at once (×2) and what a task of it costs (≈ $0.40 a task), and under it, muted, its day and week (spent today; what a result costs and
+// how often it is right the first time, once it has three merged; the Taskmaster's, its plans' tasks). A card opens its task on its own screen.
 import { h, sheet, head as raceHead } from "./util.js";
 import { steady } from "./shell-util.js";
 import { makeAgentSheet } from "./shell-agent.js";
@@ -16,6 +16,7 @@ const ORDER = ["failed", "running", "testing", "ready", "held", "review"];
 const rank = (c) => { const i = ORDER.indexOf(c.state); return i < 0 ? ORDER.length : i; };
 const HINT = "At API prices, not your bill";
 const RACE_OF = { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" };
+const money = (n) => `≈$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
 const FEW = 3;                                   // merged results (a Grunt's) or finished tasks (the Taskmaster's) before a week is said
 
 export function gruntWords(c) {
@@ -29,10 +30,13 @@ export function makeAgents(core) {
   const el = h("section", { class: "pane agents", "aria-label": "Agents" });
   const fresh = steady(el);
   const sheetOf = makeAgentSheet(core);
-  /** The Taskmaster's week (spec 36 §2): how often a task is merged the first time; said once there are enough to say. */
+  /** A role's day and week, muted under its line (spec 36 §2; the owner, 20 October): what it spent today; once it has FEW merged,
+   * what a result cost and how often it was merged the first time; the Taskmaster's, how often its plans' tasks went the first time. */
   function week(role) {
-    const w = role.week;
-    return role.role === "taskmaster" && w && w.finished >= FEW ? `${w.first_time}/${w.finished} tasks the first time` : "";
+    const w = role.week, today = role.spend_today ? `${money(role.spend_today)} today` : "";
+    if (role.role === "taskmaster") return [today, w && w.finished >= FEW ? `${w.first_time}/${w.finished} tasks the first time` : ""].filter(Boolean).join(" · ");
+    const said = w && w.merged >= FEW ? [w.usd_per_merged == null ? "" : `${money(w.usd_per_merged)} a result`, `${w.first_time}/${w.finished} the first time`] : [];
+    return [today, ...said].filter(Boolean).join(" · ");
   }
 
   /** A role in one line (spec 41 §8): its head · its name · ×2 · ≈ $0.40 a task; its words for a screen reader are on the line. */
@@ -40,14 +44,15 @@ export function makeAgents(core) {
     const hd = role.head, tm = role.role === "taskmaster";
     const usd = role.usd_task == null ? "" : `≈ $${Number(role.usd_task).toFixed(2)} a task`;
     const said = [hd ? `${/^[aeiou]/.test(RACE_WORDS[hd.race]) ? "an" : "a"} ${RACE_WORDS[hd.race]}` : "", CRAFT_WORDS[hd?.craft], TIER_WORDS[hd?.tier]].filter(Boolean).join(", ");
-    const label = [`${role.name}${said ? `: ${said}` : ""}`, tm ? "" : `up to ${role.max_parallel} at once`, usd ? `about $${Number(role.usd_task).toFixed(2)} a task` : "", week(role)]
+    // its day and week are read from the muted line under it, not said twice
+    const label = [`${role.name}${said ? `: ${said}` : ""}`, tm ? "" : `up to ${role.max_parallel} at once`, usd ? `about $${Number(role.usd_task).toFixed(2)} a task` : ""]
       .filter(Boolean).join("; ");
     return h("div", { class: "role-head", role: "group", "aria-label": label },
       whoHead(hd), h("h3", {}, role.name),
       tm ? null : h("span", { class: "role-many", title: `Up to ${role.max_parallel} at once` }, `×${role.max_parallel}`),
       usd ? h("span", { class: "priced role-usd", title: HINT }, usd) : null,
-      week(role) ? h("small", { class: "muted role-facts" }, week(role)) : null,
-      h("button", { class: "linkish", type: "button", "aria-label": `Edit ${role.name}`, onclick: () => sheetOf.open(role.role) }, "Edit"));
+      h("button", { class: "linkish", type: "button", "aria-label": `Edit ${role.name}`, onclick: () => sheetOf.open(role.role) }, "Edit"),
+      week(role) ? h("small", { class: "muted role-facts", ...(week(role).includes("$") ? { title: HINT } : {}) }, week(role)) : null);
   }
 
   function taskmaster(role) {

@@ -1,6 +1,7 @@
 // Agents, in the lower part of the centre as VS Code's terminal (docs/specs/33-v1-shell.md §6–§7, spec 34 §3, spec 36 §5):
 // a monitor — a block per role, one line (spec 41 §8): its head (its craft's race in its tier's gear, decisions §53), its name,
-// ×2 (at most at once) and ≈ $0.40 a task (the Taskmaster's cost is its steps: it says its week), what it takes, its chips (needs you
+// ×2 (at most at once) and ≈ $0.40 a task, under it, muted, its day and week (spent today; what a result costs and how often it is
+// right the first time, once it has three merged; the Taskmaster's, its plans' tasks), what it takes, its chips (needs you
 // first, each with the head of who does it and its short name), Edit — with + Add agent at the top (from the library, or your own). A
 // chip opens its task.
 import { html, cls } from "../html.js";
@@ -27,17 +28,23 @@ export function gruntWords(c) {
 const API_PRICES = "At API prices, not your bill";
 const AN = (race) => (/^[aeiou]/.test(RACE_WORDS[race]) ? "an" : "a");
 
-/** The Taskmaster's week (spec 36 §2): how often a task is merged the first time, once there are enough to say. */
+const money = (n) => `≈$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
+
+/** A role's day and week, muted under its line (spec 36 §2; the owner, 20 October): what it spent today; once it has three
+ * merged, what a result cost and how often it was merged the first time; the Taskmaster's, how often its plans' tasks went the
+ * first time. */
 export function weekWords(role) {
-  const w = role.week;
-  return role.role === "taskmaster" && w && w.finished > 0 ? `${w.first_time}/${w.finished} tasks the first time` : "";
+  const w = role.week, today = role.spend_today ? `${money(role.spend_today)} today` : "";
+  if (role.role === "taskmaster") return [today, w && w.finished > 0 ? `${w.first_time}/${w.finished} tasks the first time` : ""].filter(Boolean).join(" · ");
+  const said = w && w.merged >= 3 ? [w.usd_per_merged != null ? `${money(w.usd_per_merged)} a result` : "", `${w.first_time}/${w.finished} the first time`] : [];
+  return [today, ...said].filter(Boolean).join(" · ");
 }
 
 /** A role's words for a screen reader: "Docs scribe: an elf, Design, Seasoned; up to 2 at once; about $0.40 a task". */
 export function roleWords(role) {
   const hd = role.head, usd = role.usd_task == null ? "" : `about $${Number(role.usd_task).toFixed(2)} a task`;
   const who = [hd ? `${AN(hd.race)} ${RACE_WORDS[hd.race]}` : "", CRAFT_WORDS[hd?.craft], TIER_WORDS[hd?.tier]].filter(Boolean).join(", ");
-  return [`${role.name}${who ? `: ${who}` : ""}`, role.role === "taskmaster" ? "" : `up to ${role.max_parallel} at once`, usd, weekWords(role)].filter(Boolean).join("; ");
+  return [`${role.name}${who ? `: ${who}` : ""}`, role.role === "taskmaster" ? "" : `up to ${role.max_parallel} at once`, usd].filter(Boolean).join("; ");   // the week: its own line
 }
 
 function Head({ role }) {
@@ -48,7 +55,7 @@ function Head({ role }) {
     ${!tm && html`<span class="shell-role__many" title=${`Up to ${role.max_parallel} at once`}>×${role.max_parallel}</span>`}
     ${role.usd_task != null && html`<span class="shell-role__usd" title=${API_PRICES}>≈ $${Number(role.usd_task).toFixed(2)} a task</span>`}
     <button class="board-link" aria-label=${`Edit ${say(role.name)}`} onClick=${() => openDialog("agent", { slug: role.role })}>Edit</button>
-    ${week && html`<span class="ok-font-status ok-tone-muted shell-role__facts"><span class="shell-role__week">${week}</span></span>`}
+    ${week && html`<span class="ok-font-status ok-tone-muted shell-role__facts"><span class="shell-role__week" title=${week.includes("$") ? API_PRICES : ""}>${week}</span></span>`}
   </div>`;
 }
 

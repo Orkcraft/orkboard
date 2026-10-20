@@ -1256,7 +1256,8 @@ def test_an_agent_is_one_line_with_its_head_its_name_how_many_and_what_a_task_co
     line = agents.locator(".shell-role[data-role=grunt] .shell-role__head")
     pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__head')?.getAttribute('aria-label')?.includes('$0.40')", timeout=WAIT_MS)
     assert line.get_attribute("aria-label") == "Grunts: an ork, Engineering, Seasoned; up to 8 at once; about $0.40 a task"
-    assert " ".join(line.inner_text().split()) == "Grunts ×8 ≈ $0.40 a task Edit" and line.locator("img").count() == 1
+    assert " ".join(line.inner_text().split()).startswith("Grunts ×8 ≈ $0.40 a task Edit") and line.locator("img").count() == 1
+    assert line.locator(".shell-role__week").inner_text() == "≈$1.25 today"                                 # its day, muted under the line
     assert "up to" not in line.inner_text() and "By Target" not in line.inner_text() and "tasks the first time" not in line.inner_text()
     tm = agents.locator(".shell-role[data-role=taskmaster] .shell-role__head")                       # its cost is its steps: no ×N, no cost of a task
     assert "×" not in tm.inner_text() and "a task" not in tm.inner_text()
