@@ -64,3 +64,105 @@ def test_tonight_says_how_many_wait_and_a_null_part_a_missing_price_and_no_night
     assert _lines(pg) == ["No results in dev in the last 7 days"]
     pg.close()
     assert not errors, "\n".join(errors)
+
+
+# -- spec 42 G: Last week ----------------------------------------------------------------------------------------------
+
+import datetime as dt  # noqa: E402
+import json  # noqa: E402
+
+from tests.test_map_desktop_browser import SHOP, MapHost, _open as _open_map, key  # noqa: E402
+from tests.test_recap_desktop_browser import LOOK, RECAP  # noqa: E402
+
+WEEK_KEY = key(SHOP).replace("orkboard.tabs.", "orkboard.week.")
+LAST = {"week": "2026-W42", "from": "2026-10-12", "to": "2026-10-18", "into": "dev", "merged": 23, "first_time": 19, "usd": 61.2, "usd_per_merged": 2.66,
+        "before": {"merged": 14, "first_time": 10, "usd_per_merged": 3.1},
+        "goals": [{"goal": "ship-sync", "short": "Offline mode", "title": "Offline mode", "done": 3}, {"goal": "grow", "short": "Billing", "title": "Billing", "done": 1}],
+        "flags": [{"goal": "ship-sync", "short": "Offline mode", "title": "Offline mode", "met": True, "by": "Product manager"}],
+        "dearest": {"slug": "sync", "short": "Offline mode", "title": "Offline mode", "usd": 12.0},
+        "fastest": {"slug": "dark", "short": "Export CSV", "title": "Export CSV", "minutes": 42},
+        "answers": {"answers": 12, "recommended": 9, "decided": 2}, "nights": {"worked": 5, "idle": 2, "off": 0}, "streak": 0, "empty": False}
+
+
+class LastHost(MapHost):
+    def __init__(self):
+        super().__init__()
+        self.last = dict(LAST)
+        self.recap = dict(RECAP)
+
+    def handle(self, name, a):
+        if name in ("ideas.week", "ideas.recap"):
+            self.log.append((name, a))
+            return dict(self.last if name == "ideas.week" else self.recap)
+        return super().handle(name, a)
+
+
+def _iso(days_ago):
+    year, week, _d = (dt.date.today() - dt.timedelta(days=days_ago)).isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def _seed(week=None, look_hours=None):
+    out = ""
+    if week:
+        out += f"if (!localStorage.getItem({json.dumps(WEEK_KEY)})) localStorage.setItem({json.dumps(WEEK_KEY)}, {json.dumps(week)});"
+    if look_hours is not None:
+        out += f"if (!localStorage.getItem({json.dumps(LOOK)})) localStorage.setItem({json.dumps(LOOK)}, String(Date.now() - {look_hours} * 3600 * 1000));"
+    return out
+
+
+def test_the_first_look_of_a_new_week_shows_last_weeks_card_with_its_lines_then_the_recap_and_not_twice(gui):
+    pg, host, errors = _open_map(gui, LastHost(), init=_seed(_iso(14), 9), ready=".map-card")
+    card = pg.get_by_label("Last week")
+    card.wait_for(timeout=WAIT_MS)
+    assert " ".join(card.locator(".away__title").text_content().split()) == "Last week · 12–18 October"
+    assert [" ".join(p.text_content().split()) for p in card.locator(".away__lines p").all()] == [
+        "23 results in dev, 19 the first time (83 %; the week before 71 %)", "≈$2.66 a result (the week before ≈$3.10)",
+        "Goals: Offline mode, 3 ideas done · Billing, 1", "Flags: Offline mode, met",
+        "Cost the most: Offline mode, ≈$12 · Fastest from idea to dev: Export CSV, 42 min",
+        "Questions: 9 of 12 answers were the recommended one; 2 cards left to the Taskmaster",
+        "Nights: 5 with work done, 2 with none"]
+    assert pg.get_by_label("While you were away").count() == 0                                         # the week's card comes first
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "desktop"}))
+    assert json.loads(pg.evaluate(f"JSON.stringify(localStorage.getItem({json.dumps(WEEK_KEY)}))")) == _iso(7)
+    card.get_by_role("button", name="Close").click()
+    pg.get_by_label("While you were away").wait_for(timeout=WAIT_MS)                                   # then the recap's
+    pg.get_by_label("While you were away").get_by_role("button", name="Close").click()
+    pg.reload()
+    pg.locator(".map-card").first.wait_for(timeout=WAIT_MS)
+    pg.wait_for_timeout(400)
+    assert pg.get_by_label("Last week").count() == 0 and len([n for n, _a in host.log if n == "ideas.week"]) == 1
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_a_device_with_no_week_key_writes_it_and_shows_nothing_and_an_empty_week_shows_nothing(gui):
+    pg, host, errors = _open_map(gui, LastHost(), ready=".map-card")
+    pg.wait_for_function(f"localStorage.getItem({json.dumps(WEEK_KEY)}) !== null", timeout=WAIT_MS)
+    assert pg.get_by_label("Last week").count() == 0 and not [n for n, _a in host.log if n == "ideas.week"]
+    pg.close()
+    host = LastHost()
+    host.last = {**LAST, "empty": True}
+    pg, host, errors2 = _open_map(gui, host, init=_seed(_iso(14)), ready=".map-card")
+    pg.wait_for_function(f"localStorage.getItem({json.dumps(WEEK_KEY)}) === {json.dumps(_iso(7))}", timeout=WAIT_MS)
+    assert pg.get_by_label("Last week").count() == 0
+    pg.close()
+    assert not errors and not errors2
+
+
+def test_the_maps_last_week_link_shows_the_card_any_time_and_logs_via_map(gui):
+    host = LastHost()
+    host.last = {**LAST, "goals": [], "flags": [], "dearest": None, "fastest": None, "answers": None, "before": None, "usd_per_merged": None}
+    pg, host, errors = _open_map(gui, host, ready=".map-card")
+    pg.get_by_role("button", name="Last week", exact=True).click()
+    card = pg.get_by_label("Last week")
+    card.wait_for(timeout=WAIT_MS)
+    assert [" ".join(p.text_content().split()) for p in card.locator(".away__lines p").all()] == ["23 results in dev, 19 the first time (83 %)",
+                                                                                                    "Nights: 5 with work done, 2 with none"]
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "desktop", "via": "map"}))
+    card.get_by_role("button", name="Close").click()
+    host.last = {**host.last, "empty": True, "merged": 0, "first_time": 0, "nights": {"worked": 0, "idle": 0, "off": 0}}
+    pg.get_by_role("button", name="Last week", exact=True).click()
+    pg.get_by_label("Last week").get_by_text("Nothing was merged or finished.").wait_for(timeout=WAIT_MS)
+    pg.close()
+    assert not errors, "\n".join(errors)

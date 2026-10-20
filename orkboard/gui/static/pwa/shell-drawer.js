@@ -5,7 +5,7 @@ import { h, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { TARGETS } from "./shell-words.js";
 import { makePush } from "./shell-push.js";
-import { makeWeek } from "./shell-cards.js";
+import { makeWeek, pushWeek } from "./shell-cards.js";
 
 /** `core`: the board's frame; `ctx`: {send, flash, unpair}; `drawer`: the sheet these live in; `limits`: opens What is left.
  *  Returns {head, project, phone, sheets, sync(), render(snapshot)}. */
@@ -88,6 +88,13 @@ export function makeSettings(core, ctx, drawer, limits) {
   const phone = [
     h("h3", {}, "This phone"),
     push.el,
+    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: async () => {                 // Last week (spec 42 §7.3): its card on the Board tab
+      const got = await core.call("ideas.week");
+      if (!got) return;
+      drawer.close();
+      core.go("board");
+      pushWeek(core, got, "map");
+    } }, "Last week")),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => pairSheet.open() }, "Pair a phone")),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Download the logs"),
       h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => download(1) }, "Today"),

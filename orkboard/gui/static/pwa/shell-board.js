@@ -10,7 +10,7 @@ import { makeIdeas, BUSY } from "./shell-ideas.js";
 import { makeOps, OPS_VIEW } from "./shell-ops.js";
 import { makeMap } from "./shell-map.js";
 import { keptGoal } from "./shell-top.js";
-import { makeCards } from "./shell-cards.js";
+import { makeCards, pushWeek, isoWeek } from "./shell-cards.js";
 
 export { BUSY };
 
@@ -35,6 +35,29 @@ export function makeBoardTab(core, ctx) {
   const map = makeMap(core, goalSheet);
   const cards = makeCards(core);
   let mapRev;                                        // the board's rev the Map was read at
+
+  // -- Last week (spec 42 §7.3): the first look of a new ISO week shows the card; `orkboard.week.<project>` holds the last week shown ---------
+  let weekFor = "";                                  // the project the week was checked for
+  let weekBusy = false;
+  async function weekCheck() {
+    const project = st.snap?.project;
+    if (!project || weekBusy || !st.board || document.visibilityState === "hidden") return;
+    const key = `orkboard.week.${project}`, last = isoWeek(new Date(Date.now() - 7 * 86400000));
+    let kept = null;
+    try { kept = localStorage.getItem(key); } catch { return; }
+    weekFor = project;
+    if (kept === last) return;
+    const write = () => { try { localStorage.setItem(key, last); } catch { /* the page works without it */ } };
+    if (kept === null) { write(); return; }          // no key: written, nothing shown
+    weekBusy = true;
+    try {
+      const got = await core.call("ideas.week");
+      if (!got || project !== st.snap?.project) return;
+      write();
+      if (!got.empty) pushWeek(core, got);
+    } finally { weekBusy = false; }
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") weekCheck(); });
 
   /** The Map — the Board's trails — is read again when the board's rev moves, not on a clock of its own (spec 39 §4.8). */
   async function loadMap() {
@@ -73,6 +96,7 @@ export function makeBoardTab(core, ctx) {
     /** New idea's button is on the Board of a goal (not Operations', nor the Map's). */
     fabOn: () => Boolean(st.board) && !st.view,
     draw() {
+      if (st.board && st.snap?.project && st.snap.project !== weekFor) weekCheck();
       if (!fresh(JSON.stringify([st.board, st.track, st.mapGoal, st.view, st.ops, st.boardError, st.map, st.mapError, st.cards, st.roles?.roles?.length]))) return;
       if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
         pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),

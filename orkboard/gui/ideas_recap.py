@@ -40,3 +40,11 @@ class RecapMixin:
         """`{}`: the work of the last seven days beside today's spend, and the nights (spec 42 §6)."""
         return board_week.this_week(Path(self.host.repo_root), self.state_dir, self.settings_now(), dt.datetime.now().astimezone(),
                                     self.board(make=False), ops_base=op_runs.root(), into=self._into())
+
+    def week(self, args: dict) -> dict:
+        """`{"week"?}`: last week (an ISO week, `2026-W42`; default the last full one), Monday to Sunday (spec 42 §7)."""
+        week = args.get("week")
+        if week is not None and (not isinstance(week, str) or (week and board_week.week_start(week) is None)):
+            raise IdeasError("`week` is an ISO week, like 2026-W42")
+        return board_week.last_week(Path(self.host.repo_root), self.state_dir, self.settings_now(), dt.datetime.now().astimezone(),
+                                    self.board(make=False), week=week or "", into=self._into())

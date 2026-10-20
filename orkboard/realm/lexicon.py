@@ -172,6 +172,7 @@ TERMS: tuple[Term, ...] = (
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)
+    _t("last_week", "Last week"),                                  # the card of the week before this one, Monday to Sunday (spec 42 §7)
     _t("short_name", "short name", "short names"),                 # an idea's, a goal's or a task's name in 24 characters (spec 41 §3)
     _t("recommended_answer", "recommended answer", "recommended answers"),   # the choice the Taskmaster picks for its question (spec 41 §9)
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)

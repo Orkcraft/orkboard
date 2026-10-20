@@ -32,8 +32,52 @@ export function closeCard() {
   cards.value = cards.value.slice(1);
 }
 
+// -- Last week (spec 42 §7.3): the first look of a new ISO week shows last week's card; `orkboard.week.<12 characters>` holds the last week shown --------
+const weekKey = () => lookKey().replace("orkboard.look.", "orkboard.week.");
+/** The ISO week (`2026-W42`) of a date. */
+export function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const year = d.getUTCFullYear();
+  return `${year}-W${String(Math.ceil(((d - Date.UTC(year, 0, 1)) / 86400000 + 1) / 7)).padStart(2, "0")}`;
+}
+const lastWeekId = () => isoWeek(new Date(Date.now() - 7 * 86400000));
+let weekBusy = false;
+
+/** On the first look of a new week the card of last week comes first (a device with no key writes it and shows nothing). */
+export async function weekCheck() {
+  const key = weekKey();
+  if (!key || weekBusy || !town.value || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
+  const last = lastWeekId();
+  let kept = null;
+  try { kept = localStorage.getItem(key); } catch { return; }
+  const write = () => { try { localStorage.setItem(key, last); } catch { /* the page works without it */ } };
+  if (kept === last) return;
+  if (kept === null) { write(); return; }
+  weekBusy = true;
+  try {
+    const got = await command("ideas.week", {}).catch(() => null);
+    if (!got || got.error || key !== weekKey()) return;
+    write();
+    if (!got.empty) {
+      showCard({ kind: "week", data: got }, true);
+      logOpened("week", got.week);
+    }
+  } finally { weekBusy = false; }
+}
+
+/** The Map's *Last week* link: the card at any time. */
+export async function showWeek() {
+  const got = await command("ideas.week", {}).catch(() => null);
+  if (!got || got.error) return;
+  cards.value = [{ kind: "week", data: got }, ...cards.value.filter((c) => c.kind !== "week")];
+  logOpened("week", got.week, "map");
+}
+
 /** The Board's page is in front of the person: when the last look is old, ask what happened since; else keep the look fresh. */
 export async function away() {
+  weekCheck();
   const key = lookKey();
   if (!key || checking || !town.value || (typeof document !== "undefined" && document.visibilityState === "hidden")) return;
   const last = read(key), now = Date.now();

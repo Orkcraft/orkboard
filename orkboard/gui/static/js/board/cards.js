@@ -57,15 +57,63 @@ function Recap({ r }) {
   </div>`;
 }
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "12–18 October", or "28 September–4 October" across a month. */
+export function rangeWords(from, to) {
+  const [, m1, d1] = from.split("-").map(Number), [, m2, d2] = to.split("-").map(Number);
+  return m1 === m2 ? `${d1}–${d2} ${MONTHS[m2 - 1]}` : `${d1} ${MONTHS[m1 - 1]}–${d2} ${MONTHS[m2 - 1]}`;
+}
+
+/** 42 min · 3 h (from 2 hours) · 2 days (from 48 hours). */
+export function durationWords(minutes) {
+  if (minutes < 120) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} days`;
+}
+
+const dollars = (usd) => `≈$${usd < 10 ? usd.toFixed(2).replace(/\.00$/, "") : Math.round(usd)}`;
+
+function Week({ w }) {
+  const into = w.into || "dev", pct = (a, b) => `${Math.round((a.first_time / a.merged) * 100)} %`;
+  const goalLink = (f, text) => html`<button type="button" class="board-link" onClick=${() => showGoal(f.goal, { via: "week" })}>${text}</button>`;
+  const ideaLink = (i, text) => html`<button type="button" class="board-link" onClick=${() => showIdea(i.slug, { via: "week" })}>${text}</button>`;
+  const lines = [];
+  if (w.merged > 0) {
+    const sure = w.first_time ? `${pct(w, w)}${w.before ? `; the week before ${pct(w.before, w.before)}` : ""}` : "";
+    lines.push(html`<p class="away__merged">${resultsWords({ tasks: w.merged, first_time: w.first_time }, into)}${sure && ` (${sure})`}</p>`);
+  }
+  if (w.usd_per_merged != null) {
+    lines.push(html`<p class="away__usd">${dollars(w.usd_per_merged)} a result${w.before?.usd_per_merged != null ? ` (the week before ${dollars(w.before.usd_per_merged)})` : ""}</p>`);
+  }
+  if ((w.goals || []).length) {
+    lines.push(html`<p class="away__goals">Goals: ${joined(w.goals.map((g, n) => html`${goalLink(g, g.short)}${n === 0 ? `, ${g.done} ${g.done === 1 ? "idea" : "ideas"} done` : `, ${g.done}`}`), " · ")}</p>`);
+  }
+  if ((w.flags || []).length) {
+    lines.push(html`<p class="away__flag">Flags: ${joined(w.flags.map((f) => html`${goalLink(f, f.short)}${f.met ? ", met" : ", not met yet"}`), "; ")}</p>`);
+  }
+  const speed = [w.dearest && html`Cost the most: ${ideaLink(w.dearest, w.dearest.short)}, ${dollars(w.dearest.usd)}`,
+    w.fastest && html`Fastest from idea to ${into}: ${ideaLink(w.fastest, w.fastest.short)}, ${durationWords(w.fastest.minutes)}`].filter(Boolean);
+  if (speed.length) lines.push(html`<p class="away__extremes">${joined(speed, " · ")}</p>`);
+  if (w.answers) {
+    const left = w.answers.decided ? `; ${w.answers.decided} ${w.answers.decided === 1 ? "card" : "cards"} left to the Taskmaster` : "";
+    lines.push(html`<p class="away__answers">Questions: ${w.answers.recommended} of ${w.answers.answers} answers were the recommended one${left}</p>`);
+  }
+  const nights = weekNights(w.nights);
+  if (nights) lines.push(html`<p class="away__nights">${nights.replace("The last 7 nights", "Nights")}</p>`);
+  return html`<div class="away__lines">${lines.length ? lines : html`<p class="ok-tone-muted">Nothing was merged or finished.</p>`}</div>`;
+}
+
 /** The first card waiting, or nothing. */
 export function Cards() {
   const c = cards.value[0];
   if (!c) return null;
-  const label = "While you were away";
+  const week = c.kind === "week";
+  const label = week ? "Last week" : "While you were away";
   return html`<section class="ork-card away" aria-label=${label} data-card=${c.kind}
       onKeyDown=${(e) => { if (e.key === "Escape") { e.stopPropagation(); closeCard(); } }}>
-    <header class="away__head"><h3 class="away__title">${label} · ${awayWords(c.data.hours)}</h3></header>
-    <${Recap} r=${c.data} />
+    <header class="away__head"><h3 class="away__title">${week ? `${label} · ${rangeWords(c.data.from, c.data.to)}` : `${label} · ${awayWords(c.data.hours)}`}</h3></header>
+    ${week ? html`<${Week} w=${c.data} />` : html`<${Recap} r=${c.data} />`}
     <footer class="away__foot"><button type="button" class="ork-btn quiet" onClick=${closeCard}>Close</button></footer>
   </section>`;
 }

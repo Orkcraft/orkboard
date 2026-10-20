@@ -74,3 +74,94 @@ def this_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
             "usd_per_merged": round(spent / merged, 2) if merged >= idea_spend.TOO_FEW and spent is not None else None,
             "nights": {k: kinds.count(k) for k in ("worked", "idle", "off")}, "tonight": tonight,
             "night_on": window((settings or {}).get("night")) is not None, "into": into}
+
+
+# -- last week (spec 42 §7) ------------------------------------------------------------------------------------
+
+def iso_week(day: dt.date) -> str:
+    year, week, _d = day.isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def week_start(week: str) -> dt.date | None:
+    """The Monday of an ISO week (`2026-W42`); None for anything else."""
+    try:
+        year, number = week.split("-W")
+        return dt.date.fromisocalendar(int(year), int(number), 1)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _bounds(monday: dt.date) -> tuple[dt.datetime, dt.datetime]:
+    return (dt.datetime.combine(monday, dt.time()).astimezone(), dt.datetime.combine(monday + dt.timedelta(days=7), dt.time()).astimezone())
+
+
+def _results(root: Path, state_dir: Path, since: dt.datetime, until: dt.datetime) -> dict:
+    merged, first = board_recap.merges(board_recap.events_between(root, since, until, event_log.TASK_STATE))
+    spent = idea_spend.between(state_dir, since, until)
+    return {"merged": merged, "first_time": first, "usd": None if spent is None else round(spent, 2),
+            "usd_per_merged": round(spent / merged, 2) if merged >= idea_spend.TOO_FEW and spent is not None else None}
+
+
+def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, rows: dict, week: str = "", into: str = "dev") -> dict[str, Any]:
+    """The week before this one, Monday to Sunday (or `week`, an ISO week), as §7.1 has it."""
+    now = now.astimezone()
+    monday = week_start(week) if week else None
+    if monday is None:
+        monday = now.date() - dt.timedelta(days=now.weekday() + 7)
+    since, until = _bounds(monday)
+    prev_since, prev_until = _bounds(monday - dt.timedelta(days=7))
+    by_idea = {i["slug"]: i for i in rows.get("ideas") or []}
+    by_goal = {g["slug"]: g for g in rows.get("tracks") or []}
+    now_week = _results(root, state_dir, since, until)
+    prior = _results(root, state_dir, prev_since, prev_until)
+    log = board_recap.events_between(root, since, until, event_log.KEEPER_STATE, event_log.GOAL_ACCEPTED, event_log.IDEA_ANSWERED,
+                                     event_log.GOAL_ANSWERED)
+
+    done: dict[str, set[str]] = {}
+    for r in log:
+        i = by_idea.get(str(r.get("idea") or ""))
+        if r["event"] == event_log.KEEPER_STATE and r.get("state") == "done" and i is not None and i.get("track") in by_goal:
+            done.setdefault(i["track"], set()).add(i["slug"])
+    goals = [{"goal": g, "short": by_goal[g].get("short") or by_goal[g].get("title") or g, "title": by_goal[g].get("title") or g,
+              "done": len(slugs)} for g, slugs in done.items() if g != "general"]
+
+    accepted: dict[str, dict] = {}
+    for r in log:
+        if r["event"] == event_log.GOAL_ACCEPTED and str(r.get("goal") or "") in by_goal:
+            accepted[str(r["goal"])] = r
+    flags = [{"goal": g, "short": by_goal[g].get("short") or by_goal[g].get("title") or g, "title": by_goal[g].get("title") or g,
+              "met": bool(r.get("met")), "by": str(r.get("by") or "")} for g, r in accepted.items()]
+
+    cost = {s: usd for s, usd in idea_spend.by_idea_between(state_dir, since, until).items() if s in by_idea and usd >= 0.01}
+    top = max(cost, key=cost.get) if cost else None
+    dearest = {"slug": top, "short": by_idea[top].get("short") or by_idea[top].get("title") or top, "title": by_idea[top].get("title") or top,
+               "usd": round(cost[top], 2)} if top else None
+
+    everything = event_log.read(root)
+    added = {r["idea"]: board_recap.when(r["at"]) for r in everything if r.get("event") == event_log.IDEA_ADDED and r.get("idea")}
+    first_merge: dict[str, dt.datetime] = {}
+    for r in everything:
+        at = board_recap.when(r.get("at"))
+        if r.get("event") == event_log.TASK_STATE and r.get("state") == "merged" and at is not None:
+            first_merge[str(r.get("idea") or "")] = min(first_merge.get(str(r.get("idea") or ""), at), at)
+    quick = [(int((at - added[s]).total_seconds() // 60), s) for s, at in first_merge.items()
+             if s in by_idea and s in added and added[s] is not None and since <= at < until]
+    fastest = None
+    if quick:
+        minutes, slug = min(quick)
+        fastest = {"slug": slug, "short": by_idea[slug].get("short") or by_idea[slug].get("title") or slug,
+                   "title": by_idea[slug].get("title") or slug, "minutes": max(0, minutes)}
+
+    answered = [r for r in log if r["event"] in (event_log.IDEA_ANSWERED, event_log.GOAL_ANSWERED)]
+    answers = {"answers": sum(board_recap._int(r.get("answers")) for r in answered),
+               "recommended": sum(board_recap._int(r.get("recommended")) for r in answered),
+               "decided": sum(1 for r in answered if r.get("decided") is True)} if answered else None
+
+    kinds = [x["kind"] for x in nights(root, settings, min(now, until), 7)] if until > since else []
+    out = {"week": iso_week(monday), "from": monday.isoformat(), "to": (monday + dt.timedelta(days=6)).isoformat(), "into": into, **now_week,
+           "before": {k: prior[k] for k in ("merged", "first_time", "usd_per_merged")} if prior["merged"] else None,
+           "goals": goals, "flags": flags, "dearest": dearest, "fastest": fastest, "answers": answers,
+           "nights": {k: kinds.count(k) for k in ("worked", "idle", "off")}, "streak": 0}
+    out["empty"] = not (now_week["merged"] or flags or goals)
+    return out
