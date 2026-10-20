@@ -69,3 +69,32 @@ export function curve(a, b) {
   const k = Math.max(12, (b.y - a.y) / 2);
   return `M${a.x.toFixed(1)} ${a.y.toFixed(1)} C${a.x.toFixed(1)} ${(a.y + k).toFixed(1)} ${b.x.toFixed(1)} ${(b.y - k).toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
 }
+
+// -- the trail (the Map as a goal's path, decisions §53): from how far it is, through its ideas, to its flag ------------------
+
+/** How far a goal is, in %: its ideas done, and the share of the tasks done of each idea at work (a plan made adds no drop). */
+export function progressOf(nodes) {
+  if (!nodes.length) return 0;
+  const done = nodes.filter((n) => n.state === "done").length;
+  const part = nodes.filter((n) => n.state !== "done" && n.progress?.total > 0).reduce((s, n) => s + n.progress.done / n.progress.total, 0);
+  return Math.round(((done + part) / nodes.length) * 100);
+}
+
+/** A task left to do: not merged, not dropped. */
+export const leftToDo = (t) => t.state !== "merged" && t.state !== "dropped";
+
+/** The line from the right of one stop on the trail to the left of the next (no arrowheads: the right one waits). */
+export function trailCurve(a, b) {
+  const k = Math.max(16, (b.x - a.x) / 2);
+  return `M${a.x.toFixed(1)} ${a.y.toFixed(1)} C${(a.x + k).toFixed(1)} ${a.y.toFixed(1)} ${(b.x - k).toFixed(1)} ${b.y.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+}
+
+/** The trail's lines: from the start to each stop that waits for no stop shown, between the stops, from each stop no stop
+ *  shown waits for to the flag. `shown`: the slugs on the trail; `edges`: the goal's ({from, to}). */
+export function trailEdges(shown, edges) {
+  const on = new Set(shown);
+  const inner = edges.filter((e) => on.has(e.from) && on.has(e.to));
+  const into = new Set(inner.map((e) => e.to)), out = new Set(inner.map((e) => e.from));
+  return [...shown.filter((s) => !into.has(s)).map((s) => ({ from: "@start", to: s })), ...inner,
+    ...shown.filter((s) => !out.has(s)).map((s) => ({ from: s, to: "@end" }))];
+}

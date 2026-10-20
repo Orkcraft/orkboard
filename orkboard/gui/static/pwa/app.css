@@ -538,3 +538,44 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .pointed p { margin: 0; }
 .lens-hint { margin: 0; font: var(--ork-type-caption); }
 .lens-chips .ork-btn { font: var(--ork-type-body); text-transform: none; letter-spacing: normal; }   /* the person's own words: never the pixel face */
+/* The trail on the phone (shell-map.js): the goals as tabs with how far each is, then the chosen goal's trail, standing up. */
+.map-goal-tabs { display: flex; gap: var(--ork-2); overflow-x: auto; margin: 0 calc(var(--ork-5) * -1); padding: 0 var(--ork-5) var(--ork-2); scrollbar-width: none; }
+.map-goal-tab { all: unset; box-sizing: border-box; flex: none; max-width: 180px; min-height: var(--ork-tap); padding: var(--ork-2) var(--ork-4); cursor: pointer;
+  display: flex; flex-direction: column; justify-content: center; gap: var(--ork-1); border: var(--ork-line) solid var(--ork-frame); }
+.map-goal-tab.is-on { border-color: var(--ork-ink); background: var(--ork-raised); }
+.map-goal-tab:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.map-goal-tab-title { font: var(--ork-type-body); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-goal-tab small { font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.map-goal-tab-bar { display: block; height: 3px; background: var(--ork-frame); }
+.map-goal-tab-fill { display: block; height: 100%; width: 0; background: var(--ork-success); }
+.p10 { width: 10%; } .p20 { width: 20%; } .p30 { width: 30%; } .p40 { width: 40%; } .p50 { width: 50%; }
+.p60 { width: 60%; } .p70 { width: 70%; } .p80 { width: 80%; } .p90 { width: 90%; } .p100 { width: 100%; }
+.trail-v { position: relative; display: flex; flex-direction: column; gap: var(--ork-5); padding-left: var(--ork-6); }
+.trail-v::before { content: ""; position: absolute; left: 7px; top: 10px; bottom: 18px; border-left: 2px solid var(--ork-edge); }
+.trail-start, .trail-end { position: relative; display: flex; align-items: baseline; gap: var(--ork-3); }
+.trail-start::before, .trail-step::before, .trail-end::before { content: ""; position: absolute; left: calc(var(--ork-6) * -1 + 3px); top: 8px; width: 10px; height: 10px; background: var(--ork-ink); }
+.trail-step::before { background: var(--ork-canvas); border: 2px solid var(--ork-edge); box-sizing: border-box; top: 14px; }
+.trail-end::before { display: none; }
+.trail-pct { font: var(--ork-type-title); }
+.trail-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-5); }
+.trail-step { position: relative; display: flex; flex-direction: column; gap: var(--ork-2); }
+.trail-lanes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: var(--ork-3); }
+.trail-lanes.is-two { grid-template-columns: 1fr 1fr; }
+.trail-lanes .map-open { padding: var(--ork-4); }
+.trail-gate { display: flex; align-items: center; gap: var(--ork-2); padding: var(--ork-1) var(--ork-4) 0; font: var(--ork-type-caption); font-weight: 600; color: var(--ork-alert); }
+.map-row .map-tasks { display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-2) var(--ork-4) var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
+.map-row .map-wave { display: flex; flex-direction: column; gap: var(--ork-1); }
+.map-row .map-wave + .map-wave { border-top: var(--ork-line) dotted var(--ork-frame); padding-top: var(--ork-1); }
+.map-task { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-2); align-items: center; min-height: 32px; font: var(--ork-type-caption); }
+.map-task:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
+.map-task-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-task small { grid-column: 2; color: var(--ork-ink-muted); }
+.map-tasks-done { align-self: flex-end; font: var(--ork-type-caption); }
+.trail-end { align-items: center; color: var(--ork-ink-muted); }
+.trail-flag { display: inline-flex; padding: var(--ork-2); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); margin-left: calc(var(--ork-6) * -1 - 2px); }
+.trail-end.is-met { color: var(--ork-success); }
+.trail-end.is-met .trail-flag { border-color: var(--ork-success); }
+.trail-end.is-not { color: var(--ork-alert); }
+.trail-end.is-not .trail-flag { border-color: var(--ork-alert); }
+.trail-more { align-self: flex-start; }
+.trail-empty { margin: 0; }

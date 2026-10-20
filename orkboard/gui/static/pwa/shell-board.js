@@ -106,7 +106,7 @@ export function makeBoardTab(core, ctx) {
     /** New idea's button is on the Board of a goal (not Operations', nor the Map's). */
     fabOn: () => Boolean(st.board) && !st.view,
     draw() {
-      if (!fresh(JSON.stringify([st.board, st.track, st.view, st.ops, st.boardError, st.map, st.mapError, st.roles?.roles?.length]))) return;
+      if (!fresh(JSON.stringify([st.board, st.track, st.mapGoal, st.view, st.ops, st.boardError, st.map, st.mapError, st.roles?.roles?.length]))) return;
       const unpair = h("p", { class: "muted foot-line" }, h("button", { class: "linkish", type: "button", onclick: () => ctx.unpair() }, "Unpair this phone"));
       if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
         pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),

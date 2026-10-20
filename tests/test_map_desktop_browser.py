@@ -31,7 +31,7 @@ def key(path: str) -> str:
 
 
 def pip(tid, title, state, after=()):
-    return {"id": tid, "title": title, "state": state, "after": list(after), "tier": "warrior"}
+    return {"id": tid, "title": title, "state": state, "after": list(after), "tier": "warrior", "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}
 
 
 def node(slug, goal, title, state, tier, **more):
@@ -66,6 +66,7 @@ class MapHost(StubHost):
                             {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": True, "why": "", "state": "running"}]),
         ]
         self.edges = [{"from": "sync", "to": "dark"}, {"from": "tags", "to": "growth"}]
+        self.extra_goal: dict = {}                    # more of the first goal's fields (its verdict)
 
     def snapshot(self):
         snap = super().snapshot()
@@ -79,6 +80,7 @@ class MapHost(StubHost):
                            {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "checks": True, "every": True}]},
                  {"slug": "ship-sync", "title": "Ship sync", "priority": "normal", "state": "ready", "done_when": ["sync works offline"],
                   "ideas": 4, "done": 1, "usd": 12.4}]
+        goals[0].update(self.extra_goal)
         return {"goals": goals, "nodes": sorted(self.nodes, key=lambda n: (n["goal"] != "grow", n["tier"])), "edges": self.edges, "rev": self.rev}
 
     def handle(self, name, a):
@@ -171,28 +173,33 @@ def test_the_map_is_the_first_tab_pinned_shown_at_start_and_esc_does_not_close_i
     assert tabs.count() == 1
 
 
-def test_two_goals_a_tier_below_its_dependency_with_a_line_and_each_waiting_node_says_why(mapped):
+def test_each_goal_is_a_trail_from_how_far_it_is_through_its_ideas_left_to_its_flag(mapped):
     pg, host = mapped
     sections = pg.locator(".map-goal")
     assert sections.count() == 2 and [s.get_attribute("data-goal") for s in sections.all()] == ["grow", "ship-sync"]   # the Board's order
     head = pg.locator(".map-goal[data-goal=ship-sync] .map-goal__head").inner_text()
-    assert "Ship sync" in head and "Normal" in head and "1 of 4 done" in head and "≈$12 so far" in head
+    assert "Ship sync" in head and "Normal" in head and "31 %" in head and "≈$12 so far" in head   # 1 done of 4, and 1 of sync's 4 tasks
     assert "—" in pg.locator(".map-goal[data-goal=grow] .map-goal__head").inner_text()              # nothing priced
     when = pg.locator(".map-goal[data-goal=grow] .map-goal__when")
     assert "done when weekly installs" in when.inner_text() and "stars" not in when.inner_text()    # folded to the first
     when.get_by_role("button", name="and 1 more").click()
     assert "done when stars" in when.inner_text()
 
-    upper, lower = box(pg, ".map-card[data-slug=sync]"), box(pg, ".map-card[data-slug=dark]")
-    assert lower["y"] >= upper["y"] + upper["height"] + 12                                          # a tier below
-    assert 215 <= upper["width"] <= 225 and 68 <= upper["height"] <= 76                              # about 220 × 72
-    line = pg.locator(".map-lines path[data-from=sync][data-to=dark]")
-    assert line.count() == 1
-    ends = pg.evaluate("""() => { const d = document.querySelector('.map-lines path[data-from=sync][data-to=dark]').getAttribute('d').match(/-?[\\d.]+/g).map(Number);
+    ship = pg.locator(".map-goal[data-goal=ship-sync]")
+    start = ship.locator(".trail-start")
+    assert "31 %" in start.inner_text() and "1 of 4 ideas" in start.inner_text()                     # how far, at the start
+    first, later = box(pg, ".map-card[data-slug=sync]"), box(pg, ".map-card[data-slug=dark]")
+    assert later["x"] >= first["x"] + first["width"] + 24                                            # right of what it depends on
+    beside = box(pg, ".map-card[data-slug=offline]")
+    assert abs(beside["x"] - first["x"]) < 2 and beside["y"] > first["y"]                             # side by side: one step, two lanes
+    flag = box(pg, ".map-goal[data-goal=ship-sync] .trail-end__flag")
+    assert flag["x"] > later["x"] + later["width"]                                                    # the flag at the end
+    lines = ship.locator(".map-lines path")
+    got = {(l.get_attribute("data-from"), l.get_attribute("data-to")) for l in lines.all()}
+    assert got == {("@start", "sync"), ("@start", "offline"), ("sync", "dark"), ("dark", "@end"), ("offline", "@end")}
+    ends = pg.evaluate("""() => { const d = document.querySelector('.map-goal[data-goal=ship-sync] .map-lines path[data-from=sync][data-to=dark]').getAttribute('d').match(/-?[\\d.]+/g).map(Number);
       const r = document.querySelector('.map-goal[data-goal=ship-sync] .map-lines').getBoundingClientRect(); return [d[0] + r.left, d[1] + r.top, d[d.length - 2] + r.left, d[d.length - 1] + r.top]; }""")
-    assert upper["x"] <= ends[0] <= upper["x"] + upper["width"] and abs(ends[1] - (upper["y"] + upper["height"])) < 3      # from the upper's foot
-    assert lower["x"] <= ends[2] <= lower["x"] + lower["width"] and abs(ends[3] - lower["y"]) < 3                         # to the lower's top
-    assert pg.locator(".map-lines path[data-from=tags][data-to=growth]").count() == 1
+    assert abs(ends[0] - (first["x"] + first["width"])) < 3 and abs(ends[2] - later["x"]) < 3        # from the right of one to the left of the next
 
     assert "tonight" in card(pg, "Offline mode").inner_text()
     assert "waits for Tag the notes" in card(pg, "Grow the list").inner_text()
@@ -200,14 +207,28 @@ def test_two_goals_a_tier_below_its_dependency_with_a_line_and_each_waiting_node
     assert pg.locator(".map-card[data-slug=tags]").evaluate("e => getComputedStyle(e).borderStyle") == "dotted"   # proposed
     need = card(pg, "Dark mode")
     assert need.get_attribute("data-needs") == "plan" and "plan ready" in need.inner_text() and "●" in need.inner_text()
-    assert need.evaluate("e => getComputedStyle(e).boxShadow") != "none"                            # the frame heavier
+    assert "Waits for you" in pg.locator(".map-node[data-slug=dark] .trail-gate").inner_text()        # a gate on the trail
     assert "≈$0.40–1.20" in need.inner_text()
     assert "by itself" in card(pg, "Sync ideas").inner_text() and "working 1/4" in card(pg, "Sync ideas").inner_text()
     assert card(pg, "Sync ideas").locator(".shell-spin").count() == 1                               # working: a spinner
-    assert pg.locator(".map-card", has_text="Export notes").count() == 0                            # a done idea nothing depends on
+    assert pg.locator(".map-card", has_text="Export notes").count() == 0                            # done: not on the trail
     pg.get_by_role("button", name="Done (1)").click()
     assert card(pg, "Export notes").is_visible() and "done" in card(pg, "Export notes").inner_text()
     assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
+
+
+def test_a_goal_s_flag_is_raised_when_its_leader_accepts_it_and_more_than_three_ideas_side_by_side_fold(mapped):
+    pg, host = mapped
+    host.extra_goal = {"verdict": {"met": True, "by": "Growth"}}
+    for n in range(1, 6):
+        host.nodes.append(node(f"p{n}", "grow", f"Page {n}", "ready", 1))
+    host.bump({})
+    grow = pg.locator(".map-goal[data-goal=grow]")
+    grow.locator(".trail-end.is-met").wait_for(timeout=WAIT_MS)
+    assert "Met · Growth" in grow.locator(".trail-end").inner_text()
+    assert grow.locator(".trail-step").first.locator(".map-card").count() == 3                        # three side by side
+    grow.get_by_role("button", name="+3 more side by side").click()
+    assert grow.locator(".trail-step").first.locator(".map-card").count() == 6
 
 
 def test_a_goal_folds_and_stays_folded_after_a_reload(mapped):
@@ -227,23 +248,23 @@ def test_the_map_shows_every_goal_whatever_goal_the_board_shows(mapped):
     assert pg.locator(".map-goal").count() == 2                                       # the Map is the view of them all (the Board shows one)
 
 
-def test_tasks_unfold_in_waves_and_the_map_asks_again_when_the_board_moves(mapped):
+def test_an_idea_at_work_shows_its_tasks_left_with_their_agents_in_waves_and_the_map_asks_again_when_the_board_moves(mapped):
     pg, host = mapped
-    assert pg.locator(".map-tasks").count() == 0
-    pips = pg.get_by_role("button", name="Tasks of Sync ideas between the phone and the town")
-    assert pips.locator(".map-pip").count() == 4 and pips.locator("[data-pip=done]").count() == 1 and pips.locator("[data-pip=working]").count() == 1
-    pips.click()
-    waves = pg.locator(".map-tasks .map-wave")
-    assert waves.count() == 3 and waves.nth(0).inner_text() == "k1 Read the sync code · merged"
-    assert "k2 Add the queue · working" in waves.nth(1).inner_text() and "k3 Retry on a lost signal · queued" in waves.nth(1).inner_text()
-    assert waves.nth(2).inner_text() == "k4 Test it offline · waiting"
-    # the lower tier moved down
-    assert box(pg, ".map-card[data-slug=dark]")["y"] > box(pg, ".map-card[data-slug=sync]")["y"] + 72 + 60
+    tasks = pg.get_by_label("Tasks of Sync ideas between the phone and the town")
+    waves = tasks.locator(".map-wave")
+    assert waves.count() == 2                                                                         # k1 merged: not on the trail
+    assert [t.inner_text().split("\n")[0] for t in waves.nth(0).locator(".map-task").all()] == ["Add the queue", "Retry on a lost signal"]
+    assert "working" in waves.nth(0).locator(".map-task").first.inner_text()
+    assert waves.nth(1).locator(".map-task").count() == 1 and "1 done" in tasks.inner_text()
+    assert waves.nth(0).locator(".map-task").first.locator("img.ork-race__head").count() == 1          # who does it
+    waves.nth(0).locator(".map-task").first.click()
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "task", "ref": "sync/k2", "device": "desktop", "via": "map"}))
+    tab(pg, "Map").click()
     before = len(_calls(pg, host, "ideas.map"))
     host.nodes[0]["tasks"] = [pip("k1", "Read the sync code", "merged"), pip("k2", "Add the queue", "merged", ["k1"]),
                               pip("k3", "Retry on a lost signal", "ready", ["k1"]), pip("k4", "Test it offline", "waiting", ["k2", "k3"])]
     host.bump({})
-    pg.locator(".map-tasks .map-task", has_text="k2 Add the queue · merged").wait_for(timeout=WAIT_MS)     # read again with the rev
+    pg.get_by_label("Tasks of Sync ideas between the phone and the town").get_by_text("2 done").wait_for(timeout=WAIT_MS)   # read again with the rev
     assert len(_calls(pg, host, "ideas.map")) > before
 
 

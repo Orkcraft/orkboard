@@ -26,7 +26,8 @@ def node(slug, title, tier, state, **more):
 
 
 def _tasks(*states):
-    return [{"id": f"k{i}", "title": f"Task {i}", "state": s, "after": [], "tier": "warrior"} for i, s in enumerate(states, 1)]
+    return [{"id": f"k{i}", "title": f"Task {i}", "state": s, "after": [], "tier": "warrior",
+             "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}} for i, s in enumerate(states, 1)]
 
 
 # Ordered as the backend gives them: by goal, then tier, then the ones that need the person first.
@@ -41,7 +42,9 @@ NODES = [
 ]
 MAP = {"goals": [{"slug": "ship", "title": "Ship v1", "priority": "high", "state": "ready", "done_when": ["Tests pass", "Docs read"],
                   "ideas": 5, "done": 2, "usd": 12.4, "team": [{"slug": "product-designer", "name": "Product designer", "head": {"craft": "design", "race": "elf", "tier": "elder"}, "checks": False, "every": False},
-                  {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "checks": True, "every": True}]}],
+                  {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "checks": True, "every": True}]},
+                 {"slug": "docs", "title": "Docs", "priority": "normal", "state": "ready", "done_when": [], "ideas": 0, "done": 0, "usd": None,
+                  "verdict": {"met": True, "by": "Growth"}}],
        "nodes": NODES, "edges": [{"from": "tables", "to": "sync"}], "rev": "1"}
 
 
@@ -63,42 +66,45 @@ def _map(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_the_map_button_opens_the_map_and_a_tap_opens_the_idea(fake_repo, monkeypatch):
+async def test_the_goals_are_tabs_with_how_far_each_is_and_a_goal_is_a_trail_down_to_its_flag(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _open_map(page)
         goal = page.locator(".map-goal")
         await goal.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "map", "device": "phone"})
-        assert "Ship v1" in await goal.locator("h3").inner_text()
-        head = await goal.locator(".map-goal-meta").inner_text()
-        assert "2 of 5 done" in head and "≈$12 so far" in head
-        rows = goal.locator(":scope > .map-ideas > .map-row")
-        titles = [await r.locator(".idea-title").inner_text() for r in await rows.all()]
-        assert titles == ["Draft the pricing page", "Build the tables", "Write the changelog", "Sync between phone and town"]   # tiers; the hand first
-        assert "Old cleanup" not in " ".join(titles)
-        first, sync = rows.nth(0), rows.nth(3)
-        assert "plan ready" in await first.inner_text() and await first.locator(".map-hand").count() == 1       # needs the person's hand
-        assert await first.locator(".map-dots").get_attribute("aria-label") == "Tier 1 of 2"
-        assert await sync.locator(".map-dots").get_attribute("aria-label") == "Tier 2 of 2"
-        assert "○●" in await sync.locator(".map-dots").inner_text()
-        text = await sync.inner_text()
-        assert "working 1/3" in text and "after Build the tables" in text
-        assert await sync.locator(".pip").count() == 3 and await sync.locator(".pip-done").count() == 1 and await sync.locator(".pip-work").count() == 1
-        assert "tonight" in await rows.nth(2).inner_text()
-        css = "(el) => { const c = getComputedStyle(el); return [c.borderTopWidth, c.borderTopStyle]; }"
-        assert await first.evaluate(css) == ["3px", "solid"]                      # needs your hand: the heavier frame
-        assert await rows.nth(2).evaluate(css) == ["1px", "dashed"]               # waits: dashed
-        for i in range(4):                                                         # tap targets of at least 44 px
-            assert (await rows.nth(i).locator(".map-open").bounding_box())["height"] >= 44
-        await goal.get_by_text("Done (1)").click()
+        tabs = page.get_by_role("tablist", name="Goals")
+        assert [" ".join(t.split()) for t in await tabs.get_by_role("tab").all_inner_texts()] == ["Ship v1 47 %", "Docs met"]   # 2 done of 5 and a third of sync; Docs accepted
+        assert await tabs.get_by_role("tab", name="Ship v1").get_attribute("aria-selected") == "true"
+        assert await goal.get_attribute("aria-label") == "Ship v1" and "≈$12 so far" in await goal.locator(".map-goal-meta").inner_text()
+        start = goal.locator(".trail-start")
+        assert "47 %" in await start.inner_text() and "2 of 5 ideas" in await start.inner_text()
+        steps = goal.locator(".trail-step")
+        assert await steps.count() == 2
+        first = [await t.inner_text() for t in await steps.nth(0).locator(".idea-title").all()]
+        assert first == ["Draft the pricing page", "Write the changelog"]                      # side by side; the hand first; done not on the trail
+        gate = steps.nth(0).locator(".map-row").first
+        assert "Waits for you" in await gate.locator(".trail-gate").inner_text() and "plan ready" in await gate.inner_text()
+        sync = steps.nth(1).locator('.map-row[data-slug="sync"]')
+        assert "working 1/3" in await sync.inner_text()
+        tasks = sync.get_by_label("Tasks of Sync between phone and town")
+        assert [await t.locator(".map-task-title").inner_text() for t in await tasks.locator(".map-task").all()] == ["Task 2", "Task 3"]
+        assert "1 done" in await tasks.inner_text()
+        assert "The goal" in await goal.locator(".trail-end").inner_text()
+        for row in await goal.locator(".trail-step .map-open").all():                         # tap targets of at least 44 px
+            assert (await row.bounding_box())["height"] >= 44
+        await goal.get_by_text("Done (2)").click()
         await goal.get_by_text("Old cleanup").wait_for(timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
         await _shot(page, "phone-map-390x844")
-        await sync.locator(".map-open").click()
+        await tabs.get_by_role("tab", name="Docs").click()                                    # another goal: its trail, and the Board's goal
+        await page.locator('.map-goal[data-goal="docs"]').wait_for(timeout=WAIT_MS)
+        assert "Met · Growth" in await page.locator(".trail-end").inner_text()
+        await tabs.get_by_role("tab", name="Ship v1").click()
+        await page.locator('.map-goal[data-goal="ship"] .map-row[data-slug="sync"] .map-open').click()
         await page.locator(".screen .sec").first.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "phone", "via": "map"})
         await page.get_by_role("button", name="Back", exact=True).click()
-        await page.locator(".map-goal").wait_for(timeout=WAIT_MS)                        # back on the Map
+        await page.locator(".map-goal").wait_for(timeout=WAIT_MS)                            # back on the Map
         await page.locator(".goal-pick").get_by_role("button", name="Board").click()
         await page.locator(".pane-head h2", has_text="Board").wait_for(timeout=WAIT_MS)
         assert await page.locator(".map-goal").count() == 0

@@ -160,11 +160,28 @@
 .map-goal__when { margin: 0; }
 .map-fold { background: none; border: 0; padding: 0 var(--ork-2); color: var(--ork-ink-muted); cursor: pointer; font: inherit; }
 .map-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: var(--ork-4); }
-.map-tree { position: relative; width: max-content; min-width: 100%; display: flex; flex-direction: column; gap: calc(var(--ork-6) * 2); padding: var(--ork-2); box-sizing: border-box; }
 .map-lines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .map-lines path { fill: none; stroke: var(--ork-edge); stroke-width: 1; shape-rendering: crispEdges; }
-.map-tier, .map-done__list { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--ork-6); align-items: flex-start; }
-.map-done__list { flex-wrap: wrap; }
+.map-done__list { list-style: none; margin: var(--ork-3) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ork-6); align-items: flex-start; }
+/* The trail (map.js): the start, the steps of stops left to right, the flag; the lines under them. */
+.trail { position: relative; width: max-content; min-width: 100%; display: flex; align-items: center; gap: calc(var(--ork-6) * 2);
+  padding: var(--ork-3) var(--ork-2); box-sizing: border-box; }
+.trail-start, .trail-end { position: relative; z-index: 1; flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-1); }
+.trail-start { align-items: flex-end; text-align: right; padding-right: var(--ork-5); }
+.trail-start__dot { position: absolute; right: 0; top: calc(50% - 5px); }
+.trail-start__dot { width: 10px; height: 10px; background: var(--ork-ink); }
+.trail-start__pct { font: var(--ork-type-title); font-variant-numeric: tabular-nums; }
+.trail-step { list-style: none; margin: 0; padding: 0; flex: none; display: flex; flex-direction: column; gap: var(--ork-5); }
+.trail-more { position: relative; z-index: 1; }
+.trail-end { align-items: center; color: var(--ork-ink-muted); }
+.trail-end__flag { display: inline-flex; padding: var(--ork-3); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); }
+.trail-end.is-met { color: var(--ork-success); }
+.trail-end.is-met .trail-end__flag { border-color: var(--ork-success); }
+.trail-end.is-not { color: var(--ork-alert); }
+.trail-end.is-not .trail-end__flag { border-color: var(--ork-alert); }
+.trail-gate { display: inline-flex; align-items: center; gap: var(--ork-2); font: var(--ork-type-caption); font-weight: 600; color: var(--ork-alert); }
+.trail-empty { margin: 0; }
+.map-card.is-fog { border-style: dashed; color: var(--ork-ink-muted); }
 .map-node { position: relative; z-index: 1; width: 220px; flex: none; display: flex; flex-direction: column; gap: var(--ork-2); }
 .map-card { position: relative; width: 220px; height: 72px; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-2); padding: var(--ork-3) var(--ork-3) 22px; text-align: left; overflow: hidden;
   background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-caption); cursor: pointer; }
@@ -186,10 +203,16 @@
 .map-pip { display: inline-block; flex: none; width: 8px; height: 8px; border: 1px solid var(--ork-ink-muted); box-sizing: border-box; }
 .map-pip[data-pip="done"] { background: var(--ork-ink); border-color: var(--ork-ink); }
 .map-pip[data-pip="working"] { background: var(--ork-ink); box-shadow: inset 0 0 0 2px var(--ork-canvas); border-color: var(--ork-ink); }
-.map-tasks { display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-2) var(--ork-3); font: var(--ork-type-caption); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
-.map-wave { display: flex; flex-direction: column; }
-.map-wave + .map-wave { border-top: var(--ork-line) dotted var(--ork-frame); margin-top: var(--ork-1); padding-top: var(--ork-1); }
-.map-task { margin: 0; overflow-wrap: anywhere; }
+.map-tasks { width: 220px; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-2) var(--ork-3); font: var(--ork-type-caption); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
+.map-wave { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; }
+.map-wave + .map-wave { border-top: var(--ork-line) dotted var(--ork-frame); padding-top: var(--ork-1); }
+.map-task { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-2); align-items: center; width: 100%; }
+.map-task:hover .map-task__title, .map-task:focus-visible .map-task__title { text-decoration: underline; }
+.map-task:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
+.map-task__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-task small { grid-column: 2; color: var(--ork-ink-muted); }
+.map-tasks__done { align-self: flex-end; white-space: nowrap; }
+.trail .map-card { height: auto; min-height: 72px; }
 .map-task[data-state="failed"] { color: var(--ork-danger); }
 .map-done { display: flex; flex-direction: column; gap: var(--ork-4); align-items: flex-start; }
 .map-done__btn { color: var(--ork-ink-muted); }
