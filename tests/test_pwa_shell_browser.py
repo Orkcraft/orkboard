@@ -111,7 +111,7 @@ class Stub:
                           else {"kind": "night", "ref": "", "title": "", "until": ""} if i.get("queue") == "night" or i.get("start_at") == "night" else None,
                           "needs_you": needs,
                           "progress": {"done": sum(t["state"] == "merged" for t in tasks), "total": len(tasks)}, "tasks": tasks, "estimate": None,
-                          "by_itself": False, "folded": i["state"] == "done", "updated": "", "checks": copy.deepcopy(self.checks) if i["slug"] == "sync" else []})
+                          "by_itself": False, "folded": i["state"] == "done", "updated": "", "checks": copy.deepcopy(i.get("checks") or (self.checks if i["slug"] == "sync" else []))})
         used = {n["goal"] for n in nodes}
         goals = [g | {"done_when": [m["name"] for m in g.get("metrics", [])], "ideas": sum(n["goal"] == g["slug"] for n in nodes),
                       "done": sum(n["goal"] == g["slug"] and n["state"] == "done" for n in nodes), "usd": None,

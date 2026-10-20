@@ -57,7 +57,9 @@ class MapHost(StubHost):
             node("sync", "ship-sync", "Sync ideas between the phone and the town", "working", 1, progress={"done": 1, "total": 4},
                  tasks=self.tasks, by_itself=True, updated=ago(1),
                  checks=[{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "waiting", "task": "k4", "skipped": False, "tier": "elder"}]),
-            node("offline", "ship-sync", "Offline mode", "raw", 1, queue="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}),
+            node("offline", "ship-sync", "Offline mode", "raw", 1, queue="night", waits={"kind": "night", "ref": "", "title": "", "until": ""},
+                 checks=[{"by": "editor", "name": "Editor", "applies": True, "why": "", "state": "", "task": "", "skipped": False, "tier": "laborer"},
+                         {"by": "seo", "name": "SEO", "applies": True, "why": "", "state": "", "task": "", "skipped": True, "tier": "laborer"}]),
             node("dark", "ship-sync", "Dark mode", "plan", 2, depends_on=["sync"], waits_on=["sync"], needs_you="plan",
                  waits={"kind": "you", "ref": "", "title": "", "until": ""}, estimate={"usd_low": 0.4, "usd_high": 1.2}),
             node("export", "ship-sync", "Export notes", "done", 1, folded=True, progress={"done": 3, "total": 3}),
@@ -264,6 +266,11 @@ def test_an_idea_at_work_shows_its_tasks_left_with_their_agents_in_waves_and_the
     assert skip.count() == 1 and tasks.locator(".map-task__skip").count() == 1
     skip.click()
     assert _sent(pg, host, ("ideas.check_skip", {"slug": "sync", "by": "reviewer"}))
+    pending = pg.get_by_label("Checks of Offline mode")                                                 # not planned: the checks its plan will hold
+    pending.get_by_role("button", name="Skip the check: Editor").click()
+    assert _sent(pg, host, ("ideas.check_skip", {"slug": "offline", "by": "editor"}))
+    pending.get_by_role("button", name="Take the check again: SEO").click()
+    assert _sent(pg, host, ("ideas.check_skip", {"slug": "offline", "by": "seo", "skip": False}))
     waves.nth(0).locator(".map-task").first.click()
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "task", "ref": "sync/k2", "device": "desktop", "via": "map"}))
     tab(pg, "Map").click()

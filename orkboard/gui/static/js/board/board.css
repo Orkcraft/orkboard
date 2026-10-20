@@ -271,3 +271,5 @@
   border: var(--ork-line) solid var(--ork-frame); border-left: 0; color: var(--ork-ink-muted); }
 .map-task__skip:hover, .map-task__skip:focus-visible { color: var(--ork-ink); outline: 1px solid var(--ork-ink); }
 .map-task__skip .ork-icon { width: 10px; height: 10px; }
+.map-task-pair.is-skipped .map-task { opacity: .5; text-decoration: line-through; }
+.trail .map-checks .map-task { cursor: default; }

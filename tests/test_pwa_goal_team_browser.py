@@ -161,3 +161,31 @@ async def test_a_check_that_has_not_run_is_skipped_from_the_spec_to_spare_its_ru
         assert await _called(stub, "ideas.check_skip", {"slug": "sync", "by": "reviewer"})
         await line.get_by_text("skipped by you").wait_for(timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_a_check_is_skipped_right_on_the_trail_before_a_plan_or_before_its_task_runs(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "waiting", "task": "k5", "skipped": False, "tier": "elder"}]
+        stub.ideas["new"] = stub.idea("new", "A darker theme", "ready", 3, checks=[
+            {"by": "editor", "name": "Editor", "applies": True, "why": "", "state": "", "task": "", "skipped": False, "tier": "laborer"},
+            {"by": "seo", "name": "SEO", "applies": True, "why": "", "state": "", "task": "", "skipped": True, "tier": "laborer"}])
+        stub.bump({})
+        sync = page.locator(".map-row", has_text="Sync ideas")
+        skip = sync.get_by_role("button", name="Skip the check: Reviewer")                            # its task, not run yet
+        await skip.wait_for(timeout=WAIT_MS)
+        assert (await skip.bounding_box())["height"] >= 43                                             # a finger's size
+        await skip.click()
+        sheet = page.get_by_role("dialog", name="Skip the check?")
+        assert "taken out of the plan before it runs" in await sheet.inner_text() and "spares ≈ $" in await sheet.inner_text()
+        await _shot(page, "phone-trail-check-skip-390x844")
+        await sheet.get_by_role("button", name="Skip it").click()
+        assert await _called(stub, "ideas.check_skip", {"slug": "sync", "by": "reviewer"})
+        new = page.locator(".map-row", has_text="A darker theme")                                      # not planned: the checks its plan will hold
+        await new.get_by_role("button", name="Skip the check: Editor").click()
+        assert "The plan is made without it" in await page.get_by_role("dialog", name="Skip the check?").inner_text()
+        await page.get_by_role("dialog", name="Skip the check?").get_by_role("button", name="Skip it").click()
+        assert await _called(stub, "ideas.check_skip", {"slug": "new", "by": "editor"})
+        await new.get_by_role("button", name="Take the check again: SEO").click()                      # left out: taken again with a tap
+        assert await _called(stub, "ideas.check_skip", {"slug": "new", "by": "seo", "skip": False})
+        assert await page.evaluate(NO_SCROLL)

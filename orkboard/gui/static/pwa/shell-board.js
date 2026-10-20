@@ -79,7 +79,7 @@ export function makeBoardTab(core, ctx) {
     el: pane,
     editGoal: (slug) => goalSheet.open(slug),
     ops,
-    sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, targetSheet.el],
+    sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, ...map.sheets, targetSheet.el],
     showMap,
     fab: ideas.fab,
     /** New idea's button is on the Board of a goal (not Operations', nor the Map's). */

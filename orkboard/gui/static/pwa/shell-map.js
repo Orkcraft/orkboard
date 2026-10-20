@@ -4,7 +4,8 @@
 // to its flag, raised when its leader accepts it against its metrics. An idea at work shows its tasks left with the heads of the
 // agents who do them, in their waves; a stop that waits for the person is a gate. What is done is not on the trail (Done shows it).
 // A tap opens the idea's screen, as from the Board; *new* marks what changed since the Map was last shown on this phone.
-import { h, icon } from "./util.js";
+import { h, icon, sheet } from "./util.js";
+import { foot } from "./shell-forms.js";
 import { keepGoal } from "./shell-top.js";
 import { rowState } from "./shell-ideas.js";
 import { goalState } from "./shell-goal.js";
@@ -82,14 +83,53 @@ export function makeMap(core, goalSheet) {
     const t = left.find((x) => x.state === "running" || x.state === "testing") || left[0];
     return t?.head || leader?.head || null;
   }
-  function tasksLeft(node) {
+  // -- skipping a check, on the trail: a checker's chip is a button (a finger's size); it asks first, saying what it spares ---------
+  let skipping = null;                                 // {node, check, planned}
+  const skipText = h("p", {});
+  const skipBtn = h("button", { class: "ork-btn primary big", type: "button" }, "Skip it");
+  const skipSheet = sheet("Skip the check?", skipText,
+    foot(h("button", { class: "ork-btn big", type: "button", onclick: () => skipSheet.close() }, "Keep it"), skipBtn));
+  skipBtn.addEventListener("click", async () => {
+    const s_ = skipping;
+    skipSheet.close();
+    if (s_ && await core.call("ideas.check_skip", { slug: s_.node.slug, by: s_.check.by })) core.refresh();
+  });
+  const spares = (c) => { const usd = Number(st.roles?.tier_costs?.[c.tier]); return usd > 0 ? ` It spares ≈ $${usd.toFixed(2)}.` : ""; };
+  function askSkip(node, check, planned) {
+    skipping = { node, check, planned };
+    skipText.textContent = `${check.name} does not check “${node.title}”.${spares(check)} `
+      + (planned ? "Its task is taken out of the plan before it runs; it comes back with the idea's next plan." : "The plan is made without it; you can take it again until then.");
+    skipSheet.open();
+  }
+  const takeAgain = async (node, check) => { if (await core.call("ideas.check_skip", { slug: node.slug, by: check.by, skip: false })) core.refresh(); };
+  const skippable = (c) => c.applies && !c.skipped && (!c.state || ["waiting", "ready", "held"].includes(c.state));
+
+  function tasksLeft(node, team) {
     const left = leftOf(node);
-    if (!left.length || node.state === "done") return null;
+    if (node.state === "done") return null;
+    const checks = node.checks || [];
+    if (!left.length) {                                 // not planned yet: the checks its plan will hold, each to leave out
+      const mine = checks.filter((c) => c.applies && !c.task);
+      if (!mine.length || (node.tasks || []).length) return null;
+      const head = (c) => (team || []).find((t) => t.slug === c.by)?.head;
+      return h("div", { class: "map-tasks map-checks", "aria-label": `Checks of ${node.title}` }, ...mine.map((c) => (c.skipped
+        ? h("button", { class: "map-task check-step is-skipped", type: "button", "aria-label": `Take the check again: ${c.name}`, onclick: () => takeAgain(node, c) },
+          head(c) ? whoHead(head(c), true) : null, h("span", { class: "map-task-title" }, c.name), icon("plus"))
+        : h("button", { class: "map-task check-step", type: "button", "aria-label": `Skip the check: ${c.name}`, onclick: () => askSkip(node, c, false) },
+          head(c) ? whoHead(head(c), true) : null, h("span", { class: "map-task-title" }, c.name), icon("close")))));
+    }
     const done = node.tasks.length - left.length;
     return h("div", { class: "map-tasks", "aria-label": `Tasks of ${node.title}` },
       ...wavesOf(left).map((wave, i) => h("div", { class: "map-wave", "data-wave": String(i + 1) },
-        ...wave.map((t) => h("span", { class: "map-task", "data-state": t.state, title: `${t.title} · ${TASK_WORDS[t.state] || t.state}` },   // the idea's screen opens it
-          t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.title), h("span", { class: "sr-only" }, ` · ${TASK_WORDS[t.state] || t.state}`))))),
+        ...wave.map((t) => {
+          const check = checks.find((c) => c.task === t.id);
+          if (check && skippable(check)) {                // a checker's task not run yet: a button to skip it
+            return h("button", { class: "map-task check-step", type: "button", "data-state": t.state, "aria-label": `Skip the check: ${check.name}`,
+              onclick: () => askSkip(node, check, true) }, t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.title), icon("close"));
+          }
+          return h("span", { class: "map-task", "data-state": t.state, title: `${t.title} · ${TASK_WORDS[t.state] || t.state}` },   // the idea's screen opens it
+            t.head ? whoHead(t.head, true) : null, h("span", { class: "map-task-title" }, t.title), h("span", { class: "sr-only" }, ` · ${TASK_WORDS[t.state] || t.state}`));
+        }))),
       done ? h("small", { class: "muted map-tasks-done" }, `${done} done`) : null);
   }
 
@@ -113,7 +153,7 @@ export function makeMap(core, goalSheet) {
 
   /** A stop: a chip — the head of who does it, its title, a mark of its state (its words for a screen reader, all of them on its
    *  screen) — and, for the idea at work, its tasks left as smaller chips with their agents' heads. */
-  function row(node, titleOf, leader) {
+  function row(node, titleOf, leader, team) {
     const s = rowState(node, titleOf);
     const why = waitsWords(node);
     const needsHand = node.needs_you && node.state !== "done";
@@ -134,7 +174,7 @@ export function makeMap(core, goalSheet) {
           : s.spin ? h("span", { class: "spin trail-mark", "aria-hidden": "true" }, "↻")
             : timed ? h("span", { class: "trail-mark", "aria-hidden": "true" }, icon("clock")) : null,
         isNew ? h("span", { class: "map-new", "aria-hidden": "true" }, "new") : null),
-      tasksLeft(node));
+      tasksLeft(node, team));
   }
 
   /** The goal's steps: its ideas left by tier, top to bottom, the ones of a tier side by side. */
@@ -168,13 +208,13 @@ export function makeMap(core, goalSheet) {
         h("div", { class: "trail-start" }, h("b", { class: "trail-pct", "aria-label": `${pct} % of the way` }, `${pct} %`),
           h("span", { class: "muted" }, `${done.length} of ${mine.length} ideas`)),
         open.length ? h("ol", { class: "trail-steps" }, ...steps(open).map((step) => h("li", { class: "trail-step", "data-tier": String(step[0].tier || 1) },
-          h("ul", { class: `trail-lanes${all || step.length < 2 ? "" : " is-two"}` }, ...(all ? step : step.slice(0, LANES)).map((n) => row(n, titleOf, goal.leader))),
+          h("ul", { class: `trail-lanes${all || step.length < 2 ? "" : " is-two"}` }, ...(all ? step : step.slice(0, LANES)).map((n) => row(n, titleOf, goal.leader, goal.team))),
           step.length > LANES ? h("button", { class: "linkish trail-more", type: "button", onclick: () => { if (all) wide.delete(goal.slug); else wide.add(goal.slug); core.draw(); } },
             all ? "Fewer side by side" : `+${step.length - LANES} more side by side`) : null)))
           : h("p", { class: "muted trail-empty" }, "No idea left on the way."),
         h("div", { class: `trail-end ${flag}`, "aria-label": `The flag: ${flagWords}` }, h("span", { class: "trail-flag" }, icon("flag")), h("span", {}, flagWords))),
       done.length ? h("details", { class: "done-ideas" }, h("summary", {}, `Done (${done.length})`),
-        h("ol", { class: "ideas map-ideas" }, ...done.map((n) => row(n, titleOf, goal.leader)))) : null);
+        h("ol", { class: "ideas map-ideas" }, ...done.map((n) => row(n, titleOf, goal.leader, goal.team)))) : null);
   }
 
   /** The goals as tabs along the top, each with how far it is; a tap shows its trail (and is the goal the Board shows). */
@@ -207,5 +247,5 @@ export function makeMap(core, goalSheet) {
     return [tabs(goals, st.map.nodes, on.slug), goalSection(on, st.map.nodes, titleOf)];
   }
 
-  return { section, enter };
+  return { section, enter, sheets: [skipSheet.el] };
 }

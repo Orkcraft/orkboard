@@ -55,7 +55,7 @@ const timed = (w) => ["night", "limits", "reserve"].includes(w?.kind);
 
 /** A stop: a chip — the head of who does it, its title, a mark of its state (its words on hover and to a screen reader) — and,
  *  for the idea at work, its tasks left as smaller chips, each with its agent's head, in the waves they go in. */
-function Stop({ n, titles, since, leader }) {
+function Stop({ n, titles, since, leader, team }) {
   const v = nodeView(n, titles);
   const fresh = !!since && n.updated > since;
   const left = n.tasks.filter(leftToDo), doneTasks = n.tasks.length - left.length;
@@ -85,7 +85,24 @@ function Stop({ n, titles, since, leader }) {
             onClick=${() => run("ideas.check_skip", { slug: n.slug, by: check.by })}><${Icon} name="close" /></button></span>` : html`<span key=${t.id} class="map-task-pair">${chip}</span>`;
         })}</div>`)}
       ${doneTasks > 0 && html`<small class="map-tasks__done ok-tone-muted">${doneTasks} done</small>`}</div>`}
+    <${Checks} n=${n} team=${team} />
   </li>`;
+}
+
+/** An idea not planned yet: the checks its plan will hold, each a chip with × to leave it out (its run spared), and the ones
+ *  left out, faded, with + to take them again. Once planned, a check is its task's chip (× while it has not run). */
+function Checks({ n, team }) {
+  if (n.tasks.length || n.state === "done") return null;
+  const mine = (n.checks || []).filter((c) => c.applies && !c.task);
+  if (!mine.length) return null;
+  const head = (c) => (team || []).find((t) => t.slug === c.by)?.head;
+  return html`<div class="map-tasks map-checks" aria-label=${`Checks of ${n.title}`}>${mine.map((c) => html`<span key=${c.by}
+      class=${cls("map-task-pair is-check", { "is-skipped": c.skipped })}>
+    <span class="map-task" title=${c.skipped ? `${c.name}: skipped by you` : `${c.name}: in the plan to come${spares(c)}`}>${head(c) && html`<${WhoHead} head=${head(c)} small />`}<span class="map-task__title">${c.name}</span></span>
+    ${c.skipped ? html`<button type="button" class="map-task__skip" aria-label=${`Take the check again: ${c.name}`} title="Take it again: the plan holds it"
+        onClick=${() => run("ideas.check_skip", { slug: n.slug, by: c.by, skip: false })}><${Icon} name="plus" /></button>`
+      : html`<button type="button" class="map-task__skip" aria-label=${`Skip the check: ${c.name}`} title=${`Leave it out of the plan: its run is spared${spares(c)}`}
+        onClick=${() => run("ideas.check_skip", { slug: n.slug, by: c.by })}><${Icon} name="close" /></button>`}</span>`)}</div>`;
 }
 
 /** One goal's trail: the start (how far, the done ones), its steps of stops, the flag; the lines drawn once laid out. */
@@ -136,7 +153,7 @@ function Trail({ g, nodes, edges, titles, since }) {
     ${steps.map((step, i) => {
       const shown = wide ? step : step.slice(0, LANES);
       return html`<ul key=${i} class="map-tier trail-step" data-tier=${step[0].tier}>
-        ${shown.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} leader=${g.leader} />`)}
+        ${shown.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} leader=${g.leader} team=${g.team} />`)}
         ${step.length > LANES && html`<li class="trail-more"><button class="board-link" aria-expanded=${wide} onClick=${() => toggle("lanes", g.slug)}>
           ${wide ? "Fewer side by side" : `+${step.length - LANES} more side by side`}</button></li>`}</ul>`;
     })}
@@ -146,7 +163,7 @@ function Trail({ g, nodes, edges, titles, since }) {
       <span class="ok-font-status">${flagWords}</span>
     </div>
   </div>
-  ${doneOpen && html`<ul class="map-done__list" aria-label=${`Done in ${g.title}`}>${done.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} leader=${g.leader} />`)}</ul>`}
+  ${doneOpen && html`<ul class="map-done__list" aria-label=${`Done in ${g.title}`}>${done.map((n) => html`<${Stop} key=${n.slug} n=${n} titles=${titles} since=${since} leader=${g.leader} team=${g.team} />`)}</ul>`}
   </div>`;
 }
 

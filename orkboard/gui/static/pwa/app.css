@@ -603,3 +603,9 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .map-row .map-task-title { min-width: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .check-chip .check-skip { margin-top: var(--ork-2); align-self: flex-start; }
+/* A checker's chip on the trail is a button a finger's size: it asks, then skips (shell-map.js). */
+.map-row .map-task.check-step { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: var(--ork-1);
+  min-height: var(--ork-tap); max-width: 100%; min-width: 0; padding: 0 var(--ork-3); border: var(--ork-line) dashed var(--ork-edge); font: var(--ork-type-caption); }
+.map-row .map-task.check-step .ork-icon { width: 12px; height: 12px; flex: none; color: var(--ork-ink-muted); }
+.map-row .map-task.check-step:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
+.map-row .map-task.check-step.is-skipped .map-task-title { text-decoration: line-through; color: var(--ork-ink-muted); }
