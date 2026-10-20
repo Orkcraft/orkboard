@@ -90,6 +90,8 @@ NIGHT_RUN = "night_run"           # drafted, started, refreshed, proposed, held,
 WEEK_RESET = "week_reset"         # left (the share left when the week came back), provider (spec 44 §4)
 PROPOSAL_MADE = "proposal_made"   # idea, goal
 PROPOSAL_ANSWERED = "proposal_answered"   # idea, take, has_reason
+PARTY_PROPOSED = "party_proposed"   # goal, by (the checker), runs: the night's proposal to take a checker out of a party (spec 43 D)
+PARTY_ANSWERED = "party_answered"   # goal, by, take, has_reason, device
 BOARD_COMMITTED = "board_committed"   # commit, pages, what, seconds (spec 35 §13: the Board's pages on the work branch)
 BOARD_HELD = "board_held"         # why (the work branch could not move to the Board's commit)
 # Spec 37 §8: the project, as in an IDE (in the project's own log).
@@ -123,7 +125,7 @@ SIGN_IN_FAILED = "sign_in_failed"   # harness, why (timeout · cancelled · refu
 EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LEFT, CAMP_BACK, QUEST_STARTED,
           QUEST_DONE, QUEST_SKIPPED, BUILT, CART_MOVED, LOOKED, IDEA_ADDED, IDEA_SAID, KEEPER_STATE, PLAN_MADE, PLAN_PASSED,
           TODO_DONE, TASK_STATE, RESULT_READY, RESULT_DECIDED, CHECK_DONE, TASK_STOPPED, TASK_SKIPPED, CHECK_SKIPPED, STOP_ALL, INTO_CHANGED, OPENED, LIMITS_READ, GOAL_SAVED, GOAL_READ, GOAL_ACCEPTED, ROLE_SAVED,
-          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
+          ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED, PARTY_PROPOSED, PARTY_ANSWERED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
           OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, WEEK_RESET, SIGN_IN_NEEDED, SIGNED_IN, SIGN_IN_FAILED)

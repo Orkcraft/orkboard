@@ -49,7 +49,7 @@ const typing = (el) => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || 
 
 function Tabs() {
   const b = board.value, rv = review.value;
-  const counts = { board: b ? b.needs_you.filter((n) => n.kind !== "proposal" && n.kind !== "op_rules").length : 0,
+  const counts = { board: b ? b.needs_you.filter((n) => n.kind !== "proposal" && n.kind !== "party" && n.kind !== "op_rules").length : 0,
     agents: 0, review: rv ? rv.results.length : 0 };
   return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents, Review">
     ${[["board", "Board"], ["agents", "Agents"], ["review", "Review"]].map(([id, name]) => html`<button key=${id} role="tab"

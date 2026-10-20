@@ -10,7 +10,9 @@ In this order, each step stopping at the reserve (realm/idea_target.py `reserve_
   3. refresh (balance, quality): a goal whose linked paths, or the paths its Summary names, changed since its `read_at`
      is read again on the `refresh` step; an unchanged goal costs nothing;
   4. proposals (balance 2, quality 3, thrift none): new ideas in the state `proposed`, never more than 3 waiting, a
-     declined one read back from `<state_dir>/ideas/declined.jsonl`.
+     declined one read back from `<state_dir>/ideas/declined.jsonl`;
+  5. parties (docs/specs/43-party-measured.md §4.2): a checker that found nothing in its last eight checks of a goal is
+     proposed to be taken out of the goal's party; code decides, no model, not limited by the Target.
 
 The camp's Night round (docs/design/night-round.md) is another thing and is not touched here.
 """
@@ -23,7 +25,7 @@ import threading
 import time
 from pathlib import Path
 
-from orkboard.realm import event_log, idea_target, ideas
+from orkboard.realm import event_log, idea_target, ideas, party_proposals
 
 RETRY_S = 600                     # a night the reserve held is tried again after this, inside the window
 PACE_S = 600                      # the pace is looked at this often by day (docs/specs/44-week-pace.md §3)
@@ -214,7 +216,7 @@ class NightMixin:
         key = key or self.night_key(time.time()) or dt.datetime.now().isoformat(timespec="minutes")
         counts = {"drafted": 0, "started": 0, "refreshed": 0, "proposed": 0, "held": 0, "paced": 0}
         root = self.wiki_root()
-        steps = (self._night_queue, self._night_starts, self._night_refresh, self._night_proposals)
+        steps = (self._night_queue, self._night_starts, self._night_refresh, self._night_proposals, self._night_parties)
         for step in steps:
             if self._may_run() or self.cancel.is_set():
                 break
@@ -367,3 +369,14 @@ may want to take in the morning, each under one of the goals. {self.reads("propo
             self._ev(event_log.PROPOSAL_MADE, idea=slug, goal=goal)
             self.publish(slug)
             counts["proposed"] += 1
+
+    def _night_parties(self, root: Path, counts: dict) -> None:
+        """5. a checker whose newest eight checks in a goal all ended clean in round 1: the party's proposal (spec 43 D)."""
+        try:
+            made = party_proposals.night(root, self.state_dir)
+        except Exception:                          # a night that cannot read a party proposes nothing
+            return
+        for goal, by, runs in made:
+            self._ev(event_log.PARTY_PROPOSED, goal=goal, by=by, runs=runs)
+        if made:
+            self.publish("")

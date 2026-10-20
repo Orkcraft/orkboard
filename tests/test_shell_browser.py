@@ -72,6 +72,8 @@ class StubHost:
         self.chip_extra: dict[str, dict] = {}             # spec 41 §3: a chip's short / idea_short, by task id
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`)
         self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
+        self.check_week: dict[str, dict | None] = {}      # spec 43 §4.1: a checker's check of the last 7 days by slug
+        self.party_needs: list[dict] = []                 # spec 43 §4.2: the night's party proposals waiting (Needs you's `party` rows)
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}
         self.limits = [{"provider": "claude", "name": "Claude", "left": 0.62,
                         "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
@@ -110,7 +112,7 @@ class StubHost:
                        **({"asked": self.goals["grow"]["asked"]} if self.goals.get("grow", {}).get("asked") else {})},
                base | {"kind": "proposal", "idea": "tags", "goal": "grow", "title": "Tag the notes", "text": "Tags make a long list findable."}]
         gone = set(self.proposals) | set(self.asked)            # answered: out of the list
-        return [n for n in out if (n["idea"] or n["goal"]) not in gone]
+        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + [base | n for n in self.party_needs]
 
     def goal(self, slug, title, priority, state, order=1, **more):
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": order, "count": 0, "priority": priority,
@@ -190,14 +192,14 @@ class StubHost:
                            waits_title="Sync ideas between the phone and the town", by="auto", night=False)]
             chips = [c | self.chip_extra.get(c["task"], {}) for c in chips]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "usd_task": None,
-                       "head": {"craft": "engineering", "race": "peon", "tier": "elder"},
+                       "check_week": None, "head": {"craft": "engineering", "race": "peon", "tier": "elder"},
                        "state": "waiting", "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": []},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
                        "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "usd_task": self.usd_task.get("grunt"),
-                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
+                       "check_week": self.check_week.get("grunt"), "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
                         "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "usd_task": self.usd_task.get(r["slug"]),
-                        "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
+                        "check_week": self.check_week.get(r["slug"]), "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
             return {"roles": [r | {"spend_today": 0, "record": self.record.get(r["slug"])} | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
@@ -259,6 +261,9 @@ class StubHost:
             return self.bump({"ok": True})
         if name == "ideas.drop":
             self.ideas.pop(a["slug"], None)
+            return self.bump({"ok": True})
+        if name == "ideas.party_answer":
+            self.party_needs = [n for n in self.party_needs if n["goal"] != a["goal"]]
             return self.bump({"ok": True})
         if name == "ideas.proposal":
             self.proposals.append(a["slug"])
@@ -1089,6 +1094,55 @@ def test_a_proposal_declined_with_a_reason_or_without(shell):
     prop.get_by_role("button", name="Decline: Tag the notes").click()
     pg.wait_for_function("() => document.querySelectorAll('.board-proposal').length === 0", timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.proposal", {"slug": "tags", "take": False, "reason": "not now"}))
+
+
+PARTY_ROW = {"kind": "party", "idea": "", "goal": "grow", "by": "reviewer", "title": "Take Reviewer out of Grow installs' party?",
+             "text": "It found nothing in the last 8 ideas; a check costs about $0.35.", "priority": "high"}
+
+
+def test_a_party_proposal_is_answered_in_its_row_taken_out_or_kept_and_is_never_counted(shell):
+    pg, host = shell
+    host.party_needs = [dict(PARTY_ROW)]
+    host.bump({})
+    assert "4" in pg.locator(".shell-board").get_by_role("tab", name="Needs you").inner_text()         # a party's proposal is no count either
+    _needs(pg)
+    kinds = pg.locator(".board-need, .board-proposal").evaluate_all("els => els.map(e => e.dataset.kind)")
+    assert kinds[-2:] == ["proposal", "party"]                                                          # sorted last with the proposals
+    row = pg.locator(".board-proposal[data-kind=party]")
+    text = row.inner_text()
+    assert "Take Reviewer out of Grow installs' party?" in text and "It found nothing in the last 8 ideas; a check costs about $0.35." in text
+    assert "A party's proposal" in text
+    row.get_by_role("button", name="Keep it: " + PARTY_ROW["title"]).click()                           # Keep it asks why, optional
+    row.get_by_label("Why not: " + PARTY_ROW["title"]).fill("it guards the invoices")
+    row.get_by_role("button", name="Keep: " + PARTY_ROW["title"]).click()
+    pg.wait_for_function("() => document.querySelectorAll('.board-proposal[data-kind=party]').length === 0", timeout=WAIT_MS)
+    assert _sent(pg, host, ("ideas.party_answer", {"goal": "grow", "take": False, "reason": "it guards the invoices"}))
+
+
+def test_a_party_proposal_taken_out_sends_no_reason(shell):
+    pg, host = shell
+    host.party_needs = [dict(PARTY_ROW)]
+    host.bump({})
+    _needs(pg)
+    pg.get_by_role("button", name="Take it out: " + PARTY_ROW["title"]).click()
+    pg.wait_for_function("() => document.querySelectorAll('.board-proposal[data-kind=party]').length === 0", timeout=WAIT_MS)
+    assert _sent(pg, host, ("ideas.party_answer", {"goal": "grow", "take": True}))
+
+
+def test_a_checkers_line_ends_with_its_check_of_the_week(shell):
+    pg, host = shell
+    host.usd_task = {"grunt": 0.4}
+    host.check_week = {"grunt": {"checks": 6, "clean": 4, "caught": 2, "left": 1, "usd_per_check": None}}      # any role with a check_week says it
+    host.bump({})
+    week = pg.locator(".shell-agents .shell-role[data-role=grunt] .shell-role__week")
+    pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__week')?.textContent.includes('its check')", timeout=WAIT_MS)
+    assert week.inner_text() == "≈$1.25 today · its check: 6 ideas, caught 2"
+    host.check_week = {"grunt": {"checks": 1, "clean": 1, "caught": 0, "left": 0, "usd_per_check": None}}
+    host.bump({})
+    pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__week')?.textContent.endsWith('its check: 1 idea, caught 0')", timeout=WAIT_MS)
+    host.check_week = {"grunt": {"checks": 0, "clean": 0, "caught": 0, "left": 0, "usd_per_check": None}}
+    host.bump({})
+    pg.wait_for_function("() => document.querySelector('.shell-role[data-role=grunt] .shell-role__week')?.textContent === '≈$1.25 today'", timeout=WAIT_MS)
 
 
 def test_a_check_that_has_not_run_is_skipped_from_the_spec_and_a_skipped_one_is_taken_again_before_a_plan(shell):

@@ -57,3 +57,31 @@ def test_a_new_agent_has_no_record(recorded):
     pg.get_by_role("button", name="+ Add agent").click()
     pg.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
     assert pg.get_by_role("dialog", name="Add agent").get_by_label("The last 30 days").count() == 0
+
+
+def test_a_checkers_dialog_has_its_check_of_the_last_30_days_in_its_own_line(recorded):
+    pg, host = recorded
+    host.record["scribe"] = {"days": 30, "finished": 20, "merged": 18, "first_time": 15, "usd_per_merged": 0.5,
+                             "check": {"checks": 14, "clean": 11, "caught": 3, "left": 1, "usd_per_check": 0.35}}
+    host.record["grunt"] = RECORDS["grunt"]                                                              # not a checker: no such line
+    host.bump({})
+    pg.wait_for_timeout(200)
+
+    def check(button):
+        pg.get_by_role("button", name=button).click()
+        dlg = pg.get_by_role("dialog", name="Edit agent")
+        dlg.get_by_label("Name").wait_for(timeout=WAIT_MS)
+        line = dlg.get_by_label("Its check")
+        text = " ".join(line.text_content().split()) if line.count() else ""
+        dlg.get_by_role("button", name="Cancel").click()
+        return text
+    assert check("Edit Scribe") == "Its check, the last 30 days: 14 ideas: 11 clean, caught 3 · ≈$0.35 a check"
+    assert check("Edit Grunts") == ""
+    host.record["scribe"]["check"] = {"checks": 2, "clean": 2, "caught": 0, "left": 0, "usd_per_check": None}
+    host.bump({})
+    pg.wait_for_timeout(200)
+    assert check("Edit Scribe") == "Its check, the last 30 days: 2 ideas: too few to say more"
+    host.record["scribe"]["check"] = {"checks": 5, "clean": 5, "caught": 0, "left": 0, "usd_per_check": None}
+    host.bump({})
+    pg.wait_for_timeout(200)
+    assert check("Edit Scribe") == "Its check, the last 30 days: 5 ideas: 5 clean, caught 0"

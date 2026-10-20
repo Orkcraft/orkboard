@@ -350,9 +350,9 @@ class BoardMixin:
 
 
 def sort_needs(needs: list[dict]) -> list[dict]:
-    """What blocks work in progress first, then the priority, then the oldest; proposals last (§10), Operations' rules
-    proposals with them (spec 38 §8)."""
+    """What blocks work in progress first, then the priority, then the oldest; proposals last (§10), a party's proposal and Operations' rules
+    with them (spec 38 §8)."""
     def key(n: dict) -> tuple:
         prio = n.get("priority") if n.get("priority") in ideas.PRIORITIES else "normal"
-        return n["kind"] in ("proposal", "op_rules"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
+        return n["kind"] in ("proposal", "party", "op_rules"), not n.get("blocks"), ideas.PRIORITIES.index(prio), str(n.get("at") or "")
     return sorted(needs, key=key)

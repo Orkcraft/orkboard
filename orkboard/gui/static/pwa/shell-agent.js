@@ -24,12 +24,23 @@ export function recordWords(r) {
   return `The last 30 days: ${n(rec.finished, "task", "tasks")}, ${rec.first_time} merged the first time${rec.usd_per_merged != null ? ` · ≈$${rec.usd_per_merged.toFixed(2)} a merged result` : ""}`;
 }
 
+/** A checker's check in the last 30 days (spec 43 §4.1), its own line in the sheet; "" for an agent that checks nothing. */
+export function checkWords(r) {
+  const c = r?.record?.check;
+  if (!c) return "";
+  const n = `${c.checks} ${c.checks === 1 ? "idea" : "ideas"}`;
+  if (!c.checks) return "Its check, the last 30 days: no idea checked";
+  if (c.checks < TOO_FEW) return `Its check, the last 30 days: ${n}: too few to say more`;
+  return `Its check, the last 30 days: ${n}: ${c.clean} clean, caught ${c.caught}${c.usd_per_check != null ? ` · ≈$${c.usd_per_check.toFixed(2)} a check` : ""}`;
+}
+
 export function makeAgentSheet(core) {
   const name = h("input", { class: "ork-field", type: "text", "aria-label": "Name", placeholder: "Docs scribe", maxlength: "40", required: true });
   const craft = h("select", { class: "ork-field", "aria-label": "Craft" });
   const craftHint = h("small", { class: "muted" });
   const whoNow = h("div", { class: "craft-now", "aria-live": "polite" });
   const record = h("p", { class: "muted agent-record", "aria-label": "The last 30 days", hidden: true });
+  const checkLine = h("p", { class: "muted agent-record agent-check", "aria-label": "Its check", hidden: true });
   const model = h("select", { class: "ork-field", "aria-label": "Model" });
   const many = h("select", { class: "ork-field", "aria-label": "At most at once" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => h("option", { value: String(n) }, String(n))));
   const modelHint = h("small", { class: "muted" }, "By Target: the task's own tier, moved by the Target");
@@ -48,7 +59,7 @@ export function makeAgentSheet(core) {
   const sureBtn = h("button", { class: "ork-btn danger big", type: "button" }, "Delete agent");
   const keep = h("button", { class: "ork-btn big", type: "button" }, "Keep it");
   const sure = h("div", { class: "sure", hidden: true }, sureText, sureBtn, keep);
-  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Craft", craft), craftHint, whoNow, record, field("Model", model), modelHint, field("At most at once", many), told, h("label", { class: "field" }, instructionLabel, instruction), counter, longNote, takesBox,
+  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Craft", craft), craftHint, whoNow, record, checkLine, field("Model", model), modelHint, field("At most at once", many), told, h("label", { class: "field" }, instructionLabel, instruction), counter, longNote, takesBox,
     note, h("div", {}, del), sure, foot(cancel, save));
   const sh = sheet("Add agent", form);
   let slug = "", assign = "";
@@ -123,6 +134,8 @@ export function makeAgentSheet(core) {
       drawWho();
       record.hidden = !r;
       record.textContent = r ? recordWords(r) : "";
+      checkLine.textContent = checkWords(r);
+      checkLine.hidden = !checkLine.textContent;
       modelHint.hidden = r?.slug === "taskmaster";
       many.value = String(r?.max_parallel || 2);
       instruction.value = r?.instruction_long || r?.instruction || "";

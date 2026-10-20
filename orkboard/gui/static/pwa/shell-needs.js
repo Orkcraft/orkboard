@@ -222,8 +222,23 @@ export function makeNeeds(core, ctx, ops) {
           reason, h("button", { class: "ork-btn", type: "button", onclick: () => act(false) }, "No")), limitsNote(st.snap)));
   }
 
+  // -- the night's proposal to take a checker out of a goal's party (spec 43 §4.2) --------------------------------------
+  function partyProposal(n) {
+    const reason = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: "Why not? (optional, one line)" });
+    const act = async (take) => {
+      const r = await core.call("ideas.party_answer", { goal: n.goal, take, ...(!take && reason.value.trim() ? { reason: reason.value.trim() } : {}) });
+      if (r) core.refresh();
+    };
+    return h("div", { class: "card need need-proposal need-party", "data-kind": "party", "data-goal": n.goal },
+      h("span", { class: "need-mark" }, icon(ICONS.proposal)),
+      h("span", { class: "need-text" }, h("b", {}, n.title), n.text ? h("small", {}, n.text) : null,
+        h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", "aria-label": `Take it out: ${n.title}`, onclick: () => act(true) }, "Take it out"),
+          reason, h("button", { class: "ork-btn", type: "button", "aria-label": `Keep it: ${n.title}`, onclick: () => act(false) }, "Keep it"))));
+  }
+
   function row(n) {
     if (n.kind === "proposal") return proposal(n);
+    if (n.kind === "party") return partyProposal(n);
     if (n.kind === "goal" || n.kind === "asks") return swipeable(quick(n), n);
     const go = () => {
       if (n.kind === "op") ops.openCheck(n.op);

@@ -77,6 +77,7 @@ class Stub:
         self.hide_plan = False                            # no plan waiting on the person (spec 41 §1's tests)
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`; null for the Taskmaster)
         self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
+        self.check_week: dict[str, dict | None] = {}      # spec 43 §4.1: a checker's check of the last 7 days by slug
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}   # `told`
 
     @staticmethod
@@ -131,7 +132,7 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -178,10 +179,10 @@ class Stub:
                        "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": [],
                        "week": self.week.get("taskmaster"), "usd_task": None, "head": {"craft": "engineering", "race": "peon", "tier": "elder"}},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
-                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt"), "usd_task": self.usd_task.get("grunt"),
+                       "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt"), "check_week": self.check_week.get("grunt"), "usd_task": self.usd_task.get("grunt"),
                        "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
-                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"]), "usd_task": self.usd_task.get(r["slug"]),
+                        "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"]), "check_week": self.check_week.get(r["slug"]), "usd_task": self.usd_task.get(r["slug"]),
                         "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
@@ -296,6 +297,9 @@ class Stub:
             return self.bump({"ok": True})
         if name == "ideas.start_now":
             self.ideas[a["slug"]].update(state="working", start_at="")
+            return self.bump({"ok": True})
+        if name == "ideas.party_answer":
+            self.extra_needs = [n for n in self.extra_needs if n.get("goal") != a["goal"] or n["kind"] != "party"]
             return self.bump({"ok": True})
         if name == "ideas.proposal":
             self.extra_needs = [n for n in self.extra_needs if n["idea"] != a["slug"]]

@@ -111,3 +111,54 @@ def test_a_goal_with_no_party_is_led_by_the_taskmaster(host):
     goal = ideas.save_goal(root, None, "Plain", "About", None, "normal")[0]
     got = party_work.work(root, state, goal)
     assert got["leader"]["slug"] == "taskmaster" and got["checks"] == [] and got["members"] == []
+
+
+# -- what a check is worth (spec 43 §4.1) ---------------------------------------------------------------------------
+
+def _check(tid, findings, round=1, by="reviewer", state="merged", finished=None):
+    import datetime as dt
+    when = finished or dt.datetime.now().isoformat(timespec="seconds")
+    return _t(tid, state, "review", by, round, findings=findings, finished=when)
+
+
+def test_a_checkers_record_is_its_checks_that_ended_with_findings_read_in_the_window(host):
+    import datetime as dt
+    root, state, goal = _party(host)
+    other = ideas.save_goal(root, None, "Search", "About search", None, "normal")[0]
+    old = (dt.datetime.now() - dt.timedelta(days=10)).isoformat(timespec="seconds")
+    miss = [{"where": "a.py:1", "what": "x", "fixed": False}]
+    _idea(root, state, goal, "One", [_check("c1", []), _check("c2", miss, 2, state="review"), _check("c3", [], finished=old),
+                                     _t("c4", "merged", "review", "reviewer", findings=None), _check("c5", [], by="accessibility-reviewer", finished=old)],
+          lines=[("c1", 0.3), ("c2", 0.3)])
+    _idea(root, state, other, "Two", [_check("d1", [])], lines=[("d1", 0.6)])
+    week = party_work.check_record(root, state, "reviewer", 7)
+    assert week == {"checks": 3, "clean": 2, "caught": 1, "left": 1, "usd_per_check": 0.4}            # across goals, c3 and c4 left out
+    assert party_work.check_record(root, state, "reviewer", 30)["checks"] == 4
+    assert party_work.check_record(root, state, "accessibility-reviewer", 7)["checks"] == 0
+    assert party_work.check_record(root, state, "accessibility-reviewer", 30) == {"checks": 1, "clean": 1, "caught": 0, "left": 0, "usd_per_check": None}
+
+
+def test_the_price_of_a_check_is_said_from_too_few_checks_on(host):
+    root, state, goal = _party(host)
+    _idea(root, state, goal, "One", [_check("c1", []), _check("c2", [])], lines=[("c1", 0.2), ("c2", 0.4)])
+    assert party_work.check_record(root, state, "reviewer", 30)["usd_per_check"] is None             # two checks: too few
+    _idea(root, state, goal, "Two", [_check("c3", [])], lines=[("c3", 0.3)])
+    assert party_work.check_record(root, state, "reviewer", 30)["usd_per_check"] == 0.3
+
+
+def test_a_quiet_run_is_eight_checks_in_a_row_that_ended_clean_in_round_one(host):
+    import datetime as dt
+    root, state, goal = _party(host)
+    base = dt.datetime.now() - dt.timedelta(hours=1)
+    at = lambda n: (base + dt.timedelta(minutes=n)).isoformat(timespec="seconds")                    # noqa: E731
+    for n in range(7):
+        _idea(root, state, goal, f"Idea {n}", [_check(f"c{n}", [], finished=at(n))], lines=[(f"c{n}", 0.3)])
+    assert party_work.quiet_run(root, state, goal, "reviewer") is None                               # seven
+    _idea(root, state, goal, "Idea 7", [_check("c7", [], finished=at(7))], lines=[("c7", 0.5)])
+    assert party_work.quiet_run(root, state, goal, "reviewer") == {"at": at(7), "usd": 0.33}
+    assert party_work.quiet_run(root, state, goal, "accessibility-reviewer") is None
+    _idea(root, state, goal, "Idea 8", [_check("c8", [], 2, finished=at(8))])                        # sent back once: not quiet
+    assert party_work.quiet_run(root, state, goal, "reviewer") is None
+    for n in range(9, 17):
+        _idea(root, state, goal, f"Idea {n}", [_check(f"c{n}", [], finished=at(n))])
+    assert party_work.quiet_run(root, state, goal, "reviewer")["at"] == at(16)                       # the newest eight again
