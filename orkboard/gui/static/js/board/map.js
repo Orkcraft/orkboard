@@ -14,6 +14,7 @@ import { skippable, spares } from "./idea.js";
 import { Cards } from "./cards.js";
 import { showWeek } from "../shell/look.js";
 import { openDialog } from "../shell/modals.js";
+import { PartyWork } from "../shell/goalview.js";
 import { TASK_STATE, nodeView, tiersOf, wavesOf, spentWords, goalState, progressOf, leftToDo, trailCurve, trailEdges, tallyWords, flagWords } from "./maplayout.js";
 
 const LANES = 3;                       // the stops side by side in one step of the trail, before "+N more"
@@ -260,7 +261,8 @@ function MapFoot({ m }) {
         <button type="button" class="map-flag" onClick=${() => showGoal(f.goal, { via: "flags" })}>
           <span class="map-flag__mark" aria-hidden="true"><${Icon} name="flag" /></span>
           <span class="map-flag__body"><b>${f.title}</b><span class="ok-font-status ok-tone-muted">${flagWords(f)}</span>
-            <span class="ok-font-status ok-tone-muted">${tallyWords(f.tally)}</span></span></button></li>`)}</ul>`}
+            <span class="ok-font-status ok-tone-muted">${tallyWords(f.tally)}</span></span></button>
+        <${PartyWork} goal=${f.goal} /></li>`)}</ul>`}
     </section>`}
     <button type="button" class="board-link map-foot__week" onClick=${showWeek}>Last week</button>
   </div>`;

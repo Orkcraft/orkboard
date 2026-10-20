@@ -4,6 +4,7 @@ terminal. A click on an idea, a to-do, a chip and a result opens the right previ
 back needs its line; no camp. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
 
+import copy
 import datetime as dt
 import json
 import os
@@ -51,6 +52,15 @@ def make_plan():
                       task("k5", "Write the notes", "waiting", ["k4"])]}
 
 
+_HEAD = {"craft": "engineering", "race": "peon", "tier": "warrior"}
+PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},
+         "members": [{"slug": "grunt", "name": "Grunt", "head": _HEAD, "tasks": 14, "merged": 13, "first_time": 12, "usd": 9.2}],
+         "checks": [{"by": "accessibility-reviewer", "name": "Accessibility reviewer", "head": {"craft": "design", "race": "elf", "tier": "warrior"}, "applied": 6,
+                     "skipped": 1, "clean": 4, "caught": 2, "left": 1, "before": 2, "usd": 1.8},
+                    {"by": "reviewer", "name": "Reviewer", "head": _HEAD, "applied": 1, "skipped": 0, "clean": 1, "caught": 0, "left": 0, "before": 0, "usd": None}]}
+PARTY_LINES = ["Product manager (leads): ≈$4.10 for the goal, the drafts and the plans", "Grunt: 14 tasks, 12 merged the first time · ≈$9.20",
+               "Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 before findings were kept",
+               "Reviewer: checked 1 idea: 1 clean, caught 0"]
 SAVED = "/home/me/Downloads/orkboard-logs-2026-10-19-120000.zip"            # what logs.save answers
 
 class StubHost:
@@ -90,6 +100,7 @@ class StubHost:
                         "task": "", "tier": "warrior"}]
         self.parts: list[dict] = []                                                                  # ideas.lens_code
         self.screen_png = ""                                                                         # ideas.lens_screen
+        self.party = copy.deepcopy(PARTY)                                                            # ideas.party (spec 43 B)
 
     def idea(self, slug, title, state, order, **more):
         return {"slug": slug, "title": title, "track": "ship-sync", "order": order, "state": state, "size": "M", "asks": 0, "updated": "x", "talk": [],
@@ -233,6 +244,8 @@ class StubHost:
                                          title_by="person" if a.get("title") else old.get("title_by", "keeper"),
                                          leader=self.leader(a.get("leader")) or old.get("leader"))
             return self.bump({"slug": slug})
+        if name == "ideas.party":                      # spec 43 B: what the goal's party did
+            return copy.deepcopy(self.party)
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
             return self.bump({"ok": True})
@@ -1301,3 +1314,21 @@ def test_add_agent_opens_two_ways_from_the_library_and_your_own_and_the_built_in
     told.locator("summary").click()
     assert "The Taskmaster reads each step's prompt." in told.inner_text() and told.locator("textarea, input").count() == 0    # read only
     assert dlg.get_by_label("Added to what it is told").is_visible()
+
+
+def test_the_goal_s_screen_has_what_the_party_did_closed_at_first_and_read_when_opened(shell):
+    """Spec 43 B: a fold under the goal's Team; its lines, the logged `opened`; *No work yet* while no idea has a plan."""
+    pg, host = shell
+    pg.get_by_role("button", name="Open goal Ship sync").click()
+    pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)
+    fold = pg.locator(".shell-goal .shell-party")
+    assert fold.get_attribute("open") is None and not [1 for n, _a in host.log if n == "ideas.party"]          # closed at first: not asked for
+    fold.locator("summary").click()
+    pg.wait_for_function("() => document.querySelectorAll('.shell-goal .shell-party li').length === 4", timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in fold.locator("li").all_inner_texts()] == PARTY_LINES
+    assert _sent(pg, host, ("ideas.party", {"goal": "ship-sync"}))
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "party", "ref": "ship-sync", "device": "desktop"}))
+    host.party = {"ideas": 0, "leader": PARTY["leader"], "members": [], "checks": []}
+    fold.locator("summary").click()
+    fold.locator("summary").click()
+    pg.wait_for_function("() => document.querySelector('.shell-goal .shell-party li')?.innerText === 'No work yet'", timeout=WAIT_MS)

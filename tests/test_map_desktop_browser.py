@@ -5,6 +5,7 @@ a click opens a passing tab, a double-click or an edit keeps it; Esc closes the 
 kept after a reload; below 1 024 px no strip, Back and the Board's Map button."""
 from __future__ import annotations
 
+import copy
 import datetime as dt
 import hashlib
 import json
@@ -16,7 +17,7 @@ pytest.importorskip("playwright.sync_api")
 
 from orkboard.realm.idea_words import short_of  # noqa: E402
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import _show_goal, SHOTS, StubHost, _calls, _sent, box  # noqa: E402
+from tests.test_shell_browser import _show_goal, PARTY, PARTY_LINES, SHOTS, StubHost, _calls, _sent, box  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -95,6 +96,9 @@ class MapHost(StubHost):
             self.log.append((name, a))
             return {"flags": [{"goal": g["slug"], "title": g["title"], "short": g["title"], "by": g["verdict"]["by"], "at": g["verdict"]["at"],
                                "tally": g["verdict"].get("tally")} for g in self.map_doc()["goals"] if (g.get("verdict") or {}).get("met")]}
+        if name == "ideas.party":
+            self.log.append((name, a))
+            return copy.deepcopy(PARTY)
         if name == "files.tree":
             self.log.append((name, a))
             return {"entries": [{"name": n, "path": n, "dir": False, "secret": False, "ignored": False} for n in self.files]}
@@ -669,5 +673,21 @@ def test_flags_opens_with_its_rows_and_a_row_opens_the_goal(gui):
     pg.reload()
     pg.locator(".trail-end.is-met").wait_for(timeout=WAIT_MS)
     assert pg.get_by_role("button", name="Flags (1)").get_attribute("aria-expanded") == "true"
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_a_met_goal_s_row_in_flags_has_what_the_party_did_closed_at_first(gui):
+    """Spec 43 B: the same fold under a flag's row."""
+    pg, host, errors = _open(gui, met_host(), init=with_list(["grow"]), ready=".trail-end.is-met")
+    pg.get_by_role("button", name="Flags (1)").click()
+    pg.locator(".map-flag").wait_for(timeout=WAIT_MS)
+    fold = pg.locator(".map-flags__list .shell-party")
+    assert fold.get_attribute("open") is None and not [1 for n, _a in host.log if n == "ideas.party"]
+    fold.locator("summary").click()
+    pg.wait_for_function("() => document.querySelectorAll('.map-flags__list .shell-party li').length === 4", timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in fold.locator("li").all_inner_texts()] == PARTY_LINES
+    assert _sent(pg, host, ("ideas.party", {"goal": "grow"}))
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "party", "ref": "grow", "device": "desktop"}))
     pg.close()
     assert not errors, "\n".join(errors)

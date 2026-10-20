@@ -313,3 +313,24 @@ async def test_the_tally_stays_under_the_flag_and_flags_opens_with_its_rows(fake
         await row.click()
         await page.locator(".screen").first.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "goal:docs", "device": "phone", "via": "flags"})
+
+
+@pytest.mark.asyncio
+async def test_a_met_goal_s_row_in_flags_has_what_the_party_did_closed_at_first(fake_repo, monkeypatch):
+    """Spec 43 B: the same fold under a flag's row."""
+    from tests.test_shell_browser import PARTY, PARTY_LINES
+    _met()
+    async with _phone(fake_repo, monkeypatch, init=with_list(fake_repo, ["docs"])) as (stub, page):
+        stub.party = PARTY
+        await _open_map(page)
+        await _docs(page)
+        await page.locator("details.map-flags summary").click()
+        await page.locator(".map-flag").wait_for(timeout=WAIT_MS)
+        fold = page.locator(".map-flags-list .party-work")
+        assert await fold.get_attribute("open") is None and not any(c[0] == "ideas.party" for c in stub.calls)
+        await fold.locator("summary").click()
+        await page.wait_for_function("() => document.querySelectorAll('.map-flags-list .party-work li').length === 4", timeout=WAIT_MS)
+        assert [" ".join(t.split()) for t in await fold.locator("li").all_inner_texts()] == PARTY_LINES
+        assert await _called(stub, "ideas.party", {"goal": "docs"})
+        assert await _called(stub, "ideas.log", {"event": "opened", "what": "party", "ref": "docs", "device": "phone"})
+        assert await page.evaluate(NO_SCROLL)

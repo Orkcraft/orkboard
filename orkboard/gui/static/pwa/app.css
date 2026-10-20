@@ -307,6 +307,10 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .facts .is-success { color: var(--ork-success); }
 .facts .is-danger { color: var(--ork-danger); }
 .facts .is-muted { color: var(--ork-ink-muted); }
+.party-work > summary { cursor: pointer; color: var(--ork-ink-muted); }
+.party-lines { margin: var(--ork-2) 0 0; padding-left: var(--ork-5); }
+.party-lines li { overflow-wrap: anywhere; }
+.map-flags-list .party-work { margin: var(--ork-2) 0 0 var(--ork-5); }
 .found { display: flex; flex-direction: column; gap: var(--ork-2); }
 .found-sum { margin: 0; }
 .found-list { margin: 0; padding-left: var(--ork-5); }

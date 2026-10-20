@@ -96,6 +96,9 @@
 .shell-facts .is-danger { color: var(--ork-danger); }
 .shell-facts .is-muted { color: var(--ork-ink-muted); }
 .shell-conflict { margin: 0; }
+.shell-party > summary { cursor: pointer; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.shell-party__lines { margin: var(--ork-2) 0 0; padding-left: var(--ork-5); }
+.shell-party__lines li { overflow-wrap: anywhere; }
 .shell-found { display: flex; flex-direction: column; gap: var(--ork-2); }
 .shell-found__sum { margin: 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
 .shell-found__list { margin: 0; padding-left: var(--ork-5); }
