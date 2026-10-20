@@ -10,7 +10,7 @@ pytestmark = pytest.mark.browser
 from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _menu, _phone  # noqa: E402,F401
 
 WEEK = {"usd": 46.1, "ops_usd": 3.2, "merged": 12, "first_time": 10, "usd_per_merged": 3.84, "nights": {"worked": 4, "idle": 2, "off": 1},
-        "tonight": 0, "night_on": True, "into": "dev"}
+        "tonight": 0, "night_on": True, "into": "dev", "week": None, "last_unused": None}
 ANSWER: dict = {}
 
 
@@ -173,3 +173,23 @@ async def test_nights_in_a_row_in_this_week_and_last_week_from_two_spec_42_h(fak
         ANSWER.update(streak=1)
         sheet = await _sheet(page)
         assert not [x for x in await sheet.locator(".week p").all_text_contents() if "in a row" in x]
+
+
+# -- spec 44 B: the week's pace ----------------------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_this_week_says_the_pace_in_three_ways_last_weeks_unused_share_and_nothing_without_a_week(fake_repo, monkeypatch):
+    cases = (("ahead", 0.55, 0.29, "Low work starts by day"), ("even", 0.4, 0.29, "Low work waits for the night"),
+             ("behind", 0.1, 0.57, "Low work waits until the week comes back"))
+    for pace, left, rest, words in cases:
+        ANSWER.update(week={"left": left, "rest": rest, "pace": pace, "reset": 1.0}, last_unused=0.3)
+        async with _phone(fake_repo, monkeypatch) as (stub, page):
+            sheet = await _sheet(page)
+            lines = [" ".join(t.split()) for t in await sheet.locator(".week p").all_text_contents()]
+            assert lines[-2:] == [f"The week: {round(left * 100)} % left with {round(rest * 7)} days to go: {words}", "Last week ended with 30 % unused"], pace
+            assert await page.evaluate(NO_SCROLL)
+    ANSWER.update(week=None, last_unused=None)
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        sheet = await _sheet(page)
+        lines = [" ".join(t.split()) for t in await sheet.locator(".week p").all_text_contents()]
+        assert not any("The week" in l or "unused" in l for l in lines)

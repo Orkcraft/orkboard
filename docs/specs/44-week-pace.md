@@ -138,3 +138,8 @@ else: stop and write it in §9 first.
 - Taking a Low proposal writes no `night_by`, so it reads as the person's.
 - This week's `week` and `last_unused` come from `realm/board_week.py` `this_week(..., limits=)`, carried by `ideas.week_work`
   (`gui/ideas_recap.py`, the host's limits); `last_unused` is the newest `week_reset` event's `left`.
+
+**B**
+- The week's wait is said `waits: the week is behind · until Mon 09:00` (weekday and time of `waits.until`) by `rowOf` and `waitsWords` on the desktop and `rowState`/`waitsWords` on the phone; the Map's clock mark also shows for kind `week`.
+- This week's lines (`weekPaceWords`, `lastUnusedWords`) are a pair of helpers in `js/board/store.js` and `pwa/shell-words.js`; days to go is `round(rest * 7)`; `Last week ended with ... unused` shows only with `week` non-null.
+- Cache `orkcraft-app-v51`. Stubs: `night_by`/`by_pace` on map nodes and board rows, `week`/`last_unused` on This week; a chip's `pace` through `chip_extra`.

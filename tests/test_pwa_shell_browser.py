@@ -115,7 +115,7 @@ class Stub:
                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}} for t in self.plan["tasks"]] if i["slug"] == "sync" else []
             nodes.append({"slug": i["slug"], "goal": i["track"], "title": i["title"], "state": i["state"], "queue": i.get("queue", ""),
                           "held_until": i.get("held_until", ""), "start_at": i.get("start_at", ""), "priority": i["priority"], "size": "M", "risk": "",
-                          "tier": max(1, step[i["track"]]), "depends_on": list(i.get("depends_on") or []), "waits_on": list(i.get("waits_on") or []),
+                          "tier": max(1, step[i["track"]]), "depends_on": list(i.get("depends_on") or []), "waits_on": list(i.get("waits_on") or []), "night_by": i.get("night_by", "person"), "by_pace": False,
                           "waits": {"kind": "you", "ref": "", "title": "", "until": ""} if needs
                           else {"kind": "limits", "ref": "", "title": "", "until": i["held_until"]} if i.get("held_until")
                           else {"kind": "night", "ref": "", "title": "", "until": ""} if i.get("queue") == "night" or i.get("start_at") == "night" else None,

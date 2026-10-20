@@ -1669,3 +1669,15 @@ def test_remove_your_party_drops_it_after_the_person_agrees(shell):
     assert _sent(pg, host, ("ideas.party_drop", {"id": "p-1"}))
     dlg.get_by_role("region", name="Your parties").wait_for(state="detached", timeout=WAIT_MS)       # the row goes with its last party
     assert said == ["Remove your party “Lean web”? Goals that use it keep their agents."]
+
+
+def test_an_agents_chip_started_by_the_pace_says_the_week_has_room(gui):
+    host = StubHost()
+    host.chip_extra = {"k3": {"pace": True}}
+    pg, host, errors = _open(gui, host=host)
+    _show_goal(pg)
+    chips = pg.locator(".shell-agents .shell-chip")
+    assert "by itself: the week has room" in chips.filter(has_text="Retry on a lost signal").inner_text()
+    assert "the week has room" not in chips.filter(has_text="Dark palette").inner_text()             # by itself, but not by the pace
+    pg.close()
+    assert not errors, "\n".join(errors)

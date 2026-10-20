@@ -2,6 +2,7 @@
 // this phone's last look (board.js). An `.ork-card` with its head in the pixel face and its lines in the text face, each only when it
 // has something to say; it covers nothing and one press closes it. Its links open an idea, a goal or Needs you and change nothing.
 import { h, sheet } from "./util.js";
+import { weekPaceWords, lastUnusedWords } from "./shell-words.js";
 
 const SHOWN = 5;                                     // ideas named under the results, then *and 3 more*
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -184,7 +185,9 @@ export function makeWeek(core, newIdea) {
       nights ? h("p", { class: "week-nights" }, nights) : null,
       w.streak >= 2 ? h("p", { class: "week-streak" }, `${w.streak} nights in a row`) : null,
       w.night_on ? (w.tonight > 0 ? h("p", { class: "week-tonight" }, `Tonight: ${w.tonight} wait`)
-        : h("p", { class: "week-tonight" }, "Nothing waits for tonight · ", h("button", { class: "linkish", type: "button", onclick: () => { sh.close(); newIdea(); } }, "New idea"))) : null].filter(Boolean));
+        : h("p", { class: "week-tonight" }, "Nothing waits for tonight · ", h("button", { class: "linkish", type: "button", onclick: () => { sh.close(); newIdea(); } }, "New idea"))) : null,
+      weekPaceWords(w) ? h("p", { class: "week-pace" }, weekPaceWords(w)) : null,
+      w.week && lastUnusedWords(w) ? h("p", { class: "week-unused" }, lastUnusedWords(w)) : null].filter(Boolean));
   }
   return { el: sh.el, open };
 }

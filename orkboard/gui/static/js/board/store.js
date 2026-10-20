@@ -48,6 +48,26 @@ export function goalList() {
 /** "2026-10-18T18:00:00" → "18:00". */
 export const hhmm = (iso) => (String(iso || "").length >= 16 ? String(iso).slice(11, 16) : String(iso || ""));
 
+/** `Mon 09:00` from a local ISO time (the week's reset); a bare `09:00` stays as it is. */
+export function dayAt(iso) {
+  const d = new Date(iso);
+  if (!/^\d{4}-/.test(String(iso || "")) || Number.isNaN(d.getTime())) return hhmm(iso);
+  return `${d.toLocaleDateString([], { weekday: "short" })} ${hhmm(iso)}`;
+}
+
+/** What the week's pace means for Low work, in words (spec 44 §5). */
+const PACE_WORDS = { ahead: "Low work starts by day", even: "Low work waits for the night", behind: "Low work waits until the week comes back" };
+
+/** *The week: 55 % left with 2 days to go: Low work starts by day*; "" without a week. */
+export function weekPaceWords(w) {
+  const k = w && w.week;
+  if (!k || !PACE_WORDS[k.pace]) return "";
+  const days = Math.max(0, Math.round(k.rest * 7));
+  return `The week: ${Math.round(k.left * 100)} % left with ${days} ${days === 1 ? "day" : "days"} to go: ${PACE_WORDS[k.pace]}`;
+}
+export const lastUnusedWords = (w) => (!w || w.last_unused == null ? "" : `Last week ended with ${Math.round(w.last_unused * 100)} % unused`);
+
+
 /** A section's list (`- x`, `1. x`), or its lines when it has none (realm/ideas.py `items`). */
 export function items(text) {
   const lines = String(text || "").split("\n").map((l) => l.trim()).filter(Boolean);

@@ -3,7 +3,7 @@
 // the one button at the bottom right (spec 41 §5). An idea's state in words (`rowState`) is said the same on the Board's trail (shell-map.js) and its screen.
 import { h, sheet, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
-import { hhmm } from "./shell-words.js";
+import { hhmm, dayAt } from "./shell-words.js";
 import { makeIdeaField } from "./shell-idea-field.js";
 import { makeLens } from "./shell-lens.js";
 import { keepGoal } from "./shell-top.js";
@@ -18,9 +18,11 @@ export function rowState(idea, titleOf = (slug) => slug) {
   const p = idea.progress;
   const q = idea.queue || (idea.state === "raw" ? "night" : "");
   if ((idea.state === "raw" || idea.state === "ready") && idea.held_until) return { text: `waits for limits · after ${hhmm(idea.held_until)}`, cls: "held" };
-  if (idea.state === "raw") return q === "hold" ? { text: "stopped", cls: "raw" } : q === "now" ? { text: "queued", cls: "raw" } : { text: "tonight", cls: "raw" };
+  const week = idea.waits?.kind === "week" ? `waits: the week is behind${idea.waits.until ? ` · until ${dayAt(idea.waits.until)}` : ""}` : "";
+  if (idea.state === "raw") return q === "hold" ? { text: "stopped", cls: "raw" } : q === "now" ? { text: "queued", cls: "raw" }
+    : { text: week || (idea.night_by === "board" ? "tonight, or sooner if the week has room" : "tonight"), cls: "raw" };
   if (idea.state === "reading" || idea.state === "planning") return { text: STATE_WORDS[idea.state], cls: "work", spin: true };
-  if (idea.state === "plan" && idea.start_at === "night") return { text: "starts tonight", cls: "plan" };
+  if (idea.state === "plan" && idea.start_at === "night") return { text: week || (idea.night_by === "board" ? "starts tonight, or sooner if the week has room" : "starts tonight"), cls: "plan" };
   if (idea.state === "working") {
     const base = p && p.total ? `working ${p.done}/${p.total}` : "working";
     const waits = (idea.waits_on || []).length ? ` · waits for ${idea.waits_on.map(titleOf).join(", ")}` : "";
