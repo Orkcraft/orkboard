@@ -98,3 +98,22 @@ export function trailEdges(shown, edges) {
   return [...shown.filter((s) => !into.has(s)).map((s) => ({ from: "@start", to: s })), ...inner,
     ...shown.filter((s) => !out.has(s)).map((s) => ({ from: s, to: "@end" }))];
 }
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** *7 ideas · 23 results · 19 the first time · ≈$38 · 9 days* (spec 42 §2.3): under a met goal's flag; a part that is null is left out. */
+export function tallyWords(t) {
+  if (!t) return "";
+  return [count(t.ideas, "idea", "ideas"), count(t.results, "result", "results"), `${t.first_time} the first time`,
+    t.usd != null && `≈$${Math.round(t.usd)}`, t.days != null && count(t.days, "day", "days")].filter(Boolean).join(" · ");
+}
+
+/** "18 October" from a verdict's time. */
+export function flagDate(at) {
+  const d = new Date(at);
+  return Number.isNaN(d.getTime()) ? "" : `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** *met, says Product manager · 18 October* (spec 42 §2.4). */
+export const flagWords = (f) => [`met, says ${f.by}`, flagDate(f.at)].filter(Boolean).join(" · ");

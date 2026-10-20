@@ -183,6 +183,17 @@
 .trail-end__flag { display: inline-flex; padding: var(--ork-3); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); }
 .trail-end.is-met { color: var(--ork-success); }
 .trail-end.is-met .trail-end__flag { border-color: var(--ork-success); }
+.trail-end__tally { text-align: center; }
+.trail-end__flag.is-raising { animation: map-flag-raise 0.6s steps(6) 1; }
+@keyframes map-flag-raise { from { transform: translateY(var(--ork-6)); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .trail-end__flag.is-raising { animation: none; } }
+.map-foot { flex: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ork-3) var(--ork-5); }
+.map-flags { display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; flex: 1 1 100%; }
+.map-flags__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
+.map-flag { all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--ork-3); width: 100%; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame); }
+.map-flag:hover, .map-flag:focus-visible { border-color: var(--ork-edge); }
+.map-flag__mark { color: var(--ork-success); display: inline-flex; }
+.map-flag__body { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; overflow-wrap: anywhere; }
 .trail-end.is-not { color: var(--ork-alert); }
 .trail-end.is-not .trail-end__flag { border-color: var(--ork-alert); }
 .trail-gate { display: inline-flex; align-items: center; gap: var(--ork-2); font: var(--ork-type-caption); font-weight: 600; color: var(--ork-alert); }

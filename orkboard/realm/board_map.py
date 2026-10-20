@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_verdict, idea_checks, idea_questions, idea_risk, idea_spend, idea_target, ideas, roles
+from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_questions, idea_risk, idea_spend, idea_target, ideas, roles
 from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
@@ -198,7 +198,9 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
         goals.append({"slug": g["slug"], "title": g["title"], "short": g["short"], "priority": g["priority"], "state": gst["state"],
                       "craft": g.get("craft") or roles.DEFAULT_CRAFT, "race": roles.RACES.get(g.get("craft"), "peon"), "team": team,
                       "leader": {"slug": lead["slug"], "name": lead["name"], "head": roles.head(lead, target)} if lead else None,
-                      "verdict": {"met": verdict.get("met") is True, "by": verdict.get("by") or ""} if verdict else None,
+                      "verdict": {"met": verdict.get("met") is True, "by": verdict.get("by") or "", "at": verdict.get("at") or "",
+                                  **({"tally": goal_flags.tally(root, state_dir, g["slug"])} if verdict.get("met") is True else {})}
+                      if verdict else None,
                       "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2)})

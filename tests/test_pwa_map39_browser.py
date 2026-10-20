@@ -4,6 +4,8 @@ dots, words, pips and *after …*; a row that needs the person first in its tier
 no horizontal scroll."""
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pick_goal, _shot  # noqa: F401
@@ -60,7 +62,12 @@ def _map(monkeypatch):
         def fake(a):
             self.calls.append(("ideas.map", {}))
             return dict(ANSWER)
-        return {**real(self), "ideas.map": fake}
+
+        def flags(a):
+            self.calls.append(("ideas.flags", {}))
+            return {"flags": [{"goal": g["slug"], "title": g["title"], "short": g["title"], "by": g["verdict"]["by"], "at": g["verdict"].get("at", ""),
+                               "tally": g["verdict"].get("tally")} for g in ANSWER["goals"] if (g.get("verdict") or {}).get("met")]}
+        return {**real(self), "ideas.map": fake, "ideas.flags": flags}
     monkeypatch.setattr(Stub, "commands", commands)
 
 
@@ -207,3 +214,79 @@ async def test_a_node_that_waits_for_the_person_alone_has_one_button_beside_its_
         await proc.click()
         assert await _called(stub, "ideas.queue", {"slug": "raw", "queue": "now", "via": "map"})
         assert await page.evaluate(NO_SCROLL)
+
+
+# -- spec 42 B: the flag raised once, its tally and Flags -------------------------------------------------------------
+
+TALLY = {"ideas": 7, "results": 23, "first_time": 19, "usd": 38.4, "days": 9}
+
+
+def _met():
+    ANSWER["goals"] = [dict(MAP["goals"][0]), {**MAP["goals"][1], "verdict": {"met": True, "by": "Product manager", "at": "2026-10-18T10:00:00", "tally": TALLY}}]
+
+
+def with_list(repo, slugs):
+    key = json.dumps(f"orkboard.flags.{repo.name}")
+    return f"if (!localStorage.getItem({key})) localStorage.setItem({key}, {json.dumps(json.dumps(slugs))});"
+
+
+async def _docs(page):
+    await page.get_by_role("tablist", name="Goals").get_by_role("tab", name="Docs").click()
+    await page.locator('.map-goal[data-goal="docs"]').wait_for(timeout=WAIT_MS)
+
+
+@pytest.mark.asyncio
+async def test_a_met_goal_not_in_the_list_is_raised_once_and_its_slug_kept(fake_repo, monkeypatch):
+    _met()
+    async with _phone(fake_repo, monkeypatch, init=with_list(fake_repo, [])) as (stub, page):
+        await _open_map(page)
+        await _docs(page)
+        await page.locator(".trail-flag.is-raising").wait_for(timeout=WAIT_MS)
+        assert await page.locator(".is-raising").count() == 1
+        assert await _called(stub, "ideas.log", {"event": "opened", "what": "flag", "ref": "docs", "device": "phone"})
+        assert json.loads(await page.evaluate(f"localStorage.getItem({json.dumps('orkboard.flags.' + fake_repo.name)})")) == ["docs"]
+        await page.locator(".is-raising").wait_for(state="detached", timeout=WAIT_MS)                            # it moved once
+        await page.get_by_role("tablist", name="Goals").get_by_role("tab", name="Ship v1").click()               # drawn again: not raised again
+        await _docs(page)
+        await page.wait_for_timeout(400)
+        assert await page.locator(".is-raising").count() == 0
+        assert len([c for c in stub.calls if c[0] == "ideas.log" and c[1].get("what") == "flag"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_under_reduced_motion_nothing_moves_and_a_phone_with_no_list_raises_nothing(fake_repo, monkeypatch):
+    _met()
+    async with _phone(fake_repo, monkeypatch, init=with_list(fake_repo, [])) as (stub, page):
+        await page.emulate_media(reduced_motion="reduce")
+        await _open_map(page)
+        await _docs(page)
+        assert await _called(stub, "ideas.log", {"event": "opened", "what": "flag", "ref": "docs", "device": "phone"})
+        assert await page.locator(".is-raising").count() == 0
+        assert json.loads(await page.evaluate(f"localStorage.getItem({json.dumps('orkboard.flags.' + fake_repo.name)})")) == ["docs"]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):                       # no list at all: every met goal is added, none raised
+        await _open_map(page)
+        await _docs(page)
+        await page.wait_for_timeout(400)
+        assert await page.locator(".is-raising").count() == 0
+        assert json.loads(await page.evaluate(f"localStorage.getItem({json.dumps('orkboard.flags.' + fake_repo.name)})")) == ["docs"]
+        assert not [c for c in stub.calls if c[0] == "ideas.log" and c[1].get("what") == "flag"]
+
+
+@pytest.mark.asyncio
+async def test_the_tally_stays_under_the_flag_and_flags_opens_with_its_rows(fake_repo, monkeypatch):
+    _met()
+    async with _phone(fake_repo, monkeypatch, init=with_list(fake_repo, ["docs"])) as (stub, page):
+        await _open_map(page)
+        await _docs(page)
+        assert " ".join((await page.locator(".trail-tally").inner_text()).split()) == "7 ideas · 23 results · 19 the first time · ≈$38 · 9 days"
+        fold = page.locator("details.map-flags")
+        assert await fold.locator("summary").inner_text() == "Flags (1)" and await fold.get_attribute("open") is None
+        assert not any(c[0] == "ideas.flags" for c in stub.calls)                              # closed at first: not asked for
+        await fold.locator("summary").click()
+        row = page.locator(".map-flag")
+        await row.wait_for(timeout=WAIT_MS)
+        assert " ".join((await row.inner_text()).split()) == "Docs met, says Product manager · 18 October 7 ideas · 23 results · 19 the first time · ≈$38 · 9 days"
+        assert await page.evaluate(NO_SCROLL)
+        await row.click()
+        await page.locator(".screen").first.wait_for(timeout=WAIT_MS)
+        assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "goal:docs", "device": "phone", "via": "flags"})

@@ -8,7 +8,7 @@ import datetime as dt
 from pathlib import Path
 
 from orkboard.gui.ideas_args import IdeasError
-from orkboard.realm import board_recap
+from orkboard.realm import board_recap, goal_flags
 
 RECAP_DAYS = 30                          # a last look older than this is taken as this many days ago
 
@@ -31,3 +31,7 @@ class RecapMixin:
         snap = self.snapshot()
         got["waits"] = {"you": int(snap.get("needs_you") or 0), "review": int(snap.get("review_count") or 0)}
         return got
+
+    def flags(self, args: dict) -> dict:
+        """`{}`: the project's flags, goals accepted by their leader against their metrics, newest first (spec 42 §2)."""
+        return {"flags": goal_flags.flags(self.root(False), self.state_dir)}

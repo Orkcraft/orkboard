@@ -445,6 +445,17 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .away-lines p { margin: 0; overflow-wrap: anywhere; }
 .away-failed { color: var(--ork-danger); }
 .away-foot { display: flex; justify-content: flex-end; }
+.trail-flag.is-raising { animation: map-flag-raise 0.6s steps(6) 1; }
+@keyframes map-flag-raise { from { transform: translateY(var(--ork-6)); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .trail-flag.is-raising { animation: none; } }
+.trail-tally { margin: var(--ork-2) 0 0; overflow-wrap: anywhere; }
+.map-flags { margin-top: var(--ork-5); }
+.map-flags summary { cursor: pointer; min-height: var(--ork-tap); display: flex; align-items: center; color: var(--ork-ink-muted); }
+.map-flags-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
+.map-flag { all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--ork-3); width: 100%; min-height: var(--ork-tap); padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame); }
+.map-flag:focus-visible { outline: 2px solid var(--ork-ink); }
+.map-flag-mark { color: var(--ork-success); display: inline-flex; }
+.map-flag-body { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; overflow-wrap: anywhere; }
 .board-tab-pane { padding-bottom: 96px; }                           /* the last card never under the + */
 dialog.sheet.drawer { margin: 0 auto 0 0; top: 0; bottom: 0; height: 100dvh; max-height: 100dvh; width: min(86vw, 360px); max-width: 86vw; }
 dialog.sheet.drawer .sheet-in { height: 100%; }

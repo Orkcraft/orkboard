@@ -13,7 +13,7 @@ import datetime as dt
 from pathlib import Path
 from typing import Any
 
-from orkboard.realm import board_map, event_log, idea_spend, ideas
+from orkboard.realm import event_log, idea_spend, ideas
 
 LOOK_BACK = dt.timedelta(days=1)         # the log is read from a day earlier (its lines carry an offset), then cut exactly
 
@@ -50,6 +50,7 @@ def _int(value: object) -> int:
 
 
 def build(root: Path, state_dir: Path, since: dt.datetime, now: dt.datetime, rows: dict, into: str = "dev") -> dict[str, Any]:
+    from orkboard.realm.board_map import task_short           # board_map reads goal_flags, which reads `when`
     by_idea = {i["slug"]: i for i in rows.get("ideas") or []}
     by_goal = {g["slug"]: g for g in rows.get("tracks") or []}
     log = events_between(root, since, now, event_log.TASK_STATE, event_log.GOAL_ACCEPTED, event_log.NIGHT_RUN, event_log.PROPOSAL_MADE)
@@ -91,7 +92,7 @@ def build(root: Path, state_dir: Path, since: dt.datetime, now: dt.datetime, row
             continue
         task = next((t for t in (ideas.plan(state_dir, slug) or {}).get("tasks") or [] if t.get("id") == tid), None)
         if task is not None and task.get("state") == "failed":
-            failed.append({**{k: idea(slug)[k] for k in ("slug", "short", "title")}, "task": board_map.task_short(task), "_id": tid})
+            failed.append({**{k: idea(slug)[k] for k in ("slug", "short", "title")}, "task": task_short(task), "_id": tid})
     for f in failed:
         f.pop("_id")
 

@@ -243,3 +243,15 @@ def test_opened_with_via_is_written_and_an_old_line_reads_empty(host):
     event_log.path(Path(host.town.repo_root)).open("a", encoding="utf-8").write(
         json.dumps({"at": "2026-10-01T09:00:00", "event": "opened", "what": "idea", "ref": "old", "device": "desktop"}) + "\n")
     assert event_log.read(Path(host.town.repo_root))[-1]["via"] == ""
+
+
+def test_a_goal_accepted_has_its_verdict_at_and_a_met_one_its_tally_spec_42(fixture):
+    from orkboard.realm import goal_verdict
+    host, root, state, f = fixture
+    goal_verdict.save(state, f["one"], {"met": True, "verdict": "x"}, by="Product manager")
+    goal_verdict.save(state, f["two"], {"met": False, "verdict": "x"}, by="Growth")
+    got = {g["slug"]: g for g in host.command("ideas.map", {})["goals"]}
+    met, no = got[f["one"]]["verdict"], got[f["two"]]["verdict"]
+    assert met["at"] and met["met"] is True and set(met["tally"]) == {"ideas", "results", "first_time", "usd", "days"}
+    assert met["tally"]["ideas"] == 1                                  # "Cache the table" is done
+    assert no["at"] and "tally" not in no
