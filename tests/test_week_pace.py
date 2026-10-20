@@ -478,3 +478,15 @@ def test_an_agents_chip_says_when_its_task_started_by_the_pace(host):
     ideas.edit_plan(state, slug, lambda p: p.pop("by_pace"))
     chips = [c for block in host.command("ideas.agents")["roles"] for c in block["chips"] if c.get("task") == "k1"]
     assert chips and all(c["pace"] is False for c in chips)
+
+
+def test_this_weeks_week_and_last_unused_come_through_ideas_week_work(host, monkeypatch):
+    nowts = time.time()
+    monkeypatch.setattr(host, "limits", lambda: [wk(0.9, 2, nowts)])
+    got = host.command("ideas.week_work", {})
+    json.dumps(got)
+    assert got["week"]["pace"] == "ahead" and got["week"]["left"] == 0.9 and got["last_unused"] is None
+    event_log.record(host.repo_root, event_log.WEEK_RESET, left=0.4, provider="claude")
+    assert host.command("ideas.week_work", {})["last_unused"] == 0.4
+    monkeypatch.setattr(host, "limits", lambda: [])
+    assert host.command("ideas.week_work", {})["week"] is None

@@ -84,7 +84,7 @@ def test_this_week_sums_the_seven_days_the_ops_ledger_and_what_waits_for_tonight
     assert got["usd"] == 40.0 and got["ops_usd"] == 3.2 and (got["merged"], got["first_time"]) == (4, 3)
     assert got["usd_per_merged"] == 10.0 and got["tonight"] == 2 and got["night_on"] is True and got["into"] == "dev"
     assert sum(got["nights"].values()) == 7 and set(got["nights"]) == {"worked", "idle", "off"}
-    assert set(got) == {"usd", "ops_usd", "merged", "first_time", "usd_per_merged", "nights", "tonight", "night_on", "into", "streak"}
+    assert set(got) == {"usd", "ops_usd", "merged", "first_time", "usd_per_merged", "nights", "tonight", "night_on", "into", "streak", "week", "last_unused"}
 
 
 def test_the_price_of_a_result_is_said_from_three_merged_on_and_null_when_unpriced(root, tmp_path):
@@ -250,3 +250,19 @@ def test_a_clean_check_is_not_a_result_nor_a_night_worked(root, tmp_path):
     assert (got["merged"], got["first_time"]) == (0, 0)
     log(root, "task_state", NOW - dt.timedelta(hours=1), idea="a", task="k2", state="merged", was="review", round=1)
     assert board_week.this_week(root, state, SETTINGS, NOW, {})["merged"] == 1
+
+
+def test_this_week_says_the_weeks_pace_and_the_share_left_unused_last_time(root, tmp_path):
+    from orkboard.sources.limits import Limit
+    state = tmp_path / "state"
+    nowts = NOW.timestamp()
+    wk = Limit("claude", "", "weekly", 0.8, dt.datetime.fromtimestamp(nowts + 2 * 86400))
+    got = board_week.this_week(root, state, SETTINGS, NOW, {}, limits=[wk])["week"]
+    assert set(got) == {"left", "rest", "pace", "reset"} and got["left"] == 0.8 and got["pace"] == "ahead"
+    assert abs(got["rest"] - 2 / 7) < 0.01
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["week"] is None
+    assert board_week.this_week(root, state, SETTINGS, NOW, {}, limits=[Limit("claude", "", "session", 0.5, None)])["week"] is None
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["last_unused"] is None
+    log(root, "week_reset", NOW - dt.timedelta(days=14), left=0.5, provider="claude")
+    log(root, "week_reset", NOW - dt.timedelta(days=7), left=0.31, provider="claude")
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["last_unused"] == 0.31

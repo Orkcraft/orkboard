@@ -128,3 +128,13 @@ else: stop and write it in §9 first.
 - Holding High or Normal work when the week is behind (the reserve does what it does today).
 
 ## 9. As built (notes, no change of the contract)
+
+**A**
+- The hold kind `week` is the task note `week · after HH:MM`; `waits.until` for kind `week` is a local ISO time, falling back
+  to the note's HH:MM.
+- `week_reset` fires when the reset is more than 1 h later than the previous read.
+- `ideas.map` now receives the raw `Limit` rows, so `gui/ideas_map.py` changed.
+- A Board's Low plan started by `pace_tick`, or launched by day by the runner, gets `by_pace`.
+- Taking a Low proposal writes no `night_by`, so it reads as the person's.
+- This week's `week` and `last_unused` come from `realm/board_week.py` `this_week(..., limits=)`, carried by `ideas.week_work`
+  (`gui/ideas_recap.py`, the host's limits); `last_unused` is the newest `week_reset` event's `left`.
