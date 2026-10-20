@@ -10,12 +10,26 @@ import { field, foot } from "./shell-forms.js";
 import { who, CRAFT_WORDS, RACE_WORDS } from "./shell-who.js";
 
 const LIMIT = 600;
+const TOO_FEW = 3;                                  // idea_spend.TOO_FEW: a price a merged result is said from 3 merged on
+
+/** What an agent did in the last 30 days (spec 42 §4), in words; read only (`record` of `ideas.roles`). */
+export function recordWords(r) {
+  const rec = r?.record, n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  if (r?.slug === "taskmaster") {
+    return rec?.plans ? `The last 30 days: ${n(rec.plans, "plan", "plans")}; of their ${n(rec.finished, "task", "tasks")}, ${rec.first_time} merged the first time`
+      : "No tasks in the last 30 days";
+  }
+  if (!rec?.finished) return "No tasks in the last 30 days";
+  if (rec.finished < TOO_FEW) return `The last 30 days: ${n(rec.finished, "task", "tasks")}: too few to say more`;
+  return `The last 30 days: ${n(rec.finished, "task", "tasks")}, ${rec.first_time} merged the first time${rec.usd_per_merged != null ? ` · ≈$${rec.usd_per_merged.toFixed(2)} a merged result` : ""}`;
+}
 
 export function makeAgentSheet(core) {
   const name = h("input", { class: "ork-field", type: "text", "aria-label": "Name", placeholder: "Docs scribe", maxlength: "40", required: true });
   const craft = h("select", { class: "ork-field", "aria-label": "Craft" });
   const craftHint = h("small", { class: "muted" });
   const whoNow = h("div", { class: "craft-now", "aria-live": "polite" });
+  const record = h("p", { class: "muted agent-record", "aria-label": "The last 30 days", hidden: true });
   const model = h("select", { class: "ork-field", "aria-label": "Model" });
   const many = h("select", { class: "ork-field", "aria-label": "At most at once" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => h("option", { value: String(n) }, String(n))));
   const modelHint = h("small", { class: "muted" }, "By Target: the task's own tier, moved by the Target");
@@ -34,7 +48,7 @@ export function makeAgentSheet(core) {
   const sureBtn = h("button", { class: "ork-btn danger big", type: "button" }, "Delete agent");
   const keep = h("button", { class: "ork-btn big", type: "button" }, "Keep it");
   const sure = h("div", { class: "sure", hidden: true }, sureText, sureBtn, keep);
-  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Craft", craft), craftHint, whoNow, field("Model", model), modelHint, field("At most at once", many), told, h("label", { class: "field" }, instructionLabel, instruction), counter, longNote, takesBox,
+  const form = h("form", { class: "sheet-form" }, field("Name", name), field("Craft", craft), craftHint, whoNow, record, field("Model", model), modelHint, field("At most at once", many), told, h("label", { class: "field" }, instructionLabel, instruction), counter, longNote, takesBox,
     note, h("div", {}, del), sure, foot(cancel, save));
   const sh = sheet("Add agent", form);
   let slug = "", assign = "";
@@ -107,6 +121,8 @@ export function makeAgentSheet(core) {
       craft.disabled = r?.slug === "taskmaster" || r?.slug === "grunt";
       craftHint.textContent = craft.disabled ? "Taskmaster and Grunt are orks: engineering" : "Its head on Agents: the race says the craft, the gear the tier";
       drawWho();
+      record.hidden = !r;
+      record.textContent = r ? recordWords(r) : "";
       modelHint.hidden = r?.slug === "taskmaster";
       many.value = String(r?.max_parallel || 2);
       instruction.value = r?.instruction_long || r?.instruction || "";

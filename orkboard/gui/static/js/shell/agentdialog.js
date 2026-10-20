@@ -16,6 +16,20 @@ import { toast } from "../link.js";
 const CHARS = 600;                                  // roles.INSTRUCTION_CHARS
 import { Modal, closeDialog } from "./modals.js";
 
+const TOO_FEW = 3;                                  // idea_spend.TOO_FEW: a price a merged result is said from 3 merged on
+
+/** What an agent did in the last 30 days (spec 42 §4), in words; read only (`record` of `ideas.roles`). */
+export function recordWords(r) {
+  const rec = r?.record, n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  if (r?.slug === "taskmaster") {
+    return rec?.plans ? `The last 30 days: ${n(rec.plans, "plan", "plans")}; of their ${n(rec.finished, "task", "tasks")}, ${rec.first_time} merged the first time`
+      : "No tasks in the last 30 days";
+  }
+  if (!rec?.finished) return "No tasks in the last 30 days";
+  if (rec.finished < TOO_FEW) return `The last 30 days: ${n(rec.finished, "task", "tasks")}: too few to say more`;
+  return `The last 30 days: ${n(rec.finished, "task", "tasks")}, ${rec.first_time} merged the first time${rec.usd_per_merged != null ? ` · ≈$${rec.usd_per_merged.toFixed(2)} a merged result` : ""}`;
+}
+
 const RACE_OF = { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" };
 
 /** Add agent, the first way: the library's agents this project has not, a click adds one. */
@@ -87,6 +101,7 @@ function AgentForm({ slug = "" }) {
             ${CRAFT_WORDS[c.craft] || c.label}: ${/^[aeiou]/.test(RACE_WORDS[c.race]) ? "an" : "a"} ${RACE_WORDS[c.race]}</option>`)}</select>
         <small class="ok-tone-muted">${taskmaster || grunt ? "Taskmaster and Grunt are orks: engineering" : "Its head on Agents: the race says the craft, the gear the tier"}</small></label>
       <div class="shell-agent__who" aria-live="polite"><${Who} head=${head} /></div>
+      ${r && html`<p class="shell-record ok-font-status ok-tone-muted" aria-label="The last 30 days">${recordWords(r)}</p>`}
       <label class="shell-field"><span class="ok-font-label">Model</span>
         <select class="ork-field" aria-label="Model" value=${model} onChange=${(e) => setModel(e.target.value)}>
           ${models.map((m) => html`<option key=${m.id} value=${m.id}>${m.label}</option>`)}</select>

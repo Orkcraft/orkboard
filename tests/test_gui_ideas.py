@@ -628,3 +628,29 @@ def test_an_agents_craft_is_saved_and_every_role_says_the_head_it_wears(host):
             host.command("ideas.role_save", {"name": "X", "model": "", "max_parallel": 1, **bad})
     block = next(b for b in host.command("ideas.agents")["roles"] if b["role"] == slug)
     assert block["head"] == {"craft": "design", "race": "elf", "tier": "elder"}
+
+
+def test_every_role_says_its_record_of_the_last_30_days_spec_42_d(host):
+    from orkboard.realm import idea_spend
+    root, state = host.ideas.root(), host.ideas.state_dir
+    scribe = host.command("ideas.role_save", {"name": "Scribe", "model": "", "max_parallel": 1, "kinds": ["docs"]})["slug"]
+    few = host.command("ideas.role_save", {"name": "Few", "model": "", "max_parallel": 1})["slug"]
+    goal = ideas.add_track(root, "Docs goal")
+    idea = ideas.add_idea(root, "Write the guide", goal, state)
+    now = time.strftime("%Y-%m-%dT%H:%M:%S")
+    tasks = [{"id": f"k{n}", "title": f"T{n}", "state": "merged", "round": 2 if n == 4 else 1, "role": scribe, "finished": now} for n in range(1, 5)]
+    tasks += [{"id": "f1", "title": "F", "state": "merged", "round": 1, "role": few, "finished": now},
+              {"id": "old", "title": "Old", "state": "merged", "round": 1, "role": scribe, "finished": "2020-01-01T00:00:00"}]
+    folder = state / "ideas" / idea
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "plan.json").write_text(json.dumps({"idea": idea, "tasks": tasks}))
+    for n in range(1, 5):
+        idea_spend.append(state, idea_spend.line("task", scribe, "claude", "m", "warrior", "", None, 0.5, f"k{n}", 1), idea=idea)
+    idea_spend.append(state, idea_spend.line("plan", "taskmaster", "claude", "m", "elder", "", None, 0.2), idea=idea)
+    idea_spend.forget()
+    got = {r["slug"]: r for r in host.command("ideas.roles")["roles"]}
+    json.dumps(got)
+    assert got[scribe]["record"] == {"days": 30, "finished": 4, "merged": 4, "first_time": 3, "usd_per_merged": 0.5}
+    assert got[few]["record"] == {"days": 30, "finished": 1, "merged": 1, "first_time": 1, "usd_per_merged": None}     # under TOO_FEW: no price
+    assert got["grunt"]["record"] is None                                                                          # no row
+    assert got["taskmaster"]["record"] == {"days": 30, "plans": 1, "finished": 5, "first_time": 4}                    # of its plans' tasks

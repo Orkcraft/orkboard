@@ -69,6 +69,7 @@ class StubHost:
         self.kinds = {k: "grunt" for k in ("code", "tests", "docs", "text", "research")}
         self.chip_extra: dict[str, dict] = {}             # spec 41 §3: a chip's short / idea_short, by task id
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`)
+        self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}
         self.limits = [{"provider": "claude", "name": "Claude", "left": 0.62,
                         "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
@@ -196,7 +197,7 @@ class StubHost:
                         "head": r.get("head")} for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
-            return {"roles": [r | {"spend_today": 0} | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
+            return {"roles": [r | {"spend_today": 0, "record": self.record.get(r["slug"])} | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
                     "kinds": self.kind_list(),
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
                                {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],

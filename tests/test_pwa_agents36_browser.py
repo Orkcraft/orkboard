@@ -210,3 +210,34 @@ async def test_a_result_says_what_its_idea_cost_so_far_by_stage(fake_repo, monke
         await page.get_by_role("button", name="Add the queue: open its code").click()
         await page.locator(".screen .code").wait_for(timeout=WAIT_MS)
         assert await page.locator(".screen .spend-line").count() == 0
+
+
+@pytest.mark.asyncio
+async def test_an_agents_sheet_says_its_record_of_the_last_30_days_in_each_wording(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.record = {"grunt": {"days": 30, "finished": 41, "merged": 38, "first_time": 36, "usd_per_merged": 0.6},
+                       "taskmaster": {"days": 30, "plans": 12, "finished": 41, "first_time": 36}}
+        stub.roles["scribe"] = {"slug": "scribe", "name": "Scribe", "model": "", "max_parallel": 2, "instruction": "", "builtin": False}
+        stub.record["scribe"] = {"days": 30, "finished": 2, "merged": 2, "first_time": 2, "usd_per_merged": None}
+        stub.bump({})
+        await page.wait_for_timeout(800)
+        agents = await _agents(page)
+        line = await agents.locator(".role[data-slug='grunt']").inner_text()
+
+        async def said(button):
+            await agents.get_by_role("button", name=button).click()
+            sheet = page.get_by_role("dialog", name="Edit agent")
+            text = " ".join((await sheet.get_by_label("The last 30 days").text_content()).split())
+            await sheet.get_by_role("button", name="Cancel").click()
+            return text
+        assert await said("Edit Grunts") == "The last 30 days: 41 tasks, 36 merged the first time · ≈$0.60 a merged result"
+        assert await said("Edit Scribe") == "The last 30 days: 2 tasks: too few to say more"
+        assert await said("Edit Taskmaster") == "The last 30 days: 12 plans; of their 41 tasks, 36 merged the first time"
+        stub.record = {}
+        stub.bump({})
+        await page.wait_for_timeout(1200)
+        assert await said("Edit Grunts") == "No tasks in the last 30 days"
+        assert await agents.locator(".role[data-slug='grunt']").inner_text() == line                   # the line stays its own (§54.6)
+        await agents.get_by_role("button", name="+ Add agent").click()
+        await page.get_by_role("dialog", name="Add an agent").get_by_role("button", name="Your own").click()
+        assert await page.get_by_role("dialog", name="Add agent").get_by_label("The last 30 days").is_hidden()

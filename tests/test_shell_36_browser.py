@@ -37,7 +37,7 @@ class Stub36(StubHost):
 
     def handle(self, name, a):
         if name == "ideas.roles":
-            return {"roles": [r | {"spend_today": 0, "week": self.week.get(r["slug"]), "hand_model": r["model"] not in ("", "elder", "warrior", "laborer"),
+            return {"roles": [r | {"spend_today": 0, "week": self.week.get(r["slug"]), "hand_model": r["model"] not in ("", "elder", "warrior", "laborer"), "record": self.record.get(r["slug"]),
                                    "kinds": [k for k, v in self.kinds.items() if v == r["slug"]]} for r in self.roles.values()],
                     "kinds": self.kind_list(), "models": MODELS}
         if name == "ideas.agents":

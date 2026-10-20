@@ -456,6 +456,7 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .map-flag:focus-visible { outline: 2px solid var(--ork-ink); }
 .map-flag-mark { color: var(--ork-success); display: inline-flex; }
 .map-flag-body { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; overflow-wrap: anywhere; }
+.agent-record { margin: 0; overflow-wrap: anywhere; }
 .board-tab-pane { padding-bottom: 96px; }                           /* the last card never under the + */
 dialog.sheet.drawer { margin: 0 auto 0 0; top: 0; bottom: 0; height: 100dvh; max-height: 100dvh; width: min(86vw, 360px); max-width: 86vw; }
 dialog.sheet.drawer .sheet-in { height: 100%; }
