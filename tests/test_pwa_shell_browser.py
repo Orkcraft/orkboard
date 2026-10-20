@@ -134,7 +134,9 @@ class Stub:
 
     def results(self):
         return [{"idea": "sync", "idea_title": self.ideas["sync"]["title"], "task": t["id"], "title": t["title"], "round": t["round"], "tests": t["tests"],
-                 "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"]} for t in self.plan["tasks"] if t["state"] == "review"]
+                 "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"],
+                 **({"check": t["check"], "findings": t["findings"]} if "check" in t else {})}       # spec 43 A: a check's result
+                for t in self.plan["tasks"] if t["state"] == "review"]
 
     def find(self, a):
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])

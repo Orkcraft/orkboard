@@ -61,6 +61,22 @@ elif mode == "fix_conflict":                        # the conflict of a send bac
         open(f"{tid}.txt", "w").write("resolved\n")
     else:
         commit(f"{tid}.txt", f"done by {tid}\n", f"{tid}: add {tid}.txt")
+elif mode.startswith("check_"):                      # a check task (spec 43): what it found goes to its findings file
+    def findings(items):
+        open(".orkcraft-findings.json", "w").write(json.dumps({"findings": items}))
+    left = {"where": "a.py:1", "what": "a bug", "fixed": False}
+    fixed = {"where": "b.py:2", "what": "another bug", "fixed": True}
+    if mode == "check_clean" or (mode == "check_late" and resume):
+        findings([])
+    elif mode == "check_left":
+        findings([left, left])
+    elif mode in ("check_fixed", "check_mixed"):
+        commit(f"{tid}.txt", f"fixed by {tid}\n", f"{tid}: fix")
+        findings([fixed] if mode == "check_fixed" else [fixed, left])
+    elif mode == "check_bad":
+        open(".orkcraft-findings.json", "w").write("not json")
+    elif mode == "check_claims":                      # says it fixed one, and changed no file
+        findings([fixed])
 elif mode == "nocommit":
     pass
 elif mode == "uncommitted":                         # edits a file, runs no git (acceptEdits allows no Bash)

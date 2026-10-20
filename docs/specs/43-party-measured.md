@@ -327,3 +327,13 @@ repository. No face, no model.
 else: stop and write it in §11 first.
 
 ## 11. As built (notes, no change of the contract)
+
+### A. A check says what it found
+- The term is `check_finding` in `TERMS` (*finding* / *findings*): the key `finding` is the Mine's (Orkline's research, *Finding*), so the spec's `finding` is taken by it. The phone's cache is `orkcraft-app-v46` (the numbers of the table moved up by one, as the task said).
+- `idea_checks` also has `counts(findings) -> {found, fixed, left}`, `is_checker(slug)` and `checker_of_tag(tag)`. `FINDINGS_ASK` is in `core/idea_task.py` (it is the prompt's), with `is_check(task)`, the findings round (`_findings_round`: the file read and removed, what the session left committed) and the words of a check that said nothing; the end of a check task is in `IdeaRunner._work` and the *Leave them* of a result with no commit in `ReviewMixin._leave`.
+- A check that changed no file claims no fix: its findings are all kept as `fixed: false` (`found` and `left` are then equal). A check that changed files and said no findings (no file) goes the way of today; one that changed no file and said nothing fails after the retry with *the check said nothing: no findings file*, whatever `ideas.review` says.
+- The retry (FIX) and a send back of a check task carry the ask again; a send back also lists the findings left of the round before, in full (the face's own *why*, which a send back keeps to 1,000 characters, names as many as fit and then *and N more*). The task's `findings` are cleared when a round begins and set when it ends.
+- A clean check's task has `tests` with `ran: false` and a zero `diff`, and `note: "clean"`; a result of a check that changed no file reaches Review with the same and `note: "<n> left"`. *Leave them* with a diff of no file merges nothing (`ReviewMixin._leave`); with fixes it is today's merge.
+- `ideas.review_list`'s rows gain `check` and `findings` only for a check task. A result with every finding fixed has today's card (no *Found*, *Merge into dev*, *Send back*); one with findings left has *Fix them*, *Leave them* and *Drop…*. *Fix them* sends the back at once (one press) with the why *Fix the findings left:* and a line each. The result's own screen on both faces shows the same lines.
+- Not in the contract and left as it was: the goal's tally (`goal_flags`), the agents' record (`idea_spend.by_role`) and the roles' day count read the plan's tasks, so a clean check still counts as a merged task there; only the recap and the weeks leave it out (§1.4).
+- `check_done` is written once per round of a check task that ends with a findings file read; `by` is the task's role when it is a library checker, else the library's checker of the task's tag.

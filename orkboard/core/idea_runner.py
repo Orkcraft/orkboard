@@ -33,8 +33,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orkboard.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
-from orkboard.core.idea_task import TaskMixin
-from orkboard.realm import call_log, event_log, halt, harnesses, idea_spend, idea_target, jobs, roles, status, tool_errors
+from orkboard.core.idea_task import FINDINGS_ASK, NO_DIFF, NO_FINDINGS, NO_RUN, TaskMixin, is_check
+from orkboard.realm import call_log, event_log, halt, harnesses, idea_checks, idea_spend, idea_target, jobs, roles, status, tool_errors
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths  # noqa: F401
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
@@ -166,10 +166,12 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 continue
             since = self._since.get((slug, tid))
             self._since[(slug, tid)] = now
+            check = ({"check": True, **({"clean": True} if new == "merged" and t.get("note") == "clean" else {})}
+                     if is_check(t) else {})            # a check task's lines say so; a clean one is no result (spec 43 §1.3)
             self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1),
                        tier=t.get("tier") or "", role=t.get("role") or "", seconds=round(now - since, 1) if since else None, tokens=t.get("tokens"),
                        cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "",
-                       tool=t.get("tool") or "", model=t.get("model") or "")
+                       tool=t.get("tool") or "", model=t.get("model") or "", **check)
             if new == "review":
                 tests, diff = t.get("tests") or {}, t.get("diff") or {}
                 self._emit(event_log.RESULT_READY, idea=slug, task=tid, round=int(t.get("round") or 1), passed=tests.get("passed"),
@@ -418,7 +420,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         task.update(state="running", started=now_iso(), finished="", error="", note="",
                     branch=f"idea/{slug}/{tid}", commit="", session="", cost=None, tokens=None,
                     tests=None, diff=None, round=1, conflict="", why="", base="", role=self._role(task)["slug"],
-                    ran_tier=idea_target.tier_of(run), effort=effort)
+                    ran_tier=idea_target.tier_of(run), effort=effort, **({"findings": None} if is_check(task) else {}))
         self._clear_log(slug, tid)
         self._spawn(slug, tid, cancel, None)
 
@@ -465,27 +467,58 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 prompt, resume = BACK.format(why=again["why"], extra=extra), str(task.get("session") or "")
                 if not resume:
                     prompt = self._prompt(slug, plan, task) + "\n\n" + prompt
+                elif is_check(task):
+                    prompt += self._again_ask(task)
+                if is_check(task):
+                    self._set_task(slug, tid, findings=None)       # replaced by this round's
             self._log(slug, tid, f"== round {rnd} · {now_iso()} · {model}\n{prompt}\n", env)
             session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent, effort)
+            check_task, findings, changed = is_check(task), None, True
             problem, out = None, ""
             for attempt in (1, 2):
                 self._set_task(slug, tid, state="testing")
-                problem, out = self._check(path, start_sha, cancel, str(task.get("title") or ""))
+                if check_task:                                # spec 43 §1.3: a check that changes no file says so in its findings
+                    got, changed = self._findings_round(path, start_sha, str(task.get("title") or ""))
+                    findings = got if got is not None else findings
+                if check_task and not changed:
+                    problem, out = (None, "") if findings is not None else (NO_FINDINGS, "")
+                else:
+                    problem, out = self._check(path, start_sha, cancel, str(task.get("title") or ""))
                 self._log(slug, tid, f"== the gate, try {attempt}\n{out or problem}\n", env)
                 if problem is None:
                     break
                 if attempt == 2:
+                    if check_task and not changed and findings is None:
+                        raise RuntimeError("the check said nothing: no findings file")
                     if out and setting(self.settings, "review"):    # red after the one fix: the person decides
                         break
                     raise RuntimeError(f"the gate is still red after one fix: {problem[-600:]}")
                 self._set_task(slug, tid, state="running")
-                session = self._session(slug, tid, path, cancel, model, env, FIX.format(problem=problem), session,
+                session = self._session(slug, tid, path, cancel, model, env,
+                                        FIX.format(problem=problem) + (f"\n\n{FINDINGS_ASK}" if check_task else ""), session,
                                         spent, effort, "fix")
-            tests = self._tests_of(path, out, problem)
-            diff = self.git.stats(path, start_sha)
-            if setting(self.settings, "review") or not tests["ran"]:     # nothing ran: never lands by itself
+            left, note = 0, ""
+            if check_task and findings is not None:
+                if not changed:                               # nothing changed: nothing was fixed
+                    findings = [{**f, "fixed": False} for f in findings]
+                found = idea_checks.counts(findings)
+                left, note = found["left"], f"{found['left']} left" if found["left"] else ""
+                self._emit(event_log.CHECK_DONE, idea=slug, task=tid, by=self._checker_of(task), found=found["found"],
+                           fixed=found["fixed"], left=left, round=rnd, cost=spent["cost"])
+                self._set_task(slug, tid, findings=findings)
+            if check_task and not changed and findings == []:    # clean: nothing to gate, to review or to land
+                self._set_task(slug, tid, state="merged", commit="", subjects=[], note="clean", tests=dict(NO_RUN), diff=dict(NO_DIFF),
+                               finished=now_iso(), error="")
+                self.git.remove(path)
+                return
+            if check_task and not changed:
+                tests, diff = dict(NO_RUN), dict(NO_DIFF)
+            else:
+                tests = self._tests_of(path, out, problem)
+                diff = self.git.stats(path, start_sha)
+            if setting(self.settings, "review") or not tests["ran"] or left:     # nothing ran, or findings left: never lands by itself
                 self._set_task(slug, tid, state="review", tests=tests, diff=diff, conflict="", finished=now_iso(),
-                               error="" if problem is None else "the tests are red", note="")
+                               error="" if problem is None else "the tests are red", note=note)
                 self._log(slug, tid, f"== at Review · {now_iso()}\n", env)
                 return
             commit, subjects, note = self.git.land(path, branch, base, bool(setting(self.settings, "push")))

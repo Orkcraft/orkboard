@@ -14,6 +14,8 @@ import threading
 import time
 from pathlib import Path
 
+from orkboard.core.idea_task import is_check
+
 STOP_ONE = "stop-one"                # a Run's `why` when one task is stopped (stop_task)
 STOPPED_NOTE = "stopped by you"      # a task stopped on its own waits as `ready` with this note until Start
 LOG_KEEP = 2000
@@ -79,6 +81,8 @@ class ReviewMixin:
                 raise RunnerError(f"{task['conflict']}: send it back to fix the conflict, or drop it")
             self._runs[(slug, tid)] = _r().Run(threading.current_thread(), threading.Event())   # held while it lands
         base = str(_r().setting(self.settings, "merge_into") or "dev")
+        if is_check(task) and (task.get("diff") or {}).get("files") == 0 and not task.get("commit"):
+            return self._leave(slug, tid, task, device, base)       # a check that changed no file: *Leave them* lands nothing
         try:
             self.git.ensure_branch(base)
             path = self.git.reopen(slug, tid)
@@ -100,6 +104,22 @@ class ReviewMixin:
         self._settle_idea(slug)
         self.tick()
         return commit
+
+    def _leave(self, slug: str, tid: str, task: dict, device: str, base: str) -> str:
+        """*Leave them* on a check that changed no file: the task is merged with what it left in its note, nothing lands."""
+        try:
+            self._decided(slug, task, "merge", device, into=base, pushed=False)
+            left = sum(1 for f in task.get("findings") or [] if isinstance(f, dict) and not f.get("fixed"))
+            self._set_task(slug, tid, state="merged", commit="", subjects=[], note=f"{left} left" if left else "", finished=_r().now_iso(),
+                           error="", conflict="")
+            self._log(slug, tid, "== left as it is: nothing to land\n")
+        finally:
+            with self._lock:
+                self._runs.pop((slug, tid), None)
+        self._remove_worktree(slug, tid)
+        self._settle_idea(slug)
+        self.tick()
+        return ""
 
     def _remove_worktree(self, slug: str, tid: str) -> None:
         from orkboard.realm import worktrees

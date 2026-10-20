@@ -40,13 +40,35 @@ export function fixLine(r, into) {
   return "";
 }
 
-/** Merge · Send back / Fix · Drop for one result; `pinned` in a preview's foot. */
+/** What a check found (spec 43 §1.4): *Found 3: 1 fixed, 2 left*; "" for a result that is not a check's or found nothing. */
+export function foundWords(findings) {
+  const n = findings?.length || 0, fixed = (findings || []).filter((f) => f.fixed).length;
+  if (!n) return "";
+  return `Found ${n}: ${fixed ? `${fixed} fixed, ` : ""}${n - fixed} left`;
+}
+export const leftOf = (r) => (r.findings || []).filter((f) => !f.fixed);
+const WHY_MAX = 1000;
+/** *Fix the findings left:* and one line each (*where: what*), within the one line a send back takes. */
+export function fixThemWhy(r) {
+  let why = "Fix the findings left:";
+  const left = leftOf(r);
+  for (const [n, f] of left.entries()) {
+    const next = `${why}\n${f.where}: ${f.what}`, more = left.length - n - 1;
+    if (next.length + (more ? 24 : 0) > WHY_MAX) return `${why}\nand ${left.length - n} more`;
+    why = next;
+  }
+  return why;
+}
+
+/** Merge · Send back / Fix · Drop for one result; `pinned` in a preview's foot. A check with findings left: Fix them · Leave them · Drop. */
+
 export function ResultActions({ r, pinned = false }) {
   const into = review.value?.into || "dev";
   const [line, setLine] = useState(null);       // null: the one-line box is closed
   const [working, setWorking] = useState(false);
-  const reason = mergeReason(r, into), fix = isRed(r) || !!r.conflict;
+  const reason = mergeReason(r, into), fix = isRed(r) || !!r.conflict, check = r.check && leftOf(r).length > 0;
   const key = { slug: r.idea, task: r.task };
+  const fixThem = async () => { setWorking(true); const got = await act("ideas.back", { ...key, why: fixThemWhy(r) }); setWorking(false); if (got?.ok) done(); };
   const done = () => { if (preview.value?.task === r.task && preview.value?.slug === r.idea) closePreview(); };
   const merge = async () => { setWorking(true); const got = await act("ideas.merge", key); setWorking(false); if (got?.ok) done(); };
   const back = async (e) => {
@@ -59,18 +81,29 @@ export function ResultActions({ r, pinned = false }) {
   };
   return html`<div class=${cls("shell-actions", { "is-pinned": pinned })} onClick=${(e) => e.stopPropagation()}>
     <div class="shell-actions__main">
-      <button class="ork-btn primary" disabled=${!!reason || working} title=${reason || `Merge into ${into}`}
-        onClick=${merge}>Merge into ${into}</button>
-      <button class="ork-btn" aria-expanded=${line !== null} onClick=${() => setLine(line === null ? fixLine(r, into) : null)}>${fix ? "Fix" : "Send back"}</button>
+      ${check ? html`<button class="ork-btn primary" disabled=${working} onClick=${fixThem}>Fix them</button>
+        <button class="ork-btn" disabled=${!!reason || working} title=${reason || (r.diff.files ? `Merge the fixes into ${into}` : "Nothing is merged")}
+          onClick=${merge}>Leave them</button>`
+        : html`<button class="ork-btn primary" disabled=${!!reason || working} title=${reason || `Merge into ${into}`}
+          onClick=${merge}>Merge into ${into}</button>
+        <button class="ork-btn" aria-expanded=${line !== null} onClick=${() => setLine(line === null ? fixLine(r, into) : null)}>${fix ? "Fix" : "Send back"}</button>`}
       <button class="shell-quiet" onClick=${() => openDialog("drop", { r })}>Drop…</button>
     </div>
     ${reason && html`<p class="shell-actions__why ok-tone-error" role="status">${reason}</p>`}
-    ${line !== null && html`<form class="shell-actions__line" onSubmit=${back}>
+    ${!check && line !== null && html`<form class="shell-actions__line" onSubmit=${back}>
       <input class="ork-field" autofocus value=${line} aria-label=${fix ? "What to fix, in one line" : "Why you send it back, in one line"}
         placeholder="One line: what should change?" onInput=${(e) => setLine(e.target.value)}
         onKeyDown=${(e) => e.key === "Escape" && (e.stopPropagation(), setLine(null))} />
       <button class="ork-btn primary" disabled=${!line.trim() || working}>${fix ? "Fix" : "Send back"}</button></form>`}
   </div>`;
+}
+
+/** Under a check's title: *Found 3: 1 fixed, 2 left* and the findings left, each *where · what* (the checker's words, in the text face). */
+export function Found({ r }) {
+  const left = leftOf(r);
+  if (!r.check || !left.length) return null;
+  return html`<div class="shell-found"><p class="shell-found__sum">${foundWords(r.findings)}</p>
+    <ul class="shell-found__list">${left.map((f, n) => html`<li key=${n}><span class="shell-found__where">${f.where}</span> · ${f.what}</li>`)}</ul></div>`;
 }
 
 function Card({ r, selected }) {
@@ -80,6 +113,7 @@ function Card({ r, selected }) {
       onKeyDown=${(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showResult(r.idea, r.task, { via: "review" }); } }}>
     <div class="shell-card__head"><b>${r.title}</b>
       <span class="ok-tone-muted">${r.idea_title}${r.round > 1 ? html` · <span class="shell-round">round ${r.round}</span>` : ""}</span></div>
+    <${Found} r=${r} />
     <dl class="shell-facts">
       <dt>Tests</dt><dd class=${`is-${t.tone}`}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</dd>
       <dt>Changes</dt><dd>${changesWords(r.diff)}</dd>
