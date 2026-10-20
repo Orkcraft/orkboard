@@ -59,6 +59,7 @@ class StubHost:
     def __init__(self, look="camp", onboarding=None):
         self.look, self.onboarding, self.rev, self.log, self.ws = look, onboarding, 1, [], None
         self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
+        self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
         self.plan = make_plan()
         self.into, self.push = "dev", False
         self.paired = [{"id": "p1", "name": "Pixel 8", "seen": "2026-10-17T09:30:00"}]
@@ -236,6 +237,11 @@ class StubHost:
             return self.bump({"slug": slug})
         if name == "ideas.party":
             return json.loads(json.dumps(self.party))
+        if name == "ideas.party_price":                                            # spec 43 C: a price, each checker adds $0.35
+            checkers = [i for i in a.get("team", []) if i in ("reviewer", "accessibility-reviewer", "editor", "data-reviewer", "security-reviewer")]
+            return {"low": self.price_low, "high": self.price_high, "learned": self.price_learned, "ideas": 12 if self.price_learned else 0,
+                    "checks": [{"by": i, "name": i, "usd": 0.35, "share": 1 if i in a.get("every", []) else 0.5, "every": i in a.get("every", [])}
+                               for i in checkers]}
         if name == "ideas.goal_accept":
             self.goals[a["slug"]]["busy"] = True
             return self.bump({"ok": True})
@@ -874,6 +880,63 @@ def test_edit_goal_changes_the_party_and_sends_it_only_when_changed(shell):
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     got = _calls(pg, host, "ideas.goal_save")[-1]
     assert (got["leader"], got["team"], got["every"]) == ("product-manager", ["grunt", "reviewer", "tester"], ["reviewer"])
+
+
+def _prices(host):
+    return [a for n, a in host.log if n == "ideas.party_price"]
+
+
+def _price_calls(pg, host, n, ms=WAIT_MS):
+    for _ in range(ms // 50):
+        if len(_prices(host)) >= n:
+            break
+        pg.wait_for_timeout(50)
+    return _prices(host)
+
+
+def test_new_goal_says_a_partys_price_when_the_picker_opens_and_after_a_seat_changes(shell):
+    pg, host = shell
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    assert not _prices(host)                                                                        # step 1 picks a craft: no party yet
+    dlg.locator('.shell-craft-tile[data-craft="design"]').click()
+    line = dlg.locator(".shell-party-price")
+    line.wait_for(timeout=WAIT_MS)
+    assert " ".join(line.inner_text().split()) == "This party: about $2–6 an idea from this project's last 12 ideas"
+    assert _price_calls(pg, host, 1) == [{"leader": "product-designer", "team": ["ui-kit", "artist", "accessibility-reviewer"], "every": []}]
+    dlg.get_by_role("button", name="Take in: Copywriter").click()                                   # two changes inside 300 ms: one call
+    dlg.get_by_role("button", name="Take in: Analyst").click()
+    got = _price_calls(pg, host, 2)
+    pg.wait_for_timeout(600)
+    assert len(_prices(host)) == 2 and got[-1]["leader"] == "analyst" and "copywriter" in got[-1]["team"]
+    host.price_learned, host.price_low, host.price_high = False, 0.4, 1.2
+    dlg.get_by_role("button", name="Take out: Copywriter").click()
+    pg.wait_for_function("() => document.querySelector('.shell-party-price')?.textContent.includes('a first guess')", timeout=WAIT_MS)
+    assert " ".join(line.inner_text().split()) == "This party: about $0.40–1.20 an idea a first guess: it learns from this project's ideas"
+    dlg.get_by_role("button", name="Next").click()
+    checks = dlg.get_by_role("group", name="Checks")
+    row = checks.locator(".shell-check-row", has_text="Accessibility reviewer")
+    assert "adds about $0.35 to an idea it checks · about half of them" in row.inner_text()
+    assert "an idea they all apply to" not in checks.inner_text()                                   # the tier-cost sum is gone
+    row.get_by_label("Every idea: Accessibility reviewer").check()
+    pg.wait_for_function("() => document.querySelector('.shell-check-row')?.textContent.includes('every idea')", timeout=WAIT_MS)
+    assert "adds about $0.35 to an idea it checks · every idea" in row.inner_text()
+    assert _prices(host)[-1]["every"] == ["accessibility-reviewer"]
+
+
+def test_edit_goal_says_the_price_when_the_party_is_changed(shell):
+    pg, host = shell
+    host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
+    host.bump({})
+    pg.locator(".board-goal", has_text="Led by Architect").wait_for(timeout=WAIT_MS)
+    pg.get_by_role("button", name="Edit goal Ship sync").click()
+    party = pg.get_by_role("dialog", name="Edit goal").get_by_role("group", name="Party")
+    assert not _prices(host) and party.locator(".shell-party-price").count() == 0                   # not asked before the picker opens
+    party.get_by_role("button", name="Change the party").click()
+    party.locator(".shell-party-price").wait_for(timeout=WAIT_MS)
+    assert _price_calls(pg, host, 1) == [{"leader": "architect", "team": ["grunt", "reviewer"], "every": []}]
+    assert "This party: about $2–6 an idea" in party.locator(".shell-party-price").inner_text()
+    assert "adds about $0.35 to an idea it checks · about half of them" in party.get_by_role("group", name="Checks").inner_text()
 
 
 def test_the_target_chip_shows_and_sets_the_boards_one_target(shell):

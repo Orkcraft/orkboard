@@ -9,7 +9,7 @@ import { board, track } from "../board/store.js";
 import { act, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { GoalWizard } from "./goalwizard.js";
-import { PartyBands, ChecksBlock, TASKMASTER, partyWords } from "./party.js";
+import { PartyBands, ChecksBlock, PriceLine, TASKMASTER, partyWords, usePartyPrice } from "./party.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
 
@@ -28,6 +28,7 @@ function GoalEdit({ slug, then = "" }) {
   const [team, setTeam] = useState(was.team);
   const [every, setEvery] = useState(was.every);
   const [changing, setChanging] = useState(false);
+  const price = usePartyPrice(changing, leader, team, every);        // about what an idea costs with this party (spec 43 C)
   const moved = leader !== was.leader || JSON.stringify(team) !== JSON.stringify(was.team) || JSON.stringify(every) !== JSON.stringify(was.every);
   const save = async (e) => {
     e?.preventDefault();
@@ -60,7 +61,8 @@ function GoalEdit({ slug, then = "" }) {
       ${g && html`<div class="shell-field" role="group" aria-label="Party"><span class="ok-font-label">Party</span>
         <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p>
         ${changing ? html`<${PartyBands} craft=${g.craft} leader=${leader} setLeader=${setLeader} team=${team} setTeam=${setTeam} />
-          <${ChecksBlock} team=${team} every=${every} setEvery=${setEvery} />`
+          <${PriceLine} price=${price} />
+          <${ChecksBlock} team=${team} every=${every} setEvery=${setEvery} price=${price} />`
           : html`<button type="button" class="ork-btn" onClick=${() => setChanging(true)}>Change the party</button>`}</div>`}
     </form>
   <//>`;

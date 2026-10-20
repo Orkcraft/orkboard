@@ -44,3 +44,25 @@ def test_opened_takes_party(host):
     host.command("ideas.log", {"event": "opened", "what": "party", "ref": "billing"})
     rows = [r for r in event_log.read(Path(host.town.repo_root)) if r["event"] == "opened"]
     assert rows[-1]["what"] == "party" and rows[-1]["ref"] == "billing"
+
+
+def test_party_price_is_the_hosts_and_a_phones_and_the_answer_is_a_price(host):
+    assert BoardPhone.allowed(Orkboard(), "ideas.party_price", {})
+    got = host.command("ideas.party_price", {"leader": "taskmaster", "team": ["tester", "reviewer"], "every": []})
+    json.dumps(got)
+    assert got["learned"] is False and 0 < got["low"] < got["high"] and [c["by"] for c in got["checks"]] == ["reviewer"]
+
+
+def test_party_price_writes_nothing(host):
+    root, state = host.ideas.root(), host.ideas.state_dir
+    before = sorted(p.name for p in state.rglob("*") if p.is_file())
+    thrift = host.command("ideas.party_price", {"leader": "taskmaster", "team": ["reviewer"], "every": []})
+    assert thrift["checks"][0]["usd"] > 0 and sorted(p.name for p in state.rglob("*") if p.is_file()) == before
+
+
+def test_party_price_with_no_arguments_is_the_taskmaster_alone_and_a_bad_team_is_refused(host):
+    assert host.command("ideas.party_price", {})["checks"] == []
+    with pytest.raises(CommandError, match="at most"):
+        host.command("ideas.party_price", {"team": ["reviewer", "editor", "security-reviewer"]})
+    with pytest.raises(CommandError, match="A team is a list"):
+        host.command("ideas.party_price", {"team": "reviewer"})

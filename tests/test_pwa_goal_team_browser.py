@@ -112,10 +112,13 @@ async def test_the_team_s_checkers_say_what_they_add_every_idea_is_kept_and_the_
         assert await sheet.locator(".party-checks .party-line").inner_text() == "2 checks, where each applies"      # folded to one line
         await sheet.locator('.party-checks [data-change="checks"]').click()
         block = sheet.get_by_role("group", name="Checks")
+        await page.wait_for_function("() => document.querySelectorAll('.checks-block [data-adds]').length === 2 && [...document.querySelectorAll('.checks-block [data-adds]')].every((e) => e.textContent.includes('adds about'))", timeout=WAIT_MS)
         text = await block.inner_text()
         assert "Accessibility reviewer" in text and "Reviewer" in text and "Product designer" not in text   # checkers only
-        assert "applies when the idea changes what people see or use" in text and "≈ $1.30 an idea they all apply to" in text   # a seasoned and a veteran check
+        assert "applies when the idea changes what people see or use" in text
+        assert text.count("adds about $0.35 to an idea it checks · about half of them") == 2 and "an idea they all apply to" not in text   # each check says what it adds
         await block.get_by_label("Every idea: Reviewer").check()
+        await block.get_by_text("adds about $0.35 to an idea it checks · every idea").wait_for(timeout=WAIT_MS)       # the line changes in place
         await block.get_by_role("button", name="Done").click()
         assert await sheet.locator(".party-checks .party-line").inner_text() == "2 checks, 1 on every idea"
         await sheet.get_by_label("Description").fill("A settings screen.")
@@ -237,6 +240,50 @@ async def test_a_goal_s_team_is_changed_from_its_screen_and_saved_alone(fake_rep
         assert not any(c[0] == "ideas.goal_save" and "about" in c[1] and c[1].get("slug") == "land" for c in stub.calls)   # the party alone: no words sent
         await sheet.wait_for(state="hidden", timeout=WAIT_MS)
         assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_party_s_price_is_said_when_the_picker_opens_and_after_a_seat_changes_and_a_checker_has_its_mark(fake_repo, monkeypatch):
+    def asked(stub):
+        return [c[1] for c in stub.calls if c[0] == "ideas.party_price"]
+
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _new_goal(page)
+        sheet = page.get_by_role("dialog", name="New goal")
+        line = sheet.locator(".party-price")
+        await line.wait_for(timeout=WAIT_MS)
+        assert " ".join((await line.inner_text()).split()) == "This party: about $2–6 an idea from this project's last 12 ideas"
+        assert asked(stub) == [{"leader": "architect", "team": ["grunt", "tester", "reviewer"], "every": []}]       # when the sheet opens: one call
+        await sheet.locator('.craft-tile[data-craft="design"]').click()                                # a craft, then a seat, inside 300 ms: one call
+        await sheet.locator('.party [data-change="team"]').click()
+        stub.price_learned, stub.price_low, stub.price_high = False, 0.4, 1.2
+        await sheet.get_by_role("button", name="Take in: Analyst").click()
+        await page.wait_for_function("() => document.querySelector('.party-price')?.textContent.includes('a first guess')", timeout=WAIT_MS)
+        assert " ".join((await line.inner_text()).split()) == "This party: about $0.40–1.20 an idea a first guess: it learns from this project's ideas"
+        assert len(asked(stub)) == 2 and asked(stub)[-1]["leader"] == "analyst"
+        await sheet.get_by_role("region", name="Checks").get_by_role("button").first.click()            # open Checks
+        mark = sheet.get_by_role("button", name="Take in: Reviewer").locator(".check-badge")
+        assert await mark.text_content() == "checks"                                                      # a checker's mark, as on the desktop
+        assert await sheet.get_by_role("button", name="Take out: Accessibility reviewer").locator(".check-badge").count() == 1
+        await sheet.get_by_label("Description").fill("A settings screen.")
+        assert await page.evaluate(NO_SCROLL)
+        await sheet.get_by_role("button", name="Save goal").click()
+        assert await _called(stub, "ideas.goal_save")                                                  # the price never blocks Save
+
+
+@pytest.mark.asyncio
+async def test_a_goal_s_team_sheet_asks_the_price_when_it_opens(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.goals["land"] = stub.goal("land", "Landing page", "high", "ready", craft="design", race="elf", about="A landing page.",
+                                       team=["ui-kit", "accessibility-reviewer"], every=[], leader=stub.leader("product-designer"))
+        stub.bump({})
+        await _pick_goal(page, "land")
+        await page.locator('.map-goal[data-goal="land"]').get_by_role("button", name="Open goal Landing page").click()
+        await page.locator(".screen").get_by_role("region", name="Team").get_by_role("button", name="Change the team").click()
+        sheet = page.get_by_role("dialog", name="Team")
+        await sheet.locator(".party-price").wait_for(timeout=WAIT_MS)
+        assert "This party: about $2–6 an idea" in await sheet.locator(".party-price").inner_text()
+        assert await _called(stub, "ideas.party_price", {"leader": "product-designer", "team": ["ui-kit", "accessibility-reviewer"], "every": []})
 
 
 PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},

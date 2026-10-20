@@ -13,7 +13,7 @@ import { act, roles, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { Head, CRAFT_WORDS, RACE_WORDS } from "../orkui.js";
 import { PRIORITIES } from "./goaldialog.js";
-import { CRAFTS, TASKMASTER, PartyBands, ChecksBlock, agentOf, partyWords } from "./party.js";
+import { CRAFTS, TASKMASTER, PartyBands, ChecksBlock, PriceLine, agentOf, partyWords, usePartyPrice } from "./party.js";
 
 const MIXED = "mixed";
 
@@ -27,6 +27,7 @@ export function GoalWizard({ then = "" }) {
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
   const [saving, setSaving] = useState(false);
+  const price = usePartyPrice(step >= 2, leader, team, every);        // about what an idea costs with this party (spec 43 C)
 
   const pick = (c) => {
     if (c !== craft) {
@@ -69,7 +70,8 @@ export function GoalWizard({ then = "" }) {
     foot = html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>`;
   } else if (step === 2) {
     body = html`<p class="ok-tone-muted">The goal's party: its leader plans and accepts, its builders work, its checkers check. A task goes to the one who does its kind of work; Grunt fills in.</p>
-      <${PartyBands} craft=${craft} leader=${leader} setLeader=${setLeader} team=${team} setTeam=${setTeam} />`;
+      <${PartyBands} craft=${craft} leader=${leader} setLeader=${setLeader} team=${team} setTeam=${setTeam} />
+      <${PriceLine} price=${price} />`;
     foot = html`<button type="button" class="ork-btn" onClick=${() => setStep(1)}>Back</button>
       <button type="button" class="ork-btn primary" onClick=${() => setStep(3)}>Next</button>`;
   } else {
@@ -83,7 +85,7 @@ export function GoalWizard({ then = "" }) {
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
           <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>
       <p class="ok-font-status ok-tone-muted">${say(`${lead?.name || "The Taskmaster"} reads the repository and writes the title, the summary, the metrics and the links.`)}</p>
-      <${ChecksBlock} team=${team} every=${every} setEvery=${setEvery} />
+      <${ChecksBlock} team=${team} every=${every} setEvery=${setEvery} price=${price} />
     </form>`;
     foot = html`<button type="button" class="ork-btn" onClick=${() => setStep(2)}>Back</button>
       <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!about.trim() || saving}>Save goal</button>`;

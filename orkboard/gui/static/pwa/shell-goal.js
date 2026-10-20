@@ -67,7 +67,7 @@ export function makeGoalSheet(core) {
   // -- a goal's team from its own screen (spec 41 §7): the Team and Checks folds of New goal, saved alone -----------------------
   const party = makeParty(core);
   const teamSave = h("button", { class: "ork-btn primary big", type: "button" }, "Save team");
-  const teamSheet = sheet("Team", party.team, party.checks, foot(teamSave));
+  const teamSheet = sheet("Team", party.team, party.price, party.checks, foot(teamSave));
   let teamOf = "";
   teamSave.addEventListener("click", async () => {
     const p = party.get();
@@ -86,6 +86,7 @@ export function makeGoalSheet(core) {
       teamOf = g.slug;
       party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [] }, () => g.craft || "");
       teamSheet.open();
+      party.open();
     },
     open(which = "", after = null) {
       if (!which) { wizard.open(after); return; }
