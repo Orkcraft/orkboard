@@ -60,6 +60,8 @@ class StubHost:
         self.look, self.onboarding, self.rev, self.log, self.ws = look, onboarding, 1, [], None
         self.party: dict = {"ideas": 0, "leader": None, "members": [], "checks": []}    # ideas.party (spec 43 B)
         self.price_hints = []
+        self.sign_in: list[dict] = []                 # the snapshot's `sign_in` (spec 45 §4): the tools not signed in, as core/sign_ins.py serves them
+        self.sign_in_needs: list[dict] = []           # the sign-in rows of Needs you (realm/board_map.py `sign_in_needs`)
         self.own_parties: list[dict] = []                                             # ideas.parties (spec 43 F)
         self.price_low, self.price_high, self.price_learned = 1.9, 5.7, True          # ideas.party_price (spec 43 C)
         self.plan = make_plan()
@@ -116,7 +118,7 @@ class StubHost:
                        **({"asked": self.goals["grow"]["asked"]} if self.goals.get("grow", {}).get("asked") else {})},
                base | {"kind": "proposal", "idea": "tags", "goal": "grow", "title": "Tag the notes", "text": "Tags make a long list findable."}]
         gone = set(self.proposals) | set(self.asked)            # answered: out of the list
-        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + [base | n for n in self.party_needs]
+        return [n for n in out if (n["idea"] or n["goal"]) not in gone] + [base | n for n in self.party_needs] + list(self.sign_in_needs)
 
     def goal(self, slug, title, priority, state, order=1, **more):
         return {"slug": slug, "title": title, "about": "", "criteria": [], "deadline": "", "order": order, "count": 0, "priority": priority,
@@ -145,7 +147,7 @@ class StubHost:
         return {"t": "state", "state": {
             "focus": "board", "ideas_rev": self.rev, "look": self.look, "project": "orkline", "demo": False, "onboarding": self.onboarding or False,
             "words": [], "resources": {}, "orkspaces": [], "buildings": [], "roads": [], "alerts": [], "score": {},
-            "limits": self.limits, "review_count": len(self.results()), "needs_you": 1,
+            "limits": self.limits, "review_count": len(self.results()), "needs_you": 1, "sign_in": json.loads(json.dumps(self.sign_in)),
             "hud": {"gold": "$2.40", "show_gold": True, "lumber": "120k"}}}
 
     def page(self, slug):
@@ -359,6 +361,17 @@ class StubHost:
         if name == "onboarding.close":
             self.onboarding = None
             return self.bump({})
+        if name in ("tools.sign_in", "tools.sign_in_cancel", "tools.sign_in_done"):       # spec 45 §5: the desktop's commands
+            e = next((x for x in self.sign_in if x["harness"] == a["harness"]), None)
+            if e is None:
+                return {"error": "That tool needs no sign-in"}
+            if name == "tools.sign_in":
+                e.update(state="open", why="", command="", **({"auto": False} if a.get("auto") is not True else {}))
+            elif name == "tools.sign_in_cancel":
+                e.update(state="failed", why="cancelled")
+            else:
+                self.sign_in = [x for x in self.sign_in if x is not e]
+            return self.bump(dict(e))
         if name == "logs.save":
             return {"path": SAVED, "name": SAVED.rsplit("/", 1)[1], "folder": SAVED.rsplit("/", 1)[0]}
         return {"ok": True}

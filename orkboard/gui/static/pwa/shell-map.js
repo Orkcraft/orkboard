@@ -34,6 +34,7 @@ export function waitsWords(node) {
   if (w.kind === "limits") return at ? `waits for limits · after ${at}` : "waits for limits";
   if (w.kind === "reserve") return at ? `keeps your reserve · after ${at}` : "keeps your reserve";
   if (w.kind === "week") return w.until ? `waits: the week is behind · until ${dayAt(w.until)}` : "waits: the week is behind";
+  if (w.kind === "sign_in") return `waits: ${w.tool || w.title || "the tool"}'s sign-in`;
   if (w.kind === "night") return "tonight";
   if (w.kind === "stopped") return "stopped";
   return "";

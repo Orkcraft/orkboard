@@ -74,10 +74,14 @@ export function Goals() {
   </div>`;
 }
 
+const signWait = (w) => `waits: ${w.tool || w.title || "the tool"}'s sign-in`;
+
 /** What an idea's row says (§11.3) and the actions it has: [words, spinner, actions]. */
 export function rowOf(i, titles) {
   const waits = (i.waits_on || []).map((s) => titles[s] || s);
   const limits = i.held_until ? `waits for limits · after ${hhmm(i.held_until)}` : "";
+  // held for its tool's sign-in (spec 45): before the limits' words, `held_until` is set for both
+  if (i.waits?.kind === "sign_in" && i.state !== "done") return [i.state === "working" ? `${stateWords(i)} · ${signWait(i.waits)}` : signWait(i.waits), false, i.state === "working" ? ["halt"] : i.state === "raw" || i.state === "ready" ? ["delete"] : []];
   if ((i.state === "raw" || i.state === "ready") && limits) return [limits, false, ["delete"]];
   const week = i.waits?.kind === "week" ? `waits: the week is behind${i.waits.until ? ` · until ${dayAt(i.waits.until)}` : ""}` : "";
   if (i.state === "raw") {

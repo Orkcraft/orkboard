@@ -7,6 +7,7 @@
 import { signal } from "@preact/signals";
 import { html } from "../html.js";
 import { command, copyText, toast } from "../link.js";
+import { SignInButton, entryFor } from "./signin.js";
 
 const CHARS = 20000;
 const LINE = "p, li, td, th, dt, dd, h1, h2, h3, h4, label, button, a, pre, code, summary, [role=alert], [role=status], .ok-toast";
@@ -26,8 +27,9 @@ export async function saveLogs(said = "", days = 1) {
 /** An error in words, with Copy and Save logs beside it (the words go into the logs saved). */
 export function ErrorLine({ text, logs = true }) {
   if (!text) return null;
+  const tool = entryFor(text);       // a tool that is not signed in (spec 45 §8): Sign in beside its line
   return html`<div class="shell-error"><p class="ok-tone-error" role="alert">${text}</p>
-    <span class="shell-error__acts"><button type="button" class="ork-btn quiet" onClick=${() => { copyText(text); toast("Copied", "information"); }}>Copy</button>
+    <span class="shell-error__acts">${tool && html`<${SignInButton} harness=${tool.harness} tool=${tool.tool} />`}<button type="button" class="ork-btn quiet" onClick=${() => { copyText(text); toast("Copied", "information"); }}>Copy</button>
       ${logs && html`<button type="button" class="ork-btn quiet" onClick=${() => saveLogs(text)}>Save logs</button>`}</span></div>`;
 }
 

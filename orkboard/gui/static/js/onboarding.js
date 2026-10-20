@@ -12,6 +12,7 @@ import { MascotHead, BIOMES, headerSprite, TypeIcon, ToolMark } from "./icons.js
 import { terrainUrl } from "./terrain.js";
 import { USAGE_WHAT } from "./settings.js";
 import { googleOpen, googleShown } from "./accounts.js";
+import { SignIn, SignInButton } from "./shell/signin.js";
 
 const asking = signal(false);          // the Request a tool dialog
 
@@ -100,10 +101,11 @@ function CheckCell({ r }) {
     title=${say(`Send ${r.title} a short request to see that it answers`)}>${c ? "Check again" : "Check"}</button>`;
 }
 
-function CheckFailed({ c }) {
+function CheckFailed({ c, harness, tool }) {
   return html`<div class="gui-onb__checked ok-font-status" role="alert">
     <span class="ok-tone-error">✗ ${say(c.line)}</span>
     ${c.action && html` <span>${say(c.action)}</span>`}
+    ${c.sign_in && html` <${SignInButton} harness=${harness} tool=${tool} />`}
     <details><summary class="ok-tone-muted">Details</summary><pre>${c.detail}</pre></details>
   </div>`;
 }
@@ -158,12 +160,12 @@ function ToolsStep({ o }) {
           <span class="gui-onb__tool"><${ToolMark} id=${r.id} mark=${r.mark} />${r.title}
             ${r.version && html`<span class="ok-font-status ok-tone-muted">${r.version}</span>`}</span>
           <span class=${cls("ok-font-status", r.logged_in === false ? "ok-tone-wait" : r.logged_in ? "ok-tone-ok" : "ok-tone-muted")}>
-            ${r.logged_in === false ? say(`⚠ not logged in: ${r.login}`) : r.logged_in ? "✓ logged in" : "sign-in unknown: Check tells"}</span>
+            ${r.logged_in === false ? say(r.check?.sign_in ? "⚠ not signed in" : `⚠ not signed in: ${r.login}`) : r.logged_in ? "✓ signed in" : "sign-in unknown: Check tells"}</span>
           <select class="ork-field" value=${r.billing} aria-label=${say(`How ${r.title} is paid`)}
               onChange=${(e) => set(r.id, { billing: e.target.value })}>
             <option value="subscription">Subscription</option><option value="api">API</option></select>
           <${CheckCell} r=${r} />
-          ${r.check && r.check.state === "failed" && html`<${CheckFailed} c=${r.check} />`}
+          ${r.check && r.check.state === "failed" && html`<${CheckFailed} c=${r.check} harness=${r.id} tool=${r.title} />`}
           ${r.risk && html`<div class="gui-onb__checked ok-font-status ok-tone-wait">⚠ ${say(r.risk)}</div>`}
         </div>`)}
       </div>
@@ -563,5 +565,6 @@ export function Onboarding() {
   return html`<div class="gui-onb" role="dialog" aria-modal="true" aria-label=${say("Setting up")}>
     <div class="gui-onb__brand"><img src="/ds/logo/orkcraft-dark.svg" alt="Orkline" onError=${(e) => { e.target.replaceWith(document.createTextNode("Orkline")); }} /></div>
     ${Step && html`<${Step} o=${o} />`}
+    <${SignIn} />
   </div>`;
 }
