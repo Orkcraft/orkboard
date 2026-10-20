@@ -380,3 +380,6 @@
 .shell-lens-marks li input { flex: 1; min-width: 0; }
 .shell-pointed { display: flex; flex-direction: column; gap: var(--ork-1); }
 .shell-pointed p { margin: 0; }
+
+/* An agent's record in its dialog (spec 42 §4): read only, in the text face. */
+.shell-record { margin: 0; overflow-wrap: anywhere; }

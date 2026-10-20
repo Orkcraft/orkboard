@@ -17,6 +17,9 @@ from orkboard.realm import board_map, event_log, idea_spend, idea_target, ideas,
 from orkboard.realm.idea_words import short_of
 
 
+RECORD_DAYS = 30                   # an agent's record: the last 30 days (spec 42 §4)
+
+
 class RolesMixin:
     def _target(self) -> str:
         return idea_target.target_of(self.board_settings())
@@ -48,12 +51,23 @@ class RolesMixin:
         usd = costs.get(roles.head(r, target)["tier"])
         return round(float(usd), 2) if usd is not None else None
 
+    @staticmethod
+    def _record(row: dict | None, slug: str) -> dict | None:
+        """What an agent did in the last 30 days (spec 42 §4): its row of `idea_spend.by_role`, in the shape the dialog reads; the
+        Taskmaster's counts its plans and the tasks of them."""
+        if row is None:
+            return None
+        if slug == roles.TASKMASTER:
+            return {"days": RECORD_DAYS, **{k: row.get(k, 0) for k in ("plans", "finished", "first_time")}}
+        return {"days": RECORD_DAYS, **{k: row.get(k) for k in ("finished", "merged", "first_time", "usd_per_merged")}}
+
     def roles(self, args: dict) -> dict:
         spent, week, kinds = self._role_spend(), idea_spend.by_role(self.state_dir), roles.kinds(self.state_dir)
+        record = idea_spend.by_role(self.state_dir, days=RECORD_DAYS)
         target, costs = self._target(), idea_spend.tier_costs(self.state_dir)
         mine = [{**r, "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]),
                  "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r),
-                 "head": roles.head(r, target), "usd_task": self._usd_task(r, week, costs, target),
+                 "head": roles.head(r, target), "record": self._record(record.get(r["slug"]), r["slug"]), "usd_task": self._usd_task(r, week, costs, target),
                  **({"told": roles.TOLD[r["slug"]]} if r["slug"] in roles.TOLD else {})}
                 for r in roles.roles(self.state_dir)]
         have = {r["slug"] for r in mine}

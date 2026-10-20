@@ -170,6 +170,7 @@ TERMS: tuple[Term, ...] = (
     _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
     _t("flag", "flag", "flags"),                                   # a goal accepted by its leader against its metrics (spec 42 §2)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
+    _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("short_name", "short name", "short names"),                 # an idea's, a goal's or a task's name in 24 characters (spec 41 §3)
     _t("recommended_answer", "recommended answer", "recommended answers"),   # the choice the Taskmaster picks for its question (spec 41 §9)
     _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)

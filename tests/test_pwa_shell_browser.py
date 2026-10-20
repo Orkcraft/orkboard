@@ -74,6 +74,7 @@ class Stub:
         self.spend: dict | None = None                    # spec 36 §2: what ideas.spend returns (None: an error)
         self.hide_plan = False                            # no plan waiting on the person (spec 41 §1's tests)
         self.usd_task: dict[str, float | None] = {}       # spec 41 §8: a role's cost a task by slug (`usd_task`; null for the Taskmaster)
+        self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}   # `told`
 
     @staticmethod
@@ -182,7 +183,7 @@ class Stub:
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
             names = {"code": "Code", "tests": "Tests", "docs": "Docs", "text": "Text for people", "research": "Research"}
-            return {"roles": [{"instruction_long": "", "hand_model": False} | r | {"spend_today": 0, "usd_task": self.usd_task.get(r["slug"])}
+            return {"roles": [{"instruction_long": "", "hand_model": False} | r | {"spend_today": 0, "usd_task": self.usd_task.get(r["slug"]), "record": self.record.get(r["slug"])}
                               | ({"told": self.told[r["slug"]]} if r["slug"] in self.told else {}) for r in self.roles.values()],
                     "kinds": [{"kind": k, "label": names[k], "role": r} for k, r in self.kinds.items()],
                     "models": [{"id": "", "label": "By Target"}, {"id": "elder", "label": "Elder · opus"},
