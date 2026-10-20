@@ -99,6 +99,9 @@ function Tasks({ plan, working }) {
 /** "tasks k2 and k3 wait for it": the tasks a to-do holds back. */
 const CHECK_STATE = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "at Review", held: "held", failed: "failed" };
 
+/** What a check found (spec 43 §1.5): "clean", or "found 2: 1 fixed, 1 left"; "" before it ends or when it kept no findings. */
+export const foundOf = (c) => (c.found == null ? "" : c.found === 0 ? "clean" : `found ${c.found}: ${c.fixed} fixed, ${c.left} left`);
+
 /** A check the person may still skip: it applies, it has not run (no task yet, or its task waits). */
 export const skippable = (c) => c.applies && !c.skipped && (!c.state || ["waiting", "ready", "held"].includes(c.state));
 /** What skipping a check spares, in words ("" when its tier has no price yet). */
@@ -108,7 +111,8 @@ export const spares = (c) => { const usd = Number(roles.value?.tier_costs?.[c.ti
  *  skipped by the person; Skip spares a check that has not run (its task taken out of the plan), Take again before a plan. */
 function Checks({ checks, slug, planned }) {
   if (!(checks || []).length) return null;
-  const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.state === "passed" ? "passed" : CHECK_STATE[c.state] || c.state || "in the plan to come");
+  const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.state === "passed" ? foundOf(c) || "passed"
+    : c.state === "review" && foundOf(c) ? `${foundOf(c)} · at Review` : CHECK_STATE[c.state] || c.state || "in the plan to come");
   return html`<div class="board-checks" role="list" aria-label="Checks"><span class="ok-font-label">Checks</span>
     ${checks.map((c) => html`<span key=${c.by} role="listitem" class=${cls("board-check", { "is-off": !c.applies || c.skipped, "is-passed": c.state === "passed" })}>
       <b>${c.state === "passed" && html`<${Icon} name="check" />`}${c.name}</b><small>${words(c)}</small>

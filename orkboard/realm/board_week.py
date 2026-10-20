@@ -54,7 +54,7 @@ def nights(root: Path, settings: dict, now: dt.datetime, n: int = 7) -> list[dic
     for date, start, end in spans:
         inside = [r for r in log if start <= board_recap.when(r["at"]) < end]
         ran = [r for r in inside if r["event"] == event_log.NIGHT_RUN]
-        worked = any(r["event"] == event_log.TASK_STATE and r.get("state") in WORKED_STATES for r in inside) or \
+        worked = any(r["event"] == event_log.TASK_STATE and r.get("state") in WORKED_STATES and r.get("clean") is not True for r in inside) or \
             any(board_recap._int(r.get(k)) > 0 for r in ran for k in _WORK_KEYS)
         out.append({"date": date.isoformat(), "kind": "worked" if worked else "idle" if ran else "off"})
     return out
@@ -162,7 +162,7 @@ def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
     first_merge: dict[str, dt.datetime] = {}
     for r in everything:
         at = board_recap.when(r.get("at"))
-        if r.get("event") == event_log.TASK_STATE and r.get("state") == "merged" and at is not None:
+        if r.get("event") == event_log.TASK_STATE and board_recap.is_result(r) and at is not None:
             first_merge[str(r.get("idea") or "")] = min(first_merge.get(str(r.get("idea") or ""), at), at)
     quick = [(int((at - added[s]).total_seconds() // 60), s) for s, at in first_merge.items()
              if s in by_idea and s in added and added[s] is not None and since <= at < until]

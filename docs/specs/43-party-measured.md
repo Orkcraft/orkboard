@@ -327,3 +327,13 @@ repository. No face, no model.
 else: stop and write it in §11 first.
 
 ## 11. As built (notes, no change of the contract)
+
+### A. A check says what it found
+- **The term.** `lexicon.TERMS` already had a `finding` (the Mine's old research claim, "Finding"); it is now the contract's one (*finding* / *findings*, a check's), so there is one `finding` key.
+- **A change is a changed file.** "No change" is the branch's diff against its start being empty (`git diff --numstat`), not an absent commit: a session that commits the findings file itself (or commits and reverts) still ends clean. A findings file the session committed is taken out of the index as well as the disk (`idea_task._take_findings`).
+- **Where it lives.** How a check task ends is `TaskMixin._check_round` in `core/idea_task.py` (the runner is near the module limit); `_work` calls it before each gate try. `idea_task.is_check` and `checker_of` say whether a task is a check's and whose; `idea_review.fix_findings` writes *Fix them*'s why.
+- **Edges the table leaves open.** Findings read with no change and none left (all `fixed: true` claimed, nothing changed) end clean. Findings `None` with changes and a green gate take today's path (the work stands); `failed` with *the check said nothing: no findings file* is only for no file, no change, after the one retry. `check_done` is written once per round (the first read), and its `cost` is the task's cost so far.
+- **Fix them.** The faces fill the line with *Fix the findings left:* and the findings joined by `; ` (the line is one line); `runner.back` fills the same why when it is sent empty for a check with findings left. The send back's prompt (and the gate's FIX) repeat the ask. The card lists only the findings left, and a result with none left keeps today's card.
+- **Leave them** is `ideas.merge`: a check task with a findings list and no changed file becomes `merged` (`commit: ""`, `note: "<n> left"`) and nothing lands; a check with changes lands as any result.
+- **A clean check's `merged`** is also not a night worked (`board_week.nights`) and not an idea's first merge (*Fastest from idea to dev*); `board_recap.is_result` is the one test.
+- **Review's row**: `check` and `findings` appear only for a check task; another task's row is as it was.

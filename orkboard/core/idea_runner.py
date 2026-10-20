@@ -33,8 +33,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orkboard.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
-from orkboard.core.idea_task import TaskMixin
-from orkboard.realm import call_log, event_log, halt, harnesses, idea_spend, idea_target, jobs, roles, status, tool_errors
+from orkboard.core.idea_task import FINDINGS_ASK, NO_CHANGE, NO_FINDINGS, TaskMixin, is_check
+from orkboard.realm import call_log, event_log, halt, harnesses, idea_checks, idea_spend, idea_target, jobs, roles, status, tool_errors
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths  # noqa: F401
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
@@ -169,7 +169,8 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             self._emit(event_log.TASK_STATE, idea=slug, task=tid, state=new, was=old, round=int(t.get("round") or 1),
                        tier=t.get("tier") or "", role=t.get("role") or "", seconds=round(now - since, 1) if since else None, tokens=t.get("tokens"),
                        cost=t.get("cost"), ran_tier=t.get("ran_tier") or "", effort=t.get("effort") or "",
-                       tool=t.get("tool") or "", model=t.get("model") or "")
+                       tool=t.get("tool") or "", model=t.get("model") or "",
+                       **({"check": True, **({"clean": True} if new == "merged" and t.get("note") == "clean" else {})} if is_check(t) else {}))
             if new == "review":
                 tests, diff = t.get("tests") or {}, t.get("diff") or {}
                 self._emit(event_log.RESULT_READY, idea=slug, task=tid, round=int(t.get("round") or 1), passed=tests.get("passed"),
@@ -417,7 +418,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         task.update(tool=HARNESS, model=(h.pick(run) if h else run) or run)    # the model the run names (spec 35 §12)
         task.update(state="running", started=now_iso(), finished="", error="", note="",
                     branch=f"idea/{slug}/{tid}", commit="", session="", cost=None, tokens=None,
-                    tests=None, diff=None, round=1, conflict="", why="", base="", role=self._role(task)["slug"],
+                    tests=None, diff=None, round=1, conflict="", why="", base="", findings=None, role=self._role(task)["slug"],
                     ran_tier=idea_target.tier_of(run), effort=effort)
         self._clear_log(slug, tid)
         self._spawn(slug, tid, cancel, None)
@@ -442,7 +443,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             h = harnesses.need(HARNESS)
             run, effort = self.ran_on(task)
             model = h.pick(run)                          # the role's model, else the tier the Target gives
-            rnd = int(task.get("round") or 1)
+            rnd, chk = int(task.get("round") or 1), is_check(task)
             if again is None:
                 self.git.ensure_branch(base)
                 path, branch = self.git.prepare(slug, tid, base)
@@ -463,29 +464,38 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 if tests and not tests.get("green", not tests.get("failed")):
                     extra += f"The tests were red:\n{tests.get('tail', '')}\n\n"
                 prompt, resume = BACK.format(why=again["why"], extra=extra), str(task.get("session") or "")
+                if chk and resume:
+                    prompt += "\n\n" + FINDINGS_ASK
                 if not resume:
                     prompt = self._prompt(slug, plan, task) + "\n\n" + prompt
             self._log(slug, tid, f"== round {rnd} · {now_iso()} · {model}\n{prompt}\n", env)
             session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent, effort)
-            problem, out = None, ""
+            problem, out, findings = None, "", None
             for attempt in (1, 2):
                 self._set_task(slug, tid, state="testing")
-                problem, out = self._check(path, start_sha, cancel, str(task.get("title") or ""))
+                if chk:                              # spec 43 §1.3: what it found decides how it ends
+                    done, findings = self._check_round(slug, tid, path, start_sha, task, spent, env, attempt > 1 and findings is not None)
+                    if done:
+                        return
+                problem, out = self._check(path, start_sha, cancel, str(task.get("title") or ""), chk)
                 self._log(slug, tid, f"== the gate, try {attempt}\n{out or problem}\n", env)
                 if problem is None:
                     break
                 if attempt == 2:
+                    if chk and findings is None and problem.startswith(NO_CHANGE):
+                        raise RuntimeError(NO_FINDINGS)
                     if out and setting(self.settings, "review"):    # red after the one fix: the person decides
                         break
                     raise RuntimeError(f"the gate is still red after one fix: {problem[-600:]}")
                 self._set_task(slug, tid, state="running")
-                session = self._session(slug, tid, path, cancel, model, env, FIX.format(problem=problem), session,
+                session = self._session(slug, tid, path, cancel, model, env, FIX.format(problem=problem) + (f"\n\n{FINDINGS_ASK}" if chk else ""), session,
                                         spent, effort, "fix")
             tests = self._tests_of(path, out, problem)
             diff = self.git.stats(path, start_sha)
-            if setting(self.settings, "review") or not tests["ran"]:     # nothing ran: never lands by itself
+            left = idea_checks.counts(findings)["left"] or 0 if chk else 0      # findings left always wait at Review
+            if setting(self.settings, "review") or not tests["ran"] or left:     # nothing ran: never lands by itself
                 self._set_task(slug, tid, state="review", tests=tests, diff=diff, conflict="", finished=now_iso(),
-                               error="" if problem is None else "the tests are red", note="")
+                               error="" if problem is None else "the tests are red", note=f"{left} left" if left else "")
                 self._log(slug, tid, f"== at Review · {now_iso()}\n", env)
                 return
             commit, subjects, note = self.git.land(path, branch, base, bool(setting(self.settings, "push")))

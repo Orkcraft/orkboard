@@ -307,6 +307,10 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .facts .is-success { color: var(--ork-success); }
 .facts .is-danger { color: var(--ork-danger); }
 .facts .is-muted { color: var(--ork-ink-muted); }
+.findings { display: flex; flex-direction: column; gap: var(--ork-2); font-family: var(--ork-font-text); }      /* the checker's words: never the pixel face */
+.findings-head { margin: 0; font-weight: 600; }
+.findings-list { margin: 0; padding-left: var(--ork-5); display: flex; flex-direction: column; gap: var(--ork-1); }
+.findings-where { color: var(--ork-ink-muted); font-family: var(--ork-font-code); }
 .result-actions { display: flex; flex-direction: column; gap: var(--ork-4); }
 .result-actions .big { width: 100%; }
 .result-actions .row { margin-top: 0; }

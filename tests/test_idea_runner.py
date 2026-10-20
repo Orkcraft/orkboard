@@ -61,6 +61,31 @@ elif mode == "fix_conflict":                        # the conflict of a send bac
         open(f"{tid}.txt", "w").write("resolved\n")
     else:
         commit(f"{tid}.txt", f"done by {tid}\n", f"{tid}: add {tid}.txt")
+elif mode.startswith("found_"):                      # a check task (spec 43 A): what it found goes in the findings file
+    def findings(*rows):
+        open(".orkcraft-findings.json", "w").write(json.dumps({"findings": [
+            {"where": w, "what": f"{w} goes wrong", "fixed": fixed} for w, fixed in rows]}))
+    if mode == "found_clean":
+        findings()
+    elif mode == "found_left":
+        findings(("a.py:1", False), ("b.py:2", False))
+    elif mode == "found_left_then_clean":            # round 1 leaves two; the send back finds nothing more
+        findings() if resume else findings(("a.py:1", False), ("b.py:2", False))
+    elif mode == "found_fixed":
+        commit("fix.txt", "fixed\n", f"{tid}: fix")
+        findings(("a.py:1", True))
+    elif mode == "found_mixed":
+        commit("fix.txt", "fixed\n", f"{tid}: fix")
+        findings(("a.py:1", True), ("b.py:2", False))
+    elif mode == "found_committed":                  # the session commits the file itself: it is taken out of the branch
+        findings()
+        git("add", "-f", ".orkcraft-findings.json")
+        git("-c", "user.name=Stub", "-c", "user.email=stub@x", "commit", "-m", "oops")
+    elif mode == "found_bad":
+        open(".orkcraft-findings.json", "w").write("{not json")
+    elif mode == "found_nothing_then_clean":         # no file in the first try; the fix asks again
+        if resume:
+            findings()
 elif mode == "nocommit":
     pass
 elif mode == "uncommitted":                         # edits a file, runs no git (acceptEdits allows no Bash)
@@ -710,3 +735,129 @@ def test_a_long_instruction_from_before_goes_to_the_ork_cut_at_a_sentence_end(to
     prompt = runner._prompt("demo", plan, plan["tasks"][0])
     head = prompt.split("\n\n# When you are done")[0].removeprefix("# Your role: Grunt\n\n")
     assert len(head) <= 600 and head.endswith("Be careful.") and "And the tail." not in prompt
+
+
+# -- spec 43 A: a check says what it found ------------------------------------------------------------------
+
+def check_plan(town, mode: str, **ideas):
+    plan_of(town, [{"id": "k1", "kind": "review"}])
+    os.environ["STUB_MODE"] = f"k1={mode}"
+    runner, events = runner_of(town, **ideas)
+    runner.start("demo")
+    return runner, events
+
+
+def log_events(town, name: str) -> list[dict]:
+    from orkboard.realm import event_log
+    return [r for r in event_log.read(town.repo) if r.get("event") == name]
+
+
+@pytest.fixture(autouse=True)
+def _stub_mode_reset(monkeypatch):
+    monkeypatch.delenv("STUB_MODE", raising=False)
+
+
+def test_a_check_prompt_ends_with_the_ask_and_another_tasks_does_not(town):
+    from orkboard.core.idea_task import FINDINGS_ASK
+    plan_of(town, [{"id": "k1", "kind": "review"}, {"id": "k2"}])
+    runner, _ = runner_of(town)
+    plan = runner.plan("demo")
+    mine = {t["id"]: runner._prompt("demo", plan, t) for t in plan["tasks"]}
+    assert mine["k1"].endswith(FINDINGS_ASK) and ".orkcraft-findings.json" in FINDINGS_ASK and FINDINGS_ASK not in mine["k2"]
+
+
+def test_a_clean_check_merges_with_no_commit_no_gate_and_no_review(town, monkeypatch):
+    head = git(town.repo, "rev-parse", "main")
+    runner, _ = check_plan(town, "found_clean", review=True)
+    assert wait_idle(runner)["state"] == "done"
+    t = tasks_of(town)["k1"]
+    assert t["state"] == "merged" and t["commit"] == "" and t["note"] == "clean" and t["findings"] == []
+    assert t["tests"] is None and git(town.repo, "rev-parse", "main") == head       # nothing landed, no gate ran
+    states = [r for r in log_events(town, "task_state") if r["task"] == "k1"]
+    assert all(r["check"] is True for r in states) and states[-1]["state"] == "merged" and states[-1]["clean"] is True
+    assert not [r for r in log_events(town, "result_ready")]
+    done = log_events(town, "check_done")
+    assert len(done) == 1 and (done[0]["found"], done[0]["fixed"], done[0]["left"], done[0]["round"]) == (0, 0, 0, 1)
+    assert not (town.repo / ".orkcraft" / "worktrees").exists() or not list((town.repo / ".orkcraft" / "worktrees").glob("*"))
+
+
+def test_findings_left_with_no_change_wait_at_review_even_with_review_off(town):
+    runner, _ = check_plan(town, "found_left", review=False)
+    end = time.time() + 60
+    while time.time() < end and tasks_of(town)["k1"]["state"] != "review":
+        runner.tick()
+        time.sleep(0.1)
+    t = tasks_of(town)["k1"]
+    assert t["state"] == "review" and t["note"] == "2 left" and len(t["findings"]) == 2 and t["diff"]["files"] == 0
+    assert t["tests"]["green"] is True and t["tests"]["ran"] is False
+    assert not (town.repo / ".orkcraft-findings.json").exists()
+    assert (log_events(town, "check_done")[0]["found"], log_events(town, "check_done")[0]["left"]) == (2, 2)
+
+
+def test_leave_them_merges_nothing_and_keeps_the_note(town):
+    runner, _ = check_plan(town, "found_left")
+    end = time.time() + 60
+    while time.time() < end and tasks_of(town)["k1"]["state"] != "review":
+        runner.tick()
+        time.sleep(0.1)
+    head = git(town.repo, "rev-parse", "main")
+    assert runner.merge("demo", "k1") == ""
+    t = tasks_of(town)["k1"]
+    assert t["state"] == "merged" and t["commit"] == "" and t["note"] == "2 left"
+    assert git(town.repo, "rev-parse", "main") == head
+    assert [r["decision"] for r in log_events(town, "result_decided")] == ["merge"]
+
+
+def test_fix_them_sends_back_with_the_findings_and_runs_round_two(town):
+    from orkboard.core.idea_review import fix_findings
+    runner, _ = check_plan(town, "found_left_then_clean")
+    end = time.time() + 60
+    while time.time() < end and tasks_of(town)["k1"]["state"] != "review":
+        runner.tick()
+        time.sleep(0.1)
+    assert fix_findings(tasks_of(town)["k1"]) == "Fix the findings left: a.py:1: a.py:1 goes wrong; b.py:2: b.py:2 goes wrong"
+    runner.back("demo", "k1", "")                                  # no line said: the findings are the why
+    assert wait_idle(runner)["state"] == "done"
+    t = tasks_of(town)["k1"]
+    assert t["round"] == 2 and t["why"].startswith("Fix the findings left: a.py:1") and t["findings"] == [] and t["note"] == "clean"
+    assert [r["round"] for r in log_events(town, "check_done")] == [1, 2]
+
+
+def test_all_fixed_with_changes_takes_todays_path(town):
+    runner, _ = check_plan(town, "found_fixed", review=False)
+    assert wait_idle(runner)["state"] == "done"
+    t = tasks_of(town)["k1"]
+    assert t["state"] == "merged" and t["commit"] and (town.repo / "fix.txt").exists()
+    assert [(f["where"], f["fixed"]) for f in t["findings"]] == [("a.py:1", True)]
+
+
+def test_some_left_with_changes_wait_at_review_after_a_green_gate(town):
+    runner, _ = check_plan(town, "found_mixed", review=False)
+    end = time.time() + 60
+    while time.time() < end and tasks_of(town)["k1"]["state"] != "review":
+        runner.tick()
+        time.sleep(0.1)
+    t = tasks_of(town)["k1"]
+    assert t["state"] == "review" and t["note"] == "1 left" and t["tests"]["ran"] is True and t["diff"]["files"] == 1
+    assert not (town.repo / "fix.txt").exists()                    # it did not land
+
+
+def test_the_findings_file_is_never_committed(town):
+    runner, _ = check_plan(town, "found_committed")
+    assert wait_idle(runner)["state"] == "done"
+    assert tasks_of(town)["k1"]["note"] == "clean"
+    assert ".orkcraft-findings.json" not in git(town.repo, "ls-tree", "-r", "--name-only", "idea/demo/k1")
+
+
+def test_no_findings_file_twice_fails_with_its_words(town):
+    runner, _ = check_plan(town, "nocommit")
+    assert wait_idle(runner)["state"] == "failed"
+    assert tasks_of(town)["k1"]["error"] == "the check said nothing: no findings file"
+
+
+def test_a_bad_findings_file_is_asked_again_and_a_good_one_passes(town):
+    runner, _ = check_plan(town, "found_nothing_then_clean")
+    assert wait_idle(runner)["state"] == "done"
+    assert tasks_of(town)["k1"]["note"] == "clean"
+    runner2, _ = check_plan(town, "found_bad")
+    assert wait_idle(runner2)["state"] == "failed"

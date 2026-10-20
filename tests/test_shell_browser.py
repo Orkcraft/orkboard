@@ -129,7 +129,8 @@ class StubHost:
 
     def results(self):
         return [{"idea": "sync", "idea_title": "Sync ideas between the phone and the town", "task": t["id"], "title": t["title"], "round": t["round"],
-                 "tests": t["tests"], "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"]}
+                 "tests": t["tests"], "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"],
+                 **({"check": t["check"], "findings": t["findings"]} if "check" in t else {})}
                 for t in self.plan["tasks"] if t["state"] == "review"]
 
     def snapshot(self):
@@ -540,6 +541,48 @@ def test_merge_is_off_on_red_with_its_reason_and_send_back_needs_a_line(shell):
     assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k2"}))
     pg.locator(".shell-card").first.wait_for(state="detached", timeout=WAIT_MS) if pg.locator(".shell-card").count() else None
     assert pg.locator(".shell-card", has_text="Add the queue").count() == 0
+
+
+def test_a_checks_card_says_what_it_found_and_has_fix_them_and_leave_them(shell):
+    """Spec 43 A §1.4: under the title "Found 3: 1 fixed, 2 left" and the findings left; Fix them sends back with them as its why; Leave them merges."""
+    pg, host = shell
+    none = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False}
+    host.plan["tasks"].append(task("k6", "Check: Reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0}, check="Reviewer",
+                                   findings=[{"where": "sync.py:12", "what": "the retry never stops", "fixed": True},
+            {"where": "queue.py:3", "what": "a lost signal drops the item", "fixed": False},
+            {"where": "queue.py:40", "what": "the queue is not emptied", "fixed": False}], note="2 left"))
+    host.plan["tasks"].append(task("k7", "Check: Editor", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0}, check="Editor",
+                                   findings=[{"where": "a", "what": "b", "fixed": True}]))
+    host.plan["tasks"].append(task("k8", "Check: Security reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0},
+                                   check="Security reviewer", findings=[{"where": "auth.py:9", "what": "a token is logged", "fixed": False}]))
+    host.bump({})
+    card = pg.locator(".shell-card", has_text="Check: Reviewer")
+    card.wait_for(timeout=WAIT_MS)
+    text = card.inner_text()
+    assert "Found 3: 1 fixed, 2 left" in text and "queue.py:3 · a lost signal drops the item" in text and "queue.py:40 · the queue is not emptied" in text
+    assert "the retry never stops" not in text                                                            # only the findings left are listed
+    assert "Found" not in pg.locator(".shell-card", has_text="Check: Editor").inner_text()                # nothing left: today's card
+    assert pg.locator(".shell-card", has_text="Check: Editor").get_by_role("button", name="Merge into dev").is_enabled()
+    card.get_by_role("button", name="Fix them").click()
+    line = card.get_by_label("What to fix, in one line")
+    why = "Fix the findings left: queue.py:3: a lost signal drops the item; queue.py:40: the queue is not emptied"
+    assert line.input_value() == why
+    card.locator(".shell-actions__line .ork-btn.primary").click()
+    assert _sent(pg, host, ("ideas.back", {"slug": "sync", "task": "k6", "why": why}))
+    pg.locator(".shell-card", has_text="Check: Security reviewer").get_by_role("button", name="Leave them").click()
+    assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k8"}))
+
+
+def test_the_ideas_checks_say_clean_or_what_they_found(shell):
+    pg, host = shell
+    host.checks[0].update(found=0, fixed=0, left=0)
+    host.checks[1].update(applies=True, why="", state="passed", found=2, fixed=1, left=1)
+    host.bump({})
+    pg.locator(".board-card", has_text="Sync ideas").click()
+    checks = pg.locator(".shell-preview").get_by_role("list", name="Checks")
+    checks.wait_for(timeout=WAIT_MS)
+    assert [" ".join(t.split()) for t in checks.get_by_role("listitem").all_inner_texts()] == [
+        "Reviewer clean", "Accessibility reviewer found 2: 1 fixed, 1 left"]
 
 
 def test_drop_asks_first_and_merge_into_changes_the_branch(shell):

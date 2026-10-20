@@ -284,6 +284,17 @@ def test_review_list_has_the_spec_shape_and_the_phones_may_call_it(host):
     assert BoardPhone.allowed(host, "ideas.merge", {"slug": slug, "task": "k1"})
 
 
+def test_a_checks_result_gains_the_checker_and_its_findings(host):
+    """Spec 43 A §1.4: a check task's row has `check` (the checker's name) and `findings`; another task's has neither."""
+    rows = [{"where": "a.py:1", "what": "it breaks", "fixed": True}, {"where": "b.py:2", "what": "it leaks", "fixed": False}]
+    slug = _review(host, kind="review", role="reviewer", findings=rows)
+    (r,) = host.command("ideas.review_list")["results"]
+    assert r["check"] == "Reviewer" and r["findings"] == rows
+    ideas.edit_plan(host.ideas.state_dir, slug, lambda p: p["tasks"][0].update(kind="code", role=""))
+    (plain,) = host.command("ideas.review_list")["results"]
+    assert "check" not in plain and "findings" not in plain
+
+
 def test_the_snapshot_counts_results_and_the_phone_is_pushed_when_one_arrives(host):
     before = BoardPhone.phone_snapshot(host)
     assert before["review_count"] == 0

@@ -134,7 +134,8 @@ class Stub:
 
     def results(self):
         return [{"idea": "sync", "idea_title": self.ideas["sync"]["title"], "task": t["id"], "title": t["title"], "round": t["round"], "tests": t["tests"],
-                 "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"]} for t in self.plan["tasks"] if t["state"] == "review"]
+                 "diff": t["diff"], "cost": t["cost"], "conflict": t["conflict"], "finished": t["finished"],
+                 **({"check": t["check"], "findings": t["findings"]} if "check" in t else {})} for t in self.plan["tasks"] if t["state"] == "review"]
 
     def find(self, a):
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])
@@ -570,6 +571,46 @@ async def test_review_merge_is_off_on_red_send_back_needs_a_line_and_a_patch_scr
         assert ("ideas.merge", {"slug": "sync", "task": "k2"}) in stub.calls
         await page.locator(".result").first.wait_for(state="detached", timeout=WAIT_MS)                 # the list drawn again
         assert await page.get_by_role("tab", name="Needs you").locator(".count").count() == 1 and await page.locator(".result").count() == 0
+
+
+@pytest.mark.asyncio
+async def test_a_checks_card_says_what_it_found_and_has_fix_them_and_leave_them(fake_repo, monkeypatch):
+    """Spec 43 A §1.4 on the phone: "Found 3: 1 fixed, 2 left", the findings left, Fix them (the why filled) and Leave them."""
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        none = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False}
+        stub.plan["tasks"].append(task("k6", "Check: Reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0},
+                                       check="Reviewer", findings=[{"where": "sync.py:12", "what": "the retry never stops", "fixed": True},
+            {"where": "queue.py:3", "what": "a lost signal drops the item", "fixed": False},
+            {"where": "queue.py:40", "what": "the queue is not emptied", "fixed": False}], note="2 left"))
+        stub.plan["tasks"].append(task("k8", "Check: Security reviewer", "review", ["k5"], tests=none, diff={"files": 0, "added": 0, "removed": 0},
+                                       check="Security reviewer", findings=[{"where": "auth.py:9", "what": "a token is logged", "fixed": False}]))
+        stub.bump({})
+        await page.get_by_role("tab", name="Needs you").click()
+        card = page.locator(".result", has_text="Check: Reviewer")
+        await card.wait_for(timeout=WAIT_MS)
+        text = await card.inner_text()
+        assert "Found 3: 1 fixed, 2 left" in text and "queue.py:3 · a lost signal drops the item" in text and "the retry never stops" not in text
+        await card.get_by_role("button", name="Fix them").click()
+        why = "Fix the findings left: queue.py:3: a lost signal drops the item; queue.py:40: the queue is not emptied"
+        assert await card.get_by_label("What to fix, in one line").input_value() == why
+        await card.locator(".back-line .ork-btn.primary").click()
+        assert await _called(stub, "ideas.back", {"slug": "sync", "task": "k6", "why": why})
+        await page.locator(".result", has_text="Check: Security reviewer").get_by_role("button", name="Leave them").click()
+        assert await _called(stub, "ideas.merge", {"slug": "sync", "task": "k8"})
+        assert await page.evaluate(NO_SCROLL)
+
+
+@pytest.mark.asyncio
+async def test_the_ideas_checks_say_clean_or_what_they_found_on_the_phone(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        stub.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed", "found": 0, "fixed": 0, "left": 0},
+                       {"by": "editor", "name": "Editor", "applies": True, "why": "", "state": "passed", "found": 2, "fixed": 1, "left": 1}]
+        stub.bump({})
+        await page.locator(".map-row", has_text="Sync ideas").locator(".map-open").click()
+        line = page.locator(".screen").get_by_role("list", name="Checks")
+        await line.wait_for(timeout=WAIT_MS)
+        assert [" ".join(t.split()) for t in await line.get_by_role("listitem").all_inner_texts()] == [
+            "Reviewer clean", "Editor found 2: 1 fixed, 1 left"]
 
 
 @pytest.mark.asyncio

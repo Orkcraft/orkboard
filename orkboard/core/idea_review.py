@@ -14,6 +14,9 @@ import threading
 import time
 from pathlib import Path
 
+from orkboard.core.idea_task import is_check
+from orkboard.realm import idea_checks
+
 STOP_ONE = "stop-one"                # a Run's `why` when one task is stopped (stop_task)
 STOPPED_NOTE = "stopped by you"      # a task stopped on its own waits as `ready` with this note until Start
 LOG_KEEP = 2000
@@ -25,6 +28,17 @@ BACK = """The person looked at your work at Review and sends it back:
 {why}
 
 {extra}Change it in this same worktree. Then stop: what you leave changed is committed for you, and the gate runs again."""
+
+
+def _leaves(task: dict) -> bool:
+    """A check task whose Review has no code to land: it changed no file (its findings are what waits)."""
+    return is_check(task) and isinstance(task.get("findings"), list) and not (task.get("diff") or {}).get("files")
+
+
+def fix_findings(task: dict) -> str:
+    """*Fix them*'s why (spec 43 §1.4): "Fix the findings left:" and one line each (where: what); "" with none left."""
+    rows = [f for f in task.get("findings") or [] if isinstance(f, dict) and f.get("fixed") is not True] if is_check(task) else []
+    return ("Fix the findings left: " + "; ".join(f"{f.get('where')}: {f.get('what')}" for f in rows))[:1000] if rows else ""
 
 
 class RunnerError(Exception):
@@ -78,6 +92,8 @@ class ReviewMixin:
             if task.get("conflict"):
                 raise RunnerError(f"{task['conflict']}: send it back to fix the conflict, or drop it")
             self._runs[(slug, tid)] = _r().Run(threading.current_thread(), threading.Event())   # held while it lands
+            if _leaves(task):
+                return self._leave(slug, tid, task, device)
         base = str(_r().setting(self.settings, "merge_into") or "dev")
         try:
             self.git.ensure_branch(base)
@@ -101,6 +117,23 @@ class ReviewMixin:
         self.tick()
         return commit
 
+    def _leave(self, slug: str, tid: str, task: dict, device: str) -> str:
+        """Leave them: a check that changed no file has nothing to land. It is merged with its note ("<n> left") and
+        nothing moves. Called with the task marked as running."""
+        left = idea_checks.counts(task.get("findings"))["left"] or 0
+        try:
+            self._decided(slug, task, "merge", device, into=str(_r().setting(self.settings, "merge_into") or "dev"), pushed=False)
+            self._set_task(slug, tid, state="merged", commit="", subjects=[], note=f"{left} left", finished=_r().now_iso(),
+                           error="", conflict="")
+        finally:
+            with self._lock:
+                self._runs.pop((slug, tid), None)
+        self._log(slug, tid, f"== left as they are · {left} left\n")
+        self._remove_worktree(slug, tid)
+        self._settle_idea(slug)
+        self.tick()
+        return ""
+
     def _remove_worktree(self, slug: str, tid: str) -> None:
         from orkboard.realm import worktrees
         from orkboard.realm.idea_git import _worktree_id
@@ -120,10 +153,11 @@ class ReviewMixin:
         """Send a result back with one line: the same session goes on with it (and the failing tests, or the
         conflict), the round counts up, and it comes to Review again."""
         why = " ".join(str(why or "").split())[:1000]
-        if not why:
-            raise RunnerError("Say in one line what to change")
         with self._lock:
             task = self._task(slug, tid)
+            why = why or fix_findings(task)        # a check's findings left are its why, when none is said
+            if not why:
+                raise RunnerError("Say in one line what to change")
             if task.get("state") != "review" or (slug, tid) in self._runs:
                 raise RunnerError("That result is not waiting at Review")
             base = str(_r().setting(self.settings, "merge_into") or "dev")

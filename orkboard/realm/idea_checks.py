@@ -9,18 +9,50 @@ to `every` idea applies always.
     skip(kept_, checks, "reviewer")   # the person skips a check: kept with `skipped`
     plan_lines(kept_, checks)         # for the plan prompt: the checks that apply, each one task
     with_check_tasks(tasks, kept_, checks)  # the plan's tasks, a check task added where the plan left one out
-    status(kept_, checks, tasks)      # for a face: each check, whether it applies, why not, its task's state
+    status(kept_, checks, tasks)      # for a face: each check, whether it applies, why not, its task's state, what it found
+    parse_findings(text)              # what a check task wrote in FINDINGS_FILE: its findings, or None
 
 A check is its checker's: an agent of the library the project has as a role (its instruction may be the person's now),
 its check the library's. No face, no model.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from orkboard.realm import library, roles
 
 DONE = ("merged",)                   # a check task in these states has passed
+TAGS = tuple(dict.fromkeys(a.takes[0] for a in library.LIBRARY if a.check is not None))   # a check task's `kind`
+FINDINGS_FILE = ".orkcraft-findings.json"    # a check task writes what it found here; the runner reads it and removes it
+FINDINGS_MAX, WHERE_MAX, WHAT_MAX, FINDINGS_BYTES = 20, 200, 300, 64 * 1024
+
+
+def parse_findings(text: str) -> list[dict] | None:
+    """The findings a check task wrote, `{"findings": [{"where", "what", "fixed"}]}`, read strictly: at most 20, `where` at
+    most 200 characters, `what` at most 300, `fixed` true or false. None for bad JSON or any other shape."""
+    try:
+        data = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+    rows = data.get("findings") if isinstance(data, dict) else None
+    if not isinstance(rows, list) or len(rows) > FINDINGS_MAX:
+        return None
+    out = []
+    for x in rows:
+        if not isinstance(x, dict) or not isinstance(x.get("where"), str) or not isinstance(x.get("what"), str) \
+                or not isinstance(x.get("fixed"), bool) or len(x["where"]) > WHERE_MAX or len(x["what"]) > WHAT_MAX:
+            return None
+        out.append({"where": x["where"], "what": x["what"], "fixed": x["fixed"]})
+    return out
+
+
+def counts(findings: object) -> dict:
+    """{found, fixed, left} of a task's findings; all three None while it has none (it has not ended)."""
+    if not isinstance(findings, list):
+        return {"found": None, "fixed": None, "left": None}
+    fixed = sum(1 for f in findings if isinstance(f, dict) and f.get("fixed") is True)
+    return {"found": len(findings), "fixed": fixed, "left": len(findings) - fixed}
 
 
 def of_team(state_dir: Path, team: list[str], every: list[str] | None = None) -> list[dict]:
@@ -101,8 +133,9 @@ def with_check_tasks(tasks: list[dict], kept_: list[dict], checks: list[dict], m
 
 
 def status(kept_: list[dict], checks: list[dict], tasks: list[dict]) -> list[dict]:
-    """Each check for a face: {by, name, applies, why, state, task, skipped, tier}: its task's state ("" before a plan;
-    "passed" merged), its task's id ("" with none), whether the person skipped it, the tier it runs at."""
+    """Each check for a face: {by, name, applies, why, state, task, skipped, tier, found, fixed, left}: its task's state
+    ("" before a plan; "passed" merged), its task's id ("" with none), whether the person skipped it, the tier it runs at,
+    and what it found (null before its task ends, or when it ended without findings)."""
     byc = {c["by"]: c for c in checks}
     out = []
     for k in kept_:
@@ -113,5 +146,6 @@ def status(kept_: list[dict], checks: list[dict], tasks: list[dict]) -> list[dic
         state = "" if t is None else "passed" if t.get("state") in DONE else str(t.get("state") or "")
         skipped = bool(k.get("skipped")) and (t is None or t.get("state") not in DONE)
         out.append({"by": k["by"], "name": c["name"], "applies": k["applies"], "why": k["why"], "state": state if k["applies"] and not skipped else "",
-                    "task": (t or {}).get("id") or "", "skipped": skipped, "tier": c["tier"]})
+                    "task": (t or {}).get("id") or "", "skipped": skipped, "tier": c["tier"],
+                    **counts((t or {}).get("findings") if (t or {}).get("state") in ("review", *DONE) else None)})
     return out

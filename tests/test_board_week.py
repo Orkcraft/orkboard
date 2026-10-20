@@ -236,3 +236,17 @@ def test_the_recap_carries_the_streak(fake_repo):
         when = dt.datetime.combine(today - dt.timedelta(days=back), dt.time(1, 30)).astimezone()
         log(Path(host.ideas.host.repo_root), "night_run", when, drafted=1, started=0, refreshed=0, proposed=0)
     assert host.command("ideas.recap", {"since": int((dt.datetime.now().timestamp() - 3600) * 1000)})["nights"] == (3 if ended else 2)
+
+
+def test_a_clean_check_is_not_a_result_nor_a_night_worked(root, tmp_path):
+    """Spec 43 A: a clean check's `merged` is not counted in the week, is not the first merge of an idea, and works no night."""
+    state = tmp_path / "state"
+    log(root, "idea_added", at(19, 9), idea="a")
+    run(root, at(19, 1, 5))
+    log(root, "task_state", at(19, 3), idea="a", task="k1", state="merged", was="testing", round=1, check=True, clean=True)
+    assert [x["kind"] for x in board_week.nights(root, SETTINGS, NOW, 2) if x["date"] == "2026-10-19"] == ["idle"]
+    log(root, "task_state", NOW - dt.timedelta(hours=2), idea="a", task="k1", state="merged", was="testing", round=1, check=True, clean=True)
+    got = board_week.this_week(root, state, SETTINGS, NOW, {})
+    assert (got["merged"], got["first_time"]) == (0, 0)
+    log(root, "task_state", NOW - dt.timedelta(hours=1), idea="a", task="k2", state="merged", was="review", round=1)
+    assert board_week.this_week(root, state, SETTINGS, NOW, {})["merged"] == 1

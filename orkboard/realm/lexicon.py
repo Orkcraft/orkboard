@@ -238,7 +238,7 @@ TERMS: tuple[Term, ...] = (
     _t("fold", "Fold"),                                             # a hut shows its title bar only (docs/design/folded-cards.md)
     _t("map_view", "Map view"),                                     # the town from above, no cards (docs/design/map-view.md)
     # the Mine's research (docs/design/mine.md)
-    _t("finding", "Finding", "Findings"),                           # one claim of a report, with its sources
+    _t("finding", "finding", "findings"),                           # one thing a check found: where, what goes wrong, whether it fixed it (spec 43 A); a clean check has none
     _t("confirmed", "Confirmed"),                                   # two models, two sites (realm/research.py check)
     _t("disputed", "Disputed"),                                     # the tools disagree; the person decides
     _t("single", "One source"),                                     # one tool or one site said it

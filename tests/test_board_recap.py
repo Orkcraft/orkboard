@@ -132,3 +132,18 @@ def test_between_is_a_half_open_period_over_every_ledger(where):
     (state / "ideas" / idea_spend.BOARD).write_text(json.dumps({"at": _at(1).replace(tzinfo=None).isoformat(), "cost": None}) + "\n")
     assert idea_spend.between(state, SINCE, NOW) == 3.5
     assert idea_spend.between(state, NOW + dt.timedelta(hours=1), NOW + dt.timedelta(hours=2)) == 0.0
+
+
+def test_a_clean_check_is_not_a_result(where):
+    """Spec 43 A: a `merged` event with `clean: true` is not in dev: it is not counted, nor does it name its idea."""
+    root, state = where
+    _log(root, "task_state", 5, idea="queue", task="k1", state="merged", was="review", round=1)
+    _log(root, "task_state", 4, idea="queue", task="k2", state="merged", was="testing", round=1, check=True, clean=True)
+    _log(root, "task_state", 3, idea="csv", task="k1", state="merged", was="testing", round=1, check=True, clean=True)
+    _log(root, "task_state", 2, idea="csv", task="k2", state="merged", was="review", round=2, check=True)           # left as they are: a result
+    got = board_recap.build(root, state, SINCE, NOW, _rows(("queue", "working"), ("csv", "working")))
+    assert got["merged"]["tasks"] == 2 and got["merged"]["first_time"] == 1
+    assert [i["slug"] for i in got["merged"]["ideas"]] == ["queue", "csv"]
+    _log(root, "task_state", 1, idea="only", task="k1", state="merged", was="testing", round=1, check=True, clean=True)
+    alone = board_recap.build(root, state, _at(1.5), NOW, _rows(("only", "working")))
+    assert alone["merged"] == {"tasks": 0, "first_time": 0, "ideas": []} and alone["empty"] is True

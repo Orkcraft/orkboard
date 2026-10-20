@@ -1,13 +1,31 @@
 """A task's own parts of the runner (core/idea_runner.py, which imports this one): the gate on its worktree (`_check`,
-`_tests_of`), its environment (`_env`) and its prompt (`_prompt`). `IdeaRunner` has them through `TaskMixin`.
+`_tests_of`), its environment (`_env`) and its prompt (`_prompt`); and how a check task ends (spec 43 §1: `_check_round`,
+which reads the findings it wrote). `IdeaRunner` has them through `TaskMixin`.
 """
 from __future__ import annotations
 
 import threading
 from pathlib import Path
 
-from orkboard.realm import idea_secrets
-from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, env_name, has_summary, parse_tests, read_secret, spec_paths
+from orkboard.realm import event_log, idea_checks, idea_secrets, library
+from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, _git, env_name, has_summary, parse_tests, read_secret, spec_paths
+
+FINDINGS_ASK = (f"When you are done, write what you found to `{idea_checks.FINDINGS_FILE}` at the worktree's root, as JSON: "
+                '`{"findings": [{"where": "file:line, or the screen", "what": "one line: what goes wrong", "fixed": true}]}`, '
+                'the worst first, at most 20. Write `{"findings": []}` when you found nothing that blocks, and then change '
+                "nothing else. Fix only what is small and certain; leave the rest as findings with `\"fixed\": false`.")
+NO_CHANGE = "You changed no file"
+NO_FINDINGS = "the check said nothing: no findings file"
+
+
+def is_check(task: dict) -> bool:
+    """A check task: its `kind` is a checker's tag (idea_checks.TAGS)."""
+    return str(task.get("kind") or "") in idea_checks.TAGS
+
+
+def checker_of(task: dict) -> str:
+    """The slug of the checker whose task it is: the agent the plan gave it, else the library's for its tag."""
+    return str(task.get("role") or "") or next((a.id for a in library.LIBRARY if a.check is not None and a.takes[0] == task.get("kind")), "")
 
 
 def _r():
@@ -33,13 +51,14 @@ class TaskMixin:
                 tests["passed"] = tests["failed"] = None
         return tests
 
-    def _check(self, path: Path, start_sha: str, cancel: threading.Event, title: str = "") -> tuple[str | None, str]:
+    def _check(self, path: Path, start_sha: str, cancel: threading.Event, title: str = "", check: bool = False) -> tuple[str | None, str]:
         """(None, the gate's run) when the task's work passes; else (what is wrong, in words the session can act on,
         the gate's run: "" when the gate did not run). What the session left uncommitted is committed first, under
         the task's title: its session may edit files but not run git."""
         self.git.commit_left(path, title)
         if not self.git.commits(path, start_sha):
-            return "You changed no file. Make the change the task asks for in this worktree.", ""
+            return (f"{NO_CHANGE} and wrote no findings file." if check else
+                    f"{NO_CHANGE}. Make the change the task asks for in this worktree."), ""
         board = [f for f in self.git.touched(path, str(_r().setting(self.settings, "merge_into") or "dev")) if BOARD_PAGE.search(f)]
         if board:                          # spec 35 §13: the Board's pages are the Board's
             return f"A task never edits the Board's pages: put back {', '.join(board[:5])} as they were.", ""
@@ -49,6 +68,51 @@ class TaskMixin:
         run = self.git.gate_run(path, start_sha, cancel)
         self._gate_runs[str(path)] = run
         return (None if run.ok else f"The tests failed:\n{run.out[-3000:]}"), run.out
+
+    # -- how a check task ends (spec 43 §1.3) ---------------------------------------------------------
+
+    def _take_findings(self, path: Path) -> list[dict] | None:
+        """What the check wrote in its findings file (at most 64 KB), which is removed so it is never committed: the
+        findings, or None for no file, bad JSON or a bad shape. A file the session committed itself is taken out as well."""
+        file = path / idea_checks.FINDINGS_FILE
+        try:
+            text = file.read_text(encoding="utf-8", errors="replace") if file.stat().st_size <= idea_checks.FINDINGS_BYTES else None
+        except OSError:
+            text = None
+        try:
+            file.unlink()
+        except OSError:
+            pass
+        if _git(path, "ls-files", "--error-unmatch", idea_checks.FINDINGS_FILE).returncode == 0:
+            _git(path, "rm", "-q", "-f", "--cached", idea_checks.FINDINGS_FILE)
+        return None if text is None else idea_checks.parse_findings(text)
+
+    def _check_round(self, slug: str, tid: str, path: Path, start_sha: str, task: dict, spent: dict, env: dict,
+                     emitted: bool) -> tuple[bool, list[dict] | None]:
+        """A check task's round, after its session: read the findings, commit what it left, then (done, findings).
+        `done` when it ends here: nothing found and nothing changed (merged, `clean`, nothing lands), or findings left and
+        nothing changed (at Review whatever `ideas.review` says). Otherwise the gate goes on as for any task."""
+        findings = self._take_findings(path)
+        self.git.commit_left(path, str(task.get("title") or ""))
+        diff = self.git.stats(path, start_sha)
+        self._set_task(slug, tid, findings=findings)
+        n = idea_checks.counts(findings)
+        if findings is not None and not emitted:
+            self._emit(event_log.CHECK_DONE, idea=slug, task=tid, by=checker_of(task), found=n["found"], fixed=n["fixed"],
+                       left=n["left"], round=int(task.get("round") or 1), cost=spent["cost"])
+        if findings is None or diff["files"]:
+            return False, findings
+        if not n["left"]:
+            self._set_task(slug, tid, state="merged", commit="", subjects=[], note="clean", tests=None, diff=diff,
+                           finished=_r().now_iso(), error="", conflict="")
+            self._log(slug, tid, f"== clean: it found nothing · {_r().now_iso()}\n", env)
+            self.git.remove(path)
+            return True, findings
+        tests = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False, "command": ""}
+        self._set_task(slug, tid, state="review", tests=tests, diff=diff, conflict="", finished=_r().now_iso(), error="",
+                       note=f"{n['left']} left")
+        self._log(slug, tid, f"== at Review, {n['left']} left · {_r().now_iso()}\n", env)
+        return True, findings
 
     def _env(self, slug: str, tid: str, plan: dict) -> dict[str, str]:
         """The task's environment: who runs (for the town's counts) and the values of its `secret` to-dos."""
@@ -96,4 +160,6 @@ class TaskMixin:
             parts.append("The environment holds " + ", ".join(secrets) + ": use them from the environment, never "
                          "print them, write them to a file or commit them.")
         parts += [f"The file is at ${name}; copy it into the repository only if the task says so." for name in files]
+        if is_check(task):
+            parts.append(FINDINGS_ASK)
         return "\n\n".join(parts)
