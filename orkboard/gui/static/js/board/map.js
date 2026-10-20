@@ -54,7 +54,7 @@ export function stopHead(n, leader) {
 }
 
 /** A timed wait (the night, the limits, the reserve) is a clock on the chip. */
-const timed = (w) => ["night", "limits", "reserve"].includes(w?.kind);
+const timed = (w) => ["night", "limits", "reserve", "week"].includes(w?.kind);
 
 /** A stop: a chip — the head of who does it, its title, a mark of its state (its words on hover and to a screen reader) — and,
  *  for the idea at work, its tasks left as smaller chips, each with its agent's head, in the waves they go in. */

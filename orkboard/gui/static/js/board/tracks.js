@@ -82,11 +82,11 @@ export function rowOf(i, titles) {
   if (i.state === "raw") {
     if (i.queue === "hold") return ["stopped", false, ["now", "tonight", "delete"]];
     if (i.queue === "now") return ["drafting", true, ["stop"]];
-    return ["tonight", false, ["now", "delete"]];
+    return [i.night_by === "board" ? "tonight, or sooner if the week has room" : "tonight", false, ["now", "delete"]];
   }
   if (i.state === "reading") return ["drafting", true, ["stop"]];
   if (i.state === "planning") return ["planning", true, ["stop"]];
-  if (i.state === "plan" && i.start_at === "night") return ["starts tonight", false, ["start_now"]];
+  if (i.state === "plan" && i.start_at === "night") return [i.night_by === "board" ? "starts tonight, or sooner if the week has room" : "starts tonight", false, ["start_now"]];
   if (i.state === "working") return [`${stateWords(i)}${waits.length ? ` · waits for ${waits.join(", ")}` : ""}`, false, ["halt"]];
   return [stateWords(i), false, []];
 }

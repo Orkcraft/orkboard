@@ -35,8 +35,15 @@ export function waitsWords(node) {
   if (w.kind === "reserve") return at ? `keeps your reserve · after ${at}` : "keeps your reserve";
   if (w.kind === "night") return "tonight";
   if (w.kind === "stopped") return "stopped";
+  if (w.kind === "week") return `waits: the week is behind${w.until ? ` · until ${dayAt(w.until)}` : ""}`;
   return "";
 }
+
+/** "Mon 09:00" from a local `YYYY-MM-DDTHH:MM`; "" when it does not read. */
+const dayAt = (iso) => {
+  const d = new Date(iso);
+  return !iso || Number.isNaN(d.getTime()) ? "" : `${d.toLocaleDateString("en-US", { weekday: "short" })} ${hhmm(iso)}`;
+};
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -281,7 +288,7 @@ export function makeMap(core, goalSheet) {
       .filter(Boolean).join(" · ");
     const head = stopHead(node, leader);
     const act = actionOf(node);
-    const timed = ["night", "limits", "reserve"].includes(node.waits?.kind) && node.state !== "done";
+    const timed = ["night", "limits", "reserve", "week"].includes(node.waits?.kind) && node.state !== "done";
     return h("li", { class: `map-row state-${node.state}${needsHand ? " needs-hand" : ""}${node.waits && !needsHand ? " is-waiting" : ""}${node.state === "proposed" ? " is-proposed" : ""}${act ? " has-act" : ""}`,
       "data-slug": node.slug },
       h("div", { class: "map-line" },

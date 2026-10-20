@@ -80,7 +80,7 @@ export function makeAgents(core) {
           onclick: () => core.open({ kind: "task", slug: c.idea, task: c.task }) },
         whoHead(c.head, true), h("span", { class: "chip-state" }, gruntWords(c)), h("b", { class: "chip-name" }, c.short || c.title),
           h("small", { class: "muted chip-idea" }, [c.tag, c.idea_short || c.idea_title].filter(Boolean).join(" · ")),
-          c.by === "auto" || c.night ? h("small", { class: "chip-why" }, [c.by === "auto" ? "by itself" : "", c.night ? "tonight" : ""].filter(Boolean).join(" · ")) : null))))
+          c.by === "auto" || c.night ? h("small", { class: "chip-why" }, [c.by === "auto" ? (c.pace ? "by itself: the week has room" : "by itself") : "", c.night ? "tonight" : ""].filter(Boolean).join(" · ")) : null))))
         : h("p", { class: "muted" }, "No task runs now."),
       mine.length ? h("details", { class: "done-today" }, h("summary", {}, `Done today (${mine.length})`),
         h("ul", { class: "chips" }, ...mine.map((d) => h("li", {}, h("button", { class: "card chip is-done", type: "button",

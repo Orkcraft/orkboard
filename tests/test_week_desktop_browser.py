@@ -66,6 +66,44 @@ def test_tonight_says_how_many_wait_and_a_null_part_a_missing_price_and_no_night
     assert not errors, "\n".join(errors)
 
 
+# -- spec 44 B: the week's pace ---------------------------------------------------------------------------------------
+
+def test_the_week_line_says_what_low_work_does_and_last_weeks_unused_share(gui):
+    host = WeekHost()
+    host.week.update(week={"left": 0.55, "rest": 2 / 7, "pace": "ahead", "reset": 0}, last_unused=0.3)
+    pg, host, errors = _show(gui, host)
+    lines = _lines(pg)
+    assert lines[-3:-1] == ["The week: 55 % left with 2 days to go: Low work starts by day", "Last week ended with 30 % unused"]
+    pg.keyboard.press("Escape")
+    for pace, words in (("even", "Low work waits for the night"), ("behind", "Low work waits until the week comes back")):
+        host.week.update(week={"left": 0.2, "rest": 1 / 7, "pace": pace, "reset": 0}, last_unused=None)
+        pg.get_by_role("button", name="Spend today: $2.40. This week's work").click()
+        pg.get_by_role("dialog", name="This week").locator(".week").wait_for(timeout=WAIT_MS)
+        got = _lines(pg)
+        assert f"The week: 20 % left with 1 day to go: {words}" in got and not [x for x in got if x.startswith("Last week ended")]
+        pg.keyboard.press("Escape")
+    host.week.update(week=None)
+    pg.get_by_role("button", name="Spend today: $2.40. This week's work").click()
+    pg.get_by_role("dialog", name="This week").locator(".week").wait_for(timeout=WAIT_MS)
+    assert not [x for x in _lines(pg) if x.startswith("The week")]                                     # no week read: no line
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
+def test_a_boards_own_night_work_reads_or_sooner_and_a_held_wait_says_until_when(gui):
+    pg, host, errors = _open(gui, host=StubHost())
+    got = pg.evaluate("""async () => {
+      const base = document.querySelector('link[href$="shell.css"]').href.replace('shell/shell.css', 'board/');
+      const t = await import(base + 'tracks.js'), m = await import(base + 'maplayout.js');
+      return [t.rowOf({ state: "raw", queue: "night", night_by: "board" }, {})[0], t.rowOf({ state: "raw", queue: "night", night_by: "person" }, {})[0],
+        t.rowOf({ state: "plan", start_at: "night", night_by: "board" }, {})[0], t.rowOf({ state: "plan", start_at: "night" }, {})[0],
+        m.waitsWords({ kind: "week", until: "2026-10-26T09:00" })]; }""")
+    assert got[:4] == ["tonight, or sooner if the week has room", "tonight", "starts tonight, or sooner if the week has room", "starts tonight"]
+    assert got[4] == "waits: the week is behind · until Mon 09:00"
+    pg.close()
+    assert not errors, "\n".join(errors)
+
+
 # -- spec 42 G: Last week ----------------------------------------------------------------------------------------------
 
 import datetime as dt  # noqa: E402
