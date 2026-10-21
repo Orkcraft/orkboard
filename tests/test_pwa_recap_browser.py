@@ -1,7 +1,7 @@
 """Spec 42 A on the phone (docs/specs/42-coming-back.md §1.3–§1.4, Tests → A): Chromium at 390 × 844 against the stub of
-test_pwa_shell_browser.py with a fake `ideas.recap`. A last look 9 hours old gets the card at the top of the Board tab with its
+test_pwa_shell_browser.py with a fake `ideas.recap`. A last look 9 hours old gets the card at the top of the Board with its
 lines in order; 2 hours old, none; no last look, none and the key written; Close removes it; a tap on an idea opens its screen,
-logged `via: "recap"`; *Waits for you* opens Needs you; no horizontal scroll."""
+logged `via: "recap"`; *Waits for you* pops the first stop; no horizontal scroll."""
 from __future__ import annotations
 
 import json
@@ -52,7 +52,7 @@ def _lines(card):
 
 
 @pytest.mark.asyncio
-async def test_a_last_look_nine_hours_old_shows_the_card_at_the_top_of_the_board_tab(fake_repo, monkeypatch):
+async def test_a_last_look_nine_hours_old_shows_the_card_at_the_top_of_the_board(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch, init=seed(fake_repo, 9)) as (stub, page):
         card = page.get_by_label("While you were away")
         await card.wait_for(timeout=WAIT_MS)
@@ -61,7 +61,7 @@ async def test_a_last_look_nine_hours_old_shows_the_card_at_the_top_of_the_board
             "5 results in dev, 4 the first time", "Sync ideas · done, Dark mode", "Flag raised: General, met, says Product manager",
             "The night: drafted 2 ideas, started 1 plan, proposed 2 ideas", "Proposed for you: Dark mode", "Failed: Sync ideas · The table",
             "≈$4.20 of work at API prices, not your bill.", "Waits for you: 1 answer, 3 results to check"]
-        assert await page.locator(".board-tab-pane > *").first.get_attribute("aria-label") == "While you were away"      # above the Map
+        assert await page.locator(".arena > *").first.get_attribute("aria-label") == "While you were away"      # above the goals
         assert await card.get_by_role("button", name="Close").get_attribute("class") == "ork-btn quiet"
         assert await _called(stub, "ideas.recap")
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "recap", "ref": "9h", "device": "phone"})
@@ -90,13 +90,13 @@ async def test_close_removes_the_card_and_it_is_not_shown_again(fake_repo, monke
         assert await card.count() == 0
         key = json.dumps("orkboard.look." + fake_repo.name)
         assert await page.evaluate(f"Date.now() - Number(localStorage.getItem({key})) < 60000")        # the last look moved with the question
-        await page.locator(".board-tab-pane").click(position={"x": 5, "y": 5})                         # a press: not away any more, nothing asked again
+        await page.locator(".arena").click(position={"x": 5, "y": 5})                         # a press: not away any more, nothing asked again
         await page.wait_for_timeout(500)
         assert await card.count() == 0 and len([c for c in stub.calls if c[0] == "ideas.recap"]) == 1
 
 
 @pytest.mark.asyncio
-async def test_a_tap_on_an_idea_opens_it_and_waits_for_you_opens_needs_you(fake_repo, monkeypatch):
+async def test_a_tap_on_an_idea_opens_it_and_waits_for_you_pops_the_first_stop(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch, init=seed(fake_repo, 9)) as (stub, page):
         card = page.get_by_label("While you were away")
         await card.wait_for(timeout=WAIT_MS)
@@ -105,7 +105,8 @@ async def test_a_tap_on_an_idea_opens_it_and_waits_for_you_opens_needs_you(fake_
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "dark", "device": "phone", "via": "recap"})
         await page.get_by_role("button", name="Back", exact=True).click()
         await card.get_by_role("button", name="Waits for you: 1 answer, 3 results to check").click()
-        assert await page.locator(".needs-pane").is_visible() and not await page.locator(".board-tab-pane").is_visible()
+        await page.locator(".raised").wait_for(timeout=WAIT_MS)                                    # the first stop of the goal that waits, popped out along the bottom
+        assert await page.locator(".raised").is_visible()
 
 
 @pytest.mark.asyncio
