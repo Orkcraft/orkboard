@@ -29,7 +29,7 @@ phone is the PWA's plain modules). Where the mockup and this file differ, this f
 
 | part | builds | files (and their tests) |
 |---|---|---|
-| **A0. orkUI** (repository orkWorks/orkUI) | §1 | new `office/elements/` (five 7 × 7 symbols and a README), `office/tokens.json` (five element colours; `tokens.css` rebuilt by `tools/build_tokens.py`), `office/components.css` (`.ork-elem`), `office/preview.html` (an *Elements* section), `pyproject.toml` and the versions (**0.3.0**), `CHANGELOG.md`, `README.md`; `tests/test_orkui.py`. Then, in orkBoard, the copy: `python -m orkboard.design.orkui <orkUI>` (only `design-system/orkui/` changes) |
+| **A0. orkUI** (repository orkWorks/orkUI) | §1 | new `office/elements/` (five 7 × 7 symbols and a README), new `office/signs/` (eight, §1.6; **0.3.1**), `office/tokens.json` (five element colours; `tokens.css` rebuilt by `tools/build_tokens.py`), `office/components.css` (`.ork-elem`), `office/preview.html` (an *Elements* section), `pyproject.toml` and the versions (**0.3.0**), `CHANGELOG.md`, `README.md`; `tests/test_orkui.py`. Then, in orkBoard, the copy: `python -m orkboard.design.orkui <orkUI>` (only `design-system/orkui/` changes) |
 | **A. Backend** | §2 | `realm/lexicon.py`, new `realm/idea_flag.py`, new `realm/idea_element.py`, `realm/ideas.py` (`STATE_DEFAULT` gains `element`), `realm/idea_gate.py` (what is in main), `gui/ideas_gate.py` (the flags after a merge), `gui/ideas.py` (the end of `_accept_when_done`; a done goal's flag; `ideas.add` gives the element), `realm/board_map.py` (a goal's `element`, `flag`; a party's `flags`, `waits_main`, `brief`), `realm/goal_flags.py` and the command that serves `ideas.flags` (its `goals`), `realm/event_log.py` (`IDEA_FLAGGED`), `realm/board_today.py`, `realm/board_recap.py`, `realm/board_week.py`, `gui/phone_push.py`, `core/idea_goals.py` and `core/idea_draft.py` (no metrics asked), `core/idea_lead.py` (its preamble), and every Python string a person reads (§2.6); new `tests/test_idea_flag.py`, new `tests/test_idea_element.py`, `tests/test_lexicon.py`, `tests/test_idea_gate.py`, `tests/test_board_map.py`, `tests/test_gui_ideas.py`, `tests/test_board_today.py`, `tests/test_event_log.py` and the tests of the strings it changes |
 | **B. Desktop** | §3–§5 | `realm/lexicon.py` (only `idea`'s `was`, §2.1) with `tests/test_lexicon.py`'s two lines, `js/arena/*` (new `goals.js` (the left list and its filter), `stacks.js` (a member's rows and stacks), `spread.js`, `arrows.js`; `arena.css`; the rest as needed), `js/shell/*` (`goalwizard.js` → New party, `goaldialog.js` → Edit the party, `goalview.js` → About this party, `store.js`'s kind words, `preview.js`), `js/board/*` (only words and the pieces the arena reuses), and every desktop template in today's words (§0); `tests/test_arena_desktop_browser.py`, `tests/test_arena_motion_desktop_browser.py`, new `tests/test_arena_decks_desktop_browser.py`, and the desktop tests that read a string it changes (§11) |
 | **C. Phone** | §6 | `pwa/shell-arena.js`, `pwa/shell-arena-field.js`, `pwa/shell-arena-words.js`, `pwa/shell-stops.js`, `pwa/shell-dial.js`, `pwa/shell-motion.js`, `pwa/shell-today.js`, `pwa/shell-top.js` (the project's sheet), `pwa/shell-projects.js` and `pwa/shell-drawer.js` (the projects leave the menu), `pwa/shell-goal.js` and `pwa/shell-goal-new.js` (About this party, New party), new `pwa/shell-goals.js` (the goals sheet), new `pwa/shell-spread.js`, `pwa/board.js`, `pwa/app.css`, `gui/pwa.py` (serves `elements/*.svg`), `pwa/sw.js` (`CACHE` one up, the new modules in `SHELL`) with `tests/test_pwa.py`'s pinned version, and every phone string in today's words (§0); `tests/test_pwa_arena_browser.py`, `tests/test_pwa_arena_stops_browser.py`, `tests/test_pwa_arena_motion_browser.py`, new `tests/test_pwa_decks_browser.py`, and the phone tests that retry a tap or read a string it changes (§11) |
@@ -71,6 +71,10 @@ phone is the PWA's plain modules). Where the mockup and this file differ, this f
 - **What does not change:** prompts to a model (the models keep the code's words), what people or agents wrote (specs,
   plans, answers, Markdown), logs and terminals, keys, command names, event ids, file and class names, `localStorage`
   keys, `data-*` attributes.
+- **Every symbol is orkUI's** (§1.6): what the window and its sheets draw as a sign is `.ork-sign` (✓ ✗ ↻ the clock !
+  ⚑ ← →), an element `.ork-elem`, and ×, +, ›, ⌄ orkUI's icons; no Unicode symbol drawn as a sign in B's and C's
+  files (*×n*, *≈*, *$* and *·* are text, and stay). A sign keeps its words for the reader: its `title` or the text
+  beside it (*failed*, *at work*, *tonight*), and `aria-hidden` on the sign.
 - `tests/test_gui_wording.py` catches a desktop template that says *idea* (it becomes an old spelling, §2.1); the phone's
   strings and the JavaScript strings outside templates are not scanned: B and C grep their files (`idea`, `Idea`,
   `goal`, `Goal`) and leave only code.
@@ -103,6 +107,26 @@ phone is the PWA's plain modules). Where the mockup and this file differ, this f
    (**0.3.0**), the versions (`pyproject.toml`, `tokens.json`, `tokens.css`'s header).
 5. Tests: the five files, their 7 × 7 pixels as in the table, the tokens and their contrast, `.ork-elem`'s rules read
    only defined tokens (`NEW_PARTS`), the gallery's section, the version.
+6. **The signs** (the owner: every symbol the window draws is orkUI's, decisions §63.10): eight 7 × 7 signs drawn in
+   the colour of their text (`background: currentColor`), `office/signs/<name>.svg` as the elements are made, and
+   `.ork-sign.<name>` (14 × 14, `.big` 28 × 28, `vertical-align: -3px` so it sits on a 16 px line), with a README:
+
+   | check | cross | work | night | alert | flag | before | after |
+   |---|---|---|---|---|---|---|---|
+   | `.......` | `.......` | `..###.#` | `..###..` | `...#...` | `.#.....` | `.......` | `.......` |
+   | `......#` | `.#...#.` | `.#...##` | `.#.#.#.` | `...#...` | `.#####.` | `..#....` | `....#..` |
+   | `.....#.` | `..#.#..` | `#...###` | `#..#..#` | `...#...` | `.####..` | `.#.....` | `.....#.` |
+   | `#...#..` | `...#...` | `#......` | `#..##.#` | `...#...` | `.#####.` | `#######` | `#######` |
+   | `.#.#...` | `..#.#..` | `#.....#` | `#.....#` | `.......` | `.#.....` | `.#.....` | `.....#.` |
+   | `..#....` | `.#...#.` | `.#...#.` | `.#...#.` | `...#...` | `.#.....` | `..#....` | `....#..` |
+   | `.......` | `.......` | `..###..` | `..###..` | `.......` | `.#.....` | `.......` | `.......` |
+
+   *check* a done thing (✓), *cross* a failure (✗), *work* at work (↻), *night* held for tonight (a clock; ☾ is
+   dropped: a crescent is the *void* element), *alert* a stop that asks (!), *flag* a goal in main (⚑), *before* what a
+   task waits for (←), *after* what waits for it (→). A gallery section *Signs* (each at both sizes, in ink, muted,
+   success, danger and alert), the README's line, the CHANGELOG (**0.3.1**), the versions; tests as §1.5 (the files,
+   the pixels, `NEW_PARTS`, the gallery). The close (×), the plus (+) and the chevrons (›, ⌄) are orkUI's icons
+   already (`icons/icons.svg`).
 
 ## 2. The host (A)
 ### 2.1 The words in the glossary
