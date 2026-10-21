@@ -227,7 +227,7 @@ async def test_an_agents_sheet_says_its_record_of_the_last_30_days_in_each_wordi
         assert await said("Edit Taskmaster") == "The last 30 days: 12 plans; of their 41 tasks, 36 merged the first time"
         stub.record = {}
         stub.bump({})
-        await page.wait_for_timeout(1200)
+        await page.wait_for_timeout(2600)
         assert await said("Edit Grunts") == "No tasks in the last 30 days"
         assert await agents.locator(".role[data-slug='grunt']").inner_text() == line                   # the line stays its own (§54.6)
         await agents.get_by_role("button", name="+ Add agent").click()

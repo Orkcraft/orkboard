@@ -478,6 +478,18 @@ def _item(page, title):
     return page.locator(".stack .tcard").filter(has=page.locator(".tcard__name", has_text=title)).first
 
 
+async def _tap(page, target, ready):
+    """A press on `target` until `ready` (a locator) shows: the field is drawn again when the Board is read, and a press in the middle of that is lost, as a finger's would be."""
+    for tries in range(3):
+        await target.click()
+        try:
+            await ready.wait_for(state="visible", timeout=WAIT_MS if tries == 2 else 3000)
+            return
+        except Exception:                                                                               # noqa: BLE001
+            if tries == 2:
+                raise
+
+
 async def _open_idea(page, title):
     """An idea's own screen: its item in Planning (the leader's column), tapped (spec 49 §10.5)."""
     await _band(page, "lead")
@@ -637,8 +649,7 @@ async def test_a_plan_a_todo_a_task_and_a_result_each_open_on_their_own_screen_w
         await screen.wait_for(state="hidden", timeout=WAIT_MS)
 
         await _band(page, "build")                                                                     # a task of a column → its task, with Stop pinned
-        await _item(page, "Retry on a lost signal").click()
-        await page.locator(".screen .log").wait_for(timeout=WAIT_MS)
+        await _tap(page, _item(page, "Retry on a lost signal"), page.locator(".screen .log"))
         text = await page.locator(".screen-body").inner_text()
         assert "Brief of Retry on a lost signal" in text and "reading sync.py" in text and "idea/sync/k3" in text
         await _shot(page, "phone-task-390x844")
