@@ -510,3 +510,68 @@ a column of its own; the Map has no button. So:
    against the leader's, by how they are answered (§54.7's research); what a goal costs to read and lay out, by Target.
 Improvements of v1's existing mechanics (§27): the goal's read, the night's proposals, the draft, the Map, and the
 phone's look on the desktop; two keeper steps (`ask`, in quality only; `trail`), no new setting. Spec 46.
+
+## 60. One product and its labs: Orkboard, OrkWiki and OrkWatch crystallise Orkline's buildings; a building's mechanic is the shape of its work (21 October, the owner and the PM)
+
+Why: the owner (21 October), on the studio's positioning: a line of products on Orkline's engine, each joining a game's
+mechanic to a problem of orkestrating agents. Orkboard, a card game: planning and following the work of several agents.
+OrkTower, now **OrkWatch**, an idle game: mail sorted, replies drafted, events made in the calendar. OrkWiki, the links
+of Mini Metro and Mini Motorways and their quality: an LLM wiki kept true, fresh, linked, placed by its rules and free
+of contradictions. Orkline, Factorio: loops built and tuned for every kind of request, the person in them as little as
+possible, the others in one line. The PM's review the same day: a strong thesis where the game's loop is the work's own
+(as §52 and §56 found); a weak plan if it is four launches (four audiences for one person, and a skin is copied in a
+weekend, as AgentCraft took its image first, §37); and parts of it against §37.1, §50.1, §55 and §56. The owner: not
+four launches, one product and its labs. So:
+1. **Orkline is the product; Orkboard, OrkWiki and OrkWatch are its labs.** Each crystallises one of Orkline's buildings
+   on its own and checks that it is needed: the owner uses it every day, its shape and its words settle, its contract
+   with the other modules is written (§50.7); then it enters Orkline ready, as that building, never a second copy (one
+   engine, §50.2). A lab is not published (§50.1, for each), and the public name stays Orkline (§37.2). A lab may end in
+   *not needed*: a building no one turns out to need does not enter Orkline.
+2. **The labs and their buildings:**
+   - **Orkboard:** the Board with its goals, Agents and Review, which are Orkline's Task board, Agent pool and Review
+     gate (§50.6).
+   - **OrkWiki:** the Wiki (Camp's Scroll Dump) with its librarian, its Quality checks and its Rules for AI tools
+     (Orkline's `docs/design/wiki-librarian.md`, `docs/design/wiki-folders-rules.md`; here `realm/wiki.py`,
+     `realm/wiki_rules.py`): a wiki that people and models write and agents read stays true, fresh, linked, placed by
+     its rules and free of contradictions.
+   - **OrkWatch:** External listeners (Camp's Watchtower, `TERMS` `watchtower`) with Operations' reply to an email
+     (§51): mail sorted, replies saved as drafts, events proposed for the calendar; nothing sent until its template may
+     go by itself (§51.4).
+   - **Orkline:** the factory that lays them into loops (§50.3), the person in them less and less (item 6).
+3. **The order: Orkboard, then OrkWiki; OrkWatch is decided after.** Orkboard holds first (§50.8: the owner's daily use,
+   the testers). OrkWiki is the next lab: its mechanic fits its work best (item 4), it is the owner's own daily need (the
+   decisions, the specs and the rules every agent reads), and the other buildings' agents read it. Whether OrkWatch is
+   needed is decided after OrkWiki, from Operations' email template in use; until then it is Operations' templates and
+   no lab. What weighs against it: mail is the most crowded market (the mail clients' own assistants) and the most
+   private data, and Gmail's scopes for a published app are restricted and need Google's verification. §50.8 stands for
+   Orkline itself: its loops, then Camp.
+4. **A building's mechanic is the shape of its work** (§52, §56): a game is picked because its loop is the work's, and
+   the line's games go down a ladder of how much of each move is the person's, as a template earns going by itself
+   (§51.4):
+   - **Orkboard, a deck-builder** (Slay the Spire, Balatro), as §56 has it: a library to pick from, a party for a goal,
+     its price against its care. Not a collectible card game: nothing collected, no packs, no rarity; an agent is set
+     up, never won (§56).
+   - **OrkWatch, idle:** it works while the person is away, and coming back is seeing what it did (§55.3 A). Not a
+     clicker: a click is the work it saves, and *numbers go up* rewards volume (§55.1).
+   - **OrkWiki, Mini Metro:** pages are the stations, links the lines, agents' questions the passengers, a crowded
+     station a contradiction or a stale page, the trains the week's budget for checks. Its calm and its colour that only
+     signals are orkUI's office already (§53.5).
+   - **Orkline, Factorio** as the image its first audience knows (audience.md §1), shapez as the mechanic: loops, not a
+     free graph (§50.3).
+5. **In a lab the mechanic is a shape, never a skin.** A lab is drawn in orkUI's office (§53) and says everything by
+   what it does (§56: no cards, decks, mana or rarity in what a person reads): the mechanic is the view's shape and the
+   person's choices (the Map, §52; a party, §56). The art and a game's words are Orkline Camp's skin (§50.1, §52.3). In
+   every product of the line the game only reads (§50.5) and rewards results and thrift, never volume, spend or a
+   person's streak (§55.1).
+6. **"The person as little as possible" is the ladder of trust:** the person decides what goes by itself (§51.4), and
+   what leaves to people stops at the gate until then (§39). §37.1's line stands, *nothing passes without you*, and the
+   line is never advertised as agents round the clock (audience.md §2a.5).
+7. **What sells is the engine's result; the mechanic is how it feels.** A skin is copied in a weekend; the one engine
+   (the loop, the gate, the ladder of trust) is not.
+8. **Open, the PM's proposals:** OrkWatch as an *idle tower defense* (mail comes in waves, templates and rules are its
+   towers, what got through wrongly is the damage, a tower is raised when its template goes by itself; the name already
+   says a watchtower), decided with item 3; whether a lab is ever shown on its own (OrkWiki over a folder of Markdown,
+   Obsidian's vaults first: *a graph view that does something*); the studio's line for when the line is shown: *games
+   taught millions to run systems that work without them; orkWorks uses them to run your agents*.
+The line's frame: no code and no spec. §27 and §50.8 stand (no new mechanic before the testers' numbers); a lab starts
+with a spec of its own, OrkWiki's first.
