@@ -17,8 +17,8 @@ HEAD = {"craft": "engineering", "race": "peon", "tier": "elder"}
 @pytest.mark.asyncio
 async def test_the_party_proposal_is_a_stop_answered_where_it_is_and_the_row_counts_it(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        count = page.locator(".handcount b")
-        before = int((await count.inner_text()).strip())
+        hand = page.locator(".hc")
+        before = await hand.count()
         stub.extra_needs.append(dict(ROW))
         stub.bump({})
         row = await _pop(page, "Proposed: Take Reviewer out of Billing's party?")
@@ -26,7 +26,7 @@ async def test_the_party_proposal_is_a_stop_answered_where_it_is_and_the_row_cou
         assert "Take Reviewer out of Billing's party?" in text and "It found nothing in the last 8 ideas; a check costs about $0.35." in text
         await row.get_by_role("button", name="Put it back").click()
         await row.wait_for(state="hidden", timeout=WAIT_MS)
-        assert int((await count.inner_text()).strip()) == before + 1                                        # it waits for the person like the others: one more
+        assert await hand.count() == before + 1                                                             # it waits for the person like the others: one more along the bottom
         assert await page.evaluate(NO_SCROLL)
         row = await _pop(page, "Proposed: Take Reviewer out of Billing's party?")
         await row.get_by_label("Why not: Take Reviewer out of Billing's party?").fill("the public page needs it")

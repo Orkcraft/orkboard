@@ -331,13 +331,14 @@ async def test_with_more_than_one_question_send_the_picks_answers_with_the_recom
 
 
 @pytest.mark.asyncio
-async def test_new_idea_is_the_button_in_the_bottom_row_s_margin_and_limits_are_said_where_a_choice_spends_them(fake_repo, monkeypatch):
+async def test_the_create_button_floats_over_the_field_s_bottom_right_and_limits_are_said_where_a_choice_spends_them(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _two_goals(stub)
         await _pick_goal(page, "ship")
-        fab = page.locator(".handzone .fab")
+        fab = page.locator('.fab[data-act="create"]')
         box = await fab.bounding_box()
-        assert box["x"] + box["width"] > 380 and box["y"] > 780 and box["width"] == 48 and box["height"] == 48     # under the thumb, in the row's right margin
+        assert box["width"] == 48 and box["height"] == 48 and round(box["x"]) == 390 - 12 - 48                  # under the thumb, 12 px from the right …
+        assert round(box["y"] + box["height"]) == 844 - 56 - 10                                                  # … over the field, 10 px above the bottom row
         assert await page.locator(".section-head").get_by_role("button", name="New idea").count() == 0
         assert await page.get_by_role("button", name="Speak a new idea").count() == 0                   # one button; Speak is in the sheet (spec 41 §5)
         await fab.click()                                                                                # the dial: three items over a scrim, the button turned to ×
@@ -360,5 +361,5 @@ async def test_new_idea_is_the_button_in_the_bottom_row_s_margin_and_limits_are_
         assert "What is left: Claude 62 % · Antigravity 15 %" in await sheet.locator(".limits-note").inner_text()
         await page.keyboard.press("Escape")
         await _open_idea(page, "Offline mode")
-        assert await page.locator(".handzone .fab").is_visible() is False or await page.locator(".screen").is_visible()   # a screen covers the button
+        assert await page.locator('.fab[data-act="create"]').is_visible() is False or await page.locator(".screen").is_visible()   # a screen covers the button
         assert await page.evaluate(NO_SCROLL)

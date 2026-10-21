@@ -441,7 +441,7 @@ async def _goal_row(page, slug):
 
 async def _dial(page, item):
     """The create button's dial (spec 49 §10.6): its three items are New idea, New goal and Add to the party."""
-    await page.locator(".handzone .fab").click()
+    await page.locator('.fab[data-act="create"]').click()
     await page.get_by_role("menuitem", name=item).click()
 
 
@@ -475,8 +475,14 @@ async def _open_idea(page, title):
     """An idea's own screen: its item in Planning (the leader's column), tapped (spec 49 §10.5)."""
     await _band(page, "lead")
     item = title if not isinstance(title, str) else _item(page, title)
-    await item.click()
-    await page.locator(".screen").wait_for(state="visible", timeout=WAIT_MS)
+    for tries in range(3):                                                                              # the field is drawn again when the Board is read: a press in the middle of that is lost, as a finger's would be
+        await item.click()
+        try:
+            await page.locator(".screen").wait_for(state="visible", timeout=WAIT_MS if tries == 2 else 3000)
+            return
+        except Exception:                                                                               # noqa: BLE001
+            if tries == 2:
+                raise
 
 
 async def _open_idea_of(page, task_title, idea_title, band="build"):
@@ -497,9 +503,15 @@ async def _pop(page, name):
     """A stop along the bottom popped out of the fan by a tap on its top (spec 49 §10.6): `name` is in its label (*Plan ready: Dark mode*). Returns the raised one."""
     card = page.locator(f'.hc[aria-label*="{name}"]')
     await card.wait_for(timeout=WAIT_MS)
-    at = await card.evaluate("""(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side)
+    probe = """(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side)
       for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) return { x, y }; }
-      return null; }""")
+      return null; }"""
+    at = None
+    for _ in range(40):                                                                                # the fan is drawn again a moment after an answer: asked again until it stands
+        at = await card.evaluate(probe)
+        if at:
+            break
+        await page.wait_for_timeout(50)
     assert at, f"no point of {name} can be tapped"
     await page.mouse.click(at["x"], at["y"])
     raised = page.locator(".raised")
@@ -748,7 +760,7 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")           # New idea needs a goal (spec 35 §3)
         stub.bump({})
-        await page.locator(".handzone .fab").wait_for(timeout=WAIT_MS)
+        await page.locator('.fab[data-act="create"]').wait_for(timeout=WAIT_MS)
         await _goal_row(page, "ship")
         opens = [("New goal", lambda: _new_goal(page)),
                  ("New idea", lambda: _new_idea(page)),
@@ -918,28 +930,26 @@ async def test_pair_a_phone_in_the_drawer_says_where_it_is_done_and_how_the_phon
 
 
 @pytest.mark.asyncio
-async def test_what_waits_for_you_is_the_signal_the_chip_counts_the_stops_and_the_row_counts_everything_alert_only_while_a_stop_is_among_it(fake_repo, monkeypatch):
+async def test_what_waits_for_you_is_the_signal_the_chip_counts_the_stops_and_the_fan_holds_everything_the_alert_ones_first(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         chip = page.locator('.gchip[data-goal="general"]')
-        count = page.locator(".handcount")
+        hand = page.locator(".hc")
         assert await chip.locator(".ork-count.warning").inner_text() == "2" and "2 stops wait for you" in await chip.get_attribute("aria-label")   # a plan and a to-do
-        assert await count.locator("b").inner_text() == "4" and await count.locator("b").get_attribute("class") == "warn"       # … and two results: all four lie along the bottom
-        colour = await count.locator("b").evaluate("e => getComputedStyle(e).color")
-        assert colour == await page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-alert)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
-        assert await page.locator(".hc").count() == 4 and await page.locator('.hc[data-kind="look"]').count() == 2
+        assert await hand.count() == 4 and await page.locator('.hc[data-kind="look"]').count() == 2           # … and two results: all four lie along the bottom, stops first
+        assert [await b.get_attribute("data-kind") for b in await hand.all()] == ["plan", "todo", "look", "look"]
+        assert await page.locator(".handcount").count() == 0                                                  # the fan is the count: there is no number beside it
         await _shot(page, "phone-needs-signal-390x844")
         stub.hide_plan = True
         stub.todos[0]["done"] = True                                                                    # only the results to look at are left
         stub.bump({})
-        await page.locator(".hc").nth(2).wait_for(state="detached", timeout=WAIT_MS)
-        assert await chip.locator(".ork-count.warning").count() == 0 and await count.locator("b").inner_text() == "2"
-        assert await count.locator("b").get_attribute("class") == ""                                    # results alone are not a signal: the plain ink
-        assert "stop" not in await chip.get_attribute("aria-label")
+        await hand.nth(2).wait_for(state="detached", timeout=WAIT_MS)
+        assert await chip.locator(".ork-count.warning").count() == 0 and await hand.count() == 2 and await page.locator('.hc:not([data-kind="look"])').count() == 0
+        assert "stop" not in await chip.get_attribute("aria-label")                                     # results alone are not a signal
         for t in stub.plan["tasks"]:
             if t["state"] == "review":
                 t["state"] = "merged"
         stub.bump({})
-        await count.wait_for(state="hidden", timeout=WAIT_MS)                                           # nothing waits: no count, and it says so
+        await hand.first.wait_for(state="detached", timeout=WAIT_MS)                                    # nothing waits: no fan, and it says so
         assert "Nothing waits for you on this goal." in await page.locator(".handzone").inner_text()
 
 

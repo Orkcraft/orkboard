@@ -10,12 +10,12 @@ export const HOLD_MS = 10000;                         // a column is held under 
 /** Whether the page may move now: not under reduced motion, not while it is hidden. */
 export const motionOn = () => !document.hidden && !(typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
 
-/** Where each item of each column stands: `column|key` → its top above its column's foot (the column's own scroll and the page above it left out). */
+/** Where each item of each column stands: `column|key` → its top below its column's head, where the member stands (the page above it left out). */
 export function measure(root) {
   const where = new Map();
   for (const col of root.querySelectorAll(".stack[data-column]")) {
-    const foot = col.getBoundingClientRect().bottom;
-    for (const item of col.querySelectorAll("[data-key]")) where.set(`${col.dataset.column}|${item.dataset.key}`, item.getBoundingClientRect().top - foot);
+    const head = col.getBoundingClientRect().top;
+    for (const item of col.querySelectorAll("[data-key]")) where.set(`${col.dataset.column}|${item.dataset.key}`, item.getBoundingClientRect().top - head);
   }
   return where;
 }
@@ -23,17 +23,17 @@ export function measure(root) {
 /** The difference between what `measure` saw and where the items stand now, played back (≈ 0.25 s, ease-out): only the items that moved move. */
 export function play(root, before) {
   for (const col of root.querySelectorAll(".stack[data-column]")) {
-    const foot = col.getBoundingClientRect().bottom;
+    const head = col.getBoundingClientRect().top;
     for (const item of col.querySelectorAll("[data-key]")) {
       const was = before.get(`${col.dataset.column}|${item.dataset.key}`);
       if (was === undefined) continue;                // new here: it rises on its own
-      const dy = was - (item.getBoundingClientRect().top - foot);
+      const dy = was - (item.getBoundingClientRect().top - head);
       if (Math.abs(dy) > 1 && item.animate) item.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: SLIDE_MS, easing: "ease-out" });
     }
   }
 }
 
-/** Takes `gone` (items) out of their column and lets what they held up slide down into the gap. */
+/** Takes `gone` (items) out of their column and lets the queue behind them step up toward the member into the gap. */
 export function settle(gone) {
   const cols = new Set(gone.map((g) => g.parentElement).filter(Boolean));
   const before = new Map();

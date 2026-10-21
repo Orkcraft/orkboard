@@ -1,6 +1,6 @@
-// The field of the goal's window (docs/specs/49-one-window.md §5, §10.5, §11): the columns of the stage shown, each member's open tasks rising bottom-up from it (the bottom
-// row lit, the rows above muted), the party's members at the foot of their columns (a small card: the head, two numbers, the name between the tool's mark and the level's, the
-// state) and the free seats; a tap on a member shows only its work, three to a row. Motion says what changed (shell-motion.js): a task that was not there rises into its
+// The field of the goal's window (docs/specs/49-one-window.md §5, §10.5, §11): under the stage switch the party's members (a small framed row: the head wearing three signs,
+// three short lines) and, running down from each toward the bottom row, its open tasks (the top row, against the member, lit, the rows below muted; at the far end *✓ k in
+// dev*); a tap on a member shows only its work under the row, three to a row from the top. Motion says what changed (shell-motion.js): a task that was not there rises into its
 // column, a task that left (merged ✓, dropped ✗) fades where it stands and its column settles, a task that moved slides to its new place, a merge's numbers are highlighted
 // once; none under reduced motion, on the first read of a goal, for what changed while the page was hidden, nor under a finger or the focus.
 import { h, icon } from "./util.js";
@@ -76,7 +76,7 @@ export function makeField(core, hooks) {
       kids.splice(Math.min(g.index, kids.length), 0, node);
     }
     const k = mergedOf(model, m);
-    return stack(`${m.name}: the task at work is nearest the agent`, [...(kids.length ? kids : [h("span", { class: "stack__empty" }, "No task now")]),
+    return stack(`${m.name}: the task at work is nearest the agent, at the top`, [...(kids.length ? kids : [h("span", { class: "stack__empty" }, "No task now")]),
       k ? h("span", { class: "stack__done" }, `✓ ${k} in dev`) : null], ui.focus === m.slug ? "is-col" : "", m.slug);
   }
 
@@ -155,7 +155,7 @@ export function makeField(core, hooks) {
       const held = new Set();
       const cols = [...shown.map((m) => {
         const was = old.get(m.slug);
-        if (was && m.band !== "lead" && sameUi && holds.held(was)) { held.add(m.slug); return was; }   // under a finger or the focus: it waits
+        if (was && sameUi && holds.held(was)) { held.add(m.slug); return was; }   // under a finger or the focus: it waits
         return m.band === "lead" ? planningStack(model, ui) : memberStack(model, m, ui);
       })];
       const tpl = shown.map(() => "minmax(0, 1fr)");
@@ -164,7 +164,7 @@ export function makeField(core, hooks) {
       const row = h("div", { class: "tokens" }, ...shown.map((m) => memberCard(m, ui)));
       grid.style.setProperty("--cols", tpl.join(" "));
       row.style.setProperty("--cols", tpl.join(" "));
-      const inner = h("div", { class: "arena__in" }, grid, row);
+      const inner = h("div", { class: "arena__in" }, row, grid);
       inner.style.minWidth = `${wide}px`;
       const wrap = h("div", { class: "arena-scroll" }, inner);
       const focus = shown.find((m) => m.slug === ui.focus);

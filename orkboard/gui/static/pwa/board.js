@@ -32,11 +32,22 @@ export function makeBoard(ctx) {
   let loading = false;
   let pushed = false;                   // the preview put a step in the history: the system back gesture closes it
 
+  // The listener lets a phone send a burst of ten commands and then five a second (a reading is seven commands): a command it refused for that, and so did not run, is sent once
+  // more a moment later, not left undone or stale until the next change.
+  const TOO_FAST = /Too many commands/i;
+  async function sendPaced(name, args) {
+    const r = await ctx.send(name, args);
+    if (r.ok || !TOO_FAST.test(r.error || "")) return r;
+    await new Promise((done) => setTimeout(done, 1200));
+    return ctx.send(name, args);
+  }
+  const read = (name) => sendPaced(name);
+
   const core = {
     st,
     /** A command of the contract; null (and the plain-words error said) when it fails. */
     async call(name, args) {
-      const r = await ctx.send(name, args);
+      const r = await sendPaced(name, args);
       if (!r.ok || r.result?.error) { ctx.flash(r.error || r.result?.error); return null; }
       return r.result ?? {};
     },
@@ -61,9 +72,9 @@ export function makeBoard(ctx) {
   const review = makeReview(core);
   const needs = makeNeeds(core, ctx);
   const dial = makeDial(core);
-  const stops = makeStops(core, ctx, needs, boardTab.ops, dial.fab);
+  const stops = makeStops(core, ctx, needs, boardTab.ops);
   const preview = makePreview(core, ctx, { agents: agents.el });
-  const el = h("div", { class: "board v1" }, top.el, boardTab.el, stops.el, preview.el);
+  const el = h("div", { class: "board v1" }, top.el, boardTab.el, stops.el, dial.fab, preview.el);
 
   /** What the person opened, for the day's analysis (docs/specs/33-v1-shell.md §9): the host's one loggable event. The listener
    *  allows a device only a few commands a second, so the lines go out one at a time, a moment apart, behind the ones that matter. */
@@ -174,15 +185,6 @@ export function makeBoard(ctx) {
   }
 
   // -- reading the town ------------------------------------------------------------------------------------------
-  // The listener lets a phone send a burst of ten commands and then five a second: a read it refused for that (a reading is seven commands) is asked once more a moment later,
-  // not left stale until the next change.
-  const TOO_FAST = /Too many commands/i;
-  const read = async (name) => {
-    const r = await ctx.send(name);
-    if (r.ok || !TOO_FAST.test(r.error || "")) return r;
-    await new Promise((done) => setTimeout(done, 1200));
-    return ctx.send(name);
-  };
 
   async function refresh() {
     const [b, r, a, ro, m, td, g] = await Promise.all(["ideas.board", "ideas.review_list", "ideas.agents", "ideas.roles", "ideas.map", "ideas.today", "ideas.gate"].map(read));

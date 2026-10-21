@@ -1,5 +1,6 @@
 // What waits for you, along the bottom (docs/specs/49-one-window.md §6, §10.6, §11): the stops of the goal shown (a plan, a question, a proposal, a to-do, a
-// failure) and, after them, the results to look at, fanned, only their tops showing (56 px, no line over them). A tap pops one out: it leaps from its place in the
+// failure) and, after them, the results to look at, fanned across the whole width and centred, only their tops showing (56 px, no line over them; no count: the fan is
+// the count). The create button floats over the field, not here (shell-dial.js). A tap pops one out: it leaps from its place in the
 // fan to a raised sheet above the scrim (in steps, none under reduced motion; its place in the fan stays empty while it is up) with its gem, its kind, its head, its
 // title and text, its quick answers as 44 px buttons and *Open it on its own screen*. A tap on the scrim lays it back. The answers are the commands Needs you had:
 // a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped.
@@ -12,20 +13,17 @@ import { OPS_VIEW } from "./shell-ops.js";
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const KIND = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
   op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
-const CARD = 104, WIDTH = 222;                           // a card's width in the fan, and the room it was drawn for (the row between its two 64 px margins: the count and the create button)
+const CARD = 104, WIDTH = 330;                           // a card's width in the fan, and the room it was drawn for (the row's width less 30 px at each side)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 
-/** `core`: the board's frame; `ctx`: {flash}; `needs`: shell-needs.js (the forms); `ops`: shell-ops.js; `fab`: the create button (shell-dial.js), docked at the row's right margin.
+/** `core`: the board's frame; `ctx`: {flash}; `needs`: shell-needs.js (the forms); `ops`: shell-ops.js.
  *  Returns {el, sheets, content(), draw(), pop(key)}. */
-export function makeStops(core, ctx, needs, ops, fab) {
+export function makeStops(core, ctx, needs, ops) {
   const st = core.st;
   const hand = h("div", { class: "hand", role: "group", "aria-label": "Waits for you" });
   const empty = h("p", { class: "cap handzone__empty", hidden: true }, "Nothing waits for you on this goal.");
-  // the row is [count | fan | create button] with two equal 64 px margins, so the fan stays centred on the screen
-  const countN = h("b", {}, "0");
-  const count = h("span", { class: "handcount", hidden: true }, countN, h("span", {}, "for you"));
-  const el = h("section", { class: "handzone", "aria-label": "Waits for you" }, count, fab || null, empty, hand);
+  const el = h("section", { class: "handzone", "aria-label": "Waits for you" }, empty, hand);          // the fan takes the whole width and stays centred on the screen
 
   // -- the raised one: a modal over the scrim; its place in the fan is empty while it is up ------------------------------------------------------
   const body = h("div", { class: "raised-in" });
@@ -202,7 +200,7 @@ export function makeStops(core, ctx, needs, ops, fab) {
   return {
     el,
     sheets: [dlg],
-    /** What is acted on only while the town answers: not the create button (New idea is kept with no signal). */
+    /** What is acted on only while the town answers. */
     content: () => [hand, empty, dlg],
     items: () => items,
     pop,
@@ -215,10 +213,6 @@ export function makeStops(core, ctx, needs, ops, fab) {
         sigs = sig;
         hand.replaceChildren(...items.map((it, i) => card(it, i, items.length)));
         empty.hidden = items.length > 0;
-        count.hidden = !items.length;
-        countN.textContent = String(items.length);
-        countN.className = items.some((i) => i.kind !== "look") ? "warn" : "";           // a stop is among them: the alert colour, not only results
-        count.title = `${plural(items.length, "thing")} ${items.length === 1 ? "waits" : "wait"} for you on this goal: a tap on one pops it out`;
       }
       if (st.hand) {
         const at = items.findIndex((i) => i.key === st.hand);

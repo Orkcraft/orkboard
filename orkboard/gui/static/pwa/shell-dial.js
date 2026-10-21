@@ -1,8 +1,9 @@
-// The create dial (docs/specs/49-one-window.md §10.2, §10.6): one button at the right margin of the bottom row, a 48 px square in the action colour with the plus
-// mark — New idea, as the phone has had it (spec 41 §5), and now the way to the others. A tap opens the dial over a scrim: the button turns to × and three 48 px items stand
+// The create dial (docs/specs/49-one-window.md §10.2, §10.6): one button floating over the field's bottom right, 10 px above the bottom row (right 12 px), above everything
+// there: a 48 px square in the action colour with the plus mark — New idea, as the phone has had it (spec 41 §5), and now the way to the others. The queues end there: the right
+// column and a member's solo keep 64 px of room at their far end so that it covers no task. A tap opens the dial over a scrim: the button turns to × and three 48 px items stand
 // above it, right-aligned: *New idea* (nearest the thumb, for the goal shown: today's New idea sheet), *New goal* (today's New goal sheet) and *Add to the party* (the goal's
 // party, as Edit the party; its line counts the free seats). A tap on the scrim or × puts it away. It works with no signal (New idea
-// is kept and sent when the town answers), it covers no task: it docks in the row's margin, the stops' fan between it and the count.
+// is kept and sent when the town answers).
 import { h, icon } from "./util.js";
 import { modelOf, shownGoal } from "./shell-arena-words.js";
 import { keptGoal } from "./shell-top.js";

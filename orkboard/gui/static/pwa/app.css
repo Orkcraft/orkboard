@@ -607,8 +607,9 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .arena-scroll::-webkit-scrollbar { display: none; }
 .arena__in { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; padding: 0 var(--ork-5); }
 .cgrid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); }
-.stack { min-height: 0; display: flex; flex-direction: column-reverse; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0; overflow-y: auto; scrollbar-width: none; }
+.stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0; overflow-y: auto; scrollbar-width: none; }
 .stack::-webkit-scrollbar { display: none; }
+.cgrid > .stack:last-child { padding-bottom: 64px; }       /* the create button floats over the far end of the queues: it covers no task */
 .stack.is-col { background: var(--ork-raised); }
 .stack__empty { flex: none; text-align: center; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
 .stack__done { flex: none; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); }
@@ -663,7 +664,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .is-reward { animation: reward 0.6s steps(4, end) both; }
 @keyframes reward { from { background: var(--ork-ink); color: var(--ork-on-ink); } to { background: transparent; } }
 
-.tokens { flex: none; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); height: 66px; padding-top: var(--ork-4); box-sizing: border-box; border-top: var(--ork-line) solid var(--ork-frame); }
+.tokens { flex: none; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); height: 66px; margin-top: var(--ork-4); padding-bottom: var(--ork-4); box-sizing: border-box; border-bottom: var(--ork-line) solid var(--ork-frame); }   /* the members stand at the top of their columns, under the stage switch */
 /* a member: a small framed row filling its column, its head wearing three signs (spec 49 §5.2): the level top-left, the tool bottom-left, its state top-right */
 .token { appearance: none; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; max-width: 100%; min-width: 0; margin: 0 auto;
   padding: 6px 6px 6px 9px; box-sizing: border-box; background: none; border: 0; color: inherit; clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
@@ -686,13 +687,13 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .tnum { font: 600 11px/13px var(--ork-font-text); color: var(--ork-ink); white-space: nowrap; }
 .tnum.muted { font-weight: 400; color: var(--ork-ink-muted); }
 
-.solo { position: absolute; left: 0; right: 0; top: 0; bottom: 66px; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
+.solo { position: absolute; left: 0; right: 0; top: calc(var(--ork-tap) + var(--ork-line) + var(--ork-4) + 66px); bottom: 0; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
 .solo__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); padding: var(--ork-2) var(--ork-2) var(--ork-2) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); }
 .solo__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/18px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
 .solo__card { flex: none; display: flex; align-items: center; gap: var(--ork-5); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
 .solo__info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .solo__info b { font-weight: 600; }
-.solo__body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column-reverse; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-4) var(--ork-5); overflow-y: auto; scrollbar-width: none; }
+.solo__body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-4) var(--ork-5) 64px; overflow-y: auto; scrollbar-width: none; }
 .solo__body::-webkit-scrollbar { display: none; }
 .solo__empty { text-align: center; margin: 0; }
 .srow { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ork-3); }
@@ -700,17 +701,15 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 /* what waits for you, along the bottom: the stops fanned, only their tops showing; no line over it (spec 49 §10.6) */
 .handzone { position: sticky; bottom: 0; flex: none; height: var(--tabs); z-index: 8; overflow: clip; background: var(--ork-canvas);   /* clip, not hidden: a focused card never scrolls the row */
   padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; }
-.hand { position: absolute; left: 64px; right: 64px; top: var(--ork-3); display: flex; justify-content: safe center; pointer-events: none; }
-.handzone__empty { position: absolute; left: 64px; right: 64px; top: 18px; margin: 0; text-align: center; }
-.fab { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; right: var(--ork-4); top: var(--ork-2); z-index: 40; width: 48px; height: 48px; display: flex; align-items: center;
+.hand { position: absolute; left: 0; right: 0; top: var(--ork-3); display: flex; justify-content: center; pointer-events: none; }   /* the whole width, centred */
+.handzone__empty { position: absolute; left: 0; right: 0; top: 18px; margin: 0; text-align: center; }
+/* the create button floats over the field's bottom right, 10 px above the bottom row, under a screen (z 10) and a sheet (the top layer) */
+.fab { all: unset; box-sizing: border-box; cursor: pointer; position: fixed; right: 12px; bottom: calc(var(--tabs) + 10px + env(safe-area-inset-bottom)); z-index: 9; width: 48px; height: 48px; display: flex; align-items: center;
   justify-content: center; clip-path: var(--ork-notch); background: var(--ork-action); color: var(--ork-on-ink); }
+.fab[hidden] { display: none; }
 .fab:active { background: var(--ork-action-hi); }
 .fab:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .fab .ork-icon { width: 28px; height: 28px; }
-.handcount { position: absolute; left: var(--ork-4); top: var(--ork-2); width: 48px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  font: 400 11px/13px var(--ork-font-text); color: var(--ork-ink-muted); }
-.handcount b { font: 600 18px/20px var(--ork-font-text); color: var(--ork-ink); }
-.handcount b.warn { color: var(--ork-alert); }
 .hc { pointer-events: auto; appearance: none; position: relative; flex: none; display: flex; flex-direction: column; align-items: stretch; width: 104px; height: 150px; margin: 0 calc(-1 * var(--ov));
   padding: 5px; box-sizing: border-box; background: var(--ork-panel); border: var(--ork-double) double var(--ork-alert); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left;
   cursor: pointer; z-index: var(--z); transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; font: inherit; }
