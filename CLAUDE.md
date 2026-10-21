@@ -1,7 +1,7 @@
 # Orkboard — notes for contributors and agents
 
 Orkboard is Orkline's Board on its own (docs/specs/37-board-and-line.md, docs/decisions.md §50): the Board with its
-goals, the preview, Agents and Review, on the desktop and on a paired phone. **Orkline imports Orkboard, never the
+parties and goals, the preview, Agents and Review, on the desktop and on a paired phone. **Orkline imports Orkboard, never the
 other way round**: nothing here imports Orkline's package (`orkcraft`).
 
 ## Wording
@@ -24,6 +24,8 @@ other way round**: nothing here imports Orkline's package (`orkcraft`).
   page through `say()` for attributes and data. A `html` template's own text is written in today's word at the source
   (`tests/test_gui_wording.py` checks). What people or agents wrote keeps its words; Markdown, inputs, logs and
   terminals keep theirs.
+- **Parties and goals** (decisions §63): the interface says *party* for what the code calls a goal or a track, and *goal*
+  for what the code calls an idea; a task stays a task. Code, files, commands, keys and events keep their names.
 - Labels, settings and anything about money or safety say plainly what happens.
 - Tests that check a visible string use the same wording.
 

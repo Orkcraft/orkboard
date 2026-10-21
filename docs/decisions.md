@@ -700,3 +700,37 @@ was turned down; C lists what was taken from the game). So:
    words stay plain (§56).
 A new face over v1's mechanics and the gate decided in §49.5: the owner's call, before the testers' numbers, as §55,
 §59 and §61. Spec 49.
+
+## 63. Parties and goals: what was a goal is a party, what was an idea is a goal; a goal raises its flag in main; a party's goals are decks of one element (21 October, the owner)
+
+Why: the owner, on the one window's mockup. The goal on a tab is a container the person never really chooses: what they
+pick every day is **who works on it** (a leader, builders and checkers, the checks they hold the work to, what it
+costs), while a goal's metrics, its *done when* and its verdict are written for them by the keeper and steer nothing;
+and an idea, the thing that does have an end, has none the Board celebrates. A product team works the same way: a team
+for the product, one for the platform, one for the whole flow, each with its own line of goals. So:
+1. **The words move one step**: what the code calls a goal (a track, `pages/tracks/`) is a **party** in what a person
+   reads; what the code calls an idea is a **goal**; a task stays a task. The code, the files, the commands, the keys,
+   the events and the classes keep their names (CLAUDE.md), so Orkline reads the same Board. This reverses §54.8
+   (*a goal stays a goal*) and §47.2's *no idea without a goal* (now: no goal without a party).
+2. **A party has no end**: a team you picked and what it is for (its brief), its checks, its price; no metrics, no *done
+   when*, no progress, no verdict. Nothing accepts it by itself any more; a party's reading no longer asks metrics.
+   Parties are the tabs; a new one is one of yours (§56.6) or made from the library.
+3. **A goal raises its flag when the gate takes it into main** (the person's press, §62.4), or when it is done where
+   there is no gate. Done in dev, it waits for main. The flags of its goals are a party's record; a party's old flag
+   (a verdict met, §55.3 B) stays as history. No backfill.
+4. **A goal is a deck of one element**: a pixel symbol and a muted colour (orkUI's, five: meadow, ice, dust, void,
+   lava) on every card of it, given once, the least used among its party's open goals. Never named in the interface.
+5. **A member's work lies in stacks by phase**: its tasks of one goal at one phase (now, next, later: against the
+   goal's current wave) are one stack of 5:7 cards that spreads on a press; what a task waits for is an arrow on
+   hover (the desktop) or a line on the card (the phone): a card that does not go up shows why.
+6. **The goals list filters the board**: one press shows only that goal's cards, more add to it, *Show all* clears;
+   a goal stays in the list until its flag.
+7. **Quiet at the top**: the party is one line, its goals one line; the details behind a press (*About this party*,
+   the goals' sheet). The phone's project is a sheet of its own from the top bar.
+8. **A tap is never lost to a redraw** (the phone): a redraw waits while a pointer is down, and the holds redraw only
+   what they held back; the tests' retries go.
+9. **New goal draws a blank card**: a face-down pile on the desktop, the FAB's dial on the phone; the card turns over
+   and is filled in.
+A new face and new words over v1's mechanics, two small additions to the host (a goal's flag, its element), and the
+end of a model call (a party's acceptance): the owner's call, before the testers' numbers, as §55, §59, §61 and §62.
+Mockups E and F of *Orkboard: one window*. Spec 50.

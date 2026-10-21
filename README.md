@@ -1,6 +1,6 @@
 # Orkboard
 
-Orkline's Board on its own: a project's goals and ideas, their specs and plans, the agents at work and the results to review, on the desktop and on a paired phone.
+Orkline's Board on its own: a project's parties and their goals, the goals' specs and plans, the agents at work and the results to review, on the desktop and on a paired phone.
 
 Install it from git: `uv tool install 'orkboard[gui] @ git+https://github.com/orkWorks/orkBoard'` (`[gui]` brings the window
 elsewhere than a Mac, where it always comes, and the paired phone's TLS).
