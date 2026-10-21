@@ -26,10 +26,10 @@ page is Preact with orkUI's classes and tokens, the phone is the PWA's plain mod
 
 | part | builds | files (and their tests) |
 |---|---|---|
-| **A0. orkUI** (repository orkWorks/orkUI) | §1 | `office/components.css` (`.ork-gem`, `.ork-stat`, `.ork-crystals`, `.ork-frame`, `.ork-race__head.mid`), `office/preview.html` (a section each), `office/tokens.json` and `pyproject.toml` (version 0.2.0; `tokens.css` rebuilt by `tools/build_tokens.py`), `CHANGELOG.md`, `README.md` (the components line); `tests/test_orkui.py`. Then, in orkBoard, the copy: `python -m orkboard.design.orkui <orkUI>` (only `design-system/orkui/` changes) |
+| **A0. orkUI** (repository orkWorks/orkUI) | §1 | `office/components.css` (`.ork-gem`, `.ork-stat`, `.ork-crystals`, `.ork-frame`, `.ork-race__head.mid`, `.ork-mark`), new `office/marks/` (the tools' marks and the level's chevrons, from Orkline, with a README), `office/preview.html` (a section each), `office/tokens.json` and `pyproject.toml` (version 0.2.0; `tokens.css` rebuilt by `tools/build_tokens.py`), `CHANGELOG.md`, `README.md` (the components line); `tests/test_orkui.py`. Then, in orkBoard, the copy: `python -m orkboard.design.orkui <orkUI>` (only `design-system/orkui/` changes) |
 | **A. Backend** | §2 | new `realm/idea_gate.py` (what dev holds that main lacks; the merge), new `gui/ideas_gate.py` (`ideas.gate`, `ideas.gate_merge`), new `realm/board_today.py` (today's events as rows, pure), `gui/ideas_recap.py` (`ideas.today`), `gui/ideas.py` (the registry; the snapshot's `reserve`; `OPENED`, `VIA`), `gui/ideas_args.py` (`_via`), `gui/board_host.py` (the phone's snapshot carries `reserve`), `realm/board_map.py` (a task's `error`, `note`, `round`, `cost`, `started`; a node's `asked[].pick`, `why`), `gui/ideas_roles.py` (each role's `harness`), `realm/event_log.py` (`GATE_MERGED`), `realm/lexicon.py` (`gate`); new `tests/test_idea_gate.py`, new `tests/test_board_today.py`, `tests/test_board_map.py`, `tests/test_gui_ideas.py`, `tests/test_event_log.py` |
 | **B. Desktop** | §3–§9, §11 | new `js/arena/` (`arena.js`, `goaltabs.js`, `planning.js`, `ideabar.js`, `field.js`, `waits.js`, `members.js`, `stops.js`, `limits.js`, `todaystrip.js`, `gate.js`, `arenawords.js` (the pure words and lists), `arena.css`), `js/shell/shell.js`, `js/shell/store.js`, `js/shell/tabs.js`, `js/shell/preview.js`, `js/shell/topbar.js`, `js/shell/shell.css`, `js/board/board.css` (only what the Map's removal frees); new `tests/test_arena_desktop_browser.py`, `tests/test_shell_browser.py`, `tests/test_map_desktop_browser.py`, `tests/test_board_browser.py`, `tests/test_design_system.py` (`SHEETS` gains `arena.css`), and the desktop browser tests that use the old helpers (§12) |
-| **C. Phone** | §10, §11 | `pwa/board.js` (no tab bar), new `pwa/shell-arena.js` (the goal's window), new `pwa/shell-stops.js` (what waits for you, the raised one), new `pwa/shell-today.js` (the Today and the tools sheets), `pwa/shell-top.js`, `pwa/shell-board.js`, `pwa/shell-map.js` and `pwa/shell-map-idea.js` (kept only for what the arena reuses), `pwa/shell-needs.js` (its rows' actions reused), `pwa/shell-drawer.js` (the menu gains Agents), `pwa/board-app.js` (`#needs` arrival), `pwa/app.css`, `pwa/sw.js` (`CACHE` one up, the new modules in `SHELL`) with `tests/test_pwa.py`'s pinned version; new `tests/test_pwa_arena_browser.py`, `tests/test_pwa_shell_browser.py` and the phone browser tests that click a tab (§12) |
+| **C. Phone** | §10, §11 | `pwa/board.js` (no tab bar), new `pwa/shell-arena.js` (the goal's window), new `pwa/shell-stops.js` (what waits for you, the raised one), new `pwa/shell-today.js` (the Today and the tools sheets), `pwa/shell-top.js`, `pwa/shell-board.js`, `pwa/shell-map.js` and `pwa/shell-map-idea.js` (kept only for what the arena reuses), `pwa/shell-needs.js` (its rows' actions reused), `pwa/shell-drawer.js` (the menu gains Agents), `pwa/board-app.js` (`#needs` arrival), `gui/pwa.py` (serves orkUI's `marks/*.png` as it serves `races/`), `pwa/app.css`, `pwa/sw.js` (`CACHE` one up, the new modules in `SHELL`) with `tests/test_pwa.py`'s pinned version; new `tests/test_pwa_arena_browser.py`, `tests/test_pwa_shell_browser.py` and the phone browser tests that click a tab (§12) |
 
 ## 0. The words
 - Today's words stay: *goal*, *idea*, *task*, *plan*, *check*, *party*, *leader*, *Planning*, *Implementation*,
@@ -65,6 +65,11 @@ gallery, listed in the README and the CHANGELOG (**0.2.0**):
    named it and it was never written): `.alert`, `.danger` its edge in those colours.
 5. **`.ork-race__head.mid`**: a head at 36 × 33 from the @2x image (`image-rendering: pixelated`), between the small (12
    × 11) and the big (48 × 44).
+6. **The marks** (`office/marks/`, the owner's call: small accents beside a name, like the heads): each AI tool's mark
+   (`harness-claude`, `-codex`, `-agy`, `-cursor`, `-hermes`, `-pi`, `-pipeline`) and the level's chevrons (`rank-1`,
+   `-2`, `-3`: Novice, Seasoned, Veteran), 16 × 16 and @2x 32 × 32, copied byte for byte from Orkline
+   (`design-system/sprites/icons/`, drawn by its `tools/icon_sprites.py`; its README names the commit); **`.ork-mark`**
+   draws one at 16 × 16 from the @2x (`.big` 32 × 32), pixelated. A change to a mark is made in Orkline and copied whole.
 Tests: each class exists with its states; no raw colour; the gallery has a section for each. Version 0.2.0 in
 `pyproject.toml` and `tokens.json`; `tokens.css` built again. Then orkBoard's copy is made with
 `python -m orkboard.design.orkui <path of orkUI>` once orkUI's commit is pushed (the stamp names it).
@@ -190,18 +195,21 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    *6/2*, checks and of them caught something; the leader's *6/1*, plans and of them made again) and **its price for a
    run** (*$0.38*: the week's average once 3 have finished, `usd_task`; before, *≈$0.40*, its level's price), each with a
    tooltip that says which (*the average of its 5 runs this week* · *about: too few runs yet, the price of its level*, both
-   *at API prices, not your bill*). Under them: its name, **its harness and level** (*Claude · Veteran*: §2.5 and the
-   head's tier in today's words), its state in words (the alert colour for a stop, spec 48 §6), and (desktop) what it does
-   now (*↻ Challenge store · 4 min*, *✗ <task>*, *next: <task>*, *n in Review*). Numbers come from `ideas.agents` joined
-   by slug (`week`, `check_week`, `usd_task`, `max_parallel`, the chips); the Taskmaster's price is the plans' (*—*
-   when it has none).
+   *at API prices, not your bill*). Under them: its name **between two marks** (§1.6): its harness's on the left (§2.5:
+   `marks/harness-<id>.png`, tooltip *Runs on Claude*) and its level's chevrons on the right (the head's tier:
+   `rank-1` Novice, `rank-2` Seasoned, `rank-3` Veteran; tooltip *Seasoned: its level*), no line of words for them; its
+   state in words (the alert colour for a stop, spec 48 §6), and (desktop) what it does now (*↻ Challenge store · 4
+   min*, *✗ <task>*, *next: <task>*, *n in Review*). Its label for a screen reader says all of it in words. Numbers come
+   from `ideas.agents` joined by slug (`week`, `check_week`, `usd_task`, `max_parallel`, the chips); the Taskmaster's
+   price is the plans' (*—* when it has none).
 3. **Its peek**: hovering or focusing a member shows its whole face beside it (a larger framed card, `aria-hidden`,
    nothing in it pressable): the price in a gem with *a run*, its band, the head, the name, *race · harness · level ·
    model · k of n at once*, its state, now and next, *Takes: …* (*Checks: …*, *Leads: …*), and the two numbers in
-   `.ork-stat`s with their words. A click on a member shows **only its work** (solo): the field holds only its open
-   tasks, grouped by idea, the groups with a stop first, each group titled with the idea and its stage; the right
-   column only its results (*· only <name>'s*); **Show everyone's work** (and a second click, and Esc) shows all again.
-   The leader's solo shows Planning's items as task-sized items.
+   `.ork-stat`s with their words. A click on a member shows **only its work** (solo): **nothing is reordered**: the
+   other members' tasks leave the field, and its own, in its column's order, lie **across the field's whole width**,
+   still rising bottom-up (six to a row on the desktop instead of two; the bottom row lit, the rows above muted); *Only
+   <name>'s tasks n* over them; the right column only its results (*· only <name>'s*); **Show everyone's work** (and a
+   second click, and Esc) shows all again. The leader's solo lays Planning's items out the same way.
 4. **The columns**: one per member of the row, the label *Implementation* over the first builder and *Checking* over the
    first checker. A column holds its member's open tasks of the goal's ideas at work, **rising bottom-up** from the
    member, two to a row: the one at work nearest the member, then failed, *in Review*, ready, waiting, held. **The
@@ -296,8 +304,9 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
    now** and **+ New idea** in it), Implementation the builders' and their free seats, Checking the checkers' and theirs.
    The first shown is Implementation when a builder has an open task, else Checking when a checker has, else Planning;
    another goal starts at its own first. With up to three members the columns share the width (no sideways scroll);
-   more scroll sideways. The members stand at the foot of their columns (§5.2's card without *now*, 124 px row), the
-   free seats after them; a tap on a member shows only its work over the field (its head, *Everyone*).
+   more scroll sideways. The members stand at the foot of their columns (§5.2's card without *now*, a 108 px row), the
+   free seats after them; a tap on a member shows only its work over the field (§5.3: the same order, three to a row
+   across the width, bottom-up; its price and numbers in a line on top; *Everyone*).
 6. **What waits for you** lies along the bottom (56 px, **no line over it**): the stops of §6 and, after them, the
    results to look at (*To look at*, the edge's muted frame), fanned and only their tops showing. A tap **pops** one out:
    it leaps from its place in the fan to a raised sheet above the scrim (≈ 0.34 s in steps, from its turn to upright;
@@ -333,7 +342,7 @@ Orkboard's sheets may set of their own (`tests/test_design_system.py`) gain, wit
 else: stop and write it in §14 first.
 
 ## 13. Tests
-- **A0**: the classes and their states; tokens only; the gallery's sections; the version.
+- **A0**: the classes and their states; tokens only; the gallery's sections; the marks' files, sizes and bytes; the version.
 - **A**: `ideas.gate` on a fixture repository (dev ahead of main by a merged task, `same` when `into` is main, an idea
   listed by its task's commit, one `rev-list` read); `ideas.gate_merge` fast-forward, a merge commit when main moved, a
   conflict refused with main as it was and no worktree left, the push note, the log line, the refusals; `board_today.rows`
@@ -344,14 +353,16 @@ else: stop and write it in §14 first.
   %, the stops' count, the picked one kept after a reload, arrows; Operations); Planning's rows and marks, *New (n)*,
   Process now's command; the ideas bar's line, open list, a press filtering the field, *About this goal* in the
   drawer, Done's words with `ideas.gate`; a member's two numbers and their tooltips (the average and the *≈* before),
-  harness and level, the peek on hover, solo and back (the button, Esc); the columns bottom-up with the bottom row lit
+  its two marks (harness, level) and their tooltips, the peek on hover, solo and back (the same order, across the width,
+  others gone; the button, Esc); the columns bottom-up with the bottom row lit
   and the rows above muted, *✓ k in dev*, the hover's *waits for it*; Waits for your look's buttons and their commands;
   the gate's button, screen and `ideas.gate_merge`; the stops in the fan, a raise on hover and focus, each kind's quick
   answers and their commands' arguments (`via: "hand"`); the strip's marks and a click; the limits' diamonds and the
   hatched reserve; the drawer (opens on a click, tabs, Esc keeps them, Agents and Files in it); below 1 024 px;
   reduced motion; no alert colour on a result.
 - **C** (browser, phone): no tab bar; the top bar's Today and limits sheets; the goal chips and header; the stage
-  switch (the first shown, a press, the counts, the columns shown, no sideways scroll with three); the members' cards;
+  switch (the first shown, a press, the counts, the columns shown, no sideways scroll with three); the members' cards
+  and their marks (`marks/*.png` served); a member's solo (the column's order, three to a row);
   the stops and results along the bottom with no line over them, a tap pops one (the class, none under reduced
   motion), its quick answers' commands, *Open it on its own screen*; `#needs`; 44 px targets; the service worker's
   version and `SHELL`.
