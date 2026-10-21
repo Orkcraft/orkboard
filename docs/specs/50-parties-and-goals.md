@@ -47,8 +47,8 @@ phone is the PWA's plain modules). Where the mockup and this file differ, this f
 | a party's old flag | a goal's verdict that was met (`verdict.json`), kept as history |
 
 - A **party** is a team you picked and what it is for: its leader, its builders and checkers, the checks it holds every
-  goal to, its brief. It has **no end**: no metrics, no *done when*, no progress %, no verdict, no flag of its own. Its
-  record is its goals' flags.
+  goal to, its brief. It has **no end**: no metrics, no *done when*, no progress %, no verdict, no flag of its own. What
+  it shows is a count: **k/n**, its done goals of all its goals (decisions §63.2). Its record is its goals' flags.
 - A **goal** has a *done when* (its spec's), a plan of tasks, and an end: done in dev, it **waits for main**; when the
   gate takes it into main it **raises its flag** (§2.2).
 - New strings, in these words: *Parties* (the tablist), *+ New party*, *New party*, *Edit the party*, *About this
@@ -56,7 +56,7 @@ phone is the PWA's plain modules). Where the mockup and this file differ, this f
   *Before: <its old flag>*, *Goals*, *At work*, *Planning*, *New (n)*, *Waits for main*, *Flags*, *Flags (n)*, *k wait
   for main*, *Show all*, *k of n goals*, *Nothing of these goals*, *now*, *next*, *later*, *Put them back*, *← waits for
   <short>*, *→ n wait for it* (*→ 1 waits for it*), *← waits for the build*, *New goal*, *A blank goal*, *Add the goal*,
-  *Put it back*, *n flags raised* (*1 flag raised*), *<goal> is in main*, *<a>, <b> and k more are in main*, *⚑ n*,
+  *Put it back*, *k/n*, *k of n goals done*, *n flags raised* (*1 flag raised*), *<goal> is in main*, *<a>, <b> and k more are in main*, *⚑ n*,
   *≈$2–4 a goal*, *Projects*, *this one*, *Open on your computer: a tap switches this phone to one.*, *one of yours, or
   from the library*.
 - Every string a person reads that said *idea* says *goal*, and every one that said *goal* (the container) says
@@ -155,7 +155,8 @@ phone is the PWA's plain modules). Where the mockup and this file differ, this f
 ### 2.4 What the faces read
 - `ideas.map`: a node gains `element` and `flag` (the dict or `null`); a goal of the map (a party) gains `flags` (how
   many of its goals have a flag), `waits_main` (its done goals with none) and `brief` (its Description's first
-  paragraph, else its Summary's first line; at most 140 characters).
+  paragraph, else its Summary's first line; at most 140 characters). Its count (§0) is the map's `ideas` (all its
+  goals) and `done` (the done ones), as today: no new field.
 - `ideas.flags {}` gains `goals`: `[{slug, title, short, goal, element, at, tasks, first_time, usd, days}]`, newest
   first, every party's (the faces filter by `goal`); what it returns today stays as it is (the parties' old flags).
 - `ideas.today`: `idea_flagged` is a row: *⚑ <short> is in main*, its `open` `{kind: "idea", slug}`.
@@ -195,8 +196,9 @@ As spec 49 §3 (the regions, their sizes at 1 440 × 900, no page scroll; below 
 (§3.3). The mockup E is the target.
 
 ### 3.1 The party tabs
-Each tab (40 px): the leader's head (orkUI's small head), the party's short name, **⚑ n** (its flags, muted), the
-stops' count (warning) and ↻ while at work; **no meter and no %** (a party has no end), no verdict's flag. *+ New party*
+Each tab (40 px): the leader's head (orkUI's small head), the party's short name, **k/n** (muted: its done goals of
+all its goals, the map's `done` and `ideas`; its tooltip *k of n goals done*), the stops' count (warning) and ↻ while at
+work; **no meter and no %** (a party has no end, only a count), no verdict's flag. *+ New party*
 (outlined) after the tabs opens New party (§3.7); *Merge into …* and Operations as today. The picked party is kept
 (`localStorage`, as the goal was).
 
@@ -305,8 +307,8 @@ The mockup F is the target. As spec 49 §10 with:
    switches as the drawer's projects do today (`projects.use`). The menu keeps Stop all, Spend, Agents and the settings;
    its aria-label *Menu: Stop all, Spend, Agents and settings*; the projects leave it.
 2. **The party chips** (56 px row): the leader's head (20 px), the party's short name, the stops' count, ↻; no %.
-3. **The party bar** (44 px, one line, quiet: faint 12 px text, no title, no second line): *⚑ n*, the party's price a goal
-   (*≈$2–4 a goal*), and **›**; a tap opens **About this party** (a sheet: §3.7's blocks, *Edit the party*, *Save it to
+3. **The party bar** (44 px, one line, quiet: faint 12 px text, no title, no second line): *k of n goals done* (the
+   count, §0), the party's price a goal (*≈$2–4 a goal*), and **›**; a tap opens **About this party** (a sheet: §3.7's blocks, *Edit the party*, *Save it to
    your parties*). At its right the gate, quiet (no green): *dev → main* with its count (ink), its screen as spec 49;
    *main ✓* (disabled) when up to date.
 4. **The goals bar** (44 px, one line, quiet): *⌄ Goals n · k at work · j ask you*; while the filter is on: the picked
@@ -345,7 +347,7 @@ The mockup F is the target. As spec 49 §10 with:
 ## 7. Tests
 - **A0**: §1.5.
 - **A**: §2.7.
-- **B** (browser, desktop): the tabs (*Parties*: head, name, ⚑ n, the stops' count, ↻; no meter); the party line and
+- **B** (browser, desktop): the tabs (*Parties*: head, name, *k/n*, the stops' count, ↻; no meter, no %); the party line and
   About this party's blocks (no Metrics, no Verdict; *Before:* only with a verdict of before); New party's fields and
   `ideas.goal_save`'s arguments; the goals list (At work, Planning, New (n), Flags (n) · k wait for main; a row's pile,
   element, line, mark; a press picks, a second unpicks, hover peeks, *Show all*, Esc); the filter (the field, the
@@ -356,7 +358,7 @@ The mockup F is the target. As spec 49 §10 with:
   the dialog, the element it shows); the flag line (once, its words, ×, its press); every template in today's words
   (`tests/test_gui_wording.py`); no page scroll at 1 440 × 900; below 1 024 px.
 - **C** (browser, phone): the Projects sheet from the top bar and the menu without the projects; the chips (head, no %);
-  the party bar's one line and About this party's sheet; the gate's quiet button; the goals bar and its sheet (picks,
+  the party bar's one line (*k of n goals done*) and About this party's sheet; the gate's quiet button; the goals bar and its sheet (picks,
   *k of n goals*, *Show all*, the filter on the columns, results and stops); the rows by phase, the cards 132 × 185, two
   to a row in Planning and solo; a spread's strip (snap, the dependency lines, Put them back); the dial's three ways and
   New goal's turn (none under reduced motion); the flag line once; **one tap opens** (no retries left in the phone tests;

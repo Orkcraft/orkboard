@@ -713,7 +713,7 @@ for the product, one for the platform, one for the whole flow, each with its own
    the events and the classes keep their names (CLAUDE.md), so Orkline reads the same Board. This reverses §54.8
    (*a goal stays a goal*) and §47.2's *no idea without a goal* (now: no goal without a party).
 2. **A party has no end**: a team you picked and what it is for (its brief), its checks, its price; no metrics, no *done
-   when*, no progress, no verdict. Nothing accepts it by itself any more; a party's reading no longer asks metrics.
+   when*, no progress, no verdict: only a count, its done goals of all its goals (*5/12*). Nothing accepts it by itself any more; a party's reading no longer asks metrics.
    Parties are the tabs; a new one is one of yours (§56.6) or made from the library.
 3. **A goal raises its flag when the gate takes it into main** (the person's press, §62.4), or when it is done where
    there is no gate. Done in dev, it waits for main. The flags of its goals are a party's record; a party's old flag
