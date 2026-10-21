@@ -9,11 +9,10 @@ import { motionOn, measure, play, settle, pulse, makeHolds } from "./shell-motio
 
 const GHOSTS = 3;                                    // tasks that leave with the animation in one refresh; the rest simply go
 const GHOST_MS = 300;                                // a leaving task fades where it stands this long
-const COL_PX = 116, SEAT_PX = 64, GAP_PX = 6, SIDE_PX = 24;    // a member's column (three fit across at 390 px), a free seat's, the gap between, both sides of the field
-const kindWords = { build: "builds", check: "checks" };
+const COL_PX = 116, GAP_PX = 6, SIDE_PX = 24;       // a member's column (three fit across at 390 px), the gap between, both sides of the field
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 
-/** `core`: the board's frame (open, st, draw); `hooks`: {process(), seat()}. Returns {el, draw(model, ui, bands)}. */
+/** `core`: the board's frame (open, st, draw); `hooks`: {process()}. Returns {el, draw(model, ui, bands)}. */
 export function makeField(core, hooks) {
   const st = core.st;
   const el = h("div", { class: "boardwrap" });
@@ -52,11 +51,6 @@ export function makeField(core, hooks) {
     const label = [m.name, m.kit, m.marks.harness?.tip, m.words, m.runsTip, `${m.price} a run`].filter(Boolean).join(", ");
     return h("button", { class: `token${on ? " is-on" : ""}${ui.focus && !on ? " is-dim" : ""}`, type: "button", "aria-pressed": String(on), "data-member": m.slug,
       "aria-label": `${label}. A tap shows only its work.`, onclick: () => { st.focus = on ? "" : m.slug; core.draw(); } }, port, body);
-  }
-
-  function seatCard(band) {
-    return h("button", { class: "token is-free", type: "button", "data-seat": band, title: "A free seat: pick an agent from the library", "aria-label": `A free seat (${kindWords[band]}): edit the party`,
-      onclick: () => hooks.seat() }, h("span", { class: "tport tport--free" }, "+"));
   }
 
   // -- the columns ----------------------------------------------------------------------------------------------------------------------------------------
@@ -158,18 +152,16 @@ export function makeField(core, hooks) {
       const shown = ui.band === "lead" ? [model.lead].filter(Boolean) : ui.band === "build" ? model.build : model.check;
       const rewarded = observe(model, [...model.build, ...model.check], quiet);
       seenUi = uiKey;
-      const free = ui.band === "build" ? model.freeBuild : ui.band === "check" ? model.freeCheck : 0;
       const held = new Set();
       const cols = [...shown.map((m) => {
         const was = old.get(m.slug);
         if (was && m.band !== "lead" && sameUi && holds.held(was)) { held.add(m.slug); return was; }   // under a finger or the focus: it waits
         return m.band === "lead" ? planningStack(model, ui) : memberStack(model, m, ui);
-      }), ...Array.from({ length: free }, () => stack("A free seat", [], "is-free"))];
-      const seats = Array.from({ length: free }, () => seatCard(ui.band));
-      const tpl = [...shown.map(() => "minmax(0, 1fr)"), ...seats.map(() => `${SEAT_PX}px`)];
-      const wide = shown.length * COL_PX + seats.length * SEAT_PX + GAP_PX * Math.max(0, shown.length + seats.length - 1) + SIDE_PX;
+      })];
+      const tpl = shown.map(() => "minmax(0, 1fr)");
+      const wide = shown.length * COL_PX + GAP_PX * Math.max(0, shown.length - 1) + SIDE_PX;
       const grid = h("div", { class: "cgrid" }, ...cols);
-      const row = h("div", { class: "tokens" }, ...shown.map((m) => memberCard(m, ui)), ...seats);
+      const row = h("div", { class: "tokens" }, ...shown.map((m) => memberCard(m, ui)));
       grid.style.setProperty("--cols", tpl.join(" "));
       row.style.setProperty("--cols", tpl.join(" "));
       const inner = h("div", { class: "arena__in" }, grid, row);

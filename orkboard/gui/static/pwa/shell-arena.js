@@ -1,5 +1,5 @@
 // The goal's window on the phone (docs/specs/49-one-window.md §10, decisions §62): the Board is one screen with no tab bar. Under the top bar: the goals as a row of
-// chips (the short title, how far, the stops that wait, ↻ while its party works; Operations; + New goal), the goal's header (its flag with the ideas left, its title,
+// chips (the short title, how far, the stops that wait, ↻ while its party works; Operations), the goal's header (its flag with the ideas left, its title,
 // *k ideas left · n % · ≈$ so far*, the gate's button dev → main), the ideas bar (*▾ n · Now: …*, open: the ideas at work and Done), the stage switch (Planning ·
 // Implementation · Checking) and the field of that stage (shell-arena-field.js). What waits for you lies along the bottom (shell-stops.js). Operations takes the
 // field's place from its chip. The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`,
@@ -34,10 +34,6 @@ export function makeArena(core, ctx, parts) {
     Object.assign(st, { view: OPS_VIEW, focus: "", idea: "", ideasOpen: false });
     core.draw();
   }
-  async function editParty(slug) {
-    const got = await core.call("ideas.goal", { slug });
-    if (got) core.editTeam(got);
-  }
   async function process(model) {
     const next = model.process.next;
     if (!next) return;
@@ -49,7 +45,6 @@ export function makeArena(core, ctx, parts) {
   let current = null;                                         // the model of the goal shown, for the field's hooks
   const field = makeField(core, {
     process: () => current && process(current),
-    seat: () => editParty(st.track),
   });
 
   // -- the goals as chips ------------------------------------------------------------------------------------------------------------------------------
@@ -64,8 +59,7 @@ export function makeArena(core, ctx, parts) {
     const hasOps = st.snap?.ops_rev !== undefined && (!st.ops || (st.ops.templates || []).length || (st.ops.runs || []).length);
     return h("nav", { class: "gchips", "aria-label": "Goals" }, ...list.map(chip),
       hasOps ? h("button", { class: `gchip${st.view === OPS_VIEW ? " is-on" : ""}`, type: "button", "data-goal": OPS_VIEW, "aria-pressed": String(st.view === OPS_VIEW), onclick: pickOps },
-        h("span", { class: "gchip__name" }, "Operations")) : null,
-      h("button", { class: "gchip gchip--new", type: "button", "data-act": "new-goal", onclick: () => goalSheet.open("") }, "+ New goal"));
+        h("span", { class: "gchip__name" }, "Operations")) : null);
   }
 
   // -- the goal's header: its flag, its title and numbers, the gate ------------------------------------------------------------------------------------

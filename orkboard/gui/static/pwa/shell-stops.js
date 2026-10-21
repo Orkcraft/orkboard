@@ -3,7 +3,7 @@
 // fan to a raised sheet above the scrim (in steps, none under reduced motion; its place in the fan stays empty while it is up) with its gem, its kind, its head, its
 // title and text, its quick answers as 44 px buttons and *Open it on its own screen*. A tap on the scrim lays it back. The answers are the commands Needs you had:
 // a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped.
-import { h, icon } from "./util.js";
+import { h } from "./util.js";
 import { midHead, whoHead } from "./shell-who.js";
 import { needsOf, failedOf, looksOf, nodesOf, planPrice } from "./shell-arena-words.js";
 import { resultActions, testsWords, changesWords, foundWords } from "./shell-review.js";
@@ -12,18 +12,20 @@ import { OPS_VIEW } from "./shell-ops.js";
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const KIND = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
   op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
-const CARD = 104, WIDTH = 300;                           // a card's width in the fan, the room it has (the row without the New idea button's corner: it ends 68 px before the edge)
+const CARD = 104, WIDTH = 222;                           // a card's width in the fan, and the room it was drawn for (the row between its two 64 px margins: the count and the create button)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 
-/** `core`: the board's frame; `ctx`: {flash}; `needs`: shell-needs.js (the forms); `ops`: shell-ops.js. Returns {el, sheets, content(), draw(), pop(key)}. */
-export function makeStops(core, ctx, needs, ops) {
+/** `core`: the board's frame; `ctx`: {flash}; `needs`: shell-needs.js (the forms); `ops`: shell-ops.js; `fab`: the create button (shell-dial.js), docked at the row's right margin.
+ *  Returns {el, sheets, content(), draw(), pop(key)}. */
+export function makeStops(core, ctx, needs, ops, fab) {
   const st = core.st;
   const hand = h("div", { class: "hand", role: "group", "aria-label": "Waits for you" });
   const empty = h("p", { class: "cap handzone__empty", hidden: true }, "Nothing waits for you on this goal.");
-  // New idea: the button at the right corner of the row, as the phone has had it (spec 41 §5); the fan keeps clear of it. It works with no signal: the idea is kept (app.js `deliver`).
-  const fab = h("button", { class: "fab", type: "button", "aria-label": "New idea", title: "A new idea for this goal: its leader reads it", onclick: () => core.newIdea() }, icon("plus"));
-  const el = h("section", { class: "handzone", "aria-label": "Waits for you" }, fab, empty, hand);
+  // the row is [count | fan | create button] with two equal 64 px margins, so the fan stays centred on the screen
+  const countN = h("b", {}, "0");
+  const count = h("span", { class: "handcount", hidden: true }, countN, h("span", {}, "for you"));
+  const el = h("section", { class: "handzone", "aria-label": "Waits for you" }, count, fab || null, empty, hand);
 
   // -- the raised one: a modal over the scrim; its place in the fan is empty while it is up ------------------------------------------------------
   const body = h("div", { class: "raised-in" });
@@ -133,7 +135,7 @@ export function makeStops(core, ctx, needs, ops) {
 
   // -- the fan ----------------------------------------------------------------------------------------------------------------------------------------
   /** Turn, rise, order and overlap of the card at `i` of `n`: each turned 3° a step from the middle and 3 px lower a step², the middle ones higher, overlapping so that they all fit
-   *  the room the row has (the New idea button's corner stays clear) and each shows its top. */
+   *  the width the row has and each shows its top. */
   function fan(i, n) {
     const off = i - (n - 1) / 2;
     const ov = n > 1 ? Math.max(8, Math.ceil((n * CARD - WIDTH) / (n - 1) / 2)) : 0;
@@ -198,20 +200,23 @@ export function makeStops(core, ctx, needs, ops) {
   return {
     el,
     sheets: [dlg],
-    /** What is acted on only while the town answers: not New idea. */
+    /** What is acted on only while the town answers: not the create button (New idea is kept with no signal). */
     content: () => [hand, empty, dlg],
     items: () => items,
     pop,
     keys: () => items.map((i) => i.key),
     /** Drawn again only when what the row shows changed: a line half typed in a raised one stays, and the fan does not shift while a stop is popped (spec 49 §11). */
     draw() {
-      fab.hidden = !st.board || Boolean(st.view);                 // a goal's: not Operations'
       items = build();
       const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.text, i.sig])) + st.hand;
       if (sig !== sigs && !dlg.open) {
         sigs = sig;
         hand.replaceChildren(...items.map((it, i) => card(it, i, items.length)));
         empty.hidden = items.length > 0;
+        count.hidden = !items.length;
+        countN.textContent = String(items.length);
+        countN.className = items.some((i) => i.kind !== "look") ? "warn" : "";           // a stop is among them: the alert colour, not only results
+        count.title = `${plural(items.length, "thing")} ${items.length === 1 ? "waits" : "wait"} for you on this goal: a tap on one pops it out`;
       }
       if (st.hand) {
         const at = items.findIndex((i) => i.key === st.hand);

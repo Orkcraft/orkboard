@@ -551,7 +551,6 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .gchip b { font-weight: 600; }
 .gchip__name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 .gchip.is-on { background: var(--ork-raised); color: var(--ork-ink); border-color: var(--ork-edge); box-shadow: inset 0 -2px 0 var(--ork-ink); }
-.gchip--new { border-style: dashed; }
 .gchip:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 
 .ghead { flex: none; display: flex; align-items: center; gap: var(--ork-6); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) dashed var(--ork-frame); }
@@ -610,7 +609,6 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .cgrid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); }
 .stack { min-height: 0; display: flex; flex-direction: column-reverse; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0; overflow-y: auto; scrollbar-width: none; }
 .stack::-webkit-scrollbar { display: none; }
-.stack.is-free { background: repeating-linear-gradient(45deg, var(--ork-frame) 0 1px, transparent 1px 8px); opacity: 0.6; }
 .stack.is-col { background: var(--ork-raised); }
 .stack__empty { flex: none; text-align: center; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
 .stack__done { flex: none; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); }
@@ -669,15 +667,13 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 /* a member: a small framed row filling its column, its head wearing three signs (spec 49 §5.2): the level top-left, the tool bottom-left, its state top-right */
 .token { appearance: none; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; max-width: 100%; min-width: 0; margin: 0 auto;
   padding: 6px 6px 6px 9px; box-sizing: border-box; background: none; border: 0; color: inherit; clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
-.token:not(.is-free) { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
-.token:not(.is-free):hover { border-color: var(--ork-edge); }
+.token { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
+.token:hover { border-color: var(--ork-edge); }
 .token:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .token.is-on { background: var(--ork-raised); border-color: var(--ork-ink); box-shadow: inset 0 2px 0 var(--ork-ink); }
 .token.is-dim { opacity: 0.45; }
-.token.is-free { justify-content: center; padding: 6px; }
 .tport { position: relative; flex: none; width: 36px; height: 33px; }
 .tport > .ork-race__head { display: block; }
-.tport--free { display: flex; align-items: center; justify-content: center; border: var(--ork-line) dashed var(--ork-frame); color: var(--ork-ink-faint); font: 600 16px/16px var(--ork-font-text); box-sizing: border-box; }
 .mark--h { position: absolute; left: -7px; bottom: -5px; }
 .mark--r { position: absolute; left: -7px; top: -7px; }
 .sign { position: absolute; right: -3px; top: -7px; min-width: 16px; height: 16px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 var(--ork-1);
@@ -705,16 +701,22 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .handzone { position: sticky; bottom: 0; flex: none; height: var(--tabs); z-index: 8; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; background: var(--ork-canvas);
   padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; }
 .handzone::-webkit-scrollbar { display: none; }
-.hand { position: absolute; left: 0; right: 68px; top: var(--ork-3); display: flex; justify-content: safe center; pointer-events: none; }
-.handzone__empty { position: absolute; left: 0; right: 68px; top: 18px; margin: 0; text-align: center; }
-.fab { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; right: var(--ork-4); top: var(--ork-2); z-index: 100; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-  clip-path: var(--ork-notch); background: var(--ork-action); color: var(--ork-on-ink); }
+.hand { position: absolute; left: 64px; right: 64px; top: var(--ork-3); display: flex; justify-content: safe center; pointer-events: none; }
+.handzone__empty { position: absolute; left: 64px; right: 64px; top: 18px; margin: 0; text-align: center; }
+.fab { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; right: var(--ork-4); top: var(--ork-2); z-index: 40; width: 48px; height: 48px; display: flex; align-items: center;
+  justify-content: center; clip-path: var(--ork-notch); background: var(--ork-action); color: var(--ork-on-ink); }
 .fab:active { background: var(--ork-action-hi); }
 .fab:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .fab .ork-icon { width: 28px; height: 28px; }
+.handcount { position: absolute; left: var(--ork-4); top: var(--ork-2); width: 48px; height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font: 400 11px/13px var(--ork-font-text); color: var(--ork-ink-muted); }
+.handcount b { font: 600 18px/20px var(--ork-font-text); color: var(--ork-ink); }
+.handcount b.warn { color: var(--ork-alert); }
 .hc { pointer-events: auto; appearance: none; position: relative; flex: none; display: flex; flex-direction: column; align-items: stretch; width: 104px; height: 150px; margin: 0 calc(-1 * var(--ov));
   padding: 5px; box-sizing: border-box; background: var(--ork-panel); border: var(--ork-double) double var(--ork-alert); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left;
   cursor: pointer; z-index: var(--z); transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; font: inherit; }
+.hand .hc:first-child { margin-left: 0; }                           /* the fan never spills onto the margins; a reset of buttons' margins must not undo the overlap */
+.hand .hc:last-child { margin-right: 0; }
 .hc.is-fail { border-color: var(--ork-danger); }
 .hc.is-look { border-color: var(--ork-edge); }
 .hc.is-up { visibility: hidden; }
@@ -750,6 +752,20 @@ dialog.raised-dlg::backdrop { background: var(--ork-scrim); }
 .raised__quick .ork-btn.answer { white-space: normal; text-align: left; justify-content: flex-start; font: 400 14px/18px var(--ork-font-text); padding-top: var(--ork-3); padding-bottom: var(--ork-3); }
 .raised__quick .result-actions { display: flex; flex-direction: column; gap: var(--ork-1); }
 .raised__quick .linkish { align-self: center; }
+
+/* the create dial: three items above the button, over a scrim (shell-dial.js) */
+dialog.dial-dlg { position: fixed; inset: 0; margin: 0; padding: 0; border: 0; width: 100%; height: 100%; max-width: none; max-height: none; background: transparent; color: var(--ork-ink); overflow: visible; }
+dialog.dial-dlg::backdrop { background: var(--ork-scrim); }
+.dial { position: absolute; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: var(--ork-4); }
+.dial .fab { position: static; }
+.dial__item { appearance: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-height: 48px; min-width: 200px; padding: 5px var(--ork-5); box-sizing: border-box;
+  background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: right; font: inherit; cursor: pointer; }
+.dial__item b { font: 500 15px/18px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }
+.dial__item.is-main { border-color: var(--ork-action); }
+.dial__item.is-main b { color: var(--ork-action); }
+.dial__item:disabled { border-style: dashed; border-color: var(--ork-ink-faint); color: var(--ork-ink-faint); cursor: default; }
+.dial__sub { font: 400 12px/15px var(--ork-font-text); color: var(--ork-ink-muted); }
+.dial__item:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 
 /* Today and the tools, the two sheets of the top bar */
 .today-list { display: flex; flex-direction: column; gap: var(--ork-3); }
