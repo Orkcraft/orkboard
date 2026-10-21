@@ -76,14 +76,14 @@ export function makeIdeaField(ctx, text) {
     for (const f of files) {
       try { photos.push(await shrink(f)); } catch { ctx.flash("That photo could not be read: try another."); }
     }
-    if (pick.files?.length > files.length) ctx.flash(`At most ${MAX_PHOTOS} photos go with an idea.`);
+    if (pick.files?.length > files.length) ctx.flash(`At most ${MAX_PHOTOS} photos go with a goal.`);
     drawPhotos();
   });
 
   // -- Speak: the browser's speech to text, put in at the caret as it is heard --------------------------------------
   let rec = null;
-  const speak = h("button", { class: "idea-mic", type: "button", hidden: !Speech, "aria-pressed": "false", "aria-label": "Speak the idea" }, icon("mic"));
-  const rest = () => { speak.replaceChildren(icon("mic")); speak.setAttribute("aria-label", "Speak the idea"); speak.setAttribute("aria-pressed", "false"); speak.classList.remove("is-on"); };
+  const speak = h("button", { class: "idea-mic", type: "button", hidden: !Speech, "aria-pressed": "false", "aria-label": "Speak the goal" }, icon("mic"));
+  const rest = () => { speak.replaceChildren(icon("mic")); speak.setAttribute("aria-label", "Speak the goal"); speak.setAttribute("aria-pressed", "false"); speak.classList.remove("is-on"); };
   function stopSpeaking() { if (rec) rec.stop(); }
   speak.addEventListener("click", () => {
     if (rec) { stopSpeaking(); return; }

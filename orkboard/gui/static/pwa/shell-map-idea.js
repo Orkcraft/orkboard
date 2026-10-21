@@ -6,10 +6,9 @@ export const STAGE_WORDS = Object.fromEntries(STAGES);
 export const NEEDS = { asks: "asks you", plan: "plan ready", todo: "a to-do waits", failed: "failed", proposal: "proposed" };
 export const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "in Review", failed: "needs you", held: "held" };
 const MEMBER_WORDS = { work: "at work", next: "next", tonight: "tonight", free: "free" };
-const SPIN = new Set(["work"]);
 
 /** The stage an idea is in: the host's, else made from its tasks (an older host). */
 export const stageOf = (n) => n.stage || (n.state === "done" ? "done" : (n.tasks || []).length && n.state === "working" ? "implementation" : "planning");
 
-/** A member's state in words: *at work ↻*, *next*, *tonight*, *free*, or the Needs you words (`why`). */
-export const memberWords = (state, why) => (state === "needs" ? NEEDS[why] || "needs you" : `${MEMBER_WORDS[state] || "free"}${SPIN.has(state) ? " ↻" : ""}`);
+/** A member's state in words: *at work*, *next*, *tonight*, *free*, or the Needs you words (`why`); its sign (↻, the clock) is drawn beside them. */
+export const memberWords = (state, why) => (state === "needs" ? NEEDS[why] || "needs you" : MEMBER_WORDS[state] || "free");

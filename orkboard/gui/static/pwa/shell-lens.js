@@ -42,7 +42,7 @@ export function makeLens(core, ctx) {
   const note = h("textarea", { class: "ork-field", rows: "2", maxlength: "1000", "aria-label": "What to change there", placeholder: "What to change there" });
   const chosen = h("p", { class: "muted lens-picked" });
   function drawParts() {
-    chosen.textContent = picked.length ? `Picked: ${picked.join(", ")}` : "Pick the parts the idea changes.";
+    chosen.textContent = picked.length ? `Picked: ${picked.join(", ")}` : "Pick the parts the goal changes.";
     if (!parts) { partList.replaceChildren(h("li", { class: "muted" }, "Reading the repository…")); return; }
     const near = new Set(parts.filter((p) => picked.includes(p.path)).flatMap((p) => [...p.uses, ...p.used_by]));
     const q = filter.value.trim().toLowerCase();

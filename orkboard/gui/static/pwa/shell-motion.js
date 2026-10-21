@@ -1,4 +1,4 @@
-// The phone's motion (docs/specs/49-one-window.md §11): it says what changed, never decorates. Each in steps or a short ease, none under `prefers-reduced-motion`, none on the
+// The phone's motion (docs/specs/49-one-window.md §11, spec 50 §4): it says what changed, never decorates. Each in steps or a short ease, none under `prefers-reduced-motion`, none on the
 // first read of a goal, none for what changed while the page was hidden. Ticking words (*working 4 min*) and counts never move. The pieces the field (shell-arena-field.js)
 // uses: a task that moves in its column or settles into a gap left by one that left slides from where it stood (FLIP: each item's old box measured before the redraw, its new
 // one after, the difference played back); nothing moves under the finger or the focus (a column's redraw waits, at most 10 s); a number that a merge changed shows its new value
@@ -33,16 +33,20 @@ export function play(root, before) {
   }
 }
 
-/** Takes `gone` (items) out of their column and lets the queue behind them step up toward the member into the gap. */
+/** Takes `gone` (stacks that left) out of their columns and lets what lies behind them step up toward the member into the gap: the stacks and the count at the far end (a row by phase that has nothing
+ *  left goes with them). */
 export function settle(gone) {
-  const cols = new Set(gone.map((g) => g.parentElement).filter(Boolean));
+  const cols = new Set(gone.map((g) => g.closest(".stack")).filter(Boolean));
+  const movers = (col) => [...col.querySelectorAll(".deck:not(.is-leaving), .stack__done")];
   const before = new Map();
-  for (const col of cols) for (const el of col.children) before.set(el, el.getBoundingClientRect().top);
+  for (const col of cols) for (const item of movers(col)) before.set(item, item.getBoundingClientRect().top);
+  const rows = new Set(gone.map((g) => g.parentElement));
   for (const g of gone) g.remove();
+  for (const row of rows) if (row?.classList?.contains("phase") && !row.querySelector(".deck")) row.remove();
   for (const col of cols) {
-    for (const el of col.children) {
-      const dy = before.get(el) - el.getBoundingClientRect().top;
-      if (Math.abs(dy) > 1 && el.animate) el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: SLIDE_MS, easing: "ease-out" });
+    for (const item of movers(col)) {
+      const dy = before.get(item) - item.getBoundingClientRect().top;
+      if (Math.abs(dy) > 1 && item.animate) item.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: SLIDE_MS, easing: "ease-out" });
     }
   }
 }

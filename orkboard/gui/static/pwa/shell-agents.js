@@ -37,7 +37,7 @@ export function makeAgents(core) {
     if (role.role === "taskmaster") return [today, w && w.finished >= FEW ? `${w.first_time}/${w.finished} tasks the first time` : ""].filter(Boolean).join(" · ");
     const said = w && w.merged >= FEW ? [w.usd_per_merged == null ? "" : `${money(w.usd_per_merged)} a result`, `${w.first_time}/${w.finished} the first time`] : [];
     const c = role.check_week;       // a checker's check of the last 7 days (spec 43 §4.1)
-    return [today, ...said, c && c.checks > 0 ? `its check: ${c.checks} ${c.checks === 1 ? "idea" : "ideas"}, caught ${c.caught}` : ""].filter(Boolean).join(" · ");
+    return [today, ...said, c && c.checks > 0 ? `its check: ${c.checks} ${c.checks === 1 ? "goal" : "goals"}, caught ${c.caught}` : ""].filter(Boolean).join(" · ");
   }
 
   /** A role in one line (spec 41 §8): its head · its name · ×2 · ≈ $0.40 a task; its words for a screen reader are on the line. */
