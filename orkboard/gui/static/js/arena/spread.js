@@ -6,11 +6,10 @@
 // when its stack is gone. Under the party row: the members' numbers keep updating over it.
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { showResult, showTask } from "../shell/store.js";
 import { reducedMotion } from "./motion.js";
 import { spread, taskHover, taskHoverBy } from "./arenastate.js";
 import { columnOf, depLines, plural, taskFoot } from "./arenawords.js";
-import { CardBody, cardTip, footParts, keyOf, relationOf, stateCls } from "./stacks.js";
+import { CardBody, cardTip, footParts, keyOf, open, relationOf, stateCls } from "./stacks.js";
 
 const DEAL_MS = 300, APART_MS = 35;
 let gather = null;                                  // the open spread's way out (its cards go back first)
@@ -20,8 +19,6 @@ export function closeSpread() {
   if (gather) gather();
   else spread.value = null;
 }
-
-const open = (n, t) => (t.state === "review" ? showResult(n.slug, t.id, { via: "map" }) : showTask(n.slug, t.id, { via: "map" }));
 
 function SpreadView({ sp, members, nodes }) {
   const root = useRef(), closing = useRef(false);

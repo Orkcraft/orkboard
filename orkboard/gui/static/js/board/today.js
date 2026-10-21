@@ -12,10 +12,10 @@ import { Icon, NEED_ICONS } from "../orkui.js";
 import { say, toast } from "../link.js";
 import { board, PRIORITY_WORDS } from "./store.js";
 import { RulesProposal } from "./ops.js";
-import { act as run, showIdea, showPlan } from "../shell/store.js";
+import { act as run, showIdea, showPlan, showPick } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 
-const KIND_WORDS = { goal: "A party asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", proposal: "A proposal", party: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
+const KIND_WORDS = { goal: "A party asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", pick: "Pick one", proposal: "A proposal", party: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
 
 function Proposal({ n }) {
   const g = board.value.tracks.find((t) => t.slug === n.goal);
@@ -77,6 +77,7 @@ function open(n) {
   else if (n.kind === "asks") openDialog("ask", { slug: n.idea, title: n.title });
   else if (n.kind === "todo") openDialog("todo", { idea: n.idea, todo: n.todo });
   else if (n.kind === "plan") showPlan(n.idea, "", { via: "needs" });
+  else if (n.kind === "pick") showPick(n.slug, n.task, { via: "needs" });
   else showIdea(n.idea, { via: "needs" });
 }
 

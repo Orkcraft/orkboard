@@ -383,3 +383,11 @@
 
 /* An agent's record in its dialog (spec 42 §4): read only, in the text face. */
 .shell-record { margin: 0; overflow-wrap: anywhere; }
+
+/* -- the drawer's Pick one (docs/specs/51-pick-one.md §6): its title and ask, the variants large, the note, and at the foot Take B and None of them -- */
+.shell-pickone__head { display: flex; flex-direction: column; gap: var(--ork-1); }
+.shell-pickone__head h2 { margin: 0; font: 600 14px/20px var(--ork-font-text); }
+.shell-pickone__by { display: flex; align-items: center; gap: var(--ork-3); }
+.shell-pickone__ask { margin: 0; font: 400 14px/20px var(--ork-font-text); overflow-wrap: anywhere; }
+.shell-pickone__refused { margin: 0; }
+.shell-pickone__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); }
