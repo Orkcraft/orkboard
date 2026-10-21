@@ -1,8 +1,9 @@
-"""Spec 49 part C, the phone (docs/specs/49-one-window.md §10, §11, "Tests → C"): Chromium at 390 × 844 against the stub of test_pwa_shell_browser.py with
-a Board of one goal, *Sign in with a passkey*, as the mockup draws it: a party of a leader, two builders and two checkers, ideas in each stage, a plan, a
-question, a proposal and a failure waiting, two results to look at. No tab bar; the top bar's Today and limits sheets; the goal chips and header; the stage
-switch; the members' cards and their marks; a member's solo; the stops along the bottom, popped out with their quick answers; `#needs`; 44 px targets. The members stand
-under the stage switch and their tasks run down toward the bottom row (the top row lit); the fan lies across the width; the create button floats over the field."""
+"""Spec 49 part C, the phone (docs/specs/49-one-window.md §10, §11, "Tests → C"; spec 50 §6): Chromium at 390 × 844 against the stub of test_pwa_shell_browser.py with
+a Board of one party, *Sign in with a passkey*, as the mockup draws it: a leader, two builders and two checkers, goals in each stage, a plan, a
+question, a proposal and a failure waiting, two results to look at, two goals done and one of them flagged. No tab bar; the top bar's *where* button and the limits' sheet, Today in the menu; the goals bar with the gate at its right
+(two rows under the top bar: it and the stage switch); the stage switch; the members' cards and their marks; a member's solo; the stops along the bottom, popped out with their quick answers; `#needs`;
+44 px targets. The members stand under the stage switch and their tasks run down toward the bottom row in rows by phase (the top row lit); the fan lies across the width; the create
+button floats over the field. The where sheet, the goals bar's sheet, the stacks, the spread, the create button's deck and the flag line are tests/test_pwa_decks_browser.py's."""
 from __future__ import annotations
 
 import copy
@@ -13,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _band, _called, _dial, _menu, _phone, _pop, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import FAB, NO_SCROLL, WAIT_MS, Stub, _band, _called, _menu, _phone, _pop, _shot, _today, _where  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -32,8 +33,13 @@ WORDS = {"slug": "words", "name": "Words"}
 STAMP = "2026-10-21T10:00:00"
 
 
+ELEMENT = {"register": "meadow", "signin": "ice", "cookie": "dust", "recovery": "void", "second": "dust", "ratelimit": "meadow", "pagewords": "ice", "magic": "lava", "log": "void",
+           "button": "ice", "kept": "meadow"}                                      # a goal's element (spec 50 §2.3): given once, the least used among its party's open goals
+FLAG = {"at": "2026-10-14T16:20:00", "by": "gate", "commit": "abc1234", "tasks": 4, "first_time": 4, "usd": 2.1, "days": 3}
+
+
 def node(slug, title, state, stage, **more):
-    return {"slug": slug, "goal": "passkey", "title": title, "short": title, "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal", "size": "M",
+    return {"slug": slug, "goal": "passkey", "title": title, "short": title, "state": state, "element": ELEMENT.get(slug, ""), "flag": None, "queue": "", "held_until": "", "start_at": "", "priority": "normal", "size": "M",
             "risk": "", "tier": 1, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "", "progress": {"done": 0, "total": 0}, "tasks": [], "estimate": None,
             "by_itself": False, "folded": False, "updated": STAMP, "stage": stage, "round": 1, "usd": None, "plan_estimate": None, "asked": [], "results": [], "checks": [], **more}
 
@@ -84,13 +90,14 @@ def scene():
         node("cookie", "Session cookie flags", "working", "implementation", progress={"done": 0, "total": 2}, usd=0.35,
              tasks=[task("q1", "Secure cookie flags", "failed", BACKEND, 1, error="The session ended without a change: “You changed no file.”"),
                     task("q2", "Sign out everywhere, in Settings", "held", SCREENS, 1, note="reserve · after 18:00")]),
-        node("button", "Passkey button on the sign-in page", "done", "done", folded=True, tasks=[task("b1", "The button", "merged", SCREENS)]),
+        node("button", "Passkey button on the sign-in page", "done", "done", folded=True, tasks=[task("b1", "The button", "merged", SCREENS)], flag=FLAG),
         node("kept", "Where the credentials are kept", "done", "done", folded=True),
     ]
     party = [member(TASKMASTER, "lead", ELDER, "needs", "plan"), member(BACKEND, "build", OWN, "needs", "failed"), member(SCREENS, "build", ELF, "work"),
              member(REVIEWER, "check", ELDER, "work"), member(WORDS, "check", GNOME, "needs", "plan")]
     goal = {"slug": "passkey", "title": "Sign in with a passkey", "short": "Passkey", "priority": "high", "state": "ready", "craft": "engineering", "race": "peon",
             "done_when": ["a person signs in on a phone without a password"], "ideas": 9, "done": 2, "usd": 6.4, "leader": TASKMASTER, "party": party,
+            "brief": "Builds the app: the API, the database and the screens of the sign-in", "flags": 1, "waits_main": 1,
             "today": {"merged": 3, "usd": 1.1}, "team": [{"slug": m["slug"], "name": m["name"], "head": m["head"], "checks": m["band"] == "check", "every": False} for m in party[1:]],
             "verdict": None}
     needs = [
@@ -170,6 +177,28 @@ def _scene(monkeypatch):
     monkeypatch.setattr(Stub, "__init__", new_init)
 
 
+async def _redrawn(stub, page, ms=700):
+    """The Board changed and was read again (`ideas.map` asked once more), and the page had the time to draw it."""
+    before = len([c for c in stub.calls if c[0] == "ideas.map"])
+    stub.bump({})
+    for _ in range(100):
+        if len([c for c in stub.calls if c[0] == "ideas.map"]) > before:
+            break
+        await page.wait_for_timeout(50)
+    await page.wait_for_timeout(ms)
+
+
+async def _redrawn(stub, page, ms=700):
+    """The Board changed and was read again (`ideas.map` asked once more), and the page had the time to draw it."""
+    before = len([c for c in stub.calls if c[0] == "ideas.map"])
+    stub.bump({})
+    for _ in range(100):
+        if len([c for c in stub.calls if c[0] == "ideas.map"]) > before:
+            break
+        await page.wait_for_timeout(50)
+    await page.wait_for_timeout(ms)
+
+
 async def _shot_to(page, name: str) -> None:
     """A screenshot of the window into the folder named by ARENA_SHOTS (a test of the window's look, kept by hand)."""
     if SHOTS:
@@ -177,16 +206,25 @@ async def _shot_to(page, name: str) -> None:
         await page.screenshot(path=str(Path(SHOTS) / f"{name}.png"))
 
 
+async def _about(page):
+    """About this party: the Goals sheet's head says *About Passkey ›* and opens it (spec 50 §6.2)."""
+    await page.locator(".gbar__head").click()
+    await page.get_by_role("dialog", name="Goals").get_by_role("button", name=re.compile("^About ")).click()
+    sheet = page.get_by_role("dialog", name="About this party")
+    await sheet.wait_for(timeout=WAIT_MS)
+    return sheet
+
+
 @pytest.mark.asyncio
 async def test_the_window_is_one_screen_with_no_tab_bar(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.locator(".ghead").wait_for(timeout=WAIT_MS)
+        await page.locator(".gbar").wait_for(timeout=WAIT_MS)
         assert await page.get_by_role("tab", name=re.compile("Board|Agents|Needs you")).count() == 0        # Board, Agents and Needs you are no tabs
         assert await page.locator(".tabs, .tab-bar, nav.tabs").count() == 0
         assert [await t.get_attribute("aria-label") for t in await page.get_by_role("tab").all()][0].startswith("Planning")      # the only tabs are the stage switch's
         bar = page.locator(".board-bar")
-        assert await bar.get_by_role("button", name="Menu").is_visible() and await bar.locator(".board-project").is_visible()
-        assert await bar.locator(".bar-btn.today").is_visible() and await bar.locator(".limit-chip").is_visible()
+        assert await bar.get_by_role("button", name="Menu").is_visible() and await bar.locator(".where").is_visible() and await bar.locator(".limit-chip").is_visible()
+        assert await bar.locator(".today, .bar-btn.today").count() == 0                                          # Today is the menu's
         assert (await bar.bounding_box())["height"] <= 50 and await page.evaluate(NO_SCROLL)                  # one line, no band above it
         await page.wait_for_timeout(600)
         await _shot_to(page, "board-implementation")
@@ -205,17 +243,21 @@ async def test_the_window_is_one_screen_with_no_tab_bar(fake_repo, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_today_lists_the_goals_day_newest_first_a_tap_opens_it_and_done_follows(fake_repo, monkeypatch):
+async def test_today_is_the_menus_item_with_its_count_and_lists_the_partys_day_newest_first_a_tap_opens_it_and_done_follows(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        today = page.locator(".board-bar .bar-btn.today")
-        await today.wait_for(timeout=WAIT_MS)
-        assert await today.locator(".ork-count").inner_text() == "5" and "5 events" in await today.get_attribute("aria-label")
+        await page.locator(".gbar").wait_for(timeout=WAIT_MS)
+        await page.wait_for_timeout(500)
+        today = (await _menu(page)).locator('[data-act="today"]')
+        assert await today.locator(".ork-count").inner_text() == "5" and "5 events" in await today.get_attribute("aria-label")      # the menu's item: a clock, Today, its count
+        assert (await today.inner_text()).split() == ["Today", "5"] and await today.locator(".ork-icon").count() == 1
         await today.click()
+        await page.locator("dialog.drawer").wait_for(state="hidden", timeout=WAIT_MS)                          # the menu is put away; Today's sheet is over the board
         sheet = page.get_by_role("dialog", name="Today")
         await sheet.wait_for(timeout=WAIT_MS)
         rows = sheet.locator(".today-list .hrow")
         assert [" ".join((await r.inner_text()).split()) for r in await rows.all()][:3] == [
-            "✓ Remember this device 12:40 · merged into dev", "↺ Sign-in screen 12:10 · sent back", "✗ Secure cookie flags 11:55 · failed"]       # newest first, a mark and a time each
+            "Remember this device 12:40 · merged into dev", "↺ Sign-in screen 12:10 · sent back", "Secure cookie flags 11:55 · failed"]       # newest first, a mark and a time each
+        assert [await r.locator(".hrow__mark .ork-sign").get_attribute("class") for r in (rows.nth(0), rows.nth(2))] == ["ork-sign check", "ork-sign cross"]     # the marks are orkUI's signs
         assert [await r.get_attribute("data-open") for r in await rows.all()] == ["result", "result", "task", "idea", "gate"]
         assert "Done · 2" in await sheet.locator("h3").text_content()
         assert await sheet.locator(".done-row").count() == 2
@@ -226,42 +268,92 @@ async def test_today_lists_the_goals_day_newest_first_a_tap_opens_it_and_done_fo
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "today", "ref": "", "device": "phone"})              # the sheet opened …
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "task", "ref": "cookie/q1", "device": "phone", "via": "today"})  # … and the row's open, said where it came from
         await page.get_by_role("button", name="Back", exact=True).click()
-        await today.click()
+        await _today(page)
         await rows.nth(4).click()                                                                    # the gate's event opens the gate
-        await page.locator(".screen").get_by_text("dev → main", exact=False).first.wait_for(timeout=WAIT_MS)
+        await page.locator(".screen").get_by_text("dev", exact=False).first.wait_for(timeout=WAIT_MS)
 
 
 @pytest.mark.asyncio
-async def test_the_goal_chips_and_header_say_how_far_what_waits_and_the_gate_opens_and_merges(fake_repo, monkeypatch):
+async def test_the_where_button_says_the_party_and_what_waits_the_goals_bar_has_the_gate_and_the_header_is_two_rows(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        chip = page.locator('.gchip[data-goal="passkey"]')
-        await chip.wait_for(timeout=WAIT_MS)
-        assert await chip.get_attribute("aria-pressed") == "true" and await chip.locator(".ork-count.warning").inner_text() == "4"           # the stops that wait: a plan, a question, a proposal, a failure
-        assert (await chip.get_attribute("aria-label")).startswith("Passkey, ") and "4 stops wait for you" in await chip.get_attribute("aria-label") and "at work" in await chip.get_attribute("aria-label")
-        assert not [t for t in await page.locator(".gchips .gchip").all_inner_texts() if "New goal" in t]
-        head = page.locator(".ghead")
-        assert await head.locator(".ghead__title").inner_text() == "Sign in with a passkey"
-        lines = [await e.inner_text() for e in await head.locator(".ghead__line").all()]
-        assert lines[0].startswith("7 ideas left · ") and "≈$6 so far" in lines[0] and lines[1] == "today 3 merged · ≈$1.10"
-        gate = head.locator(".gate__btn")
-        assert await gate.inner_text() == "dev → main" and await gate.is_enabled() and await head.locator(".gate .cap").inner_text() == "2 wait"
-        assert "2 ideas in dev wait for main" in await gate.get_attribute("title")
+        where = page.locator(".board-bar .where")
+        await where.wait_for(timeout=WAIT_MS)
+        await page.locator(".gbar").wait_for(timeout=WAIT_MS)
+        assert await where.get_attribute("data-goal") == "passkey" and await where.locator(".where__stops").inner_text() == "4"            # the stops that wait: a plan, a question, a proposal, a failure
+        assert await where.locator(".where__other").is_hidden()                                       # no other party: nothing counted after the ⌄
+        label = await where.get_attribute("aria-label")
+        assert label.startswith("Project project, party Passkey, 4 stops wait for you here") and "%" not in label + await where.inner_text()      # a party has no end: no %
+        assert [await where.locator(c).inner_text() for c in (".where__project", ".where__party")] == ["project", "Passkey"]
+        assert [await where.locator(c).evaluate("e => getComputedStyle(e).fontSize + ' ' + getComputedStyle(e).fontWeight") for c in (".where__project", ".where__party")] == ["12px 400", "12px 600"]
+        assert await where.locator(".ork-chev.right").count() == 1 and await where.locator(".ork-chev:not(.right)").count() == 1          # harbor › … ⌄
+        head = where.locator("img.ork-race__head")
+        assert await head.get_attribute("src") == "races/peon-elder.png" and [round((await head.bounding_box())[k]) for k in ("width", "height")] == [20, 18]     # its leader's head, 20 px
+        assert await where.locator(".where__party").evaluate("e => e.scrollWidth <= e.clientWidth") and (await where.bounding_box())["height"] >= 44        # the name is not cut at 390 px
+        bar, menu, limits = [await page.locator(s).bounding_box() for s in (".board-bar", ".board-bar .menu", ".board-bar .limit-chip")]
+        wb = await where.bounding_box()
+        assert wb["x"] >= menu["x"] + menu["width"] and wb["x"] + wb["width"] <= limits["x"] + 1 and await page.evaluate(NO_SCROLL)       # it fits beside the menu and the limits
+        assert await page.locator(".gchips, .gchip, .ghead, .ibar, .pbar").count() == 0                # no chips row, no header, no party bar: the party is in the where button
+        line = page.locator(".gbar")
+        assert " ".join((await line.locator(".gbar__head").inner_text()).split()) == "Goals · 2 of 9 done" and "%" not in await line.inner_text()    # the count of the party's done goals
+        assert (await line.bounding_box())["height"] == 44 and await line.locator(".gbar__quiet").evaluate("e => getComputedStyle(e).fontSize") == "12px"       # one quiet line, 44 px
+        first, second = await line.bounding_box(), await page.locator(".bands").bounding_box()
+        assert round(first["y"]) == round(bar["y"] + bar["height"]) and round(second["y"]) == round(first["y"] + first["height"])           # two rows: the goals bar, the stage switch
+        assert "k at work" not in await line.inner_text() and "ask you" not in await line.inner_text()    # the stage switch's counts say it
+        gate = line.locator(".gbar__gate")
+        assert (await gate.bounding_box())["x"] > (await line.locator(".gbar__head").bounding_box())["x"] + 100                              # the gate at its right
+        assert " ".join((await gate.inner_text()).split()) == "dev main 2" and await gate.locator(".ork-sign.after").count() == 1 and await gate.is_enabled()      # dev → main and its count
+        assert "2 goals in dev wait for main" in await gate.get_attribute("title") and (await gate.get_attribute("aria-label")).startswith("dev → main: 2 goals in dev wait for main")
+        assert await gate.evaluate("e => getComputedStyle(e).backgroundColor") == "rgba(0, 0, 0, 0)" and "primary" not in await gate.get_attribute("class")   # quiet: no green
         await gate.click()                                                                           # its screen, full over the board
         screen = page.locator(".screen")
         await screen.get_by_role("button", name="Merge dev into main").wait_for(timeout=WAIT_MS)
         text = await screen.inner_text()
-        assert " ".join((await screen.locator(".screen-title").inner_text()).split()) == "The gate dev → main"
-        assert "2 ideas in dev wait for main" in text and "Passkey button on the sign-in page" in text and "Nothing reaches main without you." in text
+        assert " ".join((await screen.locator(".screen-title").inner_text()).split()) == "The gate dev main" and await screen.locator(".screen-title .ork-sign.after").count() == 1
+        assert "2 goals in dev wait for main" in text and "Passkey button on the sign-in page" in text and "Nothing reaches main without you." in text
         await screen.get_by_role("button", name="Merge dev into main").click()
         assert await _called(stub, "ideas.gate_merge")
         await page.get_by_role("button", name="Back", exact=True).click()
-        SCENE["gate"] = {"main": "main", "same": False, "commits": 0, "files": 0, "ideas": []}      # main has every idea of dev: the button is off
+        SCENE["gate"] = {"main": "main", "same": False, "commits": 0, "files": 0, "ideas": []}      # main has every goal of dev: the button is off
         stub.bump({})
-        await page.locator(".gate__btn:disabled").wait_for(timeout=WAIT_MS * 2)
-        assert await page.locator(".ghead .gate .cap").inner_text() == "up to date"
+        await page.locator(".gbar__gate:disabled").wait_for(timeout=WAIT_MS * 2)
+        assert " ".join((await page.locator(".gbar__gate").inner_text()).split()) == "main" and await page.locator(".gbar__gate .ork-sign.check").count() == 1       # main ✓
         SCENE["gate"] = {"main": "main", "same": True, "commits": 0, "files": 0, "ideas": []}        # one branch: there is no gate
         stub.bump({})
-        await page.locator(".gate").wait_for(state="detached", timeout=WAIT_MS * 2)
+        await page.locator(".gbar__gate").wait_for(state="detached", timeout=WAIT_MS * 2)
+
+
+@pytest.mark.asyncio
+async def test_about_this_party_is_a_sheet_of_blocks_with_its_flags_and_only_a_verdict_of_before_says_before(fake_repo, monkeypatch):
+    SCENE["map"]["goals"][0]["verdict"] = {"met": True, "by": "Growth", "at": "2026-10-18T10:00:00"}      # a party's old flag: history
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        sheet = await _about(page)
+        assert (await sheet.locator(".party-about__sec").evaluate_all("els => els.map((e) => e.dataset.sec)")) == ["What it is for", "The party", "Checks on every goal", "What it costs", "Its flags"]
+        assert "led by Taskmaster" in await sheet.locator(".party-about__who").inner_text()
+        assert "Builds the app: the API, the database and the screens of the sign-in" in await sheet.locator('[data-sec="What it is for"]').inner_text()
+        party = " ".join((await sheet.locator('[data-sec="The party"]').inner_text()).split())
+        assert "Taskmaster · leads · $0.12 a plan" in party and "Backend · builds · $0.38 a result" in party and "Reviewer · checks · $0.25 a goal" in party
+        checks = " ".join((await sheet.locator('[data-sec="Checks on every goal"]').inner_text()).split())
+        assert "Reviewer checks" in checks and "caught 2/6 lately" in checks and "Words checks" in checks and "idea" not in checks     # the library's words said as the goal's
+        cost = " ".join((await sheet.locator('[data-sec="What it costs"]').inner_text()).split())
+        assert "≈$6.40 so far · today 3 merged · ≈$1.10" in cost and "about $2–6 a goal with this party" in cost
+        flags = sheet.locator('[data-sec="Its flags"]')
+        assert await flags.locator(".ork-sign.flag").count() == 1 and "14 Oct · ≈$2.10 · 4 of 4 first time" in await flags.inner_text()
+        assert "Before: met, says Growth · 18 October" in await sheet.inner_text()                      # only a party with a verdict of before
+        assert await sheet.get_by_role("button", name="Edit the party").is_visible() and await sheet.get_by_role("button", name="Save it to your parties").is_visible()
+        assert await sheet.get_by_role("button", name="Add to the party").is_visible() and "free seat" in await sheet.locator(".party-about__seats").inner_text()   # Add to the party: beside Edit the party
+        assert not re.search(r"Metrics|Verdict|accept", await sheet.inner_text())                       # no metrics, no verdict, no *Ask … to accept*
+        await sheet.get_by_role("button", name="Edit the party").click()                                # Edit the party: its sheet
+        edit = page.get_by_role("dialog", name="Edit the party")
+        await edit.wait_for(timeout=WAIT_MS)
+        await page.keyboard.press("Escape")
+        SCENE["map"]["goals"][0].pop("verdict")
+        await _redrawn(stub, page)
+        sheet = await _about(page)
+        assert "Before:" not in await sheet.inner_text()
+        await sheet.get_by_role("button", name="Save it to your parties").click()                       # the party saved as one of yours
+        await sheet.get_by_label("Name of your party").fill("Tech")
+        await sheet.get_by_role("button", name="Save", exact=True).click()
+        assert await _called(stub, "ideas.party_save", {"goal": "passkey", "name": "Tech"})
 
 
 @pytest.mark.asyncio
@@ -297,20 +389,21 @@ async def test_the_stage_switch_starts_on_the_first_stage_with_work_counts_the_s
 
 
 @pytest.mark.asyncio
-async def test_a_member_is_a_framed_row_three_across_with_three_signs_two_numbers_and_the_marks_are_served(fake_repo, monkeypatch):
-    SCENE["map"]["goals"][0]["party"][2]["state"] = "tonight"                                        # Screens keeps its work for tonight: the moon
+async def test_a_member_is_a_framed_row_in_its_column_with_three_signs_two_numbers_and_the_marks_are_served(fake_repo, monkeypatch):
+    SCENE["map"]["goals"][0]["party"][2]["state"] = "tonight"                                        # Screens keeps its work for tonight: the clock
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".token").first.wait_for(timeout=WAIT_MS)
         await page.wait_for_timeout(300)
         backend, screens = page.locator('.token[data-member="backend"]'), page.locator('.token[data-member="screens"]')
         box = await backend.bounding_box()
-        assert 54 <= box["height"] <= 60 and 176 <= box["width"] <= 182                                      # two columns at 390: half the field
+        assert round(box["height"]) == 54 and 165 <= box["width"] <= 175                                      # two columns at 390 share the field: half of it each, no scroll
         SCENE["map"]["goals"][0]["party"].append(member({"slug": "extra", "name": "Extra"}, "build", OWN))
         stub.bump({})
         await page.locator(".token").nth(2).wait_for(timeout=WAIT_MS * 2)
         third = await page.locator(".token").nth(2).bounding_box()
-        assert 114 <= third["width"] <= 122 and abs(third["height"] - 57) <= 3                         # three across: about 118 × 57
-        assert round((await page.locator(".tokens").first.bounding_box())["height"]) == 66                    # the members' row: 66 px
+        assert 138 <= third["width"] <= 142 and round(third["height"]) == 54                           # three or more: a 148-px column each, one sideways strip (tests/test_pwa_decks_browser.py)
+        pair, stack = await page.locator(".pair").first.bounding_box(), await page.locator(".pair .stack").first.bounding_box()
+        assert round(stack["y"] - pair["y"]) == 74                                                     # the members' row: 74 px with its margins, under which the column runs
         head = backend.locator(".tport")
         hb = await head.bounding_box()
         assert round(hb["width"]) == 36 and round(hb["height"]) == 33 and await head.locator("img.ork-race__head").get_attribute("src") == "races/peon-warrior@2x.png"
@@ -321,13 +414,13 @@ async def test_a_member_is_a_framed_row_three_across_with_three_signs_two_number
         rb, tb, sb = await rank.bounding_box(), await tool.bounding_box(), await sign.bounding_box()
         assert rb["x"] < hb["x"] and rb["y"] < hb["y"] and tb["x"] < hb["x"] and tb["y"] + tb["height"] > hb["y"] + hb["height"] and sb["x"] + sb["width"] > hb["x"] + hb["width"] and sb["y"] < hb["y"]
         assert round(rb["width"]) == 16 and round(tb["width"]) == 16
-        assert await sign.inner_text() == "✗" and "danger" in await sign.get_attribute("class")           # a failure: ✗ on the danger ground
-        assert await screens.locator(".sign svg").count() == 1                                      # tonight: the moon
+        assert await sign.locator(".ork-sign.cross").count() == 1 and "danger" in await sign.get_attribute("class")      # a failure: ✗ on the danger ground
+        assert await screens.locator(".sign .ork-sign.night").count() == 1                         # tonight: the clock
         assert await page.locator('.token[data-member="extra"] .sign').count() == 0                  # free: none
         await _band(page, "lead")
-        assert await page.locator(".token .sign").inner_text() == "!" and "alert" in await page.locator(".token .sign").get_attribute("class")      # any other stop: ! on the alert ground
+        assert await page.locator(".token .sign .ork-sign.alert").count() == 1 and "alert" in await page.locator(".token .sign").get_attribute("class")      # any other stop: ! on the alert ground
         await _band(page, "check")
-        assert await page.locator('.token[data-member="reviewer"] .sign').inner_text() == "↻"      # at work
+        assert await page.locator('.token[data-member="reviewer"] .sign .ork-sign.work').count() == 1      # at work
         await _band(page, "build")
         # its three short lines: the name, its runs and redos (the tasks finished this week and of them sent back), its price for a run
         lines = [await e.inner_text() for e in await backend.locator(".tbody > *").all()]
@@ -339,61 +432,78 @@ async def test_a_member_is_a_framed_row_three_across_with_three_signs_two_number
         for src in ("marks/harness-claude.png", "marks/harness-codex.png", "marks/rank-2.png", "marks/rank-2@2x.png", "marks/rank-3.png"):                    # the phone serves orkUI's marks
             got = await page.evaluate("async (u) => { const r = await fetch(u); return [r.status, r.headers.get('content-type'), (await r.arrayBuffer()).byteLength]; }", src)
             assert got[0] == 200 and got[1] == "image/png" and got[2] > 50, (src, got)
+        for src in ("elements/meadow.svg", "elements/lava.svg", "signs/check.svg", "signs/after.svg"):                                          # … its elements and its signs too, from the page's own origin
+            got = await page.evaluate("async (u) => { const r = await fetch(u); return [r.status, r.headers.get('content-type')]; }", src)
+            assert got == [200, "image/svg+xml"], (src, got)
         assert await page.evaluate("[...document.images].filter((i) => i.src.includes('/marks/')).every((i) => i.complete && i.naturalWidth > 0)")
         assert await page.evaluate(NO_SCROLL)
 
 
 @pytest.mark.asyncio
-async def test_the_members_stand_under_the_stage_switch_and_their_tasks_run_down_the_top_one_lit(fake_repo, monkeypatch):
+async def test_the_members_stand_under_the_stage_switch_and_their_tasks_run_down_in_rows_by_phase_the_top_one_lit(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".token").first.wait_for(timeout=WAIT_MS)
         bands = await page.locator(".bands").bounding_box()
         tokens = await page.locator(".token").first.bounding_box()
         assert 0 <= tokens["y"] - (bands["y"] + bands["height"]) <= 14                                  # the row of members is the first thing under the stage switch
         column = page.locator('.stack[data-column="backend"]')
-        cards = column.locator(".tcard")
-        ys = [(await c.bounding_box())["y"] for c in await cards.all()]
-        assert ys == sorted(ys) and len(ys) >= 3 and ys[0] > tokens["y"] + tokens["height"]                  # running down from the member
-        assert [await c.get_attribute("data-task") for c in await cards.all()] == ["k2", "q1", "k1", "k5"]   # the one at work nearest the member, then failed, then in Review, then waiting
-        classes = [await c.get_attribute("class") for c in await cards.all()]
-        assert "is-later" not in classes[0] and all("is-later" in c for c in classes[1:])                  # the top row is lit, the rows below muted
-        await cards.nth(1).focus()                                                                   # focus lights one again
-        assert await cards.nth(1).evaluate("e => getComputedStyle(e).backgroundColor") != await cards.nth(2).evaluate("e => getComputedStyle(e).backgroundColor")
+        rows = column.locator(".phase")
+        assert [await r.get_attribute("data-phase") for r in await rows.all()] == ["now", "next"]         # a row that has nothing is not drawn (no *later* here)
+        assert [await r.locator(".phase__lbl").text_content() for r in await rows.all()] == ["now", "next"]          # (drawn in capitals, 10 px, faint)
+        assert await page.locator('.stack[data-column="screens"] .phase').evaluate_all("els => els.map((e) => e.dataset.phase)") == ["now", "later"]
+        decks = column.locator(".deck")
+        ys = [(await d.bounding_box())["y"] for d in await decks.all()]
+        assert ys == sorted(ys) and len(ys) == 3 and ys[0] > tokens["y"] + tokens["height"]               # running down from the member
+        assert [await d.get_attribute("data-key") for d in await decks.all()] == ["register|now", "cookie|now", "register|next"]      # one stack a goal, in the Board's order; then the next row
+        assert [await d.get_attribute("data-n") for d in await decks.all()] == ["2", "1", "1"]
+        first = decks.first
+        assert await first.locator(".tcard__name").inner_text() == "Credential table and migration"       # the one at work in front: the one in Review behind it
+        assert await first.locator(".deck__n").inner_text() == "×2" and await first.locator(".deck__edge").count() == 1
+        assert await decks.nth(1).locator(".deck__n").count() == 0 and await decks.nth(1).locator(".deck__edge").count() == 0
+        later = [await r.get_attribute("class") for r in await rows.all()]
+        assert "is-now" in later[0] and "is-next" in later[1]                                              # the top row is lit, the rows after it muted
+        now_bg, next_bg = [await r.locator(".tcard").first.evaluate("e => getComputedStyle(e).backgroundColor") for r in await rows.all()]
+        assert now_bg != next_bg
         done = column.locator(".stack__done")
-        assert await done.inner_text() == "✓ 2 in dev"
+        assert " ".join((await done.inner_text()).split()) == "2 in dev" and await done.locator(".ork-sign.check").count() == 1
         await column.evaluate("e => { e.scrollTop = e.scrollHeight; }")
-        db, cb = await done.bounding_box(), await cards.last.bounding_box()
+        db, cb = await done.bounding_box(), await decks.last.bounding_box()
         assert db["y"] >= cb["y"] + cb["height"] - 1                                                    # *✓ k in dev* at the far end, under the queue
         assert await page.locator('.stack[data-column="screens"] .stack__empty').count() == 0
         assert await page.evaluate(NO_SCROLL)
         await _band(page, "lead")                                                                    # the leader's column: Process now nearest it, then the stops first
         lead = page.locator('.stack[data-column="taskmaster"]')
         first = await lead.locator(".pwr").bounding_box()
-        assert first["y"] <= (await lead.locator(".tcard").first.bounding_box())["y"]
-        assert [await c.get_attribute("data-state") for c in await lead.locator(".tcard").all()][:3] == ["stop", "stop", "stop"]
+        assert first["y"] <= (await lead.locator(".deck").first.bounding_box())["y"]
+        assert [await c.get_attribute("data-state") for c in await lead.locator(".deck").all()][:3] == ["stop", "stop", "stop"]
 
 
 @pytest.mark.asyncio
-async def test_a_members_solo_keeps_its_columns_order_three_to_a_row_from_the_top_under_the_members(fake_repo, monkeypatch):
+async def test_a_members_solo_keeps_its_columns_order_two_to_a_row_centred_from_the_top_under_the_members(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".token").first.wait_for(timeout=WAIT_MS)
-        order = [await c.get_attribute("data-key") for c in await page.locator('.stack[data-column="backend"] .tcard').all()]
+        order = [await c.get_attribute("data-key") for c in await page.locator('.stack[data-column="backend"] .deck').all()]
         await page.locator('.token[data-member="backend"]').click()
         solo = page.locator(".solo")
         await solo.wait_for(timeout=WAIT_MS)
-        assert await solo.get_attribute("aria-label") == "Only Backend’s tasks" and await solo.locator(".solo__head .ork-count").inner_text() == str(len(order))
-        assert [await c.get_attribute("data-key") for c in await solo.locator(".tcard").all()] == order                      # nothing reordered
+        assert await solo.get_attribute("aria-label") == "Only Backend’s tasks" and await solo.locator(".solo__head .ork-count").inner_text() == "4"      # its tasks: a stack of two, two more
+        assert [await c.get_attribute("data-key") for c in await solo.locator(".deck").all()] == order                      # nothing reordered
         assert await page.locator('.token[data-member="screens"]').get_attribute("class") == "token is-dim"                  # the others stand back
-        rows = solo.locator(".srow")
-        assert [await r.locator(".tcard").count() for r in await rows.all()] == [3] * (len(order) // 3) + ([len(order) % 3] if len(order) % 3 else [])
-        first_row = [await c.bounding_box() for c in await rows.first.locator(".tcard").all()]
-        assert len(first_row) == 3 and len({round(b["y"]) for b in first_row}) == 1 and first_row[0]["x"] < first_row[1]["x"] < first_row[2]["x"]      # three to a row
+        rows = solo.locator(".phase")
+        assert [await r.get_attribute("data-phase") for r in await rows.all()] == ["now", "next"]
+        assert ["is-wrap" in await r.get_attribute("class") for r in await rows.all()] == [True, True]
+        first_row = [await c.bounding_box() for c in await rows.first.locator(".deck").all()]
+        assert len(first_row) == 2 and abs(first_row[0]["y"] - first_row[1]["y"]) <= 12 and first_row[0]["x"] < first_row[1]["x"]      # two to a row …
+        gap = round(first_row[1]["x"] - (first_row[0]["x"] + 132))
+        assert 8 <= gap <= 28                                                                          # … 16 px apart (the stack of two keeps room for its edges)
+        mid = (first_row[0]["x"] + first_row[1]["x"] + first_row[1]["width"]) / 2
+        assert abs(mid - 195) <= 14                                                                    # … centred
+        single = await rows.nth(1).locator(".deck").first.bounding_box()
+        assert abs(single["x"] + single["width"] / 2 - 195) <= 14                                      # a lone card is centred
         card = await solo.bounding_box()
-        tokens = await page.locator(".tokens").bounding_box()
-        assert card["y"] >= tokens["y"] + tokens["height"] - 1 and first_row[0]["y"] > card["y"]                              # in the field under the members' row, from the top
-        assert "is-later" not in await rows.first.locator(".tcard").first.get_attribute("class")
-        if await rows.count() > 1:
-            assert (await rows.nth(1).locator(".tcard").first.bounding_box())["y"] > first_row[0]["y"] and "is-later" in await rows.nth(1).locator(".tcard").first.get_attribute("class")
+        column = await page.locator(".pair .stack").first.bounding_box()
+        assert card["y"] >= column["y"] - 1 and first_row[0]["y"] > card["y"]                                                # in the field under the members' row, from the top
+        assert "is-now" in await rows.first.get_attribute("class") and "is-next" in await rows.nth(1).get_attribute("class")
         assert "$0.38 a run" in await solo.locator(".solo__card").inner_text() and "Takes:" in await solo.locator(".solo__card").inner_text()
         await page.locator('.token[data-member="backend"]').click()                                      # a second tap shows everyone again
         await solo.wait_for(state="detached", timeout=WAIT_MS)
@@ -401,8 +511,10 @@ async def test_a_members_solo_keeps_its_columns_order_three_to_a_row_from_the_to
         await solo.wait_for(timeout=WAIT_MS)
         await solo.get_by_role("button", name="Everyone").click()
         await solo.wait_for(state="detached", timeout=WAIT_MS)
-        await _band(page, "lead")                                                                    # the leader's solo lays Planning's items out the same way
+        await _band(page, "lead")                                                                    # the leader's solo lays Planning's goals out the same way: two to a row, centred, 16 px apart
         await page.locator('.token[data-member="taskmaster"]').click()
         lead = page.locator(".solo")
         await lead.wait_for(timeout=WAIT_MS)
-        assert await lead.locator(".srow").first.locator(".tcard").count() == 3 and await page.evaluate(NO_SCROLL)
+        cards = [await c.bounding_box() for c in await lead.locator(".deck").all()]
+        assert len(cards) == 6 and len({round(b["y"]) for b in cards[:2]}) == 1 and round(cards[1]["x"] - (cards[0]["x"] + cards[0]["width"])) == 16
+        assert abs((cards[0]["x"] + cards[1]["x"] + cards[1]["width"]) / 2 - 195) <= 1 and await page.evaluate(NO_SCROLL)

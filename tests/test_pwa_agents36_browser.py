@@ -187,7 +187,7 @@ async def test_a_result_says_what_its_idea_cost_so_far_by_stage(fake_repo, monke
         await (await _pop(page, "To look at: Add the queue")).get_by_role("button", name="Open it on its own screen").click()
         line = page.locator(".screen .spend-line")
         await line.wait_for(timeout=WAIT_MS)
-        assert await line.inner_text() == "This idea so far: ≈$3.10 — goal 0.40 · spec 0.50 · plan 0.20 · work 1.50 · rework 0.50"
+        assert await line.inner_text() == "This goal so far: ≈$3.10 — party 0.40 · spec 0.50 · plan 0.20 · work 1.50 · rework 0.50"
         assert await _called(stub, "ideas.spend", {"idea": "sync"})
         assert (await line.bounding_box())["y"] < (await page.locator(".screen .code").bounding_box())["y"]      # under the title, above the code
         await _shot(page, "phone-result-idea-line-390x844")
@@ -196,7 +196,7 @@ async def test_a_result_says_what_its_idea_cost_so_far_by_stage(fake_repo, monke
         stub.spend = {"usd": None, "unpriced": 3, "tasks": {}, "stages": {"work": {"usd": None}}}          # all unpriced: a dash
         await (await _pop(page, "To look at: Add the queue")).get_by_role("button", name="Open it on its own screen").click()
         await page.locator(".screen .spend-line", has_text="—").wait_for(timeout=WAIT_MS)
-        assert await page.locator(".screen .spend-line").inner_text() == "This idea so far: —"
+        assert await page.locator(".screen .spend-line").inner_text() == "This goal so far: —"
         await page.get_by_role("button", name="Back", exact=True).click()
         stub.spend = None                                                                                  # the host cannot say: no line, the result still opens
         await (await _pop(page, "To look at: Add the queue")).get_by_role("button", name="Open it on its own screen").click()

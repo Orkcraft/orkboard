@@ -433,3 +433,28 @@ first line is the owner's (already written with this spec). A part that needs an
   *Take X out of Y's party?* row (still true). `Leads any goal:` of the Taskmaster's library line is now `Leads any party:`
   (`pwa/shell-arena-words.js` strips the old prefix: C follows) and `KIND_WORDS.goal` of the push is *A party asks* (`js/board/today.js`
   says the old word until B; `tests/test_phone_push.py` allows exactly that one difference meanwhile).
+- **C (the phone).** Built as §6 as the owner's three later changes put it (the *where* button and no chips row, the members as one sideways
+  strip, the face-down deck and two header rows, Today in the menu), with these choices: (1) The *where* sheet (`pwa/shell-where.js`, its
+  *Other projects* block `pwa/shell-projects.js`) lists the project's parties, then **Operations** as a row when the project has any (it needs
+  a door now that no chips row has one; what waits there is counted after the ⌄ like the other parties'), **+ New party**, and the other
+  projects without the shown one, each with what waits (`projects.list` has no count of parties: *2 parties · 1 waits for you* of the mockup
+  is *1 waits for you*). Its title is *Parties*; a pick is kept under `orkcraft.goal` as before and `data-goal` of the button says the party
+  shown. (2) The menu's `aria-label` is *Menu: Stop all, Spend, Agents, Today and settings* (Today moved in, after Agents, with its count); the
+  limits button shows the diamonds alone (the % is in its label, title and sheet: with the leader's head and both counts the party's name
+  was cut at 390 px with it). (3) The header is two rows: the goals bar (*⌄ Goals · 3 of 12 done*, the filter's elements and *Show all*, the
+  gate at its right) and the stage switch; *About Tech ›* is the first line of the Goals sheet and opens About this party, which holds
+  *Edit the party*, **Add to the party** (the seats left said under it) and the price a goal; the flag line stands under the goals bar.
+  (4) The create button is a 48 × 64 deck (`pwa/shell-fab.js`, `shell-dial.js` is gone): its card lifts, turns and grows in 500 ms
+  (`steps(8)`, three keyframes), at once under reduced motion. (5) The strip: a column is 148 px with a gap of 6 and 12 px at the sides, so
+  70 px of the third shows; the line under the members goes on across the gaps; two members or fewer share the width (`.strip.is-few`);
+  a card is 132 × 185 in both. The arena no longer takes its field out of the page to draw it again (that reset the scroll of the strip
+  and of the columns: they are kept now). A swipe on the strip ends its pointer with `pointercancel`, which lets the postponed draw run
+  (§6.9; tested with a touch drag). (6) `board.js` `refresh`: when `ideas.board` or `ideas.map` was not read (a page that starts from what
+  it kept, before its socket opens) the next snapshot reads again; before, a snapshot with the same `ideas_rev` was taken for read and the
+  page stayed on *Not connected to the town*. (7) Tests: the old party-flag tests of `test_pwa_map39_browser.py` (a met goal raised once, its
+  tally, the menu's Flags) are gone with their code (§3.8: a flag is a goal's, in the flag line, the Goals sheet and About this party;
+  `test_pwa_decks_browser.py`); `test_pwa_decks_browser.py` holds the new window (the where sheet, the goals bar and its sheet, the
+  filter, the stacks, the spread, the strip, the deck, the flag line, 44 px targets, no lost tap) and the arena, stops and motion files
+  follow it; `test_pwa_shell_browser.py` has `_where`, `_new_goal` (New party), `_new_idea` (New goal), `_open_party` (the party's own screen
+  by the Goals sheet and About this party), `_open_task` (a stack's spread, then the card) and `_today`; `test_board_browser.py`'s phone half
+  reads the where button.

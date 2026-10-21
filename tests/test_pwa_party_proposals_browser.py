@@ -52,10 +52,10 @@ async def test_a_checker_s_line_and_sheet_say_its_check(fake_repo, monkeypatch):
         agents = await _agents(page)
         facts = agents.locator(".role[data-slug='reviewer'] .role-facts")
         await facts.wait_for(timeout=WAIT_MS)
-        assert await facts.inner_text() == "its check: 6 ideas, caught 2"
+        assert await facts.inner_text() == "its check: 6 goals, caught 2"
         await agents.get_by_role("button", name="Edit Reviewer").click()
         sheet = page.get_by_role("dialog", name="Edit agent")
-        assert " ".join((await sheet.get_by_label("Its check", exact=True).text_content()).split()) == "Its check, the last 30 days: 14 ideas: 11 clean, caught 3 · ≈$0.35 a check"
+        assert " ".join((await sheet.get_by_label("Its check", exact=True).text_content()).split()) == "Its check, the last 30 days: 14 goals: 11 clean, caught 3 · ≈$0.35 a check"
         await sheet.get_by_role("button", name="Cancel").click()
         stub.record["reviewer"]["check"] = {"checks": 2, "clean": 2, "caught": 0, "left": 0, "usd_per_check": None}
         read = len([c for c in stub.calls if c[0] == "ideas.roles"])
@@ -66,7 +66,7 @@ async def test_a_checker_s_line_and_sheet_say_its_check(fake_repo, monkeypatch):
             await page.wait_for_timeout(100)
         await page.wait_for_timeout(200)
         await agents.get_by_role("button", name="Edit Reviewer").click()
-        assert " ".join((await sheet.get_by_label("Its check", exact=True).text_content()).split()) == "Its check, the last 30 days: 2 ideas: too few to say more"
+        assert " ".join((await sheet.get_by_label("Its check", exact=True).text_content()).split()) == "Its check, the last 30 days: 2 goals: too few to say more"
         await sheet.get_by_role("button", name="Cancel").click()
         await agents.get_by_role("button", name="Edit Grunts").click()
         assert await sheet.get_by_label("Its check", exact=True).is_hidden()
