@@ -1,12 +1,12 @@
-# Spec 49 — One window: the goals as tabs, Planning over its leader, the party at the foot, what waits for you along the bottom
+# Spec 49 — One window: the goals as tabs, the leader over its Planning, the party on top, what waits for you along the bottom
 
 The owner, 21 October (decisions §62). After spec 48 the desktop is still three regions the person moves between (the
 Board's column with its goal select and Needs you, the Map and its tab strip in the centre, Agents under it) and the phone
 is three tabs. The person's day is one question asked many times, *where is my goal, and what waits for me*, and the
 answer is spread over all of them. This spec makes it **one window**: the goals are **tabs** across the top with their
-progress; under the tab, **Planning** runs down the left above the goal's **leader**; the goal's **party** stands along
-the foot, each member's open tasks rising **bottom-up** from it; the results that wait for a look are a column on the
-right; **what waits for you** (plans, questions, proposals, failures) lies along the bottom edge, each with its quick
+progress; under the tab, the goal's **leader** heads the left column over its **Planning**; the goal's **party** stands
+along the top of the field, each member's open tasks **running down** from it toward the person (*you deal the work, the
+party clears it*: decisions §62.9); the results that wait for a look are a column on the right; **what waits for you** (plans, questions, proposals, failures) lies along the bottom edge, each with its quick
 answers; anything opened slides in as a **drawer** from the right. The phone is the same window on one column, with no
 tab bar. **Builds:** Claude · **Review:** full · P1.
 
@@ -146,15 +146,16 @@ From the top, at 1 440 × 900 (the mockup's size), nothing scrolling but the reg
    §9), **Files** (only with projects, the drawer's Files), **Spend ≈$…** (this week's work, as today), **Stop all**,
    the settings. The limits leave the bar for the bottom right (§8).
 2. **The goal tabs** (40 px, §4).
-3. **The main row**: the **today strip** (40 px, §7), the **left column** (248 px: Planning over the leader, §4.3–4.4),
-   and the **goal's field** (the rest): the **ideas bar** (36 px, §4.5), the **party's columns** with the right column
-   **Waits for your look** (312 px, §5.4) beside them, the **party row** (64 px: the members, and the gate in the right
-   312 px, §5.1, §5.5), and the **bottom row** (64 px: what waits for you, §6, and the limits in the right 312 px, §8).
+3. **The main row**: the **today strip** (40 px, §7), the **left column** (248 px: the leader over its Planning,
+   §4.3–4.4), and the **goal's field** (the rest), from the top: the **ideas bar** (36 px, §4.5), the **party row** (64
+   px: the members, and the gate in the right 312 px, §5.1, §5.6), the **party's columns** running down from their
+   members with the right column **Waits for your look** (312 px, §5.5) beside them, and the **bottom row** (64 px: what
+   waits for you, §6, and the limits in the right 312 px, §8).
 4. **The drawer** (§9) over the field from the right.
 Below 1 024 px: the today strip is hidden, the left column is 200 px, the results join the bottom row (as on the phone,
 §10.6), the drawer takes the window's width and the party's columns scroll sideways. The page's names: the parts are
 `arena-*` classes; the regions are landmarks in this order: the goal tabs (a `tablist` named *Goals*), *Today*,
-*Planning*, the field (*The goal at work*), *Waits for your look*, the party, *Waits for you*, the limits.
+the leader, *Planning*, the party, the field (*The goal at work*), *Waits for your look*, *Waits for you*, the limits.
 
 ## 4. The goal: its tabs, Planning, its leader, its ideas (B)
 1. **A tab per goal** (`ideas.map`'s goals, the Board's order), each: the flag mark, the goal's short title, a meter
@@ -175,7 +176,7 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    Next: …*); a click on an idea shows only its tasks in the field and its results on the right (pressed; a second
    click shows all); hovering it lights its tasks. **Done (n)** folds the done ideas, each *in dev · waits for main*, or
    *in main* when `ideas.gate` no longer lists it.
-3. **Planning** (the left column's top): *Planning n* and **+ New idea** (`.ork-btn.primary`, the action colour, as the
+3. **Planning** (the left column, under the leader): *Planning n* and **+ New idea** (`.ork-btn.primary`, the action colour, as the
    phone's FAB; `openDialog("idea", {goal})`); the goal's
    ideas in stage `planning` that are not `raw`, the stops first: each a plain row (no frame, no head): a mark (**!** in
    the alert colour for a stop: `asks`, `plan`, `proposed`; ↻ while the leader reads or plans; none else), its title, its
@@ -183,7 +184,7 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    stop has the alert edge on its left (2 px). A click opens it in the drawer (the plan's screen for a plan, else the
    idea's). Under them **New (n)** folds the `raw` ideas (*new · <leader> reads it later*, or *tonight*). Empty:
    *Nothing in Planning. A new idea starts here.*
-4. **The leader** (the left column's foot): the leader as a member (§5.2, the same small row), and **Process
+4. **The leader** (the left column's top, over its Planning): the leader as a member (§5.2, the same small row), and **Process
    now · n new ideas** (`ideas.queue {slug, queue: "now", via: "party"}` for the goal's first `raw` idea; off with *no
    new idea*; its tooltip *<leader> reads “<title>” now*). A click on the leader shows only the leader's work (§5.3).
 
@@ -212,15 +213,16 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    model · k of n at once*, its state, now and next, *Takes: …* (*Checks: …*, *Leads: …*), and the two numbers in
    `.ork-stat`s with their words. A click on a member shows **only its work** (solo): **nothing is reordered**: the
    other members' tasks leave the field, and its own, in its column's order, lie **across the field's whole width**,
-   still rising bottom-up (six to a row on the desktop instead of two; the bottom row lit, the rows above muted); *Only
+   still running down from the member (six to a row on the desktop instead of two; the top row lit, the rows below
+   muted); *Only
    <name>'s tasks n* over them; the right column only its results (*· only <name>'s*); **Show everyone's work** (and a
    second click, and Esc) shows all again. The leader's solo lays Planning's items out the same way.
 4. **The columns**: one per member of the row, the label *Implementation* over the first builder and *Checking* over the
-   first checker. A column holds its member's open tasks of the goal's ideas at work, **rising bottom-up** from the
-   member, two to a row: the one at work nearest the member, then failed, *in Review*, ready, waiting, held. **The
-   bottom row is lit; the rows above are muted** (`--ork-canvas` ground, muted ink; hover and focus light one again):
-   what is taken next is what is bright. A column scrolls inside itself; its top says *✓ k in dev* for its merged
-   tasks; empty, *No task now*. **A task** is a small framed item 112 px high: its wave (a badge and *wave*), a mark (↻,
+   first checker. A column holds its member's open tasks of the goal's ideas at work, **running down** from the member
+   (the party row above it), two to a row: the one at work nearest the member, then failed, *in Review*, ready,
+   waiting, held. **The top row, against the member, is lit; the rows below are muted** (`--ork-canvas` ground, muted
+   ink; hover and focus light one again): what the member is on is what is bright, the queue below it. A column
+   scrolls inside itself; its far end (the bottom) says *✓ k in dev* for its merged tasks; empty, *No task now*. **A task** is a small framed item 112 px high: its wave (a badge and *wave*), a mark (↻,
    ✗, the clock for a hold), its idea's title (one faint line), its name (three lines at most), its state in words (spec
    48's: *working 4 min*, *in Review* in muted ink, *after k1*, *tonight · after 01:00*, *failed* with the error in its
    tooltip). A click opens it in the drawer (*in Review*: its result; else the task's screen; `via: "map"`). **Hovering
@@ -233,7 +235,7 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    confirmation). Empty: *Nothing waits for your look. Results come here as their tasks finish.* A result is not a
    signal (decisions §54.1): no alert colour here. At the column's top, *While you were away* and *Last week* (`Cards`,
    as the Map's top had them); at its foot the Flags fold and *Last week* (`MapFoot`).
-6. **The gate** (§2.1), beside the party row: **Merge dev into main** (the primary button) and *n ideas in dev wait for
+6. **The gate** (§2.1), at the right end of the party row, over *Waits for your look*: **Merge dev into main** (the primary button) and *n ideas in dev wait for
    main*; *main is up to date* (off) when nothing waits; not drawn when `same`. A press opens the gate's screen in the
    drawer: *dev → main*, *n ideas in dev wait for main*, the ideas listed under *In dev, not in main* with their goals,
    the commits and files counts, **Merge dev into main** (`ideas.gate_merge`), and *Nothing reaches main without you.*
@@ -309,20 +311,21 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
    now** in it), Implementation the builders', Checking the checkers'.
    The first shown is Implementation when a builder has an open task, else Checking when a checker has, else Planning;
    another goal starts at its own first. With up to three members the columns share the width (no sideways scroll);
-   more scroll sideways. The members stand at the foot of their columns (§5.2's row, a 60 px row: three fit across); a tap on a member shows only its work over the field (§5.3: the same order, three to a row
-   across the width, bottom-up; its price and numbers in a line on top; *Everyone*).
+   more scroll sideways. The members stand **at the top of their columns**, under the stage switch (§5.2's row, a 60 px
+   row: three fit across), their tasks running down toward the bottom row; a tap on a member shows only its work in the
+   field under the members' row (§5.3: the same order, three to a row across the width, from the top; its price and
+   numbers in a line on top; *Everyone*).
 6. **What waits for you** lies along the bottom (56 px, **no line over it**): the stops of §6 and, after them, the
-   results to look at (*To look at*, the edge's muted frame), fanned and only their tops showing, **centred on the
-   screen between two equal 64 px margins**: on the left the count of what waits for you (*6 / for you*, in the alert
-   colour while a stop is among them), on the right **the FAB** (the phone's FAB of before, a 48 px square in the action
-   colour with *+*, docked in this row, above the fan in stacking order). The fan's items overlap so that they fit
-   between the margins (each turned 3° a step from the middle and 3 px lower a step²; the first and the last keep no
-   outer negative margin; a reset of buttons' margins must not undo the overlap). Nothing floats over the field: every
-   column's tasks rest on their member. A tap on the FAB opens **its three ways** above it over a scrim, the FAB turning
-   to ×: **New idea** (nearest the thumb, in the action colour: *for <goal>*, today's new idea sheet, `ideas.fab`),
-   **New goal** (*its title, what done means, its party*: today's new goal sheet) and **Add to the party** (*n free seats
-   in this party*, or *the party is full: change a member*: the goal's party, as Edit the party). Each is 48 px high; a
-   tap on the scrim or × closes them. A tap **pops** one out:
+   results to look at (*To look at*, the edge's muted frame), fanned **across the whole width**, centred, and only their
+   tops showing (the items overlap so that they fit, each turned 3° a step from the middle and 3 px lower a step²; the
+   first and the last keep no outer negative margin; a reset of buttons' margins must not undo the overlap). **The FAB
+   creates** (the phone's FAB of before, a 48 px square in the action colour with *+*): it floats over the field's
+   bottom right, 10 px above the bottom row, over everything: there the queues end (§10.5), and the right column and a
+   member's solo keep 64 px of room at their far end so that it covers no task. A tap opens **its three ways** above it
+   over a scrim, the FAB turning to ×: **New idea** (nearest the thumb, in the action colour: *for <goal>*, today's new
+   idea sheet, `ideas.fab`), **New goal** (*its title, what done means, its party*: today's new goal sheet) and **Add to
+   the party** (*n free seats in this party*, or *the party is full: change a member*: the goal's party, as Edit the
+   party). Each is 48 px high; a tap on the scrim or × closes them. A tap **pops** one out:
    it leaps from its place in the fan to a raised sheet above the scrim (≈ 0.34 s in steps, from its turn to upright;
    none under `prefers-reduced-motion`; its place in the fan stays empty while it is up): its gem, kind, head, title,
    text, its quick answers as 44 px buttons (§6.2's; a result's *Merge into dev* · *Send back* · *Drop…*) and **Open it
@@ -335,9 +338,11 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
 Motion says what changed, never decorates (decisions §62.8). Each in steps (the pixel look), none under
 `prefers-reduced-motion` (decisions §55.2), none on the first read of a goal, none for what changed while the page was
 hidden (`document.hidden`: *While you were away* tells it). Ticking words (*working 4 min*) and counts never move.
-1. **A task appears**: a task the field did not have a moment ago rises into its column (≤ 0.36 s).
+1. **A task appears**: a task the field did not have a moment ago rises into its place in its column from below, the
+   side of the person who dealt it (≤ 0.36 s).
 2. **A task leaves** (merged or dropped): its item fades where it stands with a one-frame ✓ (✗ for a drop), ≈ 0.3 s;
-   then **its column settles**: the items it held up slide down into the gap (≈ 0.25 s, ease-out, no bounce). Several
+   then **its column settles**: the queue behind it steps up toward the member into the gap (≈ 0.25 s, ease-out, no
+   bounce). Several
    in one refresh move together; the first three animate, the rest simply go (spec 48 §4.7's `useLeaving`, whose
    ghost rising up is replaced by this).
 3. **A task moves in its column** (its state changed its place: finished → *in Review*, sent back, failed): it and the
@@ -382,8 +387,8 @@ else: stop and write it in §14 (as built) first.
   Process now's command; the ideas bar's line, open list, a press filtering the field, *About this goal* in the
   drawer, Done's words with `ideas.gate`; a member's row (≈ 45 px high) with its two numbers and their tooltips (the
   average and the *≈* before), its three signs on the head (harness, level, the state: ✗ for a failure) and their tooltips, the peek on hover, solo and back (the same order, across the width,
-  others gone; the button, Esc); the columns bottom-up with the bottom row lit
-  and the rows above muted, *✓ k in dev*, the hover's *waits for it*; Waits for your look's buttons and their commands;
+  others gone; the button, Esc); the party row over the columns, the columns running down with the top row lit
+  and the rows below muted, *✓ k in dev*, the hover's *waits for it*; Waits for your look's buttons and their commands;
   the gate's button, screen and `ideas.gate_merge`; the stops in the fan, a raise on hover and focus, each kind's quick
   answers and their commands' arguments (`via: "hand"`); the strip's marks and a click; the limits' diamonds and the
   hatched reserve; the drawer (opens on a click, tabs, Esc keeps them, Agents and Files in it); below 1 024 px;
@@ -391,8 +396,8 @@ else: stop and write it in §14 (as built) first.
 - **C** (browser, phone): no tab bar; the top bar's Today and limits sheets; the goal chips and header; the stage
   switch (the first shown, a press, the counts, the columns shown, no sideways scroll with three); the members' cards
   (three across at 390 px, their signs; `marks/*.png` served); a member's solo (the column's order, three to a row);
-  the FAB docked in the bottom row, the count on its left, the fan centred between them and touching neither (3, 6, 8,
-  10 items), every column resting on its member; the FAB's three ways and their sheets;
+  the members under the stage switch and their tasks running down; the fan across the width, centred, inside the screen
+  (3, 6, 8, 10 items); the FAB over the field's bottom right covering no task; its three ways and their sheets;
   the stops and results along the bottom with no line over them, a tap pops one (the class, none under reduced
   motion), its quick answers' commands, *Open it on its own screen*; `#needs`; 44 px targets; the service worker's
   version and `SHELL`.

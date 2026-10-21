@@ -658,10 +658,10 @@ spec 48 the person still moves between three regions (the Board's column with Ne
 Agents) to answer one question asked all day: *where is my goal, and what waits for me*. The owner and the PM drew it as
 an interactive mockup (Design artifact *Orkboard: one window*: B, the desktop, and D, the phone; A, waves as columns,
 was turned down; C lists what was taken from the game). So:
-1. **One window.** The goals are tabs with their progress and their stops' count; under the tab, Planning runs down the
-   left above the goal's leader; the party stands along the foot, each member's open tasks rising bottom-up from it,
-   the bottom row lit and the rows above muted (what is taken next is what is bright); the results that wait for a look
-   are a column on the right; what waits for the person lies along the bottom with its quick answers; anything opened
+1. **One window.** The goals are tabs with their progress and their stops' count; under the tab, the leader heads
+   the left column over its Planning; the party stands along the top of the field, each member's open tasks running
+   down from it, the top row lit and the rows below muted (what a member is on is what is bright; item 9); the
+   results that wait for a look are a column on the right; what waits for the person lies along the bottom with its quick answers; anything opened
    slides in as a drawer from the right, its tabs kept. The Agents pane, the Board's column and Needs you's list go as
    regions (the pool by agent and the files open in the drawer). The phone is the same on one column with no tab bar: a
    stage switch (Planning · Implementation · Checking) shows one stage's columns at a time, and a tap pops a stop out
@@ -692,5 +692,11 @@ was turned down; C lists what was taken from the game). So:
 8. **Motion says what changed, never decorates**: a task that leaves fades where it stands and its column settles
    into the gap, a task whose state moves it slides to its place, nothing moves under the pointer or the focus, a merge
    lights its member's number once; nothing flies, nothing bounces, none for what changed while the page was hidden.
+9. **The party on top, the work running down to you** (the owner, on the flipped mockup): the members stand along the
+   top of the field, each one's tasks queue down from it, what waits for the person lies along the bottom. You deal the
+   work (a plan started, a question answered, a new idea), the party clears it (the front task is the one a member is
+   on, a merged one fades and the queue steps up), and what it brings comes down to you. Read top-down, as the eye
+   does: what is happening now first. The game's look stays in the hand, the prices, the gate and the diamonds; the
+   words stay plain (§56).
 A new face over v1's mechanics and the gate decided in §49.5: the owner's call, before the testers' numbers, as §55,
 §59 and §61. Spec 49.
