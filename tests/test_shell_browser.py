@@ -1,5 +1,5 @@
 """The v1 shell on the desktop (docs/specs/33-v1-shell.md §6–§7), in a real browser at 1 440 × 900 against a stub host that
-answers the §5 commands: Board on the left, Review on the right, the preview in the centre and Agents under it as VS Code's
+answers the §5 commands: the Board on the left, the preview in the centre (the Map: its ideas carry their results, spec 48) and Agents under it as VS Code's
 terminal. A click on an idea, a to-do, a chip and a result opens the right preview; Merge is off on red with its reason; Send
 back needs its line; no camp. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
@@ -179,8 +179,34 @@ class StubHost:
     def find(self, a):
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])
 
+    def map_doc(self):
+        """`ideas.map` as spec 48 §1 has it, for the shell's stub: the ideas of its goals; sync's tasks in waves and its results at Review."""
+        wave, tasks = {}, []
+        for t in [] if self.unplanned else self.plan["tasks"]:
+            wave[t["id"]] = 1 + max([wave[a] for a in t["after"] if a in wave], default=0)
+            tasks.append({"id": t["id"], "title": t["title"], "short": t["title"], "state": t["state"], "after": t["after"], "tier": t["tier"], "head": _HEAD,
+                          "by": {"slug": "grunt", "name": "Grunts"}, "band": "check" if t.get("check") else "build", "wave": wave[t["id"]], "tag": "Code"})
+        nodes = []
+        for i in self.ideas.values():
+            if i["track"] == "general":
+                continue
+            sync = i["slug"] == "sync"
+            nodes.append({"slug": i["slug"], "goal": i["track"], "title": i["title"], "short": i["title"], "state": i["state"], "queue": i["queue"], "held_until": "",
+                          "start_at": i["start_at"], "priority": "normal", "size": "M", "risk": "low", "tier": 1, "depends_on": [], "waits_on": [], "waits": None,
+                          "needs_you": "", "progress": {"done": 1, "total": len(tasks)} if sync else {"done": 0, "total": 0}, "tasks": tasks if sync else [],
+                          "estimate": None, "by_itself": False, "folded": False, "updated": "2026-10-17T10:00:00", "checks": [],
+                          "stage": "implementation" if sync else "planning", "round": 1, "usd": 0.84 if sync else None, "plan_estimate": None, "asked": [],
+                          "results": self.results() if sync else []})
+        lead = {"slug": "taskmaster", "name": "Taskmaster", "head": _HEAD}
+        goals = [{"slug": g["slug"], "title": g["title"], "short": g["title"], "priority": g["priority"], "state": g["state"], "done_when": [], "ideas": 1, "done": 0,
+                  "usd": None, "leader": lead, "team": [], "party": [{**lead, "band": "lead", "state": "free", "why": ""}], "today": {"merged": 0, "usd": 0.0}}
+                 for g in self.goals.values() if g["slug"] != "general"]
+        return {"goals": goals, "nodes": nodes, "edges": [], "rev": self.rev}
+
     def handle(self, name, a):
         self.log.append((name, a))
+        if name == "ideas.map":
+            return self.map_doc()
         if name == "ideas.board":
             ideas = [i | {"thesis": "Gist in one line", "progress": {"done": 1, "total": 5} if i["slug"] == "sync" else {"done": 0, "total": 0}}
                      for i in self.ideas.values()]
@@ -403,7 +429,7 @@ def _calls(pg, host, name, at_least=1, ms=WAIT_MS) -> list[dict]:
     return [a for n, a in host.log if n == name]
 
 
-def _open(gui, viewport=None, host=None, ready=".shell-card", query=""):
+def _open(gui, viewport=None, host=None, ready=".map-result", query=""):
     server, browser = gui
     host = host or StubHost()
     pg = browser.new_page(viewport=viewport or {"width": 1440, "height": 900})
@@ -412,6 +438,12 @@ def _open(gui, viewport=None, host=None, ready=".shell-card", query=""):
     pg.on("console", lambda m: m.type == "error" and errors.append(f"console: {m.text}"))
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url + query)
+    if ready == ".map-result":                       # the Map shows one goal, and its results are on its ideas: the stub's is Ship sync
+        pg.wait_for_selector(".map-goal", timeout=WAIT_MS)
+        _show_goal(pg)
+        pg.wait_for_selector(ready, timeout=WAIT_MS)
+        for more in pg.locator(".map-card__more").all():              # the card lists three results and *and n more*: the stub's are all shown
+            more.click()
     if ready:
         pg.wait_for_selector(ready, timeout=WAIT_MS)
     return pg, host, errors
@@ -447,11 +479,12 @@ def box(pg, selector):
     return pg.locator(selector).first.bounding_box()
 
 
-def test_three_columns_agents_under_the_preview_and_no_camp(shell):
+def test_two_columns_agents_under_the_preview_and_no_camp(shell):
     pg, host = shell
-    board, preview, review, agents = box(pg, ".shell-board"), box(pg, ".shell-preview"), box(pg, ".shell-review"), box(pg, ".shell-agents")
-    assert board["x"] < preview["x"] < review["x"] and 280 <= board["width"] <= 320 and 320 <= review["width"] <= 360
-    assert board["height"] > 500 and review["height"] > 500                                   # both full height
+    board, preview, agents = box(pg, ".shell-board"), box(pg, ".shell-preview"), box(pg, ".shell-agents")
+    assert board["x"] < preview["x"] and 280 <= board["width"] <= 320 and preview["width"] > 900       # no Review column: the Map has the room (spec 48 §8)
+    assert pg.locator(".shell-review").count() == 0
+    assert board["height"] > 500                                                              # full height
     assert agents["y"] > preview["y"] + preview["height"] - 2 and abs(agents["x"] - preview["x"]) < 2   # Agents under the preview
     assert 0.25 < agents["height"] / (agents["y"] + agents["height"] - preview["y"]) < 0.42   # about a third of the centre
     assert pg.evaluate("document.documentElement.dataset.look") == "office"                   # the person's look is camp: not here
@@ -462,7 +495,7 @@ def test_three_columns_agents_under_the_preview_and_no_camp(shell):
     assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
-        pg.locator(".shell-card").nth(0).click()
+        pg.locator(".map-taskcard[data-task=k2]").click()
         pg.locator(".shell-file").first.wait_for(timeout=WAIT_MS)
         pg.locator(".shell-file").first.locator("summary").click()
         pg.screenshot(path=str(SHOTS / "desktop-1440x900.png"))
@@ -513,7 +546,7 @@ def test_agents_resize_hide_and_remember(shell, gui):
     assert pg.locator(".shell-agents__body").count() == 0 and box(pg, ".shell-agents")["height"] < 60
     assert pg.locator(".shell-split").count() == 0
     pg.reload()
-    pg.wait_for_selector(".shell-card", timeout=WAIT_MS)
+    pg.wait_for_selector(".map-result", timeout=WAIT_MS)
     assert pg.locator(".shell-agents__body").count() == 0               # kept in localStorage
     pg.get_by_role("button", name="Show Agents (Ctrl+J)").click()
     assert pg.locator(".shell-agents__body").is_visible() and box(pg, ".shell-agents")["height"] > h0 + 120   # and its height
@@ -544,10 +577,11 @@ def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(s
     pg.get_by_role("button", name="Stop", exact=True).click()
     assert _sent(pg, host, ("ideas.stop_task", {"slug": "sync", "task": "k3"}))
 
-    pg.locator(".shell-card", has_text="Add the queue").click()                   # a result → its code
+    pg.get_by_role("tab", name="Map").click()
+    pg.locator(".map-taskcard[data-task=k2]").click()                              # a result → its code, from its task on the Map
     pg.locator(".shell-result .shell-commits").wait_for(timeout=WAIT_MS)
     assert "k2: add the queue" in pg.locator(".shell-commits").inner_text()
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "result", "ref": "sync/k2", "device": "desktop", "via": "review"}))
+    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "result", "ref": "sync/k2", "device": "desktop", "via": "map"}))
     pg.locator(".shell-file", has_text="sync.py").locator("summary").click()
     pg.locator(".shell-patch__line.is-add").first.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-patch__line.is-add").count() == 2 and pg.locator(".shell-patch__line.is-del").count() == 1
@@ -563,7 +597,7 @@ def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(s
 
 def test_merge_is_off_on_red_with_its_reason_and_send_back_needs_a_line(shell):
     pg, host = shell
-    green, red = pg.locator(".shell-card", has_text="Add the queue"), pg.locator(".shell-card", has_text="Test it offline")
+    green, red = pg.locator(".map-result", has_text="Add the queue"), pg.locator(".map-result", has_text="Test it offline")
     assert "20 / 20 passed" in green.inner_text() and "14 files, +320 −41" in green.inner_text() and "$0.42" in green.inner_text()
     assert "10 / 20 failed" in red.inner_text() and "test_retry" in red.inner_text() and "round 2" in red.inner_text()
     assert "conflicts with dev in a.py, b.py" in red.inner_text()
@@ -588,42 +622,34 @@ def test_merge_is_off_on_red_with_its_reason_and_send_back_needs_a_line(shell):
     assert green.locator(".shell-actions__line .ork-btn.primary").is_disabled()
     green.get_by_role("button", name="Merge into dev").click()
     assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k2"}))
-    pg.locator(".shell-card").first.wait_for(state="detached", timeout=WAIT_MS) if pg.locator(".shell-card").count() else None
-    assert pg.locator(".shell-card", has_text="Add the queue").count() == 0
+    pg.locator(".map-result", has_text="Add the queue").wait_for(state="detached", timeout=WAIT_MS)      # it folds out once, then it is gone
 
 
 def test_drop_asks_first_and_merge_into_changes_the_branch(shell):
     pg, host = shell
-    card = pg.locator(".shell-card", has_text="Add the queue")
+    card = pg.locator(".map-result", has_text="Add the queue")
     card.get_by_role("button", name="Drop…").click()
     assert pg.get_by_role("dialog", name="Drop this result?").is_visible()
     pg.get_by_role("dialog").get_by_role("button", name="Keep it").click()
     assert pg.get_by_role("dialog").count() == 0 and ("ideas.drop_task", {"slug": "sync", "task": "k2"}) not in host.log
     assert card.get_by_role("button", name="Drop…").evaluate("e => e === document.activeElement")     # the focus went back
-    pg.locator(".shell-into").get_by_role("button", name="Merge into dev").click()
+    pg.locator("button.map-goal__into").click()
     assert pg.get_by_role("menuitemradio").count() == 2
     pg.get_by_role("menuitem", name="New branch…").click()
     pg.get_by_label("Name of the new branch").fill("next")
     pg.get_by_role("button", name="Make it").click()
     assert _sent(pg, host, ("ideas.into", {"branch": "next"}))
-    pg.locator(".shell-into").get_by_role("button", name="Merge into next").wait_for(timeout=WAIT_MS)
+    pg.locator("button.map-goal__into").wait_for(timeout=WAIT_MS)
 
 
-def test_esc_closes_the_preview_and_arrows_move_through_the_review_cards(shell):
+def test_esc_closes_the_preview_and_the_map_is_shown(shell):
     pg, host = shell
     pg.locator(".board-card", has_text="Dark mode").click()
     pg.locator(".shell-preview .board-sec").first.wait_for(timeout=WAIT_MS)
     pg.keyboard.press("Escape")
     pg.locator(".shell-preview .board-sec").first.wait_for(state="detached", timeout=WAIT_MS)      # the tab closes: the Map is shown
     assert pg.get_by_role("tab", name="Map").get_attribute("aria-selected") == "true"
-    first = pg.locator(".shell-card").nth(0)
-    first.focus()
-    pg.keyboard.press("ArrowDown")
-    pg.locator(".shell-card.is-on", has_text="Test it offline").wait_for(timeout=WAIT_MS)
-    assert "Test it offline" in pg.locator(".shell-preview > header").inner_text()
-    pg.keyboard.press("ArrowUp")
-    pg.locator(".shell-card.is-on", has_text="Add the queue").wait_for(timeout=WAIT_MS)
-    assert not [c for c in host.log if c[0] in ("ideas.merge", "ideas.back", "ideas.drop_task")]     # no shortcut merges
+    assert not [c for c in host.log if c[0] in ("ideas.merge", "ideas.back", "ideas.drop_task")]     # nothing merges by itself
 
 
 def test_the_board_drops_an_idea_and_lists_it_with_its_state_in_words(shell):
@@ -637,20 +663,21 @@ def test_the_board_drops_an_idea_and_lists_it_with_its_state_in_words(shell):
     assert _sent(pg, host, ("ideas.add", {"text": "Offline sync", "track": "ship-sync", "priority": "normal"}))      # the goal shown
 
 
-def test_below_1024_the_phones_layout_three_tabs_and_the_preview_on_its_own_screen(gui):
+def test_below_1024_the_phones_layout_two_tabs_and_the_preview_on_its_own_screen(gui):
     pg, host, errors = _open(gui, {"width": 900, "height": 800}, ready=".shell-tabs")
     try:
         tabs = pg.locator(".shell-tabs")
-        assert tabs.get_by_role("tab", name="Review").text_content().replace("\n", "").strip() == "Review2"
-        assert pg.locator(".shell-review").is_hidden() and pg.locator(".shell-board").is_visible()
-        tabs.get_by_role("tab", name="Review").click()
-        assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "tab", "ref": "review", "device": "desktop"}))
-        pg.locator(".shell-card", has_text="Add the queue").click()
-        pg.locator(".shell-preview.is-open").wait_for(timeout=WAIT_MS)
+        assert [t.strip() for t in tabs.get_by_role("tab").all_text_contents()][0].startswith("Board") and tabs.get_by_role("tab", name="Review").count() == 0
+        assert pg.locator(".shell-board").is_visible()
+        _show_goal(pg)
+        pg.get_by_role("button", name="Map", exact=True).click()                       # the Board's Map button: the Map on its screen, with the results
+        pg.locator(".map-result", has_text="Add the queue").wait_for(timeout=WAIT_MS)
         box_ = box(pg, ".shell-preview")
         assert box_["x"] == 0 and box_["width"] == 900
+        pg.locator(".map-taskcard[data-task=k2]").click()
+        pg.locator(".shell-result").wait_for(timeout=WAIT_MS)
         pg.get_by_role("button", name="Back", exact=True).click()
-        assert pg.locator(".shell-card").first.is_visible()
+        assert pg.locator(".map-result").first.is_visible()
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
@@ -668,7 +695,7 @@ def test_the_first_start_shows_the_first_screen_then_opens_the_shell(gui):
         for gone in ("Who are you", "Mission", "Skip: empty town", "Security reviewer"):
             assert gone not in pg.locator(".gui-onb").inner_text()
         pg.get_by_role("button", name="Open the board", exact=True).click()
-        pg.locator(".shell-card").first.wait_for(timeout=WAIT_MS)
+        pg.locator(".map-goal").first.wait_for(timeout=WAIT_MS)
         assert _sent(pg, host, ("onboarding.skip", {})) and _sent(pg, host, ("onboarding.close", {}))
     finally:
         pg.close()
@@ -827,7 +854,7 @@ def test_the_board_shows_one_goal_its_card_its_party_and_its_ideas_and_the_goal_
     for slug, name, craft, tier in (("tester", "Tester", "engineering", "laborer"), ("reviewer", "Reviewer", "engineering", "elder")):
         host.roles[slug] = {"slug": slug, "name": name, "model": tier, "max_parallel": 2, "instruction": "", "builtin": False,
                             "craft": craft, "head": {"craft": craft, "race": "peon", "tier": tier}}
-    pg, host, errors = _open(gui, host=host)
+    pg, host, errors = _open(gui, host=host, ready=".map-goal")
     try:
         sel = pg.get_by_label("Goal", exact=True)
         pg.locator('.board-goals__select option[value="grow"]').wait_for(state="attached", timeout=WAIT_MS)
@@ -1242,8 +1269,8 @@ def test_every_dialog_has_a_dimmed_backdrop_an_opaque_panel_and_closes_on_esc(sh
              ("New idea", lambda: pg.get_by_role("button", name="New idea").click()),
              ("Add an agent", lambda: pg.get_by_role("button", name="+ Add agent").click()),
              ("Settings", lambda: pg.get_by_role("button", name="Settings").click()),
-             ("Merge into", lambda: pg.locator(".shell-into").get_by_role("button", name="Merge into dev").click()),
-             ("Drop this result?", lambda: pg.locator(".shell-card", has_text="Add the queue").get_by_role("button", name="Drop…").click())]
+             ("Merge into", lambda: pg.locator("button.map-goal__into").click()),
+             ("Drop this result?", lambda: pg.locator(".map-result", has_text="Add the queue").get_by_role("button", name="Drop…").click())]
     for name, opener in opens:
         opener()
         dlg = pg.get_by_role("dialog", name=name)
@@ -1288,7 +1315,7 @@ def test_pair_a_phone_from_the_gear_shows_the_qr_the_time_left_how_it_reaches_an
     assert pg.get_by_role("button", name="Settings").evaluate("e => e === document.activeElement")    # the focus is back on the gear
 
 
-def test_the_needs_you_count_is_the_warning_and_review_s_stays_plain(shell):
+def test_the_needs_you_count_is_the_warning(shell):
     pg, host = shell
     count = pg.locator(".shell-board").get_by_role("tab", name="Needs you").locator(".shell-count")   # the Board's Needs you tab
     assert "warning" in count.get_attribute("class") and count.inner_text() == "4"                    # an answer waits: the warning colour

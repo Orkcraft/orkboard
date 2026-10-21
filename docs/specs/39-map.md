@@ -202,3 +202,5 @@ A tree does not fit 390 px; the phone shows the same data as a list.
   *after …*; a row needing the person first in its tier; a tap opens the idea; no horizontal scroll; `tests/test_pwa.py`
   with the new cache version.
 - Each part: the critical tests, the touched modules' tests and `tests/test_gui_wording.py`.
+
+> **Spec 48 (21 October)** gives the Map actions and shows one goal by stage: §4 here is superseded for the desktop and the phone by docs/specs/48-map-ideas.md.

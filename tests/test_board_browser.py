@@ -66,7 +66,7 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             pg.on("pageerror", lambda e: errors.append(str(e)))
             pg.goto(server.url)
             pg.locator(".shell-board").wait_for(timeout=WAIT_MS)
-            for pane in (".shell-board", ".shell-preview", ".shell-review", ".shell-agents"):
+            for pane in (".shell-board", ".shell-preview", ".shell-agents"):
                 assert pg.locator(pane).is_visible(), pane
             assert pg.evaluate("document.documentElement.dataset.look") == "office"
             assert pg.locator(".gui-hud, .gui-camp, .gui-town, .gui-foot").count() == 0

@@ -39,7 +39,7 @@ def review(gui):
 
 def test_a_check_s_card_says_what_it_found_and_has_fix_them_leave_them_and_drop(review):
     pg, host = review
-    card = pg.locator(".shell-card", has_text="Check: Reviewer")
+    card = pg.locator(".map-result", has_text="Check: Reviewer")
     assert card.locator(".shell-found__sum").inner_text() == "Found 3: 1 fixed, 2 left"
     assert [" ".join(t.split()) for t in card.locator(".shell-found__list li").all_inner_texts()] == [
         "queue.py:9 · the queue is never emptied", "the Sync screen · no way to cancel"]                    # the findings left, not the fixed one
@@ -47,21 +47,21 @@ def test_a_check_s_card_says_what_it_found_and_has_fix_them_leave_them_and_drop(
     assert card.get_by_role("button", name="Drop…").count() == 1
     assert card.get_by_role("button", name="Merge into dev").count() == 0 and card.get_by_role("button", name="Send back").count() == 0
     assert "no tests ran" in card.inner_text()
-    fix = pg.locator(".shell-card", has_text="Check: Accessibility reviewer")                          # nothing left: today's card
+    fix = pg.locator(".map-result", has_text="Check: Accessibility reviewer")                          # nothing left: today's card
     assert fix.locator(".shell-found").count() == 0 and fix.get_by_role("button", name="Merge into dev").is_enabled()
     assert fix.get_by_role("button", name="Fix them").count() == 0
 
 
 def test_fix_them_sends_back_with_the_findings_left_as_its_why(review):
     pg, host = review
-    pg.locator(".shell-card", has_text="Check: Reviewer").get_by_role("button", name="Fix them").click()
+    pg.locator(".map-result", has_text="Check: Reviewer").get_by_role("button", name="Fix them").click()
     assert _sent(pg, host, ("ideas.back", {"slug": "sync", "task": "k6",
                                            "why": "Fix the findings left:\nqueue.py:9: the queue is never emptied\nthe Sync screen: no way to cancel"}))
 
 
 def test_leave_them_is_the_merge(review):
     pg, host = review
-    pg.locator(".shell-card", has_text="Check: Reviewer").get_by_role("button", name="Leave them").click()
+    pg.locator(".map-result", has_text="Check: Reviewer").get_by_role("button", name="Leave them").click()
     assert _sent(pg, host, ("ideas.merge", {"slug": "sync", "task": "k6"}))
 
 

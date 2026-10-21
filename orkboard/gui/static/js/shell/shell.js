@@ -1,6 +1,6 @@
-// The v1 shell (docs/specs/33-v1-shell.md §7): one screen, as an IDE. The Board on the left, Review on the right, the preview
-// in the centre and Agents under it as VS Code's terminal (its top edge dragged to resize, Ctrl+J hides it; the height and
-// the hidden state are kept in localStorage when there is one). Below 1 024 px wide the same panes are the phone's three
+// The v1 shell (docs/specs/33-v1-shell.md §7): one screen, as an IDE. The Board on the left, the preview (the Map first)
+// in the centre; Review's results are on their ideas in the Map (spec 48). Agents are under it as VS Code's terminal (its top edge dragged to resize, Ctrl+J hides it; the height and
+// the hidden state are kept in localStorage when there is one). Below 1 024 px wide the same panes are two
 // tabs, the preview on its own screen. Always Office's calm look; no camp. The preview is tabs, the Map first (spec 39).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -9,7 +9,6 @@ import { town } from "../link.js";
 import { board } from "../board/store.js";
 import { TopBar } from "./topbar.js";
 import { BoardPane } from "./boardpane.js";
-import { ReviewPane } from "./review.js";
 import { AgentsPane } from "./agents.js";
 import { Preview } from "./preview.js";
 import { Dialogs } from "./dialogs.js";
@@ -17,7 +16,7 @@ import { StartScreen, currentProject, projectsOn } from "./projects.js";
 import { resetFiles } from "./files.js";
 import { resetGit } from "./gitpane.js";
 import { openDialog } from "./modals.js";
-import { preview, review, tab, agentsLayout, setLayout, refreshShell, closePreview, busy, logOpened, resetForProject, mapShown } from "./store.js";
+import { preview, tab, agentsLayout, setLayout, refreshShell, closePreview, busy, logOpened, resetForProject, mapShown } from "./store.js";
 
 const sheet = new URL("./shell.css", import.meta.url).href;
 const boardSheet = new URL("../board/board.css", import.meta.url).href;
@@ -48,11 +47,10 @@ function useNarrow() {
 const typing = (el) => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 
 function Tabs() {
-  const b = board.value, rv = review.value;
-  const counts = { board: b ? b.needs_you.filter((n) => n.kind !== "proposal" && n.kind !== "op_rules" && n.kind !== "party").length : 0,
-    agents: 0, review: rv ? rv.results.length : 0 };
-  return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents, Review">
-    ${[["board", "Board"], ["agents", "Agents"], ["review", "Review"]].map(([id, name]) => html`<button key=${id} role="tab"
+  const b = board.value;
+  const counts = { board: b ? b.needs_you.filter((n) => n.kind !== "proposal" && n.kind !== "op_rules" && n.kind !== "party").length : 0, agents: 0 };
+  return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents">
+    ${[["board", "Board"], ["agents", "Agents"]].map(([id, name]) => html`<button key=${id} role="tab"
       aria-selected=${tab.value === id} class=${cls("shell-tab ork-tabbar__tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
       <${TabMark} tab=${id} />${name}${counts[id] > 0 && html`<span class=${cls("shell-count ork-count", id === "board" ? "warning" : "on")}>${counts[id]}</span>`}</button>`)}
   </nav>`;
@@ -118,7 +116,6 @@ export function Shell() {
           aria-valuenow=${h || undefined} tabindex="0" onPointerDown=${drag} onKeyDown=${nudge}></div>`}
         <${AgentsPane} />
       </div>
-      <${ReviewPane} />
     </div>
     ${narrow && html`<${Tabs} />`}
     <${Dialogs} />

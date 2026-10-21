@@ -268,3 +268,5 @@ proposal, shared with the trail), `tests/test_shell_browser.py`'s `StubHost` and
 - A trail for Operations.
 
 ## 12. As built (notes, no change of the contract)
+
+> **Spec 48 (21 October)** redraws the Map's trail as one goal's ideas by stage and takes Review's column off the desktop (§6.3 here): docs/specs/48-map-ideas.md.

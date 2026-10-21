@@ -164,21 +164,6 @@
 .map-goal__title { margin: 0; font: var(--ork-type-body); font-weight: 600; }      /* a person's words: never the pixel face */
 .map-goal__count { font-variant-numeric: tabular-nums; }
 .map-goal__when { margin: 0; }
-.map-fold { background: none; border: 0; padding: 0 var(--ork-2); color: var(--ork-ink-muted); cursor: pointer; font: inherit; }
-.map-scroll { overflow-x: auto; overflow-y: hidden; padding-bottom: var(--ork-4); }
-.map-lines { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.map-lines path { fill: none; stroke: var(--ork-edge); stroke-width: 1; shape-rendering: crispEdges; }
-.map-done__list { list-style: none; margin: var(--ork-3) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ork-6); align-items: flex-start; }
-/* The trail (map.js): the start, the steps of stops left to right, the flag; the lines under them. */
-.trail { position: relative; width: max-content; min-width: 100%; display: flex; align-items: center; gap: calc(var(--ork-6) * 2);
-  padding: var(--ork-3) var(--ork-2); box-sizing: border-box; }
-.trail-start, .trail-end { position: relative; z-index: 1; flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-1); }
-.trail-start { align-items: flex-end; text-align: right; padding-right: var(--ork-5); }
-.trail-start__dot { position: absolute; right: 0; top: calc(50% - 5px); }
-.trail-start__dot { width: 10px; height: 10px; background: var(--ork-ink); }
-.trail-start__pct { font: var(--ork-type-title); font-variant-numeric: tabular-nums; }
-.trail-step { list-style: none; margin: 0; padding: 0; flex: none; display: flex; flex-direction: column; gap: var(--ork-5); }
-.trail-more { position: relative; z-index: 1; }
 .trail-end { align-items: center; color: var(--ork-ink-muted); }
 .trail-end__flag { display: inline-flex; padding: var(--ork-3); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); }
 .trail-end.is-met { color: var(--ork-success); }
@@ -196,41 +181,10 @@
 .map-flag__body { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; overflow-wrap: anywhere; }
 .trail-end.is-not { color: var(--ork-alert); }
 .trail-end.is-not .trail-end__flag { border-color: var(--ork-alert); }
-.trail-gate { display: inline-flex; align-items: center; gap: var(--ork-2); font: var(--ork-type-caption); font-weight: 600; color: var(--ork-alert); }
 .trail-empty { margin: 0; }
-.map-card.is-fog { border-style: dashed; color: var(--ork-ink-muted); }
-.map-node { position: relative; z-index: 1; width: 220px; flex: none; display: flex; flex-direction: column; gap: var(--ork-2); }
-.map-card { position: relative; width: 220px; height: 72px; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-2); padding: var(--ork-3) var(--ork-3) 22px; text-align: left; overflow: hidden;
-  background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-caption); cursor: pointer; }
-.map-card:hover { border-color: var(--ork-ink); }
-.map-card.is-on { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); }
-.map-card.is-needs { border-color: var(--ork-alert); box-shadow: inset 0 0 0 1px var(--ork-alert); }
-.map-card.is-wait { border-style: dashed; color: var(--ork-ink-muted); }
-.map-card.is-done { background: var(--ork-raised); color: var(--ork-ink-muted); }
-.map-card[data-state="proposed"] { border-style: dotted; }
-.map-card__title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-.map-card__words { color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.map-card.is-needs .map-card__words { color: var(--ork-alert); font-weight: 600; }
-.map-card__new { font-weight: 600; color: var(--ork-ink); }
-.map-card__marks { position: absolute; right: 8px; bottom: 4px; max-width: 110px; display: flex; gap: var(--ork-3); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.map-pips { position: absolute; left: 1px; top: 52px; max-width: 108px; height: 18px; display: inline-flex; align-items: center; gap: var(--ork-1); padding: 0 var(--ork-3); background: none; border: 0;
-  color: var(--ork-ink-muted); font: var(--ork-type-caption); cursor: pointer; overflow: hidden; }
-.map-pips:hover, .map-pips:focus-visible { color: var(--ork-ink); text-decoration: underline; }
-.map-pips > span { margin-left: var(--ork-1); }
 .map-pip { display: inline-block; flex: none; width: 8px; height: 8px; border: 1px solid var(--ork-ink-muted); box-sizing: border-box; }
 .map-pip[data-pip="done"] { background: var(--ork-ink); border-color: var(--ork-ink); }
 .map-pip[data-pip="working"] { background: var(--ork-ink); box-shadow: inset 0 0 0 2px var(--ork-canvas); border-color: var(--ork-ink); }
-.map-tasks { width: 220px; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-2) var(--ork-3); font: var(--ork-type-caption); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
-.map-wave { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; }
-.map-wave + .map-wave { border-top: var(--ork-line) dotted var(--ork-frame); padding-top: var(--ork-1); }
-.map-task { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-2); align-items: center; width: 100%; }
-.map-task:hover .map-task__title, .map-task:focus-visible .map-task__title { text-decoration: underline; }
-.map-task:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
-.map-task__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; }
-.map-task small { grid-column: 2; color: var(--ork-ink-muted); }
-.map-tasks__done { align-self: flex-end; white-space: nowrap; }
-.trail .map-card { height: auto; min-height: 72px; }
-.map-task[data-state="failed"] { color: var(--ork-danger); }
 .map-done { display: flex; flex-direction: column; gap: var(--ork-4); align-items: flex-start; }
 .map-done__btn { color: var(--ork-ink-muted); }
 
@@ -243,10 +197,6 @@
 .board-check .ork-icon { color: var(--ork-success); width: 12px; height: 12px; }
 .board-checks > .ok-font-label { flex: 1 0 100%; }
 /* -- the Map: a goal's team, an idea's checks (map.js) -- */
-.map-goal__team { display: flex; align-items: center; gap: var(--ork-3); margin: var(--ork-2) 0; }
-.map-goal__heads { display: inline-flex; gap: 2px; }
-.map-card__checks { color: var(--ork-ink-muted); }
-.map-card__checks.is-passed { color: var(--ork-success); }
 /* Needs you as its own tab (today.js): a row with Later beside it; questions answered in their row. */
 .board-need-row { display: flex; align-items: stretch; gap: var(--ork-2); }
 .board-need-row > .board-need { flex: 1; min-width: 0; }
@@ -264,36 +214,111 @@
 .board-goal__heads { display: inline-flex; gap: var(--ork-2); }
 .board-goal p { margin: 0; }
 .board-goal__progress { display: flex; align-items: center; gap: var(--ork-3); color: var(--ork-ink-muted); }
-/* The trail's chips (map.js): a stop in one line — the head of who does it, its title, a mark — and its tasks smaller under it. */
-.trail .map-node { width: auto; max-width: 260px; align-items: flex-start; }
-.trail-step { align-items: flex-start; }
-.trail .map-card.trail-chip, .map-done__list .map-card.trail-chip { width: auto; max-width: 260px; height: auto; min-height: 30px; padding: var(--ork-1) var(--ork-3);
-  flex-direction: row; align-items: center; gap: var(--ork-2); overflow: hidden; }
-.trail-chip .map-card__title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; min-width: 0; flex: 1 1 auto; overflow: hidden;
-  overflow-wrap: break-word; font: var(--ork-type-caption); font-weight: 600; }      /* a short name on two lines at most (spec 41 §3) */
+.board-check__skip { align-self: flex-start; font: var(--ork-type-caption); }
+
+/* A template's way to going by itself (spec 42 §5): its pips and the words beside them. */
+.board-op__way { display: inline-flex; align-items: center; gap: var(--ork-3); }
+.map-flags__list .shell-party { margin: var(--ork-2) 0 0 var(--ork-5); }
+
+/* spec 48: the Map of one goal — its header and party line, its ideas as rows or expanded with the party in lanes and the plan's waves in
+   columns, and the idea's card in orkUI's double frame. The alert is only on the agent the work stopped on; a result in Review is muted. */
+.map-goal__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-3) var(--ork-5); min-width: 0; }
+.map-goal__pick { max-width: 220px; }
+.map-goal__into { margin-left: auto; }
+.map-goal__flag { flex-direction: row; gap: var(--ork-3); }
+.map-party { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+.map-party__member { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: var(--ork-2); padding: 1px var(--ork-3);
+  border: var(--ork-line) solid var(--ork-frame); font: var(--ork-type-caption); white-space: nowrap; }
+.map-party__member:hover, .map-party__member:focus-visible { border-color: var(--ork-ink); outline: none; }
+.map-party__member.is-work { border-color: var(--ork-edge); }
+.map-party__member.is-needs { border-color: var(--ork-alert); }
+.map-party__member.is-needs .map-party__state { color: var(--ork-alert); font-weight: 600; }
+.map-party__state { color: var(--ork-ink-muted); }
+.map-ideas { list-style: none; margin: 0; padding: var(--ork-4) 0 0; display: flex; flex-direction: column; gap: var(--ork-4); border-top: var(--ork-line) solid var(--ork-frame); }
+.map-row__btn { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--ork-4); width: 100%; padding: var(--ork-3) var(--ork-4);
+  background: var(--ork-panel); border: var(--ork-line) dashed var(--ork-edge); }
+.map-row__btn:hover, .map-row__btn:focus-visible { border-color: var(--ork-ink); outline: none; }
+.map-row.is-needs .map-row__btn { border-style: solid; border-color: var(--ork-alert); }
+.map-row.is-done .map-row__btn { border: 0; background: var(--ork-raised); color: var(--ork-ink-muted); }
+.map-row__title { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-row__words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-row__tick { display: inline-flex; color: var(--ork-success); }
 .trail-chip__nohead { width: 12px; height: 11px; flex: none; }
 .trail-chip__mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
 .trail-chip__mark.is-gate { color: var(--ork-alert); }
-.trail-chip .map-card__new { flex: none; font: var(--ork-type-caption); }
-.trail .map-tasks { width: auto; max-width: 260px; flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); padding: var(--ork-1) 0 0 var(--ork-4);
-  background: none; border: 0; border-left: var(--ork-line) dotted var(--ork-frame); margin-left: var(--ork-3); }
-.trail .map-wave { flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); }
-.trail .map-wave + .map-wave { border-top: 0; padding-top: 0; border-left: var(--ork-line) dotted var(--ork-frame); padding-left: var(--ork-1); }
-.trail .map-task { width: auto; max-width: 150px; display: inline-flex; gap: var(--ork-1); padding: 1px var(--ork-2); border: var(--ork-line) solid var(--ork-frame); }
-.trail .map-task[data-state="running"], .trail .map-task[data-state="testing"] { border-color: var(--ork-ink); }
-.trail .map-task[data-state="failed"] { border-color: var(--ork-danger); color: var(--ork-danger); }
-.trail-step { gap: var(--ork-3); }
-.board-check__skip { align-self: flex-start; font: var(--ork-type-caption); }
-/* A checker's task on the trail: × skips it before it runs, to spare its run (map.js). */
+.map-done__list { padding-top: 0; border-top: 0; }
+.map-idea { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: var(--ork-4); align-items: start; min-width: 0; }
+.map-idea.is-on .map-idea__fold { text-decoration: underline; }
+.map-idea__body { display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; overflow-x: auto; }
+.map-idea__head { display: flex; align-items: baseline; gap: var(--ork-4); }
+.map-idea__fold { all: unset; cursor: pointer; font-weight: 600; }
+.map-idea__fold:focus-visible { outline: 2px solid var(--ork-ink); }
+.map-track { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--ork-5); font: var(--ork-type-label); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.map-track__stage { color: var(--ork-ink-muted); padding-bottom: 2px; }
+.map-track__stage.is-now { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.map-track__stage + .map-track__stage::before { content: ""; display: inline-block; width: 24px; margin-right: var(--ork-4); border-top: var(--ork-line) dotted var(--ork-edge); vertical-align: middle; }
+.map-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.map-field { display: flex; flex-direction: column; min-width: max-content; }
+.map-field__cols, .map-lane { display: flex; align-items: flex-start; gap: var(--ork-4); }
+.map-field__corner, .map-lane__head { flex: none; width: 172px; box-sizing: border-box; }
+.map-field__col, .map-lane__cell { flex: none; width: 140px; box-sizing: border-box; }
+.map-field--plan .map-field__col { width: auto; flex: 1; }
+.map-field__corner, .map-field__col { font: var(--ork-type-label); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); color: var(--ork-ink-muted); padding-bottom: var(--ork-2); }
+.map-lane { padding: var(--ork-3) 0; border-top: var(--ork-line) dotted var(--ork-frame); }
+.map-lane__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2) var(--ork-3); padding: var(--ork-2) var(--ork-3); border: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
+.map-lane__head.is-needs { border-color: var(--ork-alert); box-shadow: inset 0 0 0 1px var(--ork-alert); }
+.map-lane__state { flex: 1 0 100%; color: var(--ork-ink-muted); font: var(--ork-type-caption); }
+.map-lane__head.is-needs .map-lane__state { color: var(--ork-alert); font-weight: 600; }
+.map-lane__cells { display: flex; flex-wrap: wrap; gap: var(--ork-3); flex: 1; min-width: 0; }
+.map-lane__empty { align-self: center; }
+.map-taskcard-pair { display: inline-flex; align-items: stretch; max-width: 100%; }
+.map-taskcard { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; gap: var(--ork-2); width: 128px; min-height: 56px;
+  padding: var(--ork-3); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-caption); }
+.map-taskcard:hover, .map-taskcard:focus-visible { border-color: var(--ork-ink); outline: none; }
+.map-taskcard__title { font-weight: 600; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.map-taskcard__words { color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-taskcard.is-wait { border-style: dashed; color: var(--ork-ink-muted); }
+.map-taskcard.is-failed { border-color: var(--ork-danger); box-shadow: inset 0 0 0 1px var(--ork-danger); }
+.map-taskcard.is-failed .map-taskcard__words { color: var(--ork-danger); font-weight: 600; }
+.map-taskcard.is-needs { border-color: var(--ork-alert); box-shadow: inset 0 0 0 1px var(--ork-alert); }
+.map-taskcard.is-needs .map-taskcard__words { color: var(--ork-alert); font-weight: 600; }
+.map-ask, .map-plan { width: 160px; }
+.map-stack { position: relative; display: inline-block; margin: 0 var(--ork-3) var(--ork-3) 0; }
+.map-stack__edge { position: absolute; left: 6px; top: 6px; width: 128px; height: 100%; box-sizing: border-box; border: var(--ork-line) solid var(--ork-ink); background: var(--ork-panel); }
+.map-stack > .map-taskcard { position: relative; }
+.map-stack__count { position: absolute; right: -6px; top: -6px; z-index: 2; min-width: 16px; padding: 0 var(--ork-2); box-sizing: border-box; text-align: center;
+  background: var(--ork-ink); color: var(--ork-on-ink); font: var(--ork-type-label); font-variant-numeric: tabular-nums; }
+.map-stack__list { position: absolute; left: 0; top: 0; z-index: 20; width: 236px; margin: 0; padding: var(--ork-2); list-style: none; display: flex; flex-direction: column; gap: 2px;
+  background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); }
+.map-stack__item { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; width: 100%; padding: var(--ork-2) var(--ork-3); font: var(--ork-type-caption); }
+.map-stack__item:hover, .map-stack__item:focus-visible { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); outline: none; }
+.map-checks { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
 .map-task-pair { display: inline-flex; align-items: stretch; max-width: 100%; }
-.trail .map-task-pair.is-check .map-task { border-style: dashed; }
+.map-task-pair.is-check .map-task { border-style: dashed; }
+.map-task { display: inline-flex; align-items: center; gap: var(--ork-2); padding: 1px var(--ork-3); border: var(--ork-line) solid var(--ork-frame); font: var(--ork-type-caption); }
 .map-task__skip { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; padding: 0 var(--ork-1);
   border: var(--ork-line) solid var(--ork-frame); border-left: 0; color: var(--ork-ink-muted); }
 .map-task__skip:hover, .map-task__skip:focus-visible { color: var(--ork-ink); outline: 1px solid var(--ork-ink); }
 .map-task__skip .ork-icon { width: 10px; height: 10px; }
 .map-task-pair.is-skipped .map-task { opacity: .5; text-decoration: line-through; }
-.trail .map-checks .map-task { cursor: default; }
-
-/* A template's way to going by itself (spec 42 §5): its pips and the words beside them. */
-.board-op__way { display: inline-flex; align-items: center; gap: var(--ork-3); }
-.map-flags__list .shell-party { margin: var(--ork-2) 0 0 var(--ork-5); }
+/* the idea's card, in orkUI's double frame */
+.map-card-frame { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-4); background: var(--ork-panel); border: 3px double var(--ork-edge); font: var(--ork-type-caption); min-width: 0; }
+.map-card-frame__title { font: var(--ork-type-body); font-weight: 600; overflow-wrap: anywhere; }
+.map-card-frame__pips { display: flex; align-items: center; gap: var(--ork-3); }
+.map-pips-row { display: inline-flex; gap: 2px; }
+.map-card__actions, .map-result .shell-actions__main { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+.map-card__waits { display: flex; flex-direction: column; gap: var(--ork-3); padding-top: var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
+.map-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-4); }
+.map-result { display: flex; flex-direction: column; gap: var(--ork-2); }
+.map-result__gone { color: var(--ork-success); font-weight: 600; }
+.map-result .is-success { color: var(--ork-success); }
+.map-result .is-danger { color: var(--ork-danger); }
+.map-result .is-muted { color: var(--ork-ink-muted); }
+/* a merged task, or a result, leaves once: it moves up and fades in steps; none under reduced motion (its component draws none) */
+.map-leaving { pointer-events: none; animation: map-leave 0.9s steps(5, end) 0.2s forwards; }
+.map-leaving .map-taskcard { border-color: var(--ork-success); box-shadow: inset 0 0 0 1px var(--ork-success); }
+@keyframes map-leave { 0% { opacity: 1; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-8px); } 100% { opacity: 0; transform: translateY(-28px); } }
+@media (prefers-reduced-motion: reduce) { .map-leaving { animation: none; } }
+.map-result__open { all: unset; box-sizing: border-box; cursor: pointer; overflow-wrap: anywhere; }
+.map-result__open:hover b, .map-result__open:focus-visible b { text-decoration: underline; }
+.map-result__open:focus-visible { outline: 2px solid var(--ork-ink); }
