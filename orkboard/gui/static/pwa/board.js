@@ -25,7 +25,7 @@ export { price } from "./shell-preview.js";
 /** `ctx`: {send, deliver, flash, unpair}. Returns {el, sheets, content(), render(snapshot), dispose()}. */
 export function makeBoard(ctx) {
   const st = { board: null, review: null, agents: null, roles: null, snap: null, track: "", view: "", ops: null, boardError: "", preview: null, cards: [],
-    map: null, mapError: "", today: null, gate: null, band: "", focus: "", idea: "", ideasOpen: false, hand: "" };
+    map: null, mapError: "", today: null, gate: null, band: "", focus: "", hand: "", picks: {}, flagLine: null, lit: new Set(), prices: {} };
   let poll = 0;
   let seenRev;                          // the snapshot's ideas_rev read last
   let seenSnap;                         // the snapshot's rev read last (the project switcher's)
@@ -59,8 +59,6 @@ export function makeBoard(ctx) {
     /** Edit the party of a goal: the goal as `ideas.goal` sends it, in the team's sheet. */
     async editParty(slug) { const got = await core.call("ideas.goal", { slug }); if (got) core.editTeam(got); },
     openInto() { review.openInto(); },
-    openFlags() { boardTab.flags.open(); },
-    flagCount: () => boardTab.flags.met(st.map?.goals || []),
     setToday(data) { top.today.set(data); },
     log: (what, ref, via) => logOpened(what, ref, via),
     draw() { drawAll(); },
@@ -178,8 +176,11 @@ export function makeBoard(ctx) {
   /** Another project is shown: what was read of the last one is dropped before the new one is read. */
   function reset() {
     st.board = st.review = st.agents = st.roles = st.today = st.gate = null;
-    st.track = st.view = st.boardError = st.band = st.focus = st.idea = st.hand = "";
-    st.ideasOpen = false;
+    st.track = st.view = st.boardError = st.band = st.focus = st.hand = "";
+    st.picks = {};
+    st.flagLine = null;
+    st.lit = new Set();
+    st.prices = {};
     st.map = null;
     st.mapError = "";
     st.cards = [];
@@ -198,6 +199,7 @@ export function makeBoard(ctx) {
     if (ok(td)) st.today = td.result;
     if (ok(g)) st.gate = g.result;
     st.boardError = !st.board && !ok(b) ? b.error || b.result?.error || "Loading…" : "";
+    if (!ok(b) || !ok(m)) seenRev = undefined;           // not read (a page that starts from what it kept, before the socket opens): the next snapshot reads again, never "the same as read"
     drawAll();
     if (st.preview) preview.reload();
     schedule();

@@ -1,5 +1,4 @@
-// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1): Stop all and Spend today at its head, Agents (a screen of its own) and
-// Flags, then This project — the Target, Start plans by themselves, the night's hours, Merge into, Push after merging, What is left — and This phone — Pair a phone,
+// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1, spec 50 §6.1): Stop all and Spend today at its head, Agents (a screen of its own), then This project — the Target, Start plans by themselves, the night's hours, Merge into, Push after merging, What is left — and This phone — Pair a phone,
 // Download the logs, Unpair this phone. Each setting writes with today's command (`ideas.board_set`, `ideas.into`) at once.
 import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
@@ -18,7 +17,7 @@ export function makeSettings(core, ctx, drawer, limits) {
   const stop = h("button", { class: "ork-btn danger board-stop", type: "button" }, "Stop all");
   const really = h("button", { class: "ork-btn danger", type: "button" }, "Stop every ork");
   const stopSheet = sheet("Stop all",
-    h("p", {}, "Every ork at work stops now, and every idea's tasks with them: their sessions are interrupted and their processes ended."),
+    h("p", {}, "Every ork at work stops now, and every goal's tasks with them: their sessions are interrupted and their processes ended."),
     really);
   stop.addEventListener("click", () => { drawer.close(); stopSheet.open(); });
   really.addEventListener("click", async () => {
@@ -76,8 +75,7 @@ export function makeSettings(core, ctx, drawer, limits) {
   nightTo.addEventListener("change", setNight);
   pushBox.addEventListener("change", async () => { await write("ideas.into", { push: pushBox.checked }); await core.refresh(); });
 
-  // Agents: today's Agents pane as a screen of its own (Back to the Board); Flags: the goals met (a sheet).
-  const flagsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "flags", onclick: () => { drawer.close(); core.openFlags(); } }, "Flags");
+  // Agents: today's Agents pane as a screen of its own (Back to the Board). The flags are the goals': the Goals sheet and About this party (shell-goals.js, shell-party.js).
   const agentsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "agents", onclick: () => { drawer.close(); core.open({ kind: "agents" }); } }, icon("robot"), "Agents");   // a head says a craft, not every agent: the button is orkUI's robot
   const intoBtn = h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", "data-act": "into", onclick: () => { drawer.close(); core.openInto(); } });
 
@@ -109,15 +107,13 @@ export function makeSettings(core, ctx, drawer, limits) {
   ];
 
   return {
-    head: [h("div", { class: "row" }, stop), spend, h("div", { class: "row" }, agentsBtn, flagsBtn)],
+    head: [h("div", { class: "row" }, stop), spend, h("div", { class: "row" }, agentsBtn)],
     project,
     phone,
     sheets: [stopSheet.el, pairSheet.el, week.el],
     /** The settings' values from what the Board read last. */
     sync() {
       push.draw();
-      const met = core.flagCount();
-      flagsBtn.textContent = met ? `Flags (${met})` : "Flags";
       intoBtn.replaceChildren("Merge into ", h("b", {}, core.st.review?.into || "dev"), h("i", { class: "ork-chev", "aria-hidden": "true" }));
       if (writing) return;
       for (const [id, input] of picks) input.checked = id === (core.st.board?.target || "balance");

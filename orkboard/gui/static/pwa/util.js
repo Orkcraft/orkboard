@@ -96,12 +96,12 @@ export function guessName() {
 }
 
 /** A sheet that rises from the screen's foot: a modal <dialog> (Esc and the backdrop close it), its title and
- *  Close at the top, `body` under them. `{el, open, close, title(text)}`. */
+ *  Close at the top, `body` under them. `{el, open, close, title(text), bar, shut}`: `bar` is its head row, `shut` its Close. */
 export function sheet(title, ...body) {
   const shut = h("button", { class: "ork-btn", type: "button" }, "Close");
   const head = h("h2", {}, title);
-  const el = h("dialog", { class: "sheet", "aria-label": title }, h("div", { class: "sheet-in" },
-    h("div", { class: "sheet-head" }, head, shut), ...body));
+  const bar = h("div", { class: "sheet-head" }, head, shut);
+  const el = h("dialog", { class: "sheet", "aria-label": title }, h("div", { class: "sheet-in" }, bar, ...body));
   const open = () => { if (el.open) return; if (el.showModal) el.showModal(); else el.setAttribute("open", ""); };
   const close = () => { if (el.close) el.close(); else el.removeAttribute("open"); };
   shut.addEventListener("click", close);
@@ -121,7 +121,7 @@ export function sheet(title, ...body) {
     inner.style.transform = "";
     if (dy > 80) close();
   });
-  return { el, open, close, title(text) { head.textContent = text; el.setAttribute("aria-label", text); } };
+  return { el, open, close, bar, shut, title(text) { head.textContent = text; el.setAttribute("aria-label", text); } };
 }
 
 /** A window of the town as the desktop draws one (docs/design/yards.md §3): its name over it and, in Camp, the

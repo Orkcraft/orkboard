@@ -1,12 +1,14 @@
 // The app's worker (gui/pwa.py): the shell opens without the network, the town never does. Every file is
 // asked of the town first, so a new version arrives the next time it is reachable; the cache is only for
 // when it is not. The socket is never cached: what the town is comes live or not at all.
-const CACHE = "orkcraft-app-v55";
+const CACHE = "orkcraft-app-v56";
 // Orkboard's phone (pwa/board-app.js; docs/specs/37-board-and-line.md §4) keeps the shell's files only: no camp file
 // in its cache; orkUI's styles and faces (docs/specs/40-design-system.md), its race heads as they are drawn.
 const SHELL = ["./", "board-app.js", "util.js", "board.js", "shell-top.js", "shell-board.js", "shell-agents.js",
   "shell-review.js", "shell-preview.js", "shell-util.js", "shell-forms.js", "shell-goal.js", "shell-agent.js", "shell-words.js",
-  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-drawer.js", "shell-ops.js", "shell-map.js", "shell-map-idea.js", "shell-who.js", "shell-idea-field.js", "shell-limits.js", "shell-goal-new.js", "shell-lens.js", "shell-lens-screen.js", "shell-cards.js", "shell-push.js", "shell-arena.js", "shell-arena-words.js", "shell-arena-field.js", "shell-motion.js", "shell-stops.js", "shell-today.js", "shell-dial.js", "shell-gate.js", "fonts.css", "tokens.css", "components.css",
+  "shell-needs.js", "shell-ideas.js", "shell-projects.js", "shell-drawer.js", "shell-ops.js", "shell-map.js", "shell-map-idea.js", "shell-who.js", "shell-idea-field.js", "shell-limits.js", "shell-goal-new.js", "shell-lens.js", "shell-lens-screen.js", "shell-cards.js", "shell-push.js", "shell-arena.js", "shell-arena-words.js", "shell-arena-field.js", "shell-motion.js", "shell-stops.js", "shell-today.js", "shell-dial.js", "shell-gate.js", "shell-marks.js", "shell-phases.js", "shell-goals-words.js", "shell-goals.js", "shell-decks.js", "shell-spread.js", "shell-party.js", "fonts.css", "tokens.css", "components.css",
+  "elements/meadow.svg", "elements/ice.svg", "elements/dust.svg", "elements/void.svg", "elements/lava.svg",
+  "signs/check.svg", "signs/cross.svg", "signs/work.svg", "signs/night.svg", "signs/alert.svg", "signs/flag.svg", "signs/before.svg", "signs/after.svg",
   "icons/icons.svg", "app.css", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png",
   "fonts/ibm-plex-mono-latin-400-normal.woff2", "fonts/ibm-plex-mono-latin-600-normal.woff2", "fonts/pixelify-sans-latin-500-normal.woff2"];
 const CACHE_PREFIXES = ["fonts/"];

@@ -30,3 +30,7 @@ export function heldWords(note, idea = "") {
   if (m) return `beside ${idea || m[1]} · same files`;
   return n || "held";
 }
+
+/** A line the library or the host wrote with an old spelling, said in today's words (spec 50 §0): *idea* → *goal*, *ideas* → *goals* (a check's "when the idea changes code"). What people or agents wrote
+ *  keeps its words: this is only for fixed lines. */
+export const say = (text) => String(text ?? "").replace(/\bIdeas\b/g, "Goals").replace(/\bideas\b/g, "goals").replace(/\bIdea\b/g, "Goal").replace(/\bidea\b/g, "goal");

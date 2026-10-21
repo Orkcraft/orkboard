@@ -6,7 +6,6 @@ import { makeIdeas, BUSY } from "./shell-ideas.js";
 import { makeOps } from "./shell-ops.js";
 import { makeArena } from "./shell-arena.js";
 import { makeCards, pushWeek, isoWeek } from "./shell-cards.js";
-import { makeFlags } from "./shell-map.js";
 
 export { BUSY };
 
@@ -25,8 +24,7 @@ export function makeBoardTab(core, ctx) {
   const ops = makeOps(core, ctx);
   const ideas = makeIdeas(core, ctx, goalSheet);
   const cards = makeCards(core);
-  const flags = makeFlags(core);
-  const arena = makeArena(core, ctx, { goalSheet, ops, ideas, cards, flags });
+  const arena = makeArena(core, ctx, { goalSheet, ops, ideas, cards });
   let mapLogged = false;                             // `opened` `map` is logged once per page load (spec 49 §9)
 
   // -- Last week (spec 42 §7.3): the first look of a new ISO week shows the card; `orkboard.week.<project>` holds the last week shown ---------
@@ -57,10 +55,9 @@ export function makeBoardTab(core, ctx) {
     editGoal: (slug) => goalSheet.open(slug),
     editTeam: (g) => goalSheet.editTeam(g),
     ops,
-    flags,
     show: arena.show,
     openNew: (goal) => ideas.openNew(goal),
-    sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, flags.sheet.el],
+    sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, ...arena.sheets],
     draw() {
       if (st.board && st.snap?.project && st.snap.project !== weekFor) weekCheck();
       if (st.map && !mapLogged) { mapLogged = true; ctx.send("ideas.log", { event: "opened", what: "map", device: "phone" }); }
