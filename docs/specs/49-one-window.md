@@ -189,11 +189,13 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
 1. **The party row**: the goal's builders, then its checkers, then its **free seats** (the seats the party leaves,
    decisions §56: 3 builders, 2 checkers), each over its column (§5.4). A free seat is narrow (88 px), dashed, *+* and
    *A free seat* with its band (*builds* / *checks*); a click opens **Edit the party**. The row is 64 px high.
-2. **A member** is a small framed row, about 110 × 45 px (1 px `--ork-frame`, notched, `--ork-panel`; a member that is
-   on: `--ork-raised` with an ink edge): **its head** (36 × 33, `.ork-race__head.mid`, the leader's too) **wearing three
-   signs on its corners** (16 × 16, half over the head): its **harness's mark** bottom left (§1.6, §2.5:
-   `marks/harness-<id>.png`, tooltip *Runs on Claude*), its **level's chevrons** top right (the head's tier: `rank-1`
-   Novice, `rank-2` Seasoned, `rank-3` Veteran; tooltip *Seasoned: its level*) and **its state** bottom right: ✗ on the
+2. **A member** is a small framed row, about 55 px high, filling its column's width (on the desktop at most 200 px; three
+   across a phone, 118 px each) (1 px `--ork-frame`, notched, `--ork-panel`; a member that is on: `--ork-raised` with an
+   ink edge): **its head** (36 × 33, `.ork-race__head.mid`, the leader's too) **wearing three signs on its corners** (16
+   × 16, over the head's edge, none reaching into the text: 10–12 px clear between the head and its lines): its
+   **level's chevrons** top left (the head's tier: `rank-1` Novice, `rank-2` Seasoned, `rank-3` Veteran; tooltip
+   *Seasoned: its level*), its **harness's mark** bottom left (§1.6, §2.5: `marks/harness-<id>.png`, tooltip *Runs on
+   Claude*) and **its state** top right: ✗ on the
    danger ground for a failure, ! on the alert ground for any other stop (*plan ready*, *asks you*, *proposed*), ↻ while
    at work, ☾ tonight, none when next or free (tooltip: the state in words). Beside the head, three short lines: its
    **name**, **its runs and redos** (*5/1*: tasks finished this week and of them sent back; a checker's *6/2*, checks and
@@ -203,7 +205,7 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    prices, not your bill*). No line of words for the state, the harness or the level: the peek (§5.3) and the member's
    label for a screen reader say all of it in words. Numbers come from `ideas.agents` joined by slug (`week`,
    `check_week`, `usd_task`, `max_parallel`, the chips); the Taskmaster's price is the plans' (*—* when it has none). A
-   free seat is the same size: a dashed square with *+*, *A free seat* and its band.
+   free seat is a dashed square with *+* in its narrow column (tooltip *A free seat: pick an agent from the library*).
 3. **Its peek**: hovering or focusing a member shows its whole face beside it (a larger framed card, `aria-hidden`,
    nothing in it pressable): the price in a gem with *a run*, its band, the head, the name, *race · harness · level ·
    model · k of n at once*, its state, now and next, *Takes: …* (*Checks: …*, *Leads: …*), and the two numbers in
