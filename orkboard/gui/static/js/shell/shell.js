@@ -1,27 +1,24 @@
-// The v1 shell (docs/specs/33-v1-shell.md §7): one screen, as an IDE. The Board on the left, the preview (the Map first)
-// in the centre; Review's results are on their ideas in the Map (spec 48). Agents are under it as VS Code's terminal (its top edge dragged to resize, Ctrl+J hides it; the height and
-// the hidden state are kept in localStorage when there is one). Below 1 024 px wide the same panes are two
-// tabs, the preview on its own screen. Always Office's calm look; no camp. The preview is tabs, the Map first (spec 39).
-import { useEffect, useRef, useState } from "preact/hooks";
-import { html, cls } from "../html.js";
-import { TabMark } from "../orkui.js";
+// The one window (docs/specs/49-one-window.md, decisions §62): the top bar, the goal tabs, and under them the goal's arena — the day's
+// strip, Planning over the leader, the field with its party, results, stops and limits (js/arena/). Anything opened slides in as a
+// drawer from the right (spec 49 §9): the preview's tabs, Agents and Files. Always Office's calm look; no camp.
+import { useEffect, useRef } from "preact/hooks";
+import { html } from "../html.js";
 import { town } from "../link.js";
-import { board } from "../board/store.js";
 import { TopBar } from "./topbar.js";
-import { BoardPane } from "./boardpane.js";
-import { AgentsPane } from "./agents.js";
 import { Preview } from "./preview.js";
 import { Dialogs } from "./dialogs.js";
 import { StartScreen, currentProject, projectsOn } from "./projects.js";
 import { resetFiles } from "./files.js";
 import { resetGit } from "./gitpane.js";
 import { openDialog } from "./modals.js";
-import { preview, tab, agentsLayout, setLayout, refreshShell, closePreview, busy, logOpened, resetForProject, mapShown } from "./store.js";
+import { drawerOpen, refreshShell, hideDrawer, busy, resetForProject } from "./store.js";
+import { Arena } from "../arena/arena.js";
+import { solo } from "../arena/arenastate.js";
+import { GoalTabs } from "../arena/goaltabs.js";
 
-const sheet = new URL("./shell.css", import.meta.url).href;
-const boardSheet = new URL("../board/board.css", import.meta.url).href;
+const sheets = ["../board/board.css", "./shell.css", "../arena/arena.css"].map((p) => new URL(p, import.meta.url).href);
 if (typeof document !== "undefined") {
-  for (const href of [boardSheet, sheet]) {
+  for (const href of sheets) {
     if (!document.querySelector(`link[href="${href}"]`)) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
@@ -31,42 +28,18 @@ if (typeof document !== "undefined") {
   }
 }
 
-const NARROW = "(max-width: 1023px)";
-const MIN_H = 96, MIN_PREVIEW = 160;
-
-function useNarrow() {
-  const [narrow, setNarrow] = useState(() => matchMedia(NARROW).matches);
-  useEffect(() => {
-    const m = matchMedia(NARROW), on = () => setNarrow(m.matches);
-    m.addEventListener("change", on);
-    return () => m.removeEventListener("change", on);
-  }, []);
-  return narrow;
-}
-
 const typing = (el) => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
-
-function Tabs() {
-  const b = board.value;
-  const counts = { board: b ? b.needs_you.filter((n) => n.kind !== "proposal" && n.kind !== "op_rules" && n.kind !== "party").length : 0, agents: 0 };
-  return html`<nav class="shell-tabs ork-tabbar" role="tablist" aria-label="Board, Agents">
-    ${[["board", "Board"], ["agents", "Agents"]].map(([id, name]) => html`<button key=${id} role="tab"
-      aria-selected=${tab.value === id} class=${cls("shell-tab ork-tabbar__tab", { "is-on": tab.value === id })} onClick=${() => { tab.value = id; closePreview({ toBoard: true }); logOpened("tab", id); }}>
-      <${TabMark} tab=${id} />${name}${counts[id] > 0 && html`<span class=${cls("shell-count ork-count", id === "board" ? "warning" : "on")}>${counts[id]}</span>`}</button>`)}
-  </nav>`;
-}
 
 export function Shell() {
   const t = town.value;
-  const narrow = useNarrow();
-  const centre = useRef();
-  const { h, hidden } = agentsLayout.value;
   const project = projectsOn.value ? currentProject.value?.path || "" : "-";   // "-": Orkline's one fixed project
-  // Another project is shown: nothing of the last one stays (its Board, its tree, its git, its preview).
+  // Another project is shown: nothing of the last one stays (its Board, its tree, its git, its drawer).
   const was = useRef(null);
   if (was.current !== project) { was.current = project; resetForProject(project); resetFiles(); resetGit(); }
   // Fresh when the town says the ideas changed, and every 10 s while a model or a task runs.
   useEffect(() => { if (project) refreshShell(); }, [t.ideas_rev, project]);
+  // Operations moved: Needs you holds its rows, so the Board is read again.
+  useEffect(() => { if (t.ops_rev) refreshShell(); }, [t.ops_rev]);
   useEffect(() => {
     const id = setInterval(() => { if (currentProject.value && busy()) refreshShell(); }, 10000);
     return () => clearInterval(id);
@@ -76,48 +49,25 @@ export function Shell() {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "o") {   // Open folder…, as an IDE
         e.preventDefault();
         if (!document.querySelector("[aria-modal='true']")) openDialog("open-folder");
-      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "j") {   // as VS Code's panel
-        e.preventDefault();
-        setLayout({ hidden: !agentsLayout.value.hidden });
-      } else if (e.key === "Escape" && (preview.value || mapShown.value) && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
-        closePreview();
+      } else if (e.key === "Escape" && drawerOpen.value && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
+        hideDrawer();                                   // the drawer goes and keeps its tabs
+      } else if (e.key === "Escape" && solo.value && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
+        solo.value = "";                                // a member's work alone: everyone's again
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
-  const drag = (e) => {
-    e.preventDefault();
-    const move = (ev) => {
-      const r = centre.current.getBoundingClientRect();
-      setLayout({ h: Math.round(Math.max(MIN_H, Math.min(r.bottom - ev.clientY, r.height - MIN_PREVIEW))) });
-    };
-    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  };
-  const nudge = (e) => {
-    const step = e.key === "ArrowUp" ? 24 : e.key === "ArrowDown" ? -24 : 0;
-    if (!step) return;
-    e.preventDefault();
-    const now = h || Math.round(centre.current.getBoundingClientRect().height / 3);
-    setLayout({ h: Math.max(MIN_H, now + step) });
-  };
   if (!project) {
-    return html`<div class="shell" data-narrow=${narrow} data-start="true"><${TopBar} /><${StartScreen} /><${Dialogs} /></div>`;
+    return html`<div class="shell" data-start="true"><${TopBar} /><${StartScreen} /><${Dialogs} /></div>`;
   }
-  return html`<div class="shell" data-narrow=${narrow} data-tab=${tab.value} data-previewing=${!!preview.value}>
+  return html`<div class="shell" data-drawer=${drawerOpen.value}>
     <${TopBar} />
+    <${GoalTabs} />
     <div class="shell-main">
-      <${BoardPane} />
-      <div class="shell-centre" ref=${centre} style=${h ? `--agents-h:${h}px` : ""}>
-        <${Preview} />
-        ${!hidden && !narrow && html`<div class="shell-split" role="separator" aria-orientation="horizontal" aria-label="Resize Agents"
-          aria-valuenow=${h || undefined} tabindex="0" onPointerDown=${drag} onKeyDown=${nudge}></div>`}
-        <${AgentsPane} />
-      </div>
+      <${Arena} />
+      ${drawerOpen.value && html`<aside class="shell-drawer" aria-label="Drawer"><${Preview} /></aside>`}
     </div>
-    ${narrow && html`<${Tabs} />`}
     <${Dialogs} />
   </div>`;
 }

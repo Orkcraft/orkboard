@@ -1,22 +1,34 @@
-// The preview, the centre (docs/specs/33-v1-shell.md §6, spec 39 §3): tabs — the Map first and pinned, then one tab per thing
-// opened: an idea's spec (29a's sections view), an idea's plan (scrolled to a to-do, said what it unblocks), a task (its brief,
-// state and log), a result's code (commits, then the files changed, each patch folded), a goal, a document, a file. A result's
-// actions stay pinned at its foot. Below 1 024 px there is no strip: the active tab is the screen, with Back.
-import { useEffect, useRef } from "preact/hooks";
+// The drawer's body (docs/specs/33-v1-shell.md §6, spec 39 §3, spec 49 §9): tabs, one per thing opened: an idea's spec (29a's
+// sections view), an idea's plan (scrolled to a to-do, said what it unblocks), a task (its brief, state and log), a result's code
+// (commits, then the files changed, each patch folded), a goal, a document, a file, a diff, the gate's screen, Agents, Files. A
+// result's actions stay pinned at its foot.
+import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Who } from "../orkui.js";
 import { ErrorLine } from "./errors.js";
 import { page } from "../board/store.js";
 import { IdeaView, PlanView } from "../board/idea.js";
-import { MapView } from "../board/map.js";
 import { TASK_STATE } from "../board/maplayout.js";
-import { preview, detail, review, goal, editing, active, mapShown, goneWords, kindWords, keepTab, setTabTitle, act, closePreview, showIdea, showResult, showGoal, refreshShell } from "./store.js";
+import { preview, detail, review, goal, editing, active, goneWords, keepTab, setTabTitle, act, closePreview, showIdea, showResult, showGoal, refreshShell } from "./store.js";
 import { TabStrip } from "./tabs.js";
 import { ResultActions, Found, testsWords, changesWords, isRed } from "./review.js";
 import { GoalView } from "./goalview.js";
 import { File } from "./diffview.js";
-import { FileView } from "./files.js";
+import { FileView, FilesPane } from "./files.js";
 import { GitDiffView } from "./gitpane.js";
+import { AgentsPane } from "./agents.js";
+import { GateView } from "../arena/gate.js";
+
+/** A failed task's way on: run its idea's tasks again, or drop it (asked first). */
+function FailedActions({ t }) {
+  const [sure, setSure] = useState(false);
+  const drop = async () => { const got = await act("ideas.drop_task", { slug: t.idea, task: t.id }); if (got?.ok) closePreview(); };
+  return html`<div class="board-row">
+    <button class="ork-btn primary" title="Its idea's tasks that are not merged or at Review run again" onClick=${() => act("ideas.start", { slug: t.idea })}>Start again</button>
+    ${sure ? html`<span>Drop this task? Its worktree goes; its branch stays.</span>
+      <button class="ork-btn danger" onClick=${drop}>Drop it</button><button class="ork-btn" onClick=${() => setSure(false)}>Keep it</button>`
+      : html`<button class="shell-quiet" onClick=${() => setSure(true)}>Drop…</button>`}</div>`;
+}
 
 function Task({ d }) {
   const t = d?.task;
@@ -39,6 +51,7 @@ function Task({ d }) {
       <dt>Spend</dt><dd>${t.cost != null ? `$${t.cost.toFixed(2)}` : "—"}</dd>
     </dl>
     ${t.error && html`<${ErrorLine} text=${t.error} />`}
+    ${t.state === "failed" && html`<${FailedActions} t=${t} />`}
     <h3 class="board-sub">Brief</h3><p class="shell-brief">${t.brief}</p>
     ${t.state === "review" && html`<p><button class="ork-btn primary" onClick=${() => showResult(t.idea, t.id)}>Open the result</button></p>`}
     ${live && html`<p><button class="ork-btn danger" onClick=${() => act("ideas.stop_task", { slug: t.idea, task: t.id })}>Stop</button></p>`}
@@ -96,23 +109,24 @@ function titleOf(p, d, pg) {
   if (p.kind === "task" || p.kind === "result") return d?.task?.title || "";
   if (p.kind === "goal") return goal.value?.title || "";
   if (p.kind === "doc" || p.kind === "file" || p.kind === "gitdiff") return p.path;
+  if (p.kind === "gate") return "dev → main";
+  if (p.kind === "agents") return "Agents";
+  if (p.kind === "files") return "Files";
   return pg?.title || "";
 }
 
+/** The drawer's body for the active tab (the strip is above it). */
 export function Preview() {
   const p = preview.value, pg = page.value, d = detail.value, id = active.value;
   const gone = p ? goneWords(p) : "";
   const title = p ? titleOf(p, d, pg) : "";
-  const sub = (p?.kind === "task" || p?.kind === "result") ? d?.task?.idea_title : "";
   const dirty = !!editing.value?.dirty;
   useEffect(() => { if (p && title && !gone) setTabTitle(id, title); }, [id, title, gone]);     // the strip names an inactive tab by the last title read
   useEffect(() => { if (p && dirty) keepTab(id); }, [id, dirty]);                                 // an edit in the passing tab keeps it
-  return html`<section class=${cls("shell-preview", { "is-open": !!p || mapShown.value })} aria-label="Preview">
+  return html`<section class="shell-preview" aria-label="Preview">
     <${TabStrip} />
-    <div class="shell-pane__head shell-narrowhead"><button class="ork-btn shell-back" aria-label="Back" onClick=${() => closePreview()}>← Back</button>
-      <h2 title=${title}>${p ? html`<span class="ok-tone-muted">${kindWords(p.kind)}</span> ${title || "…"}${sub ? html` <span class="ok-tone-muted">· ${sub}</span>` : ""}` : "Map"}</h2></div>
-    <div class=${cls("shell-preview__body", { "is-map": !p })}>
-      ${!p ? html`<${MapView} />`
+    <div class=${cls("shell-preview__body", { "is-pane": p?.kind === "agents" })}>
+      ${!p ? ""
         : gone ? html`<div class="shell-empty"><p>${gone}</p><p><button class="ork-btn" onClick=${() => closePreview()}>Close</button></p></div>`
         : p.kind === "idea" ? (pg ? html`<${IdeaView} p=${pg} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "plan" ? (pg ? html`<${PlanView} p=${pg} todo=${p.todo} />` : html`<p class="ok-tone-muted">Opening…</p>`)
@@ -120,6 +134,9 @@ export function Preview() {
         : p.kind === "doc" ? html`<${Doc} d=${d} p=${p} />`
         : p.kind === "file" ? html`<${FileView} path=${p.path} />`
         : p.kind === "gitdiff" ? html`<${GitDiffView} path=${p.path} />`
+        : p.kind === "gate" ? html`<${GateView} />`
+        : p.kind === "agents" ? html`<${AgentsPane} />`
+        : p.kind === "files" ? html`<${FilesPane} />`
         : p.kind === "task" ? html`<${Task} d=${d} />` : html`<${Result} d=${d} p=${p} />`}
     </div>
   </section>`;

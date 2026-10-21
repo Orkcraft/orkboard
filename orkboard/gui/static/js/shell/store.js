@@ -1,40 +1,38 @@
 // The v1 shell's state (docs/specs/33-v1-shell.md §5–§7): what the host last said of the board (js/board/store.js), of
-// Review and of Agents, the Map, and the preview's tabs (spec 39 §3; the active one is `preview`). A refresh runs when the town says the ideas changed and
-// every 10 s while a model or a task runs; the open task's log is read again every 5 s while it runs.
+// Review and of Agents, the Map, the gate and today's events, and the drawer's tabs (spec 39 §3, spec 49 §9; the active one is
+// `preview`, and the drawer is out while `drawerOpen`). A refresh runs when the town says the ideas changed and every 10 s while
+// a model or a task runs; the open task's log is read again every 5 s while it runs.
 import { signal, batch } from "@preact/signals";
 import { command, toast } from "../link.js";
 import { ask, board, opened, page, BUSY } from "../board/store.js";
 import { openDialog } from "./modals.js";
 
-export const preview = signal(null);       // the active tab's thing, null when the Map is: {kind: "idea"|"plan"|"task"|"result"|"goal"|"doc"|"file"|"gitdiff", slug?, task?, todo?, path?}
+export const preview = signal(null);       // the active tab's thing, null with no tab: {kind: "idea"|"plan"|"task"|"result"|"goal"|"doc"|"file"|"gitdiff"|"gate"|"agents"|"files", slug?, task?, todo?, path?}
 export const review = signal(null);        // ideas.review_list
 export const agents = signal(null);        // ideas.agents
 export const detail = signal(null);        // the preview's own data: {task} (ideas.task) · {task, diff, spend} (a result; spend: ideas.spend of its idea) · {goal} · {doc}
 export const goal = signal(null);          // ideas.goal of the goal in the preview
 export const roles = signal(null);         // ideas.roles: the agents, the task types and their agent, the models
-export const tab = signal("board");        // the narrow layout's tab (below 1 024 px the shell is the phone's layout)
-export const leftTab = signal("board");    // the left column's tab (spec 37 §8): "board" | "needs" | "files"
 export const editing = signal(null);       // the file open in the editor: {path, dirty, save()}, null when none is
 
-// The preview's tabs (docs/specs/39-map.md §3): the Map first and pinned, every other thing in a tab of its own. A click opens
-// a thing in the one passing tab (replacing the one there); a double-click, an edit or Keep keeps it. At most 12 besides the
-// Map; each project's tabs are kept per device (the refs only: every tab reads its thing again when shown).
-export const MAP = "map";
+// The drawer's tabs (docs/specs/39-map.md §3, spec 49 §9): a tab per thing opened, no pinned one. A click opens a thing in the one
+// passing tab (replacing the one there); a double-click, an edit or Keep keeps it. At most 12; each project's tabs are kept per
+// device (the refs only: every tab reads its thing again when shown). No active tab is the drawer closed; Esc puts the drawer
+// away and keeps its tabs (`drawerOpen`), and opening anything brings it back.
 export const MAX_TABS = 12;
-export const tabs = signal([]);            // [{id, p, kept, title}] besides the Map
-export const active = signal(MAP);         // MAP or a tab's id
-export const mapShown = signal(false);     // below 1 024 px: the Map is on its screen (the Board's Map button)
-export const mapData = signal(null);       // ideas.map
-export const mapSince = signal("");        // a node updated after this is new (the last time the Map was looked at)
-export const mapFolded = signal([]);       // the goals folded on the Map, kept with the tabs
-export const mapUi = signal({ tasks: [], done: [], more: [] });   // what is unfolded on the Map: a node's tasks, a goal's Done, its done-when lines
-export const mapView = { top: 0 };         // the Map's scroll, kept while another tab is shown
+export const tabs = signal([]);            // [{id, p, kept, title}]
+export const active = signal("");          // a tab's id, "" with none
+export const drawerOpen = signal(false);   // the drawer is out (its tabs are kept while it is not)
+export const mapData = signal(null);       // ideas.map: always read (spec 49 §9)
+export const gateData = signal(null);      // ideas.gate: what dev holds that main lacks
+export const todayData = signal(null);     // ideas.today: today's events, newest first
+export const mapFolded = signal([]);       // the folds kept with the tabs (the Flags fold)
 
-const KINDS = ["idea", "plan", "task", "result", "goal", "doc", "file", "gitdiff"];
-const KIND_WORDS = { idea: "Spec", plan: "Plan", task: "Task", result: "Code", goal: "Goal", doc: "Document", file: "File", gitdiff: "Changes" };
+const KINDS = ["idea", "plan", "task", "result", "goal", "doc", "file", "gitdiff", "gate", "agents", "files"];
+const KIND_WORDS = { idea: "Spec", plan: "Plan", task: "Task", result: "Code", goal: "Goal", doc: "Document", file: "File", gitdiff: "Changes",
+  gate: "Gate", agents: "Agents", files: "Files" };
 export const kindWords = (kind) => KIND_WORDS[kind] || "";
 export const tabId = (p) => `${p.kind}:${p.slug || ""}:${p.task || ""}:${p.path || ""}`;
-export const narrow = () => typeof matchMedia === "function" && matchMedia("(max-width: 1023px)").matches;
 
 /** SHA-1 as hex, synchronously (the tabs' storage key names the project by it; crypto.subtle is async and needs https). */
 function sha1(text) {
@@ -60,18 +58,16 @@ function sha1(text) {
   return h.map((x) => (x >>> 0).toString(16).padStart(8, "0")).join("");
 }
 
-let storeKey = "", seen = "";
+let storeKey = "", mapLogged = false;
 /** This device's last look at the project shown (js/shell/look.js): the storage key, "" with no project; `lookTick` moves when another is shown. */
 export const lookKey = () => (storeKey ? storeKey.replace("orkboard.tabs.", "orkboard.look.") : "");
 export const lookTick = signal(0);
-const pad = (n) => String(n).padStart(2, "0");
-const nowIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
 
 function persist() {
   if (!storeKey) return;
   try {
     localStorage.setItem(storeKey, JSON.stringify({ tabs: tabs.value.map(({ p, kept, title }) => ({ p, kept, title })), active: active.value,
-      seen, folded: mapFolded.value }));
+      open: drawerOpen.value, folded: mapFolded.value }));
   } catch { /* the tabs still work */ }
 }
 
@@ -81,7 +77,8 @@ function readTabs(key) {
     if (!got || typeof got !== "object") return null;
     const list = (Array.isArray(got.tabs) ? got.tabs : []).filter((t) => t && t.p && KINDS.includes(t.p.kind))
       .slice(0, MAX_TABS).map((t) => ({ id: tabId(t.p), p: t.p, kept: t.kept === true, title: typeof t.title === "string" ? t.title : "" }));
-    return { tabs: list, active: typeof got.active === "string" ? got.active : MAP, seen: typeof got.seen === "string" ? got.seen : "",
+    const now = typeof got.active === "string" && list.some((t) => t.id === got.active) ? got.active : "";
+    return { tabs: list, active: now, open: !!now && got.open !== false,
       folded: Array.isArray(got.folded) ? got.folded.filter((x) => typeof x === "string") : [] };
   } catch { return null; }
 }
@@ -92,22 +89,6 @@ export function goneWords(p, bd = board.value) {
   if (p.kind === "goal") return (bd.tracks || []).some((t) => t.slug === p.slug) ? "" : "This goal is gone";
   if (["idea", "plan", "task", "result", "doc"].includes(p.kind) && p.slug) return (bd.ideas || []).some((i) => i.slug === p.slug) ? "" : "This idea is gone";
   return "";
-}
-
-/** The Map is shown now: what moved since the last time it was looked at is new, and the use is logged. */
-function mapNowShown() {
-  if (!storeKey) return;
-  mapSince.value = seen || nowIso();
-  logOpened("map", "");
-}
-/** The Map is left (or the page is): that is when it was last looked at. */
-function mapLeft() {
-  if (!storeKey) return;
-  seen = nowIso();
-  persist();
-}
-if (typeof window !== "undefined") {
-  window.addEventListener("pagehide", () => { if (active.value === MAP) mapLeft(); });
 }
 
 const LIVE = ["running", "testing"];
@@ -128,22 +109,23 @@ export async function refreshShell() {
   if (loading) { again = true; return; }
   loading = true;
   try {
-    const p = preview.value;
-    const wantMap = active.value === MAP && (!narrow() || mapShown.value);
+    const p = drawerOpen.value ? preview.value : null;
     const there = (bd) => !!p && !goneWords(p, bd);
     const side = (bd) => (there(bd) ? Promise.all([detailFor(p), p.kind === "idea" || p.kind === "plan" ? ask("ideas.page", { slug: p.slug }) : null])
       : Promise.resolve([null, null]));
-    const rest = Promise.all([ask("ideas.board"), ask("ideas.review_list"), ask("ideas.agents"), ask("ideas.roles"), wantMap ? ask("ideas.map") : null]);
-    let b, r, a, ro, mp, d, pg;
-    if (board.value) [[b, r, a, ro, mp], [d, pg]] = await Promise.all([rest, side(board.value)]);
-    else { [b, r, a, ro, mp] = await rest; [d, pg] = await side(b); }   // a restored tab: its thing is looked for only if the Board has it
+    const rest = Promise.all([ask("ideas.board"), ask("ideas.review_list"), ask("ideas.agents"), ask("ideas.roles"), ask("ideas.map"), ask("ideas.gate"), ask("ideas.today")]);
+    let b, r, a, ro, mp, gt, td, d, pg;
+    if (board.value) [[b, r, a, ro, mp, gt, td], [d, pg]] = await Promise.all([rest, side(board.value)]);
+    else { [b, r, a, ro, mp, gt, td] = await rest; [d, pg] = await side(b); }   // a restored tab: its thing is looked for only if the Board has it
     batch(() => {
       if (b) board.value = b;
       if (r) review.value = r;
       if (a) agents.value = a;
       if (ro) roles.value = ro;
       if (mp && Array.isArray(mp.goals)) mapData.value = mp;
-      if (preview.value === p) { if (p) detail.value = d; if (pg) page.value = pg; if (p?.kind === "goal" && d?.goal) goal.value = d.goal; }
+      if (gt && typeof gt.same === "boolean") gateData.value = gt;
+      if (td && Array.isArray(td.events)) todayData.value = td;
+      if (p && drawerOpen.value && preview.value === p) { detail.value = d; if (pg) page.value = pg; if (p.kind === "goal" && d?.goal) goal.value = d.goal; }
     });
   } finally {
     loading = false;
@@ -169,7 +151,7 @@ export function leaving(then) {
   else then();
 }
 
-/** Another project is shown: nothing of the last one stays on the page but the Map, and the tabs are that project's own. */
+/** Another project is shown: nothing of the last one stays on the page, and the tabs are that project's own. */
 export function resetForProject(project = "") {
   storeKey = project ? `orkboard.tabs.${sha1(project).slice(0, 12)}` : "";
   let got = null;
@@ -180,53 +162,48 @@ export function resetForProject(project = "") {
     editing.value = null;
     detail.value = null; page.value = null; goal.value = null;
     board.value = null; review.value = null; agents.value = null; roles.value = null;
-    leftTab.value = "board";
-    mapData.value = null; mapUi.value = { tasks: [], done: [], more: [] }; mapView.top = 0; mapShown.value = false;
+    mapData.value = null; gateData.value = null; todayData.value = null;
     mapFolded.value = got ? got.folded : [];
-    seen = got ? got.seen : "";
     tabs.value = list;
-    active.value = now ? now.id : MAP;
+    active.value = now ? now.id : "";
     preview.value = now ? now.p : null;
+    drawerOpen.value = !!now && got.open;
     opened.value = now && (now.p.kind === "idea" || now.p.kind === "plan") ? now.p.slug : "";
   });
   lookTick.value += 1;
-  if (!now) mapNowShown();
+  if (storeKey && !mapLogged) { mapLogged = true; logOpened("map", ""); }       // the window is shown: once a page load
 }
 
-/** Needs you, from a card: the left column's tab (the phone's layout: the Board tab, off the Map's screen). */
+/** The stops along the bottom, from a card (While you were away): the goal of the first one is shown and the first is in focus. */
+export const needsFocus = signal(0);
 export function showNeeds() {
-  batch(() => { leftTab.value = "needs"; tab.value = "board"; mapShown.value = false; });
+  needsFocus.value += 1;
 }
 
 function setActive(id) {
   const t = tabs.value.find((x) => x.id === id);
-  const was = active.value;
   editing.value = null;
   batch(() => {
-    active.value = t ? id : MAP;
+    active.value = t ? id : "";
     preview.value = t ? t.p : null;
+    drawerOpen.value = !!t;
     detail.value = null; page.value = null; goal.value = null;
     opened.value = t && (t.p.kind === "idea" || t.p.kind === "plan") ? t.p.slug : "";
   });
-  if (was === MAP && t) mapLeft();
-  if (!t && was !== MAP) mapNowShown();
   persist();
   refreshShell();
 }
 
-/** Show a tab (or the Map); unsaved changes in the file being edited are asked about first. */
+/** Show a tab; unsaved changes in the file being edited are asked about first. */
 export function activate(id) {
-  if (id === active.value) return;
+  if (id === active.value && drawerOpen.value) return;
   leaving(() => setActive(id));
 }
 
-/** Below 1 024 px: the Board's Map button puts the Map on its own screen. */
-export function openMap() {
-  leaving(() => {
-    mapShown.value = true;
-    if (active.value !== MAP) setActive(MAP);
-    else { mapNowShown(); refreshShell(); }
-  });
+/** Esc, or the drawer's ×: the drawer goes away and keeps its tabs; opening anything brings it back. */
+export function hideDrawer() {
+  if (!drawerOpen.value) return;
+  leaving(() => { drawerOpen.value = false; persist(); });
 }
 
 export function keepTab(id) {
@@ -243,15 +220,12 @@ export function setTabTitle(id, title) {
   persist();
 }
 
-function removeTab(id, toBoard = false) {
+function removeTab(id) {
   const list = tabs.value, i = list.findIndex((t) => t.id === id);
   if (i < 0) return;
   tabs.value = list.filter((t) => t.id !== id);
-  if (active.value === id) {
-    const to = narrow() ? MAP : list[i - 1]?.id || MAP;     // the tab to its left, the Map at the end (the phone's layout: the Board)
-    setActive(to);
-    if (toBoard) mapShown.value = false;
-  } else persist();
+  if (active.value === id) setActive(list[i - 1]?.id || list[i + 1]?.id || "");      // the tab to its left, else to its right; none: the drawer goes
+  else persist();
 }
 
 /** Closes a tab; the active one with unsaved changes asks first (`leaving`). */
@@ -260,11 +234,10 @@ export function closeTab(id) {
   else removeTab(id);
 }
 
-/** Closes the active tab, so every caller that closes the preview after an action goes on working; the Map has no ×, and on the
- *  phone's layout Back from it leaves its screen. `toBoard`: the layout's own tabs were used, so nothing of the preview stays. */
-export function closePreview({ toBoard = false } = {}) {
-  if (active.value === MAP) { mapShown.value = false; return; }
-  leaving(() => removeTab(active.value, toBoard));
+/** Closes the active tab, so every caller that closes the preview after an action goes on working. */
+export function closePreview() {
+  if (!active.value) { if (drawerOpen.value) hideDrawer(); return; }
+  leaving(() => removeTab(active.value));
 }
 
 export function show(p, opts = {}) {
@@ -273,7 +246,9 @@ export function show(p, opts = {}) {
 }
 
 function showNow(p, { keep = false, via = "" } = {}) {
-  if (!["doc", "file", "gitdiff"].includes(p.kind)) logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
+  if (p.kind === "agents" || p.kind === "files") logOpened("tab", p.kind, via);
+  else if (p.kind === "gate") logOpened("gate", "", via);
+  else if (!["doc", "file", "gitdiff"].includes(p.kind)) logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
     p.kind === "goal" ? `goal:${p.slug}` : p.task ? `${p.slug}/${p.task}` : p.todo ? `${p.slug}/${p.todo}` : p.slug, via);
   const id = tabId(p);
   const list = tabs.value;
@@ -302,26 +277,12 @@ export const showDoc = (slug, path, o) => show({ kind: "doc", slug, path }, o);
 export const showFile = (path, o) => show({ kind: "file", path }, o);
 export const showGitDiff = (path, o) => show({ kind: "gitdiff", path }, o);
 export const showResult = (slug, task, o) => show({ kind: "result", slug, task }, o);
+export const showGate = (o) => show({ kind: "gate" }, o);
+export const showAgents = (o) => show({ kind: "agents" }, { keep: true, ...o });      // the panes are kept: a file or a task opened from them is a tab of its own
+export const showFiles = (o) => show({ kind: "files" }, { keep: true, ...o });
 
 /** Something a model or a task does now: the shell looks again every 10 s. */
 export function busy() {
   const b = board.value, a = agents.value;
   return !!(b && (b.ideas.some((i) => BUSY.includes(i.state)) || b.tracks.some((t) => t.state === "reading"))) || !!(a && a.roles.some((r) => (r.chips || []).some((c) => LIVE.includes(c.state) || (c.goal && c.state === "reading"))));
-}
-
-// The Agents pane's size and whether it is hidden are kept per machine; the layout works without storage.
-const KEY = "orkline.shell.agents";
-export function readLayout() {
-  try {
-    const got = JSON.parse(localStorage.getItem(KEY) || "{}");
-    return { h: Number.isFinite(got.h) ? got.h : 0, hidden: got.hidden === true };
-  } catch { return { h: 0, hidden: false }; }
-}
-export function writeLayout(layout) {
-  try { localStorage.setItem(KEY, JSON.stringify(layout)); } catch { /* the layout still works */ }
-}
-export const agentsLayout = signal(readLayout());   // {h: px, 0 = a third of the centre, hidden}
-export function setLayout(change) {
-  agentsLayout.value = { ...agentsLayout.value, ...change };
-  writeLayout(agentsLayout.value);
 }

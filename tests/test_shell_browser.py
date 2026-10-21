@@ -53,6 +53,7 @@ def make_plan():
 
 
 _HEAD = {"craft": "engineering", "race": "peon", "tier": "warrior"}
+LEAD = {"slug": "taskmaster", "name": "Taskmaster", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}
 PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product manager", "head": {"craft": "product", "race": "lich", "tier": "elder"}, "usd": 4.1},
          "members": [{"slug": "grunt", "name": "Grunt", "head": _HEAD, "tasks": 14, "merged": 13, "first_time": 12, "usd": 9.2}],
          "checks": [{"by": "accessibility-reviewer", "name": "Accessibility reviewer", "head": {"craft": "design", "race": "elf", "tier": "warrior"}, "applied": 6,
@@ -115,6 +116,21 @@ class StubHost:
         self.own: list[dict] = []                                                                    # ideas.parties (spec 43 F)
         self.goal_notes: list[str] = []                                                              # what ideas.goal_save says besides its slug
         self.learned = True                                                                          # ideas.party_price: learned from the project's ideas, or a first guess
+        self.reserve = {"share": 0.1, "night": False}                                                # the snapshot's reserve (spec 49 §2.3)
+        self.week: dict[str, dict | None] = {}                                                       # ideas.agents: a role's week by slug (spec 49 §5.2)
+        self.harness: dict[str, dict] = {}                                                           # ideas.agents: the tool a role runs on, by slug
+        self.gate_doc = {"into": "dev", "main": "main", "same": False, "commits": 3, "files": 7,       # ideas.gate (spec 49 §2.1)
+                         "ideas": [{"slug": "export", "title": "Export notes", "goal": "ship-sync", "tasks": 3}]}
+        self.today_events: list[dict] = [                                                            # ideas.today (spec 49 §2.2)
+            {"at": "12:40", "mark": "✓", "tone": "ok", "words": "merged into dev", "title": "Read the sync code", "goal": "ship-sync", "idea": "sync", "task": "k1",
+             "open": {"kind": "result", "slug": "sync", "task": "k1"}},
+            {"at": "12:10", "mark": "↺", "tone": "muted", "words": "sent back", "title": "Add the queue", "goal": "ship-sync", "idea": "sync", "task": "k2",
+             "open": {"kind": "result", "slug": "sync", "task": "k2"}},
+            {"at": "11:55", "mark": "✗", "tone": "danger", "words": "failed", "title": "Secure cookie flags", "goal": "grow", "idea": "tags", "task": "k1",
+             "open": {"kind": "task", "slug": "tags", "task": "k1"}},
+            {"at": "10:30", "mark": "▸", "tone": "ink", "words": "the work started", "title": "Sync ideas between the phone and the town", "goal": "ship-sync", "idea": "sync",
+             "task": "", "open": {"kind": "idea", "slug": "sync"}},
+            {"at": "09:00", "mark": "✓", "tone": "ok", "words": "dev merged into main", "title": "dev → main", "goal": "", "idea": "", "task": "", "open": {"kind": "gate", "slug": ""}}]
 
     def idea(self, slug, title, state, order, **more):
         return {"slug": slug, "title": title, "track": "ship-sync", "order": order, "state": state, "size": "M", "asks": 0, "updated": "x", "talk": [],
@@ -162,7 +178,7 @@ class StubHost:
         return {"t": "state", "state": {
             "focus": "board", "ideas_rev": self.rev, "look": self.look, "project": "orkline", "demo": False, "onboarding": self.onboarding or False,
             "words": [], "resources": {}, "orkspaces": [], "buildings": [], "roads": [], "alerts": [], "score": {},
-            "limits": self.limits, "review_count": len(self.results()), "needs_you": 1,
+            "limits": self.limits, "reserve": self.reserve, "review_count": len(self.results()), "needs_you": 1,
             "hud": {"gold": "$2.40", "show_gold": True, "lumber": "120k"}}}
 
     def page(self, slug):
@@ -180,33 +196,53 @@ class StubHost:
         return next(t for t in self.plan["tasks"] if t["id"] == a["task"])
 
     def map_doc(self):
-        """`ideas.map` as spec 48 §1 has it, for the shell's stub: the ideas of its goals; sync's tasks in waves and its results at Review."""
+        """`ideas.map` as spec 48 §1 and spec 49 §2.4 have it, for the shell's stub: the ideas of its goals; sync's tasks in waves and its
+        results at Review; a party of a leader, a builder and a checker."""
         wave, tasks = {}, []
         for t in [] if self.unplanned else self.plan["tasks"]:
             wave[t["id"]] = 1 + max([wave[a] for a in t["after"] if a in wave], default=0)
+            check = bool(t.get("check"))
             tasks.append({"id": t["id"], "title": t["title"], "short": t["title"], "state": t["state"], "after": t["after"], "tier": t["tier"], "head": _HEAD,
-                          "by": {"slug": "grunt", "name": "Grunts"}, "band": "check" if t.get("check") else "build", "wave": wave[t["id"]], "tag": "Code"})
+                          "by": {"slug": "reviewer" if check else "grunt", "name": "Reviewer" if check else "Grunts"}, "band": "check" if check else "build",
+                          "wave": wave[t["id"]], "tag": "Code", "error": t["error"], "note": t["note"], "round": t["round"], "cost": t["cost"],
+                          "started": t["started"] or (dt.datetime.now() - dt.timedelta(minutes=4)).isoformat(timespec="seconds") if t["state"] == "running" else t["started"]})
         nodes = []
         for i in self.ideas.values():
             if i["track"] == "general":
                 continue
             sync = i["slug"] == "sync"
+            need = {"asks": "asks", "plan": "plan", "proposed": "proposal"}.get(i["state"], "") if i["in_needs_you"] else ""
+            asked = [{"ask": "Which fields count?", "choices": [], "pick": None, "why": "", "by": LEAD}] if i["state"] == "asks" else []
             nodes.append({"slug": i["slug"], "goal": i["track"], "title": i["title"], "short": i["title"], "state": i["state"], "queue": i["queue"], "held_until": "",
                           "start_at": i["start_at"], "priority": "normal", "size": "M", "risk": "low", "tier": 1, "depends_on": [], "waits_on": [], "waits": None,
-                          "needs_you": "", "progress": {"done": 1, "total": len(tasks)} if sync else {"done": 0, "total": 0}, "tasks": tasks if sync else [],
+                          "needs_you": need, "progress": {"done": 1, "total": len(tasks)} if sync else {"done": 0, "total": 0}, "tasks": tasks if sync else [],
                           "estimate": None, "by_itself": False, "folded": False, "updated": "2026-10-17T10:00:00", "checks": [],
-                          "stage": "implementation" if sync else "planning", "round": 1, "usd": 0.84 if sync else None, "plan_estimate": None, "asked": [],
+                          "stage": "implementation" if sync else "planning", "round": 1, "usd": 0.84 if sync else None,
+                          "plan_estimate": {"usd_low": 1.0, "usd_high": 2.0} if i["state"] == "plan" else None, "asked": asked,
                           "results": self.results() if sync else []})
-        lead = {"slug": "taskmaster", "name": "Taskmaster", "head": _HEAD}
-        goals = [{"slug": g["slug"], "title": g["title"], "short": g["title"], "priority": g["priority"], "state": g["state"], "done_when": [], "ideas": 1, "done": 0,
-                  "usd": None, "leader": lead, "team": [], "party": [{**lead, "band": "lead", "state": "free", "why": ""}], "today": {"merged": 0, "usd": 0.0}}
-                 for g in self.goals.values() if g["slug"] != "general"]
+        goals = []
+        for g in self.goals.values():
+            if g["slug"] == "general":
+                continue
+            party = [{**LEAD, "band": "lead", "state": "free", "why": ""}]
+            if g["slug"] == "ship-sync":
+                party += [{"slug": "grunt", "name": "Grunts", "head": _HEAD, "band": "build", "state": "work", "why": ""},
+                          {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "band": "check", "state": "next", "why": ""}]
+            goals.append({"slug": g["slug"], "title": g["title"], "short": g["title"], "priority": g["priority"], "state": g["state"], "done_when": [], "ideas": 5, "done": 0,
+                          "usd": None, "leader": LEAD, "team": [], "party": party, "today": {"merged": 0, "usd": 0.0}})
         return {"goals": goals, "nodes": nodes, "edges": [], "rev": self.rev}
 
     def handle(self, name, a):
         self.log.append((name, a))
         if name == "ideas.map":
             return self.map_doc()
+        if name == "ideas.gate":
+            return copy.deepcopy(self.gate_doc)
+        if name == "ideas.gate_merge":
+            self.gate_doc.update(commits=0, files=0, ideas=[])
+            return self.bump({"ok": True, "commit": "abc", "note": ""})
+        if name == "ideas.today":
+            return {"events": copy.deepcopy(self.today_events)}
         if name == "ideas.board":
             ideas = [i | {"thesis": "Gist in one line", "progress": {"done": 1, "total": 5} if i["slug"] == "sync" else {"done": 0, "total": 0}}
                      for i in self.ideas.values()]
@@ -239,14 +275,16 @@ class StubHost:
                            waits_title="Sync ideas between the phone and the town", by="auto", night=False)]
             chips = [c | self.chip_extra.get(c["task"], {}) for c in chips]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "usd_task": None,
-                       "head": {"craft": "engineering", "race": "peon", "tier": "elder"},
+                       "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "harness": {"id": "claude", "name": "Claude"}, "week": self.week.get("taskmaster"),
                        "state": "waiting", "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": []},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
                        "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "usd_task": self.usd_task.get("grunt"),
-                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
+                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "harness": self.harness.get("grunt", {"id": "claude", "name": "Claude"}),
+                       "week": self.week.get("grunt")}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
                         "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "usd_task": self.usd_task.get(r["slug"]),
-                        "head": r.get("head"), **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})}
+                        "head": r.get("head"), "harness": self.harness.get(r["slug"], {"id": "claude", "name": "Claude"}), "week": self.week.get(r["slug"]),
+                        **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})}
                        for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":

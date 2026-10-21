@@ -15,21 +15,12 @@
 .shell-top__spend:hover, .shell-top__spend:focus-visible { outline: 0; box-shadow: inset 0 0 0 var(--ork-line) var(--ork-edge); }
 .week { display: flex; flex-direction: column; gap: var(--ork-3); }
 .week p { margin: 0; overflow-wrap: anywhere; }
-.shell-limits { display: inline-flex; gap: var(--ork-5); }
-.shell-limit { position: relative; font-variant-numeric: tabular-nums; cursor: default; padding: var(--ork-1) var(--ork-3); }
-.shell-limit.is-warn { color: var(--ork-warning); }
-.shell-limit.is-danger { color: var(--ork-danger); font-weight: 700; }
-.shell-limit.is-unread { color: var(--ork-ink-muted); }
-.shell-pop { display: none; position: absolute; top: 100%; left: 0; z-index: 30; min-width: 220px; flex-direction: column; gap: var(--ork-2); padding: var(--ork-3) var(--ork-4);
-  background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-double) double var(--ork-edge); font-weight: 400; white-space: nowrap; }
-.shell-limit:hover > .shell-pop, .shell-limit:focus > .shell-pop, .shell-limit:focus-within > .shell-pop { display: flex; }
-.shell-pop__row { display: grid; grid-template-columns: 56px 48px 1fr; gap: var(--ork-4); }
-
-/* the two columns: the Board and the centre (spec 48: Review's results are on their ideas in the Map) */
-.shell-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
-@media (max-width: 1280px) { .shell-main { grid-template-columns: 260px minmax(0, 1fr); } }
+/* spec 49: the window is the goal tabs over the arena (js/arena/arena.css); anything opened is the drawer on its right */
+.shell-main { position: relative; flex: 1; min-height: 0; display: flex; }
+.shell-drawer { position: absolute; top: 0; right: 0; bottom: 0; z-index: 40; width: max(62%, 560px); max-width: 100%; box-sizing: border-box; display: flex; flex-direction: column;
+  background: var(--ork-panel); border-left: var(--ork-double) double var(--ork-edge); box-shadow: -24px 0 0 0 var(--ork-scrim); }
+.shell-drawer .shell-preview { flex: 1; min-height: 0; }
 .shell-pane { min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--ork-panel); }
-.shell-board { border-right: 1px solid var(--ork-frame); }
 .shell-pane__head { display: flex; align-items: center; gap: var(--ork-3); padding: var(--ork-2) var(--ork-4); border-bottom: var(--ork-line) solid var(--ork-frame); min-height: 40px; box-sizing: border-box; }
 .shell-pane__head h2 { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--ork-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
@@ -38,19 +29,25 @@
   box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: var(--ork-type-label); font-variant-numeric: tabular-nums;
   text-transform: none; letter-spacing: 0; color: var(--ork-ink); }
 .shell-quiet { background: none; border: 0; padding: 0 var(--ork-2); color: var(--ork-ink-muted); cursor: pointer; font: inherit; text-decoration: underline; }
-.shell .board-goals { display: flex; flex-direction: column; gap: var(--ork-2); }
-.shell .board-goals__switch { max-width: 100%; }
+
+/* the drawer's body */
+.shell-preview { flex: 1; min-height: 0; }
+.shell-pane { min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--ork-panel); }
+.shell-pane__head { display: flex; align-items: center; gap: var(--ork-3); padding: var(--ork-2) var(--ork-4); border-bottom: var(--ork-line) solid var(--ork-frame); min-height: 40px; box-sizing: border-box; }
+.shell-pane__head h2 { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--ork-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.shell-pane__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ork-5); display: flex; flex-direction: column; gap: var(--ork-5); }
+.shell-count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: var(--ork-chip); margin-left: var(--ork-3); padding: 0 var(--ork-2);
+  box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: var(--ork-type-label); font-variant-numeric: tabular-nums;
+  text-transform: none; letter-spacing: 0; color: var(--ork-ink); }
+.shell-quiet { background: none; border: 0; padding: 0 var(--ork-2); color: var(--ork-ink-muted); cursor: pointer; font: inherit; text-decoration: underline; }
 
 /* the centre: the preview over Agents */
 .shell-centre { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--ork-canvas); }
 .shell-preview { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--ork-canvas); }
 .shell-preview__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ork-5) var(--ork-6); }
-.shell-preview .shell-back { display: none; }
 .shell-empty { height: 100%; display: grid; place-content: center; text-align: center; gap: var(--ork-4); color: var(--ork-ink-muted); }
-.shell-split { flex: none; height: 4px; cursor: row-resize; touch-action: none; background: repeating-linear-gradient(90deg, var(--ork-frame) 0 2px, transparent 2px 4px); }
-.shell-split:hover, .shell-split:focus-visible { background: repeating-linear-gradient(90deg, var(--ork-ink) 0 2px, transparent 2px 4px); outline: none; }
-.shell-agents { flex: none; height: var(--agents-h, 33%); min-height: 40px; display: flex; flex-direction: column; background: var(--ork-panel); border-top: 1px solid var(--ork-frame); }
-.shell-agents.is-hidden { height: auto; }
+.shell-agents { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--ork-panel); }
 .shell-agents__body { flex: 1; min-height: 0; overflow: auto; padding: var(--ork-5); display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--ork-6); }
 .shell-role { min-width: 220px; display: flex; flex-direction: column; gap: var(--ork-4); align-items: flex-start; }
 .shell-role[data-role="grunt"] { flex: 1; }
@@ -136,23 +133,6 @@
 .board-plan__line { flex-basis: 100%; color: var(--ork-ink); font-weight: 600; }
 .board-task__title { text-align: left; }
 
-/* below 1 024 px: the phone's layout — three tabs, the preview on its own screen with Back */
-.shell[data-narrow="true"] .shell-main { display: flex; flex-direction: column; }
-.shell[data-narrow="true"] .shell-centre { display: contents; }
-.shell[data-narrow="true"] .shell-board, .shell[data-narrow="true"] .shell-agents { display: none; flex: 1; height: auto; min-height: 0; }
-.shell[data-narrow="true"][data-tab="board"] .shell-board,
-.shell[data-narrow="true"][data-tab="agents"] .shell-agents { display: flex; }
-.shell[data-narrow="true"] .shell-agents .ork-btn { display: none; }
-.shell[data-narrow="true"] .shell-preview { display: none; }
-.shell[data-narrow="true"] .shell-preview.is-open { display: flex; position: fixed; inset: 0; z-index: 20; }
-.shell[data-narrow="true"] .shell-preview .shell-back { display: inline-flex; }
-.shell[data-narrow="true"] .shell-preview .shell-close { display: none; }
-.shell[data-narrow="true"] .shell-top { flex-wrap: wrap; gap: var(--ork-4); }
-.shell-tabs { flex: none; }
-.shell-tab .shell-count { position: absolute; top: var(--ork-2); left: calc(50% + 6px); margin: 0; }
-.shell .board-goals .board-link { align-self: flex-start; }
-
-
 /* spec 34 §5: every dialog and menu on a dimmed backdrop, in an opaque panel (orkUI's dialog: a double frame, notched); on a
    narrow screen a sheet from the bottom */
 .shell-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--ork-6);
@@ -236,12 +216,6 @@
 .shell-start__recent ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
 .shell-start__recent h2 { margin: 0 0 var(--ork-2); }
 
-.shell-pane__tabs { padding: 0; gap: 0; }
-.shell-ltab { flex: 1; align-self: stretch; padding: 0 var(--ork-4); background: none; border: 0; color: var(--ork-ink-muted); cursor: pointer;
-  font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
-.shell-ltab:hover { color: var(--ork-ink); background: var(--ork-raised); }
-.shell-ltab.is-on { color: var(--ork-ink); background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
-.shell-ltab:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .shell-files { display: flex; flex-direction: column; gap: var(--ork-5); }
 .shell-files__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
 .shell-tree, .shell-tree__list { list-style: none; margin: 0; padding: 0; }
@@ -287,27 +261,26 @@
 /* Operations on the start screen (spec 38 §10): the person's, with no project open */
 .shell-start__ops { width: min(100%, 560px); text-align: left; }
 
-/* spec 39 §3: the preview's tabs — the Map first and pinned, then a tab per thing opened; the passing tab in italics */
-.shell-tabstrip { flex: none; display: flex; align-items: stretch; overflow-x: auto; background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame);
-  min-height: var(--ork-bar); box-sizing: border-box; }
-.shell-ptab { flex: none; display: inline-flex; align-items: center; max-width: 240px; border-right: var(--ork-line) solid var(--ork-frame); color: var(--ork-ink-muted); }
+/* spec 39 §3, spec 49 §9: the drawer's tabs — a tab per thing opened, none pinned; the passing tab in italics; Close the drawer at the right */
+.shell-tabstrip { flex: none; display: flex; align-items: stretch; background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); height: 32px; box-sizing: border-box; }
+.shell-tabstrip__tabs { flex: 1; min-width: 0; display: flex; align-items: stretch; overflow-x: auto; scrollbar-width: none; }
+.shell-tabstrip__tabs::-webkit-scrollbar { display: none; }
+.shell-ptab { flex: none; display: inline-flex; align-items: center; max-width: 280px; border-right: var(--ork-line) solid var(--ork-frame); color: var(--ork-ink-muted); }
 .shell-ptab:hover { color: var(--ork-ink); }
 .shell-ptab.is-on { background: var(--ork-raised); color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
-.shell-ptab__main { flex: 1; min-width: 0; display: inline-flex; align-items: baseline; gap: 4px; padding: var(--ork-4) var(--ork-5); background: none; border: 0; color: inherit; font: inherit;
-  cursor: pointer; white-space: nowrap; }
-.shell-ptab__main:focus-visible, .shell-ptab__x:focus-visible, .shell-ptab__keep:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
-.shell-ptab__kind { font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.shell-ptab__main { flex: 1; min-width: 0; display: inline-flex; align-items: baseline; gap: 4px; padding: 0 var(--ork-3) 0 var(--ork-5); height: 100%; background: none; border: 0; color: inherit; font: inherit;
+  cursor: pointer; white-space: nowrap; align-items: center; }
+.shell-ptab__main:focus-visible, .shell-ptab__x:focus-visible, .shell-ptab__keep:focus-visible, .shell-drawer__x:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.shell-ptab__kind { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-faint); }
 .shell-ptab__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .shell-ptab.is-passing .shell-ptab__main { font-style: italic; }
-.shell-ptab__x, .shell-ptab__keep { flex: none; background: none; border: 0; color: var(--ork-ink-muted); font: inherit; cursor: pointer; padding: 0 var(--ork-4); }
+.shell-ptab__x, .shell-ptab__keep, .shell-drawer__x { flex: none; background: none; border: 0; color: var(--ork-ink-muted); font: inherit; cursor: pointer; padding: 0 var(--ork-4); }
 .shell-ptab__keep { font: var(--ork-type-caption); text-decoration: underline; padding: 0 var(--ork-2); }
-.shell-ptab__x:hover, .shell-ptab__keep:hover { color: var(--ork-ink); }
-.shell-ptab.is-pinned .shell-ptab__main { font-weight: 600; }
-.shell-narrowhead, .shell-mapbtn { display: none; }
-.shell-preview__body.is-map { padding: 0; overflow: hidden; }
-.shell[data-narrow="true"] .shell-tabstrip { display: none; }
-.shell[data-narrow="true"] .shell-narrowhead { display: flex; }
-.shell[data-narrow="true"] .shell-mapbtn { display: inline-flex; align-self: flex-start; }
+.shell-ptab__x:hover, .shell-ptab__keep:hover, .shell-drawer__x:hover { color: var(--ork-ink); background: var(--ork-raised); }
+.shell-drawer__x { display: inline-flex; align-items: center; justify-content: center; width: 32px; padding: 0; }
+.shell-preview__body.is-pane { padding: 0; overflow: hidden; }
+.shell-top .board-target { position: relative; }
+.shell-top .board-target__menu { right: auto; min-width: 300px; z-index: 50; }
 
 /* decisions §53: who does a task, as orkUI draws it: the head of the craft's race in its tier's gear, its words beside it */
 .shell-role__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-1) var(--ork-4); }       /* a role in one line (spec 41 §8) */

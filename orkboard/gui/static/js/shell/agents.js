@@ -1,13 +1,12 @@
-// Agents, in the lower part of the centre as VS Code's terminal (docs/specs/33-v1-shell.md §6–§7, spec 34 §3, spec 36 §5):
-// a monitor — a block per role, one line (spec 41 §8): its head (its craft's race in its tier's gear, decisions §53), its name,
+// Agents, in the drawer (docs/specs/33-v1-shell.md §6–§7, spec 34 §3, spec 36 §5, spec 49 §9; it was VS Code's terminal under the
+// preview): a monitor — a block per role, one line (spec 41 §8): its head (its craft's race in its tier's gear, decisions §53), its name,
 // ×2 (at most at once) and ≈ $0.40 a task, under it, muted, its day and week (spent today; what a result costs and how often it is
 // right the first time, once it has three merged; the Taskmaster's, its plans' tasks), what it takes, its chips (needs you
 // first, each with the head of who does it and its short name), Edit — with + Add agent at the top (from the library, or your own). A
 // chip opens its task.
 import { html, cls } from "../html.js";
-import { Chev } from "../orkui.js";
 import { say } from "../link.js";
-import { agents, agentsLayout, setLayout, showIdea, showGoal, showTask } from "./store.js";
+import { agents, showIdea, showGoal, showTask } from "./store.js";
 import { openDialog } from "./modals.js";
 import { holdWords } from "../board/store.js";
 import { WhoHead, CRAFT_WORDS, TIER_WORDS, RACE_WORDS } from "../orkui.js";
@@ -98,17 +97,14 @@ function Worker({ role, done }) {
 
 export function AgentsPane() {
   const a = agents.value;
-  const hidden = agentsLayout.value.hidden;
   const live = (a?.roles || []).filter((r) => r.role !== "taskmaster").flatMap((r) => r.chips || [])
     .filter((c) => c.state === "running" || c.state === "testing").length;
-  return html`<section class=${cls("shell-agents", { "is-hidden": hidden })} aria-label="Agents">
+  return html`<section class="shell-agents" aria-label="Agents">
     <header class="shell-pane__head"><h2>Agents ${live > 0 && html`<span class="shell-count">${live}</span>`}</h2>
-      ${!hidden && html`<button class="ork-btn primary" onClick=${() => openDialog("agent")}>+ Add agent</button>`}
-      <button class="ork-btn" aria-expanded=${!hidden} aria-label=${hidden ? "Show Agents (Ctrl+J)" : "Hide Agents (Ctrl+J)"}
-        title="Ctrl+J" onClick=${() => setLayout({ hidden: !hidden })}>${hidden ? html`<${Chev} dir="up" /> show` : html`<${Chev} /> hide`}</button></header>
-    ${!hidden && html`<div class="shell-agents__body">
+      <button class="ork-btn primary" onClick=${() => openDialog("agent")}>+ Add agent</button></header>
+    <div class="shell-agents__body">
       ${a ? a.roles.map((r) => r.role === "taskmaster" ? html`<${Taskmaster} key=${r.role} role=${r} />`
         : html`<${Worker} key=${r.role} role=${r} done=${a.done_today || []} />`) : html`<p class="ok-tone-muted">Opening…</p>`}
-    </div>`}
+    </div>
   </section>`;
 }

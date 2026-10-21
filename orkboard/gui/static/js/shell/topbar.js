@@ -1,16 +1,16 @@
-// The top bar on every pane (docs/specs/33-v1-shell.md §6): Orkline · what is left of each AI tool (the smaller of its
-// window and its week; a hover or focus shows each window and when it resets) · today's Spend · Stop all · the gear.
+// The top bar (docs/specs/33-v1-shell.md §6, spec 49 §3): the project switcher · Orkline · the Target · Agents and Files (the drawer's
+// panes) · today's Spend · Stop all · the gear. What is left of each AI tool is at the bottom right of the window (arena/limits.js).
 // Roles only: warning at 20 % or less left, danger at 5 % or less (docs/design-system.md).
-import { html, cls } from "../html.js";
+import { html } from "../html.js";
 import { Icon } from "../orkui.js";
 import { town, command, say } from "../link.js";
+import { TargetChip } from "../board/target.js";
+import { showAgents, showFiles } from "./store.js";
 import { openDialog } from "./modals.js";
-import { ProjectSwitcher } from "./projects.js";
+import { ProjectSwitcher, currentProject, projectsOn } from "./projects.js";
 
-const MARKS = { claude: "✱", agy: "∩", codex: "◇", hermes: "☿", pi: "π", cursor: "▷" };
 export const WARN = 0.2, DANGER = 0.05;
 
-const pct = (left) => `${Math.round(left * 100)} %`;
 export const levelOf = (left) => (left <= DANGER ? "danger" : left <= WARN ? "warn" : "ok");
 
 /** "resets at 18:00", or with the day when it is not today. */
@@ -21,31 +21,6 @@ export function resetWords(iso, now = new Date()) {
   return d.toDateString() === now.toDateString() ? `resets at ${hm}` : `resets ${d.toLocaleDateString([], { weekday: "short" })} ${hm}`;
 }
 
-/** A tool turned on whose limits could not be read: its mark, a ?, and its reader's words on hover. */
-function Unread({ l }) {
-  return html`<span class="shell-limit is-unread" tabindex="0" data-provider=${l.provider} aria-label=${`${l.name}: limits not read`}>
-    <span aria-hidden="true">${MARKS[l.provider] || l.name[0]}</span> <b>?</b>
-    <span class="shell-pop" role="tooltip"><b>${l.name}: limits not read</b><span class="ok-tone-muted">${l.error}</span></span>
-  </span>`;
-}
-
-function Limit({ l }) {
-  if (typeof l.left !== "number") return html`<${Unread} l=${l} />`;
-  const level = levelOf(l.left);
-  return html`<span class=${cls("shell-limit", `is-${level}`)} tabindex="0" data-provider=${l.provider}
-      aria-label=${`${l.name}: ${pct(l.left)} left`}>
-    <span aria-hidden="true">${MARKS[l.provider] || l.name[0]}</span> <b>${pct(l.left)}</b>${level !== "ok" && html`<span aria-hidden="true"> ⚠</span>`}
-    <span class="shell-pop" role="tooltip"><b>${l.name}</b>
-      ${l.rows.map((r) => html`<span key=${r.window} class="shell-pop__row"><span>${r.window}</span><b>${pct(r.left)}</b>
-        <span class="ok-tone-muted">${resetWords(r.reset)}</span></span>`)}</span>
-  </span>`;
-}
-
-export function Limits() {
-  const limits = town.value?.limits || [];
-  return html`<span class="shell-limits" aria-label="What is left of your AI tools">${limits.map((l) => html`<${Limit} key=${l.provider} l=${l} />`)}</span>`;
-}
-
 function Gear() {
   return html`<button class="ork-btn" aria-label="Settings" aria-haspopup="dialog" onClick=${() => openDialog("settings")}><${Icon} name="sliders" /></button>`;
 }
@@ -53,11 +28,14 @@ function Gear() {
 export function TopBar() {
   const hud = town.value?.hud || {};
   const spend = hud.show_gold ? hud.gold : hud.lumber;
+  const shown = !projectsOn.value || !!currentProject.value?.path;      // the window is behind the project: the start screen has no drawer
   return html`<header class="shell-top">
     <${ProjectSwitcher} />
     <span class="shell-top__brand">Orkline</span>
-    <${Limits} />
+    ${shown && html`<${TargetChip} />`}
     <span class="shell-top__spacer"></span>
+    ${shown && html`<button type="button" class="ork-btn" title="The agents, what each takes and is doing" onClick=${() => showAgents()}>Agents</button>`}
+    ${shown && projectsOn.value && html`<button type="button" class="ork-btn" title="The project’s files" onClick=${() => showFiles()}>Files</button>`}
     <button type="button" class="shell-top__spend" title="What was spent today. This week's work" aria-haspopup="dialog"
       aria-label=${`Spend today: ${spend ?? "—"}. This week's work`} onClick=${() => openDialog("this_week")}><span class="ok-tone-muted">Spend</span> <b>${spend ?? "—"}</b></button>
     <button class="ork-btn danger" title=${say("Stop every ork, script and browser at once")}

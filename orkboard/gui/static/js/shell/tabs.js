@@ -1,10 +1,12 @@
-// The preview's tab strip (docs/specs/39-map.md §3): the Map first and pinned (no ×), then a tab per thing opened. The passing
-// tab is in italics; a double-click or Keep keeps it. × or a middle click closes a tab. A `tablist`: the arrow keys move between
-// the tabs, Enter shows one. Below 1 024 px it is hidden (CSS) and the active tab is the screen.
+// The drawer's tab strip (docs/specs/39-map.md §3, spec 49 §9): a tab per thing opened, none pinned. The passing tab is in italics;
+// a double-click or Keep keeps it. × or a middle click closes a tab; *Close the drawer* (×) at the right puts the drawer away and keeps
+// its tabs. A `tablist`: the arrow keys move between the tabs, Enter shows one.
 import { html, cls } from "../html.js";
-import { tabs, active, editing, MAP, activate, closeTab, keepTab, kindWords } from "./store.js";
+import { Icon } from "../orkui.js";
+import { tabs, active, editing, activate, closeTab, keepTab, hideDrawer, kindWords } from "./store.js";
 
-const fallback = (p) => p.path || p.slug || "…";
+const NAMES = { gate: "dev → main", agents: "Agents", files: "Files" };
+const fallback = (p) => NAMES[p.kind] || p.path || p.slug || "…";
 
 export function TabStrip() {
   const list = tabs.value, now = active.value, dirty = !!editing.value?.dirty;
@@ -15,10 +17,8 @@ export function TabStrip() {
     e.preventDefault();
     all[(to + all.length) % all.length].focus();
   };
-  return html`<header class="shell-tabstrip" role="tablist" aria-label="Preview" onKeyDown=${move}>
-    <span class=${cls("shell-ptab is-pinned", { "is-on": now === MAP })} data-tab=${MAP}>
-      <button role="tab" class="shell-ptab__main" aria-selected=${now === MAP} tabindex=${now === MAP ? 0 : -1}
-        title="Your goals, ideas and tasks on one screen" onClick=${() => activate(MAP)}>Map</button></span>
+  return html`<header class="shell-tabstrip" role="presentation">
+    <div class="shell-tabstrip__tabs" role="tablist" aria-label="Opened" onKeyDown=${move}>
     ${list.map((t) => {
       const on = now === t.id, label = kindWords(t.p.kind), title = t.title || fallback(t.p);
       return html`<span key=${t.id} class=${cls("shell-ptab", { "is-on": on, "is-passing": !t.kept })} data-tab=${t.id}>
@@ -28,7 +28,9 @@ export function TabStrip() {
           onAuxClick=${(e) => { if (e.button === 1) { e.preventDefault(); closeTab(t.id); } }}>
           <span class="shell-ptab__kind">${label}</span> <span class="shell-ptab__title">${title}</span>${on && dirty ? html`<span class="shell-ptab__dirty" aria-label="Unsaved changes"> ●</span>` : ""}</button>
         ${on && !t.kept && html`<button class="shell-ptab__keep" aria-label=${`Keep ${title}`} title="Keep this tab: a click elsewhere will not replace it" onClick=${() => keepTab(t.id)}>Keep</button>`}
-        <button class="shell-ptab__x" aria-label=${`Close ${title}`} title="Close (Esc)" onClick=${() => closeTab(t.id)}>×</button></span>`;
+        <button class="shell-ptab__x" aria-label=${`Close ${title}`} title="Close this tab" onClick=${() => closeTab(t.id)}>×</button></span>`;
     })}
+    </div>
+    <button class="shell-drawer__x" aria-label="Close the drawer" title="Close the drawer (Esc)" onClick=${hideDrawer}><${Icon} name="close" /></button>
   </header>`;
 }
