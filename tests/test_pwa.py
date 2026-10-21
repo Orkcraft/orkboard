@@ -379,9 +379,24 @@ def test_the_workers_install_fills_its_cache_past_the_http_cache():
 
 def test_service_worker_names_cache_version_and_cache_first_prefixes():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert "orkcraft-app-v56" in sw
+    assert "orkcraft-app-v57" in sw
     prefixes = sw[sw.index("CACHE_PREFIXES = ["):sw.index("];", sw.index("CACHE_PREFIXES = ["))]
     assert set(re.findall(r'"([^"]+)"', prefixes)) == set(pwa.CACHE_PREFIXES) == {"fonts/"}
+
+
+def test_the_worker_never_keeps_a_picks_files_network_only():
+    """Pick one (docs/specs/51-pick-one.md §3): `/media/…` is asked of the town every time, never answered by the worker and never kept: its fetch handler lets the request go first of all (the
+    browser asks the town itself, with its Range requests), and neither the shell nor a precache can hold one."""
+    sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
+    fetch = sw[sw.index('addEventListener("fetch"'):sw.index('addEventListener("message"')]
+    guard = fetch.index("isMedia(e.request.url)")
+    assert re.search(r"isMedia\(e\.request\.url\)\) return;", fetch) and guard < fetch.index("respondWith") and guard < fetch.index("caches.open")   # before anything that answers or keeps
+    assert '"/media/"' in sw[sw.index("const isMedia"):sw.index('addEventListener("fetch"')]
+    shell = sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
+    assert "media/" not in shell                                                                    # nothing of the shell is a pick's file
+    message = sw[sw.index('addEventListener("message"'):sw.index('addEventListener("push"')]
+    assert "!isMedia(path)" in message and message.index("!isMedia(path)") < message.index("fetch(path")      # a precache asked for one fetches none
+    assert pwa.wants("/media/dark-mode/k1-r1/a.png") is False                                       # and the app's address space has none of them: they are the listener's own route
 
 
 def test_cache_control_headers_for_cache_first_and_shell():

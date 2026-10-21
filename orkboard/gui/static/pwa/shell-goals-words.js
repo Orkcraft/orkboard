@@ -39,9 +39,10 @@ export function goalsOf(st, model) {
     care: false, mark: "", markTip: "", ...rest });
   const atWork = nodes.filter((n) => !done(n) && ["implementation", "checking"].includes(stageOf(n))).map((n) => {
     const tasks = (n.tasks || []).filter((t) => t.state !== "dropped");
-    const failed = tasks.some((t) => t.state === "failed"), live = tasks.some((t) => t.state === "running" || t.state === "testing");
+    const failed = tasks.some((t) => t.state === "failed"), live = tasks.some((t) => t.state === "running" || t.state === "testing"), picking = tasks.some((t) => t.state === "picking");
     const merged = tasks.filter((t) => t.state === "merged").length;
-    return row(n, { line: `${merged}/${tasks.length} in dev · ${STAGE_WORDS[stageOf(n)].toLowerCase()}`, mark: failed ? "cross" : live ? "work" : "", markTip: failed ? "failed" : live ? "at work" : "" });
+    return row(n, { line: `${merged}/${tasks.length} in dev · ${STAGE_WORDS[stageOf(n)].toLowerCase()}${picking && !failed ? " · asks you to pick" : ""}`, care: picking && !failed,
+      mark: failed ? "cross" : picking ? "alert" : live ? "work" : "", markTip: failed ? "failed" : picking ? "asks you to pick" : live ? "at work" : "" });
   });
   const bySlug = new Map(nodes.map((n) => [n.slug, n]));
   const planning = model.planning.map((it) => row(bySlug.get(it.idea) || { slug: it.idea, title: it.title }, { line: it.words, care: it.kind === "stop",

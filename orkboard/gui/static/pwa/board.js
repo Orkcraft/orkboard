@@ -46,10 +46,10 @@ export function makeBoard(ctx) {
 
   const core = {
     st,
-    /** A command of the contract; null (and the plain-words error said) when it fails. */
-    async call(name, args) {
+    /** A command of the contract; null (and the plain-words error said) when it fails. `onError(text)`: where the error is said instead of the toast (a toast lies under a raised card). */
+    async call(name, args, onError) {
       const r = await sendPaced(name, args);
-      if (!r.ok || r.result?.error) { ctx.flash(r.error || r.result?.error); return null; }
+      if (!r.ok || r.result?.error) { (onError || ctx.flash)(r.error || r.result?.error); return null; }
       return r.result ?? {};
     },
     refresh, open, close, back, reset, go,

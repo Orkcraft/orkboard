@@ -7,7 +7,7 @@ import { WARN, levelOf, pct } from "./shell-limits.js";
 import { glyph, sign } from "./shell-marks.js";
 
 const MARKS = new Set(["claude", "codex", "agy", "cursor", "hermes", "pi", "pipeline"]);   // the tools orkUI draws a mark for
-const TONE = { ok: "ok", danger: "no", muted: "muted", ink: "" };
+const TONE = { ok: "ok", danger: "no", muted: "muted", alert: "alert", ink: "" };      // alert: a *Pick one* that waits
 
 /** "resets at 18:00", or with the day when it is not today. */
 export function resetWords(iso, now = new Date()) {

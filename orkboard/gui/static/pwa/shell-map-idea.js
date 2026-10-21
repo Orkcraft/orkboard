@@ -3,8 +3,8 @@
 // goal's window (shell-arena.js) draws the party's columns instead, and the stops along the bottom (shell-stops.js) hold what waits for the person.
 export const STAGES = [["planning", "Planning"], ["implementation", "Implementation"], ["checking", "Checking"]];
 export const STAGE_WORDS = Object.fromEntries(STAGES);
-export const NEEDS = { asks: "asks you", plan: "plan ready", todo: "a to-do waits", failed: "failed", proposal: "proposed" };
-export const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "in Review", failed: "needs you", held: "held" };
+export const NEEDS = { asks: "asks you", plan: "plan ready", todo: "a to-do waits", failed: "failed", proposal: "proposed", pick: "asks you to pick" };
+export const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", picking: "asks you to pick", review: "in Review", failed: "needs you", held: "held" };
 const MEMBER_WORDS = { work: "at work", next: "next", tonight: "tonight", free: "free" };
 
 /** The stage an idea is in: the host's, else made from its tasks (an older host). */

@@ -1,7 +1,7 @@
 // The preview on its own full screen (docs/specs/33-v1-shell.md §6, §8): a goal's spec (29a's sections view), a goal's plan
-// (scrolled to a to-do, said what it unblocks), a task (brief, state, log) or a result's code (commits, then the files, each
-// patch folded and scrolling sideways inside its own box — the page never does). Back (and the system back gesture) returns
-// to the tab it came from; its actions sit in a bar pinned at the bottom.
+// (scrolled to a to-do, said what it unblocks), a task (brief, state, log), a result's code (commits, then the files, each
+// patch folded and scrolling sideways inside its own box — the page never does) or a *Pick one* (its tiles one to a screen, swiped; the note and the two answers under them:
+// shell-pick-answer.js). Back (and the system back gesture) returns to the tab it came from; its actions sit in a bar pinned at the bottom.
 import { h, icon } from "./util.js";
 import { pointedAt } from "./shell-lens.js";
 import { steady } from "./shell-util.js";
@@ -14,6 +14,9 @@ import { limitsNote } from "./shell-limits.js";
 import { who, whoHead, headWords, TIER_WORDS } from "./shell-who.js";
 import { gateScreen } from "./shell-gate.js";
 import { sign } from "./shell-marks.js";
+import { pointerGuard } from "./shell-motion.js";
+import { pickRow, pickSig, stopAll } from "./shell-picks.js";
+import { screenBody } from "./shell-pick-answer.js";
 
 const TALK_SHOWN = 6;
 const LOG_MS = 5000;
@@ -21,7 +24,7 @@ const BUSY = new Set(["reading", "planning", "working"]);
 // A section's colour role (app.css `.sec-*`), its mark (Office) and its kit icon.
 const SECTIONS = { Gist: ["action", "✦"], Why: ["gold", "❖"], In: ["success", "＋"], Out: ["muted", "－"], Risks: ["danger", "⚠"],
   "Open questions": ["warning", "❓"], Estimate: ["gold", "≈"], Stages: ["action", "☰"], Decisions: ["muted", "✎"] };
-const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", review: "at Review", merged: "merged",
+const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", picking: "asks you to pick", review: "at Review", merged: "merged",
   failed: "needs you", held: "held" };
 
 const usd = (x) => `$${Number(x) < 10 ? Number(x).toFixed(1) : Math.round(Number(x))}`;
@@ -62,10 +65,17 @@ export function makePreview(core, ctx, screens = {}) {
   let asked = "";                       // the ask box's text, kept across a redraw
   let seq = 0;
   const fresh = steady(el);
+  const guard = pointerGuard([el], () => draw(false));            // no lost tap, no lost drag: a pick's screen is not drawn again while a pointer is down on it (a bar being dragged, a tile being pressed)
 
   const failed = (r) => !r.ok || r.result?.error;
   async function read(p) {
     if (p.kind === "agents") return;                    // its pane draws itself (shell-agents.js)
+    if (p.kind === "pick") {                            // read with the Board (Needs you): nothing to ask
+      seq += 1;
+      data = { pick: pickRow(st, p.slug, p.task) };
+      draw(false);
+      return;
+    }
     const mine = ++seq;
     const names = p.kind === "task" || p.kind === "result" ? [["ideas.task", { slug: p.slug, task: p.task }]]
       : p.kind === "goal" ? [["ideas.goal", { slug: p.slug }]] : p.kind === "doc" ? [["ideas.doc", { path: p.path }]]
@@ -254,6 +264,14 @@ export function makePreview(core, ctx, screens = {}) {
     return screen.actions;
   }
 
+  // -- a pick: the variants a task left, to choose from -------------------------------------------------------
+  function pickScreen(row) {
+    title.replaceChildren(h("span", { class: "muted" }, "Pick one "), row?.title || "");
+    stopAll();                                          // new tiles: what played on the old ones does not play on
+    body.replaceChildren(...(row ? screenBody(core, ctx, row) : [h("p", { class: "muted" }, "That pick is answered already.")]));
+    return [];
+  }
+
   // -- a task -------------------------------------------------------------------------------------------------
   function taskScreen(t, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Task "), t.title);
@@ -270,6 +288,7 @@ export function makePreview(core, ctx, screens = {}) {
     requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
     if (live) return [h("button", { class: "ork-btn danger big", type: "button", onclick: () => act("ideas.stop_task", { slug: t.idea, task: t.id }, "Stopped.").then(() => read(cur)) }, "Stop")];
     if (t.state === "review") return [h("button", { class: "ork-btn primary big", type: "button", onclick: () => core.open({ kind: "result", slug: t.idea, task: t.id }) }, "Open the result")];
+    if (t.state === "picking") return [h("button", { class: "ork-btn primary big", type: "button", onclick: () => core.open({ kind: "pick", slug: t.idea, task: t.id }) }, "Pick one")];
     return [];
   }
 
@@ -303,9 +322,11 @@ export function makePreview(core, ctx, screens = {}) {
   function draw(force = true) {
     const cur = st.preview;
     if (!cur || !data) return;
-    // a redraw the town asked for waits while the person types and while nothing changed; one the person asked for (a fold, Ask about) is now
-    if (!force && !fresh(JSON.stringify([cur, data, st.review?.results]))) return;
-    if (force) fresh(JSON.stringify([cur, data, st.review?.results, Math.random()]));
+    if (cur.kind === "pick" && guard.waits()) return;   // a pointer is down on the pick's screen: drawn after it comes up
+    // a redraw the town asked for waits while the person types and while nothing changed; one the person asked for (a fold, Ask about) is now. A pick's compares what it shows, not when it was asked.
+    const sig = cur.kind === "pick" ? [cur, data.pick ? pickSig(data.pick) : null] : [cur, data, st.review?.results];
+    if (!force && !fresh(JSON.stringify(sig))) return;
+    if (force) fresh(JSON.stringify([...sig, Math.random()]));
     let actions = [];
     if (cur.kind === "idea") actions = ideaScreen(data.page, cur);
     else if (cur.kind === "plan") actions = planScreen(data.page, cur);
@@ -313,6 +334,7 @@ export function makePreview(core, ctx, screens = {}) {
     else if (cur.kind === "doc") actions = docScreen(data.doc, cur);
     else if (cur.kind === "gate") actions = gateView(data.gate);
     else if (cur.kind === "task") actions = taskScreen(data.task, cur);
+    else if (cur.kind === "pick") actions = pickScreen(data.pick);
     else actions = resultScreen(data.task, data.diff, cur, data.spend);
     bar.replaceChildren(...actions.filter(Boolean));
     bar.hidden = !actions.filter(Boolean).length;
@@ -321,6 +343,8 @@ export function makePreview(core, ctx, screens = {}) {
   return {
     el,
     show(p) {
+      if (p.kind === "pick" && !pickRow(st, p.slug, p.task)) p = st.preview = { kind: "task", slug: p.slug, task: p.task };      // answered already (a Today row of before): its task's screen says where it is
+      stopAll();
       fresh(`opened ${Math.random()}`);
       data = null;
       if (p.kind === "agents") {                        // the Agents pane in a screen of its own: it draws itself
@@ -344,7 +368,7 @@ export function makePreview(core, ctx, screens = {}) {
       body.scrollTop = 0;
       read(p);
     },
-    hide() { el.hidden = true; clearTimeout(timer); seq += 1; data = null; },
+    hide() { el.hidden = true; clearTimeout(timer); seq += 1; data = null; stopAll(); },
     /** The town changed: read what is open again. */
     reload() { if (st.preview) read(st.preview); },
     redraw: () => draw(false),

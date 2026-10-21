@@ -848,6 +848,7 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 .hrow__mark.ok { color: var(--ork-success); }
 .hrow__mark.no { color: var(--ork-danger); }
 .hrow__mark.muted { color: var(--ork-ink-muted); }
+.hrow__mark.alert { color: var(--ork-alert); }
 .hrow__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .hrow__what { font: 600 13px/18px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crow { display: flex; align-items: center; gap: var(--ork-4); font: 400 13px/18px var(--ork-font-text); min-height: 28px; }
@@ -858,6 +859,63 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 .tool-letter { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font: 600 12px/16px var(--ork-font-text); }
 .gate-ideas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
 .gate-idea { text-decoration: none; color: var(--ork-ink); }
+
+/* -- Pick one: the tiles of a pick's variants, the note and the two answers (shell-picks.js, shell-pick-answer.js; spec 51 §5, §7) ------------------------------------------------ */
+.hc__thumbs { display: flex; flex-wrap: wrap; gap: var(--ork-1); margin-top: var(--ork-2); }
+.hc__thumb { flex: none; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: var(--ork-canvas);
+  border: var(--ork-line) solid var(--ork-frame); color: var(--ork-ink-muted); }
+.hc__thumb img { width: 100%; height: 100%; object-fit: contain; }
+.hc__thumb img.is-pixel { image-rendering: pixelated; }
+.hc__thumb .ork-sign { vertical-align: top; }
+.pks { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ork-4); }
+.pk { position: relative; min-width: 0; display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-2); background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-frame);
+  clip-path: var(--ork-notch); color: var(--ork-ink-muted); }
+.pk.is-on { padding: var(--ork-1); border: var(--ork-double) double var(--ork-ink); color: var(--ork-ink); }                    /* the picked one: a double ink line and the check sign */
+.pk__view { position: relative; aspect-ratio: 4 / 3; overflow: hidden; background: var(--ork-panel); cursor: pointer; }          /* the canvas ground: a picture is contained, never cropped */
+.pk__img { position: absolute; inset: 0; margin: auto; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
+.pk__img.is-pixel { image-rendering: pixelated; }
+.pk__media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.pk__on { position: absolute; right: var(--ork-3); top: var(--ork-3); z-index: 2; display: none; align-items: center; justify-content: center; width: 20px; height: 20px; background: var(--ork-ink);
+  color: var(--ork-on-ink); clip-path: var(--ork-notch); }
+.pk.is-on .pk__on { display: flex; }
+.pk__meta { position: absolute; left: var(--ork-3); top: var(--ork-3); z-index: 1; display: inline-flex; align-items: center; gap: var(--ork-2); padding: 1px var(--ork-3); font: 400 12px/16px var(--ork-font-text);
+  color: var(--ork-ink); background: color-mix(in srgb, var(--ork-canvas) 80%, transparent); }
+.pk[data-kind="audio"] .pk__meta { inset: 0 0 var(--ork-tap) 0; flex-direction: column; justify-content: center; padding: 0; background: none; }
+.pk__len:empty { display: none; }
+.pk__ctl { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: center; background: color-mix(in srgb, var(--ork-canvas) 82%, transparent); }
+.pk__play, .pk__snd { flex: none; min-width: var(--ork-tap); padding: 0 var(--ork-3); }
+.pk__snd[aria-pressed="false"] { --_fg: var(--ork-ink-faint); --_bd: transparent; }                                                  /* the clip's sound is off until it is turned on */
+.pk__snd[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }
+.pk__play.is-on { --_bg: var(--ork-raised); }
+.pk:not(.is-large) .pk__word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.pk__bar { appearance: none; -webkit-appearance: none; flex: 1 1 auto; min-width: 0; height: var(--ork-tap); margin: 0; padding: 0 var(--ork-3); border: 0; background: transparent; cursor: pointer; touch-action: pan-y; }
+.pk__bar:disabled { cursor: default; opacity: 0.6; }
+.pk__bar:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.pk__bar::-webkit-slider-runnable-track { height: var(--ork-tap); background: transparent; }
+.pk__bar::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 14px; margin-top: 15px; background: var(--ork-ink); border: 0; }
+.pk[data-kind="text"] .pk__view { display: flex; flex-direction: column; gap: var(--ork-2); padding: var(--ork-4); }
+.pk__sign { flex: none; color: var(--ork-ink-muted); }
+.pk__words { margin: 0; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink); white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.pk__label { appearance: none; display: block; min-width: 0; min-height: var(--ork-tap); padding: 0 var(--ork-3); border: 0; background: none; color: inherit; font: 400 12px/44px var(--ork-font-text); text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.pk.is-on .pk__label { font-weight: 600; }
+.pk__label:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.pk__why { padding: 0 var(--ork-3) var(--ork-3); font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.pk.is-large .pk__view { aspect-ratio: auto; height: min(50dvh, 100vw - 48px); }
+.pk.is-large .pk__words { display: block; overflow-y: auto; max-height: 100%; font: 400 14px/20px var(--ork-font-text); }
+.pk.is-large[data-kind="text"] .pk__view { overflow-y: auto; }
+.pks.is-swipe { display: flex; gap: var(--ork-4); flex: none; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }       /* one tile to a screen, swiped */
+.pks.is-swipe::-webkit-scrollbar { display: none; }
+.pks.is-swipe .pk { flex: 0 0 100%; scroll-snap-align: start; }
+.pk-pips { align-self: center; flex: none; }
+.pk-from { display: flex; align-items: center; gap: var(--ork-4); }
+.pk-ask { margin: 0; font: 400 14px/20px var(--ork-font-text); }
+.pk__note { flex: none; }
+.pk__say { margin: 0; }
+.screen-body > .ork-btn { flex: none; width: 100%; }
+.raised.is-pick > * { flex: none; }                                                                                 /* a card that is taller than the screen scrolls: nothing of it is squeezed */
+.raised.is-pick .raised__text { max-height: none; padding: var(--ork-3) var(--ork-4); font: 400 13px/18px var(--ork-font-text); }
+.raised.is-pick .pk__note { min-height: 56px; height: 56px; }
 
 @media (prefers-reduced-motion: reduce) {
   .deck.is-drawn, .raised.is-pop, .is-reward, .deck.is-leaving, .deck__flash { animation: none; }
