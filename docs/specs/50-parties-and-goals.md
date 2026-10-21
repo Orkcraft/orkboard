@@ -56,7 +56,7 @@ phone is the PWA's plain modules). Where the mockup and this file differ, this f
   *Before: <its old flag>*, *Goals*, *At work*, *Planning*, *New (n)*, *Waits for main*, *Flags*, *Flags (n)*, *k wait
   for main*, *Show all*, *k of n goals*, *Nothing of these goals*, *now*, *next*, *later*, *Put them back*, *← waits for
   <short>*, *→ n wait for it* (*→ 1 waits for it*), *← waits for the build*, *New goal*, *A blank goal*, *Add the goal*,
-  *Put it back*, *k/n*, *k of n goals done*, *n flags raised* (*1 flag raised*), *<goal> is in main*, *<a>, <b> and k more are in main*, *⚑ n*,
+  *Put it back*, *k/n*, *k/n done*, *k of n goals done* (a tooltip), *n flags raised* (*1 flag raised*), *<goal> is in main*, *<a>, <b> and k more are in main*, *⚑ n*,
   *≈$2–4 a goal*, *Projects*, *this one*, *Open on your computer: a tap switches this phone to one.*, *one of yours, or
   from the library*.
 - Every string a person reads that said *idea* says *goal*, and every one that said *goal* (the container) says
@@ -307,8 +307,8 @@ The mockup F is the target. As spec 49 §10 with:
    switches as the drawer's projects do today (`projects.use`). The menu keeps Stop all, Spend, Agents and the settings;
    its aria-label *Menu: Stop all, Spend, Agents and settings*; the projects leave it.
 2. **The party chips** (56 px row): the leader's head (20 px), the party's short name, the stops' count, ↻; no %.
-3. **The party bar** (44 px, one line, quiet: faint 12 px text, no title, no second line): *k of n goals done* (the
-   count, §0), the party's price a goal (*≈$2–4 a goal*), and **›**; a tap opens **About this party** (a sheet: §3.7's blocks, *Edit the party*, *Save it to
+3. **The party bar** (44 px, one line, quiet: faint 12 px text, no title, no second line): *k/n done* (the count,
+   §0), the party's price a goal (*≈$2–4 a goal*), and **›**; a tap opens **About this party** (a sheet: §3.7's blocks, *Edit the party*, *Save it to
    your parties*). At its right the gate, quiet (no green): *dev → main* with its count (ink), its screen as spec 49;
    *main ✓* (disabled) when up to date.
 4. **The goals bar** (44 px, one line, quiet): *⌄ Goals n · k at work · j ask you*; while the filter is on: the picked
@@ -358,7 +358,7 @@ The mockup F is the target. As spec 49 §10 with:
   the dialog, the element it shows); the flag line (once, its words, ×, its press); every template in today's words
   (`tests/test_gui_wording.py`); no page scroll at 1 440 × 900; below 1 024 px.
 - **C** (browser, phone): the Projects sheet from the top bar and the menu without the projects; the chips (head, no %);
-  the party bar's one line (*k of n goals done*) and About this party's sheet; the gate's quiet button; the goals bar and its sheet (picks,
+  the party bar's one line (*k/n done*) and About this party's sheet; the gate's quiet button; the goals bar and its sheet (picks,
   *k of n goals*, *Show all*, the filter on the columns, results and stops); the rows by phase, the cards 132 × 185, two
   to a row in Planning and solo; a spread's strip (snap, the dependency lines, Put them back); the dial's three ways and
   New goal's turn (none under reduced motion); the flag line once; **one tap opens** (no retries left in the phone tests;
