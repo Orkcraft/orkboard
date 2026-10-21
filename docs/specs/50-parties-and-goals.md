@@ -390,3 +390,18 @@ first line is the owner's (already written with this spec). A part that needs an
 - *Let the Taskmaster decide* and *Later* among the phone's quick answers; dragging a card or a stack; Camp's skin.
 
 ## 10. As built (notes, no change of the contract)
+- **A (the host).** Built as §2, with these choices: (1) *No backfill* wins over §2.2.3's literal rule at the gate: after `ideas.gate_merge`
+  a flag is raised for each done goal without one **that the press brought commits of** (`idea_gate.ideas_in`) and whose commits are all in
+  main (`idea_gate.all_in`); read literally ("every done goal whose commits are in main now") the first press would flag every goal done
+  and in main before this spec. A goal with no commit at all (only clean checks) has no flag where there is a gate (`all_in([])` is
+  `False`); with no gate it is flagged when done. (2) `idea_flag.tally(root, state_dir, slug, *, now=None)`: `days` runs from the earlier
+  of the goal's first talk turn (`talk.jsonl`) and its ledger's first line; `root` is only the faces' signature. (3) `idea_element.give`
+  takes the party's open elements as an optional `used` (the Map gives to many goals in a row) and leaves `state.json`'s modification
+  time as it was (`touched_at` says when a goal changed; an element is no change); the pure `board_map.build` writes nothing, only
+  `ideas.map` (`gui/ideas_map.py`) gives. (4) The `idea_flagged` today row's `title` is the goal's *short* name (`titles["ideas"][slug]["short"]`,
+  else its title); the recap's and the week's `flags` carry a goal's flag as `{goal (its party), idea, short, title, met: true, by}`
+  after the party's old ones, which keep their fields exactly (no `idea`). (5) §2.6 left alone on purpose: prompts, `Check.applies`
+  (it is also in the draft's prompt; the page says it in today's words once `idea` has its `was`), the Wiki's `index.md` texts, and the
+  *Take X out of Y's party?* row (still true). `Leads any goal:` of the Taskmaster's library line is now `Leads any party:`
+  (`pwa/shell-arena-words.js` strips the old prefix: C follows) and `KIND_WORDS.goal` of the push is *A party asks* (`js/board/today.js`
+  says the old word until B; `tests/test_phone_push.py` allows exactly that one difference meanwhile).
