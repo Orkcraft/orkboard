@@ -538,11 +538,11 @@ four launches, one product and its labs. So:
      (§51): mail sorted, replies saved as drafts, events proposed for the calendar; nothing sent until its template may
      go by itself (§51.4).
    - **Orkline:** the factory that lays them into loops (§50.3), the person in them less and less (item 6).
-3. **The order: Orkboard, then OrkWiki; OrkWatch is decided after.** Orkboard holds first (§50.8: the owner's daily
-   use, the testers). OrkWiki is the next lab: its mechanic fits its work best (item 4), it is the owner's own daily
-   need (the decisions, the specs and the rules every agent reads), and the other buildings' agents read it. Whether
-   OrkWatch is needed is decided after OrkWiki, from Operations' email template in use; until then it is Operations' templates and
-   no lab. What weighs against it: mail is the most crowded market (the mail clients' own assistants) and the most
+3. **The order: Orkboard, then OrkWiki; OrkWatch is decided after.** Orkboard holds first (§50.8: the owner's daily use,
+   the testers). OrkWiki is the next lab: its mechanic fits its work best (item 4), it is the owner's own daily need
+   (the decisions, the specs and the rules every agent reads), and the other buildings' agents read it. Whether OrkWatch
+   is needed is decided after OrkWiki, from Operations' email template in use; until then it is Operations' templates
+   and no lab. What weighs against it: mail is the most crowded market (the mail clients' own assistants) and the most
    private data, and Gmail's scopes for a published app are restricted and need Google's verification. §50.8 stands for
    Orkline itself: its loops, then Camp.
 4. **A building's mechanic is the shape of its work** (§52, §56): a game is picked because its loop is the work's, and
