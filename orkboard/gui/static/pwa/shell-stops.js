@@ -6,7 +6,7 @@
 import { h } from "./util.js";
 import { midHead, whoHead } from "./shell-who.js";
 import { needsOf, failedOf, looksOf, nodesOf, planPrice } from "./shell-arena-words.js";
-import { resultActions, testsWords, changesWords, foundWords } from "./shell-review.js";
+import { resultActions, testsWords, changesWords, foundWords, foundOf } from "./shell-review.js";
 import { OPS_VIEW } from "./shell-ops.js";
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -123,6 +123,7 @@ export function makeStops(core, ctx, needs, ops, fab) {
     return { key: `look:${r.idea}/${r.task}`, kind: "look", cls: "is-look", tone: "look", title: r.title, sig: r, small: t?.head || null, whoTip: t?.by?.name ? `${t.by.name}${r.check ? " · its check" : ""}` : "",
       gem: { text: r.cost != null ? usd(r.cost) : "—", cls: "dim", tip: "What it cost, at API prices" },
       text: [r.idea_title, `${tw.mark} ${tw.text}`.trim(), changesWords(r.diff), foundWords(r.findings)].filter(Boolean).join(" · "),
+      more: () => foundOf(r),                           // a check's findings left, one line each, under its facts
       open: { kind: "result", slug: r.idea, task: r.task }, quickLabel: "Quick moves", quick: () => [resultActions(core, r, lower)] };
   }
 
@@ -165,6 +166,7 @@ export function makeStops(core, ctx, needs, ops, fab) {
       it.big ? h("span", { class: "art" }, midHead(it.big)) : null,
       h("span", { class: "banner" }, it.title),
       h("div", { class: "raised__text" }, it.text),
+      it.more ? it.more() : null,
       quick,
       it.open ? h("button", { class: "ork-btn quiet", type: "button", "data-act": "open-screen", onclick: away((via) => core.open(it.open, via)) }, "Open it on its own screen") : null);
     raised.style.setProperty("--rot", `${f.rot}deg`);

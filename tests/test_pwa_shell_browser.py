@@ -479,6 +479,14 @@ async def _open_idea(page, title):
     await page.locator(".screen").wait_for(state="visible", timeout=WAIT_MS)
 
 
+async def _open_idea_of(page, task_title, idea_title):
+    """The screen of an idea that has tasks (so it is not in Planning, but in the stages): one of its tasks' screen, then the idea among that task's facts."""
+    await _band(page, "build")
+    await _item(page, task_title).click()
+    await page.locator(".screen .facts").get_by_role("button", name=idea_title).click()
+    await page.locator(".screen .plan, .screen .tasks").first.wait_for(timeout=WAIT_MS)
+
+
 async def _said(page, title):
     """What an idea's item in Planning says of it, in words (its label: the title, then its state)."""
     await _band(page, "lead")
@@ -488,7 +496,12 @@ async def _said(page, title):
 async def _pop(page, name):
     """A stop along the bottom popped out of the fan by a tap on its top (spec 49 §10.6): `name` is in its label (*Plan ready: Dark mode*). Returns the raised one."""
     card = page.locator(f'.hc[aria-label*="{name}"]')
-    await card.click(position={"x": 14, "y": 12})
+    await card.wait_for(timeout=WAIT_MS)
+    at = await card.evaluate("""(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side)
+      for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) return { x, y }; }
+      return null; }""")
+    assert at, f"no point of {name} can be tapped"
+    await page.mouse.click(at["x"], at["y"])
     raised = page.locator(".raised")
     await raised.wait_for(timeout=WAIT_MS)
     return raised
@@ -498,7 +511,7 @@ async def _agents(page):
     """The Agents screen: the menu's Agents, today's Agents pane on a screen of its own (spec 49 §10.1)."""
     await (await _menu(page)).get_by_role("button", name="Agents").click()
     pane = page.locator(".screen .agents")
-    await pane.wait_for(timeout=WAIT_MS)
+    await pane.get_by_role("button", name="+ Add agent").wait_for(timeout=WAIT_MS)
     return pane
 
 

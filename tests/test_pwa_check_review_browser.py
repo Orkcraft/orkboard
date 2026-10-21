@@ -1,5 +1,5 @@
-"""Spec 43 A on the phone (docs/specs/43-party-measured.md §1.4, §1.5, Tests → A): a check's result in Review says what it found, with *Fix them*
-and *Leave them*; the idea's Checks say *clean* and *found 2: 1 fixed, 1 left*."""
+"""Spec 43 A on the phone (docs/specs/43-party-measured.md §1.4, §1.5, Tests → A): a check's result, a stop along the bottom (spec 49 §10.6), says what it
+found, with *Fix them* and *Leave them*; the idea's Checks say *clean* and *found 2: 1 fixed, 1 left*."""
 from __future__ import annotations
 
 import pytest
@@ -8,7 +8,7 @@ pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
 from tests.test_pwa_goal_team_browser import _pick_goal  # noqa: E402,F401
-from tests.test_pwa_shell_browser import _open_idea, NO_SCROLL, WAIT_MS, _called, _phone  # noqa: E402,F401
+from tests.test_pwa_shell_browser import _open_idea_of, NO_SCROLL, WAIT_MS, _called, _phone, _pop  # noqa: E402,F401
 from tests.test_shell_browser import GREEN, task  # noqa: E402
 
 NO_RUN = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False, "command": ""}
@@ -30,18 +30,20 @@ async def test_a_check_s_card_says_what_it_found_and_fix_them_and_leave_them_ans
     async with _phone(fake_repo, monkeypatch, ) as (stub, page):
         with_checks(stub)
         stub.rev += 1
-        await page.get_by_role("tab", name="Needs you").click()
-        card = page.locator(".result", has_text="Check: Reviewer")
-        await card.wait_for(timeout=WAIT_MS)
+        card = await _pop(page, "To look at: Check: Reviewer")
         assert await card.locator(".found-sum").inner_text() == "Found 3: 1 fixed, 2 left"
         assert [" ".join(t.split()) for t in await card.locator(".found-list li").all_inner_texts()] == [
             "queue.py:9 · the queue is never emptied", "the Sync screen · no way to cancel"]
         assert await card.get_by_role("button", name="Fix them").is_enabled() and await card.get_by_role("button", name="Leave them").is_enabled()
         assert await card.get_by_role("button", name="Drop…").count() == 1
         assert await card.get_by_role("button", name="Merge into dev").count() == 0 and await card.get_by_role("button", name="Send back").count() == 0
-        other = page.locator(".result", has_text="Check: Accessibility reviewer")                    # nothing left: today's card
-        assert await other.locator(".found").count() == 0 and await other.get_by_role("button", name="Merge into dev").is_enabled()
         assert await page.evaluate(NO_SCROLL)
+        await card.get_by_role("button", name="Put it back").click()
+        await card.wait_for(state="hidden", timeout=WAIT_MS)
+        other = await _pop(page, "To look at: Check: Accessibility reviewer")                          # nothing left: today's stop
+        assert await other.locator(".found").count() == 0 and await other.get_by_role("button", name="Merge into dev").is_enabled()
+        await other.get_by_role("button", name="Put it back").click()
+        card = await _pop(page, "To look at: Check: Reviewer")
         await card.get_by_role("button", name="Fix them").click()
         assert await _called(stub, "ideas.back", {"slug": "sync", "task": "k6",
                                                   "why": "Fix the findings left:\nqueue.py:9: the queue is never emptied\nthe Sync screen: no way to cancel"})
@@ -52,10 +54,8 @@ async def test_leave_them_is_the_merge_and_the_result_screen_says_what_was_found
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         with_checks(stub)
         stub.rev += 1
-        await page.get_by_role("tab", name="Needs you").click()
-        card = page.locator(".result", has_text="Check: Reviewer")
-        await card.wait_for(timeout=WAIT_MS)
-        await card.locator(".result-open").click()
+        card = await _pop(page, "To look at: Check: Reviewer")
+        await card.get_by_role("button", name="Open it on its own screen").click()
         screen = page.locator(".screen")
         await screen.locator(".found-sum").wait_for(timeout=WAIT_MS)
         assert await screen.locator(".found-sum").inner_text() == "Found 3: 1 fixed, 2 left"
@@ -70,7 +70,7 @@ async def test_the_idea_s_checks_say_clean_or_found_with_what_was_fixed_and_left
                        {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": True, "why": "", "state": "passed", "found": 2, "fixed": 1,
                         "left": 1}]
         await _pick_goal(page, "general")
-        await _open_idea(page, "Sync ideas")
+        await _open_idea_of(page, "Retry on a lost signal", "Sync ideas")
         line = page.locator(".screen").get_by_role("list", name="Checks")
         await line.wait_for(timeout=WAIT_MS)
         assert [" ".join(t.split()) for t in await line.get_by_role("listitem").all_inner_texts()] == [

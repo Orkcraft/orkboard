@@ -538,7 +538,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
       columns' template (--cols) are the only variables of its own (tests/test_design_system.py) ----------------------------------------------------------------- */
 .today { gap: var(--ork-1); padding: 0 var(--ork-2); }
 .today .ork-count { min-width: 20px; }
-.arena { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }
+.arena { position: relative; z-index: 3; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }   /* its own stacking: the ideas list rises over the field, the bar (4), the stops (8) and a screen (10) over it */
 .arena-empty { padding: var(--ork-6); text-align: center; }
 .arena .ork-card.away { margin: var(--ork-4); }
 .ops-view { display: flex; flex-direction: column; gap: var(--ork-4); padding: var(--ork-5) var(--ork-5) var(--ork-8); }
@@ -698,9 +698,8 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .srow { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ork-3); }
 
 /* what waits for you, along the bottom: the stops fanned, only their tops showing; no line over it (spec 49 §10.6) */
-.handzone { position: sticky; bottom: 0; flex: none; height: var(--tabs); z-index: 8; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; background: var(--ork-canvas);
+.handzone { position: sticky; bottom: 0; flex: none; height: var(--tabs); z-index: 8; overflow: clip; background: var(--ork-canvas);   /* clip, not hidden: a focused card never scrolls the row */
   padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; }
-.handzone::-webkit-scrollbar { display: none; }
 .hand { position: absolute; left: 64px; right: 64px; top: var(--ork-3); display: flex; justify-content: safe center; pointer-events: none; }
 .handzone__empty { position: absolute; left: 64px; right: 64px; top: 18px; margin: 0; text-align: center; }
 .fab { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; right: var(--ork-4); top: var(--ork-2); z-index: 40; width: 48px; height: 48px; display: flex; align-items: center;
