@@ -463,8 +463,14 @@ async def _wizard(sheet, craft="engineering"):
 
 async def _band(page, band):
     """The stage switch: "lead" Planning, "build" Implementation, "check" Checking."""
-    await page.locator(f'.band[data-band="{band}"]').click()
-    await page.locator(f'.band[data-band="{band}"][aria-selected="true"]').wait_for(timeout=WAIT_MS)
+    for tries in range(3):                                                                              # the field is drawn again when the Board is read: a press in the middle of that is lost, as a finger's would be
+        await page.locator(f'.band[data-band="{band}"]').click()
+        try:
+            await page.locator(f'.band[data-band="{band}"][aria-selected="true"]').wait_for(timeout=WAIT_MS if tries == 2 else 2500)
+            return
+        except Exception:                                                                               # noqa: BLE001
+            if tries == 2:
+                raise
 
 
 def _item(page, title):

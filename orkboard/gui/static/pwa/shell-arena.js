@@ -10,6 +10,7 @@ import { keepGoal, keptGoal } from "./shell-top.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { BANDS, chipsOf, modelOf, shownGoal, doneWords } from "./shell-arena-words.js";
 import { makeField } from "./shell-arena-field.js";
+import { keepFocus } from "./shell-motion.js";
 import { tallyWords } from "./shell-map.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -141,6 +142,32 @@ export function makeArena(core, ctx, parts) {
   const needsGoal = () => h("div", { class: "arena-empty" }, h("p", { class: "muted" }, "No goals yet."),
     h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open("") }, "New goal"));
 
+  /** The goal's window drawn: the goals, the header, the ideas bar and the field (what the person sees of the Board read). */
+  function paint() {
+    const card = cards.section(st.cards[0]);
+    const lead = card ? [card] : [];
+    if (!st.board && st.boardError) {                       // no project open: Operations is the person's, so it is offered all the same
+      el.replaceChildren(...lead, chipRow([], ""), h("div", { class: "ops-view" }, h("p", { class: "muted" }, st.boardError), ...ops.section()));
+      return;
+    }
+    if (!st.board || (!st.map && !st.mapError)) { el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, "Loading…")); return; }
+    if (st.mapError && !st.map) { el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, st.mapError)); return; }
+    const slug = shownGoal(st, keptGoal(st.snap?.project));
+    if (slug && slug !== st.track) st.track = slug;
+    const list = chipsOf(st);
+    flags.seed(st.map.goals);
+    const m = st.view === OPS_VIEW ? null : modelOf(st, slug);
+    current = m;
+    todayOf(slug, m);
+    if (st.view === OPS_VIEW) { el.replaceChildren(...lead, chipRow(list, ""), opsView()); return; }
+    if (!m) { el.replaceChildren(...lead, chipRow(list, ""), needsGoal()); return; }
+    const band = st.band || m.first;
+    const shown = band === "lead" ? [m.lead] : band === "build" ? m.build : m.check;
+    if (st.focus && !shown.some((x) => x?.slug === st.focus)) st.focus = "";           // the member shown is not in this stage
+    field.draw(m, { band, focus: st.focus, idea: st.idea }, stageSwitch(m, band));
+    el.replaceChildren(...lead, chipRow(list, slug), header(m), ideasBar(m), field.el);
+  }
+
   return {
     el,
     sheets: [],
@@ -152,28 +179,7 @@ export function makeArena(core, ctx, parts) {
       const signature = JSON.stringify([st.map, st.board, st.agents, st.roles?.seats, st.roles?.library?.length, st.review, st.gate, st.today, st.track, st.view, st.band, st.focus, st.idea,
         st.ideasOpen, st.cards, st.ops, st.boardError, st.mapError, st.snap?.ops_rev, st.tick, Math.floor(Date.now() / 60000)]);
       if (!fresh(signature)) return;
-      const card = cards.section(st.cards[0]);
-      const lead = card ? [card] : [];
-      if (!st.board && st.boardError) {                       // no project open: Operations is the person's, so it is offered all the same
-        el.replaceChildren(...lead, chipRow([], ""), h("div", { class: "ops-view" }, h("p", { class: "muted" }, st.boardError), ...ops.section()));
-        return;
-      }
-      if (!st.board || (!st.map && !st.mapError)) { el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, "Loading…")); return; }
-      if (st.mapError && !st.map) { el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, st.mapError)); return; }
-      const slug = shownGoal(st, keptGoal(st.snap?.project));
-      if (slug && slug !== st.track) st.track = slug;
-      const list = chipsOf(st);
-      flags.seed(st.map.goals);
-      const m = st.view === OPS_VIEW ? null : modelOf(st, slug);
-      current = m;
-      todayOf(slug, m);
-      if (st.view === OPS_VIEW) { el.replaceChildren(...lead, chipRow(list, ""), opsView()); return; }
-      if (!m) { el.replaceChildren(...lead, chipRow(list, ""), needsGoal()); return; }
-      const band = st.band || m.first;
-      const shown = band === "lead" ? [m.lead] : band === "build" ? m.build : m.check;
-      if (st.focus && !shown.some((x) => x?.slug === st.focus)) st.focus = "";           // the member shown is not in this stage
-      field.draw(m, { band, focus: st.focus, idea: st.idea }, stageSwitch(m, band));
-      el.replaceChildren(...lead, chipRow(list, slug), header(m), ideasBar(m), field.el);
+      keepFocus(el, paint);                                      // drawn again: a keyboard's place stays where it was
     },
   };
 }

@@ -56,6 +56,26 @@ export function pulse(el) {
   setTimeout(() => el.classList.remove("is-reward"), PULSE_MS + 50);
 }
 
+/** True while the field is being drawn again: a focus that leaves because its node was replaced is not a person's moving on (`makeHolds` ignores it). */
+export const painting = { on: false };
+const IDENT = ["goal", "band", "member", "key", "idea", "task", "act"];
+
+/** Runs `paint` (which draws again what `root` holds) and puts the focus back on what had it, so that a keyboard's place survives a refresh: the same node when it is still
+ *  there, else the one that stands for it (the same tag and the same `data-*`). */
+export function keepFocus(root, paint) {
+  const a = document.activeElement;
+  const had = a && a !== document.body && root.contains(a) ? { node: a, tag: a.tagName.toLowerCase(), cls: (a.className || "").toString().split(" ")[0], ids: IDENT.filter((k) => a.dataset[k] !== undefined).map((k) => [k, a.dataset[k]]) } : null;
+  painting.on = true;
+  try { paint(); } finally { painting.on = false; }
+  if (!had) return;
+  let at = had.node.isConnected ? had.node : null;
+  if (!at) {
+    const sel = had.tag + (had.ids.length ? had.ids.map(([k, v]) => `[data-${k}="${CSS.escape(v)}"]`).join("") : had.cls ? `.${CSS.escape(had.cls)}` : "");
+    try { at = root.querySelector(sel); } catch { at = null; }
+  }
+  if (at && document.activeElement !== at) at.focus({ preventScroll: true });
+}
+
 /** Nothing moves under the finger or the focus: `held(column)` is true while a touch is down in the column or the focus (the keyboard's) is inside it, for at most HOLD_MS.
  *  `redraw` runs when a hold ends. `root`: what holds the columns. */
 export function makeHolds(root, redraw) {
@@ -66,7 +86,7 @@ export function makeHolds(root, redraw) {
   const release = () => { if (!waiting) waiting = setTimeout(() => { waiting = 0; redraw(); }, 0); };
   root.addEventListener("touchstart", (e) => { const c = column(e); if (c) touching.add(c.dataset.column); }, { passive: true });
   for (const type of ["touchend", "touchcancel"]) root.addEventListener(type, () => { if (touching.size) { touching.clear(); release(); } }, { passive: true });
-  root.addEventListener("focusout", () => release());
+  root.addEventListener("focusout", () => { if (!painting.on) release(); });
   return {
     held(col) {
       const key = col.dataset.column;
