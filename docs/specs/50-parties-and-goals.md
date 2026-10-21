@@ -332,14 +332,15 @@ the spread's cards 120 × 168; the arrows 2 px. No page scroll; the left column'
 
 ## 6. The phone (C)
 The mockup F is the target. As spec 49 §10 with:
-1. **The top bar: one *where* button** (decisions §63.12): beside the menu, *harbor › <the leader's head> Tech ⌄* (the
-   project's name muted, the party's short name in ink, cut when it must, 44 px high), the stops' count of this party
+1. **The top bar: one *where* button** (decisions §63.12): beside the menu, *harbor › Tech ⌄* (the project's name
+   muted, the party's short name in ink, cut when it must, 12 px, 44 px high; no head: the heads are in its sheet), the stops' count of this party
    before the ⌄ and, after it, a small warning count of the stops waiting in the project's **other** parties (none when
    none: a question elsewhere is never hidden). A tap opens one sheet from the top: **the project's parties** (rows of
    52 px at least: the leader's head, the name, *k/n done*, the stops' count, the work sign; the picked one marked),
    **+ New party**, then **Other projects** (the name, what waits; a tap switches as the drawer's projects do today,
    `projects.use`) and *Open on your computer: a tap switches this phone to one.* A pick is kept (`orkcraft.goal`, as
-   today) and closes the sheet. The menu keeps Stop all, Spend, Agents and the settings; its aria-label *Menu: Stop all,
+   today) and closes the sheet. To give it room, the limits' button in the top bar shows its diamonds alone
+   (the *n %* leaves the bar: it stays in the tools sheet and in the button's label). The menu keeps Stop all, Spend, Agents and the settings; its aria-label *Menu: Stop all,
    Spend, Agents and settings*; the projects leave it.
 2. **No chips row**: the parties are in the *where* button's sheet; the board gains the row's 56 px.
 3. **The party bar** (44 px, one line, quiet: faint 12 px text, no title, no second line): *k/n done* (the count,
