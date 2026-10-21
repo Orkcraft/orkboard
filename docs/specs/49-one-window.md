@@ -162,7 +162,8 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    count when there is one (*n stops wait for you* in its label), ↻ while its party is at work. Its tooltip: the title,
    *% of the way*, *done when …*. The tab picked is the goal shown, kept per device as today (`keepGoal`); arrows,
    Home, End move between tabs. After the goals: **Operations** when the project has them (`ops_rev`): the field is
-   then today's Operations view and the bottom row its rows (op, op_failed, op_rules); **+ New goal**; at the row's end
+   then today's Operations view and the bottom row its rows (op, op_failed, op_rules); **+ New goal** (an outlined
+   `.ork-btn`, never the quiet link: it must be seen); at the row's end
    **Merge into dev ▾** (`IntoDialog`, as the Map's header has it).
 2. **The ideas bar** is the goal's one line (decisions §62.6 keeps it to one): **▾ Ideas at work n · Now:** *who ↻ which
    task (which idea)* for every running task, the leader reading, or *nothing at work right now*; then the goal's
@@ -174,7 +175,8 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    Next: …*); a click on an idea shows only its tasks in the field and its results on the right (pressed; a second
    click shows all); hovering it lights its tasks. **Done (n)** folds the done ideas, each *in dev · waits for main*, or
    *in main* when `ideas.gate` no longer lists it.
-3. **Planning** (the left column's top): *Planning n* and **+ New idea** (`openDialog("idea", {goal})`); the goal's
+3. **Planning** (the left column's top): *Planning n* and **+ New idea** (`.ork-btn.primary`, the action colour, as the
+   phone's FAB; `openDialog("idea", {goal})`); the goal's
    ideas in stage `planning` that are not `raw`, the stops first: each a plain row (no frame, no head): a mark (**!** in
    the alert colour for a stop: `asks`, `plan`, `proposed`; ↻ while the leader reads or plans; none else), its title, its
    state in words (*asks you · <who>* for a member's question), the plan's price (*$1–2*, `plan_estimate`) for a plan; a
@@ -314,7 +316,9 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
 6. **What waits for you** lies along the bottom (56 px, **no line over it**): the stops of §6 and, after them, the
    results to look at (*To look at*, the edge's muted frame), fanned and only their tops showing; **New idea** is the
    FAB in its right corner (as the phone's FAB of before, `ideas.fab`: a 48 px square in the action colour with *+*, the
-   new idea for the goal shown), the fan keeping clear of it. A tap **pops** one out:
+   new idea for the goal shown), above the fan and clear of it: the fan's area ends 68 px before the right edge, its
+   items overlap so that they fit it (each turned 3° a step from the middle, 3 px lower a step²), and a reset of
+   buttons' margins must not undo the overlap. A tap **pops** one out:
    it leaps from its place in the fan to a raised sheet above the scrim (≈ 0.34 s in steps, from its turn to upright;
    none under `prefers-reduced-motion`; its place in the fan stays empty while it is up): its gem, kind, head, title,
    text, its quick answers as 44 px buttons (§6.2's; a result's *Merge into dev* · *Send back* · *Drop…*) and **Open it
