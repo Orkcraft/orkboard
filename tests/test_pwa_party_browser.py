@@ -22,7 +22,7 @@ async def test_the_goal_s_screen_has_what_the_party_did_closed_at_first_and_read
                                        leader=stub.leader("growth"), metrics=[])
         stub.bump({})
         await _pick_goal(page, "land")
-        await page.locator('.map-goal[data-goal="land"]').get_by_role("button", name="Open goal Landing page").click()
+        await page.locator(".ghead").get_by_role("button", name="Open goal Landing page").click()
         fold = page.locator(".screen").get_by_role("region", name="What the party did").locator("details")
         await fold.wait_for(timeout=WAIT_MS)
         assert await fold.get_attribute("open") is None and not any(c[0] == "ideas.party" for c in stub.calls)     # closed at first: not asked for
