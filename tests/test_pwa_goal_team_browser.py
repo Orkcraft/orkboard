@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 from orkboard.realm import library  # noqa: E402
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _called, _new_goal, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import _open_idea, NO_SCROLL, WAIT_MS, _called, _new_goal, _phone, _pick_goal, _shot  # noqa: F401
 
 pytestmark = pytest.mark.browser
 
@@ -90,11 +90,12 @@ async def test_the_goal_s_card_wears_its_team_s_heads_and_names_them_and_the_top
         await page.locator(".board-bar .goal-chip").click()
         await page.get_by_role("dialog", name="Goals").locator('.goal-row[data-goal="land"]').click()
         chip, card = page.locator(".board-bar .goal-chip"), page.locator('.map-goal[data-goal="land"]')
-        await card.locator(".map-team .team-mark-heads img").nth(2).wait_for(timeout=WAIT_MS)
-        assert [await i.get_attribute("src") for i in await card.locator(".map-team .team-mark-heads img").all()] == [
+        await card.locator(".map-party img").nth(2).wait_for(timeout=WAIT_MS)
+        assert [await i.get_attribute("src") for i in await card.locator(".map-party img").all()] == [
             "races/elf-elder.png", "races/elf-warrior.png", "races/goblin-warrior.png"]
         assert await chip.locator("img").get_attribute("src") == "races/elf-laborer.png"                # the bar: the craft's one head
-        assert "Team: Product designer, Accessibility reviewer, Analyst" in await card.locator(".map-team").inner_text()
+        assert [" ".join(t.split()) for t in await card.locator(".map-party li").all_inner_texts()] == [
+            "Product designer free", "Accessibility reviewer free", "Analyst free"]                 # the party line: each member and its state
         await _shot(page, "phone-goal-team-board-390x844")
         assert await page.evaluate(NO_SCROLL)
 
@@ -130,7 +131,7 @@ async def test_the_team_s_checkers_say_what_they_add_every_idea_is_kept_and_the_
                        {"by": "seo", "name": "SEO", "applies": False, "why": "It adds no public page", "state": ""}]
         await page.locator(".screen-head").get_by_role("button", name="Back").click()                  # from the new goal's screen
         await _pick_goal(page, "general")
-        await page.locator(".map-row", has_text="Sync ideas").locator(".map-open").click()
+        await _open_idea(page, "Sync ideas")
         line = page.locator(".screen").get_by_role("list", name="Checks")
         await line.wait_for(timeout=WAIT_MS)
         chips = [" ".join(t.split()) for t in await line.get_by_role("listitem").all_inner_texts()]
@@ -170,7 +171,7 @@ async def test_a_check_that_has_not_run_is_skipped_from_the_spec_to_spare_its_ru
         stub.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "waiting", "task": "k5", "skipped": False, "tier": "elder"},
                        {"by": "editor", "name": "Editor", "applies": True, "why": "", "state": "passed", "task": "k6", "skipped": False, "tier": "laborer"}]
         stub.bump({})
-        await page.locator(".map-row", has_text="Sync ideas").locator(".map-open").click()
+        await _open_idea(page, "Sync ideas")
         line = page.locator(".screen").get_by_role("list", name="Checks")
         await line.wait_for(timeout=WAIT_MS)
         assert await line.get_by_role("button", name="Skip the check: Editor").count() == 0           # passed: nothing to spare
@@ -184,12 +185,12 @@ async def test_a_check_that_has_not_run_is_skipped_from_the_spec_to_spare_its_ru
 
 
 @pytest.mark.asyncio
-async def test_a_check_is_skipped_right_on_the_trail_before_a_plan_or_before_its_task_runs(fake_repo, monkeypatch):
+async def test_a_check_is_skipped_right_on_the_map_before_its_task_runs(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.checks = [{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "waiting", "task": "k5", "skipped": False, "tier": "elder"}]
-        stub.ideas["new"] = stub.idea("new", "A darker theme", "ready", 3, checks=[
-            {"by": "editor", "name": "Editor", "applies": True, "why": "", "state": "", "task": "", "skipped": False, "tier": "laborer"},
-            {"by": "seo", "name": "SEO", "applies": True, "why": "", "state": "", "task": "", "skipped": True, "tier": "laborer"}])
+        for t in stub.plan["tasks"]:                                                                   # only the check is left: the idea is in Checking
+            if t["id"] != "k5":
+                t["state"] = "merged"
         stub.bump({})
         sync = page.locator(".map-row", has_text="Sync ideas")
         skip = sync.get_by_role("button", name="Skip the check: Reviewer")                            # its task, not run yet
@@ -201,13 +202,6 @@ async def test_a_check_is_skipped_right_on_the_trail_before_a_plan_or_before_its
         await _shot(page, "phone-trail-check-skip-390x844")
         await sheet.get_by_role("button", name="Skip it").click()
         assert await _called(stub, "ideas.check_skip", {"slug": "sync", "by": "reviewer"})
-        new = page.locator(".map-row", has_text="A darker theme")                                      # not planned: the checks its plan will hold
-        await new.get_by_role("button", name="Skip the check: Editor").click()
-        assert "The plan is made without it" in await page.get_by_role("dialog", name="Skip the check?").inner_text()
-        await page.get_by_role("dialog", name="Skip the check?").get_by_role("button", name="Skip it").click()
-        assert await _called(stub, "ideas.check_skip", {"slug": "new", "by": "editor"})
-        await new.get_by_role("button", name="Take the check again: SEO").click()                      # left out: taken again with a tap
-        assert await _called(stub, "ideas.check_skip", {"slug": "new", "by": "seo", "skip": False})
         assert await page.evaluate(NO_SCROLL)
 
 

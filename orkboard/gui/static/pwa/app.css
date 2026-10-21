@@ -666,3 +666,76 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .map-row .map-task.check-step .ork-icon { width: 12px; height: 12px; flex: none; color: var(--ork-ink-muted); }
 .map-row .map-task.check-step:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
 .map-row .map-task.check-step.is-skipped .map-task-title { text-decoration: line-through; color: var(--ork-ink-muted); }
+
+/* -- the Map of one goal (spec 48 C): the party line, the open idea's card and its field. Yellow (--ork-alert) is only on a stop: a member
+   who asks, the leader for a plan or a proposal, the agent of a failed task; a result in Review is muted ink (decisions §54.1). -------- */
+.map-bar { display: block; flex: 1 1 auto; min-width: 48px; height: 4px; background: var(--ork-frame); }
+.map-goal .trail-start { align-items: center; padding-left: 0; }
+.map-goal .trail-start::before, .map-goal .trail-end::before { display: none; }
+.map-party { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ork-3) var(--ork-5); font: var(--ork-type-caption); }
+.map-member { display: inline-flex; align-items: center; gap: var(--ork-2); min-width: 0; }
+.map-member.is-stop { color: var(--ork-alert); font-weight: 600; }
+.map-members .map-member.is-stop { outline: var(--ork-line) solid var(--ork-alert); outline-offset: 2px; }
+.map-ideas-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
+.idea-stage { flex: none; font: var(--ork-type-caption); }
+.map-idea { display: flex; flex-direction: column; gap: var(--ork-4); border: var(--ork-line) solid var(--ork-frame); padding: var(--ork-3); background: var(--ork-canvas); }
+.map-card-frame { display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-4); background: var(--ork-panel); border: var(--ork-double) double var(--ork-edge); min-width: 0; }
+.map-card-frame .map-open.map-card-title { font-weight: 600; padding: 0; min-height: var(--ork-tap); align-items: center; }
+.map-card-frame .map-open .idea-title { -webkit-line-clamp: 3; line-clamp: 3; font: var(--ork-type-body); font-weight: 600; }
+.stage-track { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2) var(--ork-4);
+  font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
+.stage.is-now { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.stage.is-past { color: var(--ork-ink-muted); }
+.stage + .stage::before { content: ""; display: inline-block; width: var(--ork-6); border-top: var(--ork-line) dotted var(--ork-edge); vertical-align: middle; margin-right: var(--ork-3); }
+.map-pips-line, .map-wait { margin: 0; font: var(--ork-type-caption); }
+.map-looks { display: flex; flex-direction: column; gap: var(--ork-3); padding-top: var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
+.map-looks h4 { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
+.map-looks p { margin: 0; font: var(--ork-type-caption); }
+.map-result { display: flex; flex-direction: column; gap: var(--ork-2); padding-bottom: var(--ork-3); }
+.map-result .result-actions { margin-top: var(--ork-2); }
+.map-result .is-success { color: var(--ork-success); }
+.map-result .is-danger { color: var(--ork-danger); }
+.map-card-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ork-4); }
+.map-card-acts .ork-btn { min-height: var(--ork-tap); }
+.map-view { align-self: flex-start; min-height: var(--ork-tap); }
+/* the field: the waves rise bottom-up (the highest first in the DOM, Wave 1 just above the members' row) */
+.map-field { position: relative; display: flex; flex-direction: column; gap: var(--ork-3); }
+.map-wave-row { display: flex; flex-direction: column; gap: var(--ork-2); }
+.map-wave-label { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
+.map-cells, .map-members { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ork-4); }
+.map-field[data-lanes="2"] .map-cells, .map-field[data-lanes="2"] .map-members { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.map-field[data-lanes="3"] .map-cells, .map-field[data-lanes="3"] .map-members { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.map-cell { position: relative; display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; }
+.map-members { padding-top: var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
+.map-members .map-member { flex-direction: column; align-items: flex-start; gap: var(--ork-1); padding: var(--ork-2); overflow-wrap: anywhere; }
+.map-tcard { all: unset; box-sizing: border-box; width: 100%; min-height: var(--ork-tap); padding: var(--ork-3) var(--ork-4); cursor: pointer; display: flex; flex-direction: column; justify-content: space-between;
+  gap: var(--ork-1); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-caption); color: var(--ork-ink); }
+.map-tcard:focus-visible, .stack-row:focus-visible, .map-skip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.tcard-title { font-weight: 600; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.tcard-state { color: var(--ork-ink); }
+.map-tcard.is-wait { border-style: dashed; color: var(--ork-ink-muted); }
+.map-tcard.is-wait .tcard-state { color: var(--ork-ink-muted); }
+.map-tcard.is-review { border-color: var(--ork-frame); }
+.map-tcard.is-review .tcard-state { color: var(--ork-ink-muted); }
+.map-tcard.is-fail, .stack-row.is-fail { border: 3px solid var(--ork-danger); }
+.map-tcard.is-fail .tcard-state { color: var(--ork-danger); font-weight: 600; }
+.map-tcard.is-stop { border: 3px solid var(--ork-alert); }
+.map-tcard.is-stop .tcard-state { color: var(--ork-alert); font-weight: 600; }
+.map-stack { position: relative; min-width: 0; }
+.map-stack.is-stack { padding: 0 var(--ork-3) var(--ork-3) 0; }
+.map-stack.is-stack .stack-back { position: absolute; left: var(--ork-3); top: var(--ork-3); right: 0; bottom: 0; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-ink); }
+.map-stack.is-stack .map-tcard { position: relative; }
+.stack-count { position: absolute; right: calc(var(--ork-1) * -1); top: calc(var(--ork-3) * -1); min-width: 18px; padding: 0 var(--ork-2); text-align: center; background: var(--ork-ink); color: var(--ork-on-ink); font: var(--ork-type-caption); font-weight: 600; }
+.map-stack.has-skip { display: flex; align-items: stretch; gap: var(--ork-2); }
+.map-skip { all: unset; box-sizing: border-box; flex: none; width: var(--ork-tap); min-height: var(--ork-tap); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border: var(--ork-line) solid var(--ork-frame); }
+.stack-list { display: flex; flex-direction: column; gap: var(--ork-3); }
+.stack-row { all: unset; box-sizing: border-box; min-height: var(--ork-tap); padding: var(--ork-3) var(--ork-4); display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-3); align-items: center; cursor: pointer; border: var(--ork-line) solid var(--ork-frame); }
+.stack-row small { grid-column: 2; }
+.stack-title { font-weight: 600; overflow-wrap: anywhere; }
+.map-empty { font: var(--ork-type-caption); }
+/* a merged task leaves the field once: up and out in steps; none under reduced motion (decisions §55.2) */
+.map-stack.card-out { position: absolute; left: 0; right: 0; top: 0; z-index: 4; pointer-events: none; animation: map-card-up 1s steps(6, end) 0.1s forwards; }
+.map-tcard.is-out { border-color: var(--ork-success); }
+.map-tcard.is-out .tcard-state { color: var(--ork-success); font-weight: 600; }
+@keyframes map-card-up { 0% { opacity: 1; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-12px); } 100% { opacity: 0; transform: translateY(-80px); } }
+@media (prefers-reduced-motion: reduce) { .map-stack.card-out { animation: none; display: none; } }

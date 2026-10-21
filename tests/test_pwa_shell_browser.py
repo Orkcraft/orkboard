@@ -113,7 +113,8 @@ class Stub:
             step[i["track"]] = step.get(i["track"], 0) + (i["state"] != "done")
             needs = self.NEEDS_OF.get(i["state"], "") if i.get("in_needs_you") else ""
             tasks = [{"id": t["id"], "title": t["title"], "state": t["state"], "after": list(t.get("after") or []), "tier": "warrior",
-                      "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}} for t in self.plan["tasks"]] if i["slug"] == "sync" else []
+                      "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "by": {"slug": "grunt", "name": "Grunt"}, "band": "check" if t["id"] in {c.get("task") for c in self.checks} else "build",
+                      "wave": 1 + len(t.get("after") or [])} for t in self.plan["tasks"]] if i["slug"] == "sync" else []
             nodes.append({"slug": i["slug"], "goal": i["track"], "title": i["title"], "state": i["state"], "queue": i.get("queue", ""),
                           "held_until": i.get("held_until", ""), "start_at": i.get("start_at", ""), "priority": i["priority"], "size": "M", "risk": "",
                           "tier": max(1, step[i["track"]]), "depends_on": list(i.get("depends_on") or []), "waits_on": list(i.get("waits_on") or []),
@@ -122,12 +123,17 @@ class Stub:
                           else {"kind": "night", "ref": "", "title": "", "until": ""} if i.get("queue") == "night" or i.get("start_at") == "night" else None,
                           "needs_you": needs,
                           "progress": {"done": sum(t["state"] == "merged" for t in tasks), "total": len(tasks)}, "tasks": tasks, "estimate": None,
+                          "stage": "done" if i["state"] == "done" else "planning" if not tasks else "implementation"
+                          if any(t["band"] == "build" and t["state"] not in ("merged", "dropped") for t in tasks) else "checking", "round": 1, "usd": None, "plan_estimate": None,
+                          "asked": [], "results": [r for r in self.results() if r["idea"] == i["slug"]],
                           "by_itself": False, "folded": i["state"] == "done", "updated": "", "checks": copy.deepcopy(i.get("checks") or (self.checks if i["slug"] == "sync" else []))})
         used = {n["goal"] for n in nodes}
         goals = [g | {"done_when": [m["name"] for m in g.get("metrics", [])], "ideas": sum(n["goal"] == g["slug"] for n in nodes),
                       "done": sum(n["goal"] == g["slug"] and n["state"] == "done" for n in nodes), "usd": None,
                       "team": [{"slug": t, "name": self.roles[t]["name"], "head": self.roles[t].get("head"), "checks": False, "every": False}
-                               for t in g.get("team", []) if t in self.roles]}
+                               for t in g.get("team", []) if t in self.roles],
+                      "party": [{"slug": t, "name": self.roles[t]["name"], "head": self.roles[t].get("head"), "band": "build", "state": "free", "why": ""}
+                                for t in g.get("team", []) if t in self.roles], "today": {"merged": 0, "usd": 0}}
                  for g in self.goals.values() if g["slug"] != "general" or g["slug"] in used]
         return {"goals": goals, "nodes": nodes, "edges": [], "rev": str(self.rev)}
 
@@ -433,6 +439,15 @@ async def _new_goal(page):
 async def _wizard(sheet, craft="engineering"):
     """New goal is one sheet (spec 41 §6): a craft picked puts its party in the seats; the rest is below it."""
     await sheet.locator(f'.craft-tile[data-craft="{craft}"]').click()
+
+
+async def _open_idea(page, title):
+    """An idea's screen from the Map: a tap on its row opens it in place, its card's *Open the idea* opens the screen (spec 48 §3, §5)."""
+    stop = _stop(page, title) if isinstance(title, str) else title
+    opener = stop.locator(".map-open").first
+    if await opener.get_attribute("aria-expanded") != "true":
+        await opener.click()
+    await stop.locator(".map-view").click()
 
 
 def _stop(page, title):
@@ -790,7 +805,7 @@ async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_clo
         await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Close").click()
         await page.wait_for_timeout(300)
         assert len(_adds(stub)) == before
-        await low.locator(".map-open").click()                                                          # its screen: Process now → the queue is now
+        await _open_idea(page, low)                                                          # its screen: Process now → the queue is now
         await page.locator(".screen").get_by_role("button", name="Process now").click()
         assert await _called(stub, "ideas.queue", {"slug": "low-idea", "queue": "now"})
 

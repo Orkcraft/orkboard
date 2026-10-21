@@ -228,3 +228,14 @@ each, pointing here, in B. Anything else: stop and write it in §10 first.
 - Answering a question, editing a plan or choosing a branch on the Map; a merge into main.
 - A free graph or dragging an idea (decisions §50.3); the trail's lines between ideas (a row's order is the trail).
 - The Agents pane's change; Camp's skin.
+
+**Part C (phone), as built.**
+- The goal shown is the top bar's (`st.track`, else the first goal of the Map); the goal tabs are gone. Another goal starts with its own first idea open.
+- The party line is a list of the leader and the team (heads, names, state words); a member is not a button yet (the Agents tab is where an agent opens).
+- One idea is open (`opened` in `shell-map.js`): until a tap picks one, the first at work or waiting for the person; a tap on an open idea's title closes it. A row's tap opens it in place; the idea's own screen opens from the card's *Open the idea* (`via: "map"`).
+- A row keeps the Board row's words after the stage (*Implementation · working 1/4*) and its one button (*Start now*, *Process now*, spec 41 §4); *Start the work* and *Open the plan* live on the open card. A row that is `plan` with `needs_you` is always open, so it has the card's buttons.
+- The card shows the results of the idea as Review's rows do (`resultActions` of `shell-review.js`: Merge into dev, Send back with its one line, Drop… with its confirmation), at most three and *and n more*; every row shows its buttons (the spec says the first). The `dear` confirmation (a result dearer than its estimate) is not on the phone, as in Review.
+- A merged task's card leaves once (a ghost for 1.5 s, the first three of an idea in a refresh, none under reduced motion, none on the first read of a goal); the result's row on the card does not animate: it folds out at the redraw.
+- A checker's task that has not run has a small × beside its card (*Skip the check*, as the trail had); a check the plan will hold, before the plan, is no longer drawn.
+- Stacks open as a sheet titled *<agent> · wave n · k*; its rows open the task's screen.
+- Tasks of agents outside the party get their own lane after the party's (`lanesOf` follows the tasks); the lane count is capped at three columns by CSS only for the grid, there is no cap in code.
