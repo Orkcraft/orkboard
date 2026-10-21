@@ -73,3 +73,19 @@ def test_the_town_scroll_is_the_town_file_and_a_project_is_its_folder():
     assert lexicon.term("town_scroll") == "Town file" and lexicon.term("town_scroll", many=True) == "Town files"
     assert lexicon.words("Saved to the Town Scroll") == "Saved to the Town file"
     assert lexicon.term("project") == "Project" and lexicon.term("project", many=True) == "Projects"
+
+
+def test_what_was_a_goal_is_a_party_and_what_was_an_idea_is_a_goal():
+    """Decisions §63.1: the interface says party for the code's track (a goal's page) and goal for the code's idea. A goal is
+    today's word, never an old spelling (B adds the `was` of `idea` with its templates); `track` keeps only its own."""
+    say = lexicon.words
+    assert lexicon.term("track") == "party" and lexicon.term("track", many=True) == "parties"
+    assert lexicon.term("idea") == "goal" and lexicon.term("idea", many=True) == "goals"
+    assert lexicon.term("party") == "party" and lexicon.term("party", many=True) == "parties"      # the members, unchanged
+    assert say("the goal") == "the goal" and say("Goal") == "Goal"                                  # "Goal" is no longer the Target's old word
+    assert say("your tracks") == "your parties" and say("Track") == "Party"
+    rows = {key: (word, was) for key, word, was in lexicon.glossary()}
+    assert rows["track"] == ("party", "track") and rows["idea"] == ("goal", "") and rows["steward_goal"] == ("Target", "")
+    assert rows["flag"] == ("flag", "")
+    table = dict(lexicon.table())
+    assert table["track"] == "party" and table["Tracks"] == "Parties" and "Goal" not in table and "goal" not in table
