@@ -215,16 +215,21 @@ keeps, the least used in its party, a raw goal; `tests/test_board_map.py`: the n
 the flag's row; the recap, the week and the push lines; the old fields unchanged.
 
 ## 3. The window (B)
-As spec 49 §3 (the regions, their sizes at 1 440 × 900, no page scroll; below 1 024 px), with: the tablist named
-*Parties*, the field's landmark *The party at work*, and the left column's *Planning* region replaced by *Goals*
-(§3.3). The mockup E is the target.
+As spec 49 §3 (the regions, their sizes at 1 440 × 900, no page scroll; below 1 024 px), with: **no tab row** (a
+project has a few parties, three at most as a rule: the owner): the party switch is in the top bar (§3.1) and the main
+row starts right under it, the board gaining the tab row's 40 px; the field's landmark *The party at work*; and the
+left column's *Planning* region replaced by *Goals* (§3.3). The mockup E is the target, but for its tab row.
 
-### 3.1 The party tabs
-Each tab (40 px): the leader's head (orkUI's small head), the party's short name, **k/n** (muted: its done goals of
-all its goals, the map's `done` and `ideas`; its tooltip *k of n goals done*), the stops' count (warning) and ↻ while at
-work; **no meter and no %** (a party has no end, only a count), no verdict's flag. *+ New party*
-(outlined) after the tabs opens New party (§3.7); *Merge into …* and Operations as today. The picked party is kept
-(`localStorage`, as the goal was).
+### 3.1 The party switch, in the top bar
+The top bar (32 px) holds, after the project switcher and *Orkline*, a **segmented switch** of the project's parties
+(decisions §63.11): one segment each (≈ 28 px high, notched, orkUI's tokens): the leader's small head, the party's
+short name, **k/n** (muted: its done goals of all its goals, the map's `done` and `ideas`; its tooltip *k of n goals
+done*), the stops' count (warning) and the `work` sign while at work; **no meter and no %** (a party has no end, only a
+count), no verdict's flag; the picked one raised with an ink underline. Then a last **+** segment (*New party*, §3.7),
+and Operations' segment after the parties when Operations are on (as its tab was). The semantics and the keys of
+today's tabs stay: a `tablist` named *Parties*, `role="tab"`, `aria-selected`, ←/→/Home/End; the picked party is kept
+(`localStorage`, as the goal was). **Merge into …** (where results merge, `openDialog("into")`) leaves the tab row: a
+quiet line under the gate's button, *results go into dev ⌄*. The phone keeps its chips (§6.2).
 
 ### 3.2 The party line (the ideas bar's place, 36 px)
 *Now: <member> ↻ <task> (<goal>) · …* muted, then quiet: *≈$2–4 a goal · today 3 merged · ≈$1.10* (the party's price a
@@ -320,7 +325,8 @@ the page was hidden:
    hovered; a spread holds its cards while open.
 
 ## 5. Sizes (B)
-At 1 440 × 900: the tabs 40, the party line 36, the party row 64, the bottom row 64; the left column 248 (a goal's row
+At 1 440 × 900: the top bar 32 with the party switch (no tab row), the party line 36, the party row 64, the bottom row
+64; the left column 248 (a goal's row
 42, the New goal pile 60 + 12 of padding); a card 104 × 146 at most (5:7) with two stacks to a row in a 210-px column;
 the spread's cards 120 × 168; the arrows 2 px. No page scroll; the left column's list scrolls.
 
@@ -373,7 +379,8 @@ The mockup F is the target. As spec 49 §10 with:
 ## 7. Tests
 - **A0**: §1.5.
 - **A**: §2.7.
-- **B** (browser, desktop): the tabs (*Parties*: head, name, *k/n*, the stops' count, ↻; no meter, no %); the party line and
+- **B** (browser, desktop): the party switch in the top bar (*Parties*: head, name, *k/n*, the stops' count, the work
+  sign; no meter, no %; *+*; the keys; no tab row) and *results go into dev ⌄* under the gate; the party line and
   About this party's blocks (no Metrics, no Verdict; *Before:* only with a verdict of before); New party's fields and
   `ideas.goal_save`'s arguments; the goals list (At work, Planning, New (n), Flags (n) · k wait for main; a row's pile,
   element, line, mark; a press picks, a second unpicks, hover peeks, *Show all*, Esc); the filter (the field, the

@@ -734,6 +734,9 @@ for the product, one for the platform, one for the whole flow, each with its own
 10. **Every symbol the window draws is orkUI's** (the owner): the elements and eight signs (done, failed, at work,
    tonight, a stop, a flag, what a task waits for and what waits for it) are pixel symbols of the look, drawn on a 7 × 7
    grid; no Unicode symbol stands in for one.
+11. **The parties are a switch in the top bar, not a row of tabs** (the owner): a project has a few, three at most as a
+   rule, and they change seldom; the switch says where you are (*project › party*) and the board gains the tab row's
+   height. The phone keeps its chips.
 A new face and new words over v1's mechanics, two small additions to the host (a goal's flag, its element), and the
 end of a model call (a party's acceptance): the owner's call, before the testers' numbers, as §55, §59, §61 and §62.
 Mockups E and F of *Orkboard: one window*. Spec 50.
