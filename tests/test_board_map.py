@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import board_map, event_log, idea_spend, ideas
+from orkboard.realm import board_map, event_log, goal_team, idea_spend, ideas, library
 
 
 @pytest.fixture
@@ -40,6 +40,11 @@ def _plan(state_dir, slug, tasks, **more):
 
 def _t(tid, state, after=(), note=""):
     return {"id": tid, "title": f"Task {tid}", "tier": "warrior", "state": state, "after": list(after), "note": note}
+
+
+def _roles(state, *slugs):
+    """Library agents as roles of the project (a party's members are roles of it)."""
+    library.install(state, list(slugs))
 
 
 def _board(host):
@@ -169,7 +174,8 @@ def test_tasks_estimate_and_by_itself(host):
     assert n[fresh]["estimate"] == {"usd_low": 0.4, "usd_high": 1.2} and n[fresh]["by_itself"] is True
     assert n[begun]["estimate"] is None and n[begun]["by_itself"] is False and n[begun]["progress"] == {"done": 1, "total": 2}
     assert n[begun]["tasks"][1] == {"id": "k2", "title": "Task k2", "short": "Task k2", "state": "running", "after": ["k1"], "tier": "warrior",
-                                     "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tag": "Code"}   # who does it: a Grunt; its tag
+                                     "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tag": "Code",   # who does it: a Grunt; its tag
+                                     "by": {"slug": "grunt", "name": "Grunt"}, "band": "build", "wave": 2}
     assert n[none]["tasks"] == [] and n[none]["estimate"] is None and n[none]["by_itself"] is False
 
 
@@ -255,3 +261,79 @@ def test_a_goal_accepted_has_its_verdict_at_and_a_met_one_its_tally_spec_42(fixt
     assert met["at"] and met["met"] is True and set(met["tally"]) == {"ideas", "results", "first_time", "usd", "days"}
     assert met["tally"]["ideas"] == 1                                  # "Cache the table" is done
     assert no["at"] and "tally" not in no
+
+
+# -- spec 48 A: the stage, the party's states, the idea's card ------------------------------------------------------
+
+def test_a_node_has_its_stage_round_spend_and_estimate_spec_48(host):
+    root, state = _board(host)
+    g = _goal(root, "Stages")
+    est = {"tasks": 2, "usd_low": 0.4, "usd_high": 1.2}
+    raw = _idea(root, state, g, "Raw", "raw")
+    waiting = _idea(root, state, g, "Waiting", "plan")
+    _plan(state, waiting, [_t("k1", "ready")], estimate=est)
+    building = _idea(root, state, g, "Building", "working")
+    _plan(state, building, [{**_t("k1", "merged"), "round": 1}, {**_t("k2", "running", after=["k1"]), "round": 2}], estimate=est, passed_at="x")
+    _roles(state, "reviewer")
+    check = _t("k9", "ready", after=["k1"])
+    checking = _idea(root, state, g, "Checking", "working")
+    _plan(state, checking, [_t("k1", "merged"), {**check, "kind": "review", "role": "reviewer"}], passed_at="x", estimate=est)
+    done = _idea(root, state, g, "Done", "done")
+    n = {x["slug"]: x for x in host.command("ideas.map", {})["nodes"]}
+    assert [n[s]["stage"] for s in (raw, waiting, building, checking, done)] == ["planning", "planning", "implementation", "checking", "done"]
+    assert (n[building]["round"], n[raw]["round"]) == (2, 1)
+    assert n[raw]["usd"] is None and n[raw]["plan_estimate"] is None
+    assert n[building]["plan_estimate"] == {"usd_low": 0.4, "usd_high": 1.2} and n[building]["estimate"] is None     # `estimate` is before it starts
+    assert n[waiting]["plan_estimate"] == n[waiting]["estimate"]
+    assert [(t["wave"], t["band"]) for t in n[checking]["tasks"]] == [(1, "build"), (2, "check")]
+    assert n[checking]["tasks"][1]["by"]["slug"] == "reviewer"
+
+
+def test_asked_says_who_asks_and_results_wait_on_their_idea(host):
+    root, state = _board(host)
+    g = _goal(root, "Asks")
+    asks = _idea(root, state, g, "Asks", "asks")
+    ideas.set_section(root, asks, "Open questions", "- Which store first? (**App Store** / Google Play) — iPhone first")
+    other = _idea(root, state, g, "Other", "ready")
+    n = {x["slug"]: x for x in host.command("ideas.map", {})["nodes"]}
+    assert n[asks]["asked"][0]["ask"] == "Which store first?" and n[asks]["asked"][0]["by"]["slug"] == "taskmaster"     # the leader's: no `asks_by`
+    assert n[other]["asked"] == [] and n[asks]["results"] == []
+    review = _idea(root, state, g, "In review", "working")
+    _plan(state, review, [{**_t("k1", "review"), "tests": {"passed": 20, "failed": 0, "failing": [], "tail": ""}, "cost": 0.42,
+                          "finished": "2026-10-20T10:00:00", "diff": {"files": 14, "added": 3, "removed": 1}}], passed_at="x")
+    got = {x["slug"]: x for x in host.command("ideas.map", {})["nodes"]}
+    assert [(r["task"], r["tests"]["passed"], r["diff"]["files"]) for r in got[review]["results"]] == [("k1", 20, 14)]
+    assert got[asks]["results"] == []
+
+
+def test_the_partys_states_and_todays_merges_spec_48(host):
+    root, state = _board(host)
+    g = _goal(root, "Party")
+    _roles(state, "reviewer", "architect")
+    goal_team.set_team(root, g, ["grunt", "reviewer"], leader="architect")
+    hot = _idea(root, state, g, "Hot", "working")
+    now = time.strftime("%Y-%m-%dT%H:%M:%S")
+    _plan(state, hot, [{**_t("k1", "merged"), "finished": now, "cost": 0.3}, _t("k2", "running", after=["k1"]),
+                       {**_t("k3", "ready", after=["k2"]), "kind": "review", "role": "reviewer"}], passed_at="x")
+    got = host.command("ideas.map", {"goal": g})["goals"][0]
+    states = {m["slug"]: (m["state"], m["why"], m["band"]) for m in got["party"]}
+    assert states["grunt"] == ("work", "", "build") and states["reviewer"] == ("next", "", "check") and states["architect"][0] == "free"
+    assert got["today"] == {"merged": 1, "usd": 0.3}
+    ideas.save_state(state, hot, state="plan")
+    _plan(state, hot, [_t("k1", "ready")])
+    assert {m["slug"]: m["state"] for m in host.command("ideas.map", {"goal": g})["goals"][0]["party"]}["architect"] == "needs"
+    ideas.save_state(state, hot, state="working")
+    _plan(state, hot, [_t("k1", "failed")], passed_at="x")
+    got = {m["slug"]: (m["state"], m["why"]) for m in host.command("ideas.map", {"goal": g})["goals"][0]["party"]}
+    assert got["grunt"] == ("needs", "failed")
+
+
+def test_a_result_in_review_is_not_a_stop_on_its_agent_spec_48(host):
+    root, state = _board(host)
+    g = _goal(root, "Review is no signal")
+    _roles(state, "architect")
+    goal_team.set_team(root, g, ["grunt"], leader="architect")
+    slug = _idea(root, state, g, "Reviewing", "working")
+    _plan(state, slug, [_t("k1", "review")], passed_at="x")
+    party = {m["slug"]: m["state"] for m in host.command("ideas.map", {"goal": g})["goals"][0]["party"]}
+    assert party["grunt"] == "free" and party["architect"] == "free"

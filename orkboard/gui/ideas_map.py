@@ -16,5 +16,12 @@ class MapMixin:
         root = self.root(False)
         if goal and not any(t["slug"] == goal and t["slug"] != ideas.GENERAL for t in ideas.tracks(root, make=False)):
             raise IdeasError("That goal is gone")
-        return board_map.build(root, self.state_dir, self.settings_now(), list(self.host.limits() or []), time.time(), goal=goal,
-                               rev=self.rev, state_of=self._state, goal_state_of=self.goal_state)
+        got = board_map.build(root, self.state_dir, self.settings_now(), list(self.host.limits() or []), time.time(), goal=goal,
+                              rev=self.rev, state_of=self._state, goal_state_of=self.goal_state)
+        waiting: dict[str, list[dict]] = {}
+        if any(t["state"] == "review" for n in got["nodes"] for t in n["tasks"]):          # the results at Review, each on its idea (spec 48 §1)
+            for r in self.results():
+                waiting.setdefault(r["idea"], []).append(r)
+        for n in got["nodes"]:
+            n["results"] = waiting.get(n["slug"], [])
+        return got
