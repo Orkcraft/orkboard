@@ -137,5 +137,6 @@ async def test_the_badge_is_how_many_answers_wait_and_a_visit_from_a_notificatio
         assert not any(c[0] == "ideas.log" and c[1].get("what") == "push" for c in stub.calls)
     async with _phone(fake_repo, monkeypatch, init=fake(), extra="&needs&from=push-needs") as (stub, page):
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "push", "ref": "needs", "device": "phone"})
-        assert await page.locator(".needs-pane").is_visible()
+        await page.locator(".raised").wait_for(timeout=WAIT_MS)                    # a notification's visit: the first stop of the goal that waits, popped out along the bottom
+        assert await page.locator(".raised").is_visible() and await page.locator(".hc").count() >= 1
         assert "from=push" not in page.url
