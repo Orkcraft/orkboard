@@ -584,7 +584,23 @@ four launches, one product and its labs. So:
    card for each: the game it plays like, its job, how the game is the job, and its install or where it stands (a tool
    not out yet offers the letter when it ships). The dates are approximate, the owner's to move: Orkboard now, OrkWiki
    and OrkWatch autumn 2026, the whole line December 2026 (moved by the owner the same day; first winter 2026, spring
-   2027, summer 2027). The site names a game by its kind alone (a deck-builder, a routing puzzle, idle tower defense, a
-   factory game), never another studio's title; a tool's card opens from its building on the line (orkPage `8081bc3`).
+   2027, summer 2027; moved again in item 10). The site names a game by its kind alone (a deck-builder, a routing
+   puzzle, idle tower defense, a factory game), never another studio's title; a tool's card opens from its building on
+   the line (orkPage `8081bc3`).
+10. **OrkMine, the third lab** (the owner and the PM, the same day): the Mine, Orkline's research building (Orkline's
+    `docs/design/mine.md`, built 8 October), on its own: deep research by every AI tool that can search the web, each on
+    its own, its findings checked against the others' and marked confirmed (two tools, two sites), one source or
+    disputed, the disputes the person's, the report into the Wiki's inbox. It plays like an ASCII roguelike, taking from
+    NetHack only what is the work: a claim is an unidentified item until it is identified (the altar's blessed,
+    uncursed, cursed are the Mine's three marks), the fog is the question not yet searched, the stairs down a
+    sub-question, the food the run's budget, the heroes the tools; never death, loot, levels or a grind (item 5). ASCII
+    is the one game drawn in orkUI's office without art. Its line to OrkWiki: the Mine finds and checks what is new
+    outside, its links the evidence of one question; the Wiki keeps what is known, its links the knowledge's shape over
+    time; the Mine's report is the Wiki's first source, Orkline's first loop. What sells: research that shows what each
+    line stands on, on the subscriptions a developer already has; against it, a crowded market (the vendors' research
+    modes) and the cost of several tools (its price seen before it starts, as a party's, §56.3). The order becomes
+    Orkboard, OrkWiki, OrkMine, OrkWatch; on the site OrkMine is third, its stop the Mine from orkUI's `game/buildings`,
+    autumn 2026, OrkWatch December 2026 and the whole line February 2027; the line's names in small letters, their ork
+    in the ork's green (orkPage `e43a915`).
 The line's frame and its page: no product's code and no spec. §27 and §50.8 stand (no new mechanic before the testers'
 numbers); a lab starts with a spec of its own, OrkWiki's first.
