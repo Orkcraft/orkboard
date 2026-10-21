@@ -433,3 +433,23 @@ first line is the owner's (already written with this spec). A part that needs an
   *Take X out of Y's party?* row (still true). `Leads any goal:` of the Taskmaster's library line is now `Leads any party:`
   (`pwa/shell-arena-words.js` strips the old prefix: C follows) and `KIND_WORDS.goal` of the push is *A party asks* (`js/board/today.js`
   says the old word until B; `tests/test_phone_push.py` allows exactly that one difference meanwhile).
+- **B (the desktop).** Built as §3–§5, with the owner's later change (no row of party tabs: the switch is in the top bar) and these choices:
+  (1) The party switch is `arena/goaltabs.js` `PartySwitch`, drawn by `shell/topbar.js` after Orkline: a notched segmented control 28 px high in a top bar that is now
+  exactly 32 px (its line included; `height: var(--ork-bar)`), a `tablist` named *Parties* whose `tab`s are the parties and Operations (the tab's content, `is-on`,
+  ←/→/Home/End and the kept pick as before), and beside the tablist, inside the control, the last segment, a *+* `button` (*New party*; it is not a tab). Below
+  900 px the top bar wraps and the switch takes its own row (it does not fit beside the rest). *Merge into …* is `arena/gate.js` `IntoLine`, *results go into dev*
+  and a chevron under the gate's button (alone in the box when there is no gate). The field's main row starts at y = 32. (2) *Goals n* counts the rows listed
+  (At work and Planning); *New (n)* and the flags are not in it. (3) New party's library starters are the five craft tiles (a pressed one is marked); a party is
+  sent with `title`, `about`, `leader`, `team`, `every`, `priority` (and `party`), **no `craft`** (§3.7's list), so the host's default craft stays whatever it
+  gives. (4) A stop that is about no goal (a stop of the party itself) stays under the filter; the others follow their goal. (5) About this party's lines for the
+  members read *… for the party, the drafts and the plans* and *checked n goals: …* (`js/shell/goalview.js` `partyLines`): `tests/test_shell_browser.py`
+  `PARTY_LINES` says so, and the phone's `pwa/shell-goal.js` (C) must say the same words. (6) The party's old flag is gone from the window: its tab flag, the tally
+  and the old *Flags* fold of met goals went with their tests (`tests/test_map_desktop_browser.py`); the goals' flags are tested in
+  `tests/test_arena_decks_desktop_browser.py`. *Before: …* shows only for a party with a verdict. (7) The flag line is per project and device (`localStorage`
+  `orkboard.flags.goals.<sha1 of the project path, 12>`): the first read of a project seeds the key silently, and the key is written when the line first stands.
+  (8) `say()` does nothing in Orkboard (the host's snapshot carries no `words`), so the library's `Check.applies` (*… when the idea changes code*) is said in
+  today's words by `shell/party.js` `libraryWords()`. (9) Spec 42's *tonight, or sooner if the week has room* and *waits: the week is behind · until Mon 09:00* were
+  only in code the window no longer used (`board/tracks.js` `rowOf`, `board/maplayout.js` `waitsWords`); they are `arena/arenawords.js` `tonightWords` and `waitsWords`
+  now, used by the Planning rows and a held task's foot, and the old Map and Board code (`Goals`, `Ideas`, the trail, `rowOf`, the tally words) was removed from those
+  modules and `mapfoot.js`, `mapstage.js`. (10) The stage `goal` of a goal's money reads *party* in the preview (`STAGE_WORDS`). (11) The day strip's ↺ and ▸ marks stay
+  text: orkUI has no sign for them. (12) No new custom CSS property was needed. (13) The browser tests need `--extra browser` as well as `--extra dev`.
