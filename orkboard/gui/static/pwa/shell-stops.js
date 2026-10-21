@@ -12,10 +12,12 @@ import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice } from "./shel
 import { resultActions, testsWords, changesWords, foundWords, foundOf } from "./shell-review.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { pointerGuard } from "./shell-motion.js";
+import { thumbs, stopAll, countWords, pickSig } from "./shell-picks.js";
+import { makePanel, forget } from "./shell-pick-answer.js";
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const KIND = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
-  op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
+  pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
 const gemOf = (g) => h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text);       // a price, a mark or a sign (a failure's cross)
 const CARD = 104, WIDTH = 330;                           // a card's width in the fan, and the room it was drawn for (the row's width less 30 px at each side)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
@@ -34,7 +36,7 @@ export function makeStops(core, ctx, needs, ops) {
   const dlg = h("dialog", { class: "raised-dlg", "aria-label": "Waits for you" }, body);
   const lower = () => { if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); };
   dlg.addEventListener("click", (e) => { if (e.target === dlg) lower(); });
-  dlg.addEventListener("close", () => { st.hand = ""; mark(); core.draw(); });          // what changed while it was up shows now: the fan does not shift under it
+  dlg.addEventListener("close", () => { stopAll(); st.hand = ""; mark(); core.draw(); });          // what changed while it was up shows now: the fan does not shift under it; a sound does not play on under it
 
   let items = [], sigs = "", raisedSig = "";
   const guard = pointerGuard([el, dlg], () => api.draw());      // no lost tap: a draw waits while a pointer is down on the fan or the raised one (spec 50 §6.9)
@@ -69,7 +71,7 @@ export function makeStops(core, ctx, needs, ops) {
   }
 
   function needItem(n, node, goal, lead) {
-    const base = { key: `${n.kind}:${n.idea || n.goal}:${n.todo?.id || ""}`, kind: n.kind, title: n.title, sig: n, open: n.idea ? { kind: "idea", slug: n.idea } : { kind: "goal", slug: n.goal } };
+    const base = { key: `${n.kind}:${n.idea || n.goal}:${n.todo?.id || (n.kind === "pick" ? n.task : "")}`, kind: n.kind, title: n.title, sig: n, open: n.idea ? { kind: "idea", slug: n.idea } : { kind: "goal", slug: n.goal } };
     const asking = n.kind === "asks" || n.kind === "goal", q = asking ? needs.askedOf(n)[0] : null;
     if (n.kind === "plan") {
       const tasks = node?.tasks || [], checks = tasks.filter((t) => t.band === "check").length, price = planPrice(node?.plan_estimate || node?.estimate);
@@ -104,6 +106,13 @@ export function makeStops(core, ctx, needs, ops) {
       return { ...base, gem: { text: "—", tip: "Not planned yet" }, big: lead, text: n.text || "", quickLabel: "Quick moves",
         quick: () => [btn(party ? "Take it out" : "Take", say(true), { primary: true, tip: party ? "Takes the proposed change out of the party" : "Puts it on the Board as a new goal", attrs: { "data-act": "take" } }),
           reason, btn(party ? "Keep it" : "No", say(false), { tip: party ? "Keeps the party as it is" : "Leaves it out", attrs: { "data-act": "no" } })] };
+    }
+    if (n.kind === "pick") {                                // a task left variants of one kind: the tiles 2 × 2, the note, Take B, None of them (spec 51 §7)
+      let panel = null;
+      const mine = () => (panel ||= makePanel(core, ctx, n, { via: "hand", after: lower }));
+      return { ...base, sig: pickSig(n), gem: { text: String(n.n ?? n.variants.length), tip: `${countWords(n.n ?? n.variants.length, n.media)} to pick from` }, small: n.by?.head || null,
+        whoTip: n.by?.name ? `made by ${n.by.name}` : "", text: `“${n.ask}”`, thumbs: () => thumbs(n), more: () => [mine().tiles, mine().note, mine().say], quickLabel: "Pick one",
+        quick: () => [mine().take, mine().none], open: { kind: "pick", slug: n.slug, task: n.task } };
     }
     if (n.kind === "todo") {
       return { ...base, gem: { text: "·", tip: "A to-do costs nothing" }, text: n.todo?.why || n.text || n.title, quickLabel: "Quick moves", open: { kind: "plan", slug: n.idea, todo: n.todo?.id },
@@ -154,7 +163,8 @@ export function makeStops(core, ctx, needs, ops) {
     const b = h("button", { class: `hc ${it.cls || ""}${st.hand === it.key ? " is-up" : ""}`.trim(), type: "button", "data-stop": it.key, "data-kind": it.kind,
       "aria-label": `${KIND[it.kind]}: ${it.title}`, onclick: () => pop(it.key) },
     h("span", { class: "hc__top" }, gemOf(it.gem),
-      h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element)));
+      h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element)),
+    it.thumbs ? it.thumbs() : null);
     for (const [k, v] of [["--rot", `${f.rot}deg`], ["--dy", `${f.dy}px`], ["--z", String(f.z)], ["--ov", `${f.ov}px`]]) b.style.setProperty(k, v);
     return b;
   }
@@ -164,7 +174,7 @@ export function makeStops(core, ctx, needs, ops) {
     const frame = it.tone === "danger" ? " danger" : it.tone === "look" ? "" : " alert";
     const f = fan(i, n);
     const quick = h("div", { class: "raised__quick", role: "group", "aria-label": it.quickLabel }, ...it.quick());
-    const raised = h("div", { class: `raised ork-frame${frame}`, role: "document", "data-stop": it.key, "data-kind": it.kind },
+    const raised = h("div", { class: `raised ork-frame${frame}${it.kind === "pick" ? " is-pick" : ""}`, role: "document", "data-stop": it.key, "data-kind": it.kind },
       h("div", { class: "raised__top" }, gemOf(it.gem),
         h("span", { class: `raised__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element), h("span", { class: "spacer" }),
         it.small ? whoHead(it.small, false) : null,
@@ -200,6 +210,7 @@ export function makeStops(core, ctx, needs, ops) {
     const it = items[at];
     const node = raise(it, at, items.length);
     node.classList.toggle("is-pop", leaps && !reducedMotion());
+    stopAll();                                              // new tiles replace the old: what played there does not play on unseen
     body.replaceChildren(node);
     dlg.setAttribute("aria-label", `${KIND[it.kind]}: ${it.title}`);
     raisedSig = it.key + JSON.stringify(it.sig);
@@ -216,6 +227,7 @@ export function makeStops(core, ctx, needs, ops) {
     /** Drawn again only when what the row shows changed: a line half typed in a raised one stays, and the fan does not shift while a stop is popped (spec 49 §11). */
     draw() {
       if (guard.waits()) return;
+      forget((st.board?.needs_you || []).filter((n) => n.kind === "pick"));        // a draft of a pick that is answered is let go
       items = build();
       const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.element, i.sig])) + st.hand;
       if (sig !== sigs && !dlg.open) {

@@ -13,7 +13,7 @@ import { OPS_VIEW } from "./shell-ops.js";
 
 export const BANDS = [["lead", "Planning"], ["build", "Implementation"], ["check", "Checking"]];
 export const SEATS = { build: 3, check: 2 };                         // the seats a party leaves (decisions §56), the host's `seats` when it says them
-const RANK = ["running", "testing", "failed", "review", "ready", "waiting", "held"];      // nearest the member first (spec 49 §5.4)
+const RANK = ["running", "testing", "failed", "picking", "review", "ready", "waiting", "held"];      // nearest the member first (spec 49 §5.4); a task that waits for a pick is a stop like a failure
 const RANK_OF = { laborer: 1, warrior: 2, elder: 3 };                // a head's tier → the level's chevrons (marks/rank-N.png)
 const HARNESSES = new Set(["claude", "codex", "agy", "cursor", "hermes", "pi", "pipeline"]);   // the marks orkUI draws
 const FEW = 3;                                                       // finished before a price is the week's average (idea_spend.TOO_FEW)
@@ -38,9 +38,9 @@ export function planPrice(e) {
 export const nodesOf = (st, slug) => (st.map?.nodes || []).filter((n) => n.goal === slug);
 
 /** What of the goal's Needs you rows is a stop on the bottom row, in the host's order: a task that failed is the Map's (`failedOf`), its
- *  row here would be the same stop twice. */
+ *  row here would be the same stop twice; a task that left variants to pick from is a stop of kind `pick` (spec 51 §2.4). */
 export const needsOf = (st, slug) => (st.board?.needs_you || []).filter((n) => n.goal === slug
-  && (["asks", "plan", "proposal", "todo", "goal", "party"].includes(n.kind) || (n.kind === "failed" && !n.blocks)));
+  && (["asks", "plan", "proposal", "todo", "goal", "party", "pick"].includes(n.kind) || (n.kind === "failed" && !n.blocks)));
 
 /** The goal's tasks that failed, with their idea. */
 export const failedOf = (st, slug) => nodesOf(st, slug).filter((n) => n.state !== "done")
@@ -143,13 +143,14 @@ export function marksOf(m) {
 
 // -- tasks and Planning's items ---------------------------------------------------------------------------------------------------
 
-/** A task's state in words (spec 48 §4): *working 4 min*, *in Review*, *after k1*, the hold's own words, *failed*. */
+/** A task's state in words (spec 48 §4): *working 4 min*, *in Review*, *asks you to pick*, *after k1*, the hold's own words, *failed*. */
 export function taskWords(t, now = Date.now()) {
   if (live(t)) {
     const s = t.started ? (now - Date.parse(t.started)) / 1000 : NaN;
     return Number.isFinite(s) && s >= 0 ? `${t.state === "testing" ? "testing" : "working"} ${minutes(s)}` : t.state === "testing" ? "testing" : "working";
   }
   if (t.state === "review") return "in Review";
+  if (t.state === "picking") return "asks you to pick";
   if (t.state === "ready") return /stop/i.test(t.note || "") ? "stopped by you" : "next";
   if (t.state === "waiting") return (t.after || []).length ? `after ${t.after.join(", ")}` : t.band === "check" ? "after the build" : "waiting";
   if (t.state === "held") return heldWords(t.note, t.waits_title);
@@ -157,18 +158,18 @@ export function taskWords(t, now = Date.now()) {
   return t.state;
 }
 
-/** A task as the field draws it: its phase (0 now, 1 next, 2 later: how many waves after its goal's current one), its sign (↻ at work, ✗ failed, the clock tonight) and what it waits for. */
+/** A task as the field draws it: its phase (0 now, 1 next, 2 later: how many waves after its goal's current one), its sign (↻ at work, ✗ failed, ! asks you to pick, the clock tonight) and what it waits for. */
 export function taskItem(n, t, now = Date.now(), low = lowWave(n)) {
   const words = taskWords(t, now);
   const phase = phaseOf(t, low), when = PHASES[phase];
-  const sign = live(t) ? "work" : t.state === "failed" ? "cross" : t.state === "held" ? "night" : "";
+  const sign = live(t) ? "work" : t.state === "failed" ? "cross" : t.state === "picking" ? "alert" : t.state === "held" ? "night" : "";
   const after = (t.after || []).length ? ` · after ${t.after.join(", ")}` : "";
   return {
     key: `${n.slug}/${t.id}`, idea: n.slug, id: t.id, ideaTitle: short(n), title: short(t), wave: t.wave || 1, phase, phaseWord: when, element: n.element || "", state: t.state,
-    sign, signTip: { work: "at work", cross: "failed", night: "tonight" }[sign] || "", words, dep: depWords(n, t),
+    sign, signTip: { work: "at work", cross: "failed", alert: "asks you to pick", night: "tonight" }[sign] || "", words, dep: depWords(n, t),
     tip: t.state === "failed" ? `${t.title} · ${t.error || "failed"}` : t.state === "held" ? `${t.title} · ${words}` : `${t.title} · ${when}${after}`,
     label: `${t.title} (${n.title}): ${words}${phase ? `, ${when}` : ""}`,
-    open: { kind: t.state === "review" ? "result" : "task", slug: n.slug, task: t.id },
+    open: { kind: t.state === "review" ? "result" : t.state === "picking" ? "pick" : "task", slug: n.slug, task: t.id },
   };
 }
 
