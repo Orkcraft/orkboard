@@ -8,6 +8,8 @@ import { heldWords, say } from "./shell-words.js";
 import { headWords, TIER_WORDS } from "./shell-who.js";
 import { minutes } from "./util.js";
 import { PHASES, depWords, lowWave, phaseOf } from "./shell-phases.js";
+import { doneWords as partyDone } from "./shell-goals-words.js";
+import { OPS_VIEW } from "./shell-ops.js";
 
 export const BANDS = [["lead", "Planning"], ["build", "Implementation"], ["check", "Checking"]];
 export const SEATS = { build: 3, check: 2 };                         // the seats a party leaves (decisions §56), the host's `seats` when it says them
@@ -59,13 +61,26 @@ export function firstStopGoal(st) {
   return row?.goal || goals.find((s) => failedOf(st, s).length) || goals.find((s) => looksOf(st, s).length) || "";
 }
 
-/** A chip per party: its leader's head, its short name, its stops, whether it is at work (no %: a party has no end, spec 50 §0). */
+/** A party as the *where* button's sheet lists it: its leader's head, its names, *k/n done*, its stops, whether it is at work (no %: a party has no end, spec 50 §0). */
 export function chipsOf(st) {
   return (st.map?.goals || []).map((g) => {
     const mine = nodesOf(st, g.slug);
     const working = g.state === "reading" || mine.some((n) => ["reading", "planning"].includes(n.state) || (n.tasks || []).some(live));
-    return { slug: g.slug, title: g.title, short: short(g), head: g.leader?.head || null, stops: stopCount(st, g.slug), working };
+    return { slug: g.slug, title: g.title, short: short(g), head: g.leader?.head || null, stops: stopCount(st, g.slug), working, done: partyDone(g) };
   });
+}
+
+/** What the top bar's *where* button and its sheet say (spec 50 §6.1): the parties, Operations (when the project has any: what waits there is seen from every party), the one shown
+ *  (`shown`: a party's slug, or OPS_VIEW), the stops that wait in it (`here`) and in all the others (`other`: never hidden). */
+export function partiesOf(st, kept = "") {
+  const list = chipsOf(st);
+  const hasOps = st.snap?.ops_rev !== undefined && (!st.ops || (st.ops.templates || []).length || (st.ops.runs || []).length);
+  const ops = hasOps ? { stops: (st.board?.needs_you || []).filter((n) => n.kind.startsWith("op")).length } : null;
+  const inOps = st.view === OPS_VIEW;
+  const shown = inOps ? OPS_VIEW : shownGoal(st, kept);
+  const here = inOps ? ops?.stops || 0 : list.find((c) => c.slug === shown)?.stops || 0;
+  const all = list.reduce((n, c) => n + c.stops, 0) + (ops?.stops || 0);
+  return { list, ops, shown, here, other: all - here };
 }
 
 // -- a member's two numbers and its marks ---------------------------------------------------------------------------------------

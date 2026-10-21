@@ -1,15 +1,15 @@
-// The goals bar and the Goals sheet (docs/specs/50-parties-and-goals.md §3.5, §6.4). Under the party's line, one quiet line of 44 px: *⌄ Goals 7 · 3 at work · 3 ask you*; while the filter is on, the
-// picked goals' elements, *1 of 7 goals* and *Show all*. A tap opens the Goals sheet from the bottom: a line that says what a tap does, **At work**, **Planning**, **Waits for main · n** (✓) and
-// **Flags · n** (⚑); a goal's row (52 px) is its pile (a back with its element and one to three edges behind for its open tasks), its title, its line, its mark and ✓ when picked, and › (44 px) that
-// opens it. A tap picks or unpicks: only the picked goals' cards stay on the field, only their results and stops stay along the bottom (the filter, kept per party for the session in `st.picks`).
+// The goals bar and the Goals sheet (docs/specs/50-parties-and-goals.md §3.5, §6.2, §6.4). Under the top bar, one quiet line of 44 px: at its left *⌄ Goals · 3 of 12 done* (while the filter is on, the
+// picked goals' elements, *1 of 7 goals* and *Show all*), at its right the gate (shell-party.js). A tap on the left opens the Goals sheet from the bottom: *About Tech ›* (the party's sheet), a line that says
+// what a tap does, **At work**, **Planning**, **Waits for main · n** (✓) and **Flags · n** (⚑); a goal's row (52 px) is its pile (a back with its element and one to three edges behind for its open tasks),
+// its title, its line, its mark and ✓ when picked, and › (44 px) that opens it. A tap picks or unpicks: only the picked goals' cards stay on the field, only their results and stops stay along the bottom (the filter, kept per party for the session in `st.picks`).
 import { h, icon, sheet } from "./util.js";
 import { elem, sign } from "./shell-marks.js";
 import { barWords, filterWords, flagTally, goalsOf } from "./shell-goals-words.js";
 
 const LIT_MS = 700;                                  // a flag lit once in the sheet
 
-/** `core`: the board's frame (st, draw, open). Returns {sheets, bar(model), sync(model), clear()}. */
-export function makeGoals(core) {
+/** `core`: the board's frame (st, draw, open); `about(slug)`: opens About this party. Returns {sheets, bar(model, gate), sync(model), clear()}. */
+export function makeGoals(core, about) {
   const st = core.st;
   const body = h("div", { class: "goals" });
   const sh = sheet("Goals", body);
@@ -47,6 +47,8 @@ export function makeGoals(core) {
     count.textContent = String(list.n);
     all.hidden = !on.size;
     body.replaceChildren(
+      h("button", { class: "goals__about", type: "button", "data-act": "about", "aria-haspopup": "dialog", title: "About this party: what it is for, its checks, its price and its flags",
+        onclick: () => { sh.close(); about(m.goal.slug); } }, h("span", {}, `About ${m.goal.short || m.goal.title}`), h("i", { class: "ork-chev right", "aria-hidden": "true" })),
       h("p", { class: "cap goals__how" }, "A tap shows only that goal’s tasks; tap more to add them. ", h("i", { class: "ork-chev right", "aria-hidden": "true" }), " opens one."),
       h("h3", {}, "At work"), ...(list.atWork.length ? list.atWork.map((r) => row(r, on.has(r.slug))) : [h("p", { class: "cap" }, "Nothing at work.")]),
       h("h3", {}, "Planning"), ...(list.planning.length ? list.planning.map((r) => row(r, on.has(r.slug))) : [h("p", { class: "cap" }, "Nothing in Planning.")]),
@@ -57,19 +59,18 @@ export function makeGoals(core) {
   }
 
   // -- the bar ------------------------------------------------------------------------------------------------------------------------------------------
-  function bar(m) {
+  /** The bar: *⌄ Goals · 3 of 12 done* (the filter on: the picked goals' elements, *1 of 7 goals*, *Show all*) and at its right the gate (`gate`: a node or null). */
+  function bar(m, gate) {
     const list = goalsOf(st, m);
     const on = picked(m);
-    const words = barWords(list);
     shown = { m, list };
     const head = on.length
       ? h("button", { class: "gbar__head", type: "button", "aria-haspopup": "dialog", "data-act": "goals", "aria-label": `${filterWords(on, list)}: only their tasks are shown. Goals`, onclick: () => open() },
         h("i", { class: "ork-chev", "aria-hidden": "true" }), h("span", { class: "gbar__els" }, ...on.map((s) => elem(m.nodes.find((n) => n.slug === s)?.element, { dim: false }))),
         h("span", { class: "gbar__words" }, filterWords(on, list)))
       : h("button", { class: "gbar__head", type: "button", "aria-haspopup": "dialog", "data-act": "goals", title: "The goals: a tap on one shows only its tasks", onclick: () => open() },
-        h("i", { class: "ork-chev", "aria-hidden": "true" }), h("span", { class: "gbar__lbl" }, "Goals"), " ", h("span", { class: "gbar__n" }, String(list.n)), " ",
-        h("span", { class: "gbar__quiet" }, `· ${words.line}`));
-    return h("div", { class: `gbar${on.length ? " is-on" : ""}` }, head, on.length ? h("button", { class: "ork-btn quiet gbar__all", type: "button", "data-act": "show-all", onclick: () => clear() }, "Show all") : null);
+        h("i", { class: "ork-chev", "aria-hidden": "true" }), h("span", { class: "gbar__lbl" }, "Goals"), " ", h("span", { class: "gbar__quiet" }, `· ${barWords(m.goal)}`));
+    return h("div", { class: `gbar${on.length ? " is-on" : ""}` }, head, on.length ? h("button", { class: "ork-btn quiet gbar__all", type: "button", "data-act": "show-all", onclick: () => clear() }, "Show all") : null, gate || null);
   }
 
   function open() { sh.open(); drawSheet(); }                   // open first: what is lit once is lit as it opens

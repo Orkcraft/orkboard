@@ -1,22 +1,16 @@
-// The party's window on the phone (docs/specs/49-one-window.md §10, spec 50 §6, decisions §62, §63): the Board is one screen with no tab bar. Under the top bar: the parties as a row of
-// chips (the leader's head, the short name, the stops that wait, ↻ while it works; Operations), the party's line (*3/12 done · ≈$2–4 a goal ›*, About this party; the gate, quiet:
-// shell-party.js), the flag line after a gate's merge, the goals bar (*⌄ Goals 7 · 3 at work · 3 ask you*, the Goals sheet and the filter: shell-goals.js), the stage switch (Planning ·
-// Implementation · Checking) and the field of that stage (shell-arena-field.js). What waits for you lies along the bottom (shell-stops.js). Operations takes the
-// field's place from its chip. The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`,
-// `st.band`, `st.focus`, `st.picks`).
+// The party's window on the phone (docs/specs/49-one-window.md §10, spec 50 §6, decisions §62, §63): the Board is one screen with no tab bar. Under the top bar (whose *where* button picks the party:
+// shell-where.js): the goals bar (*⌄ Goals · 3 of 12 done*, the Goals sheet and the filter: shell-goals.js; at its right the gate, quiet: shell-party.js), the flag line after a gate's merge, the stage
+// switch (Planning · Implementation · Checking) and the field of that stage (shell-arena-field.js). What waits for you lies along the bottom (shell-stops.js). Operations takes the field's place when
+// the *where* sheet picks it. The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`, `st.band`, `st.focus`, `st.picks`).
 import { h } from "./util.js";
 import { steady } from "./shell-util.js";
 import { keepGoal, keptGoal } from "./shell-top.js";
 import { OPS_VIEW } from "./shell-ops.js";
-import { BANDS, chipsOf, modelOf, shownGoal, doneWords } from "./shell-arena-words.js";
-import { whoHead } from "./shell-who.js";
-import { sign } from "./shell-marks.js";
+import { BANDS, modelOf, shownGoal, doneWords } from "./shell-arena-words.js";
 import { makeParty } from "./shell-party.js";
 import { makeGoals } from "./shell-goals.js";
 import { makeField } from "./shell-arena-field.js";
 import { keepFocus, pointerGuard } from "./shell-motion.js";
-
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** `core`: the board's frame; `ctx`: {flash}; `parts`: {goalSheet, ops, ideas, cards}. Returns {el, sheets, draw()}. */
 export function makeArena(core, ctx, parts) {
@@ -46,29 +40,12 @@ export function makeArena(core, ctx, parts) {
   }
 
   const party = makeParty(core, ctx);                         // the party's line, its sheet and the flag line (shell-party.js)
-  const goals = makeGoals(core);                              // the goals bar, the Goals sheet and the filter (shell-goals.js)
+  const goals = makeGoals(core, (slug) => party.open(slug));  // the goals bar, the Goals sheet and the filter (shell-goals.js)
   const guard = pointerGuard([el, ...party.sheets, ...goals.sheets], () => api.draw());   // no lost tap: a draw waits while a pointer is down (spec 50 §6.9)
   let current = null;                                         // the model of the party shown, for the field's hooks
   const field = makeField(core, {
     process: () => current && process(current),
   });
-
-  // -- the parties as chips ----------------------------------------------------------------------------------------------------------------------------
-  function chipRow(list, shown) {
-    const chip = (c) => {
-      const said = `${c.short}${c.stops ? `, ${plural(c.stops, "stop waits", "stops wait")} for you` : ""}${c.working ? ", at work" : ""}`;
-      return h("button", { class: `gchip${c.slug === shown ? " is-on" : ""}`, type: "button", "data-goal": c.slug, "aria-pressed": String(c.slug === shown), "aria-label": said,
-        title: c.title, onclick: () => pickGoal(c.slug) },
-      c.head ? whoHead(c.head, false) : null, h("span", { class: "gchip__name" }, c.short), c.stops ? h("span", { class: "ork-count warning" }, String(c.stops)) : null,
-      c.working ? sign("work", "at work") : null);
-    };
-    const hasOps = st.snap?.ops_rev !== undefined && (!st.ops || (st.ops.templates || []).length || (st.ops.runs || []).length);
-    const opStops = (st.board?.needs_you || []).filter((n) => n.kind.startsWith("op")).length;           // what waits in Operations is seen from every party
-    return h("nav", { class: "gchips", "aria-label": "Parties" }, ...list.map(chip),
-      hasOps ? h("button", { class: `gchip${st.view === OPS_VIEW ? " is-on" : ""}`, type: "button", "data-goal": OPS_VIEW, "aria-pressed": String(st.view === OPS_VIEW),
-        "aria-label": `Operations${opStops ? `, ${plural(opStops, "stop waits", "stops wait")} for you` : ""}`, onclick: pickOps },
-      h("span", { class: "gchip__name" }, "Operations"), opStops ? h("span", { class: "ork-count warning" }, String(opStops)) : null) : null);
-  }
 
   // -- the stage switch -------------------------------------------------------------------------------------------------------------------------------------
   function stageSwitch(m, band) {
@@ -99,29 +76,31 @@ export function makeArena(core, ctx, parts) {
   const needsGoal = () => h("div", { class: "arena-empty" }, h("p", { class: "muted" }, "No parties yet."),
     h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open("") }, "New party"));
 
-  /** The party's window drawn: the chips, its line, the flag line, the ideas bar and the field (what the person sees of the Board read). */
+  /** The party's window drawn: the goals bar with the gate, the flag line and the field (what the person sees of the Board read). */
   function paint() {
     const card = cards.section(st.cards[0]);
     const lead = card ? [card] : [];
     if (!st.board && st.boardError) {                       // no project open: Operations is the person's, so it is offered all the same
-      el.replaceChildren(...lead, chipRow([], ""), h("p", { class: "muted arena-empty" }, st.boardError), opsView());
+      el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, st.boardError), opsView());
       return;
     }
     if (!st.board || (!st.map && !st.mapError)) { el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, "Loading…")); return; }
     if (st.mapError && !st.map) { el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, st.mapError)); return; }
     const slug = shownGoal(st, keptGoal(st.snap?.project));
     if (slug && slug !== st.track) st.track = slug;
-    const list = chipsOf(st);
     const m = st.view === OPS_VIEW ? null : modelOf(st, slug);
     current = m;
     todayOf(slug, m);
-    if (st.view === OPS_VIEW) { el.replaceChildren(...lead, chipRow(list, ""), opsView()); return; }
-    if (!m) { el.replaceChildren(...lead, chipRow(list, ""), needsGoal()); return; }
+    if (st.view === OPS_VIEW) { el.replaceChildren(...lead, opsView()); return; }
+    if (!m) { el.replaceChildren(...lead, needsGoal()); return; }
     const band = st.band || m.first;
     const shown = band === "lead" ? [m.lead] : band === "build" ? m.build : m.check;
     if (st.focus && !shown.some((x) => x?.slug === st.focus)) st.focus = "";           // the member shown is not in this stage
     field.draw(m, { band, focus: st.focus, picks: m.picks }, stageSwitch(m, band));
-    el.replaceChildren(...[...lead, chipRow(list, slug), party.bar(m), party.line(slug), goals.bar(m), field.el].filter(Boolean));
+    // The field stays where it is in the page: taking it out and putting it back would reset the scroll of its strip and its columns, which it has just put back as they were.
+    for (const kid of [...el.childNodes]) if (kid !== field.el) kid.remove();
+    el.prepend(...[...lead, goals.bar(m, party.gate()), party.line(slug)].filter(Boolean));
+    if (field.el.parentNode !== el) el.append(field.el);
   }
 
   const api = {
@@ -129,6 +108,9 @@ export function makeArena(core, ctx, parts) {
     sheets: [...party.sheets, ...goals.sheets],
     /** Pick the party of a stop (a push arrival, a link to Needs you) and show it. */
     show(slug) { if (slug) { st.track = slug; Object.assign(st, { view: "", band: "", focus: "" }); core.draw(); } },
+    /** A party picked in the *where* sheet, or Operations. */
+    pick: pickGoal,
+    pickOps,
     /** The goal shown, from what the Board read and what this phone showed last. */
     goal: () => shownGoal(st, keptGoal(st.snap?.project)),
     draw() {

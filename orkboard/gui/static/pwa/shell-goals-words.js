@@ -53,10 +53,8 @@ export function goalsOf(st, model) {
   return { atWork, planning, waits, flags, all, asking, n: all.length };
 }
 
-/** The goals bar's line, *Goals 7 · 3 at work · 3 ask you*, in parts: [label, n, quiet]. */
-export function barWords(list) {
-  return { n: list.n, line: [`${list.atWork.length} at work`, `${list.asking} ask you`].join(" · ") };
-}
+/** The goals bar's count, *3 of 12 done*: the party's done goals of all its goals (the stage switch's counts say what is at work and what asks you). */
+export const barWords = (g) => `${g.done ?? 0} of ${g.ideas ?? 0} done`;
 
 /** *k of n goals* (the filter on): the picked goals that are still among the party's, of all its goals that are not done. */
 export const filterWords = (picked, list) => `${picked.length} of ${plural(list.n, "goal")}`;
