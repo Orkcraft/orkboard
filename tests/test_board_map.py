@@ -176,7 +176,7 @@ def test_tasks_estimate_and_by_itself(host):
     assert n[begun]["tasks"][1] == {"id": "k2", "title": "Task k2", "short": "Task k2", "state": "running", "after": ["k1"], "tier": "warrior",
                                      "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tag": "Code",   # who does it: a Grunt; its tag
                                      "by": {"slug": "grunt", "name": "Grunt"}, "band": "build", "wave": 2,
-                                     "error": "", "note": "", "round": 1, "cost": None, "started": ""}
+                                     "error": "", "note": "", "round": 1, "cost": None, "started": "", "pick": None}
     assert n[none]["tasks"] == [] and n[none]["estimate"] is None and n[none]["by_itself"] is False
 
 
@@ -339,6 +339,24 @@ def test_a_result_in_review_is_not_a_stop_on_its_agent_spec_48(host):
     _plan(state, slug, [_t("k1", "review")], passed_at="x")
     party = {m["slug"]: m["state"] for m in host.command("ideas.map", {"goal": g})["goals"][0]["party"]}
     assert party["grunt"] == "free" and party["architect"] == "free"
+
+
+def test_a_task_that_waits_for_a_pick_is_picking_with_its_pick_and_its_member_and_goal_wait_for_you_spec_51(host):
+    root, state = _board(host)
+    g = _goal(root, "Brand")
+    _roles(state, "architect")
+    goal_team.set_team(root, g, ["grunt"], leader="architect")
+    slug = _idea(root, state, g, "A logo", "working")
+    logo = {**_t("k1", "picking"), "round": 2, "pick": {"n": 4, "kind": "audio", "ask": "A jingle", "target": "assets/jingle.mp3"}}
+    _plan(state, slug, [logo, _t("k2", "waiting", after=["k1"])], passed_at="x")
+    got = host.command("ideas.map", {"goal": g})
+    node = got["nodes"][0]
+    assert [(t["id"], t["state"], t["pick"]) for t in node["tasks"]] == [("k1", "picking", {"n": 4, "media": "audio", "round": 2}), ("k2", "waiting", None)]
+    assert node["waits"] == {"kind": "you", "ref": "", "title": "", "until": ""} and node["stage"] == "implementation"
+    assert {m["slug"]: (m["state"], m["why"]) for m in got["goals"][0]["party"]}["grunt"] == ("needs", "pick")
+    _plan(state, slug, [{**logo, "state": "running"}, _t("k2", "waiting", after=["k1"])], passed_at="x")        # no longer picking: no pick, no wait
+    node = host.command("ideas.map", {"goal": g})["nodes"][0]
+    assert node["tasks"][0]["pick"] is None and node["waits"] is None
 
 
 # -- spec 49 A: what a task's run left, and the recommended answer --------------------------------------------------

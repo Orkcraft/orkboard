@@ -42,6 +42,7 @@ from orkboard.gui.ideas_gate import GateMixin
 from orkboard.gui.ideas_goals import GoalsMixin
 from orkboard.gui.ideas_map import MapMixin
 from orkboard.gui.ideas_party import PartyMixin
+from orkboard.gui.ideas_pick import PickMixin
 from orkboard.gui.ideas_recap import RecapMixin
 from orkboard.gui.ideas_review import ReviewMixin
 from orkboard.gui.ideas_lens import LensMixin
@@ -51,7 +52,7 @@ from orkboard.gui.ideas_roles import RolesMixin
 RUNNER_TICK_S = 3.0               # how often the runner looks at its tasks
 SNAPSHOT_S = 10.0                 # the most a cached Needs you count is kept without a change
 PHONE_ZIP_MAX = 8 * 1024 * 1024   # a zip the phone is handed in a message: larger waits for the computer
-OPENED = ("idea", "plan", "todo", "task", "result", "tab", "map", "recap", "flag", "week", "push", "party", "gate", "today")
+OPENED = ("idea", "plan", "todo", "task", "result", "tab", "map", "recap", "flag", "week", "push", "party", "gate", "today", "pick")
 
 
 def focus_of(machine) -> str:
@@ -82,7 +83,7 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin, RolesMixin, ReviewMixin, BoardMixin):
+class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, RecapMixin, RolesMixin, ReviewMixin, BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
         host makes one from its town, Orkboard its own."""
@@ -531,6 +532,6 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                  "ideas.proposal": self.proposal, "ideas.board_set": self.board_set, "ideas.answer": self.answer,
                  "ideas.spend": self.spend, "ideas.lens": self.lens, "ideas.lens_code": self.lens_code,
                  "ideas.lens_screen": self.lens_screen, "ideas.check_skip": self.check_skip,
-                 "ideas.gate": self.gate, "ideas.gate_merge": self.gate_merge, "ideas.today": self.today}
+                 "ideas.gate": self.gate, "ideas.gate_merge": self.gate_merge, "ideas.today": self.today, "ideas.pick": self.pick}
         return {name: guarded(fn) for name, fn in table.items()}
 

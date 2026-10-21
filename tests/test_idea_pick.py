@@ -623,3 +623,165 @@ def test_a_plan_task_without_a_valid_pick_is_an_ordinary_task(rig, monkeypatch):
     runner = runner_of(rig)
     runner.start("demo")
     assert wait_for(runner, rig, "k1", ("merged",))["state"] == "merged"
+
+
+# -- the host: ideas.pick, the Needs you row, the Map's task, today's rows and the push ------------------------------------------
+
+import sys  # noqa: E402
+import types  # noqa: E402
+
+from orkboard.gui import media, phone_push  # noqa: E402
+from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard  # noqa: E402
+from orkboard.realm import board_today, ideas  # noqa: E402
+
+
+@pytest.fixture
+def host(fake_repo):
+    h = Orkboard(fake_repo)
+    yield h
+    sys.modules.pop("orkboard.core.idea_runner", None)
+
+
+def waiting_pick(host, scratch: Path, files: dict[str, bytes] | None = None, kind: str = "image", extra_task: bool = True) -> str:
+    """A goal whose task k1 made variants and waits for the pick (and k2 after it), as the runner leaves it; the goal's slug."""
+    root, state = host.ideas.root(), host.ideas.state_dir
+    party = ideas.save_goal(root, None, "Brand", "About the brand", None, "normal")[0]
+    slug = ideas.add_idea(root, "A logo for the app", party, state)
+    ideas.save_state(state, slug, state="working")
+    files = files or {"a.png": pf.png(3, 2), "b.svg": pf.svg(24, 12), "c.jpg": pf.jpeg(40, 30)}
+    base = {"brief": "b", "tier": "warrior", "branch": "", "commit": "", "session": "", "cost": None, "tokens": None, "started": "", "error": "", "note": ""}
+    tasks = [{**base, "id": "k1", "title": "Draw the logo", "short": "Logo", "kind": "art", "after": [], "state": "picking", "round": 1,
+              "finished": "2026-10-21T10:00:00", "role": "grunt", "pick": ask(len(files), kind)},
+             *([{**base, "id": "k2", "title": "Use the logo", "short": "Use it", "kind": "code", "after": ["k1"], "state": "waiting"}] if extra_task else [])]
+    ideas.save_plan(state, slug, {"idea": slug, "made_at": "2026-10-21T09:00:00", "passed_at": None, "todos": [], "tasks": tasks})
+    ideas.edit_plan(state, slug, lambda p: p.update(passed_at="2026-10-21T09:30:00"))
+    pf.make_pick(state, scratch, files, slug=slug, kind=kind)
+    host.ideas.rev += 1
+    return slug
+
+
+def pick_rows(host) -> list[dict]:
+    return [n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "pick"]
+
+
+def test_a_task_that_waits_for_a_pick_is_a_needs_you_row_with_its_variants_and_their_signed_addresses(host, tmp_path):
+    slug = waiting_pick(host, tmp_path / "s")
+    [row] = pick_rows(host)
+    assert set(row) == {"kind", "slug", "idea", "goal", "task", "title", "short", "idea_title", "priority", "blocks", "by", "ask", "n", "media",
+                        "variants", "round", "at"}
+    assert (row["kind"], row["slug"], row["idea"], row["task"], row["title"], row["short"]) == ("pick", slug, slug, "k1", "Draw the logo", "Logo")
+    assert (row["ask"], row["n"], row["media"], row["round"], row["at"], row["blocks"]) == ("A logo for the app", 3, "image", 1, row["at"], True)
+    assert row["goal"] == ideas.tracks(host.ideas.root(), make=False)[-1]["slug"] and row["idea_title"] and row["priority"] == "normal"
+    assert row["by"]["slug"] == "grunt" and row["by"]["name"] == "Grunt" and set(row["by"]["head"]) == {"craft", "race", "tier"}
+    assert [(v["key"], v["name"], v["mime"], v["w"], v["h"], v["seconds"]) for v in row["variants"]] == [
+        ("A", "a", "image/png", 3, 2, None), ("B", "b", "image/svg+xml", 24, 12, None), ("C", "c", "image/jpeg", 40, 30, None)]
+    assert all(set(v) == {"key", "name", "why", "url", "mime", "w", "h", "seconds"} for v in row["variants"]) and row["variants"][0]["why"] == "why a.png"
+    for v, data in zip(row["variants"], (pf.png(3, 2), pf.svg(24, 12), pf.jpeg(40, 30))):
+        path, sig = v["url"].split("?s=")
+        assert path == f"/media/{slug}/k1-r1/{v['key'].lower()}.{ {'image/png': 'png', 'image/svg+xml': 'svg', 'image/jpeg': 'jpg'}[v['mime']] }"
+        assert media.check(path, sig) and media.serve("GET", v["url"], "", media.state_dirs(host)).read() == data       # the address opens the file
+    assert host.ideas.snapshot()["needs_you"] == 1                                                    # it is an answer that waits
+
+
+def test_the_row_of_a_text_pick_carries_its_words_inline_and_the_row_goes_when_it_is_answered(host, tmp_path):
+    slug = waiting_pick(host, tmp_path / "s", {"a.txt": pf.text("Take it easy."), "b.md": pf.text("# Slow\n\ndown")}, kind="text")
+    [row] = pick_rows(host)
+    assert row["media"] == "text" and [(v["mime"], v["text"]) for v in row["variants"]] == [("text/plain", "Take it easy."), ("text/markdown", "# Slow\n\ndown")]
+    assert all("url" in v for v in row["variants"])
+    state = host.ideas.state_dir
+    ideas.edit_plan(state, slug, lambda p: p["tasks"][0].update(state="running"))                         # not picking any more: no row
+    assert pick_rows(host) == []
+    ideas.edit_plan(state, slug, lambda p: p["tasks"][0].update(state="picking"))
+    from orkboard.realm import idea_pick as ip
+    ip.answer(state, slug, ip.current(state, slug, ideas.plan(state, slug)["tasks"][0]), "A", "")        # answered already: none either
+    assert pick_rows(host) == []
+    ideas.edit_plan(state, slug, lambda p: p["tasks"][0].update(state="picking", round=3))               # a round with no pick folder: none
+    assert pick_rows(host) == []
+
+
+def test_the_map_says_picking_with_its_pick_and_the_goal_waits_for_you(host, tmp_path):
+    slug = waiting_pick(host, tmp_path / "s")
+    got = host.command("ideas.map", {})
+    node = next(n for n in got["nodes"] if n["slug"] == slug)
+    assert [(t["id"], t["state"], t["pick"]) for t in node["tasks"]] == [("k1", "picking", {"n": 3, "media": "image", "round": 1}), ("k2", "waiting", None)]
+    assert node["waits"] == {"kind": "you", "ref": "", "title": "", "until": ""}
+    assert [r["task"] for r in pick_rows(host)] == ["k1"]
+    ideas.edit_plan(host.ideas.state_dir, slug, lambda p: p["tasks"][0].update(state="review"))
+    node = next(n for n in host.command("ideas.map", {})["nodes"] if n["slug"] == slug)
+    assert node["tasks"][0]["pick"] is None
+
+
+def test_ideas_pick_reaches_the_runner_with_its_key_note_and_where_and_its_refusals_are_plain_words(host, tmp_path, monkeypatch):
+    seen = []
+
+    class FakeRunner:
+        def __init__(self, *a, **k):
+            pass
+
+        def pick(self, slug, tid, key, note, device="", via=""):
+            seen.append((slug, tid, key, note, device, via))
+            if note == "refuse":
+                raise type("RunnerError", (Exception,), {})("That pick is answered already")
+
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", types.SimpleNamespace(IdeaRunner=FakeRunner))
+    slug = waiting_pick(host, tmp_path / "s")
+    a = {"slug": slug, "task": "k1"}
+    assert host.command("ideas.pick", {**a, "key": "B", "note": "bluer", "via": "drawer"}) == {"ok": True}
+    assert host.command("ideas.pick", {**a, "key": None, "note": "rounder", "via": "hand"}) == {"ok": True}
+    assert host.command("ideas.pick", {**a, "key": "A"}) == {"ok": True}
+    assert host.command("ideas.pick", {**a, "key": "C", "via": "screen", "device": "phone"}) == {"ok": True}
+    assert host.command("ideas.pick", {**a, "key": "C", "via": "nowhere"}) == {"ok": True}
+    assert host.command("ideas.pick", {**a, "key": "C", "via": "map"}) == {"ok": True}
+    assert host.command("ideas.pick", {**a, "key": "C", "note": "x" * 3000}) == {"ok": True}
+    assert seen[:3] == [(slug, "k1", "B", "bluer", "desktop", "drawer"), (slug, "k1", None, "rounder", "desktop", "hand"), (slug, "k1", "A", "", "desktop", "idea")]
+    assert seen[3][4:] == ("phone", "screen") and seen[4][5] == "idea" and seen[5][5] == "map" and len(seen[6][3]) == 2000
+    for bad, why in (({"key": 3}, "key is a variant's letter"), ({"key": "A", "note": 4}, "note is not text"), ({"key": "A", "task": ""}, "task is missing"),
+                     ({"key": "A", "slug": ""}, "slug is missing")):
+        with pytest.raises(CommandError, match=why):
+            host.command("ideas.pick", {**a, **bad})
+    with pytest.raises(CommandError, match="That pick is answered already"):
+        host.command("ideas.pick", {**a, "key": "A", "note": "refuse"})
+
+
+def test_the_phone_may_call_it_and_the_opened_stop_may_say_pick(host):
+    assert "ideas.pick" in host.commands and BoardPhone.allowed(host, "ideas.pick", {}) and "ideas.pick" in host.command("mobile.hello")["commands"]
+    assert host.command("ideas.log", {"event": "opened", "what": "pick", "ref": "k1", "via": "hand"}) == {"ok": True}
+    [row] = [r for r in event_log.read(host.repo_root) if r["event"] == "opened"]
+    assert (row["what"], row["ref"], row["via"]) == ("pick", "k1", "hand")
+
+
+def test_today_says_pick_one_in_the_alert_tone_then_what_was_picked_or_that_new_ones_were_asked():
+    lines = [{"at": "2026-10-21T10:00:00+00:00", "event": "pick_asked", "idea": "logo", "task": "k1", "n": 3, "media": "image", "round": 1},
+             {"at": "2026-10-21T10:05:00+00:00", "event": "pick_answered", "idea": "logo", "task": "k1", "key": None, "note_chars": 9, "via": "hand", "seconds": 300.0},
+             {"at": "2026-10-21T10:10:00+00:00", "event": "pick_asked", "idea": "logo", "task": "k1", "n": 3, "media": "image", "round": 2},
+             {"at": "2026-10-21T10:15:00+00:00", "event": "pick_answered", "idea": "logo", "task": "k1", "key": "B", "note_chars": 0, "via": "drawer", "seconds": 300.0},
+             {"at": "2026-10-21T10:16:00+00:00", "event": "pick_asked", "idea": "gone", "task": "k9", "n": 2, "media": "text", "round": 1},
+             {"at": "2026-10-21T10:17:00+00:00", "event": "pick_asked", "idea": "logo", "n": 2, "media": "text", "round": 1}]       # no task: no row
+    titles = {"ideas": {"logo": {"title": "A logo", "short": "Logo", "goal": "brand"}}, "goals": {}, "tasks": {"logo": {"k1": "Draw the logo"}}}
+    rows = board_today.rows(lines, titles, since=None)
+    assert [(r["mark"], r["tone"], r["words"], r["title"], r["goal"], r["idea"], r["task"], r["open"]) for r in rows] == [
+        ("!", "alert", "Pick one", "gone", "", "gone", "k9", {"kind": "pick", "slug": "gone", "task": "k9"}),            # a task the Board lost reads as its goal's slug
+        ("✓", "ok", "Picked B", "Draw the logo", "brand", "logo", "k1", {"kind": "pick", "slug": "logo", "task": "k1"}),
+        ("!", "alert", "Pick one", "Draw the logo", "brand", "logo", "k1", {"kind": "pick", "slug": "logo", "task": "k1"}),
+        ("↺", "muted", "New ones asked", "Draw the logo", "brand", "logo", "k1", {"kind": "pick", "slug": "logo", "task": "k1"}),
+        ("!", "alert", "Pick one", "Draw the logo", "brand", "logo", "k1", {"kind": "pick", "slug": "logo", "task": "k1"})]
+
+
+def test_ideas_today_joins_the_task_titles_of_the_pick_events(host, tmp_path):
+    slug = waiting_pick(host, tmp_path / "s")
+    event_log.record(host.repo_root, event_log.PICK_ASKED, idea=slug, task="k1", n=3, media="image", round=1)
+    [row] = [r for r in host.command("ideas.today", {})["events"] if r["open"]["kind"] == "pick"]
+    assert (row["mark"], row["tone"], row["words"], row["title"], row["task"]) == ("!", "alert", "Pick one", "Draw the logo", "k1")
+
+
+def test_the_push_says_who_asks_to_pick_one_and_a_pick_that_waits_is_an_answer_that_waits(host, tmp_path):
+    slug = waiting_pick(host, tmp_path / "s")
+    pusher = host.pusher
+    assert phone_push.PICK_WORDS == "{member} asks you to pick one" and "pick" not in phone_push.KIND_WORDS
+    assert pusher._first() == ("Grunt asks you to pick one", "")
+    assert pusher.words_needs(1) == "Grunt asks you to pick one"
+    assert pusher.words_needs(3) == "3 wait for your answer · Grunt asks you to pick one"
+    assert host.ideas.snapshot()["needs_you"] == 1 and pusher._waiting() == 1
+    ideas.edit_plan(host.ideas.state_dir, slug, lambda p: p["tasks"][0].update(state="review"))
+    host.ideas.rev += 1
+    assert pusher._first() is None and pusher.words_needs(1) == "1 waits for your answer"

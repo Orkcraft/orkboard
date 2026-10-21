@@ -17,10 +17,13 @@ longer has reads as the slug (a task's as its idea's title, else the idea's slug
     proposal_answered        + / · muted taken / left out
     gate_merged              ✓ ok     dev merged into main    (title dev → main; the line's own `into` and `main` win)
     idea_flagged             ⚑ ok     is in main              (title: the goal's short name; spec 50 §2.4)
+    pick_asked               ! alert  Pick one                (spec 51 §2.4: a task left variants for the person to pick from)
+    pick_answered            ✓ ok     Picked B                (a key); ↺ muted  New ones asked  (none of them)
 
 A row is `{at ("HH:MM", local), mark, tone, words, title, goal, idea, task, open}`: `goal` is its idea's goal (the gate's row
 has none: it belongs to every goal), `open` what a click opens, `{kind, slug, task?}`: a `result` (the code a merge or a
-sent-back task made), a `task` (a failure's, a drop's), an `idea`, a `goal` (the one answered) or the `gate`.
+sent-back task made), a `task` (a failure's, a drop's), an `idea`, a `goal` (the one answered), the `gate` or a `pick` (the
+task whose variants wait, or were answered).
 """
 from __future__ import annotations
 
@@ -78,6 +81,15 @@ def _row(r: dict, titles: dict, into: str) -> dict | None:
         title, goal = _idea_of(titles, slug)
         short = str((_get(titles.get("ideas"), slug) or {}).get("short") or "") or title
         return _made(r, "⚑", "ok", "is in main", short, goal or str(r.get("goal") or ""), slug, "", {"kind": "idea", "slug": slug}) if slug else None
+    if event in (event_log.PICK_ASKED, event_log.PICK_ANSWERED):
+        idea, tid = str(r.get("idea") or ""), str(r.get("task") or "")
+        if not idea or not tid:
+            return None
+        title, goal = _idea_of(titles, idea)
+        title = str(_get(_get(titles.get("tasks"), idea), tid) or "") or title          # a task the Board lost reads as its idea
+        mark, tone, words = (("!", "alert", "Pick one") if event == event_log.PICK_ASKED else
+                             ("✓", "ok", f"Picked {r['key']}") if r.get("key") else ("↺", "muted", "New ones asked"))
+        return _made(r, mark, tone, words, title, goal, idea, tid, {"kind": "pick", "slug": idea, "task": tid})
     if event == event_log.GOAL_ANSWERED:
         slug = str(r.get("goal") or "")
         title = str(_get(titles.get("goals"), slug) or slug)

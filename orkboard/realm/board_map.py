@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_flag, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
+from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
 from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
@@ -178,7 +178,7 @@ def _tiers(order: list[str], depends: dict[str, list[str]]) -> dict[str, int]:
 def _waits(node: dict, tasks: list[dict], titles: dict[str, str], page_waits: list[str], week: dict | None = None) -> dict | None:
     """Why a node that is not done does not move: the first that holds (spec 39 §1). Data, not words. `week`: {"until": the week's reset (local
     time, to the minute), "held": the Board's own Low work waits at night for the week} (spec 44 §4), or None with no week read."""
-    if node["needs_you"]:
+    if node["needs_you"] or any(t.get("state") == "picking" for t in tasks):          # a task that made variants waits for the person's pick (spec 51)
         return {"kind": "you", "ref": "", "title": "", "until": ""}
     if page_waits:
         return {"kind": "idea", "ref": page_waits[0], "title": titles.get(page_waits[0], page_waits[0]), "until": ""}
@@ -305,7 +305,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                                "after": list(t.get("after") or []), "tier": t.get("tier") or "",
                                "head": roles.task_head(state_dir, t, target, read),
                                "by": _by(t, read), "band": "check" if map_stage.is_check(t) else "build", "wave": waves[str(t.get("id"))],
-                               **_run_of(t),
+                               **_run_of(t), "pick": idea_pick.map_of(t),
                                "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND])} for t in tasks],
                     "checks": idea_checks.status(idea_checks.kept(list_of_dicts(page.get("checks")) if page else [], checks),
                                                  checks, tasks) if checks else [],

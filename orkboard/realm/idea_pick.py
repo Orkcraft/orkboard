@@ -30,7 +30,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from orkboard.realm import ideas, media_sniff
-from orkboard.realm.idea_git import BOARD_PAGE
 
 PICK_DIR = ".orkcraft-pick"                  # at the worktree's root: the variants
 PICK_FILE = ".orkcraft-pick.json"            # … and their manifest
@@ -97,6 +96,7 @@ def clean_target(value: object) -> str:
     never git's own, the machine's own or a Board page; "" for anything else."""
     if not isinstance(value, str):
         return ""
+    from orkboard.realm.idea_git import BOARD_PAGE         # the Board's pages are the Board's (a task never edits them)
     text = value.strip()
     parts = text.split("/")
     if (not text or len(text) > TARGET_MAX or text.startswith(("/", "~")) or "\\" in text or re.match(r"^[A-Za-z]:", text)

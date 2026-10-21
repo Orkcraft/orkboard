@@ -20,7 +20,7 @@ BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.
                   "ideas.review_list", "ideas.diff", "ideas.merge", "ideas.back", "ideas.drop_task",
                   "ideas.stop_task", "ideas.agents", "ideas.task", "ideas.into", "ideas.log", "ideas.logs", "ideas.goal_save",
                   "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_add", "ideas.role_drop",
-                  "ideas.kind_set", "ideas.gate", "ideas.gate_merge", "ideas.today"}          # … and spec 49's three
+                  "ideas.kind_set", "ideas.gate", "ideas.gate_merge", "ideas.today", "ideas.pick"}          # … and spec 49's three, spec 51's one
 
 
 @pytest.fixture
