@@ -26,10 +26,12 @@ export const drawerOpen = signal(false);   // the drawer is out (its tabs are ke
 export const mapData = signal(null);       // ideas.map: always read (spec 49 §9)
 export const gateData = signal(null);      // ideas.gate: what dev holds that main lacks
 export const todayData = signal(null);     // ideas.today: today's events, newest first
+export const flagsData = signal(null);     // ideas.flags: the goals' flags (`goals`, every party's, newest first) and the parties' old flags (spec 50 §2.4)
+export const aboutAt = signal("");         // the section of About this party to scroll to when it opens ("flags": Its flags); "" for the top
 export const mapFolded = signal([]);       // the folds kept with the tabs (the Flags fold)
 
 const KINDS = ["idea", "plan", "task", "result", "goal", "doc", "file", "gitdiff", "gate", "agents", "files"];
-const KIND_WORDS = { idea: "Spec", plan: "Plan", task: "Task", result: "Code", goal: "Goal", doc: "Document", file: "File", gitdiff: "Changes",
+const KIND_WORDS = { idea: "Goal", plan: "Plan", task: "Task", result: "Code", goal: "Party", doc: "Document", file: "File", gitdiff: "Changes",
   gate: "Gate", agents: "Agents", files: "Files" };
 export const kindWords = (kind) => KIND_WORDS[kind] || "";
 export const tabId = (p) => `${p.kind}:${p.slug || ""}:${p.task || ""}:${p.path || ""}`;
@@ -86,8 +88,8 @@ function readTabs(key) {
 /** What a tab whose thing is gone says (§3.7), "" while it is there or the Board is not read yet. */
 export function goneWords(p, bd = board.value) {
   if (!p || !bd) return "";
-  if (p.kind === "goal") return (bd.tracks || []).some((t) => t.slug === p.slug) ? "" : "This goal is gone";
-  if (["idea", "plan", "task", "result", "doc"].includes(p.kind) && p.slug) return (bd.ideas || []).some((i) => i.slug === p.slug) ? "" : "This idea is gone";
+  if (p.kind === "goal") return (bd.tracks || []).some((t) => t.slug === p.slug) ? "" : "This party is gone";
+  if (["idea", "plan", "task", "result", "doc"].includes(p.kind) && p.slug) return (bd.ideas || []).some((i) => i.slug === p.slug) ? "" : "This goal is gone";
   return "";
 }
 
@@ -122,10 +124,10 @@ export async function refreshShell() {
     const there = (bd) => !!p && !goneWords(p, bd);
     const side = (bd) => (there(bd) ? Promise.all([detailFor(p), p.kind === "idea" || p.kind === "plan" ? ask("ideas.page", { slug: p.slug }) : null])
       : Promise.resolve([null, null]));
-    const rest = Promise.all([ask("ideas.board"), ask("ideas.review_list"), ask("ideas.agents"), ask("ideas.roles"), ask("ideas.map"), ask("ideas.gate"), ask("ideas.today")]);
-    let b, r, a, ro, mp, gt, td, d, pg;
-    if (board.value) [[b, r, a, ro, mp, gt, td], [d, pg]] = await Promise.all([rest, side(board.value)]);
-    else { [b, r, a, ro, mp, gt, td] = await rest; [d, pg] = await side(b); }   // a restored tab: its thing is looked for only if the Board has it
+    const rest = Promise.all([ask("ideas.board"), ask("ideas.review_list"), ask("ideas.agents"), ask("ideas.roles"), ask("ideas.map"), ask("ideas.gate"), ask("ideas.today"), ask("ideas.flags")]);
+    let b, r, a, ro, mp, gt, td, fl, d, pg;
+    if (board.value) [[b, r, a, ro, mp, gt, td, fl], [d, pg]] = await Promise.all([rest, side(board.value)]);
+    else { [b, r, a, ro, mp, gt, td, fl] = await rest; [d, pg] = await side(b); }   // a restored tab: its thing is looked for only if the Board has it
     batch(() => {
       if (b) board.value = b;
       if (r) review.value = r;
@@ -134,6 +136,7 @@ export async function refreshShell() {
       if (mp && Array.isArray(mp.goals)) mapData.value = mp;
       if (gt && typeof gt.same === "boolean") gateData.value = gt;
       if (td && Array.isArray(td.events)) todayData.value = td;
+      if (fl && Array.isArray(fl.goals)) flagsData.value = fl;
       if (p && drawerOpen.value && preview.value === p) { detail.value = d; if (pg) page.value = pg; if (p.kind === "goal" && d?.goal) goal.value = d.goal; }
     });
   } finally {
@@ -171,7 +174,7 @@ export function resetForProject(project = "") {
     editing.value = null;
     detail.value = null; page.value = null; goal.value = null;
     board.value = null; review.value = null; agents.value = null; roles.value = null;
-    mapData.value = null; gateData.value = null; todayData.value = null;
+    mapData.value = null; gateData.value = null; todayData.value = null; flagsData.value = null;
     mapFolded.value = got ? got.folded : [];
     tabs.value = list;
     active.value = now ? now.id : "";

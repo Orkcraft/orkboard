@@ -12,6 +12,18 @@ export function Icon({ name, label = "" }) {
     <use href=${`${ORKUI}/icons/icons.svg#${name}`} /></svg>`;
 }
 
+/** One of orkUI's signs (signs/<name>.svg, spec 50 §1.6): check, cross, work, night, alert, flag, before, after. Drawn in the colour of the text it
+ *  stands in and never alone: its words are beside it or in its `label` (its title). `aria-hidden`. */
+export function Sign({ name, big = false, label = "" }) {
+  return html`<span class=${`ork-sign ${name}${big ? " big" : ""}`} aria-hidden="true" title=${label || undefined}></span>`;
+}
+
+/** A goal's element (orkUI's elements/, spec 50 §1): meadow, ice, dust, void or lava, 14 x 14 (`big` 28 x 28); `dim` while the goal is not
+ *  yet read. Shown, never named: `aria-hidden`. A goal the host has not given one yet is drawn dim. */
+export function Elem({ name = "", big = false, dim = false }) {
+  return html`<span class=${`ork-elem ${name || "dust"}${big ? " big" : ""}${dim || !name ? " dim" : ""}`} aria-hidden="true"></span>`;
+}
+
 /** orkUI's chevron: down (a menu, an open fold), up, right (a closed fold) or left. */
 export function Chev({ dir = "down" }) {
   return html`<i class=${`ork-chev${dir === "down" ? "" : ` ${dir}`}`} aria-hidden="true"></i>`;

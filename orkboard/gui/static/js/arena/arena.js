@@ -1,27 +1,32 @@
-// The one window (docs/specs/49-one-window.md): under the goal tabs, the day's strip, the leader over its Planning, and the goal's field —
-// the ideas bar, the party row with the gate, the party's columns running down from their members with the results beside them, what
-// waits for you and the limits along the bottom. The drawer (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`,
-// `ideas.today` and the snapshot; its commands are the Board's own.
-import { useEffect } from "preact/hooks";
+// The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, decisions §62, §63): under the party tabs, the day's strip, the leader over
+// the party's goals (with the filter and the New goal pile), and the party's field — the party line, the party row with the gate, the members' tasks in
+// rows by phase as stacks of cards running down from them with the results beside them, what waits for you and the limits along the bottom. The drawer
+// (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`, `ideas.today`, `ideas.flags` and the snapshot; its
+// commands are the Board's own.
+import { useEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { track, board, OPS } from "../board/store.js";
 import { Operations } from "../board/ops.js";
-import { mapData } from "../shell/store.js";
+import { flagsData, lookTick, mapData } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
-import { solo, narrow } from "./arenastate.js";
+import { solo, narrow, shownGoals } from "./arenastate.js";
 import { goalsOf, nodesOf, opStopsOf, partyOf, planningOf, resultStop, resultsOf, stopsOf } from "./arenawords.js";
+import { inFilter } from "./goalwords.js";
 import { shownOf } from "./goaltabs.js";
 import { goalList } from "../board/store.js";
 import { TodayStrip } from "./todaystrip.js";
-import { Planning } from "./planning.js";
-import { IdeasBar } from "./ideabar.js";
+import { Left } from "./goals.js";
+import { FlagLine, PartyLine } from "./partyline.js";
 import { Columns, Solo } from "./field.js";
+import { Spread } from "./spread.js";
+import { Arrows } from "./arrows.js";
 import { Looks } from "./waits.js";
 import { PartyRow } from "./members.js";
 import { GateBox } from "./gate.js";
 import { Stops } from "./stops.js";
 import { Limits } from "./limits.js";
 import { Cards } from "../board/cards.js";
+import { closeFlagLine, seeFlags } from "./flags.js";
 
 const NARROW = "(max-width: 1023px)";
 
@@ -39,33 +44,43 @@ function useNarrow() {
 function OpsField() {
   const stops = opStopsOf(board.value?.needs_you || []);
   return html`<div class="arena arena-ops">
-    <section class="arena-ops__body" aria-label="The goal at work"><${Operations} withNew=${true} /></section>
+    <section class="arena-ops__body" aria-label="The party at work"><${Operations} withNew=${true} /></section>
     <div class="arena-stops"><${Stops} g=${null} stops=${stops} /><${Limits} /></div>
   </div>`;
 }
 
-/** The goal shown, in full. Keyed by the goal so that what was picked or drawn on the last one does not carry over. */
-function Goal({ m, g }) {
-  const nodes = nodesOf(m, g.slug), { lead, members } = partyOf(g, nodes);
+/** A stop of the party: the goal it is about is one the filter shows (a stop about the party itself, no goal, stays). */
+const stopIn = (shown, s) => {
+  const goal = s.node?.slug || s.row?.idea || "";
+  return !goal || inFilter(shown, goal);
+};
+
+/** The party shown, in full. Keyed by the party so that what was picked or drawn on the last one does not carry over. */
+function Party({ m, g }) {
+  const nodes = nodesOf(m, g.slug), { lead, members } = partyOf(g, nodes), body = useRef();
   const planning = planningOf(g, nodes, lead?.name || g.leader?.name);
-  const results = resultsOf(nodes), stops = stopsOf(board.value?.needs_you || [], g, nodes);
+  const shown = shownGoals(g.slug), results = resultsOf(nodes);
+  const stops = stopsOf(board.value?.needs_you || [], g, nodes).filter((s) => stopIn(shown, s));
   const wide = !narrow.value;
   const cols = members.map(() => (wide ? "minmax(0,1fr)" : "minmax(150px,1fr)")).join(" ") || "minmax(0,1fr)";
   const reading = planning.rows.find((r) => r.busy)?.full || "";
-  const all = wide ? stops : [...stops, ...results.map((r) => resultStop(r, nodes))];                 // below 1 024 px the results join the bottom row (§3)
+  const all = wide ? stops : [...stops, ...results.filter((r) => inFilter(shown, r.idea)).map((r) => resultStop(r, nodes))];                 // below 1 024 px the results join the bottom row (§3)
   return html`<div class=${cls("arena", { "is-narrow": narrow.value })} data-goal=${g.slug}>
     ${wide && html`<${TodayStrip} goal=${g.slug} />`}
-    <${Planning} g=${g} nodes=${nodes} planning=${planning} lead=${lead} />
+    <${Left} g=${g} nodes=${nodes} planning=${planning} lead=${lead} />
     <div class="arena-field">
-      <${IdeasBar} g=${g} nodes=${nodes} lead=${lead?.name || "Taskmaster"} reading=${reading} />
+      <div class="arena-top"><${PartyLine} g=${g} nodes=${nodes} lead=${lead?.name || "Taskmaster"} reading=${reading} /><${FlagLine} /></div>
       <div class="arena-play">
         <${PartyRow} g=${g} members=${members} nodes=${nodes} planning=${planning} cols=${cols} />
-        <section class="arena-body" aria-label="The goal at work">
+        <section class="arena-body" aria-label="The party at work" ref=${body}>
           ${!wide && html`<div class="arena-cards"><${Cards} /></div>`}
-          ${solo.value ? html`<${Solo} g=${g} members=${members} lead=${lead} nodes=${nodes} planning=${planning} />` : html`<${Columns} g=${g} members=${members} nodes=${nodes} cols=${cols} />`}
+          ${solo.value ? html`<${Solo} g=${g} members=${members} lead=${lead} nodes=${nodes} planning=${planning} shown=${shown} />`
+            : html`<${Columns} g=${g} members=${members} nodes=${nodes} cols=${cols} shown=${shown} />`}
+          <${Spread} members=${members} nodes=${nodes} />
+          <${Arrows} host=${body} nodes=${nodes} />
         </section>
       </div>
-      ${wide && html`<${Looks} g=${g} results=${results} nodes=${nodes} />`}
+      ${wide && html`<${Looks} g=${g} results=${results} nodes=${nodes} shown=${shown} />`}
       <div class="arena-gatebox"><${GateBox} /></div>
       <div class="arena-stops"><${Stops} g=${g} stops=${all} /><${Limits} /></div>
     </div>
@@ -74,15 +89,18 @@ function Goal({ m, g }) {
 
 export function Arena() {
   useNarrow();
-  const m = mapData.value;
+  const m = mapData.value, flags = flagsData.value;
+  useEffect(() => { seeFlags(flags?.goals); }, [flags]);                           // a goal's flag is said once per device (spec 50 §3.8)
+  useEffect(() => { closeFlagLine(); }, [lookTick.value]);                           // another project: nothing of the last one's line stays
   if (!m) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;
-  const goals = goalsOf(m, goalList().map((x) => x.slug)), want = shownOf(goals, track.value);
+  const parties = goalsOf(m, goalList().map((x) => x.slug)), want = shownOf(parties, track.value);
   if (want === OPS) return html`<${OpsField} />`;
-  const g = goals.find((x) => x.slug === want);
-  if (!g && want) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;           // a goal just saved: the Map has it in a moment
+  const g = parties.find((x) => x.slug === want);
+  if (!g && want) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;           // a party just saved: the Map has it in a moment
   if (!g) {
-    return html`<div class="shell-empty arena-note"><p>No goals yet</p>
-      <p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New goal</button> <button class="ork-btn" onClick=${() => openDialog("goal", { then: "idea" })}>New idea</button></p></div>`;
+    return html`<div class="shell-empty arena-note"><p>No parties yet</p>
+      <p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New party</button>
+        <button class="ork-btn" title="A goal needs a party: this makes one first" onClick=${() => openDialog("goal", { then: "idea" })}>New goal</button></p></div>`;
   }
-  return html`<${Goal} key=${g.slug} m=${m} g=${g} />`;
+  return html`<${Party} key=${g.slug} m=${m} g=${g} />`;
 }

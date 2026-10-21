@@ -3,7 +3,7 @@
 // focusing one raises it whole, with its quick answers. A press answers; a click outside the buttons opens it in the drawer.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { Head } from "../orkui.js";
+import { Head, Sign } from "../orkui.js";
 import { say, toast } from "../link.js";
 import { act, showIdea, showPlan, showTask, showGoal, showResult, needsFocus } from "../shell/store.js";
 import { ResultActions } from "../shell/review.js";
@@ -62,7 +62,7 @@ function Answers({ s, g }) {
   }
   if (s.kind === "todo") return html`<button type="button" class="ork-btn arena-hc__q" onClick=${() => openDialog("todo", { idea: row.idea, todo: row.todo })}>Open…</button>`;
   if (s.kind === "failed") {
-    return html`<button type="button" class="ork-btn primary arena-hc__q" title="Its idea’s tasks that are not merged or at Review run again"
+    return html`<button type="button" class="ork-btn primary arena-hc__q" title="Its goal’s tasks that are not merged or at Review run again"
         onClick=${() => act("ideas.start", { slug: n?.slug || row.idea, via: "hand" })}>Start again</button>
       <button type="button" class="ork-btn arena-hc__q" title="Its log; Drop is there, with a confirmation"
         onClick=${() => (s.task ? showTask(n.slug, s.task.id, { via: "hand" }) : showIdea(row.idea, { via: "hand" }))}>Open…</button>`;
@@ -92,7 +92,7 @@ function Stop({ s, g, at, of }) {
   return html`<div class=${cls("arena-hc ork-frame", { alert: s.tone === "alert", danger: s.tone === "danger", "is-compact": s.small })} data-kind=${s.kind} data-key=${s.key}
       style=${`--rot:${fan.rot}deg;--dy:${fan.dy}px;--z:${fan.z}`}>
     <button type="button" class="arena-hc__open" aria-label=${`${s.label}: ${s.full}`} onClick=${() => open(s)}>
-      <span class="arena-hc__top"><span class=${cls("ork-gem", { danger: s.tone === "danger" })} title=${s.gemTip}>${s.gem}</span>
+      <span class="arena-hc__top"><span class=${cls("ork-gem", { danger: s.tone === "danger" })} title=${s.gemTip}>${typeof s.gem === "object" ? html`<${Sign} name=${s.gem.sign} />` : s.gem}</span>
         <span class=${cls("arena-hc__kind", { "is-no": s.tone === "danger" })}>${s.label}</span>
         ${s.small && s.head && html`<span class="arena-hc__who" title=${s.whoTip}><${Head} race=${s.head.race} tier=${s.head.tier} /></span>`}</span>
       ${!s.small && html`<span class="arena-art">${s.head && html`<${Head} race=${s.head.race} tier=${s.head.tier} size="mid" />`}</span>`}
@@ -110,7 +110,7 @@ export function Stops({ g, stops }) {
   const focus = needsFocus.value;
   useEffect(() => { if (focus) box.current?.querySelector(".arena-hc__open")?.focus(); }, [focus]);
   return html`<div class="arena-hand" role="region" aria-label="Waits for you" ref=${box}>
-    ${!shown.length && html`<p class="arena-cap arena-hand__empty">Nothing waits for you on this goal.</p>`}
+    ${!shown.length && html`<p class="arena-cap arena-hand__empty">Nothing waits for you in this party.</p>`}
     ${shown.map((s, i) => html`<${Stop} key=${s.key} s=${s} g=${g} at=${i} of=${shown.length} />`)}
   </div>`;
 }
