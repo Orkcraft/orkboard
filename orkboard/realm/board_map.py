@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_questions, idea_risk, idea_spend, idea_target, ideas, roles
+from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
 from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
@@ -111,6 +111,25 @@ def row(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, page:
             "start_at": str((plan or {}).get("start_at") or ""),
             "night_by": _night_by(i, st, plan),
             "in_needs_you": any(n["kind"] in ("asks", "plan", "proposal") for n in mine)}
+
+
+def _by(task: dict, read: tuple[dict, dict]) -> dict:
+    """The role a task runs as, `{slug, name}`; a role since dropped reads as Grunt."""
+    slug = roles.task_slug(task, read)
+    r = read[0].get(slug) or read[0].get(roles.GRUNT) or {}
+    return {"slug": r.get("slug") or slug, "name": r.get("name") or slug}
+
+
+def _asked(st: dict, asks: list[str], by_slug: dict, lead: dict | None, target: str) -> list[dict]:
+    """An idea's questions with who asks each: the state's `asks_by` (spec 46 §1), else the goal's leader."""
+    who = st.get("asks_by") if isinstance(st.get("asks_by"), list) else []
+    out = []
+    for n, q in enumerate(idea_questions.parse(a) for a in asks[:5]):
+        r = by_slug.get(who[n]) if n < len(who) and isinstance(who[n], str) else None
+        r = r or lead
+        out.append({"ask": q["ask"], "choices": q.get("choices") or [],
+                    "by": {"slug": r["slug"], "name": r["name"], "head": roles.head(r, target)} if r else None})
+    return out
 
 
 # -- the Map -------------------------------------------------------------------------------------------------
@@ -214,6 +233,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
     goals, nodes, edges = [], [], []
     week = _week_of(settings, limits, now)
     target, read = idea_target.target_of(settings), roles.known(state_dir)         # a task's head: who does it, at what tier
+    today = dt.date.fromtimestamp(now).isoformat() if now else dt.date.today().isoformat()
     for g in shown:
         mine = [i for i in found if i["track"] == g["slug"]]
         order = [i["slug"] for i in mine]
@@ -237,6 +257,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                       "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2)})
+        mine_nodes, today_tasks = [], []
         for i in sorted(mine, key=lambda i: (tier[i["slug"]], place[i["slug"]])):
             slug, st, page = i["slug"], states[i["slug"]], pages[i["slug"]]
             plan = ideas.plan(state_dir, slug)
@@ -246,6 +267,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             r = row(root, state_dir, i, st, plan, page, asks, states, needs)
             started = any(t.get("state") not in (None, "waiting", "ready", "held") for t in tasks)
             est = (plan or {}).get("estimate")
+            waves = map_stage.waves_of(tasks)
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
                     "held_until": r["held_until"], "start_at": r["start_at"], "night_by": r["night_by"], "by_pace": bool((plan or {}).get("by_pace")),
                     "priority": r["priority"], "size": r["size"],
@@ -253,9 +275,14 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                     "waits": None, "needs_you": next((k for k in NEEDS if any(n["kind"] == k for n in needs)), "")
                     if r["state"] != "done" else "",
                     "progress": r["progress"],
+                    "stage": map_stage.stage_of(r["state"], tasks, bool((plan or {}).get("passed_at"))), "round": map_stage.round_of(tasks),
+                    "usd": idea_spend.of_idea(state_dir, slug)["usd"] if tasks else None,
+                    "plan_estimate": {"usd_low": est.get("usd_low"), "usd_high": est.get("usd_high")} if isinstance(est, dict) and plan else None,
+                    "asked": _asked(st, asks, by_slug, lead, target) if r["state"] == "asks" else [],
                     "tasks": [{"id": t.get("id"), "title": t.get("title") or "", "short": task_short(t), "state": t.get("state") or "waiting",
                                "after": list(t.get("after") or []), "tier": t.get("tier") or "",
                                "head": roles.task_head(state_dir, t, target, read),
+                               "by": _by(t, read), "band": "check" if map_stage.is_check(t) else "build", "wave": waves[str(t.get("id"))],
                                "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND])} for t in tasks],
                     "checks": idea_checks.status(idea_checks.kept(list_of_dicts(page.get("checks")) if page else [], checks),
                                                  checks, tasks) if checks else [],
@@ -266,5 +293,9 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             if r["state"] != "done":
                 node["waits"] = _waits(node, tasks, titles, r["waits_on"], week)
             nodes.append(node)
+            mine_nodes.append(node)
+            today_tasks += [t for t in tasks if t.get("state") == "merged" and str(t.get("finished") or "").startswith(today)]
             edges += [{"from": d, "to": slug} for d in r["depends_on"] if d in tier and slug in kept and d in kept]
+        cost = sum(float(t["cost"]) for t in today_tasks if isinstance(t.get("cost"), (int, float)))
+        goals[-1].update(party=map_party.party_of(goals[-1], mine_nodes), today={"merged": len(today_tasks), "usd": round(cost, 2)})
     return {"goals": goals, "nodes": nodes, "edges": edges, "rev": rev}

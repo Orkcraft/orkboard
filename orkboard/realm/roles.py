@@ -352,13 +352,17 @@ def known(state_dir: Path) -> tuple[dict[str, dict], dict[str, str]]:
     return {r["slug"]: r for r in roles(state_dir)}, kinds(state_dir)
 
 
+def task_slug(task: dict, read: tuple[dict, dict]) -> str:
+    """The slug of the role a task runs as: its `role`, else its type's role, else Grunt. `read`: `known()`."""
+    kind = str(task.get("kind") or "")
+    return str(task.get("role") or "") or read[1].get(kind if kind in TASK_KINDS else DEFAULT_KIND, GRUNT)
+
+
 def task_head(state_dir: Path, task: dict, target: str, read: tuple[dict, dict] | None = None) -> dict:
     """The head of who does a task: the role it ran as (its type's role before it ran), at the tier it ran at (before it
     ran, the tier it will run at: its planned tier shifted by the Target, a role's own model winning). `read`: `known()`."""
-    by_slug, kinds_ = read or known(state_dir)
-    kind = str(task.get("kind") or "")
-    slug = str(task.get("role") or "") or kinds_.get(kind if kind in TASK_KINDS else DEFAULT_KIND, GRUNT)
-    r = by_slug.get(slug) or by_slug.get(GRUNT) or role(state_dir, GRUNT)
+    by_slug, _kinds = read = read or known(state_dir)
+    r = by_slug.get(task_slug(task, read)) or by_slug.get(GRUNT) or role(state_dir, GRUNT)
     got = head(r, target, str(task.get("tier") or "warrior"))
     if task.get("ran_tier") in TIERS:
         got["tier"] = task["ran_tier"]
