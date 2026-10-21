@@ -661,8 +661,8 @@ was turned down; C lists what was taken from the game). So:
 1. **One window.** The goals are tabs with their progress and their stops' count; under the tab, the leader heads
    the left column over its Planning; the party stands along the top of the field, each member's open tasks running
    down from it, the top row lit and the rows below muted (what a member is on is what is bright; item 9); the
-   results that wait for a look are a column on the right; what waits for the person lies along the bottom with its quick answers; anything opened
-   slides in as a drawer from the right, its tabs kept. The Agents pane, the Board's column and Needs you's list go as
+   results that wait for a look are a column on the right; what waits for the person lies along the bottom with its
+   quick answers; anything opened slides in as a drawer from the right, its tabs kept. The Agents pane, the Board's column and Needs you's list go as
    regions (the pool by agent and the files open in the drawer). The phone is the same on one column with no tab bar: a
    stage switch (Planning · Implementation · Checking) shows one stage's columns at a time, and a tap pops a stop out
    of the bottom row.
