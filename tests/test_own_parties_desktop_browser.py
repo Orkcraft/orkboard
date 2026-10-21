@@ -1,5 +1,5 @@
-"""Spec 43 F on the desktop (docs/specs/43-party-measured.md §6.3, Tests → F): *Save this party* on a goal's screen (the name, the replace);
-*Your parties* in the picker fill the seats and the craft; a seat changed afterwards drops the id; Remove asks first."""
+"""Spec 43 F on the desktop (docs/specs/43-party-measured.md §6.3, Tests → F; docs/specs/50-parties-and-goals.md §3.7): *Save it to your parties* in About this party
+(the name, the replace); *Your parties* in New party's picker fill the seats; a seat changed afterwards drops the id; Remove asks first."""
 from __future__ import annotations
 
 import pytest
@@ -27,20 +27,20 @@ def shell(gui):
     assert not errors, "\n".join(errors)
 
 
-def test_save_this_party_asks_a_name_asks_again_before_it_replaces_and_says_it_is_saved(shell):
+def test_save_it_to_your_parties_asks_a_name_asks_again_before_it_replaces_and_says_it_is_saved(shell):
     pg, host = shell
     host.goals["ship-sync"].update(team=["grunt", "reviewer"], every=["reviewer"], craft="design", leader=host.leader("architect"))
     host.bump({})
-    pg.get_by_role("button", name="About this goal").click()
-    team = pg.locator(".shell-goal").get_by_role("region", name="Team")
-    team.get_by_role("button", name="Save this party").click()
+    pg.get_by_role("button", name="About this party").click()
+    team = pg.locator(".shell-result__foot")
+    team.get_by_role("button", name="Save it to your parties").click()
     name = team.get_by_label("Name of your party")
-    assert name.input_value() == "Design party"                                                # filled with the goal's craft
+    assert name.input_value() == "Design party"                                                # filled with the party's craft
     name.fill("Brand new")
     team.get_by_role("button", name="Save", exact=True).click()
     assert _sent(pg, host, ("ideas.party_save", {"goal": "ship-sync", "name": "Brand new"}))
-    pg.get_by_text("Saved: pick it for a goal in any project.").wait_for(timeout=WAIT_MS)
-    team.get_by_role("button", name="Save this party").click()
+    pg.get_by_text("Saved: pick it for a party in any project.").wait_for(timeout=WAIT_MS)
+    team.get_by_role("button", name="Save it to your parties").click()
     team.get_by_label("Name of your party").fill("lean WEB")
     team.get_by_role("button", name="Save", exact=True).click()                                # a taken name: asked first
     team.get_by_text("Replace your party “Lean web”?").wait_for(timeout=WAIT_MS)
@@ -51,48 +51,46 @@ def test_save_this_party_asks_a_name_asks_again_before_it_replaces_and_says_it_i
     assert _sent(pg, host, ("ideas.party_save", {"goal": "ship-sync", "name": "lean WEB", "replace": True}))
 
 
-def _new_goal(pg):
-    pg.get_by_role("button", name="+ New goal").click()
-    dlg = pg.get_by_role("dialog", name="New goal")
+def _new_party(pg):
+    pg.get_by_role("button", name="New party", exact=True).click()
+    dlg = pg.get_by_role("dialog", name="New party")
     dlg.locator('.shell-craft-tile[data-craft="design"]').click()
     return dlg
 
 
-def test_your_parties_fill_the_seats_and_the_craft_and_a_seat_changed_afterwards_drops_the_id(shell):
+def test_your_parties_fill_the_seats_and_a_seat_changed_afterwards_drops_the_id(shell):
     pg, host = shell
-    dlg = _new_goal(pg)
+    dlg = _new_party(pg)
     row = dlg.get_by_role("region", name="Your parties")
     chip = row.locator("[data-party=p-1a2b3c4d]")
-    assert " ".join(chip.inner_text().split()) == "Lean web 3 goals in 2 projects · 2 met" and chip.locator("img").count() == 4         # its heads, name, use
+    assert " ".join(chip.inner_text().split()) == "Lean web 3 parties in 2 projects · 2 met" and chip.locator("img").count() == 4         # its heads, name, use
     fresh = row.locator("[data-party=p-5e6f7a8b]")
     assert " ".join(fresh.inner_text().split()) == "Fresh"                                              # not used yet: nothing muted
     assert dlg.get_by_role("region", name="Leads").locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "product-designer"
-    chip.get_by_role("button", name="Pick your party “Lean web”").click()                              # fills the leader, the builders, the checkers, Every idea, the craft
+    chip.get_by_role("button", name="Pick your party “Lean web”").click()                              # fills the leader, the builders, the checkers, Every goal
     assert dlg.get_by_role("region", name="Leads").locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "architect"
     assert [e.get_attribute("data-agent") for e in dlg.get_by_role("region", name="Builds").locator('.shell-team-row[aria-pressed="true"]').all()] == ["grunt", "tester"]
     assert [e.get_attribute("data-agent") for e in dlg.get_by_role("region", name="Checks").locator('.shell-team-row[aria-pressed="true"]').all()] == ["reviewer"]
-    dlg.get_by_role("button", name="Next").click()
-    assert "Engineering" in dlg.locator(".shell-party-line").inner_text() and "led by Architect" in dlg.locator(".shell-party-line").inner_text()
-    assert dlg.get_by_label("Every idea: Reviewer").is_checked()
-    dlg.get_by_label("Description").fill("A goal from your party.")
-    dlg.get_by_role("button", name="Save goal").click()
-    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "A goal from your party.", "craft": "engineering", "leader": "architect", "team": ["grunt", "tester", "reviewer"],
+    assert "led by Architect" in dlg.locator(".shell-party-line").inner_text()
+    assert dlg.get_by_label("Every goal: Reviewer").is_checked()
+    dlg.get_by_label("What it is for").fill("A party from your party.")
+    dlg.get_by_role("button", name="Save party").click()
+    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "A party from your party.", "leader": "architect", "team": ["grunt", "tester", "reviewer"],
                                                       "every": ["reviewer"], "priority": "normal", "party": "p-1a2b3c4d"}
-    dlg = _new_goal(pg)                                                                                # a seat changed afterwards: no id
+    dlg = _new_party(pg)                                                                                # a seat changed afterwards: no id
     dlg.get_by_role("region", name="Your parties").get_by_role("button", name="Pick your party “Lean web”").click()
     dlg.get_by_role("button", name="Take out: Tester").click()
-    dlg.get_by_role("button", name="Next").click()
-    dlg.get_by_label("Description").fill("A changed party.")
-    dlg.get_by_role("button", name="Save goal").click()
+    dlg.get_by_label("What it is for").fill("A changed party.")
+    dlg.get_by_role("button", name="Save party").click()
     assert "party" not in _calls(pg, host, "ideas.goal_save", 2)[1]
 
 
-def test_remove_asks_first_and_the_goals_that_use_it_keep_their_agents(shell):
+def test_remove_asks_first_and_the_parties_that_use_it_keep_their_agents(shell):
     pg, host = shell
-    dlg = _new_goal(pg)
+    dlg = _new_party(pg)
     row = dlg.get_by_role("region", name="Your parties")
     row.get_by_role("button", name="Remove your party “Lean web”").click()
-    row.get_by_text("Remove your party “Lean web”? Goals that use it keep their agents.").wait_for(timeout=WAIT_MS)
+    row.get_by_text("Remove your party “Lean web”? Parties that use it keep their agents.").wait_for(timeout=WAIT_MS)
     assert not [1 for n, _a in host.log if n == "ideas.party_drop"]                                    # asked, not dropped
     row.get_by_role("button", name="Keep it").click()
     assert row.locator("[data-party=p-1a2b3c4d]").count() == 1
@@ -102,16 +100,16 @@ def test_remove_asks_first_and_the_goals_that_use_it_keep_their_agents(shell):
     pg.wait_for_function("() => !document.querySelector('[data-party=p-1a2b3c4d]')", timeout=WAIT_MS)
 
 
-def test_edit_goal_picks_a_party_too_and_says_what_a_goal_keeps(shell):
+def test_edit_the_party_picks_a_party_too_and_says_what_a_party_keeps(shell):
     pg, host = shell
     host.goal_notes = ["Docs scribe is this project's already: kept as it is"]
     host.goals["ship-sync"]["about"] = "Sync is the first thing a second device needs."
     host.bump({})
     pg.get_by_role("button", name="Edit the party").click()
-    dlg = pg.get_by_role("dialog", name="Edit goal")
+    dlg = pg.get_by_role("dialog", name="Edit the party")
     dlg.get_by_role("button", name="Change the party").click()
     dlg.get_by_role("region", name="Your parties").get_by_role("button", name="Pick your party “Lean web”").click()
-    dlg.get_by_role("button", name="Save goal").click()
+    dlg.get_by_role("button", name="Save party").click()
     got = _calls(pg, host, "ideas.goal_save")[0]
     assert got["party"] == "p-1a2b3c4d" and got["leader"] == "architect" and got["team"] == ["grunt", "tester", "reviewer"] and got["slug"] == "ship-sync"
     pg.get_by_text("Docs scribe is this project's already: kept as it is").wait_for(timeout=WAIT_MS)

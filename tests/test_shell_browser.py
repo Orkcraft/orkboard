@@ -60,9 +60,9 @@ PARTY = {"ideas": 9, "leader": {"slug": "product-manager", "name": "Product mana
          "checks": [{"by": "accessibility-reviewer", "name": "Accessibility reviewer", "head": {"craft": "design", "race": "elf", "tier": "warrior"}, "applied": 6,
                      "skipped": 1, "clean": 4, "caught": 2, "left": 1, "before": 2, "usd": 1.8},
                     {"by": "reviewer", "name": "Reviewer", "head": _HEAD, "applied": 1, "skipped": 0, "clean": 1, "caught": 0, "left": 0, "before": 0, "usd": None}]}
-PARTY_LINES = ["Product manager (leads): ≈$4.10 for the goal, the drafts and the plans", "Grunt: 14 tasks, 12 merged the first time · ≈$9.20",
-               "Accessibility reviewer: checked 6 ideas: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 ended without findings",
-               "Reviewer: checked 1 idea: 1 clean, caught 0"]
+PARTY_LINES = ["Product manager (leads): ≈$4.10 for the party, the drafts and the plans", "Grunt: 14 tasks, 12 merged the first time · ≈$9.20",
+               "Accessibility reviewer: checked 6 goals: 4 clean, caught 2 (1 left) · ≈$1.80 · skipped 1 · 2 ended without findings",
+               "Reviewer: checked 1 goal: 1 clean, caught 0"]
 def party_price(a, learned=True, hints=()):
     """What `ideas.party_price` answers for a party (spec 43 §3): $0.35 a check, about half of the ideas, all of them with `every`."""
     from orkboard.realm import library
@@ -184,7 +184,7 @@ class StubHost:
 
     def page(self, slug):
         if slug not in self.ideas:
-            return {"error": "That idea is gone"}
+            return {"error": "That goal is gone"}
         i = self.ideas[slug]
         secs = [{"name": n, "thesis": f"{n} in one line", "text": f"{n}: the longer text of this section."} for n in SECTIONS]
         if slug == "sync":
@@ -217,6 +217,7 @@ class StubHost:
             need = {"asks": "asks", "plan": "plan", "proposed": "proposal"}.get(i["state"], "") if i["in_needs_you"] else ""
             asked = [{"ask": "Which fields count?", "choices": [], "pick": None, "why": "", "by": LEAD}] if i["state"] == "asks" else []
             nodes.append({"slug": i["slug"], "goal": i["track"], "title": i["title"], "short": i["title"], "state": i["state"], "queue": i["queue"], "held_until": "",
+                          "element": "meadow", "flag": None,
                           "start_at": i["start_at"], "priority": "normal", "size": "M", "risk": "low", "tier": 1, "depends_on": [], "waits_on": [], "waits": None,
                           "needs_you": need, "progress": {"done": 1, "total": len(tasks)} if sync else {"done": 0, "total": 0}, "tasks": tasks if sync else [],
                           "estimate": None, "by_itself": False, "folded": False, "updated": "2026-10-17T10:00:00", "checks": [],
@@ -234,7 +235,7 @@ class StubHost:
                 party += [{"slug": "grunt", "name": "Grunts", "head": _HEAD, "band": "build", "state": "work", "why": ""},
                           {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "band": "check", "state": "next", "why": ""}]
             goals.append({"slug": g["slug"], "title": g["title"], "short": g["title"], "priority": g["priority"], "state": g["state"], "done_when": [], "ideas": 5, "done": 0,
-                          "usd": None, "leader": lead, "team": [], "party": party, "today": {"merged": 0, "usd": 0.0}})
+                          "usd": None, "leader": lead, "team": [], "party": party, "today": {"merged": 0, "usd": 0.0}, "flags": 0, "waits_main": 0, "brief": ""})
         return {"goals": goals, "nodes": nodes, "edges": [], "rev": self.rev}
 
     def handle(self, name, a):
@@ -420,11 +421,11 @@ class StubHost:
             return self.bump({"ok": True})
         if name == "ideas.add":
             if not a.get("track") or a["track"] == "general":
-                return {"error": "An idea needs a goal"}
+                return {"error": "A goal needs a party"}
             slug = a["text"].lower().replace(" ", "-")
             now = a["priority"] != "low" and not a.get("night")
             self.ideas[slug] = self.idea(slug, a["text"], "reading" if now else "raw", 9, track=a["track"], priority=a["priority"], queue="now" if now else "night")
-            return self.bump({"slug": slug, "queue": "now" if now else "night"})
+            return self.bump({"slug": slug, "queue": "now" if now else "night", "element": "meadow"})
         if name == "onboarding.skip":
             self.onboarding = {"step": "raising", "steps": ["tools"], "n": 0, "raising": {"title": "x", "phase": "done", "steps": [], "buildings": [], "error": ""}}
             return self.bump({})
@@ -523,11 +524,30 @@ def _agents(pg):
 
 
 def _new_ideas(pg):
-    """Planning's New (n) fold, open: its rows."""
+    """The goals list's New (n) fold, open: its rows (a goal is a row of the list: `.arena-goal`)."""
     fold = pg.locator(".arena-raw")
     if fold.get_attribute("aria-expanded") != "true":
         fold.click()
-    return pg.locator(".arena-prow")
+    return pg.locator(".arena-goal")
+
+
+def _goal_row(pg, title):
+    """A goal of the party shown, by its title: its row in the goals list."""
+    return pg.locator(".arena-goal", has_text=title)
+
+
+def _open_goal(pg, title):
+    """› on a goal's row opens its screen in the drawer (its spec, its plan when the plan waits); a goal not yet read opens on a press."""
+    row = _goal_row(pg, title)
+    (row.locator(".arena-goal__open") if row.locator(".arena-goal__open").count() else row.locator(".arena-goal__main")).click()
+
+
+def _new_goal(pg):
+    """New goal: a press on the pile turns its top card over, then the dialog opens."""
+    pg.locator(".arena-new__pile").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.wait_for(timeout=WAIT_MS)
+    return dlg
 
 
 @pytest.fixture
@@ -542,10 +562,11 @@ def box(pg, selector):
     return pg.locator(selector).first.bounding_box()
 
 
-def test_one_window_goal_tabs_over_the_arena_and_no_camp(shell):
+def test_one_window_party_switch_in_the_top_bar_over_the_arena_and_no_camp(shell):
     pg, host = shell
-    tabs, arena = box(pg, ".arena-tabs"), box(pg, ".arena")
-    assert tabs["y"] < arena["y"] and tabs["height"] == 40 and arena["width"] == 1440                      # the goal tabs over the window, full width
+    top, switch, arena = box(pg, ".shell-top"), box(pg, ".arena-pswitch"), box(pg, ".arena")
+    assert top["height"] == 32 and switch["height"] == 28 and switch["y"] + switch["height"] <= top["height"] and arena["y"] == top["height"] and arena["width"] == 1440      # the party switch in the top bar, the window right under it
+    assert pg.locator(".arena-tabs").count() == 0
     assert box(pg, ".arena-left")["width"] == 248 and box(pg, ".arena-field")["x"] > box(pg, ".arena-left")["x"]
     for gone in (".shell-board", ".shell-split", ".shell-agents", ".shell-tabs", ".shell-review"):             # no Board column, no split, no tab bar
         assert pg.locator(gone).count() == 0, gone
@@ -604,11 +625,11 @@ def test_the_tools_limits_are_at_the_bottom_right_with_their_diamonds_and_the_re
 
 def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(shell):
     pg, host = shell
-    pg.locator(".arena-prow", has_text="Dark mode").click()                       # an idea in Planning → its spec in the drawer: the nine sections
+    _open_goal(pg, "Dark mode")                                                   # a goal in Planning → its spec in the drawer: the nine sections
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "dark", "device": "desktop", "via": "map"}))
     pg.locator(".shell-drawer .board-sec").first.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-drawer .board-sec").count() == len(SECTIONS)
-    assert "spec" in pg.locator(".shell-drawer .shell-tabstrip").inner_text().lower()
+    assert "goal" in pg.locator(".shell-drawer .shell-tabstrip").inner_text().lower()
 
     pg.get_by_role("button", name="Close the drawer").click()                     # the drawer covers the fan's middle: it goes, its tab stays
     item = _stop(pg, "todo")                                                      # a to-do → its dialog; from it the plan, scrolled to it
@@ -685,33 +706,33 @@ def test_drop_asks_first_and_merge_into_changes_the_branch(shell):
     pg.get_by_role("dialog").get_by_role("button", name="Keep it").click()
     assert pg.get_by_role("dialog").count() == 0 and ("ideas.drop_task", {"slug": "sync", "task": "k2"}) not in host.log
     assert card.get_by_role("button", name="Drop…").evaluate("e => e === document.activeElement")     # the focus went back
-    pg.locator("button.arena-tabs__into").click()
+    pg.locator("button.arena-into").click()
     assert pg.get_by_role("menuitemradio").count() == 2
     pg.get_by_role("menuitem", name="New branch…").click()
     pg.get_by_label("Name of the new branch").fill("next")
     pg.get_by_role("button", name="Make it").click()
     assert _sent(pg, host, ("ideas.into", {"branch": "next"}))
-    pg.locator("button.arena-tabs__into").wait_for(timeout=WAIT_MS)
+    pg.locator("button.arena-into").wait_for(timeout=WAIT_MS)
 
 
 def test_esc_puts_the_drawer_away_and_keeps_its_tabs(shell):
     pg, host = shell
-    pg.locator(".arena-prow", has_text="Dark mode").click()
+    _open_goal(pg, "Dark mode")
     pg.locator(".shell-drawer .board-sec").first.wait_for(timeout=WAIT_MS)
     pg.keyboard.press("Escape")
     pg.locator(".shell-drawer").wait_for(state="detached", timeout=WAIT_MS)                                  # the drawer goes ...
     assert not [c for c in host.log if c[0] in ("ideas.merge", "ideas.back", "ideas.drop_task")]               # ... nothing merges by itself
-    pg.locator(".arena-prow", has_text="Dark mode").click()                                                 # ... and its tab is kept: opening anything brings it back
+    _open_goal(pg, "Dark mode")                                                                            # ... and its tab is kept: opening anything brings it back
     assert _drawer(pg).get_by_role("tab").count() == 1
 
 
-def test_a_new_idea_comes_from_planning_and_lists_with_its_state_in_words(shell):
+def test_a_new_goal_comes_from_the_pile_and_lists_with_its_state_in_words(shell):
     pg, host = shell
-    assert "starts tonight" in pg.locator(".arena-prow", has_text="Dark mode").inner_text()
-    pg.get_by_role("button", name="+ New idea").click()
-    pg.get_by_label("Your idea").fill("Offline sync")
-    pg.get_by_role("button", name="Add", exact=True).click()
-    pg.locator(".arena-prow", has_text="Offline sync").wait_for(timeout=WAIT_MS)
+    assert "starts tonight" in _goal_row(pg, "Dark mode").inner_text()
+    dlg = _new_goal(pg)
+    dlg.get_by_label("Your goal").fill("Offline sync")
+    dlg.get_by_role("button", name="Add the goal").click()
+    _goal_row(pg, "Offline sync").wait_for(timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.add", {"text": "Offline sync", "track": "ship-sync", "priority": "normal"}))      # the goal shown
 
 
@@ -760,12 +781,12 @@ def adds(host):
     return [a for n, a in host.log if n == "ideas.add"]
 
 
-def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_and_summary(shell):
+def test_new_party_is_a_name_what_it_is_for_its_party_and_a_priority_then_reading_its_title_and_summary(shell):
     pg, host = shell
-    pg.get_by_role("button", name="+ New goal").click()
-    dlg = pg.get_by_role("dialog", name="New goal")
-    assert dlg.locator(".shell-craft-tile").count() == 6                                            # 1. its craft: five and Mixed
-    dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # 2. its party: the craft's, in three bands
+    pg.get_by_role("button", name="New party", exact=True).click()
+    dlg = pg.get_by_role("dialog", name="New party")
+    assert dlg.locator(".shell-craft-tile").count() == 5                                            # from the library: its five parties
+    dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # the library's design party, in three bands
     leads, builds = dlg.get_by_role("region", name="Leads"), dlg.get_by_role("region", name="Builds")
     assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "product-designer"
     assert builds.locator(".shell-team-seat:not(.is-empty)").count() == 2 and builds.locator(".shell-team-seat").count() == 3
@@ -774,132 +795,119 @@ def test_new_goal_is_a_description_and_a_priority_then_reading_then_its_title_an
     dlg.get_by_role("button", name="Take in: Grunt").click()                                        # a fourth: no seat
     assert builds.locator(".shell-team-seat:not(.is-empty)").count() == 3
     assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "analyst"
-    if os.environ.get("ORKCRAFT_SHOTS"):
-        SHOTS.mkdir(parents=True, exist_ok=True)
-        pg.screenshot(path=str(SHOTS / "desktop-new-goal-team-1440x900.png"))
-    dlg.get_by_role("button", name="Next").click()                                                  # 3. what it is for
-    assert dlg.is_visible() and dlg.get_by_role("button", name="Save goal").is_disabled()           # a description is required
+    assert dlg.get_by_role("button", name="Save party").is_disabled()                               # a name or what it is for is required
     assert "led by Analyst" in dlg.inner_text()
     checks = dlg.get_by_role("group", name="Checks")                                                # the party's checkers, what they add
     assert "Accessibility reviewer" in checks.inner_text() and "Analyst" not in checks.inner_text()
-    checks.get_by_label("Every idea: Accessibility reviewer").check()
-    assert dlg.get_by_label("Title").count() == 0 and dlg.get_by_label("Deadline").count() == 0     # nothing else is asked
+    checks.get_by_label("Every goal: Accessibility reviewer").check()
+    assert dlg.get_by_label("Deadline").count() == 0 and dlg.get_by_label("Description").count() == 0     # nothing else is asked
     assert dlg.get_by_label("Metric 1: what is measured").count() == 0 and dlg.get_by_label("Link 1", exact=True).count() == 0
-    dlg.get_by_label("Description").fill("More people try Orkline.")
+    dlg.get_by_label("What it is for").fill("More people try Orkline.")
     dlg.get_by_text("High", exact=True).click()
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
-        pg.screenshot(path=str(SHOTS / "desktop-new-goal-1440x900.png"))
-    dlg.get_by_role("button", name="Save goal").click()
+        pg.screenshot(path=str(SHOTS / "desktop-new-party-1440x900.png"))
+    dlg.get_by_role("button", name="Save party").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
-    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "craft": "design", "leader": "analyst",
+    assert _calls(pg, host, "ideas.goal_save")[0] == {"about": "More people try Orkline.", "leader": "analyst",
                                                       "team": ["ui-kit", "artist", "accessibility-reviewer", "copywriter"],
                                                       "every": ["accessibility-reviewer"], "priority": "high"}
-    pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)                                             # the goal opens in the preview
+    pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)                                             # the party opens in the drawer: About this party
     assert "reading" in pg.locator(".shell-goal").inner_text()
-    assert "↻" in pg.locator('.arena-gtab[data-goal="more-people"]').inner_text() or pg.locator('.arena-gtab[data-goal="more-people"]').count() == 1       # its tab
+    assert pg.locator('.arena-gtab[data-goal="more-people"]').count() == 1                          # its tab
     g = host.goals["more-people"]
     g.update(title="Grow installs", state="asks", summary="Installs are the first step.", questions=["Which channel first?"], title_by="keeper",
              metrics=[{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}])
     host.bump({})
     pg.locator(".shell-goal").get_by_text("Installs are the first step.").wait_for(timeout=WAIT_MS)
     text = pg.locator(".shell-goal").inner_text()
-    assert "npm downloads, per week" in text and "weekly installs" in text and "Which channel first?" in text
+    assert "Which channel first?" in text and "weekly installs" not in text and "Metrics" not in text      # a party has no metrics
     assert pg.locator('.arena-gtab[data-goal="more-people"]').get_attribute("title").startswith("Grow installs")
     pg.get_by_label("Answer 1: Which channel first?").fill("npm first")                              # §0: one round, one Send
     pg.locator(".shell-goal").get_by_role("button", name="Send").click()
     assert _sent(pg, host, ("ideas.answer", {"slug": "more-people", "answers": ["npm first"], "goal": True}))
-    pg.get_by_role("button", name="Close the drawer").click()                                       # the goal's screen goes: Edit is in the ideas bar
-    pg.get_by_role("button", name="Edit the party").click()                                         # Edit: description, priority and Title
-    dlg = pg.get_by_role("dialog", name="Edit goal")
-    assert dlg.get_by_label("Title").input_value() == "Grow installs" and dlg.get_by_label("Description").input_value() == "More people try Orkline."
-    dlg.get_by_label("Description").fill("More people try Orkline, and stay.")
-    dlg.get_by_role("button", name="Save goal").click()
+    pg.get_by_role("button", name="Close the drawer").click()                                       # the party's screen goes: Edit is in the party line
+    pg.get_by_role("button", name="Edit the party").click()                                         # Edit: name, what it is for and priority
+    dlg = pg.get_by_role("dialog", name="Edit the party")
+    assert dlg.get_by_label("Name", exact=True).input_value() == "Grow installs" and dlg.get_by_label("What it is for").input_value() == "More people try Orkline."
+    dlg.get_by_label("What it is for").fill("More people try Orkline, and stay.")
+    dlg.get_by_role("button", name="Save party").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     assert _calls(pg, host, "ideas.goal_save", 2)[-1] == {"slug": "more-people", "about": "More people try Orkline, and stay.", "priority": "high"}
     if pg.locator(".shell-drawer").count():
         pg.get_by_role("button", name="Close the drawer").click()
-    pg.get_by_role("button", name="Edit the party").click()                                         # a corrected title is sent, and only then
-    pg.get_by_role("dialog", name="Edit goal").get_by_label("Title").fill("Grow weekly installs")
-    pg.get_by_role("dialog", name="Edit goal").get_by_role("button", name="Save goal").click()
+    pg.get_by_role("button", name="Edit the party").click()                                         # a corrected name is sent, and only then
+    pg.get_by_role("dialog", name="Edit the party").get_by_label("Name", exact=True).fill("Grow weekly installs")
+    pg.get_by_role("dialog", name="Edit the party").get_by_role("button", name="Save party").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     assert _calls(pg, host, "ideas.goal_save", 3)[-1]["title"] == "Grow weekly installs"
 
 
-def test_a_goal_whose_ideas_are_done_is_accepted_by_its_leader_and_its_next_ideas_are_added(shell):
+def test_a_party_with_a_verdict_of_before_says_it_as_history_and_nothing_asks_its_leader_to_accept_it(shell):
     pg, host = shell
     host.goals["land"] = host.goal("land", "Landing page", "high", "ready", order=3, leader=host.leader("growth"),
-                                   metrics=[{"name": "weekly installs", "target": "50", "how": "npm"}])
+                                   metrics=[{"name": "weekly installs", "target": "50", "how": "npm"}], verdict={"met": False, "by": "Growth", "at": "2026-10-10T09:00:00"})
     host.ideas["page"] = host.idea("page", "The landing page", "done", 7, track="land")
     host.bump({})
     _show_goal(pg, "land")
-    pg.get_by_role("button", name="About this goal").click()
-    verdict = pg.locator(".shell-goal").get_by_role("region", name="Verdict")
-    verdict.get_by_role("button", name="Ask Growth to accept").click()
-    assert _sent(pg, host, ("ideas.goal_accept", {"slug": "land"}))
-    assert "Growth" in pg.locator(".shell-goal").get_by_role("region", name="Team").inner_text()      # the leader, first in the party
-    host.goals["land"].update(busy=False, verdict={"met": False, "by": "Growth", "verdict": "Installs are at 30 a week, not 50.",
-                                                    "metrics": [{"name": "weekly installs", "status": "not met", "why": "30 a week on npm"}],
-                                                    "next": ["A post on the forum"]})
-    host.bump({})
-    verdict.get_by_text("Not met yet").wait_for(timeout=WAIT_MS)
-    assert "30 a week on npm" in verdict.inner_text() and "by Growth" in verdict.inner_text()
-    if os.environ.get("ORKCRAFT_SHOTS"):
-        SHOTS.mkdir(parents=True, exist_ok=True)
-        pg.screenshot(path=str(SHOTS / "desktop-goal-verdict-1440x900.png"))
-    verdict.get_by_role("button", name="Add as idea: A post on the forum").click()
-    assert _sent(pg, host, ("ideas.add", {"text": "A post on the forum", "track": "land", "priority": "normal"}))
+    pg.get_by_role("button", name="About this party").click()
+    view = pg.locator(".shell-goal")
+    view.wait_for(timeout=WAIT_MS)
+    assert "Before: not met yet, says Growth · 10 October" in " ".join(view.inner_text().split())          # its old verdict, kept as history
+    assert view.get_by_role("button", name=re.compile("accept", re.I)).count() == 0 and "Verdict" not in view.inner_text() and "Metrics" not in view.inner_text()
+    assert not [1 for n, _a in host.log if n == "ideas.goal_accept"]
 
 
-def test_new_idea_needs_a_goal_a_priority_and_one_button_and_a_closed_dialog_goes_to_the_night(shell):
+def test_new_goal_needs_a_party_a_priority_and_one_button_and_a_closed_dialog_goes_to_the_night(shell):
     pg, host = shell
-    pg.get_by_role("button", name="+ New idea").click()
-    dlg = pg.get_by_role("dialog", name="New idea")
-    assert dlg.get_by_role("button", name="Add", exact=True).is_disabled() and dlg.get_by_role("button", name="Later").count() == 0
-    assert dlg.get_by_label("Goal", exact=True).locator("option").all_inner_texts() == ["Grow installs", "Ship sync"]     # by priority; no General
-    assert dlg.get_by_label("Goal", exact=True).input_value() == "ship-sync"                         # the goal shown
+    dlg = _new_goal(pg)
+    assert dlg.get_by_role("button", name="Add the goal").is_disabled() and dlg.get_by_role("button", name="Later").count() == 0
+    assert dlg.get_by_label("Party", exact=True).locator("option").all_inner_texts() == ["Grow installs", "Ship sync"]     # by priority; no General
+    assert dlg.get_by_label("Party", exact=True).input_value() == "ship-sync"                         # the party shown
     assert dlg.get_by_label("Priority", exact=True).input_value() == "normal"                        # its priority
-    dlg.get_by_label("Goal", exact=True).select_option("grow")
-    assert dlg.get_by_label("Priority", exact=True).input_value() == "high"                          # follows the goal until the person picks one
-    dlg.get_by_label("Goal", exact=True).select_option("ship-sync")
-    dlg.get_by_label("Your idea").fill("Dark mode please")
+    dlg.get_by_label("Party", exact=True).select_option("grow")
+    assert dlg.get_by_label("Priority", exact=True).input_value() == "high"                          # follows the party until the person picks one
+    dlg.get_by_label("Party", exact=True).select_option("ship-sync")
+    dlg.get_by_label("Your goal").fill("Dark mode please")
     dlg.get_by_label("Priority", exact=True).select_option("high")
-    dlg.get_by_role("button", name="Add", exact=True).click()
-    pg.locator(".arena-prow", has_text="Dark mode please").wait_for(timeout=WAIT_MS)                    # at once: Taskmaster is reading it
+    dlg.get_by_role("button", name="Add the goal").click()
+    _goal_row(pg, "Dark mode please").wait_for(timeout=WAIT_MS)                                       # at once: Taskmaster is reading it
     assert adds(host) == [{"text": "Dark mode please", "track": "ship-sync", "priority": "high"}]
-    pg.get_by_role("button", name="+ New idea").click()                                             # closed with text: tonight's queue
-    pg.get_by_label("Your idea").fill("Later idea")
+    dlg = _new_goal(pg)                                                                             # closed with text: tonight's queue
+    dlg.get_by_label("Your goal").fill("Later goal")
     pg.get_by_role("button", name="Close", exact=True).click()
-    _new_ideas(pg).filter(has_text="Later idea").wait_for(timeout=WAIT_MS)                          # under New (n)
-    assert adds(host)[-1] == {"text": "Later idea", "track": "ship-sync", "priority": "normal", "night": True}
-    pg.get_by_role("button", name="+ New idea").click()                                             # closed empty: nothing
-    pg.get_by_role("dialog", name="New idea").wait_for(timeout=WAIT_MS)
+    _new_ideas(pg).filter(has_text="Later goal").wait_for(timeout=WAIT_MS)                          # under New (n)
+    assert adds(host)[-1] == {"text": "Later goal", "track": "ship-sync", "priority": "normal", "night": True}
+    _new_goal(pg)                                                                                   # closed empty: nothing
     before = len(adds(host))
     pg.keyboard.press("Escape")
     pg.wait_for_function("() => !document.querySelector('[role=dialog]')", timeout=WAIT_MS)
     pg.wait_for_timeout(200)
     assert len(adds(host)) == before
-    pg.get_by_role("button", name="+ New idea").click()                                             # Esc with text in it too
-    pg.get_by_label("Your idea").fill("Saved by Esc")
+    dlg = _new_goal(pg)                                                                             # Esc with text in it too
+    dlg.get_by_label("Your goal").fill("Saved by Esc")
     pg.keyboard.press("Escape")
     _new_ideas(pg).filter(has_text="Saved by Esc").wait_for(timeout=WAIT_MS)
     assert adds(host)[-1]["night"] is True and adds(host)[-1]["text"] == "Saved by Esc"
+    dlg = _new_goal(pg)                                                                             # Put it back: the same as closing it
+    dlg.get_by_label("Your goal").fill("Put back")
+    dlg.get_by_role("button", name="Put it back").click()
+    _new_ideas(pg).filter(has_text="Put back").wait_for(timeout=WAIT_MS)
+    assert adds(host)[-1]["night"] is True and adds(host)[-1]["text"] == "Put back"
 
 
-def test_with_no_goal_yet_new_idea_opens_new_goal_first_and_then_itself_with_that_goal(shell):
+def test_with_no_party_yet_new_goal_opens_new_party_first_and_then_itself_with_that_party(shell):
     pg, host = shell
     host.goals.pop("grow"), host.goals.pop("ship-sync")
     host.bump({})
-    pg.get_by_text("No goals yet").wait_for(timeout=WAIT_MS)
-    pg.get_by_role("button", name="New idea").click()
-    dlg = pg.get_by_role("dialog", name="New goal")
-    dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
-    dlg.get_by_role("button", name="Next").click()
-    dlg.get_by_label("Description").fill("Make notes searchable.")
-    dlg.get_by_role("button", name="Save goal").click()
-    idea = pg.get_by_role("dialog", name="New idea")
-    idea.wait_for(timeout=WAIT_MS)
-    assert idea.get_by_label("Goal", exact=True).input_value() == "make-notes"
+    pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)
+    pg.get_by_role("button", name="New goal").click()
+    dlg = pg.get_by_role("dialog", name="New party")
+    dlg.get_by_label("What it is for").fill("Make notes searchable.")
+    dlg.get_by_role("button", name="Save party").click()
+    goal = pg.get_by_role("dialog", name="New goal")
+    goal.wait_for(timeout=WAIT_MS)
+    assert goal.get_by_label("Party", exact=True).input_value() == "make-notes"
 
 
 def test_one_goal_is_shown_the_first_by_priority_with_its_leader_and_the_goal_is_kept(gui):
@@ -908,15 +916,15 @@ def test_one_goal_is_shown_the_first_by_priority_with_its_leader_and_the_goal_is
     pg, host, errors = _open(gui, host=host, ready=".arena")
     try:
         pg.locator('.arena-gtab[data-goal="grow"]').wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-gtab").count() == 2 and "Operations" not in pg.locator(".arena-tabs").inner_text()
+        assert pg.locator(".arena-gtab").count() == 2 and "Operations" not in pg.locator(".arena-pswitch").inner_text()
         assert pg.locator(".arena-gtab.is-on").get_attribute("data-goal") == "grow"                         # none kept yet: the first by priority
         assert pg.locator(".arena").get_attribute("data-goal") == "grow"
         pg.locator('.arena-gtab[data-goal="ship-sync"]').click()
         pg.locator('.arena[data-goal="ship-sync"]').wait_for(timeout=WAIT_MS)
         assert pg.locator(".arena-hero").get_by_role("button", name=re.compile("Architect")).count() == 1      # its leader at the top of the left column
-        assert pg.locator(".arena-prow", has_text="Dark mode").count() == 1                                  # its ideas in Planning, not another goal's
-        assert pg.locator(".arena-prow", has_text="Tag the notes").count() == 0
-        pg.get_by_role("button", name="About this goal").click()
+        assert _goal_row(pg, "Dark mode").count() == 1                                                        # its goals in Planning, not another party's
+        assert _goal_row(pg, "Tag the notes").count() == 0
+        pg.get_by_role("button", name="About this party").click()
         pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)
         assert _sent(pg, host, ("ideas.goal", {"slug": "ship-sync"}))
         pg.reload()                                                                                         # the goal shown is kept
@@ -925,30 +933,30 @@ def test_one_goal_is_shown_the_first_by_priority_with_its_leader_and_the_goal_is
         assert pg.locator(".arena-gtab.is-on").get_attribute("data-goal") == "ship-sync"
         pg.get_by_role("button", name="Close the drawer").click()                                           # the drawer came back with the page: its tabs were kept
         pg.get_by_role("button", name="Edit the party").click()
-        assert pg.get_by_role("dialog", name="Edit goal").is_visible()
+        assert pg.get_by_role("dialog", name="Edit the party").is_visible()
         pg.keyboard.press("Escape")
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
 
 
-def test_edit_goal_changes_the_party_and_sends_it_only_when_changed(shell):
+def test_edit_the_party_changes_its_members_and_sends_them_only_when_changed(shell):
     pg, host = shell
     host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
     host.bump({})
     pg.locator(".arena-hero", has_text="Architect").wait_for(timeout=WAIT_MS)                        # the window has read it
     pg.get_by_role("button", name="Edit the party").click()
-    dlg = pg.get_by_role("dialog", name="Edit goal")
-    party = dlg.get_by_role("group", name="Party")
+    dlg = pg.get_by_role("dialog", name="Edit the party")
+    party = dlg.get_by_role("group", name="The party")
     assert "led by Architect · builds: Grunt · checks: Reviewer" in party.inner_text()
     party.get_by_role("button", name="Change the party").click()
     party.get_by_role("button", name="Take in: Product manager").click()                              # another leader
     party.get_by_role("button", name="Take in: Tester").click()
-    party.get_by_label("Every idea: Reviewer").check()
+    party.get_by_label("Every goal: Reviewer").check()
     if os.environ.get("ORKCRAFT_SHOTS"):
         SHOTS.mkdir(parents=True, exist_ok=True)
-        pg.screenshot(path=str(SHOTS / "desktop-edit-goal-party-1440x900.png"))
-    dlg.get_by_role("button", name="Save goal").click()
+        pg.screenshot(path=str(SHOTS / "desktop-edit-party-1440x900.png"))
+    dlg.get_by_role("button", name="Save party").click()
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     got = _calls(pg, host, "ideas.goal_save")[-1]
     assert (got["leader"], got["team"], got["every"]) == ("product-manager", ["grunt", "reviewer", "tester"], ["reviewer"])
@@ -972,38 +980,37 @@ def test_the_target_chip_shows_and_sets_the_boards_one_target(shell):
         pg.screenshot(path=str(SHOTS / "desktop-board-target-1440x900.png"))
 
 
-def test_a_high_idea_shows_a_spinner_and_stop_leaves_it_stopped_a_low_one_waits_for_tonight(shell):
+def test_a_high_goal_shows_a_sign_of_work_and_stop_leaves_it_stopped_a_low_one_waits_for_tonight(shell):
     pg, host = shell
-    pg.get_by_role("button", name="+ New idea").click()
-    pg.get_by_label("Your idea").fill("Fast one")
-    pg.get_by_role("dialog").get_by_label("Priority", exact=True).select_option("high")
-    pg.get_by_role("button", name="Add", exact=True).click()
-    row = pg.locator(".arena-prow", has_text="Fast one")
+    dlg = _new_goal(pg)
+    dlg.get_by_label("Your goal").fill("Fast one")
+    dlg.get_by_label("Priority", exact=True).select_option("high")
+    dlg.get_by_role("button", name="Add the goal").click()
+    row = _goal_row(pg, "Fast one")
     row.wait_for(timeout=WAIT_MS)
-    assert "↻" in row.inner_text() and "Taskmaster is reading" in row.inner_text()                      # the leader reads it: a mark and words
+    assert row.locator(".ork-sign.work").count() == 1 and "Taskmaster is reading" in row.inner_text()   # the leader reads it: a sign and words
     assert pg.locator(".arena-member.is-lead").get_attribute("data-state") == "work"
-    row.click()                                                                                       # its screen has Stop
+    _open_goal(pg, "Fast one")                                                                        # its screen has Stop
     drawer = _drawer(pg)
     drawer.get_by_role("button", name="Stop", exact=True).click()
     assert _sent(pg, host, ("ideas.read_stop", {"slug": "fast-one"}))
     row = _new_ideas(pg).filter(has_text="Fast one")                                                  # stopped: a new one again, under New (n)
     row.wait_for(timeout=WAIT_MS)
-    assert "stopped" in row.inner_text() and "↻" not in row.inner_text()
+    assert "stopped" in row.inner_text() and row.locator(".ork-sign.work").count() == 0
     low = _new_ideas(pg).filter(has_text="Offline mode")                                              # a Low one: tonight
     assert "tonight" in low.inner_text()
-    power = pg.get_by_role("button", name=re.compile("Process now ·"))                                  # Process now reads the first new idea
-    assert power.is_enabled() and "2 new ideas" in power.inner_text()
+    power = pg.get_by_role("button", name=re.compile("Process now ·"))                                  # Process now reads the first new goal
+    assert power.is_enabled() and "2 new goals" in power.inner_text()
     power.click()
     assert _sent(pg, host, ("ideas.queue", {"slug": "offline", "queue": "now", "via": "party"}))
-    row = pg.locator(".arena-prow", has_text="Fast one")
-    row.click()                                                                                       # Delete asks first
+    _open_goal(pg, "Fast one")                                                                        # Delete asks first
     drawer = _drawer(pg)
-    drawer.get_by_role("button", name="Delete idea").click()
+    drawer.get_by_role("button", name="Delete goal").click()
     drawer.get_by_role("button", name="Keep it").click()
     assert ("ideas.drop", {"slug": "fast-one"}) not in host.log
-    drawer.get_by_role("button", name="Delete idea").click()
+    drawer.get_by_role("button", name="Delete goal").click()
     drawer.get_by_role("button", name="Delete it").click()
-    pg.locator(".arena-prow", has_text="Fast one").wait_for(state="detached", timeout=WAIT_MS)
+    _goal_row(pg, "Fast one").wait_for(state="detached", timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.drop", {"slug": "fast-one"}))
     if os.environ.get("ORKCRAFT_SHOTS"):
         pg.screenshot(path=str(SHOTS / "desktop-board-rows-1440x900.png"))
@@ -1099,7 +1106,7 @@ def test_a_check_that_has_not_run_is_skipped_from_the_spec_and_a_skipped_one_is_
     host.checks[1].update(applies=True, why="", state="", task="")                                   # no task yet: in the plan to come
     host.unplanned = True
     host.bump({})
-    pg.locator(".arena-prow", has_text="Sync ideas").click()
+    _open_goal(pg, "Sync ideas")
     checks = pg.locator(".shell-preview").get_by_role("list", name="Checks")
     checks.wait_for(timeout=WAIT_MS)
     assert checks.get_by_role("button", name="Skip the check: Reviewer").count() == 0                # passed: nothing to spare
@@ -1167,7 +1174,7 @@ def test_in_the_apps_window_a_right_click_copies_any_line_and_saves_logs_with_an
     alert.click(button="right")
     menu.get_by_role("menuitem", name="Save logs with it").click()
     assert _sent(pg, host, ("logs.save", {"said": "Claude Code is not signed in, or its sign-in has expired.", "days": 1}))
-    pg.locator(".arena-prow", has_text="Dark mode").click(button="right")
+    _goal_row(pg, "Dark mode").click(button="right")
     pg.keyboard.press("Escape")                                                 # Esc closes the menu, not the tab under it
     assert menu.count() == 0 and alert.is_visible()
     pg.close()
@@ -1289,10 +1296,10 @@ def test_agents_add_an_agent_edit_it_and_give_it_a_task_type(shell):
 
 def test_every_dialog_has_a_dimmed_backdrop_an_opaque_panel_and_closes_on_esc(shell):
     pg, host = shell
-    opens = [("New goal", lambda: pg.get_by_role("button", name="+ New goal").click()),
-             ("New idea", lambda: pg.get_by_role("button", name="+ New idea").click()),
+    opens = [("New party", lambda: pg.get_by_role("button", name="New party", exact=True).click()),
+             ("New goal", lambda: pg.locator(".arena-new__pile").click()),
              ("Settings", lambda: pg.get_by_role("button", name="Settings").click()),
-             ("Merge into", lambda: pg.locator("button.arena-tabs__into").click()),
+             ("Merge into", lambda: pg.locator("button.arena-into").click()),
              ("Drop this result?", lambda: pg.locator(".arena-result", has_text="Add the queue").get_by_role("button", name="Drop…").click()),
              ("Add an agent", lambda: (_agents(pg), pg.get_by_role("button", name="+ Add agent").click()))]
     for name, opener in opens:
@@ -1343,7 +1350,7 @@ def test_the_stops_count_on_a_goal_s_tab_is_the_warning(shell):
     pg, host = shell
     count = pg.locator('.arena-gtab[data-goal="ship-sync"] .ork-count')                                # the goal's tab
     assert "warning" in count.get_attribute("class") and count.inner_text() == "3"                    # three stops wait: the warning colour
-    assert pg.locator('.arena-gtab[data-goal="ship-sync"]').get_attribute("aria-label") == "Ship sync, 4 %, 3 stops wait for you, at work"
+    assert pg.locator('.arena-gtab[data-goal="ship-sync"]').get_attribute("aria-label") == "Ship sync, 0 of 5 goals done, 3 stops wait for you, at work"
     colour = count.evaluate("e => getComputedStyle(e).backgroundColor")
     assert colour == pg.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-warning)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
 
@@ -1402,10 +1409,10 @@ def test_add_agent_opens_two_ways_from_the_library_and_your_own_and_the_built_in
     assert dlg.get_by_label("Added to what it is told").is_visible()
 
 
-def test_the_goal_s_screen_has_what_the_party_did_closed_at_first_and_read_when_opened(shell):
-    """Spec 43 B: a fold under the goal's Team; its lines, the logged `opened`; *No work yet* while no idea has a plan."""
+def test_about_this_party_has_what_the_party_did_closed_at_first_and_read_when_opened(shell):
+    """Spec 43 B: a fold under The party; its lines, the logged `opened`; *No work yet* while no goal has a plan."""
     pg, host = shell
-    pg.get_by_role("button", name="About this goal").click()
+    pg.get_by_role("button", name="About this party").click()
     pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)
     fold = pg.locator(".shell-goal .shell-party")
     assert fold.get_attribute("open") is None and not [1 for n, _a in host.log if n == "ideas.party"]          # closed at first: not asked for

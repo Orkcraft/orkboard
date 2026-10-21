@@ -1,5 +1,5 @@
 """Spec 43 D on the desktop (docs/specs/43-party-measured.md §4, Tests → D): Needs you's party row with *Take it out* and *Keep it*, never
-counted; a checker's muted line (*its check: 6 ideas, caught 2*) and the dialog's *Its check* line."""
+counted; a checker's muted line (*its check: 6 goals, caught 2*) and the dialog's *Its check* line."""
 from __future__ import annotations
 
 import pytest
@@ -13,7 +13,7 @@ from tests.test_shell_browser import _agents, _calls, _open, _sent, _show_goal, 
 pytestmark = pytest.mark.browser
 
 ROW = {"idea": "", "goal": "ship-sync", "kind": "party", "by": "reviewer", "title": "Take Reviewer out of Ship sync's party?",
-       "text": "It found nothing in the last 8 ideas; a check costs about $0.35.", "priority": "normal", "blocks": False, "at": "2026-10-20T03:00:00"}
+       "text": "It found nothing in the last 8 goals; a check costs about $0.35.", "priority": "normal", "blocks": False, "at": "2026-10-20T03:00:00"}
 HEAD = {"craft": "engineering", "race": "peon", "tier": "elder"}
 
 
@@ -40,7 +40,7 @@ def _needs(pg):
 def test_the_party_row_is_a_proposal_s_with_take_it_out_and_keep_it_and_is_never_counted(shell):
     pg, host = shell
     row = _needs(pg)
-    assert "Take Reviewer out of Ship sync's party?" in row.inner_text() and "It found nothing in the last 8 ideas; a check costs about $0.35." in row.inner_text()
+    assert "Take Reviewer out of Ship sync's party?" in row.inner_text() and "It found nothing in the last 8 goals; a check costs about $0.35." in row.inner_text()
     assert "proposed" in row.inner_text().lower()
     assert row.get_by_role("button", name="Take it out: Take Reviewer out of Ship sync's party?").is_visible()
     rows = pg.locator(".arena-hc").evaluate_all("els => els.map(e => e.dataset.kind)")
@@ -67,7 +67,7 @@ def test_take_it_out_answers_at_once_and_a_keep_with_no_reason_sends_none(shell)
     assert _calls(pg, host, "ideas.party_answer", 2)[-1] == {"goal": "ship-sync", "take": False}
 
 
-def test_the_row_is_one_of_the_goal_s_stops_on_its_tab(shell):
+def test_the_row_is_one_of_the_party_s_stops_on_its_tab(shell):
     pg, host = shell
     host.party_rows = [dict(ROW)]
     host.bump({})
@@ -81,17 +81,17 @@ def test_a_checker_s_muted_line_ends_with_its_check_and_its_dialog_says_it_over_
     _agents(pg)
     week = pg.locator(".shell-role[data-slug='reviewer'] .shell-role__week")
     week.wait_for(timeout=WAIT_MS)
-    assert week.inner_text() == "its check: 6 ideas, caught 2"
+    assert week.inner_text() == "its check: 6 goals, caught 2"
     host.check_week = {"reviewer": {"checks": 1, "clean": 1, "caught": 0, "left": 0, "usd_per_check": None}}
     host.bump({})
-    pg.wait_for_function("() => document.querySelector(\".shell-role[data-slug='reviewer'] .shell-role__week\")?.innerText === 'its check: 1 idea, caught 0'", timeout=WAIT_MS)
+    pg.wait_for_function("() => document.querySelector(\".shell-role[data-slug='reviewer'] .shell-role__week\")?.innerText === 'its check: 1 goal, caught 0'", timeout=WAIT_MS)
     host.check_week = {}
     host.bump({})
     pg.wait_for_function("() => !document.querySelector(\".shell-role[data-slug='reviewer'] .shell-role__week\")", timeout=WAIT_MS)
     pg.get_by_role("button", name="Edit Reviewer").click()
     dlg = pg.get_by_role("dialog", name="Edit agent")
     check = dlg.get_by_label("Its check", exact=True)
-    assert " ".join(check.text_content().split()) == "Its check, the last 30 days: 14 ideas: 11 clean, caught 3 · ≈$0.35 a check"
+    assert " ".join(check.text_content().split()) == "Its check, the last 30 days: 14 goals: 11 clean, caught 3 · ≈$0.35 a check"
     assert dlg.get_by_label("The last 30 days").text_content().startswith("The last 30 days: 14 tasks")
     dlg.get_by_role("button", name="Cancel").click()
     host.record = {"reviewer": {"days": 30, "finished": 2, "merged": 2, "first_time": 2, "usd_per_merged": None,
@@ -99,7 +99,7 @@ def test_a_checker_s_muted_line_ends_with_its_check_and_its_dialog_says_it_over_
     host.bump({})
     pg.wait_for_timeout(300)
     pg.get_by_role("button", name="Edit Reviewer").click()
-    assert " ".join(dlg.get_by_label("Its check", exact=True).text_content().split()) == "Its check, the last 30 days: 2 ideas: too few to say more"
+    assert " ".join(dlg.get_by_label("Its check", exact=True).text_content().split()) == "Its check, the last 30 days: 2 goals: too few to say more"
     dlg.get_by_role("button", name="Cancel").click()
     pg.get_by_role("button", name="Edit Grunts").click()
     assert dlg.get_by_label("Its check", exact=True).count() == 0                                   # an agent that checks nothing

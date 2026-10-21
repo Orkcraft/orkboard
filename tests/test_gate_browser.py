@@ -45,7 +45,9 @@ def test_desktop_review_card_reads_ran_then_the_exit_code_then_the_counts(gui):
     pg.locator(".arena-result", has_text="Pytest counts").wait_for(timeout=WAIT_MS)                # the column lists every result waiting
     for title, line in LINES.items():
         facts = pg.locator(".arena-result", has_text=title).locator(".arena-result__tests")
-        assert " ".join(facts.inner_text().split()) == line, title
+        sign = {"✓": "check", "✗": "cross"}.get(line[0])                                                  # the desktop draws the mark as orkUI's sign, the phone still types it
+        assert " ".join(facts.inner_text().split()) == (line[2:] if sign else line), title
+        assert facts.locator(f".ork-sign.{sign}").count() == (1 if sign else 0), title
     exit_one = pg.locator(".arena-result", has_text="Exit one")
     assert exit_one.get_by_role("button", name="Fix", exact=True).is_visible()
     assert exit_one.get_by_role("button", name="Merge into dev").is_disabled()

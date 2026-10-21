@@ -1,5 +1,5 @@
 """Spec 42 F on the desktop (docs/specs/42-coming-back.md §6, Tests → F): today's spend in the top bar is a button that opens This week
-with its lines in order; *Nothing waits for tonight* and New idea; no night, no tonight line."""
+with its lines in order; *Nothing waits for tonight* and New goal; no night, no tonight line."""
 from __future__ import annotations
 
 import pytest
@@ -43,10 +43,10 @@ def test_todays_spend_opens_this_week_with_its_lines_in_order(gui):
     assert _lines(pg) == ["≈$46 of work at API prices in this project, ≈$3 in Operations: not your bill",
                           "12 results in dev, 10 the first time · ≈$3.84 a result",
                           "The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running",
-                          "Nothing waits for tonight · New idea"]
+                          "Nothing waits for tonight · New goal"]
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "week", "ref": "this", "device": "desktop"}))
-    pg.get_by_role("dialog", name="This week").get_by_role("button", name="New idea").click()
-    pg.get_by_role("dialog", name="New idea").wait_for(timeout=WAIT_MS)                              # it opens New idea
+    pg.get_by_role("dialog", name="This week").get_by_role("button", name="New goal").click()
+    pg.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)                              # it opens New goal
     pg.close()
     assert not errors, "\n".join(errors)
 
@@ -93,10 +93,9 @@ def test_the_week_line_says_what_low_work_does_and_last_weeks_unused_share(gui):
 def test_a_boards_own_night_work_reads_or_sooner_and_a_held_wait_says_until_when(gui):
     pg, host, errors = _open(gui, host=StubHost())
     got = pg.evaluate("""async () => {
-      const base = document.querySelector('link[href$="shell.css"]').href.replace('shell/shell.css', 'board/');
-      const t = await import(base + 'tracks.js'), m = await import(base + 'maplayout.js');
-      return [t.rowOf({ state: "raw", queue: "night", night_by: "board" }, {})[0], t.rowOf({ state: "raw", queue: "night", night_by: "person" }, {})[0],
-        t.rowOf({ state: "plan", start_at: "night", night_by: "board" }, {})[0], t.rowOf({ state: "plan", start_at: "night" }, {})[0],
+      const base = document.querySelector('link[href$="shell.css"]').href.replace('shell/shell.css', 'arena/');
+      const m = await import(base + 'arenawords.js');
+      return [m.tonightWords({ night_by: "board" }), m.tonightWords({ night_by: "person" }), m.tonightWords({ night_by: "board" }, true), m.tonightWords({}, true),
         m.waitsWords({ kind: "week", until: "2026-10-26T09:00" })]; }""")
     assert got[:4] == ["tonight, or sooner if the week has room", "tonight", "starts tonight, or sooner if the week has room", "starts tonight"]
     assert got[4] == "waits: the week is behind · until Mon 09:00"
@@ -156,8 +155,8 @@ def test_the_first_look_of_a_new_week_shows_last_weeks_card_with_its_lines_then_
     assert " ".join(card.locator(".away__title").text_content().split()) == "Last week · 12–18 October"
     assert [" ".join(p.text_content().split()) for p in card.locator(".away__lines p").all()] == [
         "23 results in dev, 19 the first time (83 %; the week before 71 %)", "≈$2.66 a result (the week before ≈$3.10)",
-        "Goals: Offline mode, 3 ideas done · Billing, 1", "Flags: Offline mode, met",
-        "Cost the most: Offline mode, ≈$12 · Fastest from idea to dev: Export CSV, 42 min",
+        "Parties: Offline mode, 3 goals done · Billing, 1", "Flags: Offline mode, met",
+        "Cost the most: Offline mode, ≈$12 · Fastest from goal to dev: Export CSV, 42 min",
         "Questions: 9 of 12 answers were the recommended one; 2 cards left to the Taskmaster",
         "Nights: 5 with work done, 2 with none"]
     assert pg.get_by_label("While you were away").count() == 0                                         # the week's card comes first
@@ -251,8 +250,8 @@ def test_a_chip_of_a_task_the_pace_started_says_the_week_has_room_and_a_week_wai
     assert "by itself: the week has room" in chips.filter(has_text="Retry on a lost signal").inner_text()
     assert "the week has room" not in chips.filter(has_text="Add the queue").inner_text()
     words = pg.evaluate("""async () => {
-      const base = document.querySelector('link[href$="shell.css"]').href.replace('shell/shell.css', 'board/');
-      const m = await import(base + 'maplayout.js');
+      const base = document.querySelector('link[href$="shell.css"]').href.replace('shell/shell.css', 'arena/');
+      const m = await import(base + 'arenawords.js');
       return m.waitsWords({ kind: "week", until: "" }); }""")
     assert words == "waits: the week is behind"
     pg.close()
