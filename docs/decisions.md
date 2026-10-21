@@ -751,3 +751,20 @@ for the product, one for the platform, one for the whole flow, each with its own
 A new face and new words over v1's mechanics, two small additions to the host (a goal's flag, its element), and the
 end of a model call (a party's acceptance): the owner's call, before the testers' numbers, as §55, §59, §61 and §62.
 Mockups E and F of *Orkboard: one window*. Spec 50.
+
+## 64. Pick one: a task may make a few variants of one kind (pictures, sounds, clips, texts) and the person picks one with a note (21 October, the owner)
+
+Why: the owner. Some work is chosen by eye or by ear (an artist's logos, an icon, a jingle, a clip, a tagline), not
+reviewed as a change; one variant a round makes the person wait a round for each look. So:
+1. **A task may end with variants instead of a change**: two to six of one kind, which the plan asks for when the goal's
+   spec asks to choose by eye or by ear; never code. The task leaves them as files and a manifest the runner reads and
+   never commits (as a check's findings, §56.1); they live in the goal's state folder, not in the repository.
+2. **The kinds are one mechanism**: pictures, sounds, clips and texts are files with a media type sniffed from their
+   bytes, limits by kind, served by one signed route (Range for sound and video, a sandbox for anything that could run);
+   the faces draw each kind as a tile. A new kind is a new tile and a line in `KINDS`, not a new flow.
+3. **The person picks one, with a note, or none**: *Take B* commits the one picked to where the plan said and the work
+   goes on (the note told to the tasks after); *None of them* asks for a note and runs the task again. It is a stop of the
+   bottom row (*Pick one*), answered on the card or with a note in the drawer, on the phone in its raised card or on its
+   own screen.
+4. **Measured**: picks a week, taken at the first round or asked again, the time to pick, where, with a note or not.
+A new end for a task over v1's runner and the faces of §62–§63, the owner's call. Spec 51.
