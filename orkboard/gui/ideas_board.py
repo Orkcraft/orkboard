@@ -129,8 +129,8 @@ class BoardMixin:
                 "rev": self.rev, "demo": bool(self.host.demo)}
 
     def _idea_needs(self, i: dict, st: dict, plan: dict | None, asks: list[str], root) -> list[dict]:
-        """What of one idea needs the person (§10): realm/board_map.py, which the Map reads too."""
-        return board_map.idea_needs(root, self.state_dir, i, st, plan, asks)
+        """What of one idea needs the person (§10): realm/board_map.py, which the Map reads too; and the picks that wait (spec 51)."""
+        return board_map.idea_needs(root, self.state_dir, i, st, plan, asks) + self.pick_rows(i, plan)
 
     # -- who passes the plan (§5) ----------------------------------------------------------------------------
 

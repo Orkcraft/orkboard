@@ -28,6 +28,9 @@ KIND_WORDS = {"goal": "A party asks", "asks": "A spec asks", "plan": "A plan wai
               "op": "At your check", "op_failed": "Failed"}      # js/board/today.js KIND_WORDS, the kinds that wait for an answer
 
 
+PICK_WORDS = "{member} asks you to pick one"      # a task that made variants waits for the person's pick (spec 51 §2.4): a pick that waits is an answer that waits
+
+
 class PushRefused(Exception):
     """A `mobile.push_*` the computer refuses, in plain words."""
 
@@ -82,7 +85,9 @@ class Pusher:
             rows += self.host.ops.needs()
         except Exception:
             pass
-        row = next((n for n in rows if n.get("kind") in KIND_WORDS), None)
+        row = next((n for n in rows if n.get("kind") in KIND_WORDS or n.get("kind") == "pick"), None)
+        if row and row["kind"] == "pick":                           # said by who asks: the member the task ran as, no title
+            return PICK_WORDS.format(member=str((row.get("by") or {}).get("name") or "A member")), ""
         return (KIND_WORDS[row["kind"]], short_of(str(row.get("title") or ""))) if row else None
 
     def words_needs(self, waiting: int) -> str:

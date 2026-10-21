@@ -31,6 +31,8 @@ def member_state(slug: str, nodes: list[dict]) -> tuple[str, str]:
     states = [t["state"] for _n, t in mine]
     if "failed" in states:
         return "needs", "failed"
+    if "picking" in states:                  # a task that made variants waits for the person's pick (spec 51)
+        return "needs", "pick"
     if any(s in ("running", "testing") for s in states):
         return "work", ""
     if any(t["state"] in ("held", "ready", "waiting") and (n["start_at"] == "night" or (n["waits"] or {}).get("kind") == "night")

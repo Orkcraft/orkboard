@@ -154,6 +154,29 @@ def test_the_plan_is_strict_and_estimated(keeper):
     assert plan["passed_at"] is None and plan["idea"] == slug
 
 
+def test_a_task_that_makes_variants_carries_a_clean_pick_and_the_prompt_says_when_spec_51(keeper):
+    """Spec 51 §2.1: a task of the plan may carry `pick` ({n 2–6, kind, ask, target}); a bad one is dropped, a check never has one, a plan
+    written before has none; the Taskmaster's prompt says when."""
+    slug = ideas.add_idea(keeper.root, "a logo for the app", state_dir=keeper.state)
+    good = {"n": 4, "kind": "image", "ask": "  A logo\nfor the app ", "target": "assets/logo.png", "evil": 1}
+    keeper.call = Model({"tasks": [
+        {"id": "a", "title": "Draw the logo", "brief": "Draw it", "kind": "art", "pick": good},
+        {"id": "b", "title": "Name it", "brief": "Three names", "kind": "text", "pick": {**good, "n": 9}},
+        {"id": "c", "title": "Wire it", "brief": "Use it", "kind": "code", "after": ["a"], "pick": {**good, "target": "../x.png"}},
+        {"id": "d", "title": "Plain", "brief": "No pick"},
+        {"id": "e", "title": "Check", "brief": "Look", "kind": idea_keeper.idea_checks.TAGS[0], "pick": good}]})
+    keeper.plan(slug)
+    _wait(keeper, slug)
+    tasks = ideas.plan(keeper.state, slug)["tasks"]
+    assert tasks[0]["pick"] == {"n": 4, "kind": "image", "ask": "A logo for the app", "target": "assets/logo.png"}
+    assert all("pick" not in t for t in tasks[1:])
+    prompt = " ".join(keeper.call.asked[0]["prompt"].split())
+    assert ('give it `"pick": {"n": 2 to 6, "kind": "image" | "audio" | "video" | "text", "ask": "<the question, one line>", '
+            '"target": "<the repository path the picked one is written to>"}`') in prompt
+    assert "only when the spec asks to choose by eye or by ear (a logo, an icon, a sound, a clip, a name or a tagline)" in prompt
+    assert "At most one such task per goal at a time; never for code." in prompt
+
+
 def test_a_plan_with_no_task_goes_back_and_a_passed_plan_is_never_rewritten(keeper):
     slug = ideas.add_idea(keeper.root, "x", state_dir=keeper.state)
     ideas.save_state(keeper.state, slug, state="ready")

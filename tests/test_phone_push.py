@@ -202,6 +202,21 @@ def test_the_kinds_are_the_pages_words():
     assert phone_push.KIND_WORDS["goal"] == "A party asks"                               # a party's question: spec 50 §0
 
 
+def test_a_pick_that_waits_is_an_answer_that_waits_said_by_who_asks_and_never_by_its_ask_spec_51(rig, tmp_path):
+    from tests import pick_files as pf
+    rig.tick(at(12, 0))
+    slug = ideas.add_idea(rig.root, "A logo for the app", rig.goal, rig.state)
+    ideas.save_state(rig.state, slug, state="working")
+    task = {"id": "k1", "title": "Draw the logo", "short": "Logo", "brief": "b", "kind": "art", "tier": "warrior", "after": [], "state": "picking",
+            "round": 1, "finished": "2026-10-21T10:00:00", "role": "grunt", "pick": pf.ask(2, "image", text="Which wolf is meanest?")}
+    ideas.save_plan(rig.state, slug, {"idea": slug, "made_at": "2026-10-21T09:00:00", "passed_at": None, "todos": [], "tasks": [task]})
+    pf.make_pick(rig.state, tmp_path / "s", {"a.png": pf.png(), "b.png": pf.png(2, 2)}, slug=slug)
+    rig.host.ideas.rev += 1
+    (msg,) = rig.tick(at(12, 1))
+    assert msg == {"title": "Orkline", "body": "Grunt asks you to pick one", "tag": "needs", "badge": 1, "url": "./#needs"}
+    assert "meanest" not in json.dumps(msg) and "Draw the logo" not in json.dumps(msg)
+
+
 # -- the commands -----------------------------------------------------------------------------------------------
 
 def _as_phone(host, name, args, device):

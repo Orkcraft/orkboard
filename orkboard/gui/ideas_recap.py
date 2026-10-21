@@ -40,7 +40,8 @@ class RecapMixin:
         lines = event_log.read(Path(self.host.repo_root), since=(since - dt.timedelta(days=1)).strftime("%Y-%m-%d"))
         root = self.root(False)
         names = {i["slug"]: {"title": i["title"], "short": i["short"], "goal": i["track"]} for i in ideas.ideas(root)}
-        mine = {str(r.get("idea") or "") for r in lines if r.get("event") in (event_log.TASK_STATE, event_log.RESULT_DECIDED)}
+        mine = {str(r.get("idea") or "") for r in lines
+                if r.get("event") in (event_log.TASK_STATE, event_log.RESULT_DECIDED, event_log.PICK_ASKED, event_log.PICK_ANSWERED)}
         tasks = {slug: {str(t.get("id")): str(t.get("title") or "") for t in (ideas.plan(self.state_dir, slug) or {}).get("tasks") or []}
                  for slug in mine if slug in names}
         titles = {"ideas": names, "goals": {t["slug"]: t["title"] for t in ideas.tracks(root, make=False)}, "tasks": tasks}

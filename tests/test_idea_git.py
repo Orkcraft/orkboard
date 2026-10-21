@@ -140,3 +140,28 @@ def test_the_diff_has_commits_files_and_patches_and_cuts_what_is_too_large(repo,
     monkeypatch.setattr(idea_git, "PATCH_FILE", 10_000)
     monkeypatch.setattr(idea_git, "PATCH_ALL", 250)                 # all of them together
     assert sum(f["patch"] is None for f in g.diff(branch, base)["files"]) == 1
+
+
+def test_one_file_is_committed_alone_and_a_worktree_is_put_back_as_it_was_cut_spec_51(repo):
+    """A picked file is committed by itself (`commit_file`); a task that made variants gets its worktree back (`restore`)."""
+    g = IdeaGit(repo)
+    path, _branch = g.prepare("demo", "k1", "main")
+    start = g.head(path)
+    (path / "assets").mkdir()
+    (path / "assets" / "logo.png").write_bytes(b"\x89PNG one")
+    (path / "stray.txt").write_text("not wanted\n")
+    g.commit_file(path, "assets/logo.png", "Draw the logo: B · wolf")
+    assert git(path, "log", "-1", "--format=%s") == "Draw the logo: B · wolf"
+    assert git(path, "show", "--stat", "--format=", "HEAD").split()[0] == "assets/logo.png" and (path / "stray.txt").exists()
+    with pytest.raises(RuntimeError, match="already holds that file"):
+        g.commit_file(path, "assets/logo.png", "again")                 # the same bytes: nothing changes
+    (repo / ".gitignore").write_text(".orkcraft/\nhidden/\n")
+    git(repo, "commit", "-am", "ignore")
+    path2, _ = g.prepare("demo", "k2", "main")
+    (path2 / "hidden").mkdir()
+    (path2 / "hidden" / "logo.png").write_bytes(b"x")
+    with pytest.raises(RuntimeError, match="hidden/logo.png is ignored by git"):
+        g.commit_file(path2, "hidden/logo.png", "m")
+    commit_in(path, "tool.py", "print(1)\n")
+    g.restore(path, start)
+    assert g.head(path) == start and not (path / "tool.py").exists() and not (path / "stray.txt").exists() and not g.dirty(path)

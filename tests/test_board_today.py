@@ -165,3 +165,15 @@ def test_a_goals_flag_is_a_row_that_opens_the_goal_spec_50():
     gone = one("idea_flagged", idea="gone", goal="elsewhere", by="gate")
     assert (gone["title"], gone["goal"], gone["open"]) == ("gone", "elsewhere", {"kind": "idea", "slug": "gone"})   # a goal the Board lost reads as its slug
     assert board_today.rows([line("idea_flagged", 1, goal="offline", by="gate")], TITLES) == []        # no goal named: no row
+
+
+def test_a_pick_asked_is_in_the_alert_tone_and_its_answer_is_what_was_picked_or_new_ones_spec_51():
+    k1 = {"idea": "sync", "task": "k1"}
+    assert one("pick_asked", **k1, n=3, media="image", round=1) == {
+        "at": "14:30", "mark": "!", "tone": "alert", "words": "Pick one", "title": "Queue writes", "goal": "offline",
+        "idea": "sync", "task": "k1", "open": {"kind": "pick", "slug": "sync", "task": "k1"}}
+    got = one("pick_answered", **k1, key="B", note_chars=0, via="hand", seconds=12.0)
+    assert (got["mark"], got["tone"], got["words"], got["title"]) == ("✓", "ok", "Picked B", "Queue writes")
+    got = one("pick_answered", **k1, key=None, note_chars=14, via="drawer", seconds=40.0)
+    assert (got["mark"], got["tone"], got["words"]) == ("↺", "muted", "New ones asked")
+    assert board_today.rows([line("pick_asked", 1, idea="sync", n=2, media="text", round=1)], TITLES) == []        # no task, no row
