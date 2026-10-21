@@ -339,7 +339,7 @@ keeps what it proves, through the new window. `tests/test_shell_browser.py` keep
 `tests/test_shell_browser.py`. Both: `docs/specs/48-map-ideas.md` gets one line pointing here (B). The variables
 Orkboard's sheets may set of their own (`tests/test_design_system.py`) gain, with this spec, `--rot`, `--dy`, `--z`,
 `--ov` (a fan's turn, rise, order and overlap) and `--cols` (the columns' template); a part uses no other. Anything
-else: stop and write it in §14 first.
+else: stop and write it in §14 (as built) first.
 
 ## 13. Tests
 - **A0**: the classes and their states; tokens only; the gallery's sections; the marks' files, sizes and bytes; the version.
@@ -369,7 +369,17 @@ else: stop and write it in §14 first.
 - Each part: the critical tests (`orkcraft.toml` `always`), its files' tests, `tests/test_gui_wording.py`,
   `tests/test_design_system.py`, `tests/test_architecture.py`.
 
-## 14. Not in this spec
+## 14. As built (notes, no change of the contract)
+- **A (the host).** `ideas.today`'s `open.kind` is also `"gate"` (`{kind: "gate", slug: ""}`, the gate's row) and `"goal"`
+  (`{kind: "goal", slug: <goal>}`, a goal answered): the faces open the gate's screen and the goal's. A check that found
+  nothing (`task_state` merged with `clean`) landed nothing and has no row, as the recap counts it. `gate_merged` also
+  logs `into` and `main`; the gate's row says *<into> merged into <main>* with the title *<into> → <main>*. The *no gate*
+  refusals name the branches (*Results merge into main itself: there is no gate*, *This folder has no main branch:
+  there is no gate*); a failed push does not undo the merge (its note says *push failed: …*). `VIA` lives in
+  `gui/ideas_args.py` beside `_via` (`gui/ideas.py` imports it). The merge commit's author is the Board's own, as a
+  task's commit (`Orkline`). The snapshot's `reserve` is read at each snapshot (the clock moves it).
+
+## 15. Not in this spec
 - The gate's report of §49.5 (the full suite, the browser tests, `checks.toml`), *Revert* on it, and the media look.
 - A retry of one failed task (*Start again* runs the idea's unmerged tasks, as today); dragging a stop or a task.
 - From the game, turned down (`Concept.dc.html`): packs and golden members, quests and streaks, a turn's timer, emotes
