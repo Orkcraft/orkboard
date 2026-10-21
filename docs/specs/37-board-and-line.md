@@ -12,7 +12,7 @@ to another repository here (stage 2, §7). **Builds:** Claude (A, C, D2, D3 on t
 elder tier) · **Review:** full · P1.
 
 **When** (the order changed by the owner, 18 October): A and C are merged. B now. **The move** (§9) right after B,
-not after the testers: Orkboard goes to its own repository, `Orkcraft/orkboard`. D (§8, its own three branches) is
+not after the testers: Orkboard goes to its own repository, `orkWorks/orkBoard`. D (§8, its own three branches) is
 built there, after the move. gate-kinds (decisions §49.4–7) puts its `[[check]]` rows into C's file; B and gate-kinds
 are not built at the same time (both change `gui/ideas.py`).
 
@@ -308,7 +308,7 @@ document). No edit and no git from the phone: `gui/mobile.py` allows `projects.l
 | **D2. Desktop** | `spec/37-project-desktop` | §8's screens on the desktop | `gui/static/js/shell/*` (new `files.js`, `gitpane.js`, `projects.js`, `editor.js`; `shell.js`, `preview.js`, `topbar.js`, `settings.js`, `shell.css`), `gui/static/board.js` |
 | **D3. Phone** | `spec/37-project-phone` | the switcher and a Markdown file read-only | `gui/static/pwa/shell-*.js` (new `shell-projects.js`), `pwa/board-app.js`, `pwa/app.css`, `pwa/sw.js` (cache version, and `tests/test_pwa.py`'s pinned version with it) |
 
-D comes after the move (§9) and is built in `Orkcraft/orkboard`: its paths are the same under the package
+D comes after the move (§9) and is built in `orkWorks/orkBoard`: its paths are the same under the package
 `orkboard/` in place of `orkcraft/`. D1 on the elder tier (paths, secrets, git: security and data that can be lost),
 D2 and D3 on the warrior tier, branched from D1 once it is pushed.
 
@@ -317,7 +317,7 @@ The owner (18 October): Orkboard leaves this repository as soon as it runs on it
 numbers. Orkboard is the owner's lab; the testers stay on Orkline, whose installs do not change during their week.
 Done by the PM session (it creates the repository), on a fresh `main` with B merged.
 - **When:** `SPLIT` and `KNOWN` are empty and `test_orkboard_starts_alone` passes on `main`.
-- **The repository:** `Orkcraft/orkboard`, with the history of what moves (`git filter-repo` on the paths below).
+- **The repository:** `orkWorks/orkBoard`, with the history of what moves (`git filter-repo` on the paths below).
 - **What moves:** every module of `layers.BOARD` (`gui/board_host.py` and B's other new Orkboard modules with them);
   the shell's pages and scripts (`static/board.js`, `js/shell/*`, `js/board/*`, `pwa/board-app.js`, `pwa/board.js`,
   `pwa/shell-*.js`, `pwa/util.js`, `pwa/sw.js`, `pwa/index.html`, `pwa/manifest.webmanifest`, the icons) and what
@@ -330,16 +330,16 @@ Done by the PM session (it creates the repository), on a fresh `main` with B mer
   so Orkboard and Orkline read the same settings and the same Board of a project, and switching loses nothing.
 - **Orkboard's own files:** `pyproject.toml` (its dependencies only), `CLAUDE.md` (this repository's rules that
   apply: Wording, Where code goes, Alpha; no Art, no Camp), a README of five lines, its CI on its tests.
-  Installed by the owner from git (`uv tool install git+https://github.com/Orkcraft/orkboard`); no `updates.json` in
+  Installed by the owner from git (`uv tool install git+https://github.com/orkWorks/orkBoard`); no `updates.json` in
   its first version.
 - **Orkline, during the testers' week:** its copy of Orkboard's modules is **frozen**. A change to them is made in
-  `Orkcraft/orkboard` first; a fix the testers need in Orkline is made in both on the same day, the orkboard commit
+  `orkWorks/orkBoard` first; a fix the testers need in Orkline is made in both on the same day, the orkboard commit
   named in Orkline's. `layers.py` stays in Orkline and its test keeps the boundary meanwhile.
 - **Orkline, after the testers' week:** it depends on `orkboard` (`pyproject.toml`, `install.sh`, `Formula/`, a
   release in `updates.json`), its copies are deleted, its imports rewritten by the same script (`orkcraft.realm.ideas`
   → `orkboard.realm.ideas`), and `tests/test_architecture.py` checks that nothing of Orkline is imported by
   `orkboard`. A spec of its own then.
-- **Done when:** in `Orkcraft/orkboard`, `orkboard` starts on a fixture repository with no module of the line
+- **Done when:** in `orkWorks/orkBoard`, `orkboard` starts on a fixture repository with no module of the line
   present; its tests and the shell's browser tests pass; the owner runs it on another project; Orkline's `main` is
   unchanged and green.
 

@@ -28,7 +28,7 @@ from orkboard.realm import harnesses, tool_errors, tool_run
 
 TOOLS, WHO, MCP, TOWN, SURVEY, RAISING = "tools", "who", "mcp", "town", "survey", "raising"
 RAISE_STEP_S = 0.8          # between two raising steps of the town (gui/onboarding_town.py): each building seen going up
-ISSUES = "https://github.com/Orkcraft/orkcraft/issues/new"
+ISSUES = "https://github.com/orkWorks/orkLine/issues/new"
 RECOMMENDED = ("claude", "codex", "cursor")    # what the step offers to install when no AI tool is here
 CHECK_PROMPT = "Reply with the one word: ok"   # Check: a short real request, on the tool's cheapest tier
 

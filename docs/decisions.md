@@ -1,6 +1,6 @@
 # Decisions §45–§50: Orkboard's ground
 
-Copied on 18 October 2026 from Orkline's `docs/design/decisions-2026-10.md` (Orkcraft/orkcraft, `main` at 163fea1f),
+Copied on 18 October 2026 from Orkline's `docs/design/decisions-2026-10.md` (orkWorks/orkLine, `main` at 163fea1f),
 sections 45 to 50 as they stood when Orkboard moved to its own repository (docs/specs/37-board-and-line.md §9). They say
 why the four windows — the Board with its goals, the preview, Agents and Review — became a tool of their own, and how
 Orkline goes on from it. Orkline's file stays the record of the decisions before §45 and goes on after §50; the links
@@ -251,7 +251,7 @@ nothing of the other. So:
    this repository's critical tests, and passes a result when no test file is found), its settings in a tracked
    `orkcraft.toml` at the repository's root (`.orkcraft/` is git-ignored, so §49.7's checks go there too). Nothing moves files while specs 35 and 36 are open on them. **Stage 2, right
    after Orkboard runs on its own** (changed the same day by the owner; first planned after the testers' numbers):
-   Orkboard moves with its history to `Orkcraft/orkboard`, package `orkboard`; the state keeps its names, so both read
+   Orkboard moves with its history to `orkWorks/orkBoard`, package `orkboard`; the state keeps its names, so both read
    the same settings and Boards. Orkline's copy stays frozen through the testers' week (a change lands in orkboard
    first), then Orkline depends on the package. Item 10 is built there. Spec 37 §9.
 10. **Orkboard is a project's IDE** (the owner, the same day). It opens a folder as an IDE does (git started when

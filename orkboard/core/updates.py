@@ -1,6 +1,6 @@
 """Updates (docs/updates.md in Orkline): Orkboard looks for a newer version of itself and installs it.
 
-The list of releases is `updates.json` at the root of Orkboard's repository (Orkcraft/orkboard), read from its `main`
+The list of releases is `updates.json` at the root of Orkboard's repository (orkWorks/orkBoard), read from its `main`
 branch; while it has none, nothing is offered. Orkline's list is Orkline's: Orkboard never reads it, and keeps what it
 read in a cache file of its own.
 A release marked `critical` (a security fix, a bug that loses work) installs by itself when the
@@ -42,8 +42,8 @@ from typing import Any, Callable
 from orkboard import __version__
 from orkboard.env import getenv
 
-MANIFEST_URL = "https://raw.githubusercontent.com/Orkcraft/orkboard/main/updates.json"
-SOURCE = "git+https://github.com/Orkcraft/orkboard"
+MANIFEST_URL = "https://raw.githubusercontent.com/orkWorks/orkBoard/main/updates.json"
+SOURCE = "git+https://github.com/orkWorks/orkBoard"
 CHECK_EVERY_S = 6 * 3600          # the list is read again after this long
 RETRY_FAILED_S = 24 * 3600        # an install that failed is tried again by itself after this long
 FETCH_TIMEOUT_S = 3.0             # a launch never waits longer than this for the list

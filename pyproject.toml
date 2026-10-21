@@ -37,8 +37,8 @@ browser = ["playwright>=1.45"]              # the browser tests (pytest -m brows
 gui = ["pywebview>=5.0", "cryptography>=41"]
 
 [project.urls]
-Homepage = "https://github.com/Orkcraft/orkboard"
-Issues = "https://github.com/Orkcraft/orkboard/issues"
+Homepage = "https://github.com/orkWorks/orkBoard"
+Issues = "https://github.com/orkWorks/orkBoard/issues"
 
 [project.scripts]
 orkboard = "orkboard.gui.board_host:main"

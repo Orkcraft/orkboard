@@ -86,8 +86,8 @@ def test_what_installs_by_itself_follows_the_policy():
 
 
 def test_orkboard_reads_its_own_list_never_orklines():
-    assert updates.MANIFEST_URL == "https://raw.githubusercontent.com/Orkcraft/orkboard/main/updates.json"
-    assert updates.SOURCE == "git+https://github.com/Orkcraft/orkboard"
+    assert updates.MANIFEST_URL == "https://raw.githubusercontent.com/orkWorks/orkBoard/main/updates.json"
+    assert updates.SOURCE == "git+https://github.com/orkWorks/orkBoard"
     assert updates.state_path().name == "orkboard-updates.json"            # Orkline's cache is updates.json
 
 
@@ -199,9 +199,9 @@ def test_a_copy_from_elsewhere_says_what_to_run(tmp_path, monkeypatch):
     monkeypatch.setattr(updates, "_direct_url", lambda: "")
     way = updates.method(tmp_path / "site" / "orkboard", prefix="/usr", which=lambda n: None)
     assert not way.can and updates.SOURCE in way.why
-    monkeypatch.setattr(updates, "_direct_url", lambda: "https://github.com/Orkcraft/orkboard")
+    monkeypatch.setattr(updates, "_direct_url", lambda: "https://github.com/orkWorks/orkBoard")
     pip = updates.method(tmp_path / "site" / "orkboard", prefix="/usr", which=lambda n: None)
-    assert pip.kind == "pip" and pip.steps[0][-1] == "orkboard @ git+https://github.com/Orkcraft/orkboard"
+    assert pip.kind == "pip" and pip.steps[0][-1] == "orkboard @ git+https://github.com/orkWorks/orkBoard"
 
 
 def test_an_install_runs_each_step_and_reads_the_new_version():
