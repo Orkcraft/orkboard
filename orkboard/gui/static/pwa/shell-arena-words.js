@@ -161,7 +161,7 @@ export function tasksOf(work, slug, now) {
 }
 
 /** Planning's items: the ideas in Planning that are not new, the stops first, then the ones the leader is on, then the rest; then the new ones. */
-export function planningItems(nodes, lead) {
+export function planningItems(nodes, lead, titleOf = (slug) => slug) {
   const who = lead?.name || "Taskmaster";
   const rows = nodes.filter((n) => stageOf(n) === "planning" && n.state !== "done");
   const item = (n) => {
@@ -172,7 +172,7 @@ export function planningItems(nodes, lead) {
     else if (n.needs_you === "proposal") words = "proposed";
     else if (busy) words = `${who} is ${n.state === "reading" ? "reading" : "planning"} ↻`;
     else if (raw) words = n.queue === "night" || n.waits?.kind === "night" ? "new · tonight" : `new · ${who} reads it later`;
-    else { const s = rowState(n).text, w = waitsWords(n); words = w && !s.includes(w) ? `${s} · ${w}` : s; }
+    else { const s = rowState(n, titleOf).text, w = waitsWords(n); words = w && !s.includes(w) ? `${s} · ${w}` : s; }
     return { key: n.slug, idea: n.slug, title: short(n), badge: stop ? "!" : busy ? "↻" : "·", kind: stop ? "stop" : busy ? "busy" : "quiet", words,
       tip: `${n.title} · ${words}`, label: `${n.title}: ${words}`, open: { kind: n.needs_you === "plan" ? "plan" : "idea", slug: n.slug } };
   };
@@ -265,7 +265,8 @@ export function modelOf(st, slug, now = Date.now()) {
   const members = membersOf(st, g, work, now);
   const lead = members.find((m) => m.band === "lead") || null;
   const build = members.filter((m) => m.band === "build"), check = members.filter((m) => m.band === "check");
-  const planning = planningItems(nodes, lead);
+  const titles = new Map((st.map?.nodes || []).map((n) => [n.slug, n.title]));
+  const planning = planningItems(nodes, lead, (slug) => titles.get(slug) || slug);
   if (lead) lead.tasks = planning;
   const raw = nodes.filter((n) => n.state === "raw" && stageOf(n) === "planning");
   const next = raw.find((n) => n.queue !== "now" && !n.held_until) || null;

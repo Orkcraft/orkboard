@@ -41,7 +41,7 @@ export function makeStops(core, ctx, needs, ops, fab) {
     type: "button", title: tip || null, disabled, onclick: run, ...attrs }, label);
   /** A command of the stops: laid back first (the toast shows), then read again. */
   const go = (name, args, said) => async () => {
-    const r = await core.call(name, args);
+    const r = await core.call(name, typeof args === "function" ? args() : args);              // read when pressed: a line typed on the raised one counts
     if (!r) return;
     lower();
     if (said) ctx.flash(said);
@@ -95,8 +95,8 @@ export function makeStops(core, ctx, needs, ops, fab) {
     if (n.kind === "proposal" || n.kind === "party") {
       const party = n.kind === "party";
       const reason = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: party ? "Why not? (optional, one line)" : "Why not? (optional)" });
-      const say = (take) => go(party ? "ideas.party_answer" : "ideas.proposal", party ? { goal: n.goal, take, ...(!take && reason.value.trim() ? { reason: reason.value.trim() } : {}) }
-        : { slug: n.idea, take, ...(take ? { priority: goal?.priority || n.priority || "normal" } : reason.value.trim() ? { reason: reason.value.trim() } : {}) });
+      const say = (take) => go(party ? "ideas.party_answer" : "ideas.proposal", () => (party ? { goal: n.goal, take, ...(!take && reason.value.trim() ? { reason: reason.value.trim() } : {}) }
+        : { slug: n.idea, take, ...(take ? { priority: goal?.priority || n.priority || "normal" } : reason.value.trim() ? { reason: reason.value.trim() } : {}) }));
       return { ...base, gem: { text: "—", tip: "Not planned yet" }, big: lead, text: n.text || "", quickLabel: "Quick moves",
         quick: () => [btn(party ? "Take it out" : "Take", say(true), { primary: true, tip: party ? "Takes the proposed change out of the party" : "Puts it on the Board as a new idea", attrs: { "data-act": "take" } }),
           reason, btn(party ? "Keep it" : "No", say(false), { tip: party ? "Keeps the party as it is" : "Leaves it out", attrs: { "data-act": "no" } })] };

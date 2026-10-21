@@ -468,7 +468,7 @@ async def _band(page, band):
 
 def _item(page, title):
     """An item of the field by its title: a task in its member's column, an idea in Planning's (the leader's column)."""
-    return page.locator(".stack .tcard", has_text=title).first
+    return page.locator(".stack .tcard").filter(has=page.locator(".tcard__name", has_text=title)).first
 
 
 async def _open_idea(page, title):
