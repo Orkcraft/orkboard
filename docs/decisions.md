@@ -689,5 +689,8 @@ was turned down; C lists what was taken from the game). So:
    §61.6 puts it.
 7. **Measured:** the share of answers given from the bottom row (`via: "hand"`) against the drawer and Needs you of
    before; opens from the strip (`via: "today"`) and from a member (`via: "party"`); the gate's presses a week.
+8. **Motion says what changed, never decorates**: a task that leaves fades where it stands and its column settles
+   into the gap, a task whose state moves it slides to its place, nothing moves under the pointer or the focus, a merge
+   lights its member's number once; nothing flies, nothing bounces, none for what changed while the page was hidden.
 A new face over v1's mechanics and the gate decided in §49.5: the owner's call, before the testers' numbers, as §55,
 §59 and §61. Spec 49.

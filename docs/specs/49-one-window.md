@@ -318,9 +318,23 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
    `CACHE` goes up by one and its `SHELL` lists the new modules.
 
 ## 11. Motion (B, C)
-Three, each in steps and none under `prefers-reduced-motion` (decisions §55.2), none on the first read of a goal:
-**a task appears** (a task the field did not have a moment ago rises into its column, ≤ 0.36 s), **a merged task
-leaves** (spec 48 §4.7's, `useLeaving`), **a stop rises** (the desktop's hover, the phone's pop, §10.6).
+Motion says what changed, never decorates (decisions §62.8). Each in steps (the pixel look), none under
+`prefers-reduced-motion` (decisions §55.2), none on the first read of a goal, none for what changed while the page was
+hidden (`document.hidden`: *While you were away* tells it). Ticking words (*working 4 min*) and counts never move.
+1. **A task appears**: a task the field did not have a moment ago rises into its column (≤ 0.36 s).
+2. **A task leaves** (merged or dropped): its item fades where it stands with a one-frame ✓ (✗ for a drop), ≈ 0.3 s;
+   then **its column settles**: the items it held up slide down into the gap (≈ 0.25 s, ease-out, no bounce). Several
+   in one refresh move together; the first three animate, the rest simply go (spec 48 §4.7's `useLeaving`, whose
+   ghost rising up is replaced by this).
+3. **A task moves in its column** (its state changed its place: finished → *in Review*, sent back, failed): it and the
+   items it passes slide to their new places (FLIP: each item's old box measured before the redraw, its new one after,
+   the difference played back, ≈ 0.25 s); nothing else moves.
+4. **Nothing moves under the pointer or the focus**: while the pointer is over a column or the focus is inside it, that
+   column's settle and moves wait (the gap stays empty) until the pointer leaves or the focus goes, at most 10 s; a stop
+   in the bottom row does not shift while it is raised or popped.
+5. **The quiet reward**: when a task merges, its member's first number (*5/1 → 6/1*) and its column's *✓ k in dev* show
+   their new value with a one-time highlight (≈ 0.6 s); nothing flies to them.
+6. **A stop rises** (the desktop's hover, the phone's pop, §10.6).
 
 ## 12. Files a part may need beyond its row
 B: `js/board/map.js`, `mapidea.js`, `mapcard.js`, `mapfoot.js`, `today.js` (their pieces are reused: `ResultActions`,
