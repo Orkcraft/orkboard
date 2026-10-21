@@ -418,6 +418,12 @@ def test_the_columns_run_down_from_the_members_with_the_top_row_lit_the_rows_bel
     assert "is-later" not in lit.get_attribute("class") and "is-later" in muted.get_attribute("class")           # the top row is lit, the rows below muted
     assert lit.evaluate("e => getComputedStyle(e).backgroundColor") != muted.evaluate("e => getComputedStyle(e).backgroundColor")
     assert lit.bounding_box()["height"] == 112
+    for t in pg.locator(".arena-stack .arena-task").all():                                                   # a name never runs into its state line
+        name, foot = t.locator(".arena-task__name").bounding_box(), t.locator(".arena-task__foot").bounding_box()
+        assert name["y"] + name["height"] <= foot["y"] + 0.5, t.inner_text()
+        assert round(name["height"]) % 15 == 0, t.inner_text()                                                # whole lines only, none cut in half
+    done_gap = column.locator(".arena-stack__done").bounding_box()["y"] - max(t.bounding_box()["y"] + 112 for t in tasks.all())
+    assert done_gap < 24                                                                                     # the merged count follows the column's tasks
     assert "✓ 1 in dev" in column.inner_text() and "✓ 1 in dev" in pg.locator(".arena-stack[data-agent=screens]").inner_text()      # what merged of its ideas stays as a count
     done = column.locator(".arena-stack__done").bounding_box()
     assert done["y"] >= max(t.bounding_box()["y"] + 112 for t in tasks.all())                                 # at the far end of the column, its bottom

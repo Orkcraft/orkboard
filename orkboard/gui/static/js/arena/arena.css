@@ -118,7 +118,7 @@
 .arena-stack::-webkit-scrollbar { display: none; }
 .arena-cols__none { padding: var(--ork-4); }
 .arena-stack__empty { flex: none; text-align: center; font: var(--ork-type-caption); color: var(--ork-ink-faint); }
-.arena-stack__done { flex: none; margin-top: auto; padding-top: var(--ork-2); font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.arena-stack__done { flex: none; padding-top: var(--ork-2); font: var(--ork-type-caption); color: var(--ork-ink-muted); }
 .arena-srow { flex: none; display: flex; gap: var(--ork-3); }
 .arena-srow .arena-task { flex: 0 0 calc(50% - 3px); width: auto; }
 .arena-srow.is-wide .arena-task { flex: 0 0 calc((100% - 30px) / 6); }
@@ -139,7 +139,7 @@
 .arena-task__mark { margin-left: auto; display: flex; align-items: center; gap: var(--ork-1); font-weight: 600; color: var(--ork-ink); }
 .arena-task__mark .ork-icon { width: 12px; height: 12px; }
 .arena-task__idea { padding-top: var(--ork-2); border-top: var(--ork-line) solid var(--ork-frame); font-size: 10px; line-height: 13px; color: var(--ork-ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.arena-task__name { flex: 1; min-height: 0; font: var(--ork-type-body); line-height: 15px; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.arena-task__name { flex: none; font: var(--ork-type-body); line-height: 15px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .arena-task__foot { color: var(--ork-ink-muted); line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arena-task.is-run { border-color: var(--ork-edge); }
 .arena-task.is-run .arena-tbadge { background: var(--ork-ink); border-color: var(--ork-ink); color: var(--ork-on-ink); }

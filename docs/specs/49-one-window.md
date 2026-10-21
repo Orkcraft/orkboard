@@ -223,7 +223,7 @@ the leader, *Planning*, the party, the field (*The goal at work*), *Waits for yo
    waiting, held. **The top row, against the member, is lit; the rows below are muted** (`--ork-canvas` ground, muted
    ink; hover and focus light one again): what the member is on is what is bright, the queue below it. A column
    scrolls inside itself; its far end (the bottom) says *✓ k in dev* for its merged tasks; empty, *No task now*. **A task** is a small framed item 112 px high: its wave (a badge and *wave*), a mark (↻,
-   ✗, the clock for a hold), its idea's title (one faint line), its name (three lines at most), its state in words (spec
+   ✗, the clock for a hold), its idea's title (one faint line), its name (two whole lines at most), its state in words (spec
    48's: *working 4 min*, *in Review* in muted ink, *after k1*, *tonight · after 01:00*, *failed* with the error in its
    tooltip). A click opens it in the drawer (*in Review*: its result; else the task's screen; `via: "map"`). **Hovering
    a task lights what waits for it** (its tasks `after` it, in the same idea): the task *→ n wait for it*, each of them
