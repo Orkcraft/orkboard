@@ -8,7 +8,7 @@ pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
 from tests.test_pwa_goal_team_browser import _pick_goal  # noqa: E402,F401
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _called, _phone  # noqa: E402,F401
+from tests.test_pwa_shell_browser import _open_idea, NO_SCROLL, WAIT_MS, _called, _phone  # noqa: E402,F401
 from tests.test_shell_browser import GREEN, task  # noqa: E402
 
 NO_RUN = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False, "command": ""}
@@ -70,7 +70,7 @@ async def test_the_idea_s_checks_say_clean_or_found_with_what_was_fixed_and_left
                        {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": True, "why": "", "state": "passed", "found": 2, "fixed": 1,
                         "left": 1}]
         await _pick_goal(page, "general")
-        await page.locator(".map-row", has_text="Sync ideas").locator(".map-open").click()
+        await _open_idea(page, "Sync ideas")
         line = page.locator(".screen").get_by_role("list", name="Checks")
         await line.wait_for(timeout=WAIT_MS)
         assert [" ".join(t.split()) for t in await line.get_by_role("listitem").all_inner_texts()] == [

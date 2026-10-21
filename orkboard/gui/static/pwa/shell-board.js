@@ -97,7 +97,7 @@ export function makeBoardTab(core, ctx) {
     fabOn: () => Boolean(st.board) && !st.view,
     draw() {
       if (st.board && st.snap?.project && st.snap.project !== weekFor) weekCheck();
-      if (!fresh(JSON.stringify([st.board, st.track, st.mapGoal, st.view, st.ops, st.boardError, st.map, st.mapError, st.cards, st.roles?.roles?.length]))) return;
+      if (!fresh(JSON.stringify([st.board, st.track, st.mapGoal, st.mapOpen, st.mapTick, st.view, st.ops, st.boardError, st.map, st.mapError, st.cards, st.roles?.roles?.length]))) return;
       if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
         pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),
           h("div", { class: "section-head" }, h("h3", {}, "Operations"), opsButtons()), ...ops.section());

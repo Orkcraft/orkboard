@@ -9,7 +9,7 @@ import base64
 
 import pytest
 
-from tests.test_pwa_shell_browser import _menu, _said, _stop, NO_SCROLL, WAIT_MS, Stub, _called, _needs, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import _menu, _open_idea, _said, _stop, NO_SCROLL, WAIT_MS, Stub, _called, _needs, _phone, _pick_goal, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -103,7 +103,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         await hi.scroll_into_view_if_needed()
         await _shot(page, "phone-ideas-390x844")
         screen = page.locator(".screen")
-        await hi.locator(".map-open").click()                                                            # its screen holds what its row held
+        await _open_idea(page, hi)                                                            # its screen holds what its row held
         await screen.get_by_role("button", name="Stop").click()                                         # Stop → stopped
         assert await _called(stub, "ideas.read_stop", {"slug": "hi"})
         await page.get_by_role("button", name="Back", exact=True).click()
@@ -111,7 +111,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         stub.bump({})
         await _until(page, "document.querySelector('.map-row[data-slug=hi] .map-open')?.getAttribute('aria-label') || ''", lambda v: "stopped" in v)
         assert await hi.locator(".spin").count() == 0
-        await hi.locator(".map-open").click()
+        await _open_idea(page, hi)
         for name in ("Process now", "Tonight"):
             await screen.get_by_role("button", name=name, exact=True).wait_for(timeout=WAIT_MS)
         await screen.get_by_role("button", name="Tonight", exact=True).click()
@@ -120,7 +120,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         lim = _stop(page, "Wait for limits")
         assert "waits for limits · after 18:00" in await _said(page, "Wait for limits") and await lim.locator(".trail-mark use[href$='#clock']").count() == 1
         assert "starts tonight" in await _said(page, "Starts tonight")
-        await _stop(page, "Starts tonight").locator(".map-open").click()
+        await _open_idea(page, "Starts tonight")
         await screen.get_by_role("button", name="Start now").click()
         assert await _called(stub, "ideas.start_now", {"slug": "nt"})
         await page.get_by_role("button", name="Back", exact=True).click()
@@ -128,7 +128,7 @@ async def test_a_drafting_idea_stops_and_is_stopped_a_low_one_waits_for_tonight_
         done = page.locator("details.done-ideas")                                                       # done ideas folded at the end
         assert "Done (1)" in await done.inner_text() and not await done.evaluate("e => e.open")
         page.once("dialog", lambda d: d.accept())                                                       # Delete asks first
-        await _stop(page, "Offline mode").locator(".map-open").click()
+        await _open_idea(page, "Offline mode")
         await screen.get_by_role("button", name="Delete this idea…").click()
         assert await _called(stub, "ideas.drop", {"slug": "offline"})
         assert await page.evaluate(NO_SCROLL)
@@ -186,7 +186,7 @@ async def test_the_specs_stages_say_each_tasks_state_and_a_file_todo_has_its_ste
         stub.todos.append({"idea": "sync", "id": "t2", "title": "The Firebase config, google-services.json", "kind": "file", "why": "The app needs it to start",
                            "choices": [], "steps": ["Open the Firebase console", "Download google-services.json"], "accept": [".json"], "done": False})
         stub.bump({})
-        await _stop(page, "Sync ideas").locator(".map-open").click()
+        await _open_idea(page, "Sync ideas")
         screen = page.locator(".screen")
         await screen.locator(".plan").wait_for(timeout=WAIT_MS)
         stages = await screen.locator(".tasks").inner_text()
@@ -368,6 +368,6 @@ async def test_new_idea_is_the_button_at_the_bottom_right_and_limits_are_said_wh
         await sheet.locator('.craft-tile[data-craft="data"]').click()
         assert "What is left: Claude 62 % · Antigravity 15 %" in await sheet.locator(".limits-note").inner_text()
         await page.keyboard.press("Escape")
-        await _stop(page, "Offline mode").locator(".map-open").click()
+        await _open_idea(page, "Offline mode")
         await page.locator(".screen .limits-note").wait_for(timeout=WAIT_MS) if await page.locator(".screen .action-bar, .screen-foot").count() else None
         assert await page.evaluate(NO_SCROLL)

@@ -1,7 +1,7 @@
-"""Spec 39 part C on the phone (docs/specs/39-map.md §5, "Tests → C"): Chromium at 390 × 844 against the stub of
-test_pwa_shell_browser.py with a fake `ideas.map`. The Board's Map button opens the Map; a goal's ideas in tier order with their
-dots, words, pips and *after …*; a row that needs the person first in its tier; a tap opens the idea, logged `via: "map"`;
-no horizontal scroll."""
+"""Spec 48 part C on the phone (docs/specs/48-map-ideas.md §3–§7, "Tests → C"): Chromium at 390 × 844 against the stub of
+test_pwa_shell_browser.py with a fake `ideas.map`. The Map is one goal (the top bar's): its header, its party line, its ideas in trail
+order, one open at a time (the idea's card, its waves rising bottom-up, its lanes, its stacks), the rest one line, Done (n) folded.
+Yellow only on a stop; a merged task leaves once; the card merges, sends back and drops. No horizontal scroll."""
 from __future__ import annotations
 
 import json
@@ -18,34 +18,56 @@ async def _open_map(page):
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
+HEAD = {"craft": "engineering", "race": "peon", "tier": "warrior"}
+ELF = {"craft": "design", "race": "elf", "tier": "elder"}
+GRUNT = {"slug": "grunt", "name": "Grunts"}
+DESIGNER = {"slug": "product-designer", "name": "Product designer"}
+REVIEWER = {"slug": "reviewer", "name": "Reviewer"}
+
 
 def node(slug, title, tier, state, **more):
     return {"slug": slug, "goal": "ship", "title": title, "state": state, "queue": "", "held_until": "", "start_at": "", "priority": "normal",
             "size": "M", "risk": "", "tier": tier, "depends_on": [], "waits_on": [], "waits": None, "needs_you": "",
             "progress": {"done": 0, "total": 0}, "tasks": [], "estimate": None, "by_itself": False, "folded": False,
-            "updated": "2026-10-01T10:00:00", **more}
+            "updated": "2026-10-01T10:00:00", "stage": "planning", "round": 1, "usd": None, "plan_estimate": None, "asked": [], "results": [], **more}
 
 
-def _tasks(*states):
-    return [{"id": f"k{i}", "title": f"Task {i}", "state": s, "after": [], "tier": "warrior",
-             "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}} for i, s in enumerate(states, 1)]
+def task(tid, state, by=GRUNT, wave=1, band="build", after=(), **more):
+    return {"id": tid, "title": f"Task {tid}", "state": state, "after": list(after), "tier": "warrior", "head": ELF if by is DESIGNER else HEAD,
+            "by": by, "band": band, "wave": wave, **more}
 
 
-# Ordered as the backend gives them: by goal, then tier, then the ones that need the person first.
+def result(tid, **more):
+    return {"idea": "sync", "idea_title": "Sync between phone and town", "task": tid, "title": f"Task {tid}", "round": 1,
+            "tests": {"passed": 20, "failed": 0, "failing": [], "tail": ""}, "diff": {"files": 14, "added": 3, "removed": 1}, "cost": 0.42,
+            "conflict": "", "finished": "2026-10-20T10:00:00", "estimate": None, "over": False, **more}
+
+
+SYNC_TASKS = [task("k1", "review", GRUNT, 1), task("k2", "running", GRUNT, 1), task("k3", "waiting", DESIGNER, 2, after=["k1"]), task("k0", "merged", GRUNT, 1)]
+
+# Ordered as the backend gives them: tiers, then the Board's order.
 NODES = [
-    node("plan-me", "Draft the pricing page", 1, "plan", needs_you="plan", waits={"kind": "you", "ref": "plan-me", "title": "", "until": ""}),
-    node("tables", "Build the tables", 1, "done", progress={"done": 2, "total": 2}, tasks=_tasks("merged", "merged")),
+    node("plan-me", "Draft the pricing page", 1, "plan", needs_you="plan", waits={"kind": "you", "ref": "plan-me", "title": "", "until": ""},
+         tasks=[task("p1", "waiting", GRUNT), task("p2", "waiting", REVIEWER, 2, "check")], estimate={"usd_low": 2.0, "usd_high": 4.0}, plan_estimate={"usd_low": 2.0, "usd_high": 4.0}),
+    node("tables", "Build the tables", 1, "done", stage="done", progress={"done": 2, "total": 2}, tasks=[task("t1", "merged"), task("t2", "merged")]),
     node("night", "Write the changelog", 1, "raw", queue="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}),
-    node("sync", "Sync between phone and town", 2, "working", depends_on=["tables"], checks=[{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed"},
-                            {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": True, "why": "", "state": "running"}], progress={"done": 1, "total": 3},
-         tasks=_tasks("merged", "running", "waiting")),
-    node("old", "Old cleanup", 1, "done", folded=True),
+    node("sync", "Sync between phone and town", 2, "working", stage="implementation", depends_on=["tables"],
+         checks=[{"by": "reviewer", "name": "Reviewer", "applies": True, "why": "", "state": "passed"},
+                 {"by": "accessibility-reviewer", "name": "Accessibility reviewer", "applies": True, "why": "", "state": "running"}],
+         progress={"done": 1, "total": 4}, tasks=SYNC_TASKS, results=[result("k1")], usd=0.84, plan_estimate={"usd_low": 1.0, "usd_high": 2.0}),
+    node("old", "Old cleanup", 1, "done", stage="done", folded=True),
 ]
+PARTY = [{"slug": "taskmaster", "name": "Taskmaster", "head": HEAD, "band": "lead", "state": "needs", "why": "plan"},
+         {"slug": "grunt", "name": "Grunts", "head": HEAD, "band": "build", "state": "work", "why": ""},
+         {"slug": "product-designer", "name": "Product designer", "head": ELF, "band": "build", "state": "next", "why": ""},
+         {"slug": "reviewer", "name": "Reviewer", "head": HEAD, "band": "check", "state": "free", "why": ""}]
+LEADER = {"slug": "taskmaster", "name": "Taskmaster", "head": HEAD}
 MAP = {"goals": [{"slug": "ship", "title": "Ship v1", "priority": "high", "state": "ready", "done_when": ["Tests pass", "Docs read"],
-                  "ideas": 5, "done": 2, "usd": 12.4, "team": [{"slug": "product-designer", "name": "Product designer", "head": {"craft": "design", "race": "elf", "tier": "elder"}, "checks": False, "every": False},
-                  {"slug": "reviewer", "name": "Reviewer", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}, "checks": True, "every": True}]},
+                  "ideas": 5, "done": 2, "usd": 12.4, "leader": LEADER, "party": PARTY, "today": {"merged": 1, "usd": 0.42},
+                  "team": [{"slug": "product-designer", "name": "Product designer", "head": ELF, "checks": False, "every": False},
+                           {"slug": "reviewer", "name": "Reviewer", "head": HEAD, "checks": True, "every": True}]},
                  {"slug": "docs", "title": "Docs", "priority": "normal", "state": "ready", "done_when": [], "ideas": 0, "done": 0, "usd": None,
-                  "verdict": {"met": True, "by": "Growth"}}],
+                  "leader": LEADER, "party": [], "today": {"merged": 0, "usd": 0}, "verdict": {"met": True, "by": "Growth"}}],
        "nodes": NODES, "edges": [{"from": "tables", "to": "sync"}], "rev": "1"}
 
 
@@ -55,8 +77,8 @@ ANSWER: dict = {}                                    # what `ideas.map` answers 
 @pytest.fixture(autouse=True)
 def _map(monkeypatch):
     ANSWER.clear()
-    ANSWER.update(MAP)
-    real = Stub.commands
+    ANSWER.update(json.loads(json.dumps(MAP)))
+    real, init = Stub.commands, Stub.__init__
 
     def commands(self):
         def fake(a):
@@ -67,53 +89,219 @@ def _map(monkeypatch):
             self.calls.append(("ideas.flags", {}))
             return {"flags": [{"goal": g["slug"], "title": g["title"], "short": g["title"], "by": g["verdict"]["by"], "at": g["verdict"].get("at", ""),
                                "tally": g["verdict"].get("tally")} for g in ANSWER["goals"] if (g.get("verdict") or {}).get("met")]}
-        return {**real(self), "ideas.map": fake, "ideas.flags": flags}
+
+        def merge(a):                                  # the host merges: the task is merged, its result is gone
+            a = {k: v for k, v in a.items() if k not in ("device", "link")}
+            self.calls.append(("ideas.merge", a))
+            sync = next(n for n in ANSWER["nodes"] if n["slug"] == "sync")
+            for t in sync["tasks"]:
+                if t["id"] == a["task"]:
+                    t["state"] = "merged"
+            sync["results"] = [r for r in sync["results"] if r["task"] != a["task"]]
+            self.rev += 1
+            return {"ok": True, "commit": "abc"}
+        return {**real(self), "ideas.map": fake, "ideas.flags": flags, "ideas.merge": merge}
+
+    def new_init(self):
+        init(self)
+        self.goals["ship"] = Stub.goal("ship", "Ship v1", "high", "ready")
+        self.goals["docs"] = Stub.goal("docs", "Docs", "normal", "ready")
     monkeypatch.setattr(Stub, "commands", commands)
+    monkeypatch.setattr(Stub, "__init__", new_init)
+
+
+async def _open(page, slug):
+    """Open an idea in place by a tap on its row (the accordion: the one open closes)."""
+    await page.locator(f'.map-row[data-slug="{slug}"] .map-open').first.click()
+    await page.locator(f'.map-idea[data-slug="{slug}"]').wait_for(timeout=WAIT_MS)
 
 
 @pytest.mark.asyncio
-async def test_the_goals_are_tabs_with_how_far_each_is_and_a_goal_is_a_trail_down_to_its_flag(fake_repo, monkeypatch):
+async def test_a_goal_s_page_has_its_header_its_party_line_and_its_ideas_one_open_at_a_time(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _open_map(page)
         goal = page.locator(".map-goal")
         await goal.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "map", "device": "phone"})
-        tabs = page.get_by_role("tablist", name="Goals")
-        assert [" ".join(t.split()) for t in await tabs.get_by_role("tab").all_inner_texts()] == ["Ship v1 47 %", "Docs met"]   # 2 done of 5 and a third of sync; Docs accepted
-        assert await tabs.get_by_role("tab", name="Ship v1").get_attribute("aria-selected") == "true"
-        assert await goal.get_attribute("aria-label") == "Ship v1" and "≈$12 so far" in await goal.locator(".map-goal-meta").inner_text()
-        start = goal.locator(".trail-start")
-        assert "47 %" in await start.inner_text() and "2 of 5 ideas" in await start.inner_text()
-        steps = goal.locator(".trail-step")
-        assert await steps.count() == 2
-        first = [await t.inner_text() for t in await steps.nth(0).locator(".idea-title").all()]
-        assert first == ["Draft the pricing page", "Write the changelog"]                      # side by side; the hand first; done not on the trail
-        gate = steps.nth(0).locator(".map-row").first
-        assert await gate.locator(".trail-mark.is-gate").count() == 1 and "plan ready" in await gate.locator(".map-open").get_attribute("aria-label")   # a gate: ! on its chip
-        sync = steps.nth(1).locator('.map-row[data-slug="sync"]')
-        assert "working 1/3" in await sync.locator(".map-open").get_attribute("aria-label")
-        assert (await sync.locator(".map-open").bounding_box())["height"] <= 48                        # a chip: one line
-        tasks = sync.get_by_label("Tasks of Sync between phone and town")
-        assert [await t.locator(".map-task-title").inner_text() for t in await tasks.locator(".map-task").all()] == ["Task 2", "Task 3"]
-        assert await tasks.locator(".map-task").first.locator("img").count() == 1                      # the head of who does it
-        assert "1 done" in await tasks.inner_text()
-        assert "The goal" in await goal.locator(".trail-end").inner_text()
-        for row in await goal.locator(".trail-step .map-open").all():                         # tap targets of at least 44 px
-            assert (await row.bounding_box())["height"] >= 44
-        await goal.get_by_text("Done (2)").click()
-        await goal.get_by_text("Old cleanup").wait_for(timeout=WAIT_MS)
+        assert await page.get_by_role("tablist", name="Goals").count() == 0                       # one goal: the top bar's pick, no tabs
+        assert await goal.get_attribute("aria-label") == "Ship v1"
+        meta = await goal.locator(".map-goal-meta").inner_text()
+        assert "≈$12 so far" in meta and "today 1 merged · ≈$0.42" in meta
+        start = " ".join((await goal.locator(".trail-start").inner_text()).split())
+        assert "45 %" in start and "2 of 5 ideas done" in start
+        assert "Tests pass" in await goal.locator(".map-done-when summary").inner_text()
+        party = goal.get_by_label("Party", exact=True)
+        assert [" ".join(t.split()) for t in await party.locator("li").all_inner_texts()] == [
+            "Taskmaster plan ready", "Grunts at work ↻", "Product designer next", "Reviewer free"]
+        assert await party.locator(".map-member.is-stop").count() == 1 and await party.locator(".is-stop").get_attribute("data-member") == "taskmaster"
+        # the first idea that waits for the person is open; the rest are one line each (stage · state words)
+        assert await page.locator(".map-idea").count() == 1 and await page.locator(".map-idea").get_attribute("data-slug") == "plan-me"
+        rows = page.locator(".map-ideas-list > .map-row")
+        assert await rows.count() == 2                                                           # sync and the changelog; the done ones are folded
+        said = await page.locator('.map-row[data-slug="sync"] .map-open').get_attribute("aria-label")
+        assert said.startswith("Sync between phone and town: Implementation · working 1/4")
+        assert "Planning · tonight" in await page.locator('.map-row[data-slug="night"] .map-open').get_attribute("aria-label")
+        for btn in await page.locator(".map-ideas-list .map-open, .map-card-frame button").all():
+            if await btn.is_visible():
+                assert (await btn.bounding_box())["height"] >= 43
+        done = goal.locator("details.done-ideas")
+        await done.locator("summary").click()
+        assert await done.locator("summary").inner_text() == "Done (2)"
+        assert "in dev · waits for main" in await done.locator('.map-row[data-slug="old"]').inner_text()
+        assert "3 of 3" not in await done.inner_text() and "2 of 2 tasks in dev" in await done.locator('.map-row[data-slug="tables"]').inner_text()
         assert await page.evaluate(NO_SCROLL)
+        await _open(page, "sync")                                                                 # the accordion: sync opens, the plan's idea closes
+        assert await page.locator(".map-idea").count() == 1 and await page.locator('.map-row[data-slug="plan-me"] .map-open').first.get_attribute("aria-expanded") == "false"
         await _shot(page, "phone-map-390x844")
-        await tabs.get_by_role("tab", name="Docs").click()                                    # another goal: its trail, and the Board's goal
-        await page.locator('.map-goal[data-goal="docs"]').wait_for(timeout=WAIT_MS)
-        assert "Met · Growth" in await page.locator(".trail-end").inner_text()
-        await tabs.get_by_role("tab", name="Ship v1").click()
-        await page.locator('.map-goal[data-goal="ship"] .map-row[data-slug="sync"] .map-open').click()
+        await page.locator('.map-idea[data-slug="sync"] .map-card-title').click()                 # a tap on its title closes it
+        assert await page.locator(".map-idea").count() == 0
+        await _open(page, "sync")
+        await page.locator('.map-idea[data-slug="sync"] .map-view').click()
         await page.locator(".screen .sec").first.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "idea", "ref": "sync", "device": "phone", "via": "map"})
         await page.get_by_role("button", name="Back", exact=True).click()
-        await page.locator(".map-goal").wait_for(timeout=WAIT_MS)                            # back on the Board: its trails
-        assert await page.locator(".board-tab-pane h2").count() == 0                       # no heading on the Board (spec 41 §2)
+        await page.locator(".map-goal").wait_for(timeout=WAIT_MS)
+        assert await page.locator(".board-tab-pane h2").count() == 0                              # no heading on the Board (spec 41 §2)
+
+
+@pytest.mark.asyncio
+async def test_a_plan_waiting_has_start_the_work_and_open_the_plan_on_its_card(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        idea = page.locator('.map-idea[data-slug="plan-me"]')
+        await idea.wait_for(timeout=WAIT_MS)
+        assert [await b.inner_text() for b in await idea.locator(".map-card-acts button").all()] == ["Start the work", "Open the plan"]
+        assert await idea.locator('[data-act="start"]').get_attribute("aria-label") == "Start the work of “Draft the pricing page”: 2 tasks, about $2.00–4.00"
+        track = idea.locator(".stage-track")
+        assert await track.locator(".stage.is-now").text_content() == "Planning"
+        assert "plan ≈$2.00–4.00" in await idea.locator(".map-pips-line").inner_text()
+        plan_card = idea.locator(".map-field .map-tcard")                                         # the leader's lane, one column: the plan
+        assert await plan_card.count() == 1 and "plan ready" in await plan_card.inner_text() and "is-stop" in await plan_card.get_attribute("class")
+        assert await idea.locator(".map-members .map-member").count() == 1                        # only the leader is active in Planning
+        await idea.locator('[data-act="start"]').click()
+        assert await _called(stub, "ideas.start", {"slug": "plan-me", "via": "map"})
+        await page.locator(".flash", has_text="Started.").wait_for(timeout=WAIT_MS)
+        await idea.get_by_role("button", name="Open the plan").click()
+        await page.locator(".screen").first.wait_for(timeout=WAIT_MS)
+        assert await _called(stub, "ideas.page", {"slug": "plan-me"})
+
+
+@pytest.mark.asyncio
+async def test_implementation_has_its_track_lanes_waves_rising_stacks_and_results_on_the_card(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        await _open(page, "sync")
+        idea = page.locator('.map-idea[data-slug="sync"]')
+        stages = idea.locator(".stage-track .stage")
+        assert [await s.get_attribute("class") for s in await stages.all()] == ["stage is-past", "stage is-now", "stage"]
+        assert await idea.locator(".stage.is-now").get_attribute("aria-current") == "step"
+        pips = " ".join((await idea.locator(".map-pips-line").inner_text()).split())
+        assert "1 of 4 tasks in dev" in pips and "≈$0.84 so far" in pips and "plan ≈$1.00–2.00" in pips
+        # the waves rise bottom-up: Wave 2 above Wave 1 above the members' row, the DOM in the same order
+        labels = [await e.text_content() for e in await idea.locator(".map-wave-label").all()]
+        assert labels == ["Wave 2", "Wave 1"]
+        w2, w1, members = [await idea.locator(sel).first.bounding_box() for sel in ('[data-wave="Wave 2"]', '[data-wave="Wave 1"]', ".map-members")]
+        assert w2["y"] < w1["y"] < members["y"]
+        # lanes: the builders with tasks left, in the order they first appear
+        names = [await e.inner_text() for e in await idea.locator(".map-members .map-member b").all()]
+        assert names == ["Grunts", "Product designer"]
+        # a merged task is not on the field; two tasks of Grunts in wave 1 are a stack with a count of 2
+        assert await idea.locator('.map-tcard[data-task="k0"]').count() == 0
+        stack = idea.locator('[data-wave="Wave 1"] .map-stack.is-stack')
+        assert await stack.locator(".stack-count").inner_text() == "2" and "2 tasks of Grunts in wave 1" in await stack.locator(".map-tcard").get_attribute("aria-label")
+        await stack.locator(".map-tcard").click()
+        sheet = page.get_by_role("dialog", name="Grunts · wave 1 · 2")
+        await sheet.wait_for(timeout=WAIT_MS)
+        assert [await b.locator(".stack-title").inner_text() for b in await sheet.locator(".stack-row").all()] == ["Task k1", "Task k2"]
+        assert (await sheet.locator(".stack-row").first.bounding_box())["height"] >= 43
+        await sheet.locator(".stack-row").nth(1).click()
+        assert await _called(stub, "ideas.task", {"slug": "sync", "task": "k2"})
+        await page.get_by_role("button", name="Back", exact=True).click()
+        await page.locator('.map-idea[data-slug="sync"]').wait_for(timeout=WAIT_MS)
+        # a waiting task is dashed with its words; a result in Review is muted ink, never yellow (decisions §54.1)
+        wait = idea.locator('.map-tcard[data-task="k3"]')
+        assert "is-wait" in await wait.get_attribute("class") and "waiting" in await wait.inner_text()
+        assert await idea.locator(".is-stop").count() == 0 and await idea.locator(".map-tcard.is-fail").count() == 0
+        looks = idea.locator(".map-looks")
+        assert await looks.locator("h4").text_content() == "Waits for your look"
+        assert "Task k1" in await looks.inner_text() and "20 / 20 passed" in await looks.inner_text() and "14 files" in await looks.inner_text()
+        assert [await b.inner_text() for b in await looks.locator(".result-actions button").all()][:2] == ["Merge into dev", "Send back"] and \
+            await looks.get_by_role("button", name="Drop…").count() == 1
+        assert await page.evaluate(NO_SCROLL)
+        await looks.get_by_role("button", name="Send back").click()
+        await looks.locator("input.ork-field").fill("Cover the empty queue")
+        await looks.locator("form.back-line button[type=submit]").click()
+        assert await _called(stub, "ideas.back", {"slug": "sync", "task": "k1", "why": "Cover the empty queue"})
+        await looks.get_by_role("button", name="Drop…").click()
+        await page.get_by_role("dialog", name="Drop this result?").get_by_role("button", name="Drop it").click()
+        assert await _called(stub, "ideas.drop_task", {"slug": "sync", "task": "k1"})
+
+
+@pytest.mark.asyncio
+async def test_a_merged_task_leaves_the_field_once_and_none_under_reduced_motion(fake_repo, monkeypatch):
+    for reduced in (False, True):
+        ANSWER.clear()
+        ANSWER.update(json.loads(json.dumps(MAP)))
+        async with _phone(fake_repo, monkeypatch) as (stub, page):
+            if reduced:
+                await page.emulate_media(reduced_motion="reduce")
+            await _open_map(page)
+            await _open(page, "sync")
+            idea = page.locator('.map-idea[data-slug="sync"]')
+            assert await idea.locator(".card-out").count() == 0                                   # none on the first read
+            await idea.get_by_role("button", name="Merge into dev").click()
+            assert await _called(stub, "ideas.merge", {"slug": "sync", "task": "k1"})
+            await idea.locator('.map-looks').get_by_text("Nothing waits for your look.").wait_for(timeout=WAIT_MS)
+            if reduced:
+                await page.wait_for_timeout(300)
+                assert await idea.locator(".card-out").count() == 0                              # nothing moves
+            else:
+                await idea.locator(".card-out").wait_for(timeout=WAIT_MS)                         # it leaves from where it was
+                assert "in dev" in await idea.locator(".card-out").inner_text() and await idea.locator(".card-out").get_attribute("aria-hidden") == "true"
+                await idea.locator(".card-out").wait_for(state="detached", timeout=6000)          # once
+            assert await idea.locator('.map-tcard[data-task="k1"]:not(.is-out)').count() == 0
+            assert "2 of 4 tasks in dev" in " ".join((await idea.locator(".map-pips-line").inner_text()).split())
+
+
+@pytest.mark.asyncio
+async def test_yellow_is_only_on_the_agent_the_work_stopped_on(fake_repo, monkeypatch):
+    asked = node("asker", "Which store first", 1, "asks", needs_you="asks", waits={"kind": "you", "ref": "", "title": "", "until": ""},
+                 asked=[{"ask": "iPhone or Android?", "choices": [], "by": {"slug": "product-designer", "name": "Product designer", "head": ELF}}])
+    broken = node("broken", "Fails to build", 2, "working", stage="implementation", needs_you="failed", waits={"kind": "you", "ref": "", "title": "", "until": ""},
+                  tasks=[task("f1", "failed", DESIGNER, 1), task("f2", "review", GRUNT, 1)], progress={"done": 0, "total": 2})
+    ANSWER["nodes"] = [asked, broken]
+    ANSWER["goals"][0]["party"] = [{**PARTY[0], "state": "needs", "why": "asks"}, PARTY[1], {**PARTY[2], "state": "needs", "why": "failed"}, PARTY[3]]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        q = page.locator('.map-idea[data-slug="asker"]')
+        await q.wait_for(timeout=WAIT_MS)
+        card = q.locator(".map-tcard.is-ask")
+        assert "iPhone or Android?" in await card.inner_text() and "is-stop" in await card.get_attribute("class") and await card.locator("img").count() == 1   # the asker's head
+        assert await q.locator(".map-members .is-stop").count() == 1                              # the leader, who holds the question
+        await _open(page, "broken")
+        b = page.locator('.map-idea[data-slug="broken"]')
+        assert "is-fail" in await b.locator('.map-tcard[data-task="f1"]').get_attribute("class")
+        stops = [await e.get_attribute("data-member") for e in await b.locator(".map-members .is-stop").all()]
+        assert stops == ["product-designer"]                                                      # the agent of the failed task, not the one whose result waits
+        review = b.locator('.map-tcard[data-task="f2"]')
+        assert "is-review" in await review.get_attribute("class") and "in Review" in await review.inner_text()
+        assert await review.evaluate("e => getComputedStyle(e.querySelector('.tcard-state')).color") != await b.locator(".map-members .is-stop").evaluate("e => getComputedStyle(e).color")
+
+
+@pytest.mark.asyncio
+async def test_checking_has_the_checkers_lanes_and_a_second_round(fake_repo, monkeypatch):
+    chk = node("chk", "Checks of sync", 1, "working", stage="checking", round=2, progress={"done": 2, "total": 3},
+               tasks=[task("c0", "merged"), task("c1", "running", REVIEWER, 1, "check"), task("c2", "waiting", REVIEWER, 2, "check")])
+    ANSWER["nodes"] = [chk]
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        await _open_map(page)
+        idea = page.locator('.map-idea[data-slug="chk"]')
+        await idea.wait_for(timeout=WAIT_MS)
+        assert await idea.locator(".stage.is-now").text_content() == "Checking · round 2"
+        assert [await s.get_attribute("class") for s in await idea.locator(".stage-track .stage").all()] == ["stage is-past", "stage is-past", "stage is-now"]
+        assert [await e.inner_text() for e in await idea.locator(".map-members .map-member b").all()] == ["Reviewer"]
+        assert await idea.locator('.map-tcard[data-task="c0"]').count() == 0
+        assert await idea.get_by_label("Wave 2", exact=True).count() == 1
 
 
 @pytest.mark.asyncio
@@ -138,75 +326,39 @@ async def test_a_project_with_no_goal_says_no_goals_yet_with_new_goal(fake_repo,
         assert await page.evaluate(NO_SCROLL)
 
 
-@pytest.mark.asyncio
-async def test_the_phone_map_says_a_goal_s_team_and_an_idea_s_checks(fake_repo, monkeypatch):
-    async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await _open_map(page)
-        team = page.locator('.map-goal[data-goal="ship"] .map-team')
-        await team.wait_for(timeout=WAIT_MS)
-        assert "Team: Product designer, Reviewer (checks every idea)" in await team.inner_text()
-        said = await page.locator('.map-row[data-slug="sync"] .map-open').get_attribute("aria-label")
-        assert "checks 1/2" in said
-        await _shot(page, "phone-map-team-390x844")
-        assert await page.evaluate(NO_SCROLL)
-
-
 def _short(n, short):
     return {**n, "short": short}
 
 
 @pytest.mark.asyncio
-async def test_a_chip_and_a_tab_show_the_short_name_on_two_lines_with_the_title_in_their_label(fake_repo, monkeypatch):
-    ANSWER["goals"] = [{**ANSWER["goals"][0], "short": "Ship"}, *ANSWER["goals"][1:]]
-    ANSWER["nodes"] = [_short(NODES[0], "Pricing page"), *NODES[1:3],
-                       {**_short(NODES[3], "Sync"), "tasks": [{**t, "short": f"T{t['id']}"} for t in NODES[3]["tasks"]]}, NODES[4]]
+async def test_a_row_shows_the_short_name_on_two_lines_with_the_title_in_its_label(fake_repo, monkeypatch):
+    ANSWER["nodes"] = [_short(NODES[2], "Changelog"), NODES[3]]
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _open_map(page)
-        tab = page.get_by_role("tablist", name="Goals").get_by_role("tab").first
-        await tab.wait_for(timeout=WAIT_MS)
-        assert "Ship" in await tab.inner_text() and "Ship v1" not in await tab.inner_text() and await tab.get_attribute("title") == "Ship v1"
-        chip = page.locator('.map-row[data-slug="plan-me"] .map-open')
-        assert await chip.locator(".idea-title").inner_text() == "Pricing page" and await chip.get_attribute("title") == "Draft the pricing page"
-        assert "Draft the pricing page" in await chip.get_attribute("aria-label")                  # the title is its label
+        chip = page.locator('.map-row[data-slug="night"] .map-open')
+        await chip.wait_for(timeout=WAIT_MS)
+        assert await chip.locator(".idea-title").inner_text() == "Changelog" and await chip.get_attribute("title") == "Write the changelog"
+        assert "Write the changelog" in await chip.get_attribute("aria-label")                       # the title is its label
         assert await chip.locator(".idea-title").evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
-        sync = page.locator('.map-row[data-slug="sync"]')
-        assert [await t.locator(".map-task-title").inner_text() for t in await sync.locator(".map-task").all()] == ["Tk2", "Tk3"]   # a task on the trail
-        assert await sync.locator(".map-task").first.get_attribute("title") == "Task 2 · working"
         assert await page.evaluate(NO_SCROLL)
 
 
 @pytest.mark.asyncio
-async def test_a_node_that_waits_for_the_person_alone_has_one_button_beside_its_chip(fake_repo, monkeypatch):
-    est = {"usd_low": 2.0, "usd_high": 4.0}
+async def test_a_row_that_waits_for_the_person_alone_has_one_button_beside_it(fake_repo, monkeypatch):
     ANSWER["nodes"] = [
-        node("start-me", "Offline mode", 1, "plan", needs_you="plan", waits={"kind": "you", "ref": "", "title": "", "until": ""}, estimate=est, tasks=_tasks("waiting", "waiting", "waiting")),
-        node("blocked", "Needs the first", 1, "plan", needs_you="plan", waits_on=["start-me"], waits={"kind": "idea", "ref": "start-me", "title": "Offline mode", "until": ""},
-             estimate=est, tasks=_tasks("waiting")),
-        node("tonight", "Starts tonight", 2, "plan", start_at="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}, tasks=_tasks("waiting")),
+        node("tonight", "Starts tonight", 1, "plan", start_at="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}, tasks=[task("w1", "waiting")]),
         node("raw", "A raw idea", 2, "raw", queue="night", waits={"kind": "night", "ref": "", "title": "", "until": ""}),
-        node("held", "Waits for limits", 3, "raw", queue="night", held_until="2026-10-18T18:00:00", waits={"kind": "limits", "ref": "", "title": "", "until": "18:00"}),
-        node("asks", "Asks you", 3, "asks", needs_you="asks", waits={"kind": "you", "ref": "", "title": "", "until": ""}),
-        node("going", "Going", 4, "working", progress={"done": 1, "total": 2}, tasks=_tasks("merged", "running"))]
+        node("held", "Waits for limits", 3, "raw", queue="night", held_until="2026-10-18T18:00:00", waits={"kind": "limits", "ref": "", "title": "", "until": "18:00"})]
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _open_map(page)
         acts = page.locator(".map-act")
         await acts.first.wait_for(timeout=WAIT_MS)
-        assert await acts.count() == 3                                                              # the three nodes of the table; none for the rest
-        for slug in ("blocked", "held", "asks", "going"):
-            assert await page.locator(f'.map-row[data-slug="{slug}"] .map-act').count() == 0, slug  # it waits for something else: its chip says what
-        start = page.locator('.map-row[data-slug="start-me"] .map-act')
-        assert await start.get_attribute("aria-label") == "Start “Offline mode”: 3 tasks, about $2.0–4.0"
-        assert "$2.0–4.0" in await start.inner_text() and await start.locator("use").get_attribute("href") == "icons/icons.svg#play"
-        chip = page.locator('.map-row[data-slug="start-me"] .map-open')
-        a, b = await chip.bounding_box(), await start.bounding_box()
-        assert abs((a["y"] + a["height"] / 2) - (b["y"] + b["height"] / 2)) < 4 and b["x"] > a["x"]       # the same row; a sibling, not inside the chip
-        assert await start.evaluate("e => !e.closest('.map-open')") and (await start.bounding_box())["height"] >= 44
-        await _shot(page, "phone-map-actions-390x844")
-        await start.click()
-        assert await _called(stub, "ideas.start", {"slug": "start-me", "via": "map"})
-        await page.locator(".flash", has_text="Started.").wait_for(timeout=WAIT_MS)
+        assert await acts.count() == 2 and await page.locator('.map-row[data-slug="held"] .map-act').count() == 0   # it waits for something else
         now = page.locator('.map-row[data-slug="tonight"] .map-act')
-        assert await now.inner_text() == "Start now"
+        assert await now.inner_text() == "Start now" and (await now.bounding_box())["height"] >= 43
+        chip = page.locator('.map-row[data-slug="tonight"] .map-open')
+        a, b = await chip.bounding_box(), await now.bounding_box()
+        assert abs((a["y"] + a["height"] / 2) - (b["y"] + b["height"] / 2)) < 4 and await now.evaluate("e => !e.closest('.map-open')")
         await now.click()
         assert await _called(stub, "ideas.start_now", {"slug": "tonight", "via": "map"})
         proc = page.locator('.map-row[data-slug="raw"] .map-act')
@@ -231,7 +383,7 @@ def with_list(repo, slugs):
 
 
 async def _docs(page):
-    await page.get_by_role("tablist", name="Goals").get_by_role("tab", name="Docs").click()
+    await _pick_goal(page, "docs")
     await page.locator('.map-goal[data-goal="docs"]').wait_for(timeout=WAIT_MS)
 
 
@@ -246,7 +398,7 @@ async def test_a_met_goal_not_in_the_list_is_raised_once_and_its_slug_kept(fake_
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "flag", "ref": "docs", "device": "phone"})
         assert json.loads(await page.evaluate(f"localStorage.getItem({json.dumps('orkboard.flags.' + fake_repo.name)})")) == ["docs"]
         await page.locator(".is-raising").wait_for(state="detached", timeout=WAIT_MS)                            # it moved once
-        await page.get_by_role("tablist", name="Goals").get_by_role("tab", name="Ship v1").click()               # drawn again: not raised again
+        await _pick_goal(page, "ship")               # drawn again: not raised again
         await _docs(page)
         await page.wait_for_timeout(400)
         assert await page.locator(".is-raising").count() == 0
@@ -264,7 +416,7 @@ async def test_a_flag_whose_trail_is_out_of_sight_waits_and_is_raised_once_when_
         await _open_map(page)
         await _docs(page)
         for _ in range(3):                                                           # the section is drawn again, each time with its listener
-            await page.get_by_role("tablist", name="Goals").get_by_role("tab", name="Ship v1").click()
+            await _pick_goal(page, "ship")
             await _docs(page)
         await page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
         await page.wait_for_timeout(400)
