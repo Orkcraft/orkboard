@@ -3,6 +3,7 @@ header, an OGG, an MP4 (a clip and a sound), a WEBM and a text, each a few hundr
 from __future__ import annotations
 
 import io
+import json
 import struct
 import wave
 import zlib
@@ -94,3 +95,35 @@ def write(folder: Path, name: str, data: bytes) -> Path:
     path = folder / name
     path.write_bytes(data)
     return path
+
+
+def ask(n: int = 3, kind: str = "image", target: str = "assets/logo.png", text: str = "A logo for the app") -> dict:
+    """A plan's task `pick`."""
+    return {"n": n, "kind": kind, "ask": text, "target": target}
+
+
+def task(n: int = 3, kind: str = "image", **more) -> dict:
+    """A task of the plan that makes variants."""
+    return {"id": "k1", "title": "Draw the logo", "short": "Logo", "state": "running", "round": 1, "pick": ask(n, kind), **more}
+
+
+def leave(tree: Path, files: dict[str, bytes], names: dict[str, str] | None = None, rows: list | None = None) -> None:
+    """What a task leaves: each file into `.orkcraft-pick/` and a manifest of them (`rows` instead when given)."""
+    for name, data in files.items():
+        write(tree / ".orkcraft-pick", name, data)
+    tree.mkdir(parents=True, exist_ok=True)
+    rows = rows if rows is not None else [{"name": (names or {}).get(f, f.split(".")[0]), "file": f, "why": f"why {f}"} for f in files]
+    (tree / ".orkcraft-pick.json").write_text(json.dumps({"variants": rows}), encoding="utf-8")
+
+
+def make_pick(state_dir: Path, scratch: Path, files: dict[str, bytes], slug: str = "dark-mode", tid: str = "k1", rnd: int = 1,
+              kind: str = "image", by: str = "grunt") -> dict:
+    """A pick as the runner leaves it in the goal's state folder (`<state>/ideas/<slug>/picks/<task>-r<round>/`), made from `files`."""
+    from orkboard.realm import idea_pick
+    t = task(len(files), kind, id=tid, round=rnd)
+    leave(scratch, files)
+    variants, why = idea_pick.read(scratch, t)
+    assert why == "", why
+    pick = idea_pick.store(state_dir, slug, t, rnd, variants, by=by)
+    idea_pick.discard(scratch)
+    return pick

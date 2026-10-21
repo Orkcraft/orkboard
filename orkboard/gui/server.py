@@ -55,7 +55,7 @@ from websockets.http11 import Request, Response
 
 from orkboard import __version__
 from orkboard.design import tokens
-from orkboard.gui import phones, pwa
+from orkboard.gui import media, phones, pwa
 from orkboard.gui.board_host import CommandError
 
 STATIC = Path(__file__).with_name("static")
@@ -173,6 +173,8 @@ class Server:
             if not self._token_ok(request):
                 return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
             return _response(HTTPStatus.OK, json.dumps(self.version()).encode(), "application/json")
+        if parts.path.startswith(media.PREFIX):                  # a pick's files, by a signed address (spec 51 §3): no token, the address is the proof
+            return self._media(request)
         if parts.path == "/api/analytics":
             if not self._token_ok(request):
                 return _response(HTTPStatus.FORBIDDEN, b"Forbidden")
@@ -196,6 +198,11 @@ class Server:
         if kind.startswith("text/") or kind.endswith(("javascript", "json")):
             kind += "; charset=utf-8"
         return _response(HTTPStatus.OK, target.read_bytes(), kind)
+
+    def _media(self, request: Request) -> Response:
+        """A file of a pick (gui/media.py): 200, 206 for a range, 416, or 404 for anything wrong."""
+        reply = media.serve("GET", request.path, request.headers.get("Range", ""), media.state_dirs(self.host))
+        return Response(reply.status, HTTPStatus(reply.status).phrase, Headers(reply.headers), reply.read())
 
     @staticmethod
     def _zip(packed: tuple[str, bytes] | None) -> Response:

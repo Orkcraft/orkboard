@@ -10,7 +10,7 @@ from http import HTTPStatus
 from typing import Any
 from urllib.parse import urlsplit
 
-from orkboard.gui import pwa
+from orkboard.gui import media, pwa
 
 HEAD_LIMIT = 16 * 1024   # an HTTP request's head
 HEAD_S = 10.0            # …and how long it may take to come
@@ -97,6 +97,8 @@ async def handle_conn(listener: Any, reader: asyncio.StreamReader, writer: async
                 writer.write(await listener._pair(method, headers, reader))
             elif path == "/api/place":
                 writer.write(await listener._place(method, headers, reader))
+            elif path.startswith(media.PREFIX):                 # a pick's files, by a signed address (spec 51 §3): no token, the address is the proof
+                await media.write(writer, media.serve(method, target, headers.get("range", ""), media.state_dirs(listener.host)), keep)
             elif pwa.wants(path):
                 if path == pwa.PREFIX + "assets.json" and not pwa.READY.is_set():
                     await asyncio.to_thread(pwa.READY.wait, HEAD_S)   # the warm-up is hashing: off the loop

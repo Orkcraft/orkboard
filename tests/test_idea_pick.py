@@ -11,23 +11,7 @@ import pytest
 
 from orkboard.realm import event_log, idea_pick, lexicon, media_sniff
 from tests import pick_files as pf
-
-
-def ask(n: int = 3, kind: str = "image", target: str = "assets/logo.png", text: str = "A logo for the app") -> dict:
-    return {"n": n, "kind": kind, "ask": text, "target": target}
-
-
-def task(n: int = 3, kind: str = "image", **more) -> dict:
-    return {"id": "k1", "title": "Draw the logo", "short": "Logo", "state": "running", "round": 1, "pick": ask(n, kind), **more}
-
-
-def leave(tree: Path, files: dict[str, bytes], names: dict[str, str] | None = None, rows: list | None = None) -> None:
-    """What a task leaves: each file into `.orkcraft-pick/` and a manifest of them (`rows` instead when given)."""
-    for name, data in files.items():
-        pf.write(tree / idea_pick.PICK_DIR, name, data)
-    tree.mkdir(parents=True, exist_ok=True)
-    rows = rows if rows is not None else [{"name": (names or {}).get(f, f.split(".")[0]), "file": f, "why": f"why {f}"} for f in files]
-    (tree / idea_pick.PICK_FILE).write_text(json.dumps({"variants": rows}), encoding="utf-8")
+from tests.pick_files import ask, leave, task  # noqa: F401
 
 
 # -- sniffing: the type is the bytes' --------------------------------------------------------------------------------
