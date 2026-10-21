@@ -386,10 +386,7 @@ async def test_a_row_that_waits_for_the_person_alone_has_one_button_beside_it(fa
         await start.click()
         assert await _called(stub, "ideas.start_now", {"slug": "tonight", "via": "hand"})
         await now.wait_for(state="hidden", timeout=WAIT_MS)
-        for _ in range(3):                                                                            # the field is drawn again after the start: a press in the middle of that is lost
-            await power.click()
-            if await _called(stub, "ideas.queue", {"slug": "raw", "queue": "now", "via": "party"}, timeout=2.0):
-                break
+        await power.click()                                                                           # one tap does it: the field is drawn again after the start, never between a press's down and up
         assert await _called(stub, "ideas.queue", {"slug": "raw", "queue": "now", "via": "party"})
         assert await page.evaluate(NO_SCROLL)
 

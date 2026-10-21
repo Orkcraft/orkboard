@@ -462,15 +462,9 @@ async def _wizard(sheet, craft="engineering"):
 
 
 async def _band(page, band):
-    """The stage switch: "lead" Planning, "build" Implementation, "check" Checking."""
-    for tries in range(3):                                                                              # the field is drawn again when the Board is read: a press in the middle of that is lost, as a finger's would be
-        await page.locator(f'.band[data-band="{band}"]').click()
-        try:
-            await page.locator(f'.band[data-band="{band}"][aria-selected="true"]').wait_for(timeout=WAIT_MS if tries == 2 else 2500)
-            return
-        except Exception:                                                                               # noqa: BLE001
-            if tries == 2:
-                raise
+    """The stage switch: "lead" Planning, "build" Implementation, "check" Checking. One tap does it (a redraw waits while a pointer is down, spec 50 §6.9)."""
+    await page.locator(f'.band[data-band="{band}"]').click()
+    await page.locator(f'.band[data-band="{band}"][aria-selected="true"]').wait_for(timeout=WAIT_MS)
 
 
 def _item(page, title):
@@ -479,29 +473,16 @@ def _item(page, title):
 
 
 async def _tap(page, target, ready):
-    """A press on `target` until `ready` (a locator) shows: the field is drawn again when the Board is read, and a press in the middle of that is lost, as a finger's would be."""
-    for tries in range(3):
-        await target.click()
-        try:
-            await ready.wait_for(state="visible", timeout=WAIT_MS if tries == 2 else 3000)
-            return
-        except Exception:                                                                               # noqa: BLE001
-            if tries == 2:
-                raise
+    """One press on `target`, and `ready` (a locator) shows: the field is drawn again when the Board is read, never between a press's down and up (spec 50 §6.9)."""
+    await target.click()
+    await ready.wait_for(state="visible", timeout=WAIT_MS)
 
 
 async def _open_idea(page, title):
-    """An idea's own screen: its item in Planning (the leader's column), tapped (spec 49 §10.5)."""
+    """An idea's own screen: its item in Planning (the leader's column), tapped once (spec 49 §10.5)."""
     await _band(page, "lead")
     item = title if not isinstance(title, str) else _item(page, title)
-    for tries in range(3):                                                                              # the field is drawn again when the Board is read: a press in the middle of that is lost, as a finger's would be
-        await item.click()
-        try:
-            await page.locator(".screen").wait_for(state="visible", timeout=WAIT_MS if tries == 2 else 3000)
-            return
-        except Exception:                                                                               # noqa: BLE001
-            if tries == 2:
-                raise
+    await _tap(page, item, page.locator(".screen"))
 
 
 async def _open_idea_of(page, task_title, idea_title, band="build"):
@@ -520,17 +501,13 @@ async def _said(page, title):
 
 async def _pop(page, name):
     """A stop along the bottom popped out of the fan by a tap on its top (spec 49 §10.6): `name` is in its label (*Plan ready: Dark mode*). Returns the raised one."""
+    await page.wait_for_function("() => !document.querySelector('dialog.raised-dlg[open], dialog.dial-dlg[open]')", timeout=WAIT_MS)       # what was raised before is laid back: nothing lies over the fan
     card = page.locator(f'.hc[aria-label*="{name}"]')
     await card.wait_for(timeout=WAIT_MS)
     probe = """(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side)
       for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) return { x, y }; }
       return null; }"""
-    at = None
-    for _ in range(40):                                                                                # the fan is drawn again a moment after an answer: asked again until it stands
-        at = await card.evaluate(probe)
-        if at:
-            break
-        await page.wait_for_timeout(50)
+    at = await card.evaluate(probe)
     assert at, f"no point of {name} can be tapped"
     await page.mouse.click(at["x"], at["y"])
     raised = page.locator(".raised")

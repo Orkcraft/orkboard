@@ -77,22 +77,52 @@ export function keepFocus(root, paint) {
 }
 
 /** Nothing moves under the finger or the focus: `held(column)` is true while a touch is down in the column or the focus (the keyboard's) is inside it, for at most HOLD_MS.
- *  `redraw` runs when a hold ends. `root`: what holds the columns. */
+ *  `redraw` runs when a hold ends, and only when a redraw was held back (`deferred`: set when `held` said yes, cleared by the redraw that began with `begin()`): a focus that
+ *  moves because the person pressed something is no reason to draw the field again. `root`: what holds the columns. */
 export function makeHolds(root, redraw) {
   const touching = new Set();                         // the columns with a touch down
   const began = new Map();                            // the column → when its hold began
   let waiting = 0;
+  let deferred = false;                               // a draw was held back since the last one began
   const column = (e) => e.target.closest?.(".stack[data-column]");
-  const release = () => { if (!waiting) waiting = setTimeout(() => { waiting = 0; redraw(); }, 0); };
+  const release = () => { if (deferred && !waiting) waiting = setTimeout(() => { waiting = 0; redraw(); }, 0); };
   root.addEventListener("touchstart", (e) => { const c = column(e); if (c) touching.add(c.dataset.column); }, { passive: true });
   for (const type of ["touchend", "touchcancel"]) root.addEventListener(type, () => { if (touching.size) { touching.clear(); release(); } }, { passive: true });
   root.addEventListener("focusout", () => { if (!painting.on) release(); });
   return {
+    /** A draw begins: nothing it held back before is waiting any more (the columns it holds now say so again). */
+    begin() { deferred = false; },
     held(col) {
       const key = col.dataset.column;
       if (!touching.has(key) && !col.querySelector(":focus-visible")) { began.delete(key); return false; }
       if (!began.has(key)) { began.set(key, Date.now()); setTimeout(redraw, HOLD_MS + 50); }
-      return Date.now() - began.get(key) <= HOLD_MS;
+      const yes = Date.now() - began.get(key) <= HOLD_MS;
+      if (yes) deferred = true;
+      return yes;
+    },
+  };
+}
+
+/** No lost tap (docs/specs/50-parties-and-goals.md §6.9): a press is a `pointerdown` and a `pointerup` with the click after them, and a redraw between them removes the node the
+ *  click was meant for. While a pointer is down on one of `roots` (captured: before the focus moves), `waits()` says true and keeps that a draw is wanted (`pending`; the caller does
+ *  not use up its signature); after `pointerup` or `pointercancel`, in a 0 ms timeout (the click lands first), `redraw` runs once for what was postponed. A pointer that never comes
+ *  up (HOLD_MS) does not keep the field from drawing. */
+export function pointerGuard(roots, redraw) {
+  let down = 0;                                       // when the pointer went down (0: none)
+  let pending = false;
+  const up = () => {
+    if (!down) return;
+    setTimeout(() => { down = 0; if (pending) { pending = false; redraw(); } }, 0);
+  };
+  for (const root of [roots].flat()) root.addEventListener("pointerdown", () => { down = Date.now(); }, true);
+  window.addEventListener("pointerup", up, true);
+  window.addEventListener("pointercancel", up, true);
+  return {
+    /** True while a pointer is down: the draw is postponed (and runs after it comes up). */
+    waits() {
+      if (!down || Date.now() - down > HOLD_MS) return false;
+      pending = true;
+      return true;
     },
   };
 }

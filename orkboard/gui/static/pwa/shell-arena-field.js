@@ -142,6 +142,7 @@ export function makeField(core, hooks) {
     el,
     /** `model`: shell-arena-words.js `modelOf`; `ui`: {band, focus, idea}; `bands`: the stage switch's node. */
     draw(model, ui, bands) {
+      holds.begin();                                                         // what the last draw held back is not waiting any more
       const quiet = !motionOn();
       const uiKey = `${model.goal.slug}|${ui.band}|${ui.focus}|${ui.idea}`;
       const sameUi = uiKey === seenUi;                                       // a pick of the person's moves things by itself: only what changed slides

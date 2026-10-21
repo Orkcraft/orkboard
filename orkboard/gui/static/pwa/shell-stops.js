@@ -9,6 +9,7 @@ import { midHead, whoHead } from "./shell-who.js";
 import { needsOf, failedOf, looksOf, nodesOf, planPrice } from "./shell-arena-words.js";
 import { resultActions, testsWords, changesWords, foundWords, foundOf } from "./shell-review.js";
 import { OPS_VIEW } from "./shell-ops.js";
+import { pointerGuard } from "./shell-motion.js";
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const KIND = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
@@ -33,6 +34,7 @@ export function makeStops(core, ctx, needs, ops) {
   dlg.addEventListener("close", () => { st.hand = ""; mark(); core.draw(); });          // what changed while it was up shows now: the fan does not shift under it
 
   let items = [], sigs = "", raisedSig = "";
+  const guard = pointerGuard([el, dlg], () => api.draw());      // no lost tap: a draw waits while a pointer is down on the fan or the raised one (spec 50 §6.9)
 
   // -- the stops of the goal, each with its quick answers ----------------------------------------------------------------------------------------------
   const btn = (label, run, { primary = false, tip = "", text = false, disabled = false, attrs = {} } = {}) => h("button", { class: `ork-btn${primary ? " primary" : ""}${text ? " answer" : ""}`,
@@ -197,7 +199,7 @@ export function makeStops(core, ctx, needs, ops) {
     raisedSig = it.key + JSON.stringify(it.sig);
   }
 
-  return {
+  const api = {
     el,
     sheets: [dlg],
     /** What is acted on only while the town answers. */
@@ -207,6 +209,7 @@ export function makeStops(core, ctx, needs, ops) {
     keys: () => items.map((i) => i.key),
     /** Drawn again only when what the row shows changed: a line half typed in a raised one stays, and the fan does not shift while a stop is popped (spec 49 §11). */
     draw() {
+      if (guard.waits()) return;
       items = build();
       const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.text, i.sig])) + st.hand;
       if (sig !== sigs && !dlg.open) {
@@ -220,4 +223,5 @@ export function makeStops(core, ctx, needs, ops) {
       }
     },
   };
+  return api;
 }

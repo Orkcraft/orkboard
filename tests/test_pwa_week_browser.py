@@ -35,6 +35,7 @@ async def _sheet(page):
     await row.click()
     sheet = page.get_by_role("dialog", name="This week")
     await sheet.locator(".week p").first.wait_for(timeout=WAIT_MS)
+    await sheet.get_by_text("Reading the week").wait_for(state="detached", timeout=WAIT_MS)         # the week is read
     return sheet
 
 

@@ -10,7 +10,7 @@ import { keepGoal, keptGoal } from "./shell-top.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { BANDS, chipsOf, modelOf, shownGoal, doneWords } from "./shell-arena-words.js";
 import { makeField } from "./shell-arena-field.js";
-import { keepFocus } from "./shell-motion.js";
+import { keepFocus, pointerGuard } from "./shell-motion.js";
 import { tallyWords } from "./shell-map.js";
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -22,6 +22,7 @@ export function makeArena(core, ctx, parts) {
   const { goalSheet, ops, ideas, cards, flags } = parts;
   const el = h("section", { class: "pane arena", "aria-label": "The goal at work" });
   const fresh = steady(el);
+  const guard = pointerGuard(el, () => api.draw());                // no lost tap: a draw waits while a pointer is down (spec 50 §6.9)
 
   // -- what the person picks ---------------------------------------------------------------------------------------------------------------------------
   function pickGoal(slug) {
@@ -170,7 +171,7 @@ export function makeArena(core, ctx, parts) {
     el.replaceChildren(...lead, chipRow(list, slug), header(m), ideasBar(m), field.el);
   }
 
-  return {
+  const api = {
     el,
     sheets: [],
     /** Pick the goal of a stop (a push arrival, a link to Needs you) and show it. */
@@ -178,10 +179,12 @@ export function makeArena(core, ctx, parts) {
     /** The goal shown, from what the Board read and what this phone showed last. */
     goal: () => shownGoal(st, keptGoal(st.snap?.project)),
     draw() {
+      if (guard.waits()) return;                                 // a pointer is down: drawn after it comes up, the signature not used up
       const signature = JSON.stringify([st.map, st.board, st.agents, st.roles?.seats, st.roles?.library?.length, st.review, st.gate, st.today, st.track, st.view, st.band, st.focus, st.idea,
         st.ideasOpen, st.cards, st.ops, st.boardError, st.mapError, st.snap?.ops_rev, st.tick, Math.floor(Date.now() / 60000)]);
       if (!fresh(signature)) return;
       keepFocus(el, paint);                                      // drawn again: a keyboard's place stays where it was
     },
   };
+  return api;
 }
