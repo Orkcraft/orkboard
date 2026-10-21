@@ -583,6 +583,8 @@ four launches, one product and its labs. So:
    Task Fields for Orkboard, the Scroll Dump for OrkWiki, the Watchtower for OrkWatch, the Forge for Orkline), and a
    card for each: the game it plays like, its job, how the game is the job, and its install or where it stands (a tool
    not out yet offers the letter when it ships). The dates are approximate, the owner's to move: Orkboard now, OrkWiki
-   winter 2026, OrkWatch spring 2027, the whole line summer 2027.
+   and OrkWatch autumn 2026, the whole line December 2026 (moved by the owner the same day; first winter 2026, spring
+   2027, summer 2027). The site names a game by its kind alone (a deck-builder, a routing puzzle, idle tower defense, a
+   factory game), never another studio's title; a tool's card opens from its building on the line (orkPage `8081bc3`).
 The line's frame and its page: no product's code and no spec. §27 and §50.8 stand (no new mechanic before the testers'
 numbers); a lab starts with a spec of its own, OrkWiki's first.
