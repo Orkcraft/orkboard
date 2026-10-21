@@ -35,7 +35,7 @@ from typing import Any, Callable
 
 from orkboard import settings
 from orkboard.core import idea_keeper
-from orkboard.realm import event_log, idea_checks, idea_lens, idea_photos, idea_secrets, idea_target, ideas, wiki
+from orkboard.realm import event_log, idea_checks, idea_element, idea_lens, idea_photos, idea_secrets, idea_target, ideas, wiki
 from orkboard.gui.ideas_args import VIA, IdeasError, _device, _opt, _str, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_gate import GateMixin
@@ -330,10 +330,11 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
         idea_lens.save(self.state_dir, slug, pointed)
+        element = idea_element.give(self.root(), self.state_dir, slug)    # the mark of every card of it (spec 50 §2.3)
         ideas.add_turn(self.state_dir, slug, "you", text, "Gist")     # the person's own words, kept
         self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
                  priority=priority, queue=queue, photos=len(photos), lens=[a["kind"] for a in pointed])
-        out = {"slug": slug, "queue": queue}
+        out = {"slug": slug, "queue": queue, "element": element}
         if queue == "now":                      # drafted at once, in the background (held in a spent window)
             try:
                 self.keeper.draft(slug)

@@ -482,7 +482,8 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
 # -- what runs on an idea: <state_dir>/ideas/<slug>/ ------------------------------------------------
 
 STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": "",
-                 "queue": "", "held_until": "", "measure": None, "night_by": ""}
+                 "queue": "", "held_until": "", "measure": None, "night_by": "",
+                 "element": ""}                       # a goal's element (realm/idea_element.py, spec 50 §2.3): given once, never changes
 
 
 def night_by_of(st: dict) -> str:

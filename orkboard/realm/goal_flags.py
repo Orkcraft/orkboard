@@ -3,7 +3,8 @@
 the event log: no face, no model, it writes nothing.
 
     goal_flags.tally(root, state_dir, "offline-mode")    # {"ideas", "results", "first_time", "usd", "days"}
-    goal_flags.flags(root, state_dir)                    # [{"goal", "title", "short", "by", "at", "tally"}], newest first
+    goal_flags.flags(root, state_dir)                    # [{"goal", "title", "short", "by", "at", "tally"}], newest first: a party's old flags
+    goal_flags.goals(root, state_dir)                    # [{"slug", "title", "short", "goal", "element", "at", "tasks", …}], newest first: the goals' flags
 
 `root` is the Board's tree (where the pages are); the event log is the project's, `state_dir`'s parent.
 """
@@ -13,7 +14,7 @@ import datetime as dt
 import threading
 from pathlib import Path
 
-from orkboard.realm import board_recap, event_log, goal_verdict, idea_spend, ideas
+from orkboard.realm import board_recap, event_log, goal_verdict, idea_element, idea_flag, idea_spend, ideas
 
 _STARTS: dict[str, tuple[tuple[int, int], dict[str, dt.datetime]]] = {}      # event log → ((mtime, size), goal → its first `goal_saved`)
 _LOCK = threading.Lock()
@@ -72,3 +73,17 @@ def flags(root: Path, state_dir: Path) -> list[dict]:
             out.append({"goal": g["slug"], "title": g["title"], "short": g["short"], "by": verdict.get("by") or "",
                         "at": verdict.get("at") or "", "tally": tally(root, state_dir, g["slug"])})
     return sorted(out, key=lambda f: (board_recap.when(f["at"]) or dt.datetime.fromtimestamp(0)).timestamp(), reverse=True)
+
+
+def goals(root: Path, state_dir: Path) -> list[dict]:
+    """The flags of the goals (spec 50 §2.2, §2.4), every party's, newest first: a goal's slug, title, short name, its party's
+    slug (`goal`, the code's name), its element, and its flag's `at` and tally (`tasks`, `first_time`, `usd`, `days`). The faces
+    filter by `goal`; a party's old flags (what `flags` lists) are history and stay where they are."""
+    out = []
+    for i in ideas.ideas(root):
+        flag = idea_flag.flag_of(state_dir, i["slug"])
+        if flag is not None:
+            out.append({"slug": i["slug"], "title": i["title"], "short": i["short"], "goal": i["track"],
+                        "element": idea_element.of(state_dir, i["slug"]), "at": flag["at"],
+                        **{k: flag.get(k) for k in ("tasks", "first_time", "usd", "days")}})
+    return sorted(out, key=lambda f: (board_recap.when(f["at"]) or dt.datetime.fromtimestamp(0).astimezone()).timestamp(), reverse=True)

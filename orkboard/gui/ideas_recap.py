@@ -47,8 +47,10 @@ class RecapMixin:
         return {"events": board_today.rows(lines, titles, into=self._into(), since=since)}
 
     def flags(self, args: dict) -> dict:
-        """`{}`: the project's flags, goals accepted by their leader against their metrics, newest first (spec 42 §2)."""
-        return {"flags": goal_flags.flags(self.root(False), self.state_dir)}
+        """`{}`: `{flags, goals}`. `flags`: the parties' old flags, goals accepted by their leader against their metrics, newest
+        first (spec 42 §2). `goals`: the goals' flags, every party's, newest first (spec 50 §2.4): the faces filter by `goal`."""
+        root = self.root(False)
+        return {"flags": goal_flags.flags(root, self.state_dir), "goals": goal_flags.goals(root, self.state_dir)}
 
     def week_work(self, args: dict) -> dict:
         """`{}`: the work of the last seven days beside today's spend, and the nights (spec 42 §6)."""
