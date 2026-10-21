@@ -148,7 +148,7 @@ From the top, at 1 440 × 900 (the mockup's size), nothing scrolling but the reg
 2. **The goal tabs** (40 px, §4).
 3. **The main row**: the **today strip** (40 px, §7), the **left column** (248 px: Planning over the leader, §4.3–4.4),
    and the **goal's field** (the rest): the **ideas bar** (36 px, §4.5), the **party's columns** with the right column
-   **Waits for your look** (312 px, §5.4) beside them, the **party row** (136 px: the members, and the gate in the right
+   **Waits for your look** (312 px, §5.4) beside them, the **party row** (64 px: the members, and the gate in the right
    312 px, §5.1, §5.5), and the **bottom row** (64 px: what waits for you, §6, and the limits in the right 312 px, §8).
 4. **The drawer** (§9) over the field from the right.
 Below 1 024 px: the today strip is hidden, the left column is 200 px, the results join the bottom row (as on the phone,
@@ -181,27 +181,29 @@ Below 1 024 px: the today strip is hidden, the left column is 200 px, the result
    stop has the alert edge on its left (2 px). A click opens it in the drawer (the plan's screen for a plan, else the
    idea's). Under them **New (n)** folds the `raw` ideas (*new · <leader> reads it later*, or *tonight*). Empty:
    *Nothing in Planning. A new idea starts here.*
-4. **The leader** (the left column's foot): the leader as a member (§5.2) at its big head (48 × 44), and **Process
+4. **The leader** (the left column's foot): the leader as a member (§5.2, the same small row), and **Process
    now · n new ideas** (`ideas.queue {slug, queue: "now", via: "party"}` for the goal's first `raw` idea; off with *no
    new idea*; its tooltip *<leader> reads “<title>” now*). A click on the leader shows only the leader's work (§5.3).
 
 ## 5. The party (B)
 1. **The party row**: the goal's builders, then its checkers, then its **free seats** (the seats the party leaves,
    decisions §56: 3 builders, 2 checkers), each over its column (§5.4). A free seat is narrow (88 px), dashed, *+* and
-   *A free seat* with its band (*builds* / *checks*); a click opens **Edit the party**.
-2. **A member** is a small framed card (1 px `--ork-frame`, notched, `--ork-panel`; a member that is on: `--ork-raised`
-   with an ink edge): its head (36 × 33, `.ork-race__head.mid`; the leader's 48 × 44), and **two numbers right of the
-   head, one under the other**: its runs and redos (*5/1*: tasks finished this week and of them sent back; a checker's
-   *6/2*, checks and of them caught something; the leader's *6/1*, plans and of them made again) and **its price for a
-   run** (*$0.38*: the week's average once 3 have finished, `usd_task`; before, *≈$0.40*, its level's price), each with a
-   tooltip that says which (*the average of its 5 runs this week* · *about: too few runs yet, the price of its level*, both
-   *at API prices, not your bill*). Under them: its name **between two marks** (§1.6): its harness's on the left (§2.5:
-   `marks/harness-<id>.png`, tooltip *Runs on Claude*) and its level's chevrons on the right (the head's tier:
-   `rank-1` Novice, `rank-2` Seasoned, `rank-3` Veteran; tooltip *Seasoned: its level*), no line of words for them; its
-   state in words (the alert colour for a stop, spec 48 §6), and (desktop) what it does now (*↻ Challenge store · 4
-   min*, *✗ <task>*, *next: <task>*, *n in Review*). Its label for a screen reader says all of it in words. Numbers come
-   from `ideas.agents` joined by slug (`week`, `check_week`, `usd_task`, `max_parallel`, the chips); the Taskmaster's
-   price is the plans' (*—* when it has none).
+   *A free seat* with its band (*builds* / *checks*); a click opens **Edit the party**. The row is 64 px high.
+2. **A member** is a small framed row, about 110 × 45 px (1 px `--ork-frame`, notched, `--ork-panel`; a member that is
+   on: `--ork-raised` with an ink edge): **its head** (36 × 33, `.ork-race__head.mid`, the leader's too) **wearing three
+   signs on its corners** (16 × 16, half over the head): its **harness's mark** bottom left (§1.6, §2.5:
+   `marks/harness-<id>.png`, tooltip *Runs on Claude*), its **level's chevrons** top right (the head's tier: `rank-1`
+   Novice, `rank-2` Seasoned, `rank-3` Veteran; tooltip *Seasoned: its level*) and **its state** bottom right: ✗ on the
+   danger ground for a failure, ! on the alert ground for any other stop (*plan ready*, *asks you*, *proposed*), ↻ while
+   at work, ☾ tonight, none when next or free (tooltip: the state in words). Beside the head, three short lines: its
+   **name**, **its runs and redos** (*5/1*: tasks finished this week and of them sent back; a checker's *6/2*, checks and
+   of them caught something; the leader's *6/1*, plans and of them made again) and **its price for a run** (*$0.38*: the
+   week's average once 3 have finished, `usd_task`; before, *≈$0.40*, its level's price), each number with a tooltip that
+   says which (*the average of its 5 runs this week* · *about: too few runs yet, the price of its level*, both *at API
+   prices, not your bill*). No line of words for the state, the harness or the level: the peek (§5.3) and the member's
+   label for a screen reader say all of it in words. Numbers come from `ideas.agents` joined by slug (`week`,
+   `check_week`, `usd_task`, `max_parallel`, the chips); the Taskmaster's price is the plans' (*—* when it has none). A
+   free seat is the same size: a dashed square with *+*, *A free seat* and its band.
 3. **Its peek**: hovering or focusing a member shows its whole face beside it (a larger framed card, `aria-hidden`,
    nothing in it pressable): the price in a gem with *a run*, its band, the head, the name, *race · harness · level ·
    model · k of n at once*, its state, now and next, *Takes: …* (*Checks: …*, *Leads: …*), and the two numbers in
@@ -291,7 +293,7 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
    events: the Today sheet), and the **limits chip** (the worst tool's diamonds: the tools sheet). It slides away as
    the page scrolls, as today.
 2. **The goals** as a row of chips under it (scrolling sideways): the short title, its %, its stops' count, ↻; an
-   *Operations* chip when the project has them. The goal's header under them: its title, *k ideas left · n % · ≈$ so
+   *Operations* chip when the project has them, and **+ New goal** last (dashed). The goal's header under them: its title, *k ideas left · n % · ≈$ so
    far*, and the gate's button (*dev → main*, off when main is up to date; its screen full-screen).
 3. **The ideas bar**: *▾ n · Now: …*; open, the ideas at work (title, pips, stage track, note; a tap shows only that
    idea's tasks) and *Done · n*.
@@ -301,14 +303,16 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
 5. **The stage switch** over the field: **Planning n** · **Implementation n** · **Checking n** (a `tablist`, 44 px; a
    count in the warning count when a stop is in that stage; *Implementation* is the wider): it shows **only the
    columns of that stage**: Planning the leader's column (its Planning items as task items, the stops first, **Process
-   now** and **+ New idea** in it), Implementation the builders' and their free seats, Checking the checkers' and theirs.
+   now** in it), Implementation the builders' and their free seats, Checking the checkers' and theirs.
    The first shown is Implementation when a builder has an open task, else Checking when a checker has, else Planning;
    another goal starts at its own first. With up to three members the columns share the width (no sideways scroll);
-   more scroll sideways. The members stand at the foot of their columns (§5.2's card without *now*, a 108 px row), the
+   more scroll sideways. The members stand at the foot of their columns (§5.2's row, a 60 px row: three fit across), the
    free seats after them; a tap on a member shows only its work over the field (§5.3: the same order, three to a row
    across the width, bottom-up; its price and numbers in a line on top; *Everyone*).
 6. **What waits for you** lies along the bottom (56 px, **no line over it**): the stops of §6 and, after them, the
-   results to look at (*To look at*, the edge's muted frame), fanned and only their tops showing. A tap **pops** one out:
+   results to look at (*To look at*, the edge's muted frame), fanned and only their tops showing; **New idea** is the
+   FAB in its right corner (as the phone's FAB of before, `ideas.fab`: a 48 px square in the action colour with *+*, the
+   new idea for the goal shown), the fan keeping clear of it. A tap **pops** one out:
    it leaps from its place in the fan to a raised sheet above the scrim (≈ 0.34 s in steps, from its turn to upright;
    none under `prefers-reduced-motion`; its place in the fan stays empty while it is up): its gem, kind, head, title,
    text, its quick answers as 44 px buttons (§6.2's; a result's *Merge into dev* · *Send back* · *Drop…*) and **Open it
@@ -366,8 +370,8 @@ else: stop and write it in §14 (as built) first.
 - **B** (browser, desktop): the regions in their order and sizes at 1 440 × 900 with no page scroll; the tabs (title,
   %, the stops' count, the picked one kept after a reload, arrows; Operations); Planning's rows and marks, *New (n)*,
   Process now's command; the ideas bar's line, open list, a press filtering the field, *About this goal* in the
-  drawer, Done's words with `ideas.gate`; a member's two numbers and their tooltips (the average and the *≈* before),
-  its two marks (harness, level) and their tooltips, the peek on hover, solo and back (the same order, across the width,
+  drawer, Done's words with `ideas.gate`; a member's row (≈ 45 px high) with its two numbers and their tooltips (the
+  average and the *≈* before), its three signs on the head (harness, level, the state: ✗ for a failure) and their tooltips, the peek on hover, solo and back (the same order, across the width,
   others gone; the button, Esc); the columns bottom-up with the bottom row lit
   and the rows above muted, *✓ k in dev*, the hover's *waits for it*; Waits for your look's buttons and their commands;
   the gate's button, screen and `ideas.gate_merge`; the stops in the fan, a raise on hover and focus, each kind's quick
@@ -376,7 +380,8 @@ else: stop and write it in §14 (as built) first.
   reduced motion; no alert colour on a result.
 - **C** (browser, phone): no tab bar; the top bar's Today and limits sheets; the goal chips and header; the stage
   switch (the first shown, a press, the counts, the columns shown, no sideways scroll with three); the members' cards
-  and their marks (`marks/*.png` served); a member's solo (the column's order, three to a row);
+  (three across at 390 px, their signs; `marks/*.png` served); a member's solo (the column's order, three to a row);
+  + New goal last among the chips; the New idea FAB in the bottom row's corner, clear of the fan;
   the stops and results along the bottom with no line over them, a tap pops one (the class, none under reduced
   motion), its quick answers' commands, *Open it on its own screen*; `#needs`; 44 px targets; the service worker's
   version and `SHELL`.

@@ -675,9 +675,9 @@ was turned down; C lists what was taken from the game). So:
    also the product's picture for marketing. The interface never says card, deck, hand, mana, hero or boss (§56).
 3. **A member says two numbers and its kit**: its runs and redos this week (a checker's checks and catches, the
    leader's plans and plans made again) and its average price for a run (an estimate, by its level, until three have
-   finished), then its name between two marks, its harness's and its level's chevrons (Orkline's, now in orkUI), its
-   state. No octagon frame: the head is the picture (§53), small; the member is a small framed card like the tasks
-   above it. Showing one member's work reorders nothing: the others' tasks leave the field and its own lie across it.
+   finished), beside its head; the head wears its harness's mark, its level's chevrons (Orkline's, now in orkUI) and
+   its state as a sign (✗ a failure, ! a stop, ↻ at work). No octagon frame: the head is the picture (§53), small; the
+   member is a small row, three of them across a phone. Showing one member's work reorders nothing: the others' tasks leave the field and its own lie across it.
 4. **The gate is built** (§49.5's item 5, its one press): *Merge dev into main*, beside the party, with its count of
    ideas in dev not in main, its screen in the drawer, a fast-forward or a merge commit made in a worktree of its own, a
    conflict refused with main as it was. Its report (the full suite, the browser tests, `checks.toml`) and *Revert* stay
