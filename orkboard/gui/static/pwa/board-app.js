@@ -52,7 +52,7 @@ function pairing(pairCode) {
   const again = h("button", { class: "ork-btn", hidden: true, onclick: () => pair(pairCode, guessName(), msg, again) }, "Try again");
   show(h("section", { class: "card" },
     h("h1", {}, "Pairing this phone"),
-    h("p", {}, "It will see the board: goals and ideas, what needs you, the agents at work and the results to review. "
+    h("p", {}, "It will see the board: parties and goals, what needs you, the agents at work and the results to review. "
       + "It may answer, start, merge or send back, and stop all. It never types into a terminal."),
     msg, again));
   pair(pairCode, guessName(), msg, again);

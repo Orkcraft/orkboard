@@ -1,4 +1,4 @@
-// The preview on its own full screen (docs/specs/33-v1-shell.md §6, §8): an idea's spec (29a's sections view), an idea's plan
+// The preview on its own full screen (docs/specs/33-v1-shell.md §6, §8): a goal's spec (29a's sections view), a goal's plan
 // (scrolled to a to-do, said what it unblocks), a task (brief, state, log) or a result's code (commits, then the files, each
 // patch folded and scrolling sideways inside its own box — the page never does). Back (and the system back gesture) returns
 // to the tab it came from; its actions sit in a bar pinned at the bottom.
@@ -13,6 +13,7 @@ import { heldWords } from "./shell-words.js";
 import { limitsNote } from "./shell-limits.js";
 import { who, whoHead, headWords, TIER_WORDS } from "./shell-who.js";
 import { gateScreen } from "./shell-gate.js";
+import { sign } from "./shell-marks.js";
 
 const TALK_SHOWN = 6;
 const LOG_MS = 5000;
@@ -28,13 +29,13 @@ export const price = (e) => (e ? `~${usd(e.usd_low)}–${Number(e.usd_high) < 10
 
 const STAGES = ["goal", "spec", "plan", "work", "rework", "dropped"];
 
-/** An idea's money so far (spec 36 §5): `≈$3.10 — goal 0.40 · spec 0.50 …`, the stages at 0 left out; `—` when all are unpriced. */
+/** A goal's money so far (spec 36 §5): `≈$3.10 — party 0.40 · spec 0.50 …`, the stages at 0 left out; `—` when all are unpriced. */
 export function spendLine(s) {
   if (!s) return "";
   const cents = (n) => Number(n).toFixed(2);
-  if (s.usd == null) return "This idea so far: —";
-  const parts = STAGES.filter((k) => s.stages?.[k]?.usd).map((k) => `${k} ${cents(s.stages[k].usd)}`);
-  return `This idea so far: ≈$${cents(s.usd)}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
+  if (s.usd == null) return "This goal so far: —";
+  const parts = STAGES.filter((k) => s.stages?.[k]?.usd).map((k) => `${k === "goal" ? "party" : k} ${cents(s.stages[k].usd)}`);      // the leader reading the party
+  return `This goal so far: ≈$${cents(s.usd)}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
 }
 
 /** "tasks k2 and k3 wait for it": the tasks a to-do holds back. */
@@ -93,7 +94,7 @@ export function makePreview(core, ctx, screens = {}) {
     return r.result || {};
   }
 
-  // -- an idea's spec ---------------------------------------------------------------------------------------------
+  // -- a goal's spec ---------------------------------------------------------------------------------------------
   function sectionBlock(s) {
     const [role, icon] = SECTIONS[s.name] || ["muted", "•"];
     const on = unfolded.has(s.name);
@@ -126,7 +127,7 @@ export function makePreview(core, ctx, screens = {}) {
       send.disabled = false;
       if (r) { asked = ""; field.value = ""; read(st.preview); }
     });
-    return h("div", { class: "ask" }, section ? h("button", { class: "about", type: "button", "aria-label": "Ask about the whole idea instead",
+    return h("div", { class: "ask" }, section ? h("button", { class: "about", type: "button", "aria-label": "Ask about the whole goal instead",
       onclick: () => { section = ""; draw(); } }, `${section} ✕`) : null, h("div", { class: "row" }, field, send));
   }
 
@@ -146,8 +147,8 @@ export function makePreview(core, ctx, screens = {}) {
     return h("div", { class: "plan card" }, h("h3", {}, "The plan"), ...kids);
   }
 
-  /** The checks the goal's team holds this idea to (realm/idea_checks.py): passed, its task's state, or why it does not apply. */
-  /** The checks of the idea (realm/idea_checks.py): passed, its task's state, why not, or skipped by the person. Skip spares a
+  /** The checks the party holds this goal to (realm/idea_checks.py): passed, its task's state, or why it does not apply. */
+  /** The checks of the goal (realm/idea_checks.py): passed, its task's state, why not, or skipped by the person. Skip spares a
    *  check that has not run (its task taken out of the plan); Take again, before a plan. */
   function checksLine(p, cur) {
     const checks = p.checks;
@@ -182,7 +183,7 @@ export function makePreview(core, ctx, screens = {}) {
       talk.length ? h("div", { class: "talk" }, ...talk.map((t) => h("div", { class: `turn ${t.who}` },
         h("span", { class: "who" }, t.who === "you" ? "You" : "The Taskmaster", t.section ? ` · ${t.section}` : ""), h("p", {}, t.text)))) : null,
       askBox(p),
-      h("p", { class: "muted" }, h("button", { class: "linkish", type: "button", onclick: () => dropIdea(p) }, "Delete this idea…"))].filter(Boolean));
+      h("p", { class: "muted" }, h("button", { class: "linkish", type: "button", onclick: () => dropIdea(p) }, "Delete this goal…"))].filter(Boolean));
     const n = p.plan?.estimate?.tasks ?? (p.plan?.tasks || []).length;
     const btn = (label, onclick, cls = "primary") => h("button", { class: `ork-btn ${cls} big`, type: "button", onclick }, label);
     const slug = p.slug;
@@ -209,14 +210,14 @@ export function makePreview(core, ctx, screens = {}) {
   }
 
   async function dropIdea(p) {
-    if (!confirm("Drop this idea and its page?")) return;
+    if (!confirm("Drop this goal and its page?")) return;
     if (await act("ideas.drop", { slug: p.slug })) core.close();
   }
 
   // -- a plan, scrolled to a to-do ------------------------------------------------------------------------------
   function planScreen(p, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Plan "), p.title);
-    if (!p.plan) { body.replaceChildren(h("p", { class: "muted" }, "This idea has no plan yet.")); return []; }
+    if (!p.plan) { body.replaceChildren(h("p", { class: "muted" }, "This goal has no plan yet.")); return []; }
     body.replaceChildren(planList(p.plan, p, cur.todo));
     requestAnimationFrame(() => body.querySelector(".plan-todo.is-target")?.scrollIntoView({ block: "center" }));
     const n = p.plan.estimate?.tasks ?? (p.plan.tasks || []).length;
@@ -224,11 +225,11 @@ export function makePreview(core, ctx, screens = {}) {
       onclick: () => act("ideas.start", { slug: p.slug }, "Started.").then(() => read(cur)) }, `Start · ${n} tasks · ${price(p.plan.estimate)}`)] : [];
   }
 
-  // -- a goal, and a document it links ------------------------------------------------------------------------
+  // -- a party, and a document it links ------------------------------------------------------------------------
   function goalScreen(g, cur) {
-    title.replaceChildren(h("span", { class: "muted" }, "Goal "), g.title);
+    title.replaceChildren(h("span", { class: "muted" }, "Party "), g.title);
     body.replaceChildren(...goalBody(g, core, act, asked, (v) => { asked = v; }));
-    return [h("button", { class: "ork-btn big", type: "button", onclick: () => core.editGoal(g.slug) }, "Edit goal")];
+    return [h("button", { class: "ork-btn big", type: "button", onclick: () => core.editGoal(g.slug) }, "Edit the party")];
   }
   // A Markdown file is read as the page renders it (the host's `html`, raw HTML already off); the rest as plain text.
   function docText(d, cur) {
@@ -239,7 +240,7 @@ export function makePreview(core, ctx, screens = {}) {
   }
   function docScreen(d, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Document "), cur.path);
-    body.replaceChildren(h("p", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "goal", slug: cur.slug }) }, "← Back to the goal")),
+    body.replaceChildren(h("p", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "goal", slug: cur.slug }) }, sign("before"), " Back to the party")),
       d ? docText(d, cur) : h("p", { class: "muted" }, "That document cannot be shown."),
       d?.truncated ? h("p", { class: "muted" }, "Cut here: the document is longer.") : null);
     return [];
@@ -261,7 +262,7 @@ export function makePreview(core, ctx, screens = {}) {
     body.replaceChildren(...[
       h("dl", { class: "facts" },
         h("dt", {}, "State"), h("dd", { "data-state": t.state }, TASK_WORDS[t.state] || t.state, t.note ? h("small", { class: "muted" }, ` ${t.state === "held" ? heldWords(t.note, t.waits_title) : t.note}`) : null),
-        h("dt", {}, "Idea"), h("dd", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "idea", slug: t.idea }) }, t.idea_title)),
+        h("dt", {}, "Goal"), h("dd", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "idea", slug: t.idea }) }, t.idea_title)),
         h("dt", {}, "Tier"), h("dd", {}, t.head ? who(t.head, true) : t.tier), h("dt", {}, "Branch"), h("dd", {}, h("code", {}, t.branch || "—")),
         h("dt", {}, "Round"), h("dd", {}, String(t.round || 1)), h("dt", {}, "Spend"), h("dd", {}, t.cost != null ? `$${Number(t.cost).toFixed(2)}` : "—")),
       t.error ? h("p", { class: "warn", role: "alert" }, t.error) : null,
@@ -291,7 +292,7 @@ export function makePreview(core, ctx, screens = {}) {
       spend ? h("p", { class: "muted spend-line", title: "At API prices, not your bill" }, spendLine(spend)) : null,
       r ? factsOf(r) : h("p", { class: "muted" }, "This result is no longer waiting at Review."),
       r ? foundOf(r) : null,
-      r?.conflict ? h("p", { class: "warn" }, `⚠ ${r.conflict}`) : null,
+      r?.conflict ? h("p", { class: "warn" }, sign("alert"), ` ${r.conflict}`) : null,
       !diff ? h("p", { class: "muted" }, "Reading the code…") : h("div", { class: "code" },
         h("h3", {}, "Commits"), h("ol", { class: "commits" }, ...diff.commits.map((c) => h("li", {}, h("code", {}, c.sha), ` ${c.subject}`))),
         h("h3", {}, `Files changed (${diff.files.length})`), ...diff.files.map(file),

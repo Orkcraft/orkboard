@@ -1,42 +1,30 @@
-// The project switcher on the phone (docs/specs/37-board-and-line.md §8): a drawer from the left, the projects open at the computer,
-// each with what is working, what needs you and what waits in Review; a tap shows that one. A project is opened and closed at the
-// computer, never from the phone: the recent ones are only named.
-// The settings of the project and of this phone are under them (spec 41 §2). Read again when the snapshot's `rev` moves.
-import { h, sheet } from "./util.js";
-import { foot } from "./shell-forms.js";
+// The other projects, in the *where* sheet of the top bar (docs/specs/37-board-and-line.md §8, spec 50 §6.1; shell-where.js): the projects open at the computer but this one, as rows — the name and what
+// waits (what is working, what needs you, what waits in Review) — and a line that says where projects are opened; a tap switches this phone to one (`projects.use`). A project is opened and closed at
+// the computer, never from the phone. Read again when the snapshot's `rev` moves. (The menu — Stop all, Spend, Agents and the settings — is shell-top.js's.)
+import { h } from "./util.js";
 
 const count = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : "");
 
-/** "2 working · 1 needs you · 3 to review", or "Nothing waiting". */
+/** "2 working · 1 needs you · 3 to review", or "nothing waits". */
 export function countWords(p) {
   const parts = [count(p.working, "working", "working"), count(p.needs_you, "needs you", "need you"), count(p.review, "to review", "to review")];
-  return parts.filter(Boolean).join(" · ") || "Nothing waiting";
+  return parts.filter(Boolean).join(" · ") || "nothing waits";
 }
 
-/** `core`: the board's frame; `settings`: the drawer's settings (shell-drawer.js). The drawer the menu opens (spec 41 §2), from the left: Stop all,
- *  Spend today, the projects, This project, This phone. Returns {open(), sheets, render(snapshot)}. */
-export function makeProjects(core, ctx, settings) {
+/** `core`: the board's frame; `ctx`: {send}; `done()`: the sheet is put away after a switch. Returns {el, load(), render(snapshot, rev)}: `el` is the block *Other projects*. */
+export function makeProjects(core, ctx, done) {
   const body = h("div", { class: "projects" });
-  const sh = sheet("Menu", ...settings.head, h("h3", {}, "Projects"), body, ...settings.project, ...settings.phone,
-    foot(h("button", { class: "ork-btn primary big", type: "button", onclick: () => sh.close() }, "Done")));
-  sh.el.classList.add("drawer");
+  const el = h("section", { class: "projects-block", "aria-label": "Other projects" }, h("h3", {}, "Other projects"), body);
   let list = null;
-  let name = "";
   let seq = 0;
 
   function draw() {
     if (!list) { body.replaceChildren(h("p", { class: "muted" }, "Loading…")); return; }
-    const open = list.open || [];
-    const recent = list.recent || [];
-    body.replaceChildren(...[
-      open.length ? h("ul", { class: "project-list" }, ...open.map((p) => h("li", {},
-        h("button", { class: "project-row", type: "button", "aria-current": p.path === list.current ? "true" : null, onclick: () => use(p) },
-          h("b", {}, p.name), h("small", { class: "muted" }, countWords(p)), p.path === list.current ? h("small", { class: "muted" }, "Shown now") : null))))
-        : h("p", { class: "muted" }, "No project is open. Open a folder at the computer."),
-      recent.length ? h("h3", {}, "Recent, not open") : null,
-      recent.length ? h("ul", { class: "project-list" }, ...recent.map((p) => h("li", { class: "project-recent" }, h("b", {}, p.name)))) : null,
-      h("p", { class: "muted" }, "A project is opened and closed at the computer. From the phone you choose which open one to show.")]
-      .filter(Boolean));                                  // no recent ones: nothing, not "null"
+    const others = (list.open || []).filter((p) => p.path !== list.current);
+    body.replaceChildren(...[others.length ? h("ul", { class: "project-list" }, ...others.map((p) => h("li", {},
+      h("button", { class: "project-row", type: "button", "data-project": p.name, onclick: () => use(p) }, h("b", {}, p.name), h("small", { class: "muted" }, countWords(p))))))
+      : h("p", { class: "muted" }, "No other project is open. Open a folder at the computer."),
+    others.length ? h("p", { class: "muted cap" }, "Open on your computer: a tap switches this phone to one.") : null].filter(Boolean));
   }
 
   async function load() {
@@ -56,21 +44,14 @@ export function makeProjects(core, ctx, settings) {
       load();
       await core.refresh();
     }
-    sh.close();
+    done();
   }
 
   draw();
 
   return {
-    open() { settings.sync(); sh.open(); load(); },
-    sheet: sh,
-    /** The Board was read again: an open drawer shows what it read. */
-    sync() { if (sh.el.open) settings.sync(); },
-    sheets: [sh.el, ...settings.sheets],
-    render(s, rev) {
-      name = s.project || "";
-      sh.title(name || "Menu");                            // the project shown is said in the drawer's head
-      if (rev !== undefined) load();
-    },
+    el,
+    load,
+    render(s, rev) { if (rev !== undefined) load(); },
   };
 }

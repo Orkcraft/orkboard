@@ -28,8 +28,8 @@ export function recordWords(r) {
 export function checkRecordWords(r) {
   const c = r?.record?.check, n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
   if (!c || !c.checks) return "";
-  if (c.checks < TOO_FEW) return `Its check, the last 30 days: ${n(c.checks, "idea", "ideas")}: too few to say more`;
-  return `Its check, the last 30 days: ${n(c.checks, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.usd_per_check != null ? ` · ≈$${c.usd_per_check.toFixed(2)} a check` : ""}`;
+  if (c.checks < TOO_FEW) return `Its check, the last 30 days: ${n(c.checks, "goal", "goals")}: too few to say more`;
+  return `Its check, the last 30 days: ${n(c.checks, "goal", "goals")}: ${c.clean} clean, caught ${c.caught}${c.usd_per_check != null ? ` · ≈$${c.usd_per_check.toFixed(2)} a check` : ""}`;
 }
 
 export function makeAgentSheet(core) {

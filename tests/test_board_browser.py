@@ -130,7 +130,7 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 page = await ctx.new_page()
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 await page.goto(f"{server.phones.address}/app/#pair={offer['code']}")
-                await page.locator(".gchips .gchip").first.wait_for(timeout=WAIT_MS)                      # the one window: the goals as chips, no tab bar (spec 49 §10)
+                await page.locator(".gbar").first.wait_for(timeout=WAIT_MS)                               # the one window: the party in the top bar's where button, the goals bar, no tab bar (spec 49 §10, spec 50 §6)
                 assert await page.locator(".board-tabs").count() == 0 and await page.get_by_role("tab", name="Needs you").count() == 0
                 assert [(await b.get_attribute("aria-label")).split(":")[0] for b in await page.get_by_role("tab").all()] == ["Planning", "Implementation", "Checking"]   # the stage switch
                 ask = page.locator('.hc[data-kind="goal"]')                                                # Needs you: the signal (spec 41 §1) lies along the bottom
@@ -138,8 +138,8 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 await ask.click(position={"x": 14, "y": 12})
                 await page.get_by_text("Which channel first?").first.wait_for(timeout=WAIT_MS)             # the goal's question, as on the desktop
                 await page.keyboard.press("Escape")
-                bar = page.locator(".board-bar")                                                           # the menu, the goals
-                assert await page.locator(".gchips .gchip").first.is_visible() and await bar.get_by_role("button", name="Menu").is_visible()
+                bar = page.locator(".board-bar")                                                           # the menu, the where button
+                assert await bar.locator(".where").is_visible() and await bar.get_by_role("button", name="Menu").is_visible() and await page.locator(".gchips").count() == 0
                 assert await page.evaluate("document.documentElement.dataset.look") == "office"
                 assert await page.locator(".dock, .camp, .grid, .head").count() == 0
                 assert await page.evaluate("document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390")

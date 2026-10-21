@@ -1,12 +1,12 @@
 """Spec 37 part D3 on the phone (docs/specs/37-board-and-line.md §8, "Tests → D3"): Chromium at 390 × 844 against the stub of
-test_pwa_shell_browser.py with fake `projects.*` and `files.read` commands. The switcher as a sheet with the open projects and
-their counts, a tap shows another one (the drawer the menu opens, spec 41 §2); a spec a goal links opens read-only, rendered, with no edit or git control; no
+test_pwa_shell_browser.py with fake `projects.*` and `files.read` commands. The other projects as a block of the where sheet with the open ones and
+their counts, a tap shows another one (the where button's sheet, spec 50 §6.1; the menu no longer holds them); a spec a party links opens read-only, rendered, with no edit or git control; no
 horizontal scroll of the page. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _menu, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _menu, _open_party, _phone, _pick_goal, _shot, _where  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -42,17 +42,19 @@ def _projects(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_the_switcher_is_a_drawer_with_the_open_projects_and_a_tap_shows_another(fake_repo, monkeypatch):
+async def test_the_other_projects_are_in_the_where_sheet_with_their_counts_and_a_tap_shows_another(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        sheet = await _menu(page)                                                           # the menu opens the drawer (spec 41 §2)
-        assert await sheet.locator(".sheet-head h2").text_content() == "project"                       # the project shown is said in its head
-        await sheet.get_by_text("2 working · 1 needs you").wait_for(timeout=WAIT_MS)
+        drawer = await _menu(page)
+        assert await drawer.locator(".project-row").count() == 0                            # the menu no longer holds the projects
+        await page.keyboard.press("Escape")
+        sheet = await _where(page)                                                          # the where button's sheet (spec 50 §6.1): the parties, then the other projects
+        await sheet.get_by_text("3 to review").wait_for(timeout=WAIT_MS)
         text = await sheet.inner_text()
-        assert "3 to review" in text and "old" in text and "Open a folder" not in text
-        assert "opened and closed at the computer" in text
+        assert "beta" in text and "old" not in text and "Open a folder" not in text and "alpha" not in text      # the shown project is the sheet's own; a recent one is not offered
+        assert "Open on your computer: a tap switches this phone to one." in text
+        assert (await sheet.locator(".projects-block h3").text_content()).lower() == "other projects"
         box = await sheet.bounding_box()
-        assert box["x"] == 0 and box["y"] == 0 and box["height"] == 844 and box["width"] < 390       # a drawer from the left
-        assert "Shown now" in await sheet.locator('[aria-current="true"]').inner_text()
+        assert box["x"] == 0 and box["y"] == 0 and box["width"] == 390                      # a sheet from the top
         assert await sheet.get_by_role("button", name="old").count() == 0                   # a recent one is not opened from the phone
         await _shot(page, "phone-projects-390x844")
         await sheet.get_by_role("button", name="beta").click()
@@ -67,7 +69,7 @@ async def test_a_linked_spec_opens_read_only_rendered_with_no_edit_or_git_contro
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready", links=[SPEC])
         stub.bump({})
         await _pick_goal(page, "ship")
-        await page.locator(".ghead").get_by_role("button", name="Open goal Ship v1").click()
+        await _open_party(page, "Ship v1")
         await page.locator(".screen").get_by_role("button", name=SPEC).click()
         doc = page.locator(".screen .md.doc")
         await doc.wait_for(timeout=WAIT_MS)

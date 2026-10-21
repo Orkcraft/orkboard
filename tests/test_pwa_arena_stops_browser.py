@@ -1,18 +1,17 @@
-"""Spec 49 part C, the phone's bottom (docs/specs/49-one-window.md §10.6, §13 "C"): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py. What waits for you lies along
-the bottom, fanned across the whole width and centred (3, 6, 8 and 10 of them), no line over it and no count beside it; a tap pops one out, its quick answers send their commands
-with `via: "hand"`, *Open it on its own screen*; the create button floats over the field's bottom right and covers no task, its three ways and what each opens; a push's `#needs`
-arrival; the 44 px targets."""
+"""Spec 49 part C, the phone's bottom (docs/specs/49-one-window.md §10.6, §13 "C"; spec 50 §6.7): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py. What waits for
+you lies along the bottom, fanned across the whole width and centred (3, 6, 8 and 10 of them), no line over it and no count beside it; a tap pops one out, its quick answers send their commands
+with `via: "hand"`, *Open it on its own screen*; the create button, a small face-down deck, floats over the field's bottom right and covers no task, and does one thing (New goal); New party is
+the where sheet's and Add to the party is About this party's; a push's `#needs` arrival; the 44 px targets. The deck's turn and the goals bar's filter are tests/test_pwa_decks_browser.py's."""
 from __future__ import annotations
 
 import pytest
 
-from tests.test_pwa_arena_browser import SCENE, _scene, member, OWN, result  # noqa: F401
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _band, _called, _dial, _phone, _pop  # noqa: F401
+from tests.test_pwa_arena_browser import SCENE, _about, _scene, member, node, OWN, result  # noqa: F401
+from tests.test_pwa_shell_browser import FAB, NO_SCROLL, WAIT_MS, _band, _called, _new_goal, _phone, _pop, _where  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
-FAB = '.fab[data-act="create"]'
 MORE = [("register", "WebAuthn register", "k2", "Credential table and migration"), ("register", "WebAuthn register", "k3", "Register screen"),
         ("register", "WebAuthn register", "k4", "Wire the screen to the endpoint"), ("register", "WebAuthn register", "k5", "Register endpoint")]
 EXTENT = """() => { const r = [...document.querySelectorAll('.hand .hc')].map((b) => b.getBoundingClientRect());
@@ -51,7 +50,7 @@ async def test_the_fan_lies_across_the_width_centred_inside_the_screen_and_the_c
         assert overlap[1] == f"-{side}px -{side}px" or n == 2                                        # overlapping each side so that they fit (a reset of buttons' margins does not undo it)
         fab = page.locator(FAB)
         box = await fab.bounding_box()
-        assert round(box["x"]) == 330 and round(box["y"] + box["height"]) == 844 - 56 - 10 and box["width"] == 48     # over the field's bottom right, 10 px above the row
+        assert round(box["x"]) == 326 and round(box["y"] + box["height"]) == 844 - 56 - 10 and box["width"] == 48 and box["height"] == 64     # over the field's bottom right, 10 px above the row
         assert await fab.evaluate(UNDER) == ["fab"]                                                  # nothing lies over it: no fan item reaches its box
         row = await page.locator(".handzone").bounding_box()
         assert box["y"] + box["height"] + 10 <= row["y"] + 1 and abs(row["height"] - 56) < 1            # the row is 56 px, the button over it
@@ -59,26 +58,27 @@ async def test_the_fan_lies_across_the_width_centred_inside_the_screen_and_the_c
 
 @pytest.mark.asyncio
 async def test_the_create_button_covers_no_task_at_the_end_of_a_queue_nor_of_a_solo(fake_repo, monkeypatch):
-    backend = SCENE["map"]["nodes"][6]                                                               # the register idea: a long queue for Backend and for Screens
-    for i in range(10):
-        backend["tasks"].append({**backend["tasks"][3], "id": f"x{i}", "title": f"Another task {i}", "short": f"Another task {i}", "wave": 3 + i, "after": []})
-        backend["tasks"].append({**backend["tasks"][2], "id": f"y{i}", "title": f"A screen {i}", "short": f"A screen {i}", "state": "waiting", "wave": 3 + i, "after": []})
+    base = SCENE["map"]["nodes"][6]["tasks"]                                                         # the register goal's tasks, as models for the extra ones
+    for i in range(10):                                                                              # ten goals of their own, each a task of Backend's and one of Screens': two long queues
+        SCENE["map"]["nodes"].append(node(f"x{i}", f"Extra goal {i}", "working", "implementation", tasks=[
+            {**base[3], "id": f"b{i}", "title": f"Another task {i}", "short": f"Another task {i}", "wave": 1, "after": []},
+            {**base[2], "id": f"s{i}", "title": f"A screen {i}", "short": f"A screen {i}", "state": "waiting", "wave": 1, "after": []}]))
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.locator(".tcard").first.wait_for(timeout=WAIT_MS)
+        await page.locator(".deck").first.wait_for(timeout=WAIT_MS)
         fab = await page.locator(FAB).bounding_box()
         for column in ("backend", "screens"):                                                          # the queues scroll inside their columns, to their far ends
             await page.locator(f'.stack[data-column="{column}"]').evaluate("e => { e.scrollTop = e.scrollHeight; }")
         await page.wait_for_timeout(200)
-        right = [await c.bounding_box() for c in await page.locator('.stack[data-column="screens"] .tcard').all()]
-        assert right and all(b["y"] + b["height"] <= fab["y"] + 1 or b["y"] >= fab["y"] + fab["height"] or b["x"] + b["width"] <= fab["x"] for b in right if b["y"] < 844)   # the right-most queue ends above it
+        right = [await c.bounding_box() for c in await page.locator('.stack[data-column="screens"] .deck').all()]
+        assert len(right) >= 10 and all(b["y"] + b["height"] <= fab["y"] + 1 or b["y"] >= fab["y"] + fab["height"] or b["x"] + b["width"] <= fab["x"] for b in right if b["y"] < 844)   # the right-most queue ends above it
         assert max(b["y"] + b["height"] for b in right) <= fab["y"] + 1
         await page.locator('.token[data-member="screens"]').click()                                    # a solo: its body keeps the room too
         await page.locator(".solo__body").evaluate("e => { e.scrollTop = e.scrollHeight; }")
         await page.wait_for_timeout(200)
-        cards = [await c.bounding_box() for c in await page.locator(".solo .tcard").all()]
+        cards = [await c.bounding_box() for c in await page.locator(".solo .deck").all()]
         assert max(b["y"] + b["height"] for b in cards) <= fab["y"] + 1
         pad = await page.locator(".solo__body").evaluate("e => getComputedStyle(e).paddingBottom")
-        assert pad == "64px"
+        assert pad == "88px"
 
 
 @pytest.mark.asyncio
@@ -138,7 +138,7 @@ async def test_each_stop_answers_in_one_tap_with_the_commands_the_hand_sends(fak
         assert await _called(stub, "ideas.proposal", {"slug": "pagewords", "take": True, "priority": "high"})
         await prop.wait_for(state="hidden", timeout=WAIT_MS)
         failed = await _pop(page, "Failed: Secure cookie flags")
-        assert "danger" in await failed.get_attribute("class") and await failed.locator(".ork-gem").first.inner_text() == "✗"
+        assert "danger" in await failed.get_attribute("class") and await failed.locator(".ork-gem .ork-sign.cross").count() == 1          # its mark is orkUI's cross
         await failed.get_by_role("button", name="Start again").click()
         assert await _called(stub, "ideas.start", {"slug": "cookie", "via": "hand"})
         await failed.wait_for(state="hidden", timeout=WAIT_MS)
@@ -153,44 +153,36 @@ async def test_each_stop_answers_in_one_tap_with_the_commands_the_hand_sends(fak
 
 
 @pytest.mark.asyncio
-async def test_the_dial_has_three_ways_above_the_button_and_each_opens_its_sheet(fake_repo, monkeypatch):
+async def test_the_create_button_is_a_face_down_deck_that_opens_new_goal_and_nothing_else_the_other_ways_moved(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         fab = page.locator(FAB)
         await fab.wait_for(timeout=WAIT_MS)
-        await fab.click()
-        menu = page.get_by_role("menu", name="Create")
-        items = menu.get_by_role("menuitem")
-        assert [(await i.locator("b").inner_text()).lower() for i in await items.all()] == ["new idea", "new goal", "add to the party"]     # New idea nearest the thumb: the last of the column
-        boxes = [await i.bounding_box() for i in await items.all()]
-        close = await menu.get_by_role("button", name="Close").bounding_box()
-        assert boxes[2]["y"] < boxes[1]["y"] < boxes[0]["y"] < close["y"] and all(b["height"] >= 48 for b in boxes)           # stacked above the button, which turned to ×
-        subs = [await i.locator(".dial__sub").inner_text() for i in await items.all()]
-        assert subs == ["for Sign in with a passkey", "its title, what done means, its party", "1 free seat in this party"]
-        assert await items.nth(0).evaluate("e => getComputedStyle(e.querySelector('b')).color") == await page.evaluate(
-            "(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-action)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")   # its label in the action colour
-        await items.nth(0).click()
-        sheet = page.get_by_role("dialog", name="New idea")
+        assert await fab.get_attribute("aria-label") == "New goal: draw a blank one"
+        box = await fab.bounding_box()
+        assert round(box["width"]) == 48 and round(box["height"]) == 64                               # a small deck: 48 × 64
+        assert await fab.locator(".deckfab__edge").count() == 2 and await fab.locator(".deckfab__back .ork-icon").count() == 1     # two edges behind, a back with the plus mark
+        assert await page.locator("dialog.dial-dlg, .dial, [role=menu]").count() == 0 and await page.locator(".fab").count() == 1   # the dial is gone
+        green = await page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-action)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
+        assert await fab.locator(".deckfab__back").evaluate("e => getComputedStyle(e).borderTopColor") == green                       # its edge in the action colour
+        await fab.click()                                                                              # one tap: New goal (the blank card turns, then the form)
+        sheet = page.get_by_role("dialog", name="New goal")
         await sheet.wait_for(timeout=WAIT_MS)
-        assert await sheet.get_by_label("Goal").input_value() == "passkey"
+        assert await sheet.get_by_label("Party").input_value() == "passkey"
         await page.keyboard.press("Escape")
-        await _dial(page, "New goal")
-        await page.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)
+        await _new_goal(page)                                                                          # New party: the where sheet's *+ New party*
+        await page.get_by_role("dialog", name="New party").wait_for(timeout=WAIT_MS)
         await page.keyboard.press("Escape")
-        await _dial(page, "Add to the party")
+        about = await _about(page)                                                                     # Add to the party: About this party's, beside Edit the party
+        assert "1 free seat in this party" in await about.locator(".party-about__seats").inner_text()
+        await about.get_by_role("button", name="Add to the party").click()
         assert await _called(stub, "ideas.goal", {"slug": "passkey"})
-        await page.get_by_role("dialog", name="Team").wait_for(timeout=WAIT_MS)                       # Edit the party
+        await page.get_by_role("dialog", name="The party").wait_for(timeout=WAIT_MS)                    # the party's seats
         await page.keyboard.press("Escape")
-        await fab.click()                                                                              # × closes it, and so does a tap on the scrim
-        await menu.get_by_role("button", name="Close").click()
-        await menu.wait_for(state="hidden", timeout=WAIT_MS)
-        await fab.click()
-        await page.locator("dialog.dial-dlg").click(position={"x": 8, "y": 8})
-        await menu.wait_for(state="hidden", timeout=WAIT_MS)
         SCENE["map"]["goals"][0]["party"].append(member({"slug": "extra", "name": "Extra"}, "build", OWN))        # three builders: the seats are full
         stub.bump({})
         await page.locator(".token").nth(2).wait_for(timeout=WAIT_MS * 2)
-        await fab.click()
-        assert await menu.get_by_role("menuitem").nth(2).locator(".dial__sub").inner_text() == "the party is full: change a member"
+        about = await _about(page)
+        assert await about.locator(".party-about__seats").inner_text() == "the party is full: change a member"
 
 
 @pytest.mark.asyncio
@@ -198,7 +190,7 @@ async def test_a_pushs_needs_arrival_shows_the_goal_of_the_first_stop_and_pops_i
     async with _phone(fake_repo, monkeypatch, extra="&needs&from=push-needs") as (stub, page):
         raised = page.locator(".raised")
         await raised.wait_for(timeout=WAIT_MS)
-        assert await page.locator('.gchip[data-goal="passkey"]').get_attribute("aria-pressed") == "true"
+        assert await page.locator(".board-bar .where").get_attribute("data-goal") == "passkey"          # the party of the first stop is shown
         assert await raised.get_attribute("data-kind") == "plan"                                       # the first stop, in the host's order
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "push", "ref": "needs", "device": "phone"})
         assert "from=push" not in page.url
@@ -209,7 +201,7 @@ async def test_every_target_is_a_finger_wide(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".hc").first.wait_for(timeout=WAIT_MS)
         small = []
-        for selector in (".gchip", ".ibar__head", ".band", ".token", ".gate__btn", ".tcard", FAB, ".board-bar .bar-btn"):
+        for selector in (".gbar__head", ".gbar__gate", ".band", ".token", ".deck", FAB, ".board-bar .bar-btn", ".board-name"):
             for e in await page.locator(selector).all():
                 b = await e.bounding_box()
                 if b and b["height"] < 44 or (b and selector == FAB and b["width"] < 44):
@@ -220,6 +212,6 @@ async def test_every_target_is_a_finger_wide(fake_repo, monkeypatch):
         heights = [await b.evaluate("e => e.offsetHeight") for b in await raised.locator(".raised__quick button, .raised > button").all()]       # (the card still leaps: its box is read unturned)
         assert heights and all(h >= 44 for h in heights)
         await page.keyboard.press("Escape")
-        await page.locator(FAB).click()
-        items = [(await i.bounding_box())["height"] for i in await page.get_by_role("menuitem").all()]
-        assert len(items) == 3 and all(h >= 48 for h in items)
+        sheet = await _where(page)                                                                      # the where sheet's rows and its +New party are fingers wide too
+        rows = [(await i.bounding_box())["height"] for i in await sheet.locator(".where-row, .where-new, .project-row").all()]
+        assert rows and all(h >= 52 for h in rows[:-1]) and all(h >= 44 for h in rows)

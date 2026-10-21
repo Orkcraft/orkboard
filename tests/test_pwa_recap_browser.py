@@ -59,9 +59,9 @@ async def test_a_last_look_nine_hours_old_shows_the_card_at_the_top_of_the_board
         assert " ".join((await card.locator(".away-head h3").text_content()).split()) == "While you were away · 9 h"
         assert [" ".join(t.split()) for t in await _lines(card).all_text_contents()] == [
             "5 results in dev, 4 the first time", "Sync ideas · done, Dark mode", "Flag raised: General, met, says Product manager",
-            "The night: drafted 2 ideas, started 1 plan, proposed 2 ideas", "Proposed for you: Dark mode", "Failed: Sync ideas · The table",
+            "The night: drafted 2 goals, started 1 plan, proposed 2 goals", "Proposed for you: Dark mode", "Failed: Sync ideas · The table",
             "≈$4.20 of work at API prices, not your bill.", "Waits for you: 1 answer, 3 results to check"]
-        assert await page.locator(".arena > *").first.get_attribute("aria-label") == "While you were away"      # above the goals
+        assert await page.locator(".arena > *").first.get_attribute("aria-label") == "While you were away"      # above the goals bar
         assert await card.get_by_role("button", name="Close").get_attribute("class") == "ork-btn quiet"
         assert await _called(stub, "ideas.recap")
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "recap", "ref": "9h", "device": "phone"})

@@ -1,4 +1,4 @@
-"""The lens of New idea on the phone (shell-lens.js, shell-lens-screen.js; realm/idea_lens.py): the goal's party's lenses,
+"""The lens of New goal on the phone (shell-lens.js, shell-lens-screen.js; realm/idea_lens.py): the party's lenses,
 its leader's open first; a product manager's pain, an engineer's parts of the repository, a designer's screen with areas
 marked; the text alone always enough. In Chromium at 390 x 844; the Board is the stub's (tests/test_pwa_shell_browser.py)."""
 from __future__ import annotations
@@ -8,7 +8,7 @@ import base64
 import pytest
 
 from tests.test_pwa_idea_field_browser import _png
-from tests.test_pwa_shell_browser import _dial, _open_idea, NO_SCROLL, WAIT_MS, _called, _phone, _pick_goal, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import FAB, _open_idea, NO_SCROLL, WAIT_MS, _called, _phone, _pick_goal, _shot  # noqa: F401
 
 pytestmark = pytest.mark.browser
 
@@ -26,16 +26,16 @@ async def _new_idea(stub, page, lens=PARTY):
     stub.lens, stub.parts = lens, PARTS
     stub.screen_png = base64.b64encode(_png(390, 300)).decode()
     stub.bump({})
-    await _pick_goal(page, "ship")                                                                      # the goal is on the phone and shown
-    await _dial(page, "New idea")                                                                       # the create button's first item
-    sheet = page.get_by_role("dialog", name="New idea")
+    await _pick_goal(page, "ship")                                                                      # the party is on the phone and shown
+    await page.locator(FAB).click()                                                                     # the create button: New goal
+    sheet = page.get_by_role("dialog", name="New goal")
     await sheet.wait_for(timeout=WAIT_MS)
     assert await _called(stub, "ideas.lens", {"track": "ship"})
     return sheet
 
 
 @pytest.mark.asyncio
-async def test_the_leader_s_lens_is_open_first_and_each_lens_points_its_way_and_goes_with_the_idea(fake_repo, monkeypatch):
+async def test_the_leader_s_lens_is_open_first_and_each_lens_points_its_way_and_goes_with_the_goal(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         sheet = await _new_idea(stub, page)
         bar = sheet.get_by_role("radiogroup", name="Lens")
@@ -43,7 +43,7 @@ async def test_the_leader_s_lens_is_open_first_and_each_lens_points_its_way_and_
         assert await bar.get_by_role("radio", name="Pain").get_attribute("aria-checked") == "true"      # the leader's: a product manager
         assert [await r.get_attribute("aria-label") for r in await bar.get_by_role("radio").all()] == [
             "Text", "Code · Architect", "Screen · UI kit designer", "Pain · Product manager"]
-        await sheet.get_by_label("The idea", exact=True).fill("Orders are never lost")
+        await sheet.get_by_label("What it is for").fill("Orders are never lost")
         await sheet.get_by_role("group", name="Kept segments").get_by_role("button", name="Shop owners").click()     # the project's own
         await sheet.get_by_role("group", name="Their pains").get_by_role("button", name="Orders get lost").click()
         await _shot(page, "phone-lens-pain-390x844")
@@ -65,8 +65,8 @@ async def test_the_leader_s_lens_is_open_first_and_each_lens_points_its_way_and_
         await page.mouse.up()
         await sheet.get_by_label("Mark 1: what to change").fill("Say which orders wait")
         await _shot(page, "phone-lens-screen-390x844")
-        await sheet.get_by_role("button", name="Add", exact=True).click()
-        await page.get_by_role("dialog", name="New idea").wait_for(state="hidden", timeout=WAIT_MS)
+        await sheet.get_by_role("button", name="Add the goal", exact=True).click()
+        await page.get_by_role("dialog", name="New goal").wait_for(state="hidden", timeout=WAIT_MS)
         sent = next(a for n, a in stub.calls if n == "ideas.add")
         assert [x["kind"] for x in sent["lens"]] == ["pain", "code", "screen"]
         assert sent["lens"][0] == {"kind": "pain", "segment": "Shop owners", "pain": "Orders get lost"}
@@ -85,8 +85,8 @@ async def test_with_the_taskmaster_leading_text_is_open_first_and_the_text_alone
         bar = sheet.get_by_role("radiogroup", name="Lens")
         await bar.get_by_role("radio", name="Text", exact=True).wait_for(timeout=WAIT_MS)
         assert await bar.get_by_role("radio", name="Text", exact=True).get_attribute("aria-checked") == "true"
-        await sheet.get_by_label("The idea", exact=True).fill("A darker theme")
-        await sheet.get_by_role("button", name="Add", exact=True).click()
+        await sheet.get_by_label("What it is for").fill("A darker theme")
+        await sheet.get_by_role("button", name="Add the goal", exact=True).click()
         assert await _called(stub, "ideas.add", {"text": "A darker theme", "track": "ship", "priority": "normal"})   # no lens: none sent
         stub.ideas["page"] = stub.idea("page", "The orders page", "ready", 3, track="ship",
                                        lens=[{"kind": "pain", "segment": "Shop owners", "pain": "Orders get lost"},

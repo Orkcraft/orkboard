@@ -6,15 +6,15 @@
 // the bottom. It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's `ideas_rev` changes (and every POLL_MS while
 // the Taskmaster or a task works). Always Office's calm look.
 import { h } from "./util.js";
-import { makeTop } from "./shell-top.js";
+import { makeTop, keptGoal } from "./shell-top.js";
 import { makeBoardTab, BUSY } from "./shell-board.js";
 import { makeAgents } from "./shell-agents.js";
 import { makeReview } from "./shell-review.js";
 import { makePreview } from "./shell-preview.js";
 import { makeNeeds } from "./shell-needs.js";
 import { makeStops } from "./shell-stops.js";
-import { makeDial } from "./shell-dial.js";
-import { firstStopGoal } from "./shell-arena-words.js";
+import { makeFab } from "./shell-fab.js";
+import { firstStopGoal, partiesOf } from "./shell-arena-words.js";
 
 const POLL_MS = 10000;
 const LIVE = new Set(["running", "testing"]);
@@ -25,7 +25,7 @@ export { price } from "./shell-preview.js";
 /** `ctx`: {send, deliver, flash, unpair}. Returns {el, sheets, content(), render(snapshot), dispose()}. */
 export function makeBoard(ctx) {
   const st = { board: null, review: null, agents: null, roles: null, snap: null, track: "", view: "", ops: null, boardError: "", preview: null, cards: [],
-    map: null, mapError: "", today: null, gate: null, band: "", focus: "", idea: "", ideasOpen: false, hand: "" };
+    map: null, mapError: "", today: null, gate: null, band: "", focus: "", hand: "", picks: {}, flagLine: null, lit: new Set(), prices: {} };
   let poll = 0;
   let seenRev;                          // the snapshot's ideas_rev read last
   let seenSnap;                         // the snapshot's rev read last (the project switcher's)
@@ -54,13 +54,15 @@ export function makeBoard(ctx) {
     },
     refresh, open, close, back, reset, go,
     editGoal(slug) { boardTab.editGoal(slug); },
+    /** The parties of the project as the top bar's *where* button and its sheet say them (spec 50 §6.1), and a pick in it. */
+    parties() { return partiesOf(st, keptGoal(st.snap?.project)); },
+    pick(slug) { boardTab.pick(slug); },
+    pickOps() { boardTab.pickOps(); },
     editTeam(g) { boardTab.editTeam(g); },
     newIdea() { boardTab.openNew(st.track); },
     /** Edit the party of a goal: the goal as `ideas.goal` sends it, in the team's sheet. */
     async editParty(slug) { const got = await core.call("ideas.goal", { slug }); if (got) core.editTeam(got); },
     openInto() { review.openInto(); },
-    openFlags() { boardTab.flags.open(); },
-    flagCount: () => boardTab.flags.met(st.map?.goals || []),
     setToday(data) { top.today.set(data); },
     log: (what, ref, via) => logOpened(what, ref, via),
     draw() { drawAll(); },
@@ -72,10 +74,10 @@ export function makeBoard(ctx) {
   const agents = makeAgents(core);
   const review = makeReview(core);
   const needs = makeNeeds(core, ctx);
-  const dial = makeDial(core);
+  const fab = makeFab(core);
   const stops = makeStops(core, ctx, needs, boardTab.ops);
   const preview = makePreview(core, ctx, { agents: agents.el });
-  const el = h("div", { class: "board v1" }, top.el, boardTab.el, stops.el, dial.fab, preview.el);
+  const el = h("div", { class: "board v1" }, top.el, boardTab.el, stops.el, fab.el, preview.el);
 
   /** What the person opened, for the day's analysis (docs/specs/33-v1-shell.md §9): the host's one loggable event. The listener
    *  allows a device only a few commands a second, so the lines go out one at a time, a moment apart, behind the ones that matter. */
@@ -149,7 +151,7 @@ export function makeBoard(ctx) {
     boardTab.draw();
     agents.draw();
     stops.draw();
-    dial.show(Boolean(st.board) && !st.view);                // a goal's: not Operations'
+    fab.show(Boolean(st.board) && !st.view);                 // a party's: not Operations'
     preview.redraw();
     if (wantStop && st.board && st.map) { wantStop = false; showStop(); }
   }
@@ -178,8 +180,11 @@ export function makeBoard(ctx) {
   /** Another project is shown: what was read of the last one is dropped before the new one is read. */
   function reset() {
     st.board = st.review = st.agents = st.roles = st.today = st.gate = null;
-    st.track = st.view = st.boardError = st.band = st.focus = st.idea = st.hand = "";
-    st.ideasOpen = false;
+    st.track = st.view = st.boardError = st.band = st.focus = st.hand = "";
+    st.picks = {};
+    st.flagLine = null;
+    st.lit = new Set();
+    st.prices = {};
     st.map = null;
     st.mapError = "";
     st.cards = [];
@@ -198,6 +203,7 @@ export function makeBoard(ctx) {
     if (ok(td)) st.today = td.result;
     if (ok(g)) st.gate = g.result;
     st.boardError = !st.board && !ok(b) ? b.error || b.result?.error || "Loading…" : "";
+    if (!ok(b) || !ok(m)) seenRev = undefined;           // not read (a page that starts from what it kept, before the socket opens): the next snapshot reads again, never "the same as read"
     drawAll();
     if (st.preview) preview.reload();
     schedule();
@@ -221,7 +227,7 @@ export function makeBoard(ctx) {
 
   return {
     el,
-    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets, ...stops.sheets, ...dial.sheets],
+    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets, ...stops.sheets],
     // What is acted on only while the town answers: not the bar's Stop all, nor New idea (kept with no signal).
     content: () => [boardTab.el, ...stops.content(), preview.el],
     /** A push's arrival (board-app.js `arrive`): the goal of the first stop is shown and the stop popped out, as soon as the Board has been read. */

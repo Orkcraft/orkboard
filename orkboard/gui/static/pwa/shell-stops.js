@@ -1,18 +1,22 @@
 // What waits for you, along the bottom (docs/specs/49-one-window.md §6, §10.6, §11): the stops of the goal shown (a plan, a question, a proposal, a to-do, a
 // failure) and, after them, the results to look at, fanned across the whole width and centred, only their tops showing (56 px, no line over them; no count: the fan is
-// the count). The create button floats over the field, not here (shell-dial.js). A tap pops one out: it leaps from its place in the
+// the count). The create button floats over the field, not here (shell-fab.js). A tap pops one out: it leaps from its place in the
 // fan to a raised sheet above the scrim (in steps, none under reduced motion; its place in the fan stays empty while it is up) with its gem, its kind, its head, its
 // title and text, its quick answers as 44 px buttons and *Open it on its own screen*. A tap on the scrim lays it back. The answers are the commands Needs you had:
-// a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped.
-import { h } from "./util.js";
+// a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped. Each wears its goal's element
+// (spec 50 §6.8) and draws its marks with orkUI's signs.
+import { h, icon } from "./util.js";
+import { elem, sign } from "./shell-marks.js";
 import { midHead, whoHead } from "./shell-who.js";
-import { needsOf, failedOf, looksOf, nodesOf, planPrice } from "./shell-arena-words.js";
+import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice } from "./shell-arena-words.js";
 import { resultActions, testsWords, changesWords, foundWords, foundOf } from "./shell-review.js";
 import { OPS_VIEW } from "./shell-ops.js";
+import { pointerGuard } from "./shell-motion.js";
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const KIND = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
   op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
+const gemOf = (g) => h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text);       // a price, a mark or a sign (a failure's cross)
 const CARD = 104, WIDTH = 330;                           // a card's width in the fan, and the room it was drawn for (the row's width less 30 px at each side)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
@@ -22,7 +26,7 @@ const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 export function makeStops(core, ctx, needs, ops) {
   const st = core.st;
   const hand = h("div", { class: "hand", role: "group", "aria-label": "Waits for you" });
-  const empty = h("p", { class: "cap handzone__empty", hidden: true }, "Nothing waits for you on this goal.");
+  const empty = h("p", { class: "cap handzone__empty", hidden: true }, "Nothing waits for you in this party.");
   const el = h("section", { class: "handzone", "aria-label": "Waits for you" }, empty, hand);          // the fan takes the whole width and stays centred on the screen
 
   // -- the raised one: a modal over the scrim; its place in the fan is empty while it is up ------------------------------------------------------
@@ -33,6 +37,7 @@ export function makeStops(core, ctx, needs, ops) {
   dlg.addEventListener("close", () => { st.hand = ""; mark(); core.draw(); });          // what changed while it was up shows now: the fan does not shift under it
 
   let items = [], sigs = "", raisedSig = "";
+  const guard = pointerGuard([el, dlg], () => api.draw());      // no lost tap: a draw waits while a pointer is down on the fan or the raised one (spec 50 §6.9)
 
   // -- the stops of the goal, each with its quick answers ----------------------------------------------------------------------------------------------
   const btn = (label, run, { primary = false, tip = "", text = false, disabled = false, attrs = {} } = {}) => h("button", { class: `ork-btn${primary ? " primary" : ""}${text ? " answer" : ""}`,
@@ -56,9 +61,10 @@ export function makeStops(core, ctx, needs, ops) {
     const nodes = Object.fromEntries(nodesOf(st, slug).map((n) => [n.slug, n]));
     const goal = (st.map?.goals || []).find((g) => g.slug === slug);
     const lead = headOf(st, slug);
-    const out = needsOf(st, slug).map((n) => needItem(n, nodes[n.idea], goal, lead));
-    out.push(...failedOf(st, slug).map(({ node, task }) => failedItem(node, task)));
-    out.push(...looksOf(st, slug).map((r) => lookItem(r, nodes[r.idea])));
+    const picks = pickedOf(st, slug), keep = (idea) => !picks.length || picks.includes(idea);       // the filter (spec 50 §3.5): only the picked goals' stops and results
+    const out = needsOf(st, slug).filter((n) => keep(n.idea)).map((n) => ({ ...needItem(n, nodes[n.idea], goal, lead), element: nodes[n.idea]?.element || "" }));
+    out.push(...failedOf(st, slug).filter(({ node }) => keep(node.slug)).map(({ node, task }) => ({ ...failedItem(node, task), element: node.element || "" })));
+    out.push(...looksOf(st, slug).filter((r) => keep(r.idea)).map((r) => ({ ...lookItem(r, nodes[r.idea]), element: nodes[r.idea]?.element || "" })));
     return out;
   }
 
@@ -96,7 +102,7 @@ export function makeStops(core, ctx, needs, ops) {
       const say = (take) => go(party ? "ideas.party_answer" : "ideas.proposal", () => (party ? { goal: n.goal, take, ...(!take && reason.value.trim() ? { reason: reason.value.trim() } : {}) }
         : { slug: n.idea, take, ...(take ? { priority: goal?.priority || n.priority || "normal" } : reason.value.trim() ? { reason: reason.value.trim() } : {}) }));
       return { ...base, gem: { text: "—", tip: "Not planned yet" }, big: lead, text: n.text || "", quickLabel: "Quick moves",
-        quick: () => [btn(party ? "Take it out" : "Take", say(true), { primary: true, tip: party ? "Takes the proposed change out of the party" : "Puts it on the Board as a new idea", attrs: { "data-act": "take" } }),
+        quick: () => [btn(party ? "Take it out" : "Take", say(true), { primary: true, tip: party ? "Takes the proposed change out of the party" : "Puts it on the Board as a new goal", attrs: { "data-act": "take" } }),
           reason, btn(party ? "Keep it" : "No", say(false), { tip: party ? "Keeps the party as it is" : "Leaves it out", attrs: { "data-act": "no" } })] };
     }
     if (n.kind === "todo") {
@@ -104,15 +110,15 @@ export function makeStops(core, ctx, needs, ops) {
         quick: () => [btn("Open…", away(() => needs.todoSheet(n)), { primary: true, attrs: { "data-act": "todo" } })] };
     }
     // a failure of the whole idea (a task that failed is the Map's, below)
-    return { ...base, cls: "is-fail", tone: "danger", gem: { text: "✗", cls: "danger", tip: "It failed" }, text: n.text || "Something failed", quickLabel: "Quick moves",
-      quick: () => [btn("Start again", go("ideas.start", { slug: n.idea, via: "hand" }, "Started again."), { primary: true, tip: "Runs this idea's tasks that are not merged or in Review again", attrs: { "data-act": "again" } }),
+    return { ...base, cls: "is-fail", tone: "danger", gem: { sign: "cross", cls: "danger", tip: "It failed" }, text: n.text || "Something failed", quickLabel: "Quick moves",
+      quick: () => [btn("Start again", go("ideas.start", { slug: n.idea, via: "hand" }, "Started again."), { primary: true, tip: "Runs this goal's tasks that are not merged or in Review again", attrs: { "data-act": "again" } }),
         btn("Open…", away((via) => core.open({ kind: "idea", slug: n.idea }, via)), { attrs: { "data-act": "more" } })] };
   }
 
   function failedItem(node, t) {
     return { key: `failed:${node.slug}/${t.id}`, kind: "failed", cls: "is-fail", tone: "danger", title: t.title, sig: [node.slug, t], small: t.head || null, whoTip: `${t.by?.name || "Grunt"}’s task`,
-      gem: { text: "✗", cls: "danger", tip: "It failed" }, text: t.error || "failed", open: { kind: "task", slug: node.slug, task: t.id }, quickLabel: "Quick moves",
-      quick: () => [btn("Start again", go("ideas.start", { slug: node.slug, via: "hand" }, "Started again."), { primary: true, tip: "Runs this idea's tasks that are not merged or in Review again", attrs: { "data-act": "again" } }),
+      gem: { sign: "cross", cls: "danger", tip: "It failed" }, text: t.error || "failed", open: { kind: "task", slug: node.slug, task: t.id }, quickLabel: "Quick moves",
+      quick: () => [btn("Start again", go("ideas.start", { slug: node.slug, via: "hand" }, "Started again."), { primary: true, tip: "Runs this goal's tasks that are not merged or in Review again", attrs: { "data-act": "again" } }),
         btn("Open…", away((via) => core.open({ kind: "task", slug: node.slug, task: t.id }, via)), { attrs: { "data-act": "more" } })] };
   }
 
@@ -120,7 +126,9 @@ export function makeStops(core, ctx, needs, ops) {
     const t = (node?.tasks || []).find((x) => x.id === r.task), tw = testsWords(r);
     return { key: `look:${r.idea}/${r.task}`, kind: "look", cls: "is-look", tone: "look", title: r.title, sig: r, small: t?.head || null, whoTip: t?.by?.name ? `${t.by.name}${r.check ? " · its check" : ""}` : "",
       gem: { text: r.cost != null ? usd(r.cost) : "—", cls: "dim", tip: "What it cost, at API prices" },
-      text: [r.idea_title, `${tw.mark} ${tw.text}`.trim(), changesWords(r.diff), foundWords(r.findings)].filter(Boolean).join(" · "),
+      text: [r.idea_title, h("span", {}, tw.mark ? sign(tw.mark) : null, tw.mark ? " " : "", tw.text), changesWords(r.diff), foundWords(r.findings)].filter(Boolean)
+        .flatMap((x, i) => (i ? [" · ", x] : [x])),
+      plain: [r.idea_title, `${tw.mark} ${tw.text}`.trim(), changesWords(r.diff), foundWords(r.findings)].filter(Boolean).join(" · "),
       more: () => foundOf(r),                           // a check's findings left, one line each, under its facts
       open: { kind: "result", slug: r.idea, task: r.task }, quickLabel: "Quick moves", quick: () => [resultActions(core, r, lower)] };
   }
@@ -128,7 +136,7 @@ export function makeStops(core, ctx, needs, ops) {
   function opItem(n) {
     const failed = n.kind === "op_failed";
     return { key: `${n.kind}:${n.op || n.template}`, kind: n.kind, cls: failed ? "is-fail" : "", tone: failed ? "danger" : "", title: n.title, sig: n,
-      gem: failed ? { text: "✗", cls: "danger", tip: "It failed" } : { text: n.kind === "op_rules" ? "—" : "·", tip: "" }, text: [n.text, n.kind === "op" ? n.why : ""].filter(Boolean).join(" · "), quickLabel: "Quick moves",
+      gem: failed ? { sign: "cross", cls: "danger", tip: "It failed" } : { text: n.kind === "op_rules" ? "—" : "·", tip: "" }, text: [n.text, n.kind === "op" ? n.why : ""].filter(Boolean).join(" · "), quickLabel: "Quick moves",
       open: null, quick: () => [btn("Open…", away(() => (n.kind === "op" ? ops.openCheck(n.op) : failed ? ops.openRun(n.op) : ops.openProposal(n))), { primary: true, attrs: { "data-act": "open-op" } })] };
   }
 
@@ -145,8 +153,8 @@ export function makeStops(core, ctx, needs, ops) {
     const f = fan(i, n);
     const b = h("button", { class: `hc ${it.cls || ""}${st.hand === it.key ? " is-up" : ""}`.trim(), type: "button", "data-stop": it.key, "data-kind": it.kind,
       "aria-label": `${KIND[it.kind]}: ${it.title}`, onclick: () => pop(it.key) },
-    h("span", { class: "hc__top" }, h("span", { class: `ork-gem ${it.gem.cls || ""}`.trim(), title: it.gem.tip }, it.gem.text),
-      h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind])));
+    h("span", { class: "hc__top" }, gemOf(it.gem),
+      h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element)));
     for (const [k, v] of [["--rot", `${f.rot}deg`], ["--dy", `${f.dy}px`], ["--z", String(f.z)], ["--ov", `${f.ov}px`]]) b.style.setProperty(k, v);
     return b;
   }
@@ -157,10 +165,10 @@ export function makeStops(core, ctx, needs, ops) {
     const f = fan(i, n);
     const quick = h("div", { class: "raised__quick", role: "group", "aria-label": it.quickLabel }, ...it.quick());
     const raised = h("div", { class: `raised ork-frame${frame}`, role: "document", "data-stop": it.key, "data-kind": it.kind },
-      h("div", { class: "raised__top" }, h("span", { class: `ork-gem ${it.gem.cls || ""}`.trim(), title: it.gem.tip }, it.gem.text),
-        h("span", { class: `raised__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), h("span", { class: "spacer" }),
+      h("div", { class: "raised__top" }, gemOf(it.gem),
+        h("span", { class: `raised__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element), h("span", { class: "spacer" }),
         it.small ? whoHead(it.small, false) : null,
-        h("button", { class: "ork-btn quiet", type: "button", "aria-label": "Put it back", onclick: lower }, "×")),
+        h("button", { class: "ork-btn quiet", type: "button", "aria-label": "Put it back", onclick: lower }, icon("close"))),
       it.big ? h("span", { class: "art" }, midHead(it.big)) : null,
       h("span", { class: "banner" }, it.title),
       h("div", { class: "raised__text" }, it.text),
@@ -197,7 +205,7 @@ export function makeStops(core, ctx, needs, ops) {
     raisedSig = it.key + JSON.stringify(it.sig);
   }
 
-  return {
+  const api = {
     el,
     sheets: [dlg],
     /** What is acted on only while the town answers. */
@@ -207,8 +215,9 @@ export function makeStops(core, ctx, needs, ops) {
     keys: () => items.map((i) => i.key),
     /** Drawn again only when what the row shows changed: a line half typed in a raised one stays, and the fan does not shift while a stop is popped (spec 49 §11). */
     draw() {
+      if (guard.waits()) return;
       items = build();
-      const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.text, i.sig])) + st.hand;
+      const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.element, i.sig])) + st.hand;
       if (sig !== sigs && !dlg.open) {
         sigs = sig;
         hand.replaceChildren(...items.map((it, i) => card(it, i, items.length)));
@@ -220,4 +229,5 @@ export function makeStops(core, ctx, needs, ops) {
       }
     },
   };
+  return api;
 }

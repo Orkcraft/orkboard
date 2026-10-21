@@ -1,5 +1,5 @@
 """Spec 42 F on the phone (docs/specs/42-coming-back.md §6, Tests → F): the drawer's *Spend today* row opens the This week sheet with its
-lines in order; *Nothing waits for tonight* and New idea."""
+lines in order; *Nothing waits for tonight* and New goal."""
 from __future__ import annotations
 
 import pytest
@@ -35,13 +35,14 @@ async def _sheet(page):
     await row.click()
     sheet = page.get_by_role("dialog", name="This week")
     await sheet.locator(".week p").first.wait_for(timeout=WAIT_MS)
+    await sheet.get_by_text("Reading the week").wait_for(state="detached", timeout=WAIT_MS)         # the week is read
     return sheet
 
 
 @pytest.mark.asyncio
-async def test_the_spend_row_opens_this_week_with_its_lines_in_order_and_new_idea(fake_repo, monkeypatch):
+async def test_the_spend_row_opens_this_week_with_its_lines_in_order_and_new_goal(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")                       # New idea needs a goal (spec 35 §3)
+        stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")                       # New goal needs a party (spec 35 §3)
         reads = len([c for c in stub.calls if c[0] == "ideas.board"])
         stub.bump({})
         for _ in range(100):                                                                         # the Board reads its goals again
@@ -53,11 +54,11 @@ async def test_the_spend_row_opens_this_week_with_its_lines_in_order_and_new_ide
         lines = [" ".join(t.split()) for t in await sheet.locator(".week p").all_text_contents()]
         assert lines == ["≈$46 of work at API prices in this project, ≈$3 in Operations: not your bill",
                          "12 results in dev, 10 the first time · ≈$3.84 a result",
-                         "The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running", "Nothing waits for tonight · New idea"]
+                         "The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running", "Nothing waits for tonight · New goal"]
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "week", "ref": "this", "device": "phone"})
         assert await page.evaluate(NO_SCROLL)
-        await sheet.get_by_role("button", name="New idea").click()
-        await page.get_by_role("dialog", name="New idea").wait_for(timeout=WAIT_MS)
+        await sheet.get_by_role("button", name="New goal").click()
+        await page.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)
 
 
 @pytest.mark.asyncio
@@ -150,8 +151,8 @@ async def test_the_first_look_of_a_new_week_shows_last_weeks_card_then_the_recap
         assert " ".join((await card.locator(".away-head h3").text_content()).split()) == "Last week · 12–18 October"
         assert [" ".join(t.split()) for t in await card.locator(".away-lines p").all_text_contents()] == [
             "23 results in dev, 19 the first time (83 %; the week before 71 %)", "≈$2.66 a result (the week before ≈$3.10)",
-            "Goals: Offline mode, 3 ideas done · Billing, 1", "Flags: Offline mode, met",
-            "Cost the most: Offline mode, ≈$12 · Fastest from idea to dev: Export CSV, 42 min",
+            "Parties: Offline mode, 3 goals done · Billing, 1", "Flags: Offline mode, met",
+            "Cost the most: Offline mode, ≈$12 · Fastest from goal to dev: Export CSV, 42 min",
             "Questions: 9 of 12 answers were the recommended one; 2 cards left to the Taskmaster", "Nights: 5 with work done, 2 with none"]
         assert await page.get_by_label("While you were away").count() == 0                          # the week's card first
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "phone"})

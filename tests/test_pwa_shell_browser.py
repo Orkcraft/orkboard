@@ -327,7 +327,7 @@ class Stub:
             g = self.goals.get(a["track"], {})
             return {"track": a["track"], "words": [g.get("title", ""), "Offline mode", "offline", "SyncQueue", "sync_queue.py"]}
         if name == "ideas.add":
-            assert a.get("track") and a["track"] != "general", "An idea needs a goal"
+            assert a.get("track") and a["track"] != "general", "A goal needs a party"
             slug = a["text"].lower().replace(" ", "-")
             queue = "night" if a["priority"] == "low" or a.get("night") else "now"
             self.ideas[slug] = self.idea(slug, a["text"], "raw", 9, queue=queue, priority=a["priority"], track=a["track"])
@@ -398,9 +398,9 @@ async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
                 page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
                 await page.goto(f"{server.phones.address}/app/#pair={offer['code']}{extra}")
                 await page.locator(".arena").wait_for(state="attached", timeout=WAIT_MS)
-                await page.locator(".gchips, .arena > p.arena-empty:not(:has-text('Loading'))").first.wait_for(state="attached", timeout=WAIT_MS)      # the goals as chips (or, with no project, what it says)
-                try:                                  # the goal's window read (its Map comes with its ideas): drawn once more then
-                    await page.locator(".ghead").first.wait_for(timeout=3000)
+                await page.locator(".gbar, .arena > .arena-empty:not(:has-text('Loading')), .arena > p.arena-empty:not(:has-text('Loading'))").first.wait_for(state="attached", timeout=WAIT_MS)      # the goals bar (or, with no project or no party, what it says)
+                try:                                  # the party's window read (its Map comes with its goals): drawn once more then
+                    await page.locator(".gbar").first.wait_for(timeout=3000)
                 except Exception:                     # a test with no goal or no project: nothing to wait for
                     pass
                 yield stub, page
@@ -428,86 +428,107 @@ async def _called(stub, name, args=None, timeout=5.0):
 
 
 async def _pick_goal(page, slug):
-    """The goal shown, picked among the chips under the top bar ("ops": Operations)."""
-    await page.locator(f'.gchips .gchip[data-goal="{slug}"]').click()
-    await page.locator(f'.gchip[data-goal="{slug}"][aria-pressed="true"]').wait_for(timeout=WAIT_MS)
+    """The party shown, picked in the *where* sheet of the top bar ("ops": Operations)."""
+    sheet = await _where(page)
+    await sheet.locator(f'.where-row[data-goal="{slug}"]').click()
+    await page.locator(f'.board-bar .where[data-goal="{slug}"]').wait_for(timeout=WAIT_MS)
+    await sheet.wait_for(state="hidden", timeout=WAIT_MS)
 
 
 async def _goal_row(page, slug):
-    """What the goal's chip says of it (its label: the short title, how far, the stops that wait, whether its party is at work)."""
-    chip = page.locator(f'.gchips .gchip[data-goal="{slug}"]')
-    await chip.wait_for(timeout=WAIT_MS)
-    return await chip.get_attribute("aria-label")
+    """What the party's row in the *where* sheet says of it (its label: the name, how many are done, the stops that wait, whether it is at work)."""
+    sheet = await _where(page)
+    row = sheet.locator(f'.where-row[data-goal="{slug}"]')
+    await row.wait_for(timeout=WAIT_MS)
+    said = await row.get_attribute("aria-label")
+    await page.keyboard.press("Escape")
+    await sheet.wait_for(state="hidden", timeout=WAIT_MS)
+    return said
 
 
-async def _dial(page, item):
-    """The create button's dial (spec 49 §10.6): its three items are New idea, New goal and Add to the party."""
-    await page.locator('.fab[data-act="create"]').click()
-    await page.get_by_role("menuitem", name=item).click()
+FAB = '.fab[data-act="new-goal"]'
+
+
+async def _where(page):
+    """The top bar's *where* button and the sheet it opens from the top (spec 50 §6.1): the project's parties, + New party, the other projects."""
+    await page.locator(".board-bar .where").click()
+    sheet = page.get_by_role("dialog", name="Parties")
+    await sheet.wait_for(timeout=WAIT_MS)
+    return sheet
 
 
 async def _new_goal(page):
-    """New goal: an item of the create dial."""
-    await _dial(page, "New goal")
+    """New party (the code's goal): the where sheet's *+ New party*."""
+    await (await _where(page)).get_by_role("button", name="+ New party").click()
 
 
 async def _new_idea(page):
-    """New idea: the first item of the create dial, for the goal shown."""
-    await _dial(page, "New idea")
+    """New goal (the code's idea): the create button, a face-down deck, for the party shown; its blank card turns, then the full-screen form opens."""
+    await page.locator(FAB).click()
 
 
 async def _wizard(sheet, craft="engineering"):
-    """New goal is one sheet (spec 41 §6): a craft picked puts its party in the seats; the rest is below it."""
+    """New party is one sheet (spec 41 §6): a craft picked puts its party in the seats; the rest is below it."""
     await sheet.locator(f'.craft-tile[data-craft="{craft}"]').click()
 
 
 async def _band(page, band):
-    """The stage switch: "lead" Planning, "build" Implementation, "check" Checking."""
-    for tries in range(3):                                                                              # the field is drawn again when the Board is read: a press in the middle of that is lost, as a finger's would be
-        await page.locator(f'.band[data-band="{band}"]').click()
-        try:
-            await page.locator(f'.band[data-band="{band}"][aria-selected="true"]').wait_for(timeout=WAIT_MS if tries == 2 else 2500)
-            return
-        except Exception:                                                                               # noqa: BLE001
-            if tries == 2:
-                raise
+    """The stage switch: "lead" Planning, "build" Implementation, "check" Checking. One tap does it (a redraw waits while a pointer is down, spec 50 §6.9)."""
+    await page.locator(f'.band[data-band="{band}"]').click()
+    await page.locator(f'.band[data-band="{band}"][aria-selected="true"]').wait_for(timeout=WAIT_MS)
 
 
 def _item(page, title):
-    """An item of the field by its title: a task in its member's column, an idea in Planning's (the leader's column)."""
-    return page.locator(".stack .tcard").filter(has=page.locator(".tcard__name", has_text=title)).first
+    """An item of the field by its title: a task's stack in its member's column, a goal in Planning's (the leader's column): the stack's button, its front card's name."""
+    return page.locator(".stack .deck:not(.is-leaving)").filter(has=page.locator(".tcard__name", has_text=title)).first
+
+
+async def _open_task(page, title):
+    """A task of a column opened on its own screen: its stack is tapped; a stack of more lays its cards out in a row first (spec 50 §6.6) and the card named `title` is tapped there."""
+    decks = page.locator(".stack .deck:not(.is-leaving)")
+    for i in range(await decks.count()):
+        deck = decks.nth(i)
+        if not await deck.locator(".deck__n").count():
+            if title in await deck.locator(".tcard__name").inner_text():
+                await deck.click()
+                return
+            continue
+        await deck.click()
+        await page.locator(".spread").wait_for(timeout=WAIT_MS)
+        card = page.locator(".spread__card").filter(has=page.locator(".tcard__name", has_text=title))
+        if await card.count():
+            await card.first.click()
+            return
+        await page.keyboard.press("Escape")
+        await page.locator(".spread").wait_for(state="detached", timeout=WAIT_MS)
+    raise AssertionError(f"no stack holds the task {title!r}")
 
 
 async def _tap(page, target, ready):
-    """A press on `target` until `ready` (a locator) shows: the field is drawn again when the Board is read, and a press in the middle of that is lost, as a finger's would be."""
-    for tries in range(3):
-        await target.click()
-        try:
-            await ready.wait_for(state="visible", timeout=WAIT_MS if tries == 2 else 3000)
-            return
-        except Exception:                                                                               # noqa: BLE001
-            if tries == 2:
-                raise
+    """One press on `target`, and `ready` (a locator) shows: the field is drawn again when the Board is read, never between a press's down and up (spec 50 §6.9)."""
+    await target.click()
+    await ready.wait_for(state="visible", timeout=WAIT_MS)
 
 
 async def _open_idea(page, title):
-    """An idea's own screen: its item in Planning (the leader's column), tapped (spec 49 §10.5)."""
+    """An idea's own screen: its item in Planning (the leader's column), tapped once (spec 49 §10.5)."""
     await _band(page, "lead")
     item = title if not isinstance(title, str) else _item(page, title)
-    for tries in range(3):                                                                              # the field is drawn again when the Board is read: a press in the middle of that is lost, as a finger's would be
-        await item.click()
-        try:
-            await page.locator(".screen").wait_for(state="visible", timeout=WAIT_MS if tries == 2 else 3000)
-            return
-        except Exception:                                                                               # noqa: BLE001
-            if tries == 2:
-                raise
+    await _tap(page, item, page.locator(".screen"))
+
+
+async def _open_party(page, title):
+    """The party's own screen (what it is for, the Taskmaster's summary, its members, links and what it did): the Goals sheet's *About …*, then About this party's *Open the party …* (spec 50 §6.2)."""
+    await page.locator(".gbar__head").click()
+    await page.get_by_role("dialog", name="Goals").get_by_role("button", name=re.compile("^About ")).click()
+    await page.get_by_role("dialog", name="About this party").get_by_role("button", name=f"Open the party {title}").click()
+    await page.locator(".screen").wait_for(timeout=WAIT_MS)
 
 
 async def _open_idea_of(page, task_title, idea_title, band="build"):
     """The screen of an idea that has tasks (so it is not in Planning, but in the stages): one of its tasks' screen, then the idea among that task's facts."""
     await _band(page, band)
-    await _item(page, task_title).click()
+    await _open_task(page, task_title)
     await page.locator(".screen .facts").get_by_role("button", name=idea_title).click()
     await page.locator(".screen .plan, .screen .tasks").first.wait_for(timeout=WAIT_MS)
 
@@ -520,17 +541,18 @@ async def _said(page, title):
 
 async def _pop(page, name):
     """A stop along the bottom popped out of the fan by a tap on its top (spec 49 §10.6): `name` is in its label (*Plan ready: Dark mode*). Returns the raised one."""
+    await page.wait_for_function("() => !document.querySelector('dialog.raised-dlg[open]')", timeout=WAIT_MS)       # what was raised before is laid back: nothing lies over the fan
     card = page.locator(f'.hc[aria-label*="{name}"]')
     await card.wait_for(timeout=WAIT_MS)
     probe = """(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side)
       for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) return { x, y }; }
       return null; }"""
-    at = None
-    for _ in range(40):                                                                                # the fan is drawn again a moment after an answer: asked again until it stands
-        at = await card.evaluate(probe)
+    at = await card.evaluate(probe)
+    for _ in range(60):                                                                                 # (what lay over it a moment ago, a closing sheet or a toast, is gone)
         if at:
             break
         await page.wait_for_timeout(50)
+        at = await card.evaluate(probe)
     assert at, f"no point of {name} can be tapped"
     await page.mouse.click(at["x"], at["y"])
     raised = page.locator(".raised")
@@ -555,6 +577,11 @@ async def _menu(page):
     return drawer
 
 
+async def _today(page):
+    """Today's sheet: the menu's Today item (it moved from the top bar into the menu, spec 50 §6.1)."""
+    await (await _menu(page)).locator('[data-act="today"]').click()
+
+
 async def _stop_all(page):
     """Stop all, at the drawer's head."""
     await (await _menu(page)).get_by_role("button", name="Stop all").click()
@@ -574,11 +601,12 @@ async def test_no_tab_bar_the_top_bar_has_today_and_the_tools_and_nothing_is_cam
         assert await page.locator(".dock, .camp, .grid, .head").count() == 0
         top = page.locator(".board-bar")
         assert await top.get_by_role("button", name="Menu").is_visible() and "Stop all" not in await top.inner_text()   # one line: the drawer holds it
-        assert await top.locator(".board-project").inner_text() == "project"                           # the project's name
-        assert "General" in await page.locator(".gchips").inner_text()                                  # the goal shown: General holds the ideas here
-        assert await top.locator(".needs-chip").count() == 0
+        assert await top.locator(".where__project").inner_text() == "project"                           # the project's name
+        assert "General" in await top.locator(".where__party").inner_text()                             # the party shown: General holds the goals here
+        assert await top.locator(".needs-chip").count() == 0 and await top.locator(".today").count() == 0         # Today is the menu's
         chip = top.locator(".limit-chip")
-        assert "15 %" in await chip.inner_text() and "is-warn" in await chip.get_attribute("class")      # the smallest of all tools
+        assert "15 %" in await chip.get_attribute("aria-label") and "15 %" in await chip.get_attribute("title") and "%" not in await chip.inner_text()      # the diamonds alone: the number is in its label
+        assert "is-warn" in await chip.get_attribute("class")                                            # the smallest of all tools
         assert await chip.locator(".ork-crystals i.on").count() == round(0.15 * 5) and await chip.locator(".ork-crystals i").count() == 5
         await chip.click()
         sheet = page.get_by_role("dialog", name="What is left of your AI tools")
@@ -591,7 +619,7 @@ async def test_no_tab_bar_the_top_bar_has_today_and_the_tools_and_nothing_is_cam
         codex = sheet.locator('.crow[data-tool="codex"]')                                                 # turned on, not read: no diamonds
         assert "not read" in await codex.inner_text() and "Not logged in" in await sheet.inner_text() and await codex.locator(".ork-crystals").count() == 0
         await sheet.get_by_role("button", name="Close").click()
-        await page.locator(".ghead").first.wait_for(timeout=WAIT_MS)
+        await page.locator(".gbar").first.wait_for(timeout=WAIT_MS)
         await _shot(page, "phone-board-390x844")
         pane = await _agents(page)                                                                        # Agents is a screen from the menu
         await page.locator(".chip", has_text="Retry on a lost signal").wait_for(timeout=WAIT_MS)
@@ -627,7 +655,7 @@ async def test_a_plan_a_todo_a_task_and_a_result_each_open_on_their_own_screen_w
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "plan", "ref": "dark", "device": "phone", "via": "hand"})
         await page.get_by_role("button", name="Back", exact=True).click()
         await screen.wait_for(state="hidden", timeout=WAIT_MS)
-        assert await page.locator(".ghead").is_visible()                                              # back on the window it came from
+        assert await page.locator(".gbar").is_visible()                                               # back on the window it came from
 
         stub.ideas["offline"] = stub.idea("offline", "Offline mode", "raw", 9, track="general", queue="night")        # an idea in Planning → its spec, its sections
         stub.bump({})
@@ -649,7 +677,8 @@ async def test_a_plan_a_todo_a_task_and_a_result_each_open_on_their_own_screen_w
         await screen.wait_for(state="hidden", timeout=WAIT_MS)
 
         await _band(page, "build")                                                                     # a task of a column → its task, with Stop pinned
-        await _tap(page, _item(page, "Retry on a lost signal"), page.locator(".screen .log"))
+        await _open_task(page, "Retry on a lost signal")
+        await page.locator(".screen .log").wait_for(timeout=WAIT_MS)
         text = await page.locator(".screen-body").inner_text()
         assert "Brief of Retry on a lost signal" in text and "reading sync.py" in text and "idea/sync/k3" in text
         await _shot(page, "phone-task-390x844")
@@ -727,16 +756,16 @@ async def test_a_secret_todo_is_entered_over_the_paired_link_on_the_board(fake_r
         await sheet.get_by_role("button", name="Store it").click()
         await page.locator('.hc[data-kind="todo"]').wait_for(state="detached", timeout=WAIT_MS)
         assert ("ideas.todo", {"idea": "sync", "id": "t1", "done": True, "value": "s3cret"}) in stub.calls
-        await _new_idea(page)                                                                           # no goal yet (General is not one): New goal opens first (spec 35 §3)
-        goal = page.get_by_role("dialog", name="New goal")
+        await _new_idea(page)                                                                           # no party yet (General is not one): New party opens first (spec 35 §3)
+        goal = page.get_by_role("dialog", name="New party")
         await _wizard(goal)
-        await goal.get_by_label("Description").fill("Offline first")
-        await goal.get_by_role("button", name="Save goal").click()
-        idea = page.get_by_role("dialog", name="New idea")                                              # … then New idea, with that goal
+        await goal.get_by_label("What it is for").fill("Offline first")
+        await goal.get_by_role("button", name="Save party").click()
+        idea = page.get_by_role("dialog", name="New goal")                                              # … then New goal, with that party
         await idea.wait_for(timeout=WAIT_MS)
-        assert await idea.get_by_label("Goal").input_value() == "offline-first"
-        await idea.get_by_label("The idea", exact=True).fill("Offline mode")
-        await idea.get_by_role("button", name="Add").click()
+        assert await idea.get_by_label("Party").input_value() == "offline-first"
+        await idea.get_by_label("Its title").fill("Offline mode")
+        await idea.get_by_role("button", name="Add the goal").click()
         assert await _called(stub, "ideas.add", {"text": "Offline mode", "track": "offline-first", "priority": "normal"})
 
 
@@ -777,14 +806,15 @@ async def test_the_top_bar_is_one_line_with_no_band_above_it_and_the_drawer_show
 @pytest.mark.asyncio
 async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_foot(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")           # New idea needs a goal (spec 35 §3)
+        stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")           # New goal needs a party (spec 35 §3)
         stub.bump({})
-        await page.locator('.fab[data-act="create"]').wait_for(timeout=WAIT_MS)
+        await page.locator(FAB).wait_for(timeout=WAIT_MS)
         await _goal_row(page, "ship")
-        opens = [("New goal", lambda: _new_goal(page)),
-                 ("New idea", lambda: _new_idea(page)),
+        opens = [("New party", lambda: _new_goal(page)),
+                 ("New goal", lambda: _new_idea(page)),
+                 ("Parties", lambda: _where(page)),
                  ("Menu", lambda: _menu(page)),
-                 ("Today", lambda: page.locator(".board-bar .today").click()),
+                 ("Today", lambda: _today(page)),
                  ("What is left of your AI tools", lambda: page.locator(".board-bar .limit-chip").click()),
                  ("Stop all", lambda: _stop_all(page))]
         for name, opener in opens:
@@ -797,13 +827,15 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
             box = await sheet.bounding_box()
             if name == "Menu":
                 assert box["x"] == 0 and box["y"] == 0 and box["height"] == 844 and box["width"] < 390  # the drawer: from the left
+            elif name == "Parties":
+                assert box["x"] == 0 and box["y"] == 0 and box["width"] == 390                          # the where sheet: from the top, full width
             else:
                 assert box["x"] == 0 and box["width"] == 390 and box["y"] + box["height"] == 844        # from the bottom, full width
             assert await page.evaluate(NO_SCROLL)
             await page.keyboard.press("Escape")
             await sheet.wait_for(state="hidden", timeout=WAIT_MS)
         await _new_goal(page)                                                                           # the buttons are pinned at the foot
-        sheet = page.get_by_role("dialog", name="New goal")
+        sheet = page.get_by_role("dialog", name="New party")
         await sheet.locator('.craft-tile[data-craft="design"]').click()
         foot = await sheet.locator(".sheet-foot").bounding_box()
         assert foot["y"] + foot["height"] >= 844 - 2
@@ -814,15 +846,15 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
 async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_shows_its_summary(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _new_goal(page)
-        sheet = page.get_by_role("dialog", name="New goal")
-        await _wizard(sheet, "marketing")                                                               # its craft, its team as suggested
-        assert await sheet.get_by_role("button", name="Save goal").is_disabled()                        # a description is required
-        assert await sheet.get_by_label("Title").count() == 0                                            # no title to type on a new goal
+        sheet = page.get_by_role("dialog", name="New party")
+        await _wizard(sheet, "marketing")                                                               # its craft, its party as suggested
+        assert await sheet.get_by_role("button", name="Save party").is_disabled()                       # what it is for is required
+        assert await sheet.get_by_label("Name").count() == 0                                             # no name to type on a new party
         assert await sheet.get_by_label("Metric 1: what is measured").count() == 0 and await sheet.get_by_label("Deadline").count() == 0
-        await sheet.get_by_label("Description").fill("More people try Orkline.")
+        await sheet.get_by_label("What it is for").fill("More people try Orkline.")
         await sheet.get_by_role("radio", name="High").click()
         await _shot(page, "phone-new-goal-390x844")
-        await sheet.get_by_role("button", name="Save goal").click()
+        await sheet.get_by_role("button", name="Save party").click()
         assert await _called(stub, "ideas.goal_save", {"about": "More people try Orkline.", "craft": "marketing", "leader": "growth",
                                                        "team": ["copywriter", "seo", "editor"], "every": [], "priority": "high"})
         screen = page.locator(".screen")
@@ -833,26 +865,26 @@ async def test_new_goal_sheet_description_and_priority_then_the_goal_reads_and_s
         stub.bump({})
         await screen.get_by_text("Installs are the first step.").first.wait_for(timeout=WAIT_MS)
         text = await screen.inner_text()
-        assert "npm downloads, per week" in text and "Which channel first?" in text and "asks you" in text
+        assert "npm downloads, per week" not in text and "Which channel first?" in text and "asks you" in text        # a party has no metrics
         await screen.get_by_label("Answer Growth").fill("npm first")
         await screen.get_by_role("button", name="Send", exact=True).click()
         assert await _called(stub, "ideas.say", {"slug": "more-people-try", "text": "npm first", "goal": True})
         await screen.get_by_role("button", name="docs/plan.md").click()                                 # a repository path opens on a screen
         await screen.get_by_text("The text of docs/plan.md").wait_for(timeout=WAIT_MS)
-        await screen.get_by_role("button", name="← Back to the goal").click()
+        await screen.get_by_role("button", name="Back to the party").click()
         assert await screen.get_by_role("link", name="https://example.com/post").get_attribute("target") == "_blank"
-        await screen.get_by_role("button", name="Edit goal", exact=True).click()                        # Edit: the sheet is filled, with the title to correct
-        sheet = page.get_by_role("dialog", name="Edit goal")
-        assert await sheet.get_by_label("Title").input_value() == "Grow installs"
-        assert await sheet.get_by_label("Description").input_value() == "More people try Orkline."
-        await sheet.get_by_label("Title").fill("Grow weekly installs")
-        await sheet.get_by_role("button", name="Save goal").click()
+        await screen.get_by_role("button", name="Edit the party", exact=True).click()                   # Edit: the sheet is filled, with the name to correct
+        sheet = page.get_by_role("dialog", name="Edit the party")
+        assert await sheet.get_by_label("Name").input_value() == "Grow installs"
+        assert await sheet.get_by_label("What it is for").input_value() == "More people try Orkline."
+        await sheet.get_by_label("Name").fill("Grow weekly installs")
+        await sheet.get_by_role("button", name="Save party").click()
         assert await _called(stub, "ideas.goal_save", {"slug": "more-people-try", "about": "More people try Orkline.", "craft": "marketing", "priority": "high",
                                                        "title": "Grow weekly installs"})
         await screen.get_by_text("Grow weekly installs").first.wait_for(timeout=WAIT_MS)                # saved: the goal's screen again
         await page.get_by_role("button", name="Back", exact=True).click()
         await screen.wait_for(state="hidden", timeout=WAIT_MS)
-        text = await _goal_row(page, "more-people-try")                                                 # its chip: the title, how far, whether its party is at work (reading)
+        text = await _goal_row(page, "more-people-try")                                                 # its row in the where sheet: the name, how many are done, whether it is at work (reading)
         assert "Grow weekly installs" in text and "at work" in text
         assert await page.evaluate(NO_SCROLL)
 
@@ -865,40 +897,40 @@ async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_clo
         stub.bump({})
         await _goal_row(page, "docs")
         await _new_idea(page)
-        sheet = page.get_by_role("dialog", name="New idea")
-        assert await sheet.get_by_label("Goal").input_value() == "ship"                                 # the first by priority; General is not listed
-        assert "General" not in await sheet.get_by_label("Goal").inner_text()
-        assert await sheet.get_by_role("radio", name="High").is_checked()                               # the goal's priority
-        assert await sheet.get_by_role("button", name="Add").is_visible() and await sheet.get_by_role("button", name="Later").count() == 0
-        await sheet.get_by_label("Goal").select_option("docs")
+        sheet = page.get_by_role("dialog", name="New goal")
+        assert await sheet.get_by_label("Party").input_value() == "ship"                                # the first by priority; General is not listed
+        assert "General" not in await sheet.get_by_label("Party").inner_text()
+        assert await sheet.get_by_role("radio", name="High").is_checked()                               # the party's priority
+        assert await sheet.get_by_role("button", name="Add the goal").is_visible() and await sheet.get_by_role("button", name="Later").count() == 0
+        await sheet.get_by_label("Party").select_option("docs")
         assert await sheet.get_by_role("radio", name="Low").is_checked()
-        await sheet.get_by_label("The idea", exact=True).fill("Dark mode please")
+        await sheet.get_by_label("Its title").fill("Dark mode please")
         await sheet.get_by_role("radio", name="High").click()
         await _shot(page, "phone-new-idea-390x844")
-        await sheet.get_by_role("button", name="Add").click()
+        await sheet.get_by_role("button", name="Add the goal").click()
         await _band(page, "lead")
         card = _item(page, "Dark mode please")                                                          # the Board shows the goal it went to: the idea is in Planning
         await card.wait_for(timeout=WAIT_MS)
         assert _adds(stub) == [{"text": "Dark mode please", "track": "docs", "priority": "high"}]
         await _new_idea(page)                                                                           # Low → the night
-        await page.get_by_role("dialog", name="New idea").get_by_label("Goal").select_option("docs")
-        await page.get_by_label("The idea", exact=True).fill("Low idea")
-        await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Add").click()
+        await page.get_by_role("dialog", name="New goal").get_by_label("Party").select_option("docs")
+        await page.get_by_label("Its title").fill("Low idea")
+        await page.get_by_role("dialog", name="New goal").get_by_role("button", name="Add the goal").click()
         low = _item(page, "Low idea")
         await low.wait_for(timeout=WAIT_MS)
         assert _adds(stub)[-1] == {"text": "Low idea", "track": "docs", "priority": "low"}
         assert "tonight" in await _said(page, "Low idea")
         await _new_idea(page)                                                                           # closed with text: kept for tonight
-        await page.get_by_label("The idea", exact=True).fill("Closed with text")
-        await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Close").click()
+        await page.get_by_label("Its title").fill("Closed with text")
+        await page.get_by_role("dialog", name="New goal").get_by_role("button", name="Close").click()
         assert await _called(stub, "ideas.add", {"text": "Closed with text", "track": "docs", "priority": "low", "night": True})
         await _new_idea(page)                                                                           # Esc with text: tonight too
-        await page.get_by_label("The idea", exact=True).fill("Saved by Esc")
+        await page.get_by_label("Its title").fill("Saved by Esc")
         await page.keyboard.press("Escape")
         assert await _called(stub, "ideas.add", {"text": "Saved by Esc", "track": "docs", "priority": "low", "night": True})
         before = len(_adds(stub))                                                                       # closed empty: nothing
         await _new_idea(page)
-        await page.get_by_role("dialog", name="New idea").get_by_role("button", name="Close").click()
+        await page.get_by_role("dialog", name="New goal").get_by_role("button", name="Close").click()
         await page.wait_for_timeout(300)
         assert len(_adds(stub)) == before
         await _open_idea(page, low)                                                          # its screen: Process now → the queue is now
@@ -951,9 +983,9 @@ async def test_pair_a_phone_in_the_drawer_says_where_it_is_done_and_how_the_phon
 @pytest.mark.asyncio
 async def test_what_waits_for_you_is_the_signal_the_chip_counts_the_stops_and_the_fan_holds_everything_the_alert_ones_first(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        chip = page.locator('.gchip[data-goal="general"]')
+        chip = page.locator(".board-bar .where")
         hand = page.locator(".hc")
-        assert await chip.locator(".ork-count.warning").inner_text() == "2" and "2 stops wait for you" in await chip.get_attribute("aria-label")   # a plan and a to-do
+        assert await chip.locator(".where__stops").inner_text() == "2" and "2 stops wait for you here" in await chip.get_attribute("aria-label")   # a plan and a to-do
         assert await hand.count() == 4 and await page.locator('.hc[data-kind="look"]').count() == 2           # … and two results: all four lie along the bottom, stops first
         assert [await b.get_attribute("data-kind") for b in await hand.all()] == ["plan", "todo", "look", "look"]
         assert await page.locator(".handcount").count() == 0                                                  # the fan is the count: there is no number beside it
@@ -962,26 +994,29 @@ async def test_what_waits_for_you_is_the_signal_the_chip_counts_the_stops_and_th
         stub.todos[0]["done"] = True                                                                    # only the results to look at are left
         stub.bump({})
         await hand.nth(2).wait_for(state="detached", timeout=WAIT_MS)
-        assert await chip.locator(".ork-count.warning").count() == 0 and await hand.count() == 2 and await page.locator('.hc:not([data-kind="look"])').count() == 0
+        assert await chip.locator(".where__stops").is_hidden() and await hand.count() == 2 and await page.locator('.hc:not([data-kind="look"])').count() == 0
         assert "stop" not in await chip.get_attribute("aria-label")                                     # results alone are not a signal
         for t in stub.plan["tasks"]:
             if t["state"] == "review":
                 t["state"] = "merged"
         stub.bump({})
         await hand.first.wait_for(state="detached", timeout=WAIT_MS)                                    # nothing waits: no fan, and it says so
-        assert "Nothing waits for you on this goal." in await page.locator(".handzone").inner_text()
+        assert "Nothing waits for you in this party." in await page.locator(".handzone").inner_text()
 
 
 @pytest.mark.asyncio
-async def test_the_drawer_holds_stop_all_spend_the_projects_this_project_and_this_phone_in_that_order(fake_repo, monkeypatch):
+async def test_the_drawer_holds_stop_all_spend_agents_today_this_project_and_this_phone_in_that_order(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         drawer = await _menu(page)
         text = (await drawer.inner_text()).lower()
-        order = ["Stop all", "Spend today", "Agents", "Projects", "This project", "Target", "Start plans by themselves", "Merge into", "Push after merging", "What is left",
+        order = ["Stop all", "Spend today", "Agents", "This project", "Target", "Start plans by themselves", "Merge into", "Push after merging", "What is left",
                  "This phone", "Pair a phone", "Download the logs", "Unpair this phone"]
         at = [text.index(w.lower()) for w in order]
         assert at == sorted(at), dict(zip(order, at))
-        assert await page.locator(".board-bar").get_by_role("button", name="Settings").count() == 0     # the gear is gone
+        agents, today, project = [(await b.bounding_box())["y"] for b in (drawer.get_by_role("button", name="Agents"), drawer.locator('[data-act="today"]'), drawer.get_by_role("heading", name="This project"))]
+        assert agents < today < project and await drawer.locator('[data-act="today"] .ork-count').count() == 1                          # Today: after Agents, with its count
+        assert await drawer.locator(".project-row").count() == 0 and "Other projects" not in text                                         # the projects are the where sheet's
+        assert await page.locator(".board-bar").get_by_role("button", name="Settings", exact=True).count() == 0     # the gear is gone
         await drawer.get_by_role("button", name="What is left").click()                                 # the limits' sheet, as the chip opens it
         await page.get_by_role("dialog", name="What is left").wait_for(timeout=WAIT_MS)
         assert await drawer.is_hidden()

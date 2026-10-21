@@ -2,6 +2,7 @@
 // this phone's last look (board.js). An `.ork-card` with its head in the pixel face and its lines in the text face, each only when it
 // has something to say; it covers nothing and one press closes it. Its links open an idea, a goal or Needs you and change nothing.
 import { h, sheet } from "./util.js";
+import { sign } from "./shell-marks.js";
 
 const SHOWN = 5;                                     // ideas named under the results, then *and 3 more*
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -16,10 +17,10 @@ export function resultsWords(m, into) {
   return `${n} results in ${into}${f ? `, ${f} the first time` : ""}`;
 }
 
-/** *The night: drafted 2 ideas, started 1 plan, read 1 goal again, proposed 2 ideas*: only the parts above 0. */
+/** *The night: drafted 2 goals, started 1 plan, read 1 party again, proposed 2 goals*: only the parts above 0. */
 export function nightWords(night) {
-  const parts = [night.drafted && `drafted ${plural(night.drafted, "idea", "ideas")}`, night.started && `started ${plural(night.started, "plan", "plans")}`,
-    night.refreshed && `read ${plural(night.refreshed, "goal", "goals")} again`, night.proposed && `proposed ${plural(night.proposed, "idea", "ideas")}`].filter(Boolean);
+  const parts = [night.drafted && `drafted ${plural(night.drafted, "goal", "goals")}`, night.started && `started ${plural(night.started, "plan", "plans")}`,
+    night.refreshed && `read ${plural(night.refreshed, "party", "parties")} again`, night.proposed && `proposed ${plural(night.proposed, "goal", "goals")}`].filter(Boolean);
   return parts.length ? `The night: ${parts.join(", ")}` : "";
 }
 
@@ -79,8 +80,8 @@ export function makeCards(core) {
     core.draw();
   };
   const link = (text, run) => h("button", { class: "linkish", type: "button", onclick: run }, text);
-  const idea = (i) => link(i.short, () => core.open({ kind: "idea", slug: i.slug }, "recap"));
-  const goal = (g) => link(g.short, () => core.open({ kind: "goal", slug: g.goal }, "recap"));
+  const idea = (i) => link(i.short, () => core.open({ kind: "idea", slug: i.slug }, "recap"));        // a goal
+  const goal = (g) => link(g.short, () => core.open({ kind: "goal", slug: g.goal }, "recap"));        // a party
   const needs = (text) => link(text, () => core.go("needs"));
   const joined = (nodes, sep = ", ") => nodes.flatMap((n, i) => (i ? [sep, n] : [n]));
 
@@ -95,7 +96,8 @@ export function makeCards(core) {
       }
     }
     for (const f of r.flags || []) {
-      lines.push(h("p", { class: "away-flag" }, f.met ? "Flag raised: " : "", goal(f), f.met ? ", met" : ": not met yet", `, says ${f.by}`));
+      if (f.idea) lines.push(h("p", { class: "away-flag" }, sign("flag"), " ", idea({ short: f.short, slug: f.idea }), " is in main"));       // a goal the gate took into main
+      else lines.push(h("p", { class: "away-flag" }, f.met ? "Flag raised: " : "", goal(f), f.met ? ", met" : ": not met yet", `, says ${f.by}`));       // a party's old flag, kept as history
     }
     if (r.night && nightWords(r.night)) lines.push(h("p", { class: "away-night" }, nightWords(r.night)));
     if ((r.proposed || []).length) lines.push(h("p", { class: "away-proposed" }, "Proposed for you: ", ...joined(r.proposed.map((i) => needs(i.short)))));
@@ -109,7 +111,7 @@ export function makeCards(core) {
     return lines;
   }
 
-  const goalLink = (f, text) => link(text, () => core.open({ kind: "goal", slug: f.goal }, "week"));
+  const goalLink = (f, text) => link(text, () => core.open({ kind: "goal", slug: f.goal }, "week"));        // a party
   const ideaLink = (i, text) => link(text, () => core.open({ kind: "idea", slug: i.slug }, "week"));
 
   /** Last week's lines (spec 42 §7.2), each only when it has something to say. */
@@ -124,13 +126,14 @@ export function makeCards(core) {
       lines.push(h("p", { class: "away-usd" }, `${dollars(w.usd_per_merged)} a result${w.before?.usd_per_merged != null ? ` (the week before ${dollars(w.before.usd_per_merged)})` : ""}`));
     }
     if ((w.goals || []).length) {
-      lines.push(h("p", { class: "away-goals" }, "Goals: ", ...joined(w.goals.map((g, n) => h("span", {}, goalLink(g, g.short), n === 0 ? `, ${g.done} ${g.done === 1 ? "idea" : "ideas"} done` : `, ${g.done}`)), " · ")));
+      lines.push(h("p", { class: "away-goals" }, "Parties: ", ...joined(w.goals.map((g, n) => h("span", {}, goalLink(g, g.short), n === 0 ? `, ${g.done} ${g.done === 1 ? "goal" : "goals"} done` : `, ${g.done}`)), " · ")));
     }
     if ((w.flags || []).length) {
-      lines.push(h("p", { class: "away-flag" }, "Flags: ", ...joined(w.flags.map((f) => h("span", {}, goalLink(f, f.short), f.met ? ", met" : ", not met yet")), "; ")));
+      lines.push(h("p", { class: "away-flag" }, sign("flag"), " Flags: ", ...joined(w.flags.map((f) => (f.idea ? h("span", {}, ideaLink({ slug: f.idea }, f.short), " is in main")
+        : h("span", {}, goalLink(f, f.short), f.met ? ", met" : ", not met yet"))), "; ")));
     }
     const extremes = [w.dearest && h("span", {}, "Cost the most: ", ideaLink(w.dearest, w.dearest.short), `, ${dollars(w.dearest.usd)}`),
-      w.fastest && h("span", {}, `Fastest from idea to ${into}: `, ideaLink(w.fastest, w.fastest.short), `, ${durationWords(w.fastest.minutes)}`)].filter(Boolean);
+      w.fastest && h("span", {}, `Fastest from goal to ${into}: `, ideaLink(w.fastest, w.fastest.short), `, ${durationWords(w.fastest.minutes)}`)].filter(Boolean);
     if (extremes.length) lines.push(h("p", { class: "away-extremes" }, ...joined(extremes, " · ")));
     if (w.answers) {
       const left = w.answers.decided ? `; ${w.answers.decided} ${w.answers.decided === 1 ? "card" : "cards"} left to the Taskmaster` : "";
@@ -204,7 +207,7 @@ export function makeWeek(core, newIdea) {
       w.last_unused != null ? h("p", { class: "week-unused" }, `Last week ended with ${Math.round(w.last_unused * 100)} % unused`) : null,
       w.streak >= 2 ? h("p", { class: "week-streak" }, `${w.streak} nights in a row`) : null,
       w.night_on ? (w.tonight > 0 ? h("p", { class: "week-tonight" }, `Tonight: ${w.tonight} wait`)
-        : h("p", { class: "week-tonight" }, "Nothing waits for tonight · ", h("button", { class: "linkish", type: "button", onclick: () => { sh.close(); newIdea(); } }, "New idea"))) : null].filter(Boolean));
+        : h("p", { class: "week-tonight" }, "Nothing waits for tonight · ", h("button", { class: "linkish", type: "button", onclick: () => { sh.close(); newIdea(); } }, "New goal"))) : null].filter(Boolean));
   }
   return { el: sh.el, open };
 }

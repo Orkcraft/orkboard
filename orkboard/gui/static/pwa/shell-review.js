@@ -3,21 +3,23 @@
 // conflicts), Send back / Fix (one line, required), Drop (quiet, apart, asks first). The results themselves lie along the bottom with what waits for an answer.
 import { h, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
+import { sign } from "./shell-marks.js";
 
 const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
 export const isRed = (r) => r.tests.failed > 0 || r.tests.green === false;
 
-/** The tests, in the person's words: "20 / 20 passed" ✓, "10 / 20 failed" ✗ with the first failing names, or no tests ran; a command that is not pytest: passed (exit 0) / failed (exit 1). */
+/** The tests, in the person's words: "20 / 20 passed" with the check sign, "10 / 20 failed" with the cross and the first failing names, or no tests ran; a command that is not pytest: passed (exit 0) / failed
+ *  (exit 1). `mark` is the name of orkUI's sign (`check`, `cross`) or "". */
 export function testsWords(r) {
   const t = r.tests, all = t.passed + t.failed;
   if (t.ran === false) return { mark: "", text: "no tests ran", names: [], tone: "muted" };
   if (t.passed == null && t.failed == null) {          // a command that is not pytest: its exit code speaks
     const failed = isRed(r), code = t.exit ?? (failed ? 1 : 0);
-    return failed ? { mark: "✗", text: `failed (exit ${code})`, names: [], tone: "danger" } : { mark: "✓", text: `passed (exit ${code})`, names: [], tone: "success" };
+    return failed ? { mark: "cross", text: `failed (exit ${code})`, names: [], tone: "danger" } : { mark: "check", text: `passed (exit ${code})`, names: [], tone: "success" };
   }
-  if (isRed(r)) return { mark: "✗", text: t.failed ? `${t.failed} / ${all} failed` : "the tests failed", names: (t.failing || []).slice(0, 2), tone: "danger" };
+  if (isRed(r)) return { mark: "cross", text: t.failed ? `${t.failed} / ${all} failed` : "the tests failed", names: (t.failing || []).slice(0, 2), tone: "danger" };
   if (t.passed === 0) return { mark: "", text: "no tests ran", names: [], tone: "muted" };
-  return { mark: "✓", text: `${t.passed} / ${all} passed`, names: [], tone: "success" };
+  return { mark: "check", text: `${t.passed} / ${all} passed`, names: [], tone: "success" };
 }
 export const changesWords = (d) => `${d.files} file${d.files === 1 ? "" : "s"}, +${d.added} −${d.removed}`;
 
@@ -64,7 +66,7 @@ export function foundOf(r) {
 export function factsOf(r) {
   const t = testsWords(r);
   return h("dl", { class: "facts" },
-    h("dt", {}, "Tests"), h("dd", { class: `is-${t.tone}` }, `${t.mark} ${t.text}`.trim(), t.names.length ? h("small", { class: "muted" }, ` ${t.names.join(", ")}`) : null),
+    h("dt", {}, "Tests"), h("dd", { class: `is-${t.tone}` }, t.mark ? sign(t.mark) : null, t.mark ? " " : "", t.text, t.names.length ? h("small", { class: "muted" }, ` ${t.names.join(", ")}`) : null),
     h("dt", {}, "Changes"), h("dd", {}, changesWords(r.diff)),
     ...(r.cost != null ? [h("dt", {}, "Cost"), h("dd", {}, usd(r.cost))] : []));
 }
@@ -159,7 +161,7 @@ export function makeReview(core) {
     form.addEventListener("submit", (e) => { e.preventDefault(); if (name.value.trim()) pick(name.value.trim()); });
     branchBody.replaceChildren(
       ...(rv?.branches || [rv?.into || "dev"]).map((b) => h("button", { class: `branch${b === rv?.into ? " is-on" : ""}`, type: "button", role: "radio",
-        "aria-checked": String(b === rv?.into), onclick: () => pick(b) }, b === rv?.into ? "✓ " : "", b)),
+        "aria-checked": String(b === rv?.into), onclick: () => pick(b) }, b === rv?.into ? sign("check") : null, b === rv?.into ? " " : "", b)),
       h("button", { class: "branch", type: "button", onclick: () => { form.hidden = false; name.focus(); } }, "New branch…"), form);
   }
 

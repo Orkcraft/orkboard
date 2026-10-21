@@ -1,48 +1,48 @@
-// A goal on the phone (docs/specs/35-goals-window.md §2, §11): the New goal / Edit goal sheet — a description, its craft (the head of its race
-// marks the goal in the top bar, decisions §53) and a priority, and on Edit
-// the title too (to correct the Taskmaster's) — and the goal's own screen (its Description, the Taskmaster's Summary, the Metrics, the
-// Links, the Open questions with a box to answer). Saving sends the goal to the Taskmaster at once; it writes the rest.
+// A party on the phone (docs/specs/35-goals-window.md §2, §11; spec 50 §0, §6): the Edit the party sheet — what it is for, its craft (the head of its race
+// marks the party, decisions §53) and a priority, and the name too (to correct the Taskmaster's) — and the party's own screen (what it is for, the Taskmaster's Summary, its Links,
+// the Open questions with a box to answer, what the party did). A party has no end: no Metrics, no verdict (a verdict of before is history, *Before: …*). Saving sends the party to the
+// Taskmaster at once; it writes the rest. New party is shell-goal-new.js's.
 import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
 import { CRAFT_WORDS, RACE_WORDS, goalHead, whoHead } from "./shell-who.js";
 import { limitsNote } from "./shell-limits.js";
+import { flagWords } from "./shell-map.js";
 import { makeNewGoal, makeParty } from "./shell-goal-new.js";
 
 const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"], ["product", "lich"]];   // realm/roles.py RACES
 
 export { PRIORITY_WORDS };
 export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks you", ready: "ready" };
-/** Who leads a goal (its party's leader: the Taskmaster when none, realm/goal_team.py). */
+/** Who leads a party (the Taskmaster when none, realm/goal_team.py). */
 export const leaderName = (g) => g?.leader?.name || "Taskmaster";
-/** A goal's state in words, its leader's name in them. */
+/** A party's state in words, its leader's name in them. */
 export function goalState(g) {
   if (g?.state === "reading") return `${g?.leader?.name && g.leader.slug !== "taskmaster" ? g.leader.name : "the Taskmaster"} is reading`;
   return GOAL_STATE[g?.state] || "";
 }
-const STATUS_WORDS = { met: "met", "not met": "not met", unknown: "unknown" };
 const isUrl = (l) => /^[a-z][a-z0-9+.-]*:\/\//i.test(l);
 
 export function makeGoalSheet(core) {
-  const title = h("input", { class: "ork-field", type: "text", "aria-label": "Title", placeholder: "The Taskmaster writes it; correct it here", maxlength: "120" });
-  const titleField = field("Title", title);
-  const about = h("textarea", { class: "ork-field", rows: "5", "aria-label": "Description", placeholder: "A few lines: what it is for", maxlength: "20000" });
+  const title = h("input", { class: "ork-field", type: "text", "aria-label": "Name", placeholder: "The Taskmaster writes it; correct it here", maxlength: "120" });
+  const titleField = field("Name", title);
+  const about = h("textarea", { class: "ork-field", rows: "5", "aria-label": "What it is for", placeholder: "A few lines: what it is for", maxlength: "20000" });
   const craft = h("select", { class: "ork-field", "aria-label": "Craft" },
     ...CRAFTS.map(([c, race]) => h("option", { value: c }, `${CRAFT_WORDS[c]}: ${/^[aeiou]/.test(RACE_WORDS[race]) ? "an" : "a"} ${RACE_WORDS[race]}`)));
   const craftNow = h("span", { class: "craft-now", "aria-hidden": "true" });
   const drawCraft = () => craftNow.replaceChildren(goalHead({ craft: craft.value, race: Object.fromEntries(CRAFTS)[craft.value] }));
   craft.addEventListener("change", drawCraft);
   const priority = prioritySwitch();
-  const hint = h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the title, the summary, what counts as done and the links.");
-  const left = h("div", {});                         // what is left of the AI tools: reading the goal spends them
-  const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save goal");
+  const hint = h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the name and the summary.");
+  const left = h("div", {});                         // what is left of the AI tools: reading the party spends them
+  const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save party");
   const cancel = h("button", { class: "ork-btn big", type: "button" }, "Cancel");
-  const form = h("form", { class: "sheet-form" }, titleField, field("Description", about),
-    field("Craft", h("div", { class: "row craft-pick" }, craftNow, craft), "Its head marks the goal in the top bar"),
+  const form = h("form", { class: "sheet-form" }, titleField, field("What it is for", about),
+    field("Craft", h("div", { class: "row craft-pick" }, craftNow, craft), "Its head marks the party in the top bar"),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, left, foot(cancel, save));
-  const sh = sheet("New goal", form);
+  const sh = sheet("Edit the party", form);
   let slug = "";
-  let then = null;                                   // what to do with the goal's slug instead of opening its screen (New idea with no goal yet)
+  let then = null;                                   // what to do with the party's slug instead of opening its screen (New goal with no party yet)
   about.addEventListener("input", () => { save.disabled = !about.value.trim(); });
   cancel.addEventListener("click", () => sh.close());
   form.addEventListener("submit", async (e) => {
@@ -62,12 +62,12 @@ export function makeGoalSheet(core) {
     if (after) after(got.slug); else core.open({ kind: "goal", slug: got.slug });
   });
   sh.el.addEventListener("close", () => { then = null; });
-  const wizard = makeNewGoal(core);                    // a new goal: one sheet (shell-goal-new.js)
+  const wizard = makeNewGoal(core);                    // a new party: one sheet (shell-goal-new.js)
 
-  // -- a goal's team from its own screen (spec 41 §7): the Team and Checks folds of New goal, saved alone -----------------------
+  // -- a party's members from its own screen or the dial (spec 41 §7): the party's and the checks' folds of New party, saved alone -----------------------
   const party = makeParty(core);
-  const teamSave = h("button", { class: "ork-btn primary big", type: "button" }, "Save team");
-  const teamSheet = sheet("Team", party.team, party.checks, foot(teamSave));
+  const teamSave = h("button", { class: "ork-btn primary big", type: "button" }, "Save the party");
+  const teamSheet = sheet("The party", party.team, party.checks, foot(teamSave));
   let teamOf = "";
   teamSave.addEventListener("click", async () => {
     const p = party.get();
@@ -82,7 +82,7 @@ export function makeGoalSheet(core) {
   return {
     el: sh.el,
     sheets: [sh.el, wizard.el, teamSheet.el],
-    /** Change the team of a goal (`g`: as `ideas.goal` sends it). */
+    /** Change the members of a party (`g`: as `ideas.goal` sends it). */
     editTeam(g) {
       teamOf = g.slug;
       party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [], party: g.party || "" }, () => g.craft || "");
@@ -93,8 +93,8 @@ export function makeGoalSheet(core) {
       slug = which;
       then = after;
       const g = which ? (core.st.board?.tracks || []).find((t) => t.slug === which) : null;
-      sh.title(g ? "Edit goal" : "New goal");
-      titleField.hidden = !g;                          // a new goal has no title to type: the Taskmaster writes it
+      sh.title("Edit the party");
+      titleField.hidden = !g;                          // a new party has no name to type: the Taskmaster writes it
       title.value = g?.title || "";
       about.value = g?.about || "";
       priority.set(g?.priority || "normal");
@@ -108,8 +108,8 @@ export function makeGoalSheet(core) {
   };
 }
 
-/** The goal's screen: returns the nodes of its body (the preview puts them in). `act` is the preview's own (it flashes and reads again).
- * Its leader speaks in it: reads the goal, answers, and, when the goal's ideas are done, accepts it against its metrics (the verdict). */
+/** The party's screen: returns the nodes of its body (the preview puts them in). `act` is the preview's own (it flashes and reads again).
+ * Its leader speaks in it: reads the party, asks, and is answered. A party has no metrics and no verdict (a verdict of before is history). */
 export function goalBody(g, core, act, asked, setAsked) {
   const words = goalState(g), lead = leaderName(g), the = g?.leader?.slug && g.leader.slug !== "taskmaster" ? lead : `The ${lead}`;
   const field_ = h("textarea", { class: "ork-field", id: "answer-field", rows: "2", maxlength: "20000", "aria-label": `Answer ${lead}`, placeholder: `Answer ${lead}…` });
@@ -128,14 +128,11 @@ export function goalBody(g, core, act, asked, setAsked) {
   return [
     h("p", { class: "muted" }, [words || "not read yet", PRIORITY_WORDS[g.priority], g.deadline ? `by ${g.deadline}` : ""].filter(Boolean).join(" · ")),
     g.state_error && g.state === "raw" ? h("p", { class: "warn" }, g.state_error) : null,
-    g.state_error && g.state !== "raw" && /^Not accepted/.test(g.state_error) ? h("p", { class: "warn" }, g.state_error) : null,
-    verdictSec(g, core, act, sec, lead),
+    g.verdict?.met ? h("p", { class: "muted", "data-sec": "before" }, `Before: ${flagWords(g.verdict)}`) : null,
     teamSec(g, core, sec),
     h("section", { class: "goal-sec", "aria-label": "What the party did" }, partyFold(core, g.slug)),
-    sec("Description", h("p", { class: "brief" }, g.description || "No description yet.")),
-    sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? `${the} is reading the goal…` : "Not written yet."))),
-    sec("Metrics", g.metrics.length ? h("div", { class: "metrics" }, ...g.metrics.map((m) => h("div", { class: "card metric" }, h("b", {}, m.name),
-      h("small", {}, `Target: ${m.target || "—"}`), h("small", { class: "muted" }, m.how ? `Counted: ${m.how}` : "How it is counted: not said yet")))) : h("p", { class: "muted" }, "No metric yet.")),
+    sec("What it is for", h("p", { class: "brief" }, g.description || "Not written yet.")),
+    sec("Summary", h("p", { class: "brief" }, g.summary || (g.state === "reading" ? `${the} is reading it…` : "Not written yet."))),
     sec("Links", g.links.length ? h("ul", { class: "links" }, ...g.links.map((l) => h("li", {}, isUrl(l)
       ? h("a", { href: l, target: "_blank", rel: "noopener noreferrer" }, l)
       : h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "doc", slug: g.slug, path: l }) }, l)))) : h("p", { class: "muted" }, "No link.")),
@@ -154,12 +151,12 @@ const usdWords = (usd) => `≈$${usd.toFixed(2)}`;
 export function partyLines(w) {
   if (!w.ideas) return ["No work yet"];
   const lead = w.leader;
-  const lines = [`${lead.name} (leads)${lead.usd != null ? `: ${usdWords(lead.usd)} for the goal, the drafts and the plans` : ""}`];
+  const lines = [`${lead.name} (leads)${lead.usd != null ? `: ${usdWords(lead.usd)} for the party, the drafts and the plans` : ""}`];
   for (const m of w.members) {
     lines.push(`${m.name}: ${plural(m.tasks, "task", "tasks")}, ${m.first_time ? `${m.first_time} merged the first time` : "none merged the first time"}${m.usd != null ? ` · ${usdWords(m.usd)}` : ""}`);
   }
   for (const c of w.checks) {
-    lines.push(`${c.name}: checked ${plural(c.applied, "idea", "ideas")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}`
+    lines.push(`${c.name}: checked ${plural(c.applied, "goal", "goals")}: ${c.clean} clean, caught ${c.caught}${c.left ? ` (${c.left} left)` : ""}`
       + `${c.usd != null ? ` · ${usdWords(c.usd)}` : ""}${c.skipped ? ` · skipped ${c.skipped}` : ""}${c.before ? ` · ${c.before} ended without findings` : ""}`);
   }
   return lines;
@@ -178,17 +175,17 @@ export function partyFold(core, slug) {
   return el;
 }
 
-// What the person has half done in Save this party, kept apart from the DOM so a redraw puts it back (goal → {name, replace}).
+// What the person has half done in Save it to your parties, kept apart from the DOM so a redraw puts it back (party → {name, replace}).
 const naming = new Map();
 
-/** **Save this party**, under the Team: it asks a name (*Engineering party*), asks again before it replaces a party of that name, and says after
- *  *Saved: pick it for a goal in any project.* */
-function savePartyEl(g, core) {
+/** **Save it to your parties**, under the party: it asks a name (*Engineering party*), asks again before it replaces a party of that name, and says after
+ *  *Saved: pick it for a party in any project.* */
+export function savePartyEl(g, core) {
   const wrap = h("div", { class: "party-save" });
   const draw = () => {
     const now = naming.get(g.slug);
     if (!now) {
-      wrap.replaceChildren(h("button", { class: "linkish", type: "button", onclick: () => { naming.set(g.slug, { name: `${CRAFT_WORDS[g.craft] || "Engineering"} party`, replace: "" }); draw(); } }, "Save this party"));
+      wrap.replaceChildren(h("button", { class: "linkish", type: "button", onclick: () => { naming.set(g.slug, { name: `${CRAFT_WORDS[g.craft] || "Engineering"} party`, replace: "" }); draw(); } }, "Save it to your parties"));
       return;
     }
     const send = async (replacing) => {
@@ -199,7 +196,7 @@ function savePartyEl(g, core) {
         if (hit) { now.replace = hit.name; draw(); return; }
       }
       const got = await core.call("ideas.party_save", { goal: g.slug, name, ...(replacing ? { replace: true } : {}) });      // a refusal is flashed
-      if (got) { naming.delete(g.slug); core.flash("Saved: pick it for a goal in any project."); draw(); }
+      if (got) { naming.delete(g.slug); core.flash("Saved: pick it for a party in any project."); draw(); }
     };
     if (now.replace) {
       wrap.replaceChildren(h("p", { class: "party-save-ask", role: "alert" }, `Replace your party “${now.replace}”?`,
@@ -219,7 +216,7 @@ function savePartyEl(g, core) {
   return wrap;
 }
 
-/** The goal's team in one line — the heads with their names — and Change (spec 41 §7). */
+/** The party's members in one line — the heads with their names — and Change (spec 41 §7). */
 function teamSec(g, core, sec) {
   const roles = core.st.roles?.roles || [];
   const lib = core.st.roles?.library || [];
@@ -228,34 +225,8 @@ function teamSec(g, core, sec) {
     const r = roles.find((x) => x.slug === id), a = lib.find((x) => x.id === id);
     return { name: r?.name || a?.name || id, head: r?.head || (a ? { craft: a.craft, race: { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" }[a.craft] || "peon", tier: a.tier } : null) };
   };
-  return sec("Team", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),
-    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the team",
+  return sec("The party", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),
+    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the party",
       onclick: () => core.editTeam(g) }, "Change")),
     savePartyEl(g, core));
-}
-
-/** The goal's verdict: met or not, each metric's status and why, the next ideas (each added with a tap); and the button that
- * asks the leader to accept the goal — once its ideas are all done, or again after a verdict. */
-function verdictSec(g, core, act, sec, lead) {
-  const mine = (core.st.board?.ideas || []).filter((i) => i.track === g.slug);
-  const done = mine.length > 0 && mine.every((i) => i.state === "done");
-  const v = g.verdict;
-  if (!v && !done) return null;
-  const accepting = g.busy && g.state !== "reading";
-  const ask = h("button", { class: `ork-btn${v ? "" : " primary"}`, type: "button", disabled: accepting,
-    onclick: () => act("ideas.goal_accept", { slug: g.slug }, `${lead} is accepting the goal.`) }, v ? `Ask ${lead} again` : `Ask ${lead} to accept`);
-  if (!v) {
-    return sec("Verdict", h("p", { class: "muted" }, accepting ? `${lead} is accepting the goal against its metrics…`
-      : `Its ideas are done: ${lead} accepts the goal against its metrics, not against the work done.`), h("div", { class: "row" }, ask));
-  }
-  const add = (text) => act("ideas.add", { text, track: g.slug, priority: "normal" }, "Added: drafted now.");
-  return sec("Verdict",
-    h("p", { class: `verdict-line ${v.met ? "is-met" : "is-not"}` }, h("b", {}, v.met ? "Goal met" : "Not met yet"), ` · by ${v.by || lead}`),
-    v.verdict ? h("p", { class: "brief" }, v.verdict) : null,
-    v.metrics?.length ? h("ul", { class: "verdict-metrics", "aria-label": "Metrics, as accepted" }, ...v.metrics.map((m) => h("li", { class: `status-${m.status.replace(" ", "-")}` },
-      h("b", {}, m.name), ` · ${STATUS_WORDS[m.status] || m.status}`, m.why ? h("small", { class: "muted" }, m.why) : null))) : null,
-    v.next?.length ? h("div", { class: "verdict-next", role: "group", "aria-label": "Next ideas" }, h("h4", {}, "Next ideas"),
-      ...v.next.map((x) => h("div", { class: "row" }, h("span", {}, x),
-        h("button", { class: "ork-btn", type: "button", "aria-label": `Add as idea: ${x}`, onclick: () => add(x) }, "Add as idea")))) : null,
-    h("div", { class: "row" }, ask));
 }
