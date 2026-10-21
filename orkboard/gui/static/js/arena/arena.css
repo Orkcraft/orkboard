@@ -1,5 +1,5 @@
-/* The one window (docs/specs/49-one-window.md, decisions §62): the goal tabs, the day's strip, Planning over the leader, the field with its
-   party at the foot, the results on the right, what waits for you and the limits along the bottom. In orkUI's office look (design-system/orkui):
+/* The one window (docs/specs/49-one-window.md, decisions §62): the goal tabs, the day's strip, the leader over Planning, the field with its
+   party on top and its tasks running down, the results on the right, what waits for you and the limits along the bottom. In orkUI's office look (design-system/orkui):
    its tokens and components only (.ork-gem, .ork-stat, .ork-crystals, .ork-frame, .ork-mark, .ork-race__head.mid), no raw colour, nothing
    round. The variables set here are the fan's (--rot, --dy, --z) and the columns' (--cols). Sizes are the mockup's at 1 440 × 900. */
 .arena-spacer { flex: 1; }
@@ -68,14 +68,16 @@
 .arena-prow__title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arena-prow__state { font: var(--ork-type-caption); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arena-prow__cost { flex: none; font: var(--ork-type-caption); color: var(--ork-ink-faint); }
-.arena-hero { position: relative; flex: none; border-top: var(--ork-line) solid var(--ork-frame); padding: 10px var(--ork-5); display: flex; flex-direction: column; align-items: stretch; gap: var(--ork-2); }
+.arena-plan { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.arena-hero { position: relative; flex: none; border-bottom: var(--ork-line) solid var(--ork-frame); padding: 10px var(--ork-5); display: flex; flex-direction: column; align-items: stretch; gap: var(--ork-2); }
 .arena-power { align-self: center; }
 
-.arena-field { position: relative; flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 312px; grid-template-rows: auto minmax(0, 1fr) 68px 64px; }
+.arena-field { position: relative; flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 312px; grid-template-rows: auto 64px minmax(0, 1fr) 64px; }
 .arena-ibar { grid-column: 1 / -1; grid-row: 1; border-bottom: var(--ork-line) solid var(--ork-frame); }
 .arena-play { grid-column: 1; grid-row: 2 / 4; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.arena-look { grid-column: 2; grid-row: 2; }
-.arena-gatebox { grid-column: 2; grid-row: 3; }
+.arena-body { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.arena-gatebox { grid-column: 2; grid-row: 2; }
+.arena-look { grid-column: 2; grid-row: 3; }
 .arena-stops { grid-column: 1 / -1; grid-row: 4; position: relative; z-index: 6; height: 64px; box-sizing: border-box; background: var(--ork-canvas); border-top: var(--ork-line) solid var(--ork-frame); }
 
 /* -- the ideas bar (36 px) ------------------------------------------------------------------------------------------------------ */
@@ -112,17 +114,17 @@
 .arena-cols { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; padding: 0 var(--ork-5); }
 .arena-cols__head { flex: none; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); align-items: center; height: 28px; }
 .arena-cols__grid { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); align-items: stretch; }
-.arena-stack { min-height: 0; display: flex; flex-direction: column-reverse; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-2) var(--ork-1) var(--ork-4); overflow-y: auto; scrollbar-width: none; }
+.arena-stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-4) var(--ork-1) var(--ork-2); overflow-y: auto; scrollbar-width: none; }
 .arena-stack::-webkit-scrollbar { display: none; }
 .arena-cols__none { padding: var(--ork-4); }
 .arena-stack__empty { flex: none; text-align: center; font: var(--ork-type-caption); color: var(--ork-ink-faint); }
-.arena-stack__done { flex: none; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
+.arena-stack__done { flex: none; margin-top: auto; padding-top: var(--ork-2); font: var(--ork-type-caption); color: var(--ork-ink-muted); }
 .arena-srow { flex: none; display: flex; gap: var(--ork-3); }
 .arena-srow .arena-task { flex: 0 0 calc(50% - 3px); width: auto; }
 .arena-srow.is-wide .arena-task { flex: 0 0 calc((100% - 30px) / 6); }
 .arena-solo-wrap { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; padding: 0 var(--ork-5); }
 .arena-solo__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); height: 28px; }
-.arena-solo { flex: 1; min-height: 0; display: flex; flex-direction: column-reverse; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) var(--ork-1) 10px; overflow-y: auto; scrollbar-width: none; }
+.arena-solo { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) var(--ork-1) 10px; overflow-y: auto; scrollbar-width: none; }
 .arena-solo::-webkit-scrollbar { display: none; }
 .arena-solo__empty { text-align: center; }
 
@@ -187,8 +189,8 @@
 .arena-result .shell-round { color: var(--ork-ink-muted); }          /* a result is not a signal: no alert colour (decisions §54.1) */
 .arena-result .shell-actions__main { gap: var(--ork-3); }
 
-/* -- the party row (68 px) and the gate ---------------------------------------------------------------------------------------------- */
-.arena-team { flex: none; height: 68px; box-sizing: border-box; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); padding: var(--ork-4) var(--ork-5); align-items: center; border-top: var(--ork-line) solid var(--ork-frame); }
+/* -- the party row (64 px) and the gate ---------------------------------------------------------------------------------------------- */
+.arena-team { flex: none; height: 64px; box-sizing: border-box; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); padding: var(--ork-3) var(--ork-5); align-items: center; border-bottom: var(--ork-line) solid var(--ork-frame); }
 .arena-mcol { position: relative; min-width: 0; }
 /* a member: a small framed row — its head wears three signs on its corners, three short lines beside it */
 .arena-member { appearance: none; width: 100%; max-width: 200px; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: var(--ork-5);
@@ -211,7 +213,7 @@
 .arena-member__nm { display: block; max-width: 100%; font: 600 12px/14px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .arena-num { font: 600 11px/13px var(--ork-font-text); color: var(--ork-ink); white-space: nowrap; }
 .arena-num.is-muted { font-weight: 400; color: var(--ork-ink-muted); }
-.arena-gate { box-sizing: border-box; height: 100%; border-left: var(--ork-line) solid var(--ork-frame); border-top: var(--ork-line) solid var(--ork-frame); padding: 0 var(--ork-5); display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.arena-gate { box-sizing: border-box; height: 100%; border-left: var(--ork-line) solid var(--ork-frame); border-bottom: var(--ork-line) solid var(--ork-frame); padding: 0 var(--ork-5); display: flex; flex-direction: row; align-items: center; gap: 10px; }
 .arena-gate .arena-cap { flex: 1; min-width: 0; }
 .arena-gatebox { min-height: 0; }
 .arena-gate__btn { flex: none; height: 44px; font: 500 14px/16px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -220,8 +222,8 @@
 .arena-gateview__head h2 { font: 600 14px/20px var(--ork-font-text); }
 
 /* -- the peek: a member's whole face beside it ----------------------------------------------------------------------------------- */
-.arena-peek { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: 184px; display: none; z-index: 30; pointer-events: none; }
-.arena-peek.is-side { left: calc(100% + 10px); bottom: -20px; transform: none; }
+.arena-peek { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: 184px; display: none; z-index: 30; pointer-events: none; }
+.arena-peek.is-side { left: calc(100% + 10px); top: -10px; transform: none; }
 .arena-mcol:hover .arena-peek, .arena-mcol:focus-within .arena-peek { display: block; }
 .arena-pcard { display: flex; flex-direction: column; width: 100%; height: 276px; padding: var(--ork-3); text-align: left; background: var(--ork-raised); border-color: var(--ork-ink); font: var(--ork-type-caption); }
 .arena-pcard.alert { border-color: var(--ork-alert); }
@@ -291,7 +293,7 @@
   .arena-play { grid-row: 2; overflow-x: auto; }
   .arena-cols, .arena-team { min-width: max-content; }
   .arena-gatebox { grid-column: 1; grid-row: 3; }
-  .arena-gate { height: auto; border-left: 0; flex-direction: row; align-items: center; padding: var(--ork-3) var(--ork-5); }
+  .arena-gate { height: auto; border-left: 0; border-bottom: 0; border-top: var(--ork-line) solid var(--ork-frame); flex-direction: row; align-items: center; padding: var(--ork-3) var(--ork-5); }
   .arena-gate__btn { width: auto; height: 32px; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -176,6 +176,7 @@ def test_an_instruction_over_600_says_so_and_cannot_be_saved_and_a_hand_set_mode
 
 def test_the_result_preview_says_what_the_idea_cost_so_far_and_dashes_when_nothing_is_priced(shell36):
     pg, host = shell36
+    pg.get_by_role("button", name="Close the drawer").click()                      # Agents (the fixture's) covers the results: the drawer goes, its tab stays
     pg.locator(".arena-result", has_text="Add the queue").locator(".arena-link").click()
     line = pg.locator(".shell-spend")
     line.wait_for(timeout=WAIT_MS)

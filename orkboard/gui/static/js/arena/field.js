@@ -1,7 +1,7 @@
-// The goal's field (docs/specs/49-one-window.md §5.3–§5.4, §11): a column per member of the party row, its open tasks rising bottom-up
-// from the member, two to a row — the bottom row lit, the rows above muted. A task is a small framed item; hovering one lights what
+// The goal's field (docs/specs/49-one-window.md §5.3–§5.4, §11): a column per member of the party row, its open tasks running down
+// from the member, two to a row — the top row lit, the rows below muted. A task is a small framed item; hovering one lights what
 // waits for it. A member shown alone (solo) lays its tasks across the field's whole width in the same order. A task the field did
-// not have a moment ago rises into its column, a merged one fades where it stands and the column settles (motion.js).
+// not have a moment ago rises into its column, a merged one fades where it stands and the queue behind it steps up (motion.js).
 import { useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Icon } from "../orkui.js";
@@ -60,13 +60,13 @@ const signOf = (nodes) => (x) => {
   return !t ? "" : t.state === "merged" ? "✓" : t.state === "dropped" ? "✗" : "";
 };
 
-/** A column's rows: [[entry, entry], …] from the member up; every row but the first muted. */
+/** A column's rows: [[entry, entry], …] from the member down; every row but the first muted. */
 function Stack({ list, per, wide }) {
   return rowsOf(list, per).map((row, i) => html`<div key=${i} class=${cls("arena-srow", { "is-wide": wide })}>
     ${row.map((e) => html`<${TaskCard} key=${e.key} n=${e.it.n} t=${e.it.t} later=${i > 0} fresh=${e.fresh} sign=${e.sign} quiet=${e.quiet} wide=${wide} />`)}</div>`);
 }
 
-/** A member's column: its open tasks rising from it, *✓ k in dev* at its top; what changes in it moves as motion.js says. */
+/** A member's column: its open tasks running down from it, *✓ k in dev* at its far end; what changes in it moves as motion.js says. */
 function Column({ m, nodes, col }) {
   const ref = useRef(), done = useRef(), at = useRef(nodes);
   at.current = nodes;

@@ -1,6 +1,6 @@
-// The one window (docs/specs/49-one-window.md): under the goal tabs, the day's strip, Planning over the leader, and the goal's field —
-// the ideas bar, the party's columns with the results beside them, the party row with the gate, what waits for you and the limits along
-// the bottom. The drawer (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`,
+// The one window (docs/specs/49-one-window.md): under the goal tabs, the day's strip, the leader over its Planning, and the goal's field —
+// the ideas bar, the party row with the gate, the party's columns running down from their members with the results beside them, what
+// waits for you and the limits along the bottom. The drawer (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`,
 // `ideas.today` and the snapshot; its commands are the Board's own.
 import { useEffect } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -56,17 +56,19 @@ function Goal({ m, g }) {
   return html`<div class=${cls("arena", { "is-narrow": narrow.value })} data-goal=${g.slug}>
     ${wide && html`<${TodayStrip} goal=${g.slug} />`}
     <${Planning} g=${g} nodes=${nodes} planning=${planning} lead=${lead} />
-    <section class="arena-field" aria-label="The goal at work">
+    <div class="arena-field">
       <${IdeasBar} g=${g} nodes=${nodes} lead=${lead?.name || "Taskmaster"} reading=${reading} />
       <div class="arena-play">
-        ${!wide && html`<div class="arena-cards"><${Cards} /></div>`}
-        ${solo.value ? html`<${Solo} g=${g} members=${members} lead=${lead} nodes=${nodes} planning=${planning} />` : html`<${Columns} g=${g} members=${members} nodes=${nodes} cols=${cols} />`}
         <${PartyRow} g=${g} members=${members} nodes=${nodes} planning=${planning} cols=${cols} />
+        <section class="arena-body" aria-label="The goal at work">
+          ${!wide && html`<div class="arena-cards"><${Cards} /></div>`}
+          ${solo.value ? html`<${Solo} g=${g} members=${members} lead=${lead} nodes=${nodes} planning=${planning} />` : html`<${Columns} g=${g} members=${members} nodes=${nodes} cols=${cols} />`}
+        </section>
       </div>
       ${wide && html`<${Looks} g=${g} results=${results} nodes=${nodes} />`}
       <div class="arena-gatebox"><${GateBox} /></div>
       <div class="arena-stops"><${Stops} g=${g} stops=${all} /><${Limits} /></div>
-    </section>
+    </div>
   </div>`;
 }
 

@@ -67,7 +67,7 @@ export function Member({ m, nodes, planning, lead = false }) {
   </div>`;
 }
 
-/** The party row (§5.1): the builders, then the checkers, each under its column. */
+/** The party row (§5.1): the builders, then the checkers, each over its column. */
 export function PartyRow({ g, members, nodes, planning, cols }) {
   return html`<section class="arena-team" aria-label="Party" style=${`--cols:${cols}`}>
     ${members.map((m) => html`<${Member} key=${m.slug} m=${m} nodes=${nodes} planning=${planning} />`)}

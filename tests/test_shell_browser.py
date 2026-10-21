@@ -505,6 +505,7 @@ def _stop(pg, kind, nth=0):
     item = pg.locator(f".arena-hc[data-kind={kind}]").nth(nth)
     item.wait_for(timeout=WAIT_MS)
     item.locator(".arena-hc__open").focus()
+    pg.wait_for_function("(el) => getComputedStyle(el).transform === 'matrix(1, 0, 0, 1, 0, -184)'", arg=item.element_handle(), timeout=WAIT_MS)   # it stands whole before a press
     return item
 
 
@@ -609,6 +610,7 @@ def test_a_click_on_an_idea_a_todo_a_chip_and_a_result_opens_the_right_preview(s
     assert pg.locator(".shell-drawer .board-sec").count() == len(SECTIONS)
     assert "spec" in pg.locator(".shell-drawer .shell-tabstrip").inner_text().lower()
 
+    pg.get_by_role("button", name="Close the drawer").click()                     # the drawer covers the fan's middle: it goes, its tab stays
     item = _stop(pg, "todo")                                                      # a to-do → its dialog; from it the plan, scrolled to it
     item.get_by_role("button", name="Open…").click()
     pg.get_by_role("dialog", name="API_KEY").get_by_role("button", name="What waits for it").click()
@@ -911,7 +913,7 @@ def test_one_goal_is_shown_the_first_by_priority_with_its_leader_and_the_goal_is
         assert pg.locator(".arena").get_attribute("data-goal") == "grow"
         pg.locator('.arena-gtab[data-goal="ship-sync"]').click()
         pg.locator('.arena[data-goal="ship-sync"]').wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-hero").get_by_role("button", name=re.compile("Architect")).count() == 1      # its leader at the foot of the left column
+        assert pg.locator(".arena-hero").get_by_role("button", name=re.compile("Architect")).count() == 1      # its leader at the top of the left column
         assert pg.locator(".arena-prow", has_text="Dark mode").count() == 1                                  # its ideas in Planning, not another goal's
         assert pg.locator(".arena-prow", has_text="Tag the notes").count() == 0
         pg.get_by_role("button", name="About this goal").click()

@@ -1,9 +1,9 @@
 // Motion says what changed, never decorates (docs/specs/49-one-window.md §11). Each in steps or a short ease-out, none under
 // `prefers-reduced-motion`, none on the first read of a goal, none for what changed while the page was hidden. Ticking words and counts
 // never move.
-//   a task appears      the field did not have it a moment ago: it rises into its column (`.is-drawn`, ≤ 0.36 s)
+//   a task appears      the field did not have it a moment ago: it rises into its place from below, the side of the person (`.is-drawn`, ≤ 0.36 s)
 //   a task leaves       merged or dropped: its item fades where it stands with a one-frame ✓ (✗ for a drop), ≈ 0.3 s (`.is-leaving`); then its
-//                       column settles: what it held up slides down into the gap (≈ 0.25 s, ease-out). The first three animate, the rest go.
+//                       column settles: the queue behind it steps up toward the member into the gap (≈ 0.25 s, ease-out). The first three animate, the rest go.
 //   a task moves        its state changed its place: it and the items it passes slide to their new places (FLIP: each item's old box measured
 //                       before the redraw, its new one after, the difference played back, ≈ 0.25 s); nothing else moves
 //   nothing moves under the pointer or the focus: while the pointer is over a column or the focus is inside it, its settle and moves wait

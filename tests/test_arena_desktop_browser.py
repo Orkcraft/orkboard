@@ -170,19 +170,27 @@ def arena(gui):
 
 def test_the_regions_in_their_order_and_sizes_at_1440_by_900_with_no_page_scroll(arena):
     pg, host = arena
-    sizes = {"top bar": (".shell-top", 32), "goal tabs": (".arena-tabs", 40), "ideas bar": (".arena-ibar__bar", 36), "party row": (".arena-team", 68), "bottom row": (".arena-stops", 64)}
+    sizes = {"top bar": (".shell-top", 32), "goal tabs": (".arena-tabs", 40), "ideas bar": (".arena-ibar__bar", 36), "party row": (".arena-team", 64), "bottom row": (".arena-stops", 64)}
     for name, (css, h) in sizes.items():
         assert box(pg, css)["height"] in (h, h + 1), name                                                    # the top bar's line below it is the 1 px
     wide = {"strip": (".arena-today", 40), "left column": (".arena-left", 248), "results": (".arena-look", 312), "gate": (".arena-gatebox", 312), "limits": (".arena-limits", 312)}
     for name, (css, w) in wide.items():
         assert box(pg, css)["width"] == w, name
-    order = ["tablist:Goals", "navigation:Today", "region:Planning", "region:The goal at work", "complementary:Waits for your look", "region:Party", "region:What is left of your AI tools"]
-    seen = []
-    for role, name in (x.split(":") for x in order):
-        seen.append(pg.get_by_role(role, name=name, exact=True).first.bounding_box())
-    assert all(b is not None for b in seen)
-    assert seen[0]["y"] < seen[1]["y"] <= seen[2]["y"] and seen[1]["x"] < seen[2]["x"] < seen[3]["x"] and seen[3]["x"] < seen[4]["x"] and seen[3]["y"] < seen[5]["y"] < seen[6]["y"]
-    assert pg.get_by_role("region", name="Waits for you").count() == 1                                    # the stops, along the bottom
+    landmarks = [("tablist", "Goals"), ("navigation", "Today"), ("region", "Leader"), ("region", "Planning"), ("region", "Party"), ("region", "The goal at work"),
+                 ("complementary", "Waits for your look"), ("region", "Waits for you"), ("region", "What is left of your AI tools")]
+    seen = [pg.get_by_role(role, name=name, exact=True) for role, name in landmarks]
+    assert [s.count() for s in seen] == [1] * len(landmarks)                                              # each one, in the order of the page
+    handles = [s.element_handle() for s in seen]
+    assert all(pg.evaluate("([a, b]) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)", [a, b]) for a, b in zip(handles, handles[1:]))
+    by = {name: s.bounding_box() for (_r, name), s in zip(landmarks, seen)}
+    assert by["Goals"]["y"] < by["Today"]["y"] and by["Today"]["x"] < by["Leader"]["x"]
+    assert by["Leader"]["y"] < by["Planning"]["y"] and by["Leader"]["x"] == by["Planning"]["x"]         # the leader over its Planning, in the left column
+    ibar, party, cols, look, gate = box(pg, ".arena-ibar__bar"), by["Party"], by["The goal at work"], by["Waits for your look"], box(pg, ".arena-gatebox")
+    assert ibar["y"] + ibar["height"] <= party["y"] and party["y"] + party["height"] <= cols["y"]           # the ideas bar, the party row, the columns under it
+    assert party["x"] == cols["x"] and party["y"] == gate["y"] and gate["x"] == look["x"] and gate["y"] + gate["height"] <= look["y"]            # the gate at the row's right end, over the results
+    assert look["y"] == cols["y"] and look["x"] > cols["x"] + cols["width"] - 1                              # the results beside the columns
+    stops, limits = by["Waits for you"], by["What is left of your AI tools"]
+    assert abs(stops["y"] - limits["y"]) <= 1 and stops["y"] >= cols["y"] + cols["height"] and limits["x"] > stops["x"]       # the bottom row: the stops, the limits at its right
     assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
     assert not pg.evaluate("document.documentElement.scrollHeight > document.documentElement.clientHeight")
     assert box(pg, ".arena-left")["x"] == 40 and box(pg, ".arena-field")["x"] == 288                      # strip 40, left 248
@@ -332,6 +340,12 @@ def test_a_member_two_numbers_marks_signs_and_peek(arena):
     assert not peek.is_visible()
     backend.hover()                                                                                           # the peek: the whole face beside it
     assert peek.is_visible() and peek.get_attribute("aria-hidden") == "true" and peek.locator("button, a, input").count() == 0
+    member_box, peek_box = backend.bounding_box(), peek.bounding_box()
+    assert peek_box["y"] >= member_box["y"] + member_box["height"]                                            # it opens below the member: above it, the page would clip it
+    pg.locator(".arena-hero .arena-member").hover()
+    side, leader = pg.locator(".arena-hero .arena-peek").bounding_box(), pg.locator(".arena-hero .arena-member").bounding_box()
+    assert side["x"] >= leader["x"] + leader["width"] and side["y"] >= 0                                       # the leader's opens beside it, into the field
+    backend.hover()
     text = " ".join(peek.inner_text().split())
     assert "$0.38 a run" in text and "BUILDS" in text.upper() and "Backend" in text and "ork · Claude · Seasoned" in text and "0 of 2 at once" in text and "Takes: code" in text
     assert peek.locator(".ork-stat").count() == 2 and peek.locator(".ork-gem").count() == 1 and "runs/sent back" in text
@@ -352,6 +366,8 @@ def test_solo_one_member_s_work_across_the_field_in_the_same_order_and_back(aren
     assert [t.get_attribute("data-key") for t in solo.locator(".arena-task").all()] == before              # nothing is reordered
     assert pg.locator(".arena-stack[data-agent]").count() == 0                                                 # the others are gone
     first = solo.locator(".arena-task").first.bounding_box()
+    member_box = pg.locator(".arena-member[data-agent=backend]").bounding_box()
+    assert first["y"] >= member_box["y"] + member_box["height"]                                                # it starts under the party row, at the top
     assert first["width"] < 200 and len(solo.locator(".arena-srow").first.locator(".arena-task").all()) == min(6, len(before))                  # six to a row across the width
     row = solo.locator(".arena-srow").first.bounding_box()
     assert row["width"] > 600
@@ -369,19 +385,42 @@ def test_solo_one_member_s_work_across_the_field_in_the_same_order_and_back(aren
     pg.keyboard.press("Escape")
 
 
-def test_the_columns_bottom_up_lit_and_muted_the_merged_count_and_what_waits_for_a_task(arena):
+def test_a_members_solo_runs_down_from_the_top_six_to_a_row_with_the_top_row_lit(arena):
+    pg, host = arena
+    host.nodes[0]["tasks"] = [*host.nodes[0]["tasks"], *[pip(f"m{i}", f"Extra {i}", "ready", wave=2, by="backend") for i in range(5)]]
+    host.bump({})
+    pg.locator(".arena-task[data-task=m4]").wait_for(timeout=WAIT_MS)
+    pg.mouse.move(5, 5)
+    _settle(pg)
+    pg.locator(".arena-member[data-agent=backend]").click()
+    solo = pg.get_by_role("group", name="Only Backend’s tasks")
+    rows = solo.locator(".arena-srow")
+    rows.nth(1).wait_for(timeout=WAIT_MS)
+    assert [len(r.locator(".arena-task").all()) for r in rows.all()] == [6, 3]                                  # six to a row across the width
+    top, below = rows.nth(0), rows.nth(1)
+    assert top.bounding_box()["y"] < below.bounding_box()["y"]                                                  # the first row nearest the member, at the top
+    assert all("is-later" not in t.get_attribute("class") for t in top.locator(".arena-task").all())            # the top row lit
+    assert all("is-later" in t.get_attribute("class") for t in below.locator(".arena-task").all())              # the rows below muted
+    pg.keyboard.press("Escape")
+
+
+def test_the_columns_run_down_from_the_members_with_the_top_row_lit_the_rows_below_muted_the_merged_count_and_what_waits_for_a_task(arena):
     pg, host = arena
     column = pg.locator(".arena-stack[data-agent=backend]")
     tasks = column.locator(".arena-task")
     keys = [t.get_attribute("data-state") for t in tasks.all()]
     assert keys[0] == "running" and keys.index("failed") < keys.index("review") < keys.index("waiting")       # at work, failed, in Review, ready, waiting, held
     ys = [t.bounding_box()["y"] for t in tasks.all()]
-    assert ys == sorted(ys, reverse=True) and len(set(ys)) >= 2                                          # bottom-up: the first is nearest the member, the lowest
+    assert ys == sorted(ys) and len(set(ys)) >= 2                                                            # top-down: the first is nearest the member, the highest
+    member_box = pg.locator(".arena-member[data-agent=backend]").bounding_box()
+    assert ys[0] > member_box["y"] + member_box["height"]                                                   # the party row is above the columns
     lit, muted = tasks.first, tasks.last
-    assert "is-later" not in lit.get_attribute("class") and "is-later" in muted.get_attribute("class")           # the bottom row is lit, the rows above muted
+    assert "is-later" not in lit.get_attribute("class") and "is-later" in muted.get_attribute("class")           # the top row is lit, the rows below muted
     assert lit.evaluate("e => getComputedStyle(e).backgroundColor") != muted.evaluate("e => getComputedStyle(e).backgroundColor")
     assert lit.bounding_box()["height"] == 112
     assert "✓ 1 in dev" in column.inner_text() and "✓ 1 in dev" in pg.locator(".arena-stack[data-agent=screens]").inner_text()      # what merged of its ideas stays as a count
+    done = column.locator(".arena-stack__done").bounding_box()
+    assert done["y"] >= max(t.bounding_box()["y"] + 112 for t in tasks.all())                                 # at the far end of the column, its bottom
     assert pg.locator(".arena-stack[data-agent=words] .arena-task").count() == 1
     assert [h.text_content() for h in pg.locator(".arena-cols__head .arena-lbl:not(.is-blank)").all()] == ["Implementation", "Checking"]            # over the first builder, the first checker
     running = column.locator(".arena-task[data-task=k2]")

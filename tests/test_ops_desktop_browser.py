@@ -259,6 +259,7 @@ def _row(pg, kind, ref):
     item = pg.locator(f'.arena-hc[data-key="{kind}/{ref}"]')
     item.wait_for(timeout=WAIT_MS)
     item.locator(".arena-hc__open").focus()
+    pg.wait_for_function("(el) => getComputedStyle(el).transform === 'matrix(1, 0, 0, 1, 0, -184)'", arg=item.element_handle(), timeout=WAIT_MS)   # it stands whole
     return item
 
 

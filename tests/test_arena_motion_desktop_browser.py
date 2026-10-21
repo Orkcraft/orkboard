@@ -25,6 +25,8 @@ def test_a_task_that_appears_rises_a_merged_one_fades_with_its_check_and_the_col
     assert pg.locator(".arena-task[data-task=k6]").evaluate("e => getComputedStyle(e).animationName") == "arena-rise"
     _settle(pg)
     tasks = host.nodes[0]["tasks"]
+    behind = pg.locator(".arena-task[data-task=k1]").bounding_box()["y"]                                          # the queue behind the one that goes
+    pg.locator(".arena-task[data-task=k5]").hover()                                                               # the pointer is in the column: the ghost stays to be looked at
     tasks[1]["state"] = "merged"                                                                                  # k2 merges
     host.bump({})
     leaving = pg.locator(".arena-task[data-task=k2].is-leaving")
@@ -32,6 +34,9 @@ def test_a_task_that_appears_rises_a_merged_one_fades_with_its_check_and_the_col
     assert leaving.get_attribute("data-sign") == "✓" and leaving.evaluate("e => getComputedStyle(e).animationName") == "arena-leave"           # fades where it stands, with ✓
     pg.mouse.move(5, 5)
     pg.locator(".arena-task[data-task=k2]").wait_for(state="detached", timeout=WAIT_MS)                            # then the column settles
+    _settle(pg)
+    pg.wait_for_function("() => document.getAnimations().length === 0", timeout=WAIT_MS)
+    assert pg.locator(".arena-task[data-task=k1]").bounding_box()["y"] < behind                                   # and the queue behind it stepped up toward the member
     assert "✓ 2 in dev" in pg.locator(".arena-stack[data-agent=backend]").inner_text()                             # and the count of what merged goes up
 
 
