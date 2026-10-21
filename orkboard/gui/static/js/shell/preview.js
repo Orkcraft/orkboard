@@ -4,7 +4,7 @@
 // result's actions stay pinned at its foot.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { Who } from "../orkui.js";
+import { Sign, Who } from "../orkui.js";
 import { ErrorLine } from "./errors.js";
 import { page } from "../board/store.js";
 import { IdeaView, PlanView } from "../board/idea.js";
@@ -24,7 +24,7 @@ function FailedActions({ t }) {
   const [sure, setSure] = useState(false);
   const drop = async () => { const got = await act("ideas.drop_task", { slug: t.idea, task: t.id }); if (got?.ok) closePreview(); };
   return html`<div class="board-row">
-    <button class="ork-btn primary" title="Its idea's tasks that are not merged or at Review run again" onClick=${() => act("ideas.start", { slug: t.idea })}>Start again</button>
+    <button class="ork-btn primary" title="Its goal's tasks that are not merged or at Review run again" onClick=${() => act("ideas.start", { slug: t.idea })}>Start again</button>
     ${sure ? html`<span>Drop this task? Its worktree goes; its branch stays.</span>
       <button class="ork-btn danger" onClick=${drop}>Drop it</button><button class="ork-btn" onClick=${() => setSure(false)}>Keep it</button>`
       : html`<button class="shell-quiet" onClick=${() => setSure(true)}>Drop…</button>`}</div>`;
@@ -44,7 +44,7 @@ function Task({ d }) {
   return html`<div class="shell-task">
     <dl class="shell-facts">
       <dt>State</dt><dd data-state=${t.state}>${TASK_STATE[t.state] || t.state}${t.note ? html` <span class="ok-tone-muted">${t.note}</span>` : ""}</dd>
-      <dt>Idea</dt><dd><button class="board-link" onClick=${() => showIdea(t.idea)}>${t.idea_title}</button></dd>
+      <dt>Goal</dt><dd><button class="board-link" onClick=${() => showIdea(t.idea)}>${t.idea_title}</button></dd>
       <dt>Tier</dt><dd>${t.head ? html`<${Who} head=${t.head} small />` : t.tier}</dd>
       <dt>Branch</dt><dd><code>${t.branch || "—"}</code></dd>
       <dt>Round</dt><dd>${t.round || 1}</dd>
@@ -60,15 +60,15 @@ function Task({ d }) {
   </div>`;
 }
 
-const STAGE_WORDS = [["goal", "goal"], ["spec", "spec"], ["plan", "plan"], ["work", "work"], ["rework", "rework"], ["dropped", "dropped"]];
+const STAGE_WORDS = [["goal", "party"], ["spec", "spec"], ["plan", "plan"], ["work", "work"], ["rework", "rework"], ["dropped", "dropped"]];
 
 /** The idea's money so far, by stage (spec 36 §5): stages at 0 left out, — when nothing is priced. */
 export function spendWords(s) {
   if (!s || !s.stages) return "";
-  if (s.usd == null) return "This idea so far: —";
+  if (s.usd == null) return "This goal so far: —";
   const parts = STAGE_WORDS.map(([k, w]) => [w, s.stages[k]?.usd]).filter(([, v]) => v).map(([w, v]) => `${w} ${v.toFixed(2)}`);
   const total = `≈$${s.usd < 10 ? s.usd.toFixed(2) : Math.round(s.usd)}`;
-  return `This idea so far: ${total}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
+  return `This goal so far: ${total}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
 }
 
 function Result({ d, p }) {
@@ -79,7 +79,7 @@ function Result({ d, p }) {
     <div class="shell-result__body">
       ${d?.spend && html`<p class="shell-spend ok-font-status ok-tone-muted" title="At API prices, not your bill">${spendWords(d.spend)}</p>`}
       ${r ? html`<dl class="shell-facts">
-        <dt>Tests</dt><dd class=${`is-${t.tone}`}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</dd>
+        <dt>Tests</dt><dd class=${`is-${t.tone}`}>${t.mark && html`<${Sign} name=${t.mark} /> `}${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</dd>
         <dt>Changes</dt><dd>${changesWords(r.diff)}</dd>${r.round > 1 ? html`<dt>Round</dt><dd>${r.round}</dd>` : ""}</dl>
         ${r.conflict && html`<p class="ok-tone-error">⚠ ${r.conflict}</p>`}
         <${Found} r=${r} />
@@ -97,7 +97,7 @@ function Result({ d, p }) {
 }
 
 function Doc({ d, p }) {
-  return html`<div class="shell-doc"><p><button class="board-link" onClick=${() => showGoal(p.slug)}>← Back to the goal</button></p>
+  return html`<div class="shell-doc"><p><button class="board-link" onClick=${() => showGoal(p.slug)}>← Back to the party</button></p>
     ${!d ? html`<p class="ok-tone-muted">Opening…</p>`
       : d.doc?.html ? html`<div class="shell-md" aria-label=${p.path} dangerouslySetInnerHTML=${{ __html: d.doc.html }}></div>${d.doc.truncated ? html`<p class="ok-tone-muted">Cut here: the document is longer.</p>` : ""}`
       : d.doc ? html`<pre class="shell-log shell-doc__text" aria-label=${p.path}>${d.doc.text}</pre>${d.doc.truncated ? html`<p class="ok-tone-muted">Cut here: the document is longer.</p>` : ""}`

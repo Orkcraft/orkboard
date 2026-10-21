@@ -61,7 +61,7 @@ function Say({ p, section, setSection }) {
     await run("ideas.say", { slug: p.slug, text: t, ...(section ? { section } : {}) });
   };
   return html`<div class="board-say">
-    ${section && html`<span class="board-chip">About ${section} <button class="board-link" aria-label="Ask about the whole idea"
+    ${section && html`<span class="board-chip">About ${section} <button class="board-link" aria-label="Ask about the whole goal"
       onClick=${() => setSection("")}>×</button></span>`}
     <textarea class="ork-field" rows="2" value=${text} aria-label=${say("Ask or answer the Taskmaster")}
       placeholder=${section ? `About ${section}…` : say("Ask or answer the Taskmaster…")} onInput=${(e) => setText(e.target.value)}
@@ -155,10 +155,10 @@ function Actions({ p }) {
   </div>`;
 }
 
-/** The idea's plan with the to-do it was opened from highlighted and said what it unblocks; Start stays here. */
+/** The goal's plan with the to-do it was opened from highlighted and said what it unblocks; Start stays here. */
 export function PlanView({ p, todo }) {
   const plan = p.plan, e = plan?.estimate;
-  if (!plan) return html`<p class="ok-tone-muted">This idea has no plan yet.</p>`;
+  if (!plan) return html`<p class="ok-tone-muted">This goal has no plan yet.</p>`;
   return html`<div class="board-actions">
     <${Plan} plan=${plan} todo=${todo} />
     ${p.state === "plan" && e && html`<button class="ork-btn primary" onClick=${() => run("ideas.start", { slug: p.slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
@@ -177,7 +177,7 @@ export function IdeaView({ p }) {
       ${p.size && html`<span class="board-size kit-well">${p.size}</span>`}
       ${row?.risk && html`<span class="board-chip" title=${(row.risk_triggers || []).join(", ")}>Risk: ${row.risk[0].toUpperCase() + row.risk.slice(1)}</span>`}
       ${row?.priority && html`<label class="board-inline"><span class="ok-font-status ok-tone-muted">Priority</span>
-        <select class="ork-field" aria-label="Priority of this idea" value=${row.priority}
+        <select class="ork-field" aria-label="Priority of this goal" value=${row.priority}
           onChange=${(e) => run("ideas.edit", { slug: p.slug, priority: e.target.value })}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>`}</div>
     ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<${ErrorLine} text=${p.state_error} />`}
@@ -187,9 +187,9 @@ export function IdeaView({ p }) {
     <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>
     <${Say} p=${p} section=${section} setSection=${setSection} />
     <${Talk} turns=${p.talk || []} />
-    <div class="board-row">${sure ? html`<span>Drop this idea and its page?</span>
+    <div class="board-row">${sure ? html`<span>Drop this goal and its page?</span>
         <button class="ork-btn danger" onClick=${drop}>Delete it</button><button class="ork-btn" onClick=${() => setSure(false)}>Keep it</button>`
-      : html`<button class="ork-btn danger" onClick=${() => setSure(true)}>Delete idea</button>`}</div>
+      : html`<button class="ork-btn danger" onClick=${() => setSure(true)}>Delete goal</button>`}</div>
   </div>`;
 }
 

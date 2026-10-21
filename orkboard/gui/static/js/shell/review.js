@@ -11,17 +11,18 @@ export const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.rou
 export function isRed(r) { return r.tests.failed > 0 || r.tests.green === false; }
 export function noTests(r) { return !isRed(r) && r.tests.passed === 0; }
 
-/** The tests, in the person's words: "20 / 20 passed" ✓, "10 / 20 failed" ✗ with the first failing names, or no tests ran; a command that is not pytest: passed (exit 0) / failed (exit 1). */
+/** The tests, in the person's words: "20 / 20 passed" (the *check* sign), "10 / 20 failed" (the *cross* sign) with the first failing names, or no tests ran; a
+ *  command that is not pytest: passed (exit 0) / failed (exit 1). `mark` is the name of orkUI's sign, "" for none. */
 export function testsWords(r) {
   const t = r.tests, all = t.passed + t.failed;
   if (t.ran === false) return { mark: "", text: "no tests ran", names: [], tone: "muted" };
   if (t.passed == null && t.failed == null) {          // a command that is not pytest: its exit code speaks
     const failed = isRed(r), code = t.exit ?? (failed ? 1 : 0);
-    return failed ? { mark: "✗", text: `failed (exit ${code})`, names: [], tone: "danger" } : { mark: "✓", text: `passed (exit ${code})`, names: [], tone: "success" };
+    return failed ? { mark: "cross", text: `failed (exit ${code})`, names: [], tone: "danger" } : { mark: "check", text: `passed (exit ${code})`, names: [], tone: "success" };
   }
-  if (isRed(r)) return { mark: "✗", text: t.failed ? `${t.failed} / ${all} failed` : "the tests failed", names: (t.failing || []).slice(0, 2), tone: "danger" };
+  if (isRed(r)) return { mark: "cross", text: t.failed ? `${t.failed} / ${all} failed` : "the tests failed", names: (t.failing || []).slice(0, 2), tone: "danger" };
   if (noTests(r)) return { mark: "", text: "no tests ran", names: [], tone: "muted" };
-  return { mark: "✓", text: `${t.passed} / ${all} passed`, names: [], tone: "success" };
+  return { mark: "check", text: `${t.passed} / ${all} passed`, names: [], tone: "success" };
 }
 export const changesWords = (d) => `${d.files} file${d.files === 1 ? "" : "s"}, +${d.added} −${d.removed}`;
 
