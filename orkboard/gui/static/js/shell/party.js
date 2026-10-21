@@ -1,12 +1,11 @@
-// A goal's party on the desktop (decisions §53; realm/goal_team.py), as New goal (goalwizard.js) and Edit goal (goaldialog.js)
-// pick it: three bands of seats from the library (ideas.roles `library`, `seats`) — Leads (one: the goal's steps run as it, and
-// it accepts the goal; the Taskmaster when none), Builds (three at most), Checks (two at most) —; a click takes an agent in or out of
-// its band, a full band says so. Under them what the party costs (`ideas.party_price`: about what an idea costs, asked when the picker
-// opens and 300 ms after a seat or *Every idea* changes), then the checkers' checks: where each applies or on every idea, and what each
-// adds to an idea.
+// A party's members on the desktop (decisions §53; realm/goal_team.py), as New party (goalwizard.js) and Edit the party (goaldialog.js)
+// pick them: three bands of seats from the library (ideas.roles `library`, `seats`) — Leads (one: the party's steps run as it; the Taskmaster
+// when none), Builds (three at most), Checks (two at most) —; a click takes an agent in or out of its band, a full band says so. Under them what
+// the party costs (`ideas.party_price`: about what a goal costs, asked when the picker opens and 300 ms after a seat or *Every goal* changes),
+// then the checkers' checks: where each applies or on every goal, and what each adds to a goal.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
-import { command, toast } from "../link.js";
+import { command, say, toast } from "../link.js";
 import { roles } from "./store.js";
 import { Head, Icon, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
 
@@ -14,11 +13,13 @@ export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["d
   ["data", "goblin", "Numbers, queries and reports"], ["marketing", "gnome", "Pages, posts and search"],
   ["product", "lich", "Who it is for, what it moves, what it leaves out"]];
 export const RACE = Object.fromEntries(CRAFTS);
-const BANDS = [["lead", "Leads", "plans the goal's ideas and accepts the goal"], ["build", "Builds", "do the work"],
-  ["check", "Checks", "hold each idea to their check"]];
+const BANDS = [["lead", "Leads", "plans the party's goals"], ["build", "Builds", "do the work"],
+  ["check", "Checks", "hold each goal to their check"]];
 export const TASKMASTER = "taskmaster";
 
 const library = () => roles.value?.library || [];
+/** A line of the library the host sends in the code's words (a check's *applies when the idea changes code*): said in today's (a goal), after `say()`. */
+export const libraryWords = (text) => say(String(text || "")).replace(/\bideas\b/g, "goals").replace(/\bidea\b/g, "goal");
 const seatsOf = () => roles.value?.seats || { lead: 1, build: 3, check: 2 };
 export const agentOf = (id) => library().find((a) => a.id === id);
 /** The agents in a band: the leader alone in Leads; the team's builders or checkers. */
@@ -30,9 +31,9 @@ export function partyWords(leader, team) {
 }
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-/** *3 goals in 2 projects · 2 met*: said only once a party has been used. */
+/** *3 parties in 2 projects · 2 met*: said only once a party of the person's has been used (the code's goals). */
 export function usedWords(p) {
-  return p.goals ? `${plural(p.goals, "goal", "goals")} in ${plural(p.projects, "project", "projects")} · ${p.met} met` : "";
+  return p.goals ? `${plural(p.goals, "party", "parties")} in ${plural(p.projects, "project", "projects")} · ${p.met} met` : "";
 }
 
 /** The person's own parties (spec 43 §6): asked when the picker opens (`active`); [parties, ask again]. */
@@ -60,13 +61,13 @@ export function OwnParties({ parties, onPick, reload, picked = "" }) {
         <span class="shell-own-heads">${[p.leader, ...p.team].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${RACE[agentOf(id).craft]} tier=${agentOf(id).tier} small=${true} />`)}</span>
         <b>${p.name}</b>${usedWords(p) && html`<small class="ok-tone-muted">${usedWords(p)}</small>`}</button>
       <button type="button" class="shell-own-chip__close" aria-label=${`Remove your party “${p.name}”`} onClick=${() => setAsking(p.id)}><${Icon} name="close" /></button>
-      ${asking === p.id && html`<p class="shell-own-ask" role="alert">Remove your party “${p.name}”? Goals that use it keep their agents.
+      ${asking === p.id && html`<p class="shell-own-ask" role="alert">Remove your party “${p.name}”? Parties that use it keep their agents.
         <button type="button" class="ork-btn danger" onClick=${() => drop(p)}>Remove it</button>
         <button type="button" class="ork-btn" onClick=${() => setAsking("")}>Keep it</button></p>`}</div>`)}</div></section>`;
 }
 
-/** On a goal's screen, under its Team: **Save this party**. It asks a name (*Engineering party*), asks again before it replaces a party of that
- *  name, and says after: *Saved: pick it for a goal in any project.* */
+/** In About this party: **Save it to your parties**. It asks a name (*Engineering party*), asks again before it replaces a party of that
+ *  name, and says after: *Saved: pick it for a party in any project.* */
 export function SaveParty({ goal, craft }) {
   const [name, setName] = useState(null);                       // null: the button; a string: the name being typed
   const [replace, setReplace] = useState("");                   // the name of the party the save would replace
@@ -81,12 +82,12 @@ export function SaveParty({ goal, craft }) {
       toast(got.error, "error");
       return;
     }
-    toast("Saved: pick it for a goal in any project.");
+    toast("Saved: pick it for a party in any project.");
     setName(null);
     setReplace("");
   };
   if (name === null) {
-    return html`<button type="button" class="board-link shell-party-save" onClick=${() => setName(`${CRAFT_WORDS[craft] || "Engineering"} party`)}>Save this party</button>`;
+    return html`<button type="button" class="board-link shell-party-save" onClick=${() => setName(`${CRAFT_WORDS[craft] || "Engineering"} party`)}>Save it to your parties</button>`;
   }
   if (replace) {
     return html`<p class="shell-party-save-ask" role="alert">Replace your party “${replace}”?
@@ -99,7 +100,7 @@ export function SaveParty({ goal, craft }) {
     <button type="button" class="ork-btn" onClick=${() => setName(null)}>Cancel</button></form>`;
 }
 
-/** The three bands. `craft`: the goal's, its agents listed first in each band. */
+/** The three bands. `craft`: the party's, its agents listed first in each band. */
 export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
   const seats = seatsOf();
   const on = (a) => (a.band === "lead" ? leader === a.id : team.includes(a.id));
@@ -147,7 +148,7 @@ export function usePartyPrice(active, leader, team, every, craft = "") {
   return price;
 }
 
-/** *about $2–6 an idea*; below $1 (its low end) in cents, *about $0.40–1.20*. */
+/** *about $2–6*, for a goal: below $1 (its low end) in cents, *about $0.40–1.20*. */
 export function rangeWords(price) {
   const { low, high } = price;
   if (low < 1) return `about $${low.toFixed(2)}–${high.toFixed(2)}`;
@@ -159,26 +160,26 @@ export function rangeWords(price) {
  *  they never block Save and have no button. */
 export function PriceLine({ price }) {
   if (!price) return null;
-  return html`<p class="shell-price" role="status">This party: ${rangeWords(price)} an idea
-    <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} ideas` : "a first guess: it learns from this project's ideas"}</small></p>
+  return html`<p class="shell-price" role="status">This party: ${rangeWords(price)} a goal
+    <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} goals` : "a first guess: it learns from this project's goals"}</small></p>
     ${(price.hints || []).map((h, n) => html`<p key=${n} class="shell-hint ok-font-status ok-tone-muted">${h}</p>`)}`;
 }
 
-/** *adds about $0.35 to an idea it checks · about half of them* (*· every idea* when it checks every idea). */
+/** *adds about $0.35 to a goal it checks · about half of them* (*· every goal* when it checks every goal). */
 export function addsWords(c) {
-  const share = c.every ? "every idea" : Math.abs(c.share - 0.5) < 0.03 ? "about half of them" : `about ${Math.round(c.share * 100)} % of them`;
-  return `adds about $${c.usd.toFixed(2)} to an idea it checks · ${share}`;
+  const share = c.every ? "every goal" : Math.abs(c.share - 0.5) < 0.03 ? "about half of them" : `about ${Math.round(c.share * 100)} % of them`;
+  return `adds about $${c.usd.toFixed(2)} to a goal it checks · ${share}`;
 }
 
-/** The party's checks: each checker's, where it applies or on every idea, and what a check adds to an idea (`price`: `ideas.party_price`). */
+/** The party's checks: each checker's, where it applies or on every goal, and what a check adds to a goal (`price`: `ideas.party_price`). */
 export function ChecksBlock({ team, every, setEvery, price = null }) {
   const checkers = team.map(agentOf).filter((a) => a?.check);
-  if (!checkers.length) return html`<p class="ok-tone-muted">No checker in the party: an idea is done when its own Done when lines are.</p>`;
+  if (!checkers.length) return html`<p class="ok-tone-muted">No checker in the party: a goal is done when its own Done when lines are.</p>`;
   const adds = (a) => { const c = (price?.checks || []).find((x) => x.by === a.id); return c ? ` · ${addsWords(c)}` : ""; };
-  return html`<div class="shell-checks" role="group" aria-label="Checks"><span class="ok-font-label">Checks</span>
-    <p class="ok-tone-muted">How deep each idea is worked: every check adds a line to its Done when and a task to its plan.</p>
+  return html`<div class="shell-checks" role="group" aria-label="Checks"><span class="ok-font-label">Checks on every goal</span>
+    <p class="ok-tone-muted">How deep each goal is worked: every check adds a line to its Done when and a task to its plan.</p>
     ${checkers.map((a) => html`<div key=${a.id} class="shell-check-row"><${Head} race=${RACE[a.craft]} tier=${a.tier} small=${true} />
-      <span><b>${a.name}</b> <small class="ok-tone-muted">${a.check.done} · applies ${a.check.applies}${adds(a)}</small></span>
-      <label class="shell-check-every"><input type="checkbox" aria-label=${`Every idea: ${a.name}`} checked=${every.includes(a.id)}
-        onChange=${(e) => setEvery(e.target.checked ? [...every, a.id] : every.filter((x) => x !== a.id))} /> Every idea</label></div>`)}</div>`;
+      <span><b>${a.name}</b> <small class="ok-tone-muted">${libraryWords(`${a.check.done} · applies ${a.check.applies}`)}${adds(a)}</small></span>
+      <label class="shell-check-every"><input type="checkbox" aria-label=${`Every goal: ${a.name}`} checked=${every.includes(a.id)}
+        onChange=${(e) => setEvery(e.target.checked ? [...every, a.id] : every.filter((x) => x !== a.id))} /> Every goal</label></div>`)}</div>`;
 }

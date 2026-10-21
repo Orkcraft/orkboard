@@ -1,34 +1,34 @@
-// New goal on the desktop in three steps, as on the phone (pwa/shell-goal-new.js): 1. its craft — five tiles, the race's head on
-// each (decisions §53), and Mixed —; 2. its party in three bands of seats (ideas.roles `seats`, `parties`, realm/library.py): Leads
-// (one: the goal's steps run as it, and it accepts the goal; the Taskmaster when none), Builds (three at most), Checks (two at most);
-// the craft's party in them at once, a click takes an agent in or out of its band —; 3. what it is for — the description, the
-// priority and the checkers' checks (where each applies or on every idea, and what it adds to an idea) —, Save goal. A task goes to
-// the one of the party who does its kind of work; a checker's check adds its line to the spec's Done when and its task to the plan
-// (realm/idea_checks.py).
+// New party (docs/specs/50-parties-and-goals.md §3.7), one screen: its name, *What it is for* (one line), the party — *one of yours, or from the library*: the
+// leader, builders and checkers in three bands of seats (ideas.roles `seats`, `parties`, realm/library.py), a click takes an agent in or out of its band,
+// with what the party costs a goal (spec 43 §3) —, the checks on every goal and its priority (*goes first when the window is short*). No metrics, no deadline,
+// no links: a party has no end. It sends `ideas.goal_save` with `title`, `about`, `team`, `every`, `leader`, `party` (a party of the person's that was picked) and
+// `priority`. A task goes to the one of the party who does its kind of work; a checker's check adds its line to a goal's Done when and its task to the plan
+// (realm/idea_checks.py). The code's goal is a party.
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, toast } from "../link.js";
 import { track } from "../board/store.js";
 import { act, roles, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
-import { Head, CRAFT_WORDS, RACE_WORDS } from "../orkui.js";
+import { Head, CRAFT_WORDS } from "../orkui.js";
 import { PRIORITIES } from "./goaldialog.js";
 import { CRAFTS, TASKMASTER, PartyBands, PriceLine, ChecksBlock, OwnParties, agentOf, partyWords, usePartyPrice, useOwnParties } from "./party.js";
 
-const MIXED = "mixed";
+export const FOR_HINT = "goes first when the window is short";
 
 export function GoalWizard({ then = "" }) {
-  const partyOf = (c) => roles.value?.parties?.[c] || { lead: TASKMASTER, build: [], check: [] };
-  const [step, setStep] = useState(1);
-  const [craft, setCraft] = useState("");
-  const [leader, setLeader] = useState(TASKMASTER);
-  const [team, setTeam] = useState([]);                  // the builders and checkers
-  const [every, setEvery] = useState([]);
+  const library = (c) => roles.value?.parties?.[c] || { lead: TASKMASTER, build: [], check: [] };
+  const start = library("engineering");
+  const [title, setTitle] = useState("");
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
+  const [craft, setCraft] = useState("engineering");     // the library's party the seats started from: its agents are listed first in each band
+  const [leader, setLeader] = useState(start.lead || TASKMASTER);
+  const [team, setTeam] = useState([...(start.build || []), ...(start.check || [])]);
+  const [every, setEvery] = useState([]);
   const [saving, setSaving] = useState(false);
   const [partyId, setPartyId] = useState("");              // the saved party of the person's whose seats these are, until a seat changes
-  const [owns, loadOwns] = useOwnParties(step >= 2);
+  const [owns, loadOwns] = useOwnParties(true);
   const seat = (set) => (v) => { set(v); setPartyId(""); };      // a seat changed afterwards: the party is then the person's own picking
   const pickOwn = (p) => {
     if (p.craft) setCraft(p.craft);
@@ -37,28 +37,14 @@ export function GoalWizard({ then = "" }) {
     setEvery([...p.every]);
     setPartyId(p.id);
   };
-  const price = usePartyPrice(step >= 2, leader, team, every, craft === MIXED ? "" : craft);        // asked when the party is picked (step 2)
-
-  const pick = (c) => {
-    if (c !== craft) {
-      const p = partyOf(c);
-      setCraft(c);
-      setPartyId("");
-      setLeader(p.lead || TASKMASTER);
-      setTeam([...p.build, ...p.check]);
-    }
-    setStep(2);
-  };
-  const craftOf = () => {
-    if (craft !== MIXED) return craft;
-    const crafts = [leader, ...team].filter((id) => id !== TASKMASTER).map((id) => agentOf(id)?.craft).filter(Boolean);
-    return crafts.sort((a, b) => crafts.filter((x) => x === b).length - crafts.filter((x) => x === a).length)[0] || "engineering";
-  };
+  const fromLibrary = (c) => { const p = library(c); setCraft(c); setPartyId(""); setLeader(p.lead || TASKMASTER); setTeam([...(p.build || []), ...(p.check || [])]); setEvery([]); };
+  const price = usePartyPrice(true, leader, team, every, craft);
+  const ready = (title.trim() || about.trim()) && !saving;
   const save = async (e) => {
     e?.preventDefault();
-    if (!about.trim() || saving) return;
+    if (!ready) return;
     setSaving(true);
-    const got = await act("ideas.goal_save", { about: about.trim(), craft: craftOf(), leader, team, every: every.filter((id) => team.includes(id)), priority,
+    const got = await act("ideas.goal_save", { ...(title.trim() ? { title: title.trim() } : {}), about: about.trim(), leader, team, every: every.filter((id) => team.includes(id)), priority,
       ...(partyId ? { party: partyId } : {}) });
     setSaving(false);
     if (!got?.slug) return;
@@ -68,41 +54,27 @@ export function GoalWizard({ then = "" }) {
     if (then === "idea") openDialog("idea", { goal: got.slug });
     else showGoal(got.slug);
   };
-
-  const steps = html`<ol class="shell-steps" aria-label=${`Step ${step} of 3`}>${["Craft", "Team", "What for"].map((w, i) => html`<li key=${w}
-    class=${i + 1 === step ? "is-on" : i + 1 < step ? "is-done" : ""}>${w}</li>`)}</ol>`;
-  let body, foot;
-  if (step === 1) {
-    body = html`<p class="ok-tone-muted">What kind of goal is it? Its craft picks the party it starts with.</p>
-      <div class="shell-craft-tiles">${CRAFTS.map(([c, race, line]) => html`<button type="button" key=${c} class="shell-craft-tile" data-craft=${c}
-          aria-pressed=${String(c === craft)} onClick=${() => pick(c)}><${Head} race=${race} /><b>${CRAFT_WORDS[c]}</b>
-          <small class="ok-tone-muted">${RACE_WORDS[race]} · ${line}</small></button>`)}
-        <button type="button" class="shell-craft-tile mixed" data-craft=${MIXED} aria-pressed=${String(craft === MIXED)} onClick=${() => pick(MIXED)}>
-          <span class="shell-craft-heads">${CRAFTS.map(([c, race]) => html`<${Head} key=${c} race=${race} small=${true} />`)}</span><b>Mixed</b>
-          <small class="ok-tone-muted">A party of any crafts: the Taskmaster leads, you pick the rest</small></button></div>`;
-    foot = html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>`;
-  } else if (step === 2) {
-    body = html`<p class="ok-tone-muted">The goal's party: its leader plans and accepts, its builders work, its checkers check. A task goes to the one who does its kind of work; Grunt fills in.</p>
-      <${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
-      <${PartyBands} craft=${craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
-      <${PriceLine} price=${price} />`;
-    foot = html`<button type="button" class="ork-btn" onClick=${() => setStep(1)}>Back</button>
-      <button type="button" class="ork-btn primary" onClick=${() => setStep(3)}>Next</button>`;
-  } else {
-    const lead = agentOf(leader);
-    body = html`<form id="goal-form" class="shell-form" onSubmit=${save}>
-      <p class="ok-tone-muted shell-party-line">${craft === MIXED ? `Mixed, mostly ${CRAFT_WORDS[craftOf()]}` : CRAFT_WORDS[craft]} · ${partyWords(leader, team)}</p>
-      <label class="shell-field"><span class="ok-font-label">Description</span>
-        <textarea class="ork-field" rows="5" autofocus value=${about} aria-label="Description" placeholder="A few lines: what you want to reach, and why"
-          onInput=${(e) => setAbout(e.target.value)}></textarea></label>
-      <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span>
+  return html`<${Modal} title="New party" onClose=${closeDialog} wide=${true}
+    foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>
+      <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!ready}>Save party</button>`}>
+    <form id="goal-form" class="shell-form" onSubmit=${save}>
+      <label class="shell-field"><span class="ok-font-label">Name</span>
+        <input class="ork-field" autofocus value=${title} aria-label="Name" placeholder="Its name, in a few words" maxlength="120" onInput=${(e) => setTitle(e.target.value)} /></label>
+      <label class="shell-field"><span class="ok-font-label">What it is for</span>
+        <input class="ork-field" value=${about} aria-label="What it is for" placeholder="One line: what this party is for" onInput=${(e) => setAbout(e.target.value)} /></label>
+      <div class="shell-field" role="group" aria-label="The party"><span class="ok-font-label">The party</span>
+        <p class="ok-tone-muted">One of yours, or from the library: its leader plans, its builders work, its checkers check. A task goes to the one who does its kind of work; Grunt fills in.</p>
+        <div class="shell-craft-tiles" role="group" aria-label="From the library">${CRAFTS.map(([c, race, line]) => html`<button type="button" key=${c} class="shell-craft-tile" data-craft=${c}
+          aria-pressed=${String(c === craft && !partyId)} title=${line} onClick=${() => fromLibrary(c)}><${Head} race=${race} small=${true} /><b>${CRAFT_WORDS[c]}</b></button>`)}</div>
+        <${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
+        <${PartyBands} craft=${craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
+        <${PriceLine} price=${price} />
+        <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p></div>
+      <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />
+      <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span><small class="ok-tone-muted">${FOR_HINT}</small>
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
           <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>
-      <p class="ok-font-status ok-tone-muted">${say(`${lead?.name || "The Taskmaster"} reads the repository and writes the title, the summary, the metrics and the links.`)}</p>
-      <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />
-    </form>`;
-    foot = html`<button type="button" class="ork-btn" onClick=${() => setStep(2)}>Back</button>
-      <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!about.trim() || saving}>Save goal</button>`;
-  }
-  return html`<${Modal} title="New goal" onClose=${closeDialog} wide=${true} foot=${foot}>${steps}${body}<//>`;
+      <p class="ok-font-status ok-tone-muted">${say(`${agentOf(leader)?.name || "The Taskmaster"} reads the repository and writes the summary.`)}</p>
+    </form>
+  <//>`;
 }

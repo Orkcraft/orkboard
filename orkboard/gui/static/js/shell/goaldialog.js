@@ -1,14 +1,13 @@
-// New goal / Edit goal (docs/specs/35-goals-window.md §2): a description and a priority; the goal's leader writes the rest. Edit
-// adds the Title, to correct the leader's, and the Party: Change it opens its three bands (party.js) and its checks; a party
-// changed is sent with the goal. Saving sends the goal to its leader at once. A new goal is the three steps of goalwizard.js: its
-// craft, its party from the library, what it is for.
+// Edit the party (docs/specs/50-parties-and-goals.md §3.7): the same fields as New party (goalwizard.js) — its name, *What it is for*, the party, the checks on every
+// goal, its priority — on a party that is there: its name is the person's to correct, the party is changed with *Change the party* (its three bands, what it costs a
+// goal and its checks, party.js) and sent with it. Saving sends the party to its leader at once. A new party is goalwizard.js's one screen. The code's goal is a party.
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, toast } from "../link.js";
 import { board, track } from "../board/store.js";
 import { act, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
-import { GoalWizard } from "./goalwizard.js";
+import { GoalWizard, FOR_HINT } from "./goalwizard.js";
 import { PartyBands, PriceLine, ChecksBlock, OwnParties, TASKMASTER, partyWords, usePartyPrice, useOwnParties } from "./party.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
@@ -38,8 +37,8 @@ function GoalEdit({ slug, then = "" }) {
     e?.preventDefault();
     if (!about.trim() || saving) return;
     setSaving(true);
-    const args = { ...(slug ? { slug } : {}), about: about.trim(), priority };
-    if (slug && title.trim() && title.trim() !== g?.title) args.title = title.trim();     // a title typed is the person's
+    const args = { slug, about: about.trim(), priority };
+    if (title.trim() && title.trim() !== g?.title) args.title = title.trim();     // a name typed is the person's
     if (moved || partyId) Object.assign(args, { leader, team, every: every.filter((id) => team.includes(id)), ...(partyId ? { party: partyId } : {}) });   // the party, when changed
     const got = await act("ideas.goal_save", args);
     setSaving(false);
@@ -50,26 +49,25 @@ function GoalEdit({ slug, then = "" }) {
     if (then === "idea") openDialog("idea", { goal: got.slug });
     else showGoal(got.slug);
   };
-  return html`<${Modal} title=${slug ? "Edit goal" : "New goal"} onClose=${closeDialog} wide=${true}
+  return html`<${Modal} title="Edit the party" onClose=${closeDialog} wide=${true}
     foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Cancel</button>
-      <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!about.trim() || saving}>Save goal</button>`}>
+      <button type="submit" form="goal-form" class="ork-btn primary" disabled=${!about.trim() || saving}>Save party</button>`}>
     <form id="goal-form" class="shell-form" onSubmit=${save}>
-      ${slug && html`<label class="shell-field"><span class="ok-font-label">Title</span>
-        <input class="ork-field" value=${title} aria-label="Title" placeholder="The Taskmaster wrote it; correct it here" onInput=${(e) => setTitle(e.target.value)} /></label>`}
-      <label class="shell-field"><span class="ok-font-label">Description</span>
-        <textarea class="ork-field" rows="5" autofocus value=${about} aria-label="Description" placeholder="A few lines: what you want to reach, and why"
-          onInput=${(e) => setAbout(e.target.value)}></textarea></label>
-      <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span>
-        <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
-          <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>
-      <p class="ok-font-status ok-tone-muted">${say(`${g?.leader?.slug && g.leader.slug !== TASKMASTER ? g.leader.name : "The Taskmaster"} reads the repository and writes the title, the summary, the metrics and the links.`)}</p>
-      ${g && html`<div class="shell-field" role="group" aria-label="Party"><span class="ok-font-label">Party</span>
+      <label class="shell-field"><span class="ok-font-label">Name</span>
+        <input class="ork-field" value=${title} aria-label="Name" placeholder="The Taskmaster wrote it; correct it here" maxlength="120" onInput=${(e) => setTitle(e.target.value)} /></label>
+      <label class="shell-field"><span class="ok-font-label">What it is for</span>
+        <input class="ork-field" autofocus value=${about} aria-label="What it is for" placeholder="One line: what this party is for" onInput=${(e) => setAbout(e.target.value)} /></label>
+      ${g && html`<div class="shell-field" role="group" aria-label="The party"><span class="ok-font-label">The party</span>
         <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p>
         ${changing ? html`<${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
           <${PartyBands} craft=${g.craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
           <${PriceLine} price=${price} />
           <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />`
           : html`<button type="button" class="ork-btn" onClick=${() => setChanging(true)}>Change the party</button>`}</div>`}
+      <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span><small class="ok-tone-muted">${FOR_HINT}</small>
+        <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
+          <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>
+      <p class="ok-font-status ok-tone-muted">${say(`${g?.leader?.slug && g.leader.slug !== TASKMASTER ? g.leader.name : "The Taskmaster"} reads the repository and writes the summary.`)}</p>
     </form>
   <//>`;
 }
