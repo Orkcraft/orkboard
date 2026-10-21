@@ -1,5 +1,5 @@
-// The one window (docs/specs/49-one-window.md, decisions §62): the top bar, the goal tabs, and under them the goal's arena — the day's
-// strip, Planning over the leader, the field with its party, results, stops and limits (js/arena/). Anything opened slides in as a
+// The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, decisions §62, §63): the top bar (with the party switch), and under it the party's arena — the day's
+// strip, the leader over the party's goals, the field with its party, results, stops and limits (js/arena/). Anything opened slides in as a
 // drawer from the right (spec 49 §9): the preview's tabs, Agents and Files. Always Office's calm look; no camp.
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../html.js";
@@ -13,8 +13,8 @@ import { resetGit } from "./gitpane.js";
 import { openDialog } from "./modals.js";
 import { drawerOpen, refreshShell, hideDrawer, busy, resetForProject } from "./store.js";
 import { Arena } from "../arena/arena.js";
-import { solo } from "../arena/arenastate.js";
-import { GoalTabs } from "../arena/goaltabs.js";
+import { solo, spread, picks, peek, clearPicks } from "../arena/arenastate.js";
+import { closeSpread } from "../arena/spread.js";
 
 const sheets = ["../board/board.css", "./shell.css", "../arena/arena.css"].map((p) => new URL(p, import.meta.url).href);
 if (typeof document !== "undefined") {
@@ -51,8 +51,10 @@ export function Shell() {
         if (!document.querySelector("[aria-modal='true']")) openDialog("open-folder");
       } else if (e.key === "Escape" && drawerOpen.value && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
         hideDrawer();                                   // the drawer goes and keeps its tabs
-      } else if (e.key === "Escape" && solo.value && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
-        solo.value = "";                                // a member's work alone: everyone's again
+      } else if (e.key === "Escape" && !typing(e.target) && !document.querySelector("[aria-modal='true']")) {
+        if (spread.value) closeSpread();                // a spread's cards go back to their stack
+        else if (solo.value) solo.value = "";           // a member's work alone: everyone's again
+        else if (Object.values(picks.value).some((p) => p.length) || peek.value) clearPicks();      // the goals picked: every goal again
       }
     };
     window.addEventListener("keydown", key);
@@ -63,7 +65,6 @@ export function Shell() {
   }
   return html`<div class="shell" data-drawer=${drawerOpen.value}>
     <${TopBar} />
-    <${GoalTabs} />
     <div class="shell-main">
       <${Arena} />
       ${drawerOpen.value && html`<aside class="shell-drawer" aria-label="Drawer"><${Preview} /></aside>`}

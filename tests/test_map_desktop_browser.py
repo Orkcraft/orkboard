@@ -1,14 +1,13 @@
-"""What the Map was and the drawer's tabs on the desktop (docs/specs/39-map.md §3–§4, spec 49 §4–§5, §9, Tests → B), in a real browser at
-1 440 × 900 against a stub host that answers `ideas.map` in §1's shape: the goals are tabs, the goal's ideas are Planning's rows and the
-ideas bar, its tasks the party's columns, its results a column; a click opens a passing tab in the drawer, a double-click or an edit keeps
-it; Esc puts the drawer away and keeps its tabs; at most 12 tabs; tabs per project kept after a reload; a goal's flag on its tab."""
+"""What the Map was and the drawer's tabs on the desktop (docs/specs/39-map.md §3–§4, spec 49 §4–§5, §9, spec 50 §3, Tests → B), in a real browser at
+1 440 × 900 against a stub host that answers `ideas.map` in §1's shape: the parties are the top bar's switch, the party's goals are the left column's rows, its
+tasks the party's columns, its results a column; a click opens a passing tab in the drawer, a double-click or an edit keeps it; Esc puts the drawer away and
+keeps its tabs; at most 12 tabs; tabs per project kept after a reload. (A party has no flag of its own now: the goals' flags are tests/test_arena_decks_desktop_browser.py's.)"""
 from __future__ import annotations
 
 import copy
 import datetime as dt
 import hashlib
 import json
-import os
 
 import pytest
 
@@ -16,7 +15,7 @@ pytest.importorskip("playwright.sync_api")
 
 from orkboard.realm.idea_words import short_of  # noqa: E402
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import _show_goal, PARTY, PARTY_LINES, SHOTS, StubHost, _calls, _sent, box  # noqa: E402
+from tests.test_shell_browser import _show_goal, PARTY, StubHost, _calls, _sent  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -179,8 +178,13 @@ def active_tab(pg):
 
 
 def row(pg, title):
-    """An idea in Planning, by its title: a click opens it in the drawer."""
-    return pg.locator(".arena-prow", has_text=title)
+    """A goal of the party shown, by its title: its row in the goals list."""
+    return pg.locator(".arena-goal", has_text=title)
+
+
+def opener(pg, title):
+    """› on the goal's row (a goal not yet read: its row): a click opens it in the drawer."""
+    return row(pg, title).locator(":scope > button:last-child")
 
 
 def passing(pg):
@@ -205,90 +209,77 @@ def test_nothing_is_open_at_start_no_pinned_tab_and_esc_puts_the_drawer_away_and
     assert len(_calls(pg, host, "ideas.map")) >= 1
     pg.keyboard.press("Escape")                                                                               # nothing to close
     assert pg.locator(".arena").is_visible()
-    row(pg, "Cache the table").click()
+    opener(pg, "Cache the table").click()
     pg.locator(".shell-drawer .board-sec").first.wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-tabstrip [role=tab]").count() == 1
     pg.keyboard.press("Escape")                                                                               # the drawer goes ...
     pg.locator(".shell-drawer").wait_for(state="detached", timeout=WAIT_MS)
     assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(key(SHOP))})"))["open"] is False         # ... and its tabs stay
-    row(pg, "Offline mode").click()                                                                           # opening anything brings it back
+    opener(pg, "Offline mode").click()                                                                           # opening anything brings it back
     pg.locator(".shell-ptab.is-on", has_text="Offline mode").wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-tabstrip [role=tab]").count() == 1                                              # Cache the table's tab was the passing one: replaced
 
 
-def test_a_goal_s_flag_is_on_its_tab_when_its_leader_accepts_it(gui):
-    host = MapHost()
-    host.extra_goal = {"verdict": {"met": True, "by": "Growth"}}
-    pg, host, errors = _open(gui, host, goal="grow")
-    flag = pg.locator('.arena-gtab[data-goal=grow] .arena-flag')
-    assert flag.get_attribute("data-verdict") == "met" and "accepted by Growth" in pg.locator('.arena-gtab[data-goal=grow]').get_attribute("title")
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-def test_the_goal_tabs_switch_the_goal_and_the_device_keeps_it(mapped):
+def test_the_party_switch_changes_the_party_and_the_device_keeps_it(mapped):
     pg, host = mapped
     tabs = pg.locator(".arena-gtab")
     assert tabs.count() == 2 and pg.locator(".arena-gtab.is-on").get_attribute("data-goal") == "ship-sync"
     pg.locator(".arena-gtab[data-goal=grow]").click()
     pg.locator(".arena[data-goal=grow]").wait_for(timeout=WAIT_MS)
-    assert pg.locator(".arena-prow", has_text="Tag the notes").count() == 1 and pg.locator(".arena-prow", has_text="Dark mode").count() == 0   # a proposal waits: its row
+    assert row(pg, "Tag the notes").count() == 1 and row(pg, "Dark mode").count() == 0                       # a proposal waits: its row
     pg.reload()
     pg.locator(".arena[data-goal=grow]").wait_for(timeout=WAIT_MS)
     assert pg.locator(".arena-gtab.is-on").get_attribute("data-goal") == "grow"
 
 
-def test_an_idea_at_work_has_its_stage_track_its_tasks_in_the_party_s_columns_and_its_results_beside_them(mapped):
+def test_a_goal_at_work_has_its_row_its_tasks_in_the_party_s_columns_and_its_results_beside_them(mapped):
     pg, host = mapped
-    pg.locator(".arena-ibar__head").click()                                                              # the ideas bar's list: the ideas at work
-    irow = pg.locator(".arena-irow[data-slug=sync]")
-    track = irow.locator(".arena-track")
-    assert track.locator(".is-now").text_content() == "Implementation" and "✓" in track.text_content() and "Checking" in track.text_content()
-    assert "1 of 4 tasks in dev" in irow.inner_text() and "≈$0.84 so far · plan ≈$1–2" in " ".join(irow.inner_text().split())
+    work = row(pg, "Sync ideas between")                                                                   # At work: a goal's row says how far it is
+    assert work.get_attribute("data-state") == "work" and work.locator(".arena-goal__line").inner_text() == "1/4 in dev · implementation"
+    assert work.locator(".arena-goal__mark .ork-sign.work").count() == 1                                  # at work: orkUI's sign
     columns = pg.locator(".arena-stack[data-agent]")                                                      # a column per member of the party row
     assert [c.get_attribute("data-agent") for c in columns.all()] == ["grunt", "reviewer", "editor", "seo"]
     grunt = columns.first
-    assert [t.get_attribute("data-task") for t in grunt.locator(".arena-task").all()] == ["k2", "k3"]      # the one at work first, then in Review
+    stack = grunt.locator(".arena-stk")
+    assert stack.count() == 1 and stack.get_attribute("data-n") == "2"                                    # k2 and k3 are one goal's: one stack, the one at work in front
+    assert [t.get_attribute("data-task") for t in grunt.locator(".arena-task").all()] == ["k2"]
     assert grunt.locator(".arena-task.is-fail, .arena-task.is-stop").count() == 0                          # nobody stopped here: no alert
-    assert "✓ 1 in dev" in grunt.inner_text()
+    assert "1 in dev" in grunt.inner_text() and grunt.locator(".ork-sign.check").count() == 1
     assert pg.locator(".arena-result[data-task=k3]").count() == 1                                         # its result waits on the right
     ask = row(pg, "Offline mode")                                                                         # Planning: a member's question and a plan
-    assert "asks you · Reviewer" in ask.inner_text() and ask.locator(".arena-prow__mark.is-alert").inner_text() == "!"
+    assert "asks you · Reviewer" in ask.inner_text() and ask.locator(".arena-goal__mark .ork-sign.alert").count() == 1
     dark = row(pg, "Dark mode")
-    assert "plan ready" in dark.inner_text() and "$0.4–1.2" in dark.inner_text() and "is-stop" in dark.get_attribute("class")
-    assert "Cache the table" in row(pg, "Cache the table").inner_text() and "ready · Taskmaster plans it next" in row(pg, "Cache").inner_text()
-    # the window asks again when the board moves, and a merged task leaves its column
+    assert "plan ready" in dark.inner_text() and "is-stop" in dark.get_attribute("class")
+    assert "ready · Taskmaster plans it next" in row(pg, "Cache the table").inner_text()
+    # the window asks again when the board moves, and a merged task leaves its stack
     before = len(_calls(pg, host, "ideas.map"))
     host.nodes[0]["tasks"] = [pip("k1", "Read the sync code", "merged"), pip("k2", "Add the queue", "running", ["k1"], 2),
                               pip("k3", "Retry on a lost signal", "merged", ["k1"], 2), pip("k4", "Test it offline", "waiting", ["k2", "k3"], 3, "reviewer", "check")]
     host.nodes[0]["progress"] = {"done": 2, "total": 4}
     host.nodes[0]["results"] = []
     host.bump({})
-    leaving = pg.locator(".arena-task.is-leaving")
-    leaving.wait_for(timeout=WAIT_MS)                                                                    # it fades where it stands, with its ✓
-    assert leaving.get_attribute("data-sign") == "✓"
-    pg.wait_for_function("() => !document.querySelector('.is-leaving')", timeout=WAIT_MS)
-    assert [t.get_attribute("data-task") for t in grunt.locator(".arena-task").all()] == ["k2"] and "✓ 2 in dev" in grunt.inner_text()
+    pg.wait_for_function("() => document.querySelector('.arena-stack[data-agent=grunt] .arena-stk')?.dataset.n === '1'", timeout=WAIT_MS)
+    assert [t.get_attribute("data-task") for t in grunt.locator(".arena-task").all()] == ["k2"] and "2 in dev" in grunt.inner_text()
     assert len(_calls(pg, host, "ideas.map")) > before
 
 
 def test_a_click_on_a_row_opens_a_passing_tab_another_replaces_it_and_a_double_click_keeps_it(mapped):
     pg, host = mapped
-    row(pg, "Cache the table").click()
+    opener(pg, "Cache the table").click()
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "later", "device": "desktop", "via": "map"}))
     pg.locator(".shell-drawer .board-sec").first.wait_for(timeout=WAIT_MS)
     assert passing(pg).count() == 1 and "Cache the table" in passing(pg).inner_text()
     assert passing(pg).locator("[role=tab]").evaluate("e => getComputedStyle(e).fontStyle") == "italic"
     assert pg.locator(".shell-tabstrip [role=tab]").count() == 1                                          # no pinned Map: the one tab
     pg.get_by_role("button", name="Close the drawer").click()
-    row(pg, "Offline mode").click()                                                                       # replaces the passing tab
+    opener(pg, "Offline mode").click()                                                                       # replaces the passing tab
     pg.locator(".shell-ptab.is-passing", has_text="Offline mode").wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-tabstrip [role=tab]").count() == 1 and "Cache the table" not in pg.locator(".shell-tabstrip").inner_text()
     passing(pg).locator("[role=tab]").dblclick()                                                          # kept: upright, stays
     assert passing(pg).count() == 0 and kept(pg).count() == 1
     assert kept(pg).locator("[role=tab]").evaluate("e => getComputedStyle(e).fontStyle") == "normal"
     pg.get_by_role("button", name="Close the drawer").click()
-    row(pg, "Cache the table").click()
+    opener(pg, "Cache the table").click()
     pg.locator(".shell-ptab.is-passing", has_text="Cache the table").wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-tabstrip [role=tab]").count() == 2                                          # Offline stays beside the new passing one
     pg.get_by_role("button", name="Keep Cache the table").click()                                               # Keep, as the button
@@ -339,7 +330,7 @@ def test_esc_the_cross_and_a_middle_click_close_tabs_and_the_tab_to_the_left_is_
     pg, host = mapped
     for title in ("Cache the table", "Offline mode"):
         pg.keyboard.press("Escape")
-        row(pg, title).click()
+        opener(pg, title).click()
         pg.locator(".shell-ptab.is-passing", has_text=title).wait_for(timeout=WAIT_MS)
         passing(pg).locator("[role=tab]").dblclick()
     show(pg, "idea", slug="dark", opts={"keep": True})
@@ -356,11 +347,11 @@ def test_esc_the_cross_and_a_middle_click_close_tabs_and_the_tab_to_the_left_is_
 
 def test_the_arrow_keys_move_between_tabs_and_enter_shows_one(mapped):
     pg, host = mapped
-    row(pg, "Cache the table").click()
+    opener(pg, "Cache the table").click()
     pg.locator(".shell-ptab.is-passing", has_text="Cache the table").wait_for(timeout=WAIT_MS)
     passing(pg).locator("[role=tab]").dblclick()
     pg.keyboard.press("Escape")
-    row(pg, "Offline mode").click()
+    opener(pg, "Offline mode").click()
     pg.locator(".shell-ptab.is-passing", has_text="Offline mode").wait_for(timeout=WAIT_MS)
     assert pg.locator(".shell-tabstrip [role=tablist]").count() == 1
     active_tab(pg).focus()
@@ -386,16 +377,16 @@ def test_a_13th_tab_closes_the_oldest_kept_one_and_says_so(mapped):
     assert tabs.count() == 12                                                                             # at most 12: no pinned one
     assert "closed the oldest tab: Idea 1" in pg.locator("body").inner_text()
     names = [t.get_attribute("title") for t in tabs.all()]
-    assert names == [f"Spec: Idea {n}" for n in range(2, 14)]                                             # Idea 1 went, the others stay in order
+    assert names == [f"Goal: Idea {n}" for n in range(2, 14)]                                             # Idea 1 went, the others stay in order
 
 
 def test_tabs_come_back_after_a_reload_and_each_project_has_its_own(mapped):
     pg, host = mapped
-    row(pg, "Offline mode").click()
+    opener(pg, "Offline mode").click()
     pg.locator(".shell-ptab.is-passing", has_text="Offline mode").wait_for(timeout=WAIT_MS)
     passing(pg).locator("[role=tab]").dblclick()
     pg.get_by_role("button", name="Close the drawer").click()
-    row(pg, "Cache the table").click()
+    opener(pg, "Cache the table").click()
     pg.locator(".shell-ptab.is-passing", has_text="Cache the table").wait_for(timeout=WAIT_MS)
     pg.reload()
     pg.locator(".shell-ptab.is-on", has_text="Cache the table").wait_for(timeout=WAIT_MS)                       # which tabs, which is active, which is passing
@@ -408,7 +399,7 @@ def test_tabs_come_back_after_a_reload_and_each_project_has_its_own(mapped):
     pg.locator(f".shell-proj__one[data-path='{BLOG}']").click()
     pg.locator(".shell-drawer").wait_for(state="detached", timeout=WAIT_MS)
     _show_goal(pg, "grow")
-    row(pg, "Tag the notes").click()
+    opener(pg, "Tag the notes").click()
     pg.locator(".shell-ptab.is-passing", has_text="Tag the notes").wait_for(timeout=WAIT_MS)
     pg.locator(".shell-proj__btn").click()
     pg.locator(f".shell-proj__one[data-path='{SHOP}']").click()
@@ -420,7 +411,7 @@ def test_a_tab_whose_idea_is_gone_says_so_with_close(gui):
     ghost = {"kind": "idea", "slug": "ghost"}
     pg, host, errors = _open(gui, init=seed(SHOP, tabs=[{"p": ghost, "kept": True, "title": "Ghost idea"}], active="idea:ghost::", open=True, folded=[]), ready=".shell-ptab", goal="")
     try:
-        pg.get_by_text("This idea is gone").wait_for(timeout=WAIT_MS)
+        pg.get_by_text("This goal is gone").wait_for(timeout=WAIT_MS)
         assert not [a for n, a in host.log if n == "ideas.page" and a.get("slug") == "ghost"]            # not asked for
         pg.get_by_role("button", name="Close", exact=True).click()
         pg.locator(".shell-drawer").wait_for(state="detached", timeout=WAIT_MS)
@@ -430,7 +421,7 @@ def test_a_tab_whose_idea_is_gone_says_so_with_close(gui):
     assert not errors, "\n".join(errors)
 
 
-def test_no_goal_says_so_with_new_goal_and_new_idea(gui):
+def test_no_party_says_so_with_new_party_and_new_goal(gui):
     host = MapHost()
     host.nodes, host.edges = [], []
     host.map_doc = lambda: {"goals": [], "nodes": [], "edges": [], "rev": host.rev}
@@ -439,9 +430,12 @@ def test_no_goal_says_so_with_new_goal_and_new_idea(gui):
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url)
     try:
-        pg.get_by_text("No goals yet").wait_for(timeout=WAIT_MS)
-        pg.locator(".arena-note").get_by_role("button", name="New goal").click()
-        assert pg.get_by_role("dialog", name="New goal").is_visible()
+        pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)
+        pg.locator(".arena-note").get_by_role("button", name="New goal").click()                               # a goal needs a party: this makes one first
+        assert pg.get_by_role("dialog", name="New party").is_visible()
+        pg.keyboard.press("Escape")
+        pg.locator(".arena-note").get_by_role("button", name="New party").click()
+        assert pg.get_by_role("dialog", name="New party").is_visible()
     finally:
         pg.close()
 
@@ -456,7 +450,7 @@ def test_an_idea_opened_says_where_it_was_opened_from(mapped):
                 return True
             pg.wait_for_timeout(50)
         return False
-    row(pg, "Cache the table").click()
+    opener(pg, "Cache the table").click()
     assert opened_via("idea", "map")
     pg.get_by_role("button", name="Close the drawer").click()                                             # the drawer covers the middle of the fan
     item = pg.locator(".arena-hc[data-kind=plan]")
@@ -473,10 +467,10 @@ def test_a_row_and_a_task_show_their_short_names_with_the_title_in_their_label(g
     host.nodes[0] = {**host.nodes[0], "short": "Sync", "tasks": [{**t, "short": f"T{t['id']}"} for t in host.nodes[0]["tasks"]]}
     pg, host, errors = _open(gui, host)
     prow = row(pg, "Cache")
-    assert prow.locator(".arena-prow__title").inner_text() == "Cache" and "Cache the table" in prow.get_attribute("title")
+    assert prow.locator(".arena-goal__title").inner_text() == "Cache" and "Cache the table" in prow.locator(".arena-goal__main").get_attribute("title")
     task = pg.locator(".arena-task[data-task=k2]")
     assert task.get_attribute("title").startswith("Add the queue") and task.locator(".arena-task__name").inner_text() == "Tk2"
-    assert "Add the queue" in task.get_attribute("aria-label") and task.locator(".arena-task__idea").inner_text() == "Sync"
+    assert "Add the queue" in task.get_attribute("aria-label") and task.locator(".arena-task__goal").inner_text() == "Sync"
     assert task.locator(".arena-task__name").evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
     assert pg.locator(".arena-gtab").first.get_attribute("title").startswith("Grow installs")             # a tab keeps the title
     pg.close()
@@ -529,144 +523,10 @@ def test_under_reduced_motion_a_merged_task_leaves_without_moving(gui):
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url)
     _show_goal(pg)
-    pg.locator(".arena-task[data-task=k3]").wait_for(timeout=WAIT_MS)
-    host.nodes[0]["tasks"][2]["state"] = "merged"
-    host.nodes[0]["results"] = []
+    pg.locator(".arena-task[data-task=k2]").wait_for(timeout=WAIT_MS)                                    # the front of Grunts' stack
+    host.nodes[0]["tasks"][1]["state"] = "merged"
     host.bump({})
-    pg.locator(".arena-task[data-task=k3]").wait_for(state="detached", timeout=WAIT_MS)
+    pg.locator(".arena-task[data-task=k2]").wait_for(state="detached", timeout=WAIT_MS)                  # gone at once; k3 is the front now
+    pg.locator(".arena-task[data-task=k3]").wait_for(timeout=WAIT_MS)
     assert pg.locator(".is-leaving, .is-drawn").count() == 0
     pg.close()
-
-
-# -- spec 42 B: the flag raised once, its tally and Flags -------------------------------------------------------------
-
-TALLY = {"ideas": 7, "results": 23, "first_time": 19, "usd": 38.4, "days": 9}
-MET = {"met": True, "by": "Product manager", "at": "2026-10-18T10:00:00", "tally": TALLY}
-
-
-def flags_key(path: str) -> str:
-    return key(path).replace("orkboard.tabs.", "orkboard.flags.")
-
-
-def with_list(slugs, path=SHOP):
-    """The flags this device raised, written once (a reload keeps what the page wrote)."""
-    k = json.dumps(flags_key(path))
-    return f"if (!localStorage.getItem({k})) localStorage.setItem({k}, {json.dumps(json.dumps(slugs))});"
-
-
-def met_host():
-    host = MapHost()
-    host.extra_goal = {"verdict": MET}
-    return host
-
-
-def test_a_met_goal_not_in_the_list_is_raised_once_and_its_slug_kept(gui):
-    pg, host, errors = _open(gui, met_host(), goal="", init=with_list([]), ready=".arena-flag.is-met")
-    flag = pg.locator(".arena-gtab[data-goal=grow] .arena-flag")
-    pg.wait_for_function("document.querySelectorAll('.is-raising').length === 1", timeout=WAIT_MS)
-    assert pg.locator(".is-raising").count() == 1 and flag.evaluate("e => getComputedStyle(e).animationName") == "arena-flag-raise"
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}))
-    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == ["grow"]
-    pg.wait_for_function("document.querySelectorAll('.is-raising').length === 0", timeout=WAIT_MS)       # it moved once
-    pg.reload()
-    pg.locator(".arena-flag.is-met").wait_for(timeout=WAIT_MS)
-    pg.wait_for_timeout(300)
-    assert pg.locator(".is-raising").count() == 0 and len(_calls(pg, host, "ideas.log", at_least=1)) and \
-        [a for n, a in host.log if n == "ideas.log" and a.get("what") == "flag"] == [{"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}]
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-FAR = "{ const sheet = new CSSStyleSheet(); sheet.replaceSync('.arena-gtab[data-goal=grow] { margin-left: 3000px }'); document.adoptedStyleSheets = [sheet]; }"      # a constructed sheet: the phone's CSP has no inline style
-FLAG_LOGS = lambda host: [a for n, a in host.log if n == "ideas.log" and a.get("what") == "flag"]    # noqa: E731
-
-
-def test_a_flag_whose_tab_is_out_of_sight_waits_for_it_and_is_raised_once_when_it_comes_into_view(gui):
-    pg, host, errors = _open(gui, met_host(), goal="", init=with_list([]) + FAR, ready=".arena-flag.is-met")
-    flag = pg.locator(".arena-gtab[data-goal=grow] .arena-flag")
-    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))")                   # the page is visible, the trail is not
-    pg.wait_for_timeout(400)
-    assert pg.locator(".is-raising").count() == 0 and not FLAG_LOGS(host)
-    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == []
-    flag.scroll_into_view_if_needed()
-    pg.wait_for_function("document.querySelectorAll('.is-raising').length === 1", timeout=WAIT_MS)
-    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
-    pg.wait_for_timeout(300)
-    assert FLAG_LOGS(host) == [{"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}]            # one `opened`, not more
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-def test_under_reduced_motion_nothing_moves_and_the_slug_is_kept_all_the_same(gui):
-    server, browser = gui
-    pg = browser.new_page(viewport={"width": 1440, "height": 900}, reduced_motion="reduce")
-    pg.add_init_script(with_list([]))
-    host = met_host()
-    pg.route_web_socket("**/ws*", host.on_socket)
-    pg.goto(server.url)
-    pg.wait_for_selector(".arena-flag.is-met", timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "flag", "ref": "grow", "device": "desktop"}))
-    assert pg.locator(".is-raising").count() == 0
-    assert pg.locator(".arena-gtab[data-goal=grow] .arena-flag").evaluate("e => getComputedStyle(e).animationName") == "none"
-    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == ["grow"]
-    pg.close()
-
-
-def test_a_device_with_no_list_raises_nothing_and_adds_every_met_goal(gui):
-    pg, host, errors = _open(gui, met_host(), goal="grow", ready=".arena-flag.is-met")
-    pg.wait_for_timeout(500)
-    assert pg.locator(".is-raising").count() == 0
-    assert json.loads(pg.evaluate(f"localStorage.getItem({json.dumps(flags_key(SHOP))})")) == ["grow"]
-    assert not [a for n, a in host.log if n == "ideas.log" and a.get("what") == "flag"]
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-def test_the_tally_stays_in_a_met_goal_s_flags_row_and_a_goal_not_met_has_none(gui):
-    host = met_host()
-    pg, host, errors = _open(gui, host, goal="grow", init=with_list(["grow"]), ready=".arena-flag.is-met")
-    pg.get_by_role("button", name="Flags (1)").click()
-    tally = pg.locator(".map-flag__body .ok-font-status").nth(1)
-    assert " ".join(tally.inner_text().split()) == "7 ideas · 23 results · 19 the first time · ≈$38 · 9 days"
-    assert pg.locator(".arena-gtab[data-goal=ship-sync] .arena-flag").get_attribute("data-verdict") is None
-    host.extra_goal = {"verdict": {**MET, "tally": {**TALLY, "usd": None, "days": None}}}
-    host.bump({})
-    pg.wait_for_function("document.querySelectorAll('.map-flag__body .ok-font-status')[1].textContent === '7 ideas · 23 results · 19 the first time'", timeout=WAIT_MS)
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-def test_flags_opens_with_its_rows_and_a_row_opens_the_goal(gui):
-    pg, host, errors = _open(gui, met_host(), goal="grow", init=with_list(["grow"]), ready=".arena-flag.is-met")
-    fold = pg.get_by_role("button", name="Flags (1)")
-    assert fold.get_attribute("aria-expanded") == "false" and not [1 for n, _a in host.log if n == "ideas.flags"]     # closed at first: not asked for
-    fold.click()
-    row = pg.locator(".map-flag")
-    row.wait_for(timeout=WAIT_MS)
-    assert " ".join(row.inner_text().split()) == "Grow installs met, says Product manager · 18 October 7 ideas · 23 results · 19 the first time · ≈$38 · 9 days"
-    row.click()
-    pg.locator(".shell-ptab.is-on[data-tab='goal:grow::']").wait_for(timeout=WAIT_MS)
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "goal:grow", "device": "desktop", "via": "flags"}))
-    pg.get_by_role("button", name="Close the drawer").click()
-    assert pg.get_by_role("button", name="Flags (1)").get_attribute("aria-expanded") == "true"        # remembered with the folds
-    pg.reload()
-    pg.locator(".arena-flag.is-met").wait_for(timeout=WAIT_MS)
-    assert pg.get_by_role("button", name="Flags (1)").get_attribute("aria-expanded") == "true"
-    pg.close()
-    assert not errors, "\n".join(errors)
-
-
-def test_a_met_goal_s_row_in_flags_has_what_the_party_did_closed_at_first(gui):
-    """Spec 43 B: the same fold under a flag's row."""
-    pg, host, errors = _open(gui, met_host(), goal="grow", init=with_list(["grow"]), ready=".arena-flag.is-met")
-    pg.get_by_role("button", name="Flags (1)").click()
-    pg.locator(".map-flag").wait_for(timeout=WAIT_MS)
-    fold = pg.locator(".map-flags__list .shell-party")
-    assert fold.get_attribute("open") is None and not [1 for n, _a in host.log if n == "ideas.party"]
-    fold.locator("summary").click()
-    pg.wait_for_function("() => document.querySelectorAll('.map-flags__list .shell-party li').length === 4", timeout=WAIT_MS)
-    assert [" ".join(t.split()) for t in fold.locator("li").all_inner_texts()] == PARTY_LINES
-    assert _sent(pg, host, ("ideas.party", {"goal": "grow"}))
-    assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "party", "ref": "grow", "device": "desktop"}))
-    pg.close()
-    assert not errors, "\n".join(errors)

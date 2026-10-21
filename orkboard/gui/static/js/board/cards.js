@@ -4,6 +4,7 @@
 // holds: its links open an idea, a goal or Needs you, and change nothing.
 import { useEffect, useState } from "preact/hooks";
 import { html } from "../html.js";
+import { Sign } from "../orkui.js";
 import { cards, closeCard } from "../shell/look.js";
 import { showIdea, showGoal, showNeeds, logOpened } from "../shell/store.js";
 import { Modal, closeDialog, openDialog } from "../shell/modals.js";
@@ -22,10 +23,10 @@ export function resultsWords(m, into) {
   return `${n} results in ${into}${f ? `, ${f} the first time` : ""}`;
 }
 
-/** *The night: drafted 2 ideas, started 1 plan, read 1 goal again, proposed 2 ideas*: only the parts above 0. */
+/** *The night: drafted 2 goals, started 1 plan, read 1 party again, proposed 2 goals*: only the parts above 0. */
 export function nightWords(night) {
-  const parts = [night.drafted && `drafted ${plural(night.drafted, "idea", "ideas")}`, night.started && `started ${plural(night.started, "plan", "plans")}`,
-    night.refreshed && `read ${plural(night.refreshed, "goal", "goals")} again`, night.proposed && `proposed ${plural(night.proposed, "idea", "ideas")}`].filter(Boolean);
+  const parts = [night.drafted && `drafted ${plural(night.drafted, "goal", "goals")}`, night.started && `started ${plural(night.started, "plan", "plans")}`,
+    night.refreshed && `read ${plural(night.refreshed, "party", "parties")} again`, night.proposed && `proposed ${plural(night.proposed, "goal", "goals")}`].filter(Boolean);
   return parts.length ? `The night: ${parts.join(", ")}` : "";
 }
 
@@ -44,7 +45,9 @@ const joined = (items, sep = ", ") => items.map((x, i) => html`${i ? sep : ""}${
 function Recap({ r }) {
   const m = r.merged || { tasks: 0, first_time: 0, ideas: [] };
   const link = (i, via = "recap") => html`<button key=${i.slug} type="button" class="board-link" onClick=${() => showIdea(i.slug, { via })}>${i.short}</button>`;
-  const flagLine = (f) => html`<p class="away__flag">${f.met ? "Flag raised: " : ""}<button type="button" class="board-link" onClick=${() => showGoal(f.goal, { via: "recap" })}>${f.short}</button>${f.met ? ", met" : ": not met yet"}, says ${f.by}</p>`;
+  const flagLine = (f) => (f.idea
+    ? html`<p class="away__flag"><${Sign} name="flag" /> <button type="button" class="board-link" onClick=${() => showIdea(f.idea, { via: "recap" })}>${f.short}</button> is in main</p>`      // a goal's flag (spec 50 §2.4)
+    : html`<p class="away__flag">${f.met ? "Flag raised: " : ""}<button type="button" class="board-link" onClick=${() => showGoal(f.goal, { via: "recap" })}>${f.short}</button>${f.met ? ", met" : ": not met yet"}, says ${f.by}</p>`);   // a party's old flag keeps its line
   return html`<div class="away__lines">
     ${m.tasks > 0 && html`<p class="away__merged">${resultsWords(m, r.into || "dev")}</p>
       ${m.ideas.length > 0 && html`<p class="away__ideas">${joined(m.ideas.slice(0, SHOWN).map((i) => html`${link(i)}${i.done ? " · done" : ""}`))}${m.ideas.length > SHOWN ? ` and ${m.ideas.length - SHOWN} more` : ""}</p>`}`}
@@ -88,13 +91,14 @@ function Week({ w }) {
     lines.push(html`<p class="away__usd">${dollars(w.usd_per_merged)} a result${w.before?.usd_per_merged != null ? ` (the week before ${dollars(w.before.usd_per_merged)})` : ""}</p>`);
   }
   if ((w.goals || []).length) {
-    lines.push(html`<p class="away__goals">Goals: ${joined(w.goals.map((g, n) => html`${goalLink(g, g.short)}${n === 0 ? `, ${g.done} ${g.done === 1 ? "idea" : "ideas"} done` : `, ${g.done}`}`), " · ")}</p>`);
+    lines.push(html`<p class="away__goals">Parties: ${joined(w.goals.map((g, n) => html`${goalLink(g, g.short)}${n === 0 ? `, ${g.done} ${g.done === 1 ? "goal" : "goals"} done` : `, ${g.done}`}`), " · ")}</p>`);
   }
   if ((w.flags || []).length) {
-    lines.push(html`<p class="away__flag">Flags: ${joined(w.flags.map((f) => html`${goalLink(f, f.short)}${f.met ? ", met" : ", not met yet"}`), "; ")}</p>`);
+    lines.push(html`<p class="away__flag">Flags: ${joined(w.flags.map((f) => (f.idea ? html`<${Sign} name="flag" /> ${ideaLink({ slug: f.idea }, f.short)} is in main`
+      : html`${goalLink(f, f.short)}${f.met ? ", met" : ", not met yet"}`)), "; ")}</p>`);
   }
   const speed = [w.dearest && html`Cost the most: ${ideaLink(w.dearest, w.dearest.short)}, ${dollars(w.dearest.usd)}`,
-    w.fastest && html`Fastest from idea to ${into}: ${ideaLink(w.fastest, w.fastest.short)}, ${durationWords(w.fastest.minutes)}`].filter(Boolean);
+    w.fastest && html`Fastest from goal to ${into}: ${ideaLink(w.fastest, w.fastest.short)}, ${durationWords(w.fastest.minutes)}`].filter(Boolean);
   if (speed.length) lines.push(html`<p class="away__extremes">${joined(speed, " · ")}</p>`);
   if (w.answers) {
     const left = w.answers.decided ? `; ${w.answers.decided} ${w.answers.decided === 1 ? "card" : "cards"} left to the Taskmaster` : "";
@@ -153,7 +157,7 @@ export function weekPace(w) {
 export function WeekDialog() {
   const [w, setW] = useState(null);
   useEffect(() => { ask("ideas.week_work").then((got) => { if (got) setW(got); }); logOpened("week", "this"); }, []);
-  const newIdea = () => { closeDialog(); if (goalList().length) openDialog("idea", track.value ? { goal: track.value } : {}); else openDialog("goal", { then: "idea" }); };
+  const newGoal = () => { closeDialog(); if (goalList().length) openDialog("idea", track.value ? { goal: track.value } : {}); else openDialog("goal", { then: "idea" }); };
   return html`<${Modal} title="This week" onClose=${closeDialog} foot=${html`<button type="button" class="ork-btn" onClick=${closeDialog}>Close</button>`}>
     ${!w ? html`<p class="ok-tone-muted">Reading the week…</p>` : html`<div class="week">
       ${weekMoney(w) && html`<p class="week__usd">${weekMoney(w)}</p>`}
@@ -163,7 +167,7 @@ export function WeekDialog() {
       ${w.last_unused != null && html`<p class="week__unused">Last week ended with ${Math.round(w.last_unused * 100)} % unused</p>`}
       ${w.streak >= 2 && html`<p class="week__streak">${w.streak} nights in a row</p>`}
       ${w.night_on && (w.tonight > 0 ? html`<p class="week__tonight">Tonight: ${w.tonight} wait</p>`
-        : html`<p class="week__tonight">Nothing waits for tonight · <button type="button" class="board-link" onClick=${newIdea}>New idea</button></p>`)}
+        : html`<p class="week__tonight">Nothing waits for tonight · <button type="button" class="board-link" onClick=${newGoal}>New goal</button></p>`)}
     </div>`}
   <//>`;
 }

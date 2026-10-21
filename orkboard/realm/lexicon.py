@@ -185,7 +185,7 @@ TERMS: tuple[Term, ...] = (
     _t("nights_in_a_row", "nights in a row"),                      # the Board's nights with work done, one after another, up to last night (spec 42 §8)
     _t("short_name", "short name", "short names"),                 # a goal's, a party's or a task's name in 24 characters (spec 41 §3)
     _t("recommended_answer", "recommended answer", "recommended answers"),   # the choice the Taskmaster picks for its question (spec 41 §9)
-    _t("idea", "goal", "goals"),                                   # a goal: a page with its spec and plan, done in dev, its flag raised in main (spec 29, 50; the code's idea)
+    _t("idea", "goal", "goals", "idea", "ideas"),                 # a goal: a page with its spec and plan, done in dev, its flag raised in main (spec 29, 50; the code's idea)
     _t("proposal", "proposal", "proposals"),                       # a goal the keeper proposes at night, for the morning (spec 35 §8)
     _t("scribble", "note", "notes", "scribble", "scribbles"),       # a goal or a note on the board
     # Operations (docs/specs/38-operations.md §0): the person's everyday work by templates, across projects

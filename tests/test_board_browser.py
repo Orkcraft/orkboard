@@ -65,25 +65,24 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             ctx.on("request", lambda r: urls.append(r.url))
             pg.on("pageerror", lambda e: errors.append(str(e)))
             pg.goto(server.url)
-            pg.get_by_role("tablist", name="Goals").wait_for(timeout=WAIT_MS)
-            pg.get_by_text("No goals yet").wait_for(timeout=WAIT_MS)                                # the window: the goal tabs over the arena
-            assert pg.locator(".arena-tabs").is_visible() and pg.locator(".shell-board, .shell-agents, .shell-split").count() == 0
+            pg.get_by_role("tablist", name="Parties").wait_for(timeout=WAIT_MS)
+            pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)                              # the window: the party switch in the top bar, the arena under it
+            assert pg.locator(".arena-pswitch").is_visible() and pg.locator(".shell-board, .shell-agents, .shell-split").count() == 0
             assert pg.evaluate("document.documentElement.dataset.look") == "office"
             assert pg.locator(".gui-hud, .gui-camp, .gui-town, .gui-foot").count() == 0
-            pg.get_by_role("button", name="+ New goal").click()
-            dlg = pg.get_by_role("dialog", name="New goal")
-            dlg.locator('.shell-craft-tile[data-craft="marketing"]').click()          # its craft, its party as the library has it
-            dlg.get_by_role("button", name="Next").click()
-            dlg.get_by_label("Description").fill("More people try Orkline.")
-            dlg.get_by_role("button", name="Save goal").click()
-            pg.locator(".shell-goal").get_by_role("region", name="Team").wait_for(timeout=WAIT_MS)
+            pg.locator(".arena-pswitch__new").click()                                                    # + in the top bar: New party
+            dlg = pg.get_by_role("dialog", name="New party")
+            dlg.locator('.shell-craft-tile[data-craft="marketing"]').click()          # a party of the library: its leader, builders and checkers
+            dlg.get_by_label("What it is for").fill("More people try Orkline.")
+            dlg.get_by_role("button", name="Save party").click()
+            pg.locator(".shell-goal").get_by_role("region", name="The party").wait_for(timeout=WAIT_MS)
             for pane in (".arena-left", ".arena-field", ".arena-look", ".arena-team", ".shell-drawer"):                # the window's regions, on the real host's data
                 assert pg.locator(pane).is_visible(), pane
             g = next(t for t in board.command("ideas.board")["tracks"] if t["team"])
-            assert (g["craft"], g["leader"]["slug"], g["team"]) == ("marketing", "growth", ["copywriter", "seo", "editor"])
+            assert (g["leader"]["slug"], g["team"]) == ("growth", ["copywriter", "seo", "editor"])
             made = {r["slug"]: r for r in board.command("ideas.roles")["roles"]}
-            assert made["copywriter"]["craft"] == "marketing" and made["growth"]["takes"] == ["campaign"]   # the team's agents: the project's roles
-            team = pg.locator(".shell-goal").get_by_role("region", name="Team")                 # the goal's screen says its team
+            assert made["copywriter"]["craft"] == "marketing" and made["growth"]["takes"] == ["campaign"]   # the party's agents: the project's roles
+            team = pg.locator(".shell-goal").get_by_role("region", name="The party")             # the party's screen says who is in it
             team.wait_for(timeout=WAIT_MS)
             assert "Copywriter" in team.inner_text() and "Growth" in team.inner_text()
             pg.locator(".arena-hc[data-kind=goal]").wait_for(timeout=WAIT_MS)                    # the keeper's question: a stop along the bottom

@@ -2,15 +2,34 @@
 // `ideas.gate`, `ideas.today` and the snapshot. No signal and no template here; the parts of the window (arena.js and its
 // neighbours) draw what these say. The backend writes no words: the member's state, a task's foot and a stop's text are said here.
 import { leftToDo, TASK_STATE } from "../board/maplayout.js";
-import { memberWords, planWords, soFarWords, todayWords } from "../board/mapstage.js";
+import { memberWords, soFarWords, todayWords } from "../board/mapstage.js";
 import { holdWords, hhmm } from "../board/store.js";
 import { TIER_WORDS, RACE_WORDS } from "../orkui.js";
 
-const RUN = ["running", "testing"];
-const RANK = { running: 0, testing: 0, failed: 1, review: 2, ready: 3, waiting: 4, held: 5 };      // a column, from the member up (§5.4)
+export const RUN = ["running", "testing"];
+export const RANK = { running: 0, testing: 0, failed: 1, review: 2, ready: 3, waiting: 4, held: 5 };      // a column, from the member up (§5.4)
 const LEVEL = { laborer: 1, warrior: 2, elder: 3 };      // the level's chevrons (marks/rank-1 … 3)
 
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** *Mon 09:00* from a local `YYYY-MM-DDTHH:MM`; "" when it does not read. */
+export function dayAt(iso) {
+  const d = new Date(iso);
+  return !iso || Number.isNaN(d.getTime()) ? "" : `${d.toLocaleDateString("en-US", { weekday: "short" })} ${hhmm(iso)}`;
+}
+
+const after = (until) => (until ? ` · after ${hhmm(until)}` : "");
+
+/** Why a goal that is not done does not move, in words; "" for what its mark says (spec 39 §4.3, spec 42 G). */
+export function waitsWords(w) {
+  if (!w) return "";
+  const who = w.title || w.ref || "another goal";
+  return { idea: `waits for ${who}`, files: `same files as ${who}`, limits: `waits for limits${after(w.until)}`, reserve: `keeps your reserve${after(w.until)}`,
+    night: "tonight", stopped: "stopped", week: `waits: the week is behind${w.until ? ` · until ${dayAt(w.until)}` : ""}` }[w.kind] || "";
+}
+
+/** *tonight*, or the Board's own night work: *tonight, or sooner if the week has room* (spec 44 §2); `starts` for a plan that starts tonight. */
+export const tonightWords = (n, starts = false) => `${starts ? "starts " : ""}tonight${n.night_by === "board" ? ", or sooner if the week has room" : ""}`;
 export const money = (n) => `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
 const round2 = (n) => Math.round(n * 100) / 100;
 /** *$1–2*: a plan's price, from `plan_estimate`; "" with none. */
@@ -33,21 +52,20 @@ export function goalsOf(map, order = []) {
 }
 
 export const nodesOf = (map, slug) => (map?.nodes || []).filter((n) => n.goal === slug);
-/** An idea at work: past its plan, not done (§4.2). */
+/** A goal at work: past its plan, not done (spec 50 §3.3). */
 export const atWork = (n) => n.stage === "implementation" || n.stage === "checking";
 export const openTasks = (n) => (n.tasks || []).filter(leftToDo);
 
-/** *k ideas left of n*. */
-export function leftWords(g, nodes) {
-  const total = g.ideas ?? nodes.length, done = g.done ?? nodes.filter((n) => n.state === "done").length;
-  return `${plural(total - done, "idea", "ideas")} left of ${total}`;
-}
+/** *k/n*: a party's done goals of all its goals (decisions §63.2); its tooltip says it (*k of n goals done*). */
+export const countOf = (g, nodes = []) => ({ done: g.done ?? nodes.filter((n) => n.state === "done").length, all: g.ideas ?? nodes.length });
+export const countWords = (g, nodes) => { const c = countOf(g, nodes); return `${c.done}/${c.all}`; };
+export const countTip = (g, nodes) => { const c = countOf(g, nodes); return `${c.done} of ${c.all} goals done`; };
 export const costWords = (g) => [soFarWords(g.usd), todayWords(g.today)].filter(Boolean).join(" · ");
 
 // -- the stops: what waits for the person ----------------------------------------------------------------------------------------
 
 const STOP_KINDS = ["asks", "plan", "proposal"];                 // the stops of Planning (§4.3)
-/** The goal's Planning: the ideas in stage planning that are not raw, the stops first; the raw ones apart (*New (n)*). */
+/** The party's Planning: the goals in stage planning that are not raw, the stops first; the raw ones apart (*New (n)*). Its `mark` is a sign's name. */
 export function planningOf(g, nodes, leader) {
   const lead = leader || g.leader?.name || "Taskmaster";
   const asks = (n) => n.asked?.[0]?.by?.name;
@@ -55,29 +73,30 @@ export function planningOf(g, nodes, leader) {
     if (n.needs_you === "plan") return "plan ready";
     if (n.needs_you === "asks") return `asks you · ${asks(n) || lead}`;
     if (n.needs_you === "proposal") return "proposed";
-    if (n.state === "reading") return `${lead} is reading ↻`;
-    if (n.state === "planning") return `${lead} is planning ↻`;
-    if (n.state === "plan" && n.start_at === "night") return "starts tonight";
+    if (n.state === "reading") return `${lead} is reading`;
+    if (n.state === "planning") return `${lead} is planning`;
+    if (n.waits?.kind === "week") return waitsWords(n.waits);
+    if (n.state === "plan" && n.start_at === "night") return tonightWords(n, true);
     if (n.state === "ready") return `ready · ${lead} plans it next`;
     return n.state;
   };
   const row = (n) => {
     const stop = STOP_KINDS.includes(n.needs_you), busy = n.state === "reading" || n.state === "planning";
-    return { slug: n.slug, title: n.short || n.title, full: n.title, stop, busy, mark: stop ? "!" : busy ? "↻" : "", words: words(n),
+    return { slug: n.slug, title: n.short || n.title, full: n.title, stop, busy, mark: stop ? "alert" : busy ? "work" : "", words: words(n),
       cost: n.needs_you === "plan" ? rangeWords(n.plan_estimate || n.estimate) : "", kind: n.needs_you === "plan" ? "plan" : "idea", node: n };
   };
   const mine = nodes.filter((n) => n.stage === "planning");
   const rows = mine.filter((n) => n.state !== "raw").map(row);
   const raw = mine.filter((n) => n.state === "raw").map((n) => ({ slug: n.slug, title: n.short || n.title, full: n.title, node: n, kind: "idea", stop: false, busy: false,
-    mark: "", cost: "", words: n.queue === "hold" ? "stopped" : n.queue === "night" ? "tonight" : `new · ${lead} reads it later` }));
+    mark: "", cost: "", words: n.waits?.kind === "week" ? waitsWords(n.waits) : n.queue === "hold" ? "stopped" : n.queue === "night" ? tonightWords(n) : `new · ${lead} reads it later` }));
   return { rows: [...rows.filter((r) => r.stop), ...rows.filter((r) => !r.stop)], raw };
 }
 
-/** *Process now · 2 new ideas* / *no new idea*, the idea it reads and its tooltip (§4.4). */
+/** *Process now · 2 new goals* / *no new goal*, the goal it reads and its tooltip (spec 49 §4.4). */
 export function powerOf(raw, lead) {
   const first = raw[0];
-  return { slug: first?.slug || "", off: !first, words: first ? plural(raw.length, "new idea", "new ideas") : "no new idea",
-    tip: first ? `${lead} reads “${first.full}” now` : "No new idea to read" };
+  return { slug: first?.slug || "", off: !first, words: first ? plural(raw.length, "new goal", "new goals") : "no new goal",
+    tip: first ? `${lead} reads “${first.full}” now` : "No new goal to read" };
 }
 
 // -- the party -----------------------------------------------------------------------------------------------------------------------
@@ -105,14 +124,35 @@ export function partyOf(g, nodes) {
 export const BAND_WORDS = { lead: "Leads", build: "Builds", check: "Checks" };
 export const BAND_KEYWORD = { lead: "Leads:", build: "Takes:", check: "Checks:" };
 
-/** A member's open tasks of the ideas at work, in its column's order: the one at work nearest it, then failed, in Review, ready, waiting, held. */
+/** A task's phase: its wave less the lowest wave among the open tasks of its goal (spec 50 §3.4): 0 now, 1 next, 2 and over later. */
+export function phaseOf(n, t) {
+  const open = openTasks(n);
+  return Math.max(0, t.wave - Math.min(t.wave, ...open.map((x) => x.wave)));
+}
+export const ROWS = ["now", "next", "later"];
+export const rowName = (phase) => ROWS[Math.min(phase, ROWS.length - 1)];
+
+/** A member's open tasks of the goals at work, in its column's order: the one at work nearest it, then failed, in Review, ready, waiting, held (the
+ *  front of a stack first); each with its phase and the row it lies in (*now*, *next*, *later*). `order`: the Board's order of the goals is `nodes`'. */
 export function columnOf(m, nodes) {
   const items = [];
-  nodes.filter(atWork).forEach((n, i) => openTasks(n).forEach((t, j) => { if (t.by.slug === m.slug) items.push({ n, t, at: i * 1000 + j }); }));
+  nodes.filter(atWork).forEach((n, i) => openTasks(n).forEach((t, j) => {
+    if (t.by.slug === m.slug) { const phase = phaseOf(n, t); items.push({ n, t, at: i * 1000 + j, phase, row: rowName(phase) }); }
+  }));
   return items.sort((a, b) => (RANK[a.t.state] ?? 9) - (RANK[b.t.state] ?? 9) || a.t.wave - b.t.wave || a.at - b.at);
 }
-/** The merged tasks of a member, over all the goal's ideas (*✓ k in dev*). */
+/** The merged tasks of a member, over all the party's goals (*✓ k in dev*). */
 export const mergedBy = (m, nodes) => nodes.reduce((k, n) => k + (n.tasks || []).filter((t) => t.state === "merged" && t.by.slug === m.slug).length, 0);
+
+/** A column's items as its rows by phase, each row its stacks: one per goal (in the Board's order, `nodes`'), the front card first.
+ *  `list`: items as the column shows them ([{it: {n, t, row}, …}]); [{row, stacks: [{goal, items: [...]}]}], a row with nothing not there. */
+export function rowsOf(list, nodes) {
+  const place = (slug) => { const i = nodes.findIndex((n) => n.slug === slug); return i < 0 ? nodes.length : i; };
+  return ROWS.map((row) => {
+    const here = list.filter((x) => x.it.row === row), goals = [...new Set(here.map((x) => x.it.n.slug))].sort((a, b) => place(a) - place(b));
+    return { row, stacks: goals.map((goal) => ({ goal, items: here.filter((x) => x.it.n.slug === goal) })) };
+  }).filter((r) => r.stacks.length);
+}
 
 /** The role of ideas.agents behind a party member. */
 export const roleOf = (agents, slug) => (agents?.roles || []).find((r) => r.role === slug) || null;
@@ -148,20 +188,24 @@ export function statsOf(m, role, lead = false) {
     rankTip: `${TIER_WORDS[tier] || ""}: its level`, harnessTip: `Runs on ${harness.name}`, level: TIER_WORDS[tier] || "" };
 }
 
-/** What a member does now, and after (§5.2): *↻ Challenge store · 4 min*, *✗ <task>*, *next: <task>*, *n in Review*. */
+/** What a member does now, and after (spec 49 §5.2): *<work> Challenge store · 4 min*, *<cross> <task>*, *next: <task>*, *n in Review*. Each line is
+ *  {sign, text}: the sign's name (work, cross) or "", and the words beside it. */
 export function nowOf(m, col, planning, isLead) {
+  const line = (text, sign = "") => ({ sign, text });
   if (isLead) {
     const stops = planning.rows.filter((r) => r.stop), busy = planning.rows.find((r) => r.busy);
     const ready = [...planning.rows, ...planning.raw].find((r) => r.node.state === "ready" || r.node.state === "raw");
-    const now = busy ? `↻ reading “${busy.title}”` : ready ? `next: plans “${ready.title}”` : stops.length ? `${stops[0].words}: “${stops[0].title}”` : "";
-    const next = stops.length > 1 ? `${stops.length} wait for you` : stops.length === 1 && busy ? `${stops[0].words}: “${stops[0].title}”` : "";
+    const now = busy ? line(`reading “${busy.title}”`, "work") : ready ? line(`next: plans “${ready.title}”`) : stops.length ? line(`${stops[0].words}: “${stops[0].title}”`) : line("");
+    const next = stops.length > 1 ? line(`${stops.length} wait for you`) : stops.length === 1 && busy ? line(`${stops[0].words}: “${stops[0].title}”`) : line("");
     return { now, next };
   }
   const run = col.filter((x) => RUN.includes(x.t.state)), failed = col.find((x) => x.t.state === "failed"), held = col.find((x) => x.t.state === "held");
   const nx = col.find((x) => x.t.state === "ready" || x.t.state === "waiting"), rv = col.filter((x) => x.t.state === "review").length;
   const name = (x) => x.t.short || x.t.title, min = (x) => sinceWords(x.t.started);
-  const now = run.length ? `↻ ${name(run[0])}${min(run[0]) ? ` · ${min(run[0])}` : ""}` : failed ? `✗ ${name(failed)}` : nx ? `next: ${name(nx)}` : rv ? `${rv} in Review` : "";
-  const next = failed && run.length ? `✗ ${name(failed)}` : held ? `tonight: ${name(held)}` : rv && run.length ? `${rv} in Review` : nx && run.length ? `next: ${name(nx)}` : "";
+  const now = run.length ? line(`${name(run[0])}${min(run[0]) ? ` · ${min(run[0])}` : ""}`, "work") : failed ? line(name(failed), "cross") : nx ? line(`next: ${name(nx)}`)
+    : rv ? line(`${rv} in Review`) : line("");
+  const next = failed && run.length ? line(name(failed), "cross") : held ? line(`tonight: ${name(held)}`) : rv && run.length ? line(`${rv} in Review`)
+    : nx && run.length ? line(`next: ${name(nx)}`) : line("");
   return { now, next };
 }
 
@@ -170,21 +214,30 @@ export function memberView(m, stats, line, race) {
   const words = memberWords(m) || "free";
   const tone = m.state === "needs" ? "is-needs" : m.state === "work" ? "" : "is-quiet";
   const label = [m.name, `${race ? `${race}, ` : ""}${stats.harness.name}, ${stats.level}`, words, stats.runsTip,
-    `${stats.price === "—" ? "no price yet" : `${stats.price} a run`}`, line.now].filter(Boolean).join(", ");
+    `${stats.price === "—" ? "no price yet" : `${stats.price} a run`}`, line.now.text].filter(Boolean).join(", ");
   return { words, tone, label: `${label}. A click shows its work.` };
 }
 
-/** The sign on a member's head (§5.2): ✗ on the danger ground for a failure, ! on the alert ground for another stop, ↻ at work, a moon tonight; null when next or free. */
+/** The sign on a member's head (spec 49 §5.2, orkUI's signs): cross on the danger ground for a failure, alert on the alert ground for another stop, work while at
+ *  work, night (the clock) tonight; null when next or free. `mark` is the sign's name. */
 export function signOf(m) {
-  if (m.state === "needs") return m.why === "failed" ? { mark: "✗", tone: "danger" } : { mark: "!", tone: "alert" };
-  if (m.state === "work") return { mark: "↻", tone: "" };
-  if (m.state === "tonight") return { mark: "", tone: "" };           // the moon, drawn
+  if (m.state === "needs") return m.why === "failed" ? { mark: "cross", tone: "danger" } : { mark: "alert", tone: "alert" };
+  if (m.state === "work") return { mark: "work", tone: "" };
+  if (m.state === "tonight") return { mark: "night", tone: "" };
   return null;
 }
 
 export const raceOf = (head) => (head ? RACE_WORDS[head.race] || "" : "");
 
 // -- the columns -------------------------------------------------------------------------------------------------------------------
+
+/** A check that waits for the whole build says so: *after the build* (every build task of its goal is among those it follows). */
+function followsBuild(t, n) {
+  const builds = (n?.tasks || []).filter((x) => x.band !== "check");
+  return t.band === "check" && builds.length > 0 && builds.every((b) => (t.after || []).includes(b.id));
+}
+/** What a task follows, in a few words: *after k1, k2*, or *after the build* for a check that waits for all of it. */
+export const afterWords = (t, n) => (followsBuild(t, n) ? "after the build" : `after ${t.after.join(", ")}`);
 
 /** A task's foot: its state in words (*working 4 min*, *in Review*, *after k1*, *tonight · after 01:00*, *failed*). */
 export function taskFoot(t, n) {
@@ -194,23 +247,29 @@ export function taskFoot(t, n) {
   if (t.state === "failed") return "failed";
   if (t.state === "held") {
     if (n?.waits?.kind === "night") return `tonight${n.waits.until ? ` · after ${hhmm(n.waits.until)}` : ""}`;
+    if (n?.waits?.kind === "week") return waitsWords(n.waits);
     return holdWords(t.note, n?.waits?.title) || "held";
   }
-  if (t.state === "waiting") return t.after?.length ? `after ${t.after.join(", ")}` : "waiting";
+  if (t.state === "waiting") return t.after?.length ? afterWords(t, n) : "waiting";
   if (t.state === "ready") return t.note || "next";
   return TASK_STATE[t.state] || t.state;
 }
-export const taskMark = (t) => (RUN.includes(t.state) ? "↻" : t.state === "failed" ? "✗" : "");
+/** The sign at a card's top right: work, cross, night (a hold for tonight); "" for the rest. */
+export const taskMark = (t, n) => (RUN.includes(t.state) ? "work" : t.state === "failed" ? "cross" : t.state === "held" && n?.waits?.kind === "night" ? "night" : "");
 
-/** The tasks that wait for `src` (they list it in `after`), in the same idea, not done. */
+/** The tasks that wait for `src` (they list it in `after`), in the same goal, not done. */
 export function waitersOf(n, src) {
   return openTasks(n).filter((a) => a.id !== src.id && (a.after || []).includes(src.id));
 }
-
-/** *Only Backend's tasks* and the lists of a member shown alone: the same order as its column, across the field. */
-export function rowsOf(list, per) {
-  const out = [];
-  for (let i = 0; i < list.length; i += per) out.push(list.slice(i, i + per));
+/** The tasks `t` waits for: the ones it lists in `after` that are not done yet. */
+export function waitsForOf(n, t) {
+  return openTasks(n).filter((a) => a.id !== t.id && (t.after || []).includes(a.id));
+}
+/** A card's dependency lines (the spread's, spec 50 §3.6): *<before> waits for <short>* (*waits for the build*), *<after> n wait for it*. [{sign, text}] */
+export function depLines(n, t) {
+  const on = waitsForOf(n, t), by = waitersOf(n, t), out = [];
+  if (on.length) out.push({ sign: "before", text: `waits for ${followsBuild(t, n) ? "the build" : on.map((x) => x.short || x.title).join(", ")}` });
+  if (by.length) out.push({ sign: "after", text: `${by.length} ${by.length === 1 ? "waits" : "wait"} for it` });
   return out;
 }
 
@@ -222,32 +281,17 @@ export function resultsOf(nodes) {
   return all.map((r, i) => [r, i]).sort(([a, i], [b, j]) => String(a.finished || "").localeCompare(String(b.finished || "")) || i - j).map(([r]) => r);
 }
 
-// -- the ideas bar ---------------------------------------------------------------------------------------------------------------------
+// -- the party line ---------------------------------------------------------------------------------------------------------------------
 
-/** *<who> ↻ <task> (<idea>)* for every running task of the ideas at work, the leader reading, else *nothing at work right now*. */
-export function nowLine(nodes, lead, readingTitle) {
+/** What is at work now, for the party line: [{who, task, goal}] for every running task of the goals at work, and the leader reading ([{who, reading}]). */
+export function nowParts(nodes, lead, readingTitle) {
   const bits = [];
-  for (const n of nodes.filter(atWork)) for (const t of n.tasks.filter((x) => RUN.includes(x.state))) bits.push(`${t.by.name} ↻ ${t.short || t.title} (${n.short || n.title})`);
-  if (readingTitle) bits.push(`${lead} ↻ reading “${readingTitle}”`);
-  return bits.length ? bits.join(" · ") : "nothing at work right now";
+  for (const n of nodes.filter(atWork)) for (const t of n.tasks.filter((x) => RUN.includes(x.state))) bits.push({ who: t.by.name, task: t.short || t.title, goal: n.short || n.title });
+  if (readingTitle) bits.push({ who: lead, reading: readingTitle });
+  return bits;
 }
-
-/** An idea at work in the list: its note (§4.2). */
-export function ideaNote(n, lead) {
-  const tasks = n.tasks || [], failed = tasks.filter((t) => t.state === "failed"), run = tasks.filter((t) => RUN.includes(t.state)), held = tasks.filter((t) => t.state === "held");
-  if (failed.length) return { text: `✗ ${failed[0].short || failed[0].title} failed`, tone: "no" };
-  if (run.length) return { text: run.map((t) => `${t.by.name} ↻ ${t.short || t.title}`).join(" · "), tone: "" };
-  if (held.length) return { text: `tonight: ${held[0].short || held[0].title}`, tone: "" };
-  const next = tasks.find((t) => t.state === "ready" || t.state === "waiting");
-  return { text: `Nothing waits for your look. Next: ${n.stage === "checking" ? "Checking" : "Implementation"}${next ? ` by ${next.by.name}` : ""}.`, tone: "" };
-}
-
-/** *in dev · waits for main* or *in main*, by what `ideas.gate` still lists. */
-export function doneWords(n, gate) {
-  const into = gate?.into || "dev", main = gate?.main || "main";
-  const inMain = !!gate && (gate.same || !(gate.ideas || []).some((i) => i.slug === n.slug));
-  return inMain ? `in ${gate.same ? into : main}` : `in ${into} · waits for ${main}`;
-}
+/** The same in plain words (a tooltip): *Backend at work on Credential table (WebAuthn register) · …*, else *nothing at work right now*. */
+export const nowWords = (parts) => (parts.length ? parts.map((b) => (b.reading ? `${b.who} at work reading “${b.reading}”` : `${b.who} at work on ${b.task} (${b.goal})`)).join(" · ") : "nothing at work right now");
 
 // -- the gate -------------------------------------------------------------------------------------------------------------------------
 
@@ -256,7 +300,7 @@ export function gateOf(gate) {
   if (!gate || gate.same) return null;
   const n = (gate.ideas || []).length, waits = gate.commits > 0;
   return { off: !waits, label: `Merge ${gate.into} into ${gate.main}`,
-    words: !waits ? `${gate.main} is up to date` : n ? `${n === 1 ? "1 idea" : `${n} ideas`} in ${gate.into} ${n === 1 ? "waits" : "wait"} for ${gate.main}` : `${plural(gate.commits, "commit", "commits")} in ${gate.into} ${gate.commits === 1 ? "waits" : "wait"} for ${gate.main}` };
+    words: !waits ? `${gate.main} is up to date` : n ? `${n === 1 ? "1 goal" : `${n} goals`} in ${gate.into} ${n === 1 ? "waits" : "wait"} for ${gate.main}` : `${plural(gate.commits, "commit", "commits")} in ${gate.into} ${gate.commits === 1 ? "waits" : "wait"} for ${gate.main}` };
 }
 
 // -- today ---------------------------------------------------------------------------------------------------------------------------------
@@ -286,7 +330,7 @@ export function limitLine(l, reserve, resetOf) {
 export const KIND_WORD = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed",
   op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
 export const isOp = (n) => n.kind === "op" || n.kind === "op_failed" || n.kind === "op_rules";
-const GEM = { plan: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: "✗", op: "·", op_failed: "✗", op_rules: "—" };
+const GEM = { plan: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: { sign: "cross" }, op: "·", op_failed: { sign: "cross" }, op_rules: "—" };
 
 /** The question a row asks first: its `asked` (with the choices and the pick), else its plain text. */
 export const firstAsk = (row, node) => (row.asked?.[0] || node?.asked?.[0] || { ask: row.text, choices: [], pick: null, why: "" });
@@ -301,7 +345,7 @@ export function stopsOf(needs, g, nodes) {
   const failedTasks = (n) => openTasks(n).filter((t) => t.state === "failed");
   const done = new Set();
   const out = [];
-  const taskItem = (n, t) => ({ key: `failed/${n.slug}/${t.id}`, kind: "failed", row: null, node: n, task: t, label: KIND_WORD.failed, gem: "✗", tone: "danger",
+  const taskItem = (n, t) => ({ key: `failed/${n.slug}/${t.id}`, kind: "failed", row: null, node: n, task: t, label: KIND_WORD.failed, gem: { sign: "cross" }, tone: "danger",
     gemTip: "It failed", head: t.head || null, small: true, whoTip: `${t.by.name}’s task`, title: t.short || t.title, full: t.title, text: t.error || "It failed" });
   for (const row of needs.filter((x) => !isOp(x) && x.goal === g?.slug)) {
     const n = byIdea[row.idea] || null;
@@ -346,7 +390,7 @@ export function fanOf(i, n, fanned = true) {
 export function resultStop(r, nodes) {
   const node = nodes.find((n) => n.slug === r.idea) || null, task = node?.tasks.find((t) => t.id === r.task) || null;
   const t = r.tests && !r.check ? r.tests : null;
-  return { key: `result/${r.idea}/${r.task}`, kind: "result", row: null, node, task, result: r, label: "To look at", gem: r.check ? "✓" : t && (t.failed > 0 || t.green === false) ? "✗" : "✓",
+  return { key: `result/${r.idea}/${r.task}`, kind: "result", row: null, node, task, result: r, label: "To look at", gem: { sign: r.check || !(t && (t.failed > 0 || t.green === false)) ? "check" : "cross" },
     tone: "", gemTip: "A result waits for your look", head: task?.head || null, small: true, whoTip: task ? `${task.by.name}’s task` : "", title: r.title, full: r.title,
     text: [r.diff ? `${plural(r.diff.files, "file", "files")}` : "", r.cost != null ? money(r.cost) : ""].filter(Boolean).join(" · ") };
 }

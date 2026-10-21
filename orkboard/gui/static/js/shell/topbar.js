@@ -1,4 +1,4 @@
-// The top bar (docs/specs/33-v1-shell.md §6, spec 49 §3): the project switcher · Orkline · the Target · Agents and Files (the drawer's
+// The top bar (docs/specs/33-v1-shell.md §6, spec 49 §3, spec 50 §3.1): the project switcher · Orkline · the party switch · the Target · Agents and Files (the drawer's
 // panes) · today's Spend · Stop all · the gear. What is left of each AI tool is at the bottom right of the window (arena/limits.js).
 // Roles only: warning at 20 % or less left, danger at 5 % or less (docs/design-system.md).
 import { html } from "../html.js";
@@ -9,6 +9,7 @@ import { track, OPS } from "../board/store.js";
 import { showAgents, showFiles } from "./store.js";
 import { openDialog } from "./modals.js";
 import { ProjectSwitcher, currentProject, projectsOn } from "./projects.js";
+import { PartySwitch } from "../arena/goaltabs.js";
 
 export const WARN = 0.2, DANGER = 0.05;
 
@@ -34,6 +35,7 @@ export function TopBar() {
   return html`<header class="shell-top">
     <${ProjectSwitcher} />
     <span class="shell-top__brand">Orkline</span>
+    ${shown && html`<${PartySwitch} />`}
     ${shown && track.value !== OPS && html`<${TargetChip} />`}
     <span class="shell-top__spacer"></span>
     ${shown && html`<button type="button" class="ork-btn" title="The agents, what each takes and is doing" onClick=${() => showAgents()}>Agents</button>`}

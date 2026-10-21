@@ -157,12 +157,6 @@
 .away__lines p { margin: 0; overflow-wrap: anywhere; }
 .away__foot { display: flex; justify-content: flex-end; }
 .map-foot { flex: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ork-3) var(--ork-5); }
-.map-flags { display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; flex: 1 1 100%; }
-.map-flags__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
-.map-flag { all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--ork-3); width: 100%; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame); }
-.map-flag:hover, .map-flag:focus-visible { border-color: var(--ork-edge); }
-.map-flag__mark { color: var(--ork-success); display: inline-flex; }
-.map-flag__body { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; overflow-wrap: anywhere; }
 
 /* -- the checks a goal's team holds an idea to (idea.js Checks; realm/idea_checks.py) -- */
 .board-checks { display: flex; flex-wrap: wrap; gap: var(--ork-3); align-items: center; margin: var(--ork-3) 0; }
@@ -193,4 +187,3 @@
 
 /* A template's way to going by itself (spec 42 §5): its pips and the words beside them. */
 .board-op__way { display: inline-flex; align-items: center; gap: var(--ork-3); }
-.map-flags__list .shell-party { margin: var(--ork-2) 0 0 var(--ork-5); }

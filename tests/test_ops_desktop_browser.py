@@ -5,6 +5,7 @@ place, Epic changed turns the button into Prepare again) and **Create in Jira**;
 taken in its row; the gear; Needs you's `op` row in another project; the start screen."""
 from __future__ import annotations
 
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -283,12 +284,11 @@ def test_a_held_run_says_why_the_limits_or_the_days_spend_cap(world):
 
 def test_operations_is_in_the_goal_select_and_new_lists_the_templates(world):
     def body(pg, stub):
-        tabs = pg.get_by_role("tablist", name="Goals").get_by_role("tab")
-        assert tabs.last.inner_text().strip() == "Operations"                       # the last tab, after the goals
-        assert pg.get_by_role("button", name="New idea").count() == 1 and pg.get_by_role("button", name="Target:", exact=False).count() == 1
+        tabs = pg.get_by_role("tablist", name="Parties").get_by_role("tab")
+        assert tabs.last.inner_text().strip() == "Operations"                       # the last tab, after the parties
+        assert pg.get_by_role("button", name=re.compile("^New goal")).count() == 1  # the pile of New goal stands under the party's goals
         _operations(pg)
-        assert pg.get_by_role("button", name="New idea").count() == 0               # New… takes the place of New idea and the Target
-        assert pg.locator(".board-target__chip").count() == 0
+        assert pg.get_by_role("button", name=re.compile("^New goal")).count() == 0  # New… takes the place of the pile
         pg.get_by_role("button", name="New…").click()
         menu = pg.get_by_role("menu", name="New operation")
         assert [i.inner_text() for i in menu.get_by_role("menuitem").all()] == ["New Jira task", "Email reply"]

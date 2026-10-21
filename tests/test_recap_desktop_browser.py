@@ -22,7 +22,8 @@ RECAP = {"since": "2026-10-20T03:00:00+00:00", "hours": 9, "into": "dev",
          "merged": {"tasks": 5, "first_time": 4, "ideas": [
              {"slug": "export", "short": "Export notes", "title": "Export notes", "goal": "ship-sync", "done": True},
              {"slug": "dark", "short": "Dark mode", "title": "Dark mode", "goal": "ship-sync", "done": False}]},
-         "flags": [{"goal": "ship-sync", "short": "Ship sync", "title": "Ship sync", "met": True, "by": "Product manager"}],
+         "flags": [{"goal": "ship-sync", "short": "Ship sync", "title": "Ship sync", "met": True, "by": "Product manager"},            # a party's old flag keeps its line
+                   {"goal": "ship-sync", "idea": "export", "short": "Export notes", "title": "Export notes", "met": True, "by": "gate"}],     # a goal's flag (spec 50 §2.4)
          "night": {"drafted": 2, "started": 1, "refreshed": 0, "proposed": 2},
          "proposed": [{"slug": "tags", "short": "Tag the notes", "title": "Tag the notes", "goal": "grow"}],
          "failed": [{"slug": "sync", "short": "Sync ideas", "title": "Sync ideas between the phone and the town", "task": "The table"}],
@@ -63,8 +64,8 @@ def test_a_last_look_nine_hours_old_shows_the_card_at_the_top_of_the_map_with_it
     card.wait_for(timeout=WAIT_MS)
     assert _text(card.locator(".away__title")) == "While you were away · 9 h"
     assert [_text(p) for p in card.locator(".away__lines p").all()] == [
-        "5 results in dev, 4 the first time", "Export notes · done, Dark mode", "Flag raised: Ship sync, met, says Product manager",
-        "The night: drafted 2 ideas, started 1 plan, proposed 2 ideas", "Proposed for you: Tag the notes", "Failed: Sync ideas · The table",
+        "5 results in dev, 4 the first time", "Export notes · done, Dark mode", "Flag raised: Ship sync, met, says Product manager", "Export notes is in main",
+        "The night: drafted 2 goals, started 1 plan, proposed 2 goals", "Proposed for you: Tag the notes", "Failed: Sync ideas · The table",
         "≈$4.20 of work at API prices, not your bill.", "Waits for you: 1 answer, 3 results to check"]
     assert pg.locator(".arena-look__list > *").first.get_attribute("aria-label") == "While you were away"     # at the top of the results' column
     assert pg.locator(".away__failed.ok-tone-error").count() == 1

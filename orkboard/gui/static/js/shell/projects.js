@@ -115,7 +115,7 @@ export function OpenFolderDialog() {
           <button type="button" class="ork-btn" disabled=${choosing || busy} onClick=${() => choose()}>Choose…</button></div>
         ${choosing && html`<p class="ok-font-status ok-tone-muted" role="status">Choose the folder in the dialog that opened, or type its path.</p>`}</div>
       ${why && html`<p class="ok-tone-error" role="alert">${why}</p>`}
-      <p class="ok-font-status ok-tone-muted">The folder becomes a project: its goals, ideas and tasks are kept in it, apart from your other projects.</p>
+      <p class="ok-font-status ok-tone-muted">The folder becomes a project: its parties, goals and tasks are kept in it, apart from your other projects.</p>
       ${recent.length > 0 && html`<div class="shell-field" role="group" aria-label="Recent"><span class="ok-font-label">Recent</span>
         <div class="shell-menu__list">${recent.map((r) => html`<button type="button" key=${r.path} class="shell-menu__item" title=${r.path}
           onClick=${(e) => go(e, r.path)}>${r.name} <span class="ok-tone-muted">${r.path}</span></button>`)}</div></div>`}
@@ -171,7 +171,7 @@ export function StartScreen() {
   const recent = projectList.value.recent;
   return html`<main class="shell-start" aria-label="Start">
     <h1>Open a project</h1>
-    <p class="ok-tone-muted">A project is a repository's folder. Its goals, ideas and tasks are kept in it.</p>
+    <p class="ok-tone-muted">A project is a repository's folder. Its parties, goals and tasks are kept in it.</p>
     <p><button class="ork-btn primary" onClick=${() => openDialog("open-folder")}>Open folder…</button>
       <span class="ok-tone-muted"> Ctrl+O</span></p>
     ${recent.length > 0 && html`<section class="shell-start__recent" aria-label="Recent"><h2 class="ok-font-label">Recent</h2>

@@ -42,7 +42,7 @@ export function weekWords(role) {
 /** A checker's check of the last 7 days, the end of its muted line (spec 43 §4.1): *its check: 6 ideas, caught 2*; "" before one. */
 export function checkWords(role) {
   const c = role.check_week;
-  return c && c.checks > 0 ? `its check: ${c.checks} ${c.checks === 1 ? "idea" : "ideas"}, caught ${c.caught}` : "";
+  return c && c.checks > 0 ? `its check: ${c.checks} ${c.checks === 1 ? "goal" : "goals"}, caught ${c.caught}` : "";
 }
 
 /** A role's words for a screen reader: "Docs scribe: an elf, Design, Seasoned; up to 2 at once; about $0.40 a task". */
