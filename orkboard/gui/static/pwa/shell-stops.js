@@ -128,7 +128,7 @@ export function makeStops(core, ctx, needs, ops) {
   function opItem(n) {
     const failed = n.kind === "op_failed";
     return { key: `${n.kind}:${n.op || n.template}`, kind: n.kind, cls: failed ? "is-fail" : "", tone: failed ? "danger" : "", title: n.title, sig: n,
-      gem: failed ? { text: "✗", cls: "danger", tip: "It failed" } : { text: n.kind === "op_rules" ? "—" : "·", tip: "" }, text: n.text || "", quickLabel: "Quick moves",
+      gem: failed ? { text: "✗", cls: "danger", tip: "It failed" } : { text: n.kind === "op_rules" ? "—" : "·", tip: "" }, text: [n.text, n.kind === "op" ? n.why : ""].filter(Boolean).join(" · "), quickLabel: "Quick moves",
       open: null, quick: () => [btn("Open…", away(() => (n.kind === "op" ? ops.openCheck(n.op) : failed ? ops.openRun(n.op) : ops.openProposal(n))), { primary: true, attrs: { "data-act": "open-op" } })] };
   }
 

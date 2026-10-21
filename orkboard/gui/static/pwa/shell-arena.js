@@ -58,9 +58,11 @@ export function makeArena(core, ctx, parts) {
       c.working ? h("span", { class: "muted", "aria-hidden": "true" }, "↻") : null);
     };
     const hasOps = st.snap?.ops_rev !== undefined && (!st.ops || (st.ops.templates || []).length || (st.ops.runs || []).length);
+    const opStops = (st.board?.needs_you || []).filter((n) => n.kind.startsWith("op")).length;           // what waits in Operations is seen from every goal
     return h("nav", { class: "gchips", "aria-label": "Goals" }, ...list.map(chip),
-      hasOps ? h("button", { class: `gchip${st.view === OPS_VIEW ? " is-on" : ""}`, type: "button", "data-goal": OPS_VIEW, "aria-pressed": String(st.view === OPS_VIEW), onclick: pickOps },
-        h("span", { class: "gchip__name" }, "Operations")) : null);
+      hasOps ? h("button", { class: `gchip${st.view === OPS_VIEW ? " is-on" : ""}`, type: "button", "data-goal": OPS_VIEW, "aria-pressed": String(st.view === OPS_VIEW),
+        "aria-label": `Operations${opStops ? `, ${plural(opStops, "stop waits", "stops wait")} for you` : ""}`, onclick: pickOps },
+      h("span", { class: "gchip__name" }, "Operations"), opStops ? h("span", { class: "ork-count warning" }, String(opStops)) : null) : null);
   }
 
   // -- the goal's header: its flag, its title and numbers, the gate ------------------------------------------------------------------------------------
@@ -147,7 +149,7 @@ export function makeArena(core, ctx, parts) {
     const card = cards.section(st.cards[0]);
     const lead = card ? [card] : [];
     if (!st.board && st.boardError) {                       // no project open: Operations is the person's, so it is offered all the same
-      el.replaceChildren(...lead, chipRow([], ""), h("div", { class: "ops-view" }, h("p", { class: "muted" }, st.boardError), ...ops.section()));
+      el.replaceChildren(...lead, chipRow([], ""), h("p", { class: "muted arena-empty" }, st.boardError), opsView());
       return;
     }
     if (!st.board || (!st.map && !st.mapError)) { el.replaceChildren(...lead, h("p", { class: "muted arena-empty" }, "Loading…")); return; }
