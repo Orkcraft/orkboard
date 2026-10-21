@@ -1,6 +1,6 @@
 // What waits for you, along the bottom (docs/specs/49-one-window.md §6, §10.6, §11): the stops of the goal shown (a plan, a question, a proposal, a to-do, a
 // failure) and, after them, the results to look at, fanned across the whole width and centred, only their tops showing (56 px, no line over them; no count: the fan is
-// the count). The create button floats over the field, not here (shell-dial.js). A tap pops one out: it leaps from its place in the
+// the count). The create button floats over the field, not here (shell-fab.js). A tap pops one out: it leaps from its place in the
 // fan to a raised sheet above the scrim (in steps, none under reduced motion; its place in the fan stays empty while it is up) with its gem, its kind, its head, its
 // title and text, its quick answers as 44 px buttons and *Open it on its own screen*. A tap on the scrim lays it back. The answers are the commands Needs you had:
 // a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped. Each wears its goal's element

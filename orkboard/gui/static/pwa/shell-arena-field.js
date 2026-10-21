@@ -1,5 +1,5 @@
 // The field of the party's window (docs/specs/49-one-window.md §5, §10.5, §11; spec 50 §3.4, §3.5, §6.5, §6.6): under the stage switch the party's members (a small framed row: the head wearing three
-// signs, three short lines) and, running down from each toward the bottom row, its open tasks in **rows by phase** — *now* (a task at its goal's current wave), *next*, *later* — and in each row one
+// signs, three short lines) and, under each, its column: its open tasks in **rows by phase** — *now* (a task at its goal's current wave), *next*, *later* — and in each row one
 // **stack** per goal: the front card (132 × 185, its goal's element top left), one or two edges behind it and *×n*; at the far end *✓ k in dev*. A press on a stack of one opens it, on a stack of more
 // spreads it (shell-spread.js). A tap on a member shows only its work under the row, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
 // Motion says what changed (shell-motion.js): a stack that was not there rises into its column, one that left (merged ✓, dropped ✗, or put away by the filter, with no sign) fades where it stood and
@@ -13,9 +13,9 @@ import { deckNode } from "./shell-decks.js";
 import { makeSpread } from "./shell-spread.js";
 import { motionOn, measure, play, settle, pulse, makeHolds } from "./shell-motion.js";
 
+const FEW = 2;                                       // members or fewer: the columns share the width, no scroll
 const GHOSTS = 3;                                    // stacks that leave with the animation in one refresh; the rest simply go
 const GHOST_MS = 300;                                // a leaving stack fades where it stood this long
-const COL_PX = 116, GAP_PX = 6, SIDE_PX = 24;       // a member's column (three fit across at 390 px), the gap between, both sides of the field
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 
 /** `core`: the board's frame (open, st, draw); `hooks`: {process()}. Returns {el, draw(model, ui, bands)}. */
@@ -168,7 +168,7 @@ export function makeField(core, hooks) {
       const before = !quiet && sameUi ? measure(el) : null;
       const old = new Map([...el.querySelectorAll(".stack[data-column]")].map((s) => [s.dataset.column, s]));
       for (const [key, s] of old) scrolled.set(key, s.scrollTop);
-      const left = el.querySelector(".arena-scroll")?.scrollLeft || 0;
+      const left = sameUi ? el.querySelector(".arena-scroll")?.scrollLeft || 0 : 0;       // the strip stays where it was scrolled, unless another party, stage or member is shown
       const shown = ui.band === "lead" ? [model.lead].filter(Boolean) : ui.band === "build" ? model.build : model.check;
       const members = [...model.build, ...model.check];
       const rows = new Map(members.map((m) => [m.slug, rowsFor(model, m, ui)]));
@@ -180,15 +180,10 @@ export function makeField(core, hooks) {
         if (was && sameUi && holds.held(was)) { held.add(m.slug); return was; }   // under a finger or the focus: it waits
         return m.band === "lead" ? planningColumn(model, ui) : memberColumn(model, m, ui, rows.get(m.slug));
       });
-      const tpl = shown.map(() => "minmax(0, 1fr)");
-      const wide = shown.length * COL_PX + GAP_PX * Math.max(0, shown.length - 1) + SIDE_PX;
-      const grid = h("div", { class: "cgrid" }, ...cols);
-      const row = h("div", { class: "tokens" }, ...shown.map((m) => memberCard(m, ui)));
-      grid.style.setProperty("--cols", tpl.join(" "));
-      row.style.setProperty("--cols", tpl.join(" "));
-      const inner = h("div", { class: "arena__in" }, row, grid);
-      inner.style.minWidth = `${wide}px`;
-      const wrap = h("div", { class: "arena-scroll" }, inner);
+      // The members and their columns are one sideways strip (spec 50 §6.5): a member with its column, 148 px wide, snapped to a column's start, the third peeking at 390 px; with two or fewer
+      // there is no scroll and the columns share the width. A card is 132 × 185 in both.
+      const strip = h("div", { class: `strip${shown.length <= FEW ? " is-few" : ""}` }, ...shown.map((m, i) => h("div", { class: "pair" }, memberCard(m, ui), cols[i])));
+      const wrap = h("div", { class: "arena-scroll" }, strip);
       const focus = shown.find((m) => m.slug === ui.focus);
       spread.still((key) => cur.has(key));                                   // a spread whose stack is gone closes itself
       el.replaceChildren(...[bands, wrap, focus ? solo(model, focus, ui) : null, spread.node()].filter(Boolean));

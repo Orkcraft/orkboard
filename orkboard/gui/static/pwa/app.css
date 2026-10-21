@@ -99,12 +99,19 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .board { display: flex; flex-direction: column; gap: 0; min-height: 100dvh; }
 .board-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--ork-1); margin: 0; padding: max(var(--ork-1), env(safe-area-inset-top)) var(--ork-1) var(--ork-1);
   background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); }
-.board-name { all: unset; box-sizing: border-box; cursor: pointer; flex: 0 1 auto; min-width: 0; min-height: var(--ork-tap); padding: 0 var(--ork-4); display: inline-flex; align-items: center;
-  gap: var(--ork-3); overflow: hidden; }                   /* the project's name opens the Projects sheet */
+.board-name { all: unset; box-sizing: border-box; cursor: pointer; flex: 0 1 auto; min-width: 0; min-height: var(--ork-tap); padding: 0 var(--ork-3); display: inline-flex; align-items: center;
+  gap: var(--ork-2); overflow: hidden; font: 400 12px/16px var(--ork-font-text); }      /* the *where* button: the project, the party, what waits; it opens the parties' sheet (shell-where.js) */
 .board-name:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
 .board-bar .spacer { flex: 1 1 auto; }
-.board-project { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px/16px var(--ork-font-text); }
+.where__project { flex: 0 8 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink-muted); }
+.where__sep { flex: none; color: var(--ork-ink-faint); }
+.where__head { flex: none; display: inline-flex; }
+.where__head .ork-race__head { width: 20px; height: 18px; }              /* the leader's head: an accent, a little smaller than orkUI's own 24 x 22 */
+.where__party { flex: 0 1 auto; min-width: 2ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink); font-weight: 600; }
+.board-name .ork-count { flex: none; }
+.where.is-bare .where__sep { display: none; }
 .board-bar .ork-btn, .board-bar .limit-chip { flex: none; }
+.menu-today { gap: var(--ork-3); }
 .board-bar .ork-btn.gear { min-width: var(--ork-tap); padding: 0 var(--ork-3); }
 .board-spend { flex: 1 0 100%; order: 9; margin: 0; font-variant-numeric: tabular-nums; }
 .board-spend b { color: var(--ork-ink); }
@@ -528,24 +535,13 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 
 
 /* -- the goal's window (shell-arena.js, spec 49 §10): orkUI's tokens and parts alone; the fan's turn, rise, order and overlap (--rot, --dy, --z, --ov) and the
-      columns' template (--cols) are the only variables of its own (tests/test_design_system.py) ----------------------------------------------------------------- */
+      columns' template are the only variables of its own (tests/test_design_system.py) ----------------------------------------------------------------- */
 .today { gap: var(--ork-1); padding: 0 var(--ork-2); }
 .today .ork-count { min-width: 20px; }
 .arena { position: relative; z-index: 3; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }   /* its own stacking: the ideas list rises over the field, the bar (4), the stops (8) and a screen (10) over it */
 .arena-empty { padding: var(--ork-6); text-align: center; }
 .arena .ork-card.away { margin: var(--ork-4); }
 .ops-view { display: flex; flex-direction: column; gap: var(--ork-4); padding: var(--ork-5) var(--ork-5) var(--ork-8); }
-
-.gchips { flex: none; display: flex; gap: var(--ork-4); min-height: 56px; padding: var(--ork-3) var(--ork-4); overflow-x: auto; scrollbar-width: none; box-sizing: border-box;
-  border-bottom: var(--ork-line) solid var(--ork-frame); }
-.gchips::-webkit-scrollbar { display: none; }
-.gchip { appearance: none; flex: none; display: flex; align-items: center; gap: var(--ork-4); height: var(--ork-tap); padding: 0 var(--ork-5); box-sizing: border-box;
-  border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); background: none; color: var(--ork-ink-muted); font: 400 13px/18px var(--ork-font-text); cursor: pointer; white-space: nowrap; }
-.gchip b { font-weight: 600; }
-.gchip__name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
-.gchip .ork-race__head { width: 20px; height: 18px; }          /* the leader's head: an accent, a little smaller than orkUI's own 24 x 22 */
-.gchip.is-on { background: var(--ork-raised); color: var(--ork-ink); border-color: var(--ork-edge); box-shadow: inset 0 -2px 0 var(--ork-ink); }
-.gchip:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 
 /* the goals bar under the party's line, and the Goals sheet (shell-goals.js, spec 50 §6.4) */
 .gbar { flex: none; display: flex; align-items: center; height: var(--ork-tap); border-bottom: var(--ork-line) solid var(--ork-frame); }
@@ -604,13 +600,19 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .band__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .band.is-on { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
 .band:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.arena-scroll { flex: 1 1 0; min-height: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+/* the members and their columns: one sideways strip (spec 50 §6.5) — a member with its column, 148 px wide, snapped to a column's start, the third peeking at 390 px, no scrollbar drawn;
+   with two or fewer the columns share the width and nothing scrolls. A card is 132 x 185 in both. */
+.arena-scroll { flex: 1 1 0; min-height: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x mandatory; scroll-padding: 0 var(--ork-5); overscroll-behavior-x: contain; }
 .arena-scroll::-webkit-scrollbar { display: none; }
-.arena__in { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; padding: 0 var(--ork-5); }
-.cgrid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); }
-.stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0; overflow-y: auto; scrollbar-width: none; }
+.strip { height: 100%; display: flex; gap: var(--ork-3); box-sizing: border-box; width: max-content; min-width: 100%; padding: 0 var(--ork-5); }
+.strip.is-few { width: auto; }
+.pair { position: relative; flex: none; width: 148px; min-height: 0; display: flex; flex-direction: column; scroll-snap-align: start; }
+.strip.is-few .pair { flex: 1 1 0; width: auto; min-width: 0; }
+.pair:not(:last-child)::after { content: ""; position: absolute; left: 100%; top: 74px; width: var(--ork-3); height: var(--ork-line); background: var(--ork-frame); }      /* the line under the members goes on across the gap */
+.pair > .token { flex: none; width: auto; height: 54px; margin: var(--ork-4) var(--ork-2) 12px; }
+.stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0 88px; overflow-y: auto; scrollbar-width: none;
+  border-top: var(--ork-line) solid var(--ork-frame); }   /* 88 px of room at the far end: the create button's deck floats over it and covers no task */
 .stack::-webkit-scrollbar { display: none; }
-.cgrid > .stack:last-child { padding-bottom: 64px; }       /* the create button floats over the far end of the queues: it covers no task */
 .stack.is-col { background: var(--ork-raised); }
 .stack__empty { flex: none; text-align: center; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
 .stack__done { flex: none; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); }
@@ -649,7 +651,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .phase__lbl { position: absolute; left: 0; top: 0; font: 400 10px/12px var(--ork-font-text); color: var(--ork-ink-faint); text-transform: uppercase; letter-spacing: 0.06em; }
 .phase.is-wrap { flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: center; column-gap: var(--ork-6); }
 .phase.is-wrap .deck { width: 132px; }
-.deck { appearance: none; position: relative; flex: none; width: min(132px, calc(100% - 20px)); padding: 0; border: 0; background: none; text-align: left; color: inherit; cursor: pointer; font: inherit; }
+.deck { appearance: none; position: relative; flex: none; width: 132px; padding: 0; border: 0; background: none; text-align: left; color: inherit; cursor: pointer; font: inherit; }
 .deck.is-many { margin: var(--ork-4) var(--ork-4) 0 0; }                  /* room for the edges behind it, up and to the right */
 .deck:focus-visible { outline: 0; }
 .deck:focus-visible .tcard { box-shadow: inset 0 0 0 2px var(--ork-ink); }
@@ -688,7 +690,6 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .spread__card:focus-visible .tcard { box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .spread__dep { display: block; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink); }
 
-.tokens { flex: none; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); height: 66px; margin-top: var(--ork-4); padding-bottom: var(--ork-4); box-sizing: border-box; border-bottom: var(--ork-line) solid var(--ork-frame); }   /* the members stand at the top of their columns, under the stage switch */
 /* a member: a small framed row filling its column, its head wearing three signs (spec 49 §5.2): the level top-left, the tool bottom-left, its state top-right */
 .token { appearance: none; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; max-width: 100%; min-width: 0; margin: 0 auto;
   padding: 6px 6px 6px 9px; box-sizing: border-box; background: none; border: 0; color: inherit; clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
@@ -717,7 +718,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .solo__card { flex: none; display: flex; align-items: center; gap: var(--ork-5); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
 .solo__info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .solo__info b { font-weight: 600; }
-.solo__body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-4) var(--ork-5) 64px; overflow-y: auto; scrollbar-width: none; }
+.solo__body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-4) var(--ork-5) 88px; overflow-y: auto; scrollbar-width: none; }
 .solo__body::-webkit-scrollbar { display: none; }
 .solo__empty { text-align: center; margin: 0; }
 
@@ -727,12 +728,18 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .hand { position: absolute; left: 0; right: 0; top: var(--ork-3); display: flex; justify-content: center; pointer-events: none; }   /* the whole width, centred */
 .handzone__empty { position: absolute; left: 0; right: 0; top: 18px; margin: 0; text-align: center; }
 /* the create button floats over the field's bottom right, 10 px above the bottom row, under a screen (z 10) and a sheet (the top layer) */
-.fab { all: unset; box-sizing: border-box; cursor: pointer; position: fixed; right: 12px; bottom: calc(var(--tabs) + 10px + env(safe-area-inset-bottom)); z-index: 9; width: 48px; height: 48px; display: flex; align-items: center;
-  justify-content: center; clip-path: var(--ork-notch); background: var(--ork-action); color: var(--ork-on-ink); }
+/* the create button: a small face-down deck (shell-fab.js, spec 50 §6.7): two edges behind a back with the plus mark, the action colour's edge */
+.fab { all: unset; box-sizing: border-box; cursor: pointer; position: fixed; right: 16px; bottom: calc(var(--tabs) + 10px + env(safe-area-inset-bottom)); z-index: 9; width: 48px; height: 64px; }
 .fab[hidden] { display: none; }
-.fab:active { background: var(--ork-action-hi); }
-.fab:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.fab .ork-icon { width: 28px; height: 28px; }
+.deckfab__edge { position: absolute; width: 44px; height: 60px; box-sizing: border-box; background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-action); clip-path: var(--ork-notch); }
+.deckfab__edge.e1 { right: 2px; top: 2px; }
+.deckfab__edge.e2 { right: 0; top: 0; }
+.deckfab__back { position: absolute; left: 0; bottom: 0; width: 44px; height: 60px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; z-index: 1; color: var(--ork-action);
+  border: 2px solid var(--ork-action); clip-path: var(--ork-notch); background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
+.fab:active .deckfab__back { background: var(--ork-action); color: var(--ork-on-ink); }
+.fab:focus-visible { outline: 0; }
+.fab:focus-visible .deckfab__back { box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.deckfab__back .ork-icon { width: 24px; height: 24px; }
 .hc { pointer-events: auto; appearance: none; position: relative; flex: none; display: flex; flex-direction: column; align-items: stretch; width: 104px; height: 150px; margin: 0 calc(-1 * var(--ov));
   padding: 5px; box-sizing: border-box; background: var(--ork-panel); border: var(--ork-double) double var(--ork-alert); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left;
   cursor: pointer; z-index: var(--z); transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; font: inherit; }
@@ -776,31 +783,12 @@ dialog.raised-dlg::backdrop { background: var(--ork-scrim); }
 .raised__quick .result-actions { display: flex; flex-direction: column; gap: var(--ork-1); }
 .raised__quick .linkish { align-self: center; }
 
-/* the create dial: three items above the button, over a scrim (shell-dial.js) */
-dialog.dial-dlg { position: fixed; inset: 0; margin: 0; padding: 0; border: 0; width: 100%; height: 100%; max-width: none; max-height: none; background: transparent; color: var(--ork-ink); overflow: visible; }
-dialog.dial-dlg::backdrop { background: var(--ork-scrim); }
-.dial { position: absolute; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: var(--ork-4); }
-.dial .fab { position: static; }
-.dial__item { appearance: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-height: 48px; min-width: 200px; padding: 5px var(--ork-5); box-sizing: border-box;
-  background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: right; font: inherit; cursor: pointer; }
-.dial__item b { font: 500 15px/18px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }
-.dial__item.is-main { border-color: var(--ork-action); }
-.dial__item.is-main b { color: var(--ork-action); }
-.dial__item:disabled { border-style: dashed; border-color: var(--ork-ink-faint); color: var(--ork-ink-faint); cursor: default; }
-.dial__sub { font: 400 12px/15px var(--ork-font-text); color: var(--ork-ink-muted); }
-.dial__item:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
-
-/* the party's line under the chips: one quiet line, the gate at its right (shell-party.js, spec 50 §6.3) */
-.pbar { flex: none; display: flex; align-items: center; gap: var(--ork-2); height: var(--ork-tap); padding: 0 var(--ork-2); border-bottom: var(--ork-line) solid var(--ork-frame); }
-.pbar__about { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; height: var(--ork-tap); padding: 0 var(--ork-4); display: flex; align-items: center; gap: var(--ork-5);
-  color: var(--ork-ink-faint); font: 400 12px/16px var(--ork-font-text); }
-.pbar__about:focus-visible, .pbar__gate:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.pbar__line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pbar__about .ork-chev { margin-left: auto; color: var(--ork-ink-faint); }
-.pbar__gate { all: unset; box-sizing: border-box; cursor: pointer; flex: none; height: var(--ork-tap); padding: 0 var(--ork-4); display: inline-flex; align-items: center; gap: var(--ork-3); white-space: nowrap;
+/* the gate, quiet, at the right of the goals bar (shell-party.js, spec 50 §6.2) */
+.gbar__gate { all: unset; box-sizing: border-box; cursor: pointer; flex: none; height: var(--ork-tap); padding: 0 var(--ork-4); display: inline-flex; align-items: center; gap: var(--ork-3); white-space: nowrap;
   color: var(--ork-ink-muted); font: 400 12px/16px var(--ork-font-text); }
-.pbar__gate:disabled { color: var(--ork-ink-faint); cursor: default; }
-.pbar__gate .ork-count { color: var(--ork-ink); }
+.gbar__gate:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.gbar__gate:disabled { color: var(--ork-ink-faint); cursor: default; }
+.gbar__gate .ork-count { color: var(--ork-ink); }
 .flagline { flex: none; display: flex; align-items: center; min-height: var(--ork-tap); padding: 0 var(--ork-1) 0 var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-raised);
   font: 400 12px/16px var(--ork-font-text); }
 .flagline__body { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; min-height: var(--ork-tap); display: flex; align-items: center; gap: var(--ork-4); }
@@ -812,6 +800,19 @@ dialog.dial-dlg::backdrop { background: var(--ork-scrim); }
 dialog.sheet.top { margin: 0 0 auto; border-top: 0; border-bottom: var(--ork-double) double var(--ork-edge); }
 .projects .project-list { gap: var(--ork-3); }
 .projects .project-row { border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); }
+/* the *where* sheet: the project's parties as rows, + New party, then the other projects (shell-where.js, spec 50 §6.1) */
+.where-parties { display: flex; flex-direction: column; gap: var(--ork-3); }
+.where-row { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--ork-4); min-height: 52px; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame);
+  clip-path: var(--ork-notch); color: var(--ork-ink); }
+.where-row.is-on { background: var(--ork-raised); border-color: var(--ork-ink); box-shadow: inset 2px 0 0 var(--ork-ink); }
+.where-row:focus-visible, .where-new:focus-visible, .goals__about:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.where-row__head { flex: none; width: 24px; height: 22px; }
+.where-row__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.where-row__body b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.where-new { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: var(--ork-1); min-height: 52px; margin-top: var(--ork-3); padding: var(--ork-3) var(--ork-4);
+  border: var(--ork-line) dashed var(--ork-edge); color: var(--ork-ink); }
+.projects-block h3 { margin: var(--ork-6) 0 var(--ork-3); }
+.goals__about { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); min-height: var(--ork-tap); width: 100%; color: var(--ork-ink); }
 .party-about { display: flex; flex-direction: column; gap: var(--ork-2); }
 .party-about__who { all: unset; box-sizing: border-box; cursor: pointer; min-height: var(--ork-tap); display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
 .party-about__who:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }

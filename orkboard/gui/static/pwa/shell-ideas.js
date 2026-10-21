@@ -1,6 +1,6 @@
 // New goal on the phone (docs/specs/35-goals-window.md §3, spec 50 §6.7): the full-screen form the blank card opens — *A blank goal*, *for Tech · the Taskmaster reads it next*, the element it will
 // get (shown, never named), *Its title*, *What it is for* (with the party's words to complete with, Photo and the mic mark at its corner: shell-idea-field.js), the party, the lens of its party
-// (shell-lens.js), the priority, and *Add the goal* · *Put it back* at the foot — opened by the create dial's *New goal*. A goal is `ideas.add`'s `text`: its title is the first line of it. A goal's
+// (shell-lens.js), the priority, and *Add the goal* · *Put it back* at the foot — opened by the create button, the deck's, *New goal*. A goal is `ideas.add`'s `text`: its title is the first line of it. A goal's
 // state in words (`rowState`) is said the same in the leader's column and on its screen.
 import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
