@@ -555,7 +555,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 
 .ghead { flex: none; display: flex; align-items: center; gap: var(--ork-6); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) dashed var(--ork-frame); }
 .ghead .tport { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 44px; margin-bottom: var(--ork-3); }
-.ghead .tport .ork-stat { position: absolute; bottom: -8px; right: -16px; }
+.ghead .tport .ork-stat { position: absolute; bottom: -8px; right: -8px; }
 .trail-flag { display: inline-flex; padding: var(--ork-2); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); color: var(--ork-ink-muted); }
 .trail-flag .ork-icon { width: 28px; height: 28px; }
 .trail-flag.is-met { color: var(--ork-success); border-color: var(--ork-success); }
