@@ -1,7 +1,8 @@
 """The keeper's reading of a goal (spec 34 §1, spec 35 §2): a goal saved is sent to the keeper at once, read-only, on
 the Target's `goal` step — it writes the title (unless the person typed one), the Summary every idea under the goal
-starts from, 1–3 measurable Metrics with how each is counted, at most 8 links that exist, and 0–3 questions; `read_at`
-is the commit it read (the night's refresh, core/idea_night.py). Split from `idea_keeper.py` (the module's size).
+starts from, at most 8 links that exist, and 0–3 questions; `read_at` is the commit it read (the night's refresh,
+core/idea_night.py). It asks no metrics (spec 50 §2.5: a party has no end) and reads none from the answer; the metrics a
+goal has from before stay on its page and are passed on as written. Split from `idea_keeper.py` (the module's size).
 
     keeper.read_goal(slug)             # in the background; the goal is `reading`, then `asks` or `ready`
     keeper.read_goal(slug, "answer")   # the person answers its questions: the talk of an idea's, on a goal
@@ -55,7 +56,6 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
 {"title": "a title of at most 60 characters",
  "short": "its name in two or three words, 24 characters at most",
  "summary": "5 to 12 lines: what the goal means for this repository, the modules and files it touches (as repository paths), what exists already, the constraints",
- "metrics": [{"name": "done when …: one to three, each measurable", "target": "the number or state", "how": "how it is counted, and where"}],
  "links": ["at most 8 repository paths or Wiki pages you read and found relevant"],
  "questions": [{"ask": "zero to three questions the person must answer to make the goal clear, all at once: only what changes it, never what the repository already answers", "choices": ["two to four likely answers, each at most 40 characters"], "pick": "the index of the one you recommend", "why": "one line: why that one"}],
  "reply": "one short line to the person (only when they said something)"}
@@ -65,7 +65,7 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
         """Send a goal to the keeper at once (read-only, on the Target's `goal` step), or its answer to the person's words;
         `answered`: the person answered its questions (§0's one round: it asks nothing more)."""
         if not any(t["slug"] == slug for t in ideas.tracks(self.wiki_root())):
-            raise _kw().KeeperError("That goal is gone")
+            raise _kw().KeeperError("That party is gone")
         said = str(said or "").strip()[:ideas.SECTION_CHARS]
         if why := self._may_run():
             ideas.save_goal_state(self.state_dir, slug, state="raw", error=why)
@@ -121,22 +121,12 @@ fetched. {self.reads(step, list(dict.fromkeys(paths)))}
         except Exception as e:
             ideas.save_goal_state(self.state_dir, slug, state="raw", error=kw._why(e), measure=self.measure())
             return
-        how: dict[str, str] = {}
-        metrics = []
-        for i, m in enumerate(answer.get("metrics") if isinstance(answer.get("metrics"), list) else []):
-            if not isinstance(m, dict):
-                continue
-            if kw._words(m.get("how"), 300):
-                how[kw._words(m.get("name"), 300) or str(i)] = kw._words(m.get("how"), 300)
-            if kw._words(m.get("name"), 300):
-                metrics.append({k: kw._words(m.get(k), 300) for k in ("name", "target", "how")})
         asked = [] if answered else idea_questions.all_of(answer.get("questions"), MAX_QUESTIONS)
         questions = [idea_questions.line(q) for q in asked]
         links = self._links_found(root, kw._strings(answer.get("links"), 20, 300)) if "links" in answer else None
         title = kw._words(answer.get("title"), ideas.TITLE_KEEPER)
-        ideas.write_goal_reading(root, slug, kw._words(answer.get("summary"), 3000), how, questions, title=title,
-                                 metrics=metrics, links=links,
-                                 short=short_said(answer.get("short"), title) if title else "")
+        ideas.write_goal_reading(root, slug, kw._words(answer.get("summary"), 3000), {}, questions, title=title, links=links,
+                                 short=short_said(answer.get("short"), title) if title else "")      # its metrics of before stay as written
         if said and (reply := kw._words(answer.get("reply"), REPLY_CHARS)):
             ideas.add_turn(self.state_dir, slug, "keeper", reply, goal=True)
         tier, effort = self.picked()

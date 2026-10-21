@@ -34,7 +34,7 @@ def decode(photos: object) -> list[bytes]:
     if not isinstance(photos, list):
         raise ValueError("Photos are a list")
     if len(photos) > MAX_PHOTOS:
-        raise ValueError(f"At most {MAX_PHOTOS} photos go with an idea")
+        raise ValueError(f"At most {MAX_PHOTOS} photos go with a goal")
     out = []
     for p in photos:
         data = p.get("data") if isinstance(p, dict) else None

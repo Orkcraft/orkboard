@@ -44,9 +44,9 @@ def test_a_check_that_found_nothing_in_its_last_checks_is_said_from_eight_with_n
 
 def test_a_check_that_seldom_applies_to_the_craft_says_when_it_checks(host):
     assert hints(host, "data", "analyst", ["data-engineer", "accessibility-reviewer"]) == [
-        "Accessibility reviewer seldom checks a Data goal: it checks when the idea changes what people see or use."]
+        "Accessibility reviewer seldom checks a Data party: it checks when the idea changes what people see or use."]
     assert hints(host, "engineering", "architect", ["grunt", "editor"]) == [
-        "Editor seldom checks an Engineering goal: it checks when the idea adds or changes text people read."]               # an, before a vowel
+        "Editor seldom checks an Engineering party: it checks when the idea adds or changes text people read."]               # an, before a vowel
     assert hints(host, "", "architect", ["grunt", "editor"]) == []                                  # a Mixed goal has no craft to leave out
 
 
@@ -65,7 +65,7 @@ def test_their_order_and_at_most_two(host):
     got = hints(host, "data", "analyst", ["accessibility-reviewer", "editor"])                       # two checks that seldom apply, and no builder
     assert len(got) == 2 and got[0].startswith("Accessibility reviewer seldom") and got[1].startswith("Editor seldom")
     got = hints(host, "engineering", "architect", ["editor"])                                         # a check that seldom applies, no code, no builder
-    assert got == ["Editor seldom checks an Engineering goal: it checks when the idea adds or changes text people read.", NO_CODE]
+    assert got == ["Editor seldom checks an Engineering party: it checks when the idea adds or changes text people read.", NO_CODE]
 
 
 def test_a_person_s_own_agent_that_takes_code_counts(host):
@@ -78,7 +78,7 @@ def test_a_person_s_own_agent_that_takes_code_counts(host):
 def test_ideas_party_price_answers_the_hints_with_the_craft(host):
     got = host.command("ideas.party_price", {"leader": "analyst", "team": ["accessibility-reviewer"], "craft": "data"})
     json.dumps(got)
-    assert got["hints"] == ["Accessibility reviewer seldom checks a Data goal: it checks when the idea changes what people see or use.", NO_BUILDERS]
+    assert got["hints"] == ["Accessibility reviewer seldom checks a Data party: it checks when the idea changes what people see or use.", NO_BUILDERS]
     assert host.command("ideas.party_price", {"leader": "analyst", "team": ["accessibility-reviewer"]})["hints"] == [NO_BUILDERS]       # no craft: no craft hint
     assert host.command("ideas.party_price", {"leader": "architect", "team": ["grunt", "tester", "reviewer"], "craft": "engineering"})["hints"] == []
     assert host.command("ideas.party_price", {"craft": "nonsense", "leader": "taskmaster", "team": ["grunt"]})["hints"] == []

@@ -176,7 +176,7 @@ class BoardMixin:
         window. From now on it is the runner's."""
         plan = ideas.plan(self.state_dir, slug)
         if plan is None:
-            raise IdeasError("This idea has no plan yet: Take it to work first")
+            raise IdeasError("This goal has no plan yet: Take it to work first")
         runner = self.runner(need=True)
         if not plan.get("passed_at"):
             page = ideas.idea_page(self.root(), slug)
@@ -244,7 +244,7 @@ class BoardMixin:
         if q not in ("now", "night"):
             raise IdeasError("The queue is now or night")
         if ideas.idea_page(self.root(), slug) is None:
-            raise IdeasError("That idea is gone")
+            raise IdeasError("That goal is gone")
         if q == "now":
             try:
                 self.keeper.read_now(slug)
@@ -252,7 +252,7 @@ class BoardMixin:
                 raise IdeasError(str(e)) from None
         else:
             if self._state(slug)["state"] != "raw":
-                raise IdeasError("Only a new idea waits for the night")
+                raise IdeasError("Only a new goal waits for the night")
             ideas.save_state(self.state_dir, slug, queue="night", held_until="", error="", night_by="person")      # Tonight is the person's
         self._ev(event_log.IDEA_QUEUED, args, idea=slug, queue=q, via=_via(args))
         self.changed(slug)
@@ -261,7 +261,7 @@ class BoardMixin:
     def read_stop(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)
         if ideas.idea_page(self.root(), slug) is None:
-            raise IdeasError("That idea is gone")
+            raise IdeasError("That goal is gone")
         self.keeper.read_stop(slug)
         self.changed(slug)
         return {"ok": True}
@@ -279,7 +279,7 @@ class BoardMixin:
         if args.get("goal") is True:
             g = next((t for t in ideas.tracks(self.root(), make=False) if t["slug"] == slug), None)
             if g is None:
-                raise IdeasError("That goal is gone")
+                raise IdeasError("That party is gone")
             if decide:
                 answers = idea_questions.picks(g["questions"])
             said = "\n".join(f"{q} — {(answers[n] if n < len(answers) else '').strip() or '(no answer: decide)'}"

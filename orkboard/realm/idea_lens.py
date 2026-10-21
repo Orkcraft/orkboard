@@ -157,7 +157,7 @@ def clean(state_dir: Path, raw: object, repo: Path | None = None) -> list[dict]:
     if not isinstance(raw, list):
         raise ValueError("What the lens points at is a list")
     if len(raw) > MAX_ATTACHED:
-        raise ValueError(f"At most {MAX_ATTACHED} things go with an idea")
+        raise ValueError(f"At most {MAX_ATTACHED} things go with a goal")
     root = Path(repo) if repo is not None else Path(state_dir).parent
     out = []
     for a in raw:

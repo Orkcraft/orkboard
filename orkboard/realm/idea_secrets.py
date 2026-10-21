@@ -50,7 +50,7 @@ def _keychain():
 def key(slug: str, todo_id: str) -> str:
     name = f"{slug}/{todo_id}"
     if not _NAME.match(name):
-        raise ValueError("Not a to-do of an idea")
+        raise ValueError("Not a to-do of a goal")
     return name
 
 

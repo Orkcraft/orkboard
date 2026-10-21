@@ -1,10 +1,11 @@
-"""A goal's leader (decisions §53; realm/goal_team.py): the goal's steps run as the leader of its party — its reading, its
-ideas' drafts, answers, talk and plans — on the leader's model, the leader's voice and instruction before the step's own
-prompt; the Taskmaster when the goal has no leader picked (and for what is no goal's: the night's proposals). When the
-goal's ideas are done, its leader accepts it against its metrics (`accept_goal`: realm/goal_verdict.py).
+"""A party's leader (decisions §53; realm/goal_team.py): a party's steps run as the leader of its party — its reading, its
+goals' drafts, answers, talk and plans — on the leader's model, the leader's voice and instruction before the step's own
+prompt; the Taskmaster when the party has no leader picked (and for what is no party's: the night's proposals). Nothing accepts
+a party by itself any more (spec 50 §2.2); `accept_goal` stays for the person to ask of a party with metrics written before
+(`ideas.goal_accept`: its verdict, realm/goal_verdict.py, is kept as history).
 
     keeper.leader()                  # the role the running step leads as, None for the Taskmaster
-    keeper.accept_goal("ship")       # in the background, as the goal's run (`goal:<slug>`)
+    keeper.accept_goal("ship")       # asked by the person, in the background, as the party's run (`goal:<slug>`)
 
 A mixin of `IdeaKeeper`; `self` has its `ask`, `parse`, `wiki_root`, `state_dir`, `_start`, `_tls`, `publish`, `_ev`.
 """
@@ -38,7 +39,7 @@ class LeadMixin:
     @staticmethod
     def voice(lead: dict) -> str:
         """What a leader is told before a step's own prompt: who it is, and its instruction."""
-        return (f"You are {lead['name']}, the leader of this goal's party: you plan its ideas and accept the goal. "
+        return (f"You are {lead['name']}, the leader of this goal's party: you plan its ideas. "
                 f"{lead.get('instruction') or ''}\nIn what follows, \"the keeper\" is you.\n\n")
 
     def leader_name(self, goal: str) -> str:
@@ -48,15 +49,15 @@ class LeadMixin:
     # -- accepting a goal ----------------------------------------------------------------------------------------
 
     def accept_goal(self, slug: str) -> None:
-        """The goal's leader accepts it against its metrics, in the background (the goal's run)."""
+        """The party's leader accepts it against its metrics, in the background (the party's run); only when the person asks."""
         kw = _kw()
         if not any(t["slug"] == slug for t in ideas.tracks(self.wiki_root(), make=False)):
-            raise kw.KeeperError("That goal is gone")
+            raise kw.KeeperError("That party is gone")
         if why := self._may_run():
             raise kw.KeeperError(why)
         key = f"goal:{slug}"
         if self.busy(key):
-            raise kw.KeeperError("The goal's leader is busy with it: a moment")
+            raise kw.KeeperError("The party's leader is busy with it: a moment")
         self._start(slug, "accept", lambda: self.accept_one(slug), key)
 
     def accept_prompt(self, root: Path, slug: str) -> str:

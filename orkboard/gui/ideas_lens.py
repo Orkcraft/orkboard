@@ -16,7 +16,7 @@ class LensMixin:
         """`{"track"}`: the lenses of the goal's party, the one open first, the segments and screens the project keeps."""
         track = _opt(args, "track")
         if track and not any(t["slug"] == track for t in ideas.tracks(self.root(), make=False)):
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         return {**idea_lens.lenses(self.state_dir, self.root(), track), "segments": idea_lens.segments(self.state_dir),
                 "screens": [{"id": s["id"], "name": s["name"]} for s in idea_lens.screens(self.state_dir)]}
 

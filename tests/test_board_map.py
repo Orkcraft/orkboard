@@ -87,7 +87,7 @@ def test_one_goal_and_a_goal_that_is_gone(fixture):
     got = host.command("ideas.map", {"goal": f["two"]})
     assert [g["slug"] for g in got["goals"]] == [f["two"]] and {n["goal"] for n in got["nodes"]} == {f["two"]}
     for bad in ("nope", ideas.GENERAL):
-        with pytest.raises(CommandError, match="That goal is gone"):
+        with pytest.raises(CommandError, match="That party is gone"):
             host.command("ideas.map", {"goal": bad})
 
 

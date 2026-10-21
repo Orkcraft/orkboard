@@ -13,7 +13,7 @@ class PartyMixin:
         """`{"goal"}`: what the goal's party did, member by member and check by check (spec 43 §2.1)."""
         goal = _text(args, "goal", 100)
         if ideas.track_page(self.root(False), goal) is None:
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         return party_work.work(self.root(False), self.state_dir, goal, self._target())
 
     def party_price(self, args: dict) -> dict:
@@ -65,7 +65,7 @@ class PartyMixin:
         goal = _text(args, "goal", 100)
         g = next((t for t in ideas.tracks(self.root(False), make=False) if t["slug"] == goal), None)
         if g is None:
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         name = _text(args, "name", own_parties.NAME_CHARS + 20)
         replace = args.get("replace") is True
         leader, team, every = goal_team.leader_of(self.root(False), goal), goal_team.team_of(self.root(False), goal), goal_team.every_of(self.root(False), goal)

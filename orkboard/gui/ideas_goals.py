@@ -46,7 +46,7 @@ class GoalsMixin:
         slug = _text(args, "slug", 100)
         g = next((t for t in ideas.tracks(self.root(), make=False) if t["slug"] == slug), None)
         if g is None:
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         st = self.goal_state(slug)
         page = ideas.track_page(self.root(), slug)
         return {**self._goal_row(g), "description": g["about"],
@@ -61,7 +61,7 @@ class GoalsMixin:
         track = _opt(args, "track")
         g = next((t for t in ideas.tracks(root, make=False) if t["slug"] == track), None)
         if g is None:
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         mine = ideas.ideas(root, track)
         texts = [g["title"], g["about"], g["summary"], *(m["name"] for m in g["metrics"]), *g["questions"],
                  *(f"{i['title']}\n{i.get('thesis') or ''}" for i in mine)]
@@ -208,7 +208,7 @@ class GoalsMixin:
             if g["state"] == "asks":
                 asked = [idea_questions.parse(q) for q in g["questions"][:5]]
                 out.append({"idea": "", "goal": g["slug"], "kind": "goal", "title": g["title"],
-                            "text": asked[0]["ask"] if asked else "The keeper asks you about this goal",
+                            "text": asked[0]["ask"] if asked else "The keeper asks you about this party",
                             "questions": g["questions"][:5], "asked": asked,
                             "priority": g["priority"], "blocks": False,
                             "at": ideas.goal_state(self.state_dir, g["slug"])["read_time"]})

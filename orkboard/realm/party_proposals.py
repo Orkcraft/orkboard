@@ -106,7 +106,7 @@ def rows(root: Path, state_dir: Path, goals: list[dict]) -> list[dict[str, Any]]
         usd = p.get("usd")
         out.append({"idea": "", "goal": g["slug"], "kind": "party", "by": p["by"],
                     "title": f"Take {_name(state_dir, p['by'])} out of {g['title']}'s party?",
-                    "text": f"It found nothing in the last {int(p.get('runs') or party_work.QUIET_RUN)} ideas"
+                    "text": f"It found nothing in the last {int(p.get('runs') or party_work.QUIET_RUN)} goals"
                             + (f"; a check costs about ${usd:.2f}." if isinstance(usd, (int, float)) else "."),
                     "priority": g["priority"], "blocks": False, "at": str(p.get("at") or "")})
     return out

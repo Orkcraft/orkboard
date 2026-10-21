@@ -801,3 +801,35 @@ def test_nothing_accepts_a_party_when_its_goals_are_all_done(host, monkeypatch):
     host.ideas.changed(slug)                                                                          # … then done: the party's last goal
     assert called == [] and not hasattr(host.ideas, "_accept_when_done")
     assert "ideas.goal_accept" in host.commands                                                       # asked for a party of before, it stays
+
+
+def test_what_the_host_says_to_a_person_says_party_for_the_container_and_goal_for_the_idea_spec_50(host):
+    """Spec 50 §2.6: errors the host sends a face are in today's words (decisions §63); keys, commands and prompts keep the code's."""
+    def says(command: str, args: dict) -> str:
+        with pytest.raises(CommandError) as err:
+            host.command(command, args)
+        return str(err.value)
+
+    assert says("ideas.add", {"text": "x"}) == "A goal needs a party"
+    assert says("ideas.add", {"text": "x", "track": "general"}) == "A goal needs a party"
+    assert says("ideas.add", {"text": "x", "track": "nope"}) == "That party is gone"
+    assert says("ideas.page", {"slug": "nope"}) == "That goal is gone"
+    assert says("ideas.start", {"slug": "nope"}) == "This goal has no plan yet: Take it to work first"
+    assert says("ideas.map", {"goal": "nope"}) == says("ideas.goal", {"slug": "nope"}) == says("ideas.party", {"goal": "nope"}) == "That party is gone"
+    assert says("ideas.words", {"track": "nope"}) == says("ideas.spend", {"goal": "nope"}) == "That party is gone"
+    assert says("ideas.spend", {"idea": "nope"}) == says("ideas.read_stop", {"slug": "nope"}) == "That goal is gone"
+    assert says("ideas.move", {"slug": "nope"}) == "No goal 'nope'" and says("ideas.edit", {"slug": "nope", "priority": "high"}) == "Priority is High, Normal or Low"
+    slug = _add(host, "Dark mode for the night")["slug"]
+    assert says("ideas.move", {"slug": slug, "track": "nope"}) == "No party 'nope'"
+    with pytest.raises(ValueError, match="^A party needs a title$"):
+        ideas.add_track(host.ideas.root(), " ")
+    assert says("ideas.goal_save", {"title": "", "about": ""}) == "A party needs a description, or at least a title"
+    host.ideas.keeper._busy[slug] = "reading"
+    assert says("ideas.drop", {"slug": slug}) == "The keeper is busy with this goal: a moment"
+    assert says("ideas.edit", {"slug": slug, "section": "Gist", "text": "x"}) == "The keeper is writing this goal: a moment"
+    with pytest.raises(idea_keeper.KeeperError, match="^The keeper is busy with this goal: a moment$"):
+        host.ideas.keeper._claim(slug, "draft")
+    host.ideas.keeper._busy.pop(slug)
+    host.ideas.keeper._busy["goal:first-goal"] = "reading"
+    with pytest.raises(idea_keeper.KeeperError, match="^The keeper is busy with this party: a moment$"):
+        host.ideas.keeper._claim("goal:first-goal", "goal")

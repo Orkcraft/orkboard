@@ -32,7 +32,7 @@ def model(monkeypatch):
     """A stubbed keeper: answers by what it is asked; `seen` holds every call."""
     seen = []
     answers = {"goal": {"summary": "Installs are the first step.\nCount them weekly.", "questions": ["Which channel first?"],
-                        "metrics": [{"name": "weekly installs", "how": "npm downloads, per week"}], "reply": "Noted."},
+                        "reply": "Noted."},
                "idea": {"gist": "Dark mode.\nIt glares at night.", "why": "Moves weekly installs.", "size": "S",
                         "priority": "high", "priority_why": "Helps night users stay.", "before": "", "questions": []}}
 
@@ -78,12 +78,13 @@ def test_a_goal_saved_is_read_by_the_keeper_at_once_and_written(host, model):
     (call,) = model.seen
     assert call["model"] == "opus" or "opus" in call["model"]                     # spec 35 §1: the goal step is elder
     assert "More people try Orkline." in call["prompt"] and "weekly installs" in call["prompt"]
+    assert "The metrics the person set" in call["prompt"] and '"metrics"' not in call["prompt"]       # spec 50 §2.5: the metrics of before are passed on, none asked
     assert "Write the specs" in call["prompt"] or "34-v1-round-2" in call["prompt"]            # a linked file is read …
     assert "https://example.com/post (a web link: not fetched)" in call["prompt"]            # … a URL only named
     g = host.command("ideas.goal", {"slug": slug})
     assert g["state"] == "asks" and g["priority"] == "high" and g["deadline"] == "2026-12-01"
     assert g["summary"].startswith("Installs are the first step.") and g["questions"] == ["Which channel first?"]
-    assert g["metrics"] == [{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}]
+    assert g["metrics"] == [{"name": "weekly installs", "target": "50", "how": ""}]               # as the person wrote them
     assert g["links"] == ["docs/specs/34-v1-round-2.md", "https://example.com/post"] and g["description"] == "More people try Orkline."
     text = (host.ideas.root() / "pages/tracks/grow-installs.md").read_text()      # spec 35 §13: the Board's tree
     assert "priority: high" in text and "## Summary" in text and "## Metrics" in text and "## Open questions" in text
@@ -102,13 +103,13 @@ def test_a_goal_saved_is_read_by_the_keeper_at_once_and_written(host, model):
 def test_editing_a_goal_sends_it_again_and_keeps_what_the_keeper_wrote(host, model):
     slug = host.command("ideas.goal_save", GOAL)["slug"]
     _wait(host, slug, goal=True)
-    model.answers["goal"] = {"summary": "Second reading.", "questions": [], "metrics": []}
+    model.answers["goal"] = {"summary": "Second reading.", "questions": [], "metrics": [{"name": "an answer's own", "target": "9", "how": "counted"}]}
     host.command("ideas.goal_save", {**GOAL, "slug": slug, "title": "Grow installs fast", "priority": "low"})
     _wait(host, slug, goal=True)
     assert len(model.seen) == 2
     g = host.command("ideas.goal", {"slug": slug})
     assert g["state"] == "ready" and g["summary"] == "Second reading." and g["title"] == "Grow installs fast"
-    assert g["metrics"][0]["how"] == "npm downloads, per week"           # how it is counted stays until the keeper says otherwise
+    assert g["metrics"] == [{"name": "weekly installs", "target": "50", "how": ""}]      # spec 50 §2.5: a metric in the answer is not read; those of before stay as written
     assert [e["new"] for e in _events(host, "goal_saved")] == [True, False]
 
 
@@ -152,7 +153,7 @@ def test_an_idea_added_now_is_read_at_once_later_waits_for_the_batch(host, model
     host.command("ideas.read_now", {"slug": later})                      # the card's Process now
     _wait(host, later)
     assert len(model.seen) > seen and ideas.state(host.ideas.state_dir, later)["state"] == "ready"
-    with pytest.raises(CommandError, match="read this idea already"):
+    with pytest.raises(CommandError, match="read this goal already"):
         host.command("ideas.read_now", {"slug": later})
 
 
@@ -312,7 +313,7 @@ def test_the_words_of_a_goal_complete_new_idea_titles_first_then_its_terms(host)
     assert "offline" in got["words"] and "SyncQueue" in got["words"] and "sync_queue.py" in got["words"]
     assert "while" not in got["words"] and "the" not in got["words"]
     assert BoardPhone.allowed(host, "ideas.words", {"track": slug})                         # the phone asks for them
-    with pytest.raises(CommandError, match="That goal is gone"):
+    with pytest.raises(CommandError, match="That party is gone"):
         host.command("ideas.words", {"track": "nope"})
 
 
@@ -350,3 +351,16 @@ def test_a_goals_question_comes_with_its_answer_picked_and_may_be_left_to_the_ta
     assert "— brew" in said and "Which week? (this / **next**) — next" in said and "Bad choices? — (no answer: decide)" in said
     got = _events(host, "goal_answered")[-1]
     assert got["decided"] is True and got["answers"] == 2 and got["recommended"] == 0
+
+
+def test_the_partys_reading_asks_no_metrics_and_keeps_those_written_before_spec_50(host, model):
+    """Spec 50 §2.5: the reading's prompt has no `metrics` in its answer's shape; a metric in the answer is not read; the metrics the
+    person set (or the keeper wrote before) stay on the page and are passed on to every goal's draft."""
+    slug = host.command("ideas.goal_save", GOAL)["slug"]
+    _wait(host, slug, goal=True)
+    (call,) = model.seen
+    shape = call["prompt"].split("Answer with one JSON object")[1]
+    assert '"summary"' in shape and "metric" not in shape.lower()
+    assert host.command("ideas.goal", {"slug": slug})["metrics"][0]["name"] == "weekly installs"
+    idea = _add(host, "Dark mode", track=slug)["slug"]
+    assert "weekly installs → 50" in host.ideas.keeper.draft_prompt(host.ideas.root(), idea)

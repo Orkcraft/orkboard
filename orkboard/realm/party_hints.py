@@ -42,7 +42,7 @@ def hints(root: Path, state_dir: Path, craft: str, leader: str, team: list[str],
         for by in checkers:                                                                       # 2. a check that seldom applies to this craft
             a = library.get(by)
             if craft not in a.check.fits:
-                out.append(f"{a.name} seldom checks {_article(word)} {word} goal: it checks {a.check.applies}.")
+                out.append(f"{a.name} seldom checks {_article(word)} {word} party: it checks {a.check.applies}.")
         if craft in ("engineering", "product") and not any(takes_code(state_dir, s) for s in [*members, *([lead] if lead != roles.TASKMASTER else [])]):
             out.append("No one in the party writes code: code tasks go to this project's agent for code (the Grunt when none).")   # 3.
     if lead != roles.TASKMASTER and not any(goal_team.band_of(s) == "build" for s in team):       # 4. a leader and no builder

@@ -16,7 +16,7 @@ class MapMixin:
         goal = _opt(args, "goal")
         root = self.root(False)
         if goal and not any(t["slug"] == goal and t["slug"] != ideas.GENERAL for t in ideas.tracks(root, make=False)):
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         got = board_map.build(root, self.state_dir, self.settings_now(), list(self.host.limits() or []), time.time(), goal=goal,
                               rev=self.rev, state_of=self._state, goal_state_of=self.goal_state)
         waiting: dict[str, list[dict]] = {}

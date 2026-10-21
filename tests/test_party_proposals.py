@@ -155,14 +155,14 @@ def test_the_row_is_in_needs_you_last_and_never_counted(host, goal):
     needs = host.command("ideas.board")["needs_you"]
     party = [n for n in needs if n["kind"] == "party"]
     assert len(party) == 1 and party[0]["goal"] == goal and party[0]["by"] == "reviewer" and party[0]["blocks"] is False
-    assert party[0]["title"] == "Take Reviewer out of Billing's party?" and party[0]["text"] == "It found nothing in the last 8 ideas."
+    assert party[0]["title"] == "Take Reviewer out of Billing's party?" and party[0]["text"] == "It found nothing in the last 8 goals."
     assert party[0]["priority"] == "normal" and party[0]["at"] and party[0]["idea"] == ""
     assert {n["kind"] for n in needs[-2:]} == {"proposal", "party"}                                          # sorted last, with the proposals
     assert host.ideas.snapshot()["needs_you"] == sum(1 for n in needs if n["kind"] not in ("proposal", "party"))     # never counted in the signal
     saved = json.loads((state / "goals" / goal / "party-proposal.json").read_text())
     saved["usd"] = 0.35
     (state / "goals" / goal / "party-proposal.json").write_text(json.dumps(saved))
-    assert next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "party")["text"] == "It found nothing in the last 8 ideas; a check costs about $0.35."
+    assert next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "party")["text"] == "It found nothing in the last 8 goals; a check costs about $0.35."
     goal_team.set_team(root, goal, ["grunt"], leader="product-manager")                                       # a checker no longer in the party has no row
     assert not [n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "party"]
 

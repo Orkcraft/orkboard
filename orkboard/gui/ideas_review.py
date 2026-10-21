@@ -120,7 +120,7 @@ class ReviewMixin:
         skip = args.get("skip", True) is not False
         root = self.root()
         if ideas.idea_page(root, slug) is None:
-            raise IdeasError("That idea is gone")
+            raise IdeasError("That goal is gone")
         checks = self.keeper.team_checks(root, slug)
         try:
             rows = idea_checks.skip(self.keeper.idea_checks(root, slug), checks, by, skip)
@@ -134,7 +134,7 @@ class ReviewMixin:
                 raise IdeasError("That check has passed already")
             self.runner(need=True).skip_task(slug, str(task.get("id")), device=_device(args))
         elif not skip and plan and task is None:
-            raise IdeasError("The plan was made without it: it comes back with the idea's next plan")
+            raise IdeasError("The plan was made without it: it comes back with the goal's next plan")
         ideas.set_meta(root, slug, checks=json.dumps(rows))
         self._ev(event_log.CHECK_SKIPPED, args, idea=slug, by=by, skipped=skip, task=str((task or {}).get("id") or ""),
                  usd=idea_spend.tier_costs(self.state_dir).get(check["tier"]))

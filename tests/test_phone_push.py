@@ -198,7 +198,9 @@ def test_the_words_never_hold_a_questions_text(rig):
 def test_the_kinds_are_the_pages_words():
     page = Path(phone_push.__file__).parent / "static" / "js" / "board" / "today.js"
     table = dict(re.findall(r'(\w+): "([^"]+)"', re.search(r"const KIND_WORDS = \{(.*?)\};", page.read_text(encoding="utf-8")).group(1)))
-    assert {k: table[k] for k in phone_push.KIND_WORDS} == phone_push.KIND_WORDS
+    later = {"goal": "A goal asks"}               # the page's word until spec 50 part B writes today's (js/board/today.js): "A party asks"
+    assert {k: table[k] for k in phone_push.KIND_WORDS} in (phone_push.KIND_WORDS, {**phone_push.KIND_WORDS, **later})
+    assert phone_push.KIND_WORDS["goal"] == "A party asks"                               # a party's question: spec 50 §0
 
 
 # -- the commands -----------------------------------------------------------------------------------------------

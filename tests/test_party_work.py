@@ -119,7 +119,7 @@ def test_ideas_party_is_the_hosts_and_a_phones_and_needs_a_goal(host, goal):
     got = host.command("ideas.party", {"goal": goal})
     json.dumps(got)
     assert got["ideas"] == 2 and [m["slug"] for m in got["members"]] == ["tester", "grunt"]
-    with pytest.raises(CommandError, match="That goal is gone"):
+    with pytest.raises(CommandError, match="That party is gone"):
         host.command("ideas.party", {"goal": "nope"})
     with pytest.raises(CommandError):
         host.command("ideas.party", {})

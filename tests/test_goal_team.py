@@ -315,7 +315,7 @@ def test_a_check_skipped_before_the_plan_is_left_out_and_after_it_its_task_is_ta
     assert [t["id"] for t in plan["tasks"]] == ["k1", "k3"] and plan["tasks"][1]["after"] == []      # what waited for it does not
     st = idea_checks.status(keeper.idea_checks(root, idea), keeper.team_checks(root, idea), plan["tasks"])
     assert st[0]["skipped"] and st[0]["state"] == "" and st[0]["task"] == ""
-    with pytest.raises(CommandError, match="comes back with the idea's next plan"):
+    with pytest.raises(CommandError, match="comes back with the goal's next plan"):
         host.command("ideas.check_skip", {"slug": idea, "by": "reviewer", "skip": False})
     with pytest.raises(CommandError, match="no such check"):
         host.command("ideas.check_skip", {"slug": idea, "by": "editor"})
@@ -383,3 +383,11 @@ def test_an_agent_of_the_library_is_added_once_and_each_agent_says_about_what_a_
     assert "told" not in by["copywriter"]
     blocks = {b["role"]: b for b in host.command("ideas.agents")["roles"]}
     assert blocks["grunt"]["usd_task"] == by["grunt"]["usd_task"] and blocks["taskmaster"]["usd_task"] is None
+
+
+def test_the_leaders_preamble_says_it_plans_the_goals_and_no_longer_that_it_accepts_the_party(host):
+    """Spec 50 §2.5: a party's steps run as its leader, who plans; nothing accepts a party by itself."""
+    from orkboard.core.idea_lead import LeadMixin
+    voice = LeadMixin.voice({"name": "Product manager", "instruction": "Be brief."})
+    assert voice.startswith("You are Product manager, the leader of this goal's party: you plan its ideas. Be brief.")
+    assert "accept" not in voice

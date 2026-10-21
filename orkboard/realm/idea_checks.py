@@ -116,7 +116,7 @@ def on(kept_: list[dict]) -> set[str]:
 def skip(kept_: list[dict], checks: list[dict], by: str, skipped: bool = True) -> list[dict]:
     """The kept checks with `by` skipped (or not again); ValueError when the team has no such check."""
     if not any(c["by"] == by for c in checks):
-        raise ValueError("The goal's party has no such check")
+        raise ValueError("The party has no such check")
     rows = kept(kept_, checks)
     for k in rows:
         if k["by"] == by:

@@ -128,7 +128,7 @@ def test_party_save_carries_an_agent_of_the_persons_own_and_refuses_a_taken_name
     with pytest.raises(CommandError, match="You have a party named “Design with docs”"):
         host.command("ideas.party_save", {"goal": goal, "name": "design WITH docs"})
     assert host.command("ideas.party_save", {"goal": goal, "name": "design WITH docs", "replace": True})["id"] == saved["id"]
-    with pytest.raises(CommandError, match="That goal is gone"):
+    with pytest.raises(CommandError, match="That party is gone"):
         host.command("ideas.party_save", {"goal": "nope", "name": "x"})
     with pytest.raises(CommandError, match="name is missing"):
         host.command("ideas.party_save", {"goal": goal, "name": ""})

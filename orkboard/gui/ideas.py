@@ -287,7 +287,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         root = self.root()
         page = ideas.idea_page(root, slug)
         if page is None:
-            raise IdeasError("That idea is gone")
+            raise IdeasError("That goal is gone")
         names = list(ideas.SECTIONS) + [n for n, _t in page.sections if n not in ideas.SECTIONS]
         st = self._state(slug)
         plan = ideas.plan(self.state_dir, slug)
@@ -313,9 +313,9 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         track = _opt(args, "track")
         goals = {t["slug"]: t for t in ideas.tracks(self.root(), make=False)}
         if not track or track == ideas.GENERAL:
-            raise IdeasError("An idea needs a goal")
+            raise IdeasError("A goal needs a party")
         if track not in goals:
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         priority = _opt(args, "priority").lower() or goals[track]["priority"]
         if priority not in ideas.PRIORITIES:
             raise IdeasError("Priority is High, Normal or Low")
@@ -366,7 +366,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         """The person passes the plan (`passed_by: "person"`): it is the runner's from now on, and it starts."""
         slug = _text(args, "slug", 100)
         if ideas.plan(self.state_dir, slug) is None:
-            raise IdeasError("This idea has no plan yet: Take it to work first")
+            raise IdeasError("This goal has no plan yet: Take it to work first")
         st = self._state(slug)["state"]
         if st not in ("plan", "failed", "working"):
             raise IdeasError("Its plan is not ready")
@@ -403,7 +403,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             self.changed(slug)
             return {"ok": True}
         if self.keeper.busy(slug):
-            raise IdeasError("The keeper is writing this idea: a moment")
+            raise IdeasError("The keeper is writing this goal: a moment")
         ideas.set_section(self.root(), slug, _text(args, "section", 60), _str(args, "text", ideas.SECTION_CHARS))
         self.changed(slug)
         return {"ok": True}
@@ -466,7 +466,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
     def drop(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)
         if self.keeper.busy(slug):
-            raise IdeasError("The keeper is busy with this idea: a moment")
+            raise IdeasError("The keeper is busy with this goal: a moment")
         plan = ideas.plan(self.state_dir, slug) or {}
         if self._runner is not None and plan.get("passed_at"):
             self._runner.stop(slug)

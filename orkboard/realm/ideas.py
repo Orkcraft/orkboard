@@ -169,7 +169,7 @@ def tracks(root: Path, make: bool = True) -> list[dict]:
 def add_track(root: Path, title: str) -> str:
     title = " ".join(str(title or "").split())[:TITLE_CHARS]
     if not title:
-        raise ValueError("A track needs a title")
+        raise ValueError("A party needs a title")
     with LOCK:
         _ensure_root(root)
         slug = GENERAL if title == GENERAL_TITLE and not (root / TRACKS / f"{GENERAL}.md").exists() else _free(
@@ -187,7 +187,7 @@ def set_track(root: Path, slug: str, about: str | None = None, criteria: list | 
     with LOCK:
         page = track_page(root, slug)
         if page is None:
-            raise ValueError(f"No track {slug!r}")
+            raise ValueError(f"No party {slug!r}")
         if about is not None:
             page.set_section("About" if any(n == "About" for n, _t in page.sections) else "Description", about,
                              TRACK_SECTIONS)
@@ -234,7 +234,7 @@ def save_goal(root: Path, slug: str | None, title: str = "", about: str | None =
         raise ValueError("Craft is Engineering, Design, Data or Marketing")
     deadline = _date(deadline) if deadline is not None else None
     if not slug and not title and not about:
-        raise ValueError("A goal needs a description, or at least a title")
+        raise ValueError("A party needs a description, or at least a title")
     with LOCK:
         new = not slug
         if new:
@@ -242,7 +242,7 @@ def save_goal(root: Path, slug: str | None, title: str = "", about: str | None =
             slug = add_track(root, title or (first if len(first) <= TITLE_KEEPER else first[:TITLE_KEEPER - 1].rsplit(" ", 1)[0] + "…"))
         page = track_page(root, slug)
         if page is None:
-            raise ValueError(f"No goal {slug!r}")
+            raise ValueError(f"No party {slug!r}")
         if title:
             page.title = title
             page.set("title", title)
@@ -302,7 +302,7 @@ def write_goal_reading(root: Path, slug: str, summary: str, how: dict, questions
     with LOCK:
         page = track_page(root, slug)
         if page is None:
-            raise ValueError(f"No goal {slug!r}")
+            raise ValueError(f"No party {slug!r}")
         title = " ".join(str(title or "").split())[:TITLE_KEEPER]
         if title and page.get("title_by") == "keeper":
             page.title = title
@@ -363,7 +363,7 @@ def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None
     (else its goal's); `queue`: where a raw idea waits (spec 35 §3); `night_by`: who put it off to the night (spec 44 §2)."""
     text = str(text or "").strip()
     if not text:
-        raise ValueError("An idea needs a few words")
+        raise ValueError("A goal needs a few words")
     with LOCK:
         known = {t["slug"] for t in tracks(root)}
         track = track if track in known else GENERAL
@@ -390,11 +390,11 @@ def add_idea(root: Path, text: str, track: str = GENERAL, state_dir: Path | None
 
 def set_section(root: Path, slug: str, name: str, text: str) -> None:
     if name not in SECTIONS:
-        raise ValueError(f"An idea has no section {name!r}")
+        raise ValueError(f"A goal has no section {name!r}")
     with LOCK:
         page = idea_page(root, slug)
         if page is None:
-            raise ValueError(f"No idea {slug!r}")
+            raise ValueError(f"No goal {slug!r}")
         page.set_section(name, text)
         _write(root / IDEAS / f"{slug}.md", page.text())
         if name == "Gist":
@@ -406,7 +406,7 @@ def set_meta(root: Path, slug: str, **values: object) -> None:
     with LOCK:
         page = idea_page(root, slug)
         if page is None:
-            raise ValueError(f"No idea {slug!r}")
+            raise ValueError(f"No goal {slug!r}")
         for k, v in values.items():
             page.set(k, v)
         _write(root / IDEAS / f"{slug}.md", page.text())
@@ -417,7 +417,7 @@ def update(root: Path, slug: str, sections: dict[str, str], decisions: list[str]
     with LOCK:
         page = idea_page(root, slug)
         if page is None:
-            raise ValueError(f"No idea {slug!r}")
+            raise ValueError(f"No goal {slug!r}")
         done = []
         for name, text in sections.items():
             if name in SECTIONS and name != "Decisions":
@@ -441,10 +441,10 @@ def move(root: Path, slug: str, track: str | None = None, before: str | None = N
     with LOCK:
         page = idea_page(root, slug)
         if page is None:
-            raise ValueError(f"No idea {slug!r}")
+            raise ValueError(f"No goal {slug!r}")
         to = track or page.get("track") or GENERAL
         if to not in {t["slug"] for t in tracks(root)}:
-            raise ValueError(f"No track {to!r}")
+            raise ValueError(f"No party {to!r}")
         rest = [i["slug"] for i in ideas(root, to) if i["slug"] != slug]
         at = rest.index(before) if before in rest else len(rest)
         order = rest[:at] + [slug] + rest[at:]
@@ -470,7 +470,7 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
     with LOCK:
         path = root / IDEAS / f"{slug}.md"
         if idea_page(root, slug) is None:
-            raise ValueError(f"No idea {slug!r}")
+            raise ValueError(f"No goal {slug!r}")
         path.unlink(missing_ok=True)
         if state_dir is not None and re.fullmatch(r"[a-z0-9-]+", slug):
             from orkboard.realm import idea_spend
@@ -500,7 +500,7 @@ def queue_of(st: dict) -> str:
 
 def state_folder(state_dir: Path, slug: str) -> Path:
     if not re.fullmatch(r"[a-z0-9-]+", slug or ""):
-        raise ValueError(f"No idea {slug!r}")
+        raise ValueError(f"No goal {slug!r}")
     return state_dir / "ideas" / slug
 
 
@@ -535,7 +535,7 @@ def save_state(state_dir: Path, slug: str, **changes: object) -> dict:
 
 def goal_folder(state_dir: Path, slug: str) -> Path:
     if not re.fullmatch(r"[a-z0-9-]+", slug or ""):
-        raise ValueError(f"No goal {slug!r}")
+        raise ValueError(f"No party {slug!r}")
     return state_dir / "goals" / slug
 
 
@@ -601,7 +601,7 @@ def edit_plan(state_dir: Path, slug: str, change) -> dict:
     with LOCK:
         data = plan(state_dir, slug)
         if data is None:
-            raise ValueError("This idea has no plan yet")
+            raise ValueError("This goal has no plan yet")
         change(data)
         _write_json(state_folder(state_dir, slug) / "plan.json", data)
     return data

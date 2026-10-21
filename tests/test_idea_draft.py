@@ -278,3 +278,17 @@ def test_a_file_todo_with_steps_survives_the_plan():
     secret, file = plan["todos"]
     assert secret["steps"] == ["Open the console", "Copy the key"] and secret["title"] == "API_KEY"
     assert file["kind"] == "file" and file["accept"] == ["json"]
+
+
+def test_a_draft_names_its_partys_metrics_and_asks_which_it_moves_only_when_the_party_has_some_spec_50(keeper):
+    """Spec 50 §2.5: a party has no end; without metrics the draft has no *Its goal's metrics* part and no which-metric question."""
+    with_metrics = ideas.add_idea(keeper.root, "a table of runs please", keeper.goal, keeper.state)
+    prompt = keeper.draft_prompt(keeper.root, with_metrics)
+    assert "Its goal's metrics:\n- done when the table shows → 1 (counted: a test)" in prompt
+    assert '"why": "which of its goal\'s metrics it moves, and why it matters"' in prompt
+    bare = ideas.add_track(keeper.root, "No metrics")
+    ideas.write_goal_reading(keeper.root, bare, "Just a team.", {}, [])
+    slug = ideas.add_idea(keeper.root, "a table of runs please", bare, keeper.state)
+    prompt = keeper.draft_prompt(keeper.root, slug)
+    assert "Its goal's metrics" not in prompt and "which of its goal's metrics" not in prompt
+    assert '"why": "why it matters"' in prompt and "Just a team." in prompt and "Its goal's summary" in prompt   # nothing else changes

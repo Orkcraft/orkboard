@@ -1,8 +1,9 @@
-"""The agents that come with Orkline (a goal's team is picked from them, decisions §53): makers and checkers of each craft,
+"""The agents that come with Orkline (a party's members are picked from them, decisions §53): makers and checkers of each craft,
 each with the kinds of work it takes (the tags the Taskmaster puts on a task), its tier, one line of what it does and
-its instruction. A checker brings its `check` to a goal's team: the team sets how deep an idea is worked (a team with an
-Accessibility reviewer holds every idea that changes a screen to its check): when it applies, the line it adds to the
-spec's Done when, and the task it adds to the plan, after the work (core/idea_checks.py).
+its instruction. A checker brings its `check` to a party: the party sets how deep a goal is worked (a party with an
+Accessibility reviewer holds every goal that changes a screen to its check): when it applies, the line it adds to the
+spec's Done when, and the task it adds to the plan, after the work (core/idea_checks.py). A `check`'s `applies` is also in the
+draft's prompt, which keeps the code's words (idea); the page says it in today's.
 
     LIBRARY                                  # the agents, by craft
     get("ui-kit")                            # one, or None
@@ -23,10 +24,10 @@ from orkboard.realm import roles
 
 @dataclass(frozen=True)
 class Check:
-    applies: str              # when it applies to an idea, for the Taskmaster ("when the idea changes code")
+    applies: str              # when it applies to a goal (the code's idea), for the Taskmaster ("when the idea changes code")
     done: str                 # the line it adds to the spec's Done when
     task: str                 # the brief of the task it adds to the plan, after the work it checks
-    fits: tuple[str, ...] = ()  # the goal crafts it usually applies to (a hint while a party is picked, never a limit)
+    fits: tuple[str, ...] = ()  # the party crafts it usually applies to (a hint while a party is picked, never a limit)
 
 
 @dataclass(frozen=True)
@@ -38,16 +39,16 @@ class Agent:
     takes: tuple[str, ...]    # the kinds of work it takes (roles.TASK_KINDS)
     line: str                 # what it does, in one line (the team's step)
     instruction: str          # what it is told on every task (at most roles.INSTRUCTION_CHARS)
-    check: Check | None = None  # a checker's: what it holds every idea of its team's goals to
-    band: str = "build"       # its band in a goal's party: "lead" (plans: the goal's steps run as it), "build", "check"
+    check: Check | None = None  # a checker's: what it holds every goal of its party to
+    band: str = "build"       # its band in a party: "lead" (plans: the party's steps run as it), "build", "check"
 
 
 LIBRARY: tuple[Agent, ...] = (
-    # -- leads of any goal: the Taskmaster (an ork, the built-in one) and the Product manager (undead: a lich for now) -----
+    # -- leads of any party: the Taskmaster (an ork, the built-in one) and the Product manager (undead: a lich for now) -----
     Agent("taskmaster", "Taskmaster", "engineering", "elder", ("code",),
-          "Leads any goal: drafts its ideas, asks, plans, and accepts the goal against its metrics", "", band="lead"),
+          "Leads any party: drafts its goals, asks, plans", "", band="lead"),
     Agent("product-manager", "Product manager", "product", "elder", ("research",),
-          "Leads a product goal: who it is for, the metric it moves, what it leaves out",
+          "Leads a product party: who it is for, the metric it moves, what it leaves out",
           "You lead a product goal. For every idea say who it is for and the problem it solves for them, the goal's "
           "metric it moves and by how much you expect, and what it leaves out. Prefer the smallest idea that can show "
           "the metric move. Write Done when lines a person can check by using the product, not by reading code. When "
@@ -113,7 +114,7 @@ LIBRARY: tuple[Agent, ...] = (
           "you would add."),
     # -- data: goblins --------------------------------------------------------------------------------------------
     Agent("analyst", "Analyst", "data", "warrior", ("metrics",),
-          "Turns the event log into the goal's metrics",
+          "Turns the event log into the party's metrics",
           "You count what the goal measures. Read the goal's metrics and the events that are logged. For each metric "
           "write how it is counted: the events, the window, what is left out. Report the number with its date range "
           "and the count it comes from. Say when the data cannot answer and which event is missing. Never guess a "
@@ -180,9 +181,9 @@ LIBRARY: tuple[Agent, ...] = (
 )
 
 BY_ID = {a.id: a for a in LIBRARY}
-SUGGESTED = 2                                # (kept for older faces) the first builders of a goal's craft
-SEATS = {"lead": 1, "build": 3, "check": 2}  # a goal's party: at most one leader, three builders, two checkers
-# The party a goal of each craft starts with: its leader, its builders, its checkers (Mixed: the Taskmaster alone).
+SUGGESTED = 2                                # (kept for older faces) the first builders of a party's craft
+SEATS = {"lead": 1, "build": 3, "check": 2}  # a party: at most one leader, three builders, two checkers
+# The party of each craft starts with: its leader, its builders, its checkers (Mixed: the Taskmaster alone).
 PARTIES = {"engineering": ("architect", ("grunt", "tester"), ("reviewer",)),
            "design": ("product-designer", ("ui-kit", "artist"), ("accessibility-reviewer",)),
            "data": ("analyst", ("data-engineer", "sql"), ("data-reviewer",)),
