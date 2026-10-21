@@ -57,3 +57,13 @@ def test_the_gate_merging_dev_into_main_is_an_event_with_its_counts(tmp_path):
     [row] = event_log.read(tmp_path)
     assert (row["event"], row["commits"], row["ideas"], row["files"], row["how"], row["pushed"]) == ("gate_merged", 3, 2, 5, "merge", False)
     assert event_log.counts(tmp_path)["gate_merged"] == 1 and len(set(event_log.EVENTS)) == len(event_log.EVENTS)
+
+
+def test_a_goal_raising_its_flag_is_an_event_with_what_it_took(tmp_path):
+    """Spec 50 §2.2: `idea_flagged` — the goal, its party, who raised it, its tally (usd null when unpriced, never 0)."""
+    assert event_log.IDEA_FLAGGED == "idea_flagged" and event_log.IDEA_FLAGGED in event_log.EVENTS
+    assert event_log.record(tmp_path, event_log.IDEA_FLAGGED, idea="dark-mode", goal="ux", by="gate", tasks=4, first_time=3, usd=None, days=2)
+    [row] = event_log.read(tmp_path)
+    assert (row["event"], row["idea"], row["goal"], row["by"], row["tasks"], row["first_time"], row["usd"], row["days"]) == (
+        "idea_flagged", "dark-mode", "ux", "gate", 4, 3, None, 2)
+    assert event_log.counts(tmp_path)["idea_flagged"] == 1

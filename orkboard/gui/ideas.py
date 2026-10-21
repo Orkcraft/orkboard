@@ -181,7 +181,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             self._what.setdefault(slug, what)
         self._ev(event_log.KEEPER_STATE, idea=slug, state=state, was=was, seconds=round(now - since, 1) if since else None)
         if state == "done" and was and was != "done":
-            self._accept_when_done(slug)
+            self._flag_when_done(slug)             # a goal done where there is no gate, or with its commits in main already (spec 50 §2.2)
         if state == "plan":
             plan = ideas.plan(self.state_dir, slug) or {}
             est = plan.get("estimate") or {}
@@ -190,17 +190,6 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                      usd_low=est.get("usd_low"), usd_high=est.get("usd_high"),
                      **{k: m.get(k) for k in ("step", "prompt_chars", "tokens", "cost")} if m.get("step") == "plan" else
                      {"step": "plan", "prompt_chars": None, "tokens": None, "cost": None})
-
-    def _accept_when_done(self, slug: str) -> None:
-        """The last idea of a goal is done: its leader accepts the goal against its metrics (core/idea_lead.py)."""
-        root = self.root()
-        goal = (ideas.idea_page(root, slug) or ideas.Page()).get("track") or ""
-        if not goal or goal == ideas.GENERAL or any(ideas.state(self.state_dir, i["slug"])["state"] != "done" for i in ideas.ideas(root, goal)):
-            return
-        try:
-            self.keeper.accept_goal(goal)
-        except idea_keeper.KeeperError:
-            pass                                 # the person asks again from the goal (ideas.goal_accept)
 
     def _since(self, iso: object) -> float | None:
         try:

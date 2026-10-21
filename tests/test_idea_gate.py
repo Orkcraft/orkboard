@@ -133,6 +133,23 @@ def test_without_a_main_there_is_no_gate(tmp_path):
     assert Orkboard(plain).command("ideas.gate")["same"] is True                             # not a git folder at all
 
 
+def test_all_in_is_every_sha_in_main_and_no_sha_is_false(repo, monkeypatch):
+    """Spec 50 §2.2: a goal's flag asks main whether every commit of its merged tasks is in it, with one git call."""
+    g = IdeaGit(repo)
+    c1 = land(repo, "x", "k1", "q.txt")
+    old, reads, real = git(repo, "rev-parse", "main"), [], idea_gate._git
+    monkeypatch.setattr(idea_gate, "_git", lambda cwd, *a, **k: reads.append(a[0]) or real(cwd, *a, **k))
+    assert idea_gate.all_in(g, [old], "main") is True and reads == ["rev-list"]                # one git call
+    assert idea_gate.all_in(g, [old, c1], "main") is False and idea_gate.all_in(g, [c1], "main") is False
+    assert idea_gate.all_in(g, [old, old], "main") is True
+    assert idea_gate.all_in(g, [], "main") is False and idea_gate.all_in(g, [""], "main") is False      # no sha is False
+    assert idea_gate.all_in(g, ["0" * 40], "main") is False and idea_gate.all_in(g, ["--all"], "main") is False
+    assert idea_gate.all_in(g, [old], "nowhere") is False and idea_gate.all_in(g, [old], "") is False
+    monkeypatch.undo()
+    git(repo, "merge", "-q", "--ff-only", "dev")
+    assert idea_gate.all_in(g, [old, c1], "main") is True
+
+
 # -- ideas.gate_merge ---------------------------------------------------------------------------------------------
 
 def test_main_is_fast_forwarded_to_dev_the_checkout_follows_and_it_is_logged(host, repo, work):
