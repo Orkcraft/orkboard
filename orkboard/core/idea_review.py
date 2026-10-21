@@ -168,7 +168,7 @@ class ReviewMixin:
         """Drop a result: the task fails with "dropped by you", its worktree goes, its branch stays."""
         with self._lock:
             task = self._task(slug, tid)
-            if task.get("state") not in ("review", "failed", "ready", "waiting", "held") or (slug, tid) in self._runs:
+            if task.get("state") not in ("review", "failed", "ready", "waiting", "held", "picking") or (slug, tid) in self._runs:
                 raise RunnerError("That task cannot be dropped now")
             if task.get("state") == "review":
                 self._decided(slug, task, "drop", device, into=str(_r().setting(self.settings, "merge_into") or "dev"))

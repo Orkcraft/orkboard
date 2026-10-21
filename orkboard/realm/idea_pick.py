@@ -123,6 +123,12 @@ def ask_of(task: dict) -> dict | None:
     return clean_ask(task.get("pick")) if isinstance(task, dict) else None
 
 
+def picked_words(picked: dict) -> str:
+    """What the tasks that wait for a picked variant are told: `The person picked B · anchor: "<note>"`."""
+    note = " ".join(str(picked.get("note") or "").split())
+    return f"The person picked {picked.get('key')} · {picked.get('name')}" + (f': "{note}"' if note else "")
+
+
 def map_of(task: dict) -> dict | None:
     """What the Map says of a task that waits for a pick, `{"n", "media", "round"}`; None for any other."""
     ask = ask_of(task)
@@ -285,6 +291,12 @@ def answer(state_dir: Path, slug: str, pick: dict, picked: str | None, note: str
     data = {**pick, "asked_at": pick.get("at"), "picked": picked, "note": note, "at": now or _now()}
     _write(folder_of(state_dir, slug, str(pick["id"])) / "pick.json", data)
     return data
+
+
+def next_round(state_dir: Path, slug: str, task_id: str) -> int:
+    """The round a task that makes variants starts at: after the last it made (1 when it made none), so a task started anew never
+    replaces the history of the variants before."""
+    return 1 + max([int(d.get("round") or 0) for d in history(state_dir, slug, task_id)], default=0)
 
 
 def history(state_dir: Path, slug: str, task_id: str) -> list[dict]:

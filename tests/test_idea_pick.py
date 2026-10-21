@@ -294,3 +294,348 @@ def test_the_events_are_logged_by_name(tmp_path):
     assert event_log.record(tmp_path, event_log.PICK_ANSWERED, idea="g", task="k1", key=None, note_chars=12, via="drawer", seconds=41.5, device="desktop")
     rows = event_log.read(tmp_path)
     assert [r["event"] for r in rows] == ["pick_asked", "pick_answered"] and rows[1]["key"] is None and rows[1]["via"] == "drawer"
+
+
+# -- the runner: a task that makes variants ----------------------------------------------------------------------------------
+
+import os  # noqa: E402
+import stat  # noqa: E402
+import subprocess  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+from orkboard.core.idea_review import RunnerError  # noqa: E402
+from orkboard.core.idea_runner import IdeaRunner  # noqa: E402
+
+PICK_STUB = r'''#!{python}
+import json, os, subprocess, sys
+sys.path.insert(0, os.environ["STUB_TESTS"])
+from tests import pick_files as pf
+argv = sys.argv[1:]
+resume = "--resume" in argv
+branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True).stdout.strip()
+tid = branch.rsplit("/", 1)[-1]
+modes = dict(p.split("=", 1) for p in os.environ.get("STUB_MODE", "").split(",") if "=" in p)
+mode = modes.get(tid, modes.get("*", "edit")).split(":")
+
+def git(*a):
+    subprocess.run(["git", *a], check=True, capture_output=True)
+
+def commit(path, text, msg):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    open(path, "w").write(text)
+    git("add", "-A")
+    git("-c", "user.name=Stub", "-c", "user.email=stub@x", "commit", "-m", msg)
+
+def leave(files, rows=None):
+    os.makedirs(".orkcraft-pick", exist_ok=True)
+    for name, data in files.items():
+        open(os.path.join(".orkcraft-pick", name), "wb").write(data)
+    rows = rows if rows is not None else [{"name": n.split(".")[0], "file": n, "why": "because " + n} for n in files]
+    open(".orkcraft-pick.json", "w").write(json.dumps({"variants": rows}))
+
+round_ = 2 if resume else 1
+if mode[0] == "pick":
+    n = int(mode[1])
+    leave({f"v{i}.png": pf.png(round_ * 10 + i, 2) for i in range(1, n + 1)})
+    open("stray.txt", "w").write("not wanted\n")                        # "change nothing else": this is not kept
+elif mode[0] == "pickcommit":                                          # it commits its own file besides
+    leave({f"v{i}.png": pf.png(i, 2) for i in (1, 2)})
+    commit("tool.py", "print(1)\n", "a script that made them")
+elif mode[0] == "picknothing":
+    pass
+elif mode[0] == "pickwav":
+    leave({"v1.png": pf.png(), "v2.png": pf.wav()})
+elif mode[0] == "pickonly":
+    leave({"v1.png": pf.png()})
+elif mode[0] == "edit":
+    commit(f"{tid}.txt", f"done by {tid}\n", f"{tid}: add {tid}.txt")
+with open(os.environ["STUB_LOG"], "a") as f:
+    f.write(json.dumps({"tid": tid, "resume": resume, "argv": argv}) + "\n")
+print(json.dumps({"result": "done", "session_id": f"s-{tid}", "total_cost_usd": 0.01, "usage": {"input_tokens": 10, "output_tokens": 5}}))
+'''
+
+
+def git(cwd: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+@pytest.fixture
+def rig(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-b", "main")
+    git(repo, "config", "user.email", "t@x")
+    git(repo, "config", "user.name", "T")
+    (repo / ".gitignore").write_text(".orkcraft/\n__pycache__/\n.pytest_cache/\nignored/\n")
+    (repo / "tests").mkdir()
+    for name in ("test_architecture.py", "test_cli.py", "test_updates.py"):
+        (repo / "tests" / name).write_text("def test_ok():\n    assert True\n")
+    (repo / "conftest.py").write_text("")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-m", "start")
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    stub = bindir / "claude"
+    stub.write_text(PICK_STUB.replace("{python}", sys.executable))
+    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("STUB_LOG", str(tmp_path / "stub.jsonl"))
+    monkeypatch.setenv("STUB_TESTS", str(Path(__file__).resolve().parents[1]))
+    page = repo / "llm-wiki" / "general" / "pages" / "ideas" / "demo.md"
+    page.parent.mkdir(parents=True)
+    page.write_text("---\nowner: board\n---\n# Demo\n\n## Gist\nA demo goal.\n")
+    made = SimpleNamespace(repo=repo, state=repo / ".orkcraft", log=tmp_path / "stub.jsonl", runners=[])
+    yield made
+    for runner in made.runners:                 # a task still running when the test ends must not write into the next test's log
+        runner.stop_all()
+        end = time.time() + 30
+        while runner.busy() and time.time() < end:
+            time.sleep(0.05)
+
+
+def plan_of(rig, tasks: list[dict], slug: str = "demo") -> None:
+    folder = rig.state / "ideas" / slug
+    folder.mkdir(parents=True, exist_ok=True)
+    full = [{"id": t["id"], "title": t.get("title", t["id"]), "brief": t.get("brief", "do " + t["id"]), "tier": "laborer",
+             "kind": t.get("kind", "art"), "after": t.get("after", []), "state": "waiting", "branch": "", "commit": "", "session": "",
+             "cost": None, "tokens": None, "started": "", "finished": "", "error": "", "note": "",
+             **({"pick": t["pick"]} if "pick" in t else {})} for t in tasks]
+    (folder / "plan.json").write_text(json.dumps({"idea": slug, "made_at": "x", "passed_at": "y", "todos": [], "tasks": full}))
+    (folder / "state.json").write_text(json.dumps({"state": "plan"}))
+
+
+def runner_of(rig, **ideas) -> IdeaRunner:
+    bus = SimpleNamespace(publish=lambda topic, **data: None)
+    settings = SimpleNamespace(ideas={"max_parallel": 1, "merge_into": "main", "push": False, "review": False, **ideas})
+    runner = IdeaRunner(rig.repo, rig.state, settings, bus, limits=lambda: [])
+    rig.runners.append(runner)
+    return runner
+
+
+def tasks_of(rig, slug: str = "demo") -> dict:
+    return {t["id"]: t for t in json.loads((rig.state / "ideas" / slug / "plan.json").read_text())["tasks"]}
+
+
+def wait_for(runner: IdeaRunner, rig, tid: str, states: tuple[str, ...], timeout: float = 90) -> dict:
+    end = time.time() + timeout
+    while time.time() < end:
+        runner.tick()
+        task = tasks_of(rig)[tid]
+        if task["state"] in states and not runner.busy():
+            return task
+        time.sleep(0.1)
+    raise AssertionError(f"{tid} did not reach {states}: {tasks_of(rig)[tid]}")
+
+
+def events_of(rig, name: str) -> list[dict]:
+    return [r for r in event_log.read(rig.repo) if r["event"] == name]
+
+
+def calls(rig) -> list[dict]:
+    return [json.loads(ln) for ln in rig.log.read_text().splitlines()] if rig.log.exists() else []
+
+
+PICK = {"n": 3, "kind": "image", "ask": "A logo for the app", "target": "assets/logo.png"}
+
+
+def start_pick(rig, monkeypatch, mode: str = "pick:3", **ideas) -> IdeaRunner:
+    monkeypatch.setenv("STUB_MODE", f"k1={mode}")
+    plan_of(rig, [{"id": "k1", "title": "Draw the logo", "pick": PICK}, {"id": "k2", "title": "Use the logo", "after": ["k1"], "kind": "code"}])
+    runner = runner_of(rig, **ideas)
+    runner.start("demo")
+    return runner
+
+
+def test_a_task_that_makes_variants_waits_picking_with_its_files_in_the_state_folder_and_nothing_committed(rig, monkeypatch):
+    runner = start_pick(rig, monkeypatch)
+    task = wait_for(runner, rig, "k1", ("picking",))
+    assert task["commit"] == "" and task["error"] == "" and task["finished"] and task["round"] == 1
+    folder = rig.state / "ideas" / "demo" / "picks" / "k1-r1"
+    pick = json.loads((folder / "pick.json").read_text())
+    assert (pick["id"], pick["task"], pick["round"], pick["kind"], pick["ask"], pick["target"]) == (
+        "k1-r1", "k1", 1, "image", "A logo for the app", "assets/logo.png")
+    assert [(v["key"], v["name"], v["file"], v["mime"], v["w"], v["h"]) for v in pick["variants"]] == [
+        ("A", "v1", "a.png", "image/png", 11, 2), ("B", "v2", "b.png", "image/png", 12, 2), ("C", "v3", "c.png", "image/png", 13, 2)]
+    assert sorted(p.name for p in folder.iterdir()) == ["a.png", "b.png", "c.png", "pick.json"]
+    assert pick["by"] == "grunt"
+    # the worktree is as it was cut: no variants, no manifest, nothing the session did besides, and the branch has no commit
+    path = rig.state / "worktrees"
+    tree = next(path.iterdir())
+    assert sorted(p.name for p in tree.iterdir() if not p.name.startswith(".git")) == ["conftest.py", "tests"]
+    assert not (tree / "stray.txt").exists() and not (tree / ".orkcraft-pick").exists() and not (tree / ".orkcraft-pick.json").exists()
+    assert git(tree, "rev-parse", "HEAD") == git(rig.repo, "rev-parse", "main") and git(rig.repo, "rev-parse", "main") == task["base"]
+    assert tasks_of(rig)["k2"]["state"] == "waiting"                       # what waits for it waits
+    state = json.loads((rig.state / "ideas" / "demo" / "state.json").read_text())
+    assert state["state"] == "working"
+    assert [(e["task"], e["n"], e["media"], e["round"]) for e in events_of(rig, "pick_asked")] == [("k1", 3, "image", 1)]
+    assert [(e["task"], e["state"], e["was"]) for e in events_of(rig, "task_state") if e["state"] == "picking"] == [("k1", "picking", "running")]
+    assert len(calls(rig)) == 1 and "pick_answered" not in {r["event"] for r in event_log.read(rig.repo)}
+    assert (tasks_of(rig)["k1"]["pick"]) == PICK                            # the plan's ask stays on the task
+
+
+def test_the_tasks_prompt_asks_for_the_variants_the_manifest_and_nothing_else(rig, monkeypatch):
+    runner = runner_of(rig)
+    plan_of(rig, [{"id": "k1", "title": "Draw the logo", "pick": PICK}, {"id": "k2", "kind": "code"}])
+    plan = runner.plan("demo")
+    asked = runner._prompt("demo", plan, plan["tasks"][0])
+    assert "3 variants for the person to pick from" in asked and "Make 3 pictures (PNG, JPEG, GIF, WEBP or SVG; at most 10 MB each)" in asked
+    assert "for this: A logo for the app" in asked and "`.orkcraft-pick/`" in asked and "`.orkcraft-pick.json`" in asked
+    assert '"variants": [{"name": "24 characters at most", "file": "its file name in the folder", "why": "one line"}]' in asked
+    assert "Change nothing else and commit nothing" in asked and "written to `assets/logo.png`" in asked
+    assert ".orkcraft-pick" not in runner._prompt("demo", plan, plan["tasks"][1])             # an ordinary task is told nothing of it
+    plan["tasks"][0].update(state="merged", picked={"key": "B", "name": "anchor", "note": "bluer"})
+    assert 'The person picked B · anchor: "bluer"' in runner._prompt("demo", plan, {**plan["tasks"][1], "after": ["k1"]})
+    plan["tasks"][0]["picked"] = {"key": "A", "name": "wolf", "note": ""}
+    assert "The person picked A · wolf\n" in runner._prompt("demo", plan, {**plan["tasks"][1], "after": ["k1"]}) + "\n"
+
+
+@pytest.mark.parametrize("mode, reason", [
+    ("pick:2", "The task left 2 pictures; its plan asked for 3"),
+    ("picknothing", "The task left no variants: its list (.orkcraft-pick.json) is missing"),
+    ("pickwav", "The task left 2 pictures; its plan asked for 3"),
+    ("edit", "The task left no variants"),
+])
+def test_a_manifest_missing_or_a_wrong_count_fails_the_task_in_plain_words_and_the_files_go(rig, monkeypatch, mode, reason):
+    runner = start_pick(rig, monkeypatch, mode)
+    task = wait_for(runner, rig, "k1", ("failed",))
+    assert task["error"].startswith(reason) and task["commit"] == ""
+    assert not (rig.state / "ideas" / "demo" / "picks").exists()
+    tree = next((rig.state / "worktrees").iterdir())
+    assert not (tree / ".orkcraft-pick").exists() and not (tree / ".orkcraft-pick.json").exists()
+    state = json.loads((rig.state / "ideas" / "demo" / "state.json").read_text())
+    assert state["state"] == "failed" and "The task left" in state["error"]
+
+
+def test_a_kind_that_is_not_the_asked_one_fails_it(rig, monkeypatch):
+    monkeypatch.setenv("STUB_MODE", "k1=pickwav")
+    plan_of(rig, [{"id": "k1", "title": "Draw the logo", "pick": {**PICK, "n": 2}}])
+    runner = runner_of(rig)
+    runner.start("demo")
+    assert wait_for(runner, rig, "k1", ("failed",))["error"] == "B is a sound, not a picture"
+
+
+def test_what_the_task_committed_besides_its_variants_is_not_kept(rig, monkeypatch):
+    monkeypatch.setenv("STUB_MODE", "k1=pickcommit")
+    plan_of(rig, [{"id": "k1", "title": "Draw the logo", "pick": {**PICK, "n": 2}}])
+    runner = runner_of(rig)
+    runner.start("demo")
+    task = wait_for(runner, rig, "k1", ("picking",))
+    tree = next((rig.state / "worktrees").iterdir())
+    assert not (tree / "tool.py").exists() and git(tree, "rev-parse", "HEAD") == task["base"]
+
+
+def test_a_key_commits_the_picked_file_at_its_target_with_its_message_and_the_task_lands(rig, monkeypatch):
+    runner = start_pick(rig, monkeypatch)
+    wait_for(runner, rig, "k1", ("picking",))
+    runner.pick("demo", "k1", "b", "  a bit bluer\n", device="phone", via="drawer")
+    task = wait_for(runner, rig, "k1", ("merged",))
+    assert git(rig.repo, "log", "-1", "--format=%s", task["commit"]) == "Draw the logo: B · v2"
+    assert git(rig.repo, "show", "--stat", "--format=", task["commit"]).split()[0] == "assets/logo.png"      # that file alone
+    assert (rig.repo / "assets" / "logo.png").read_bytes() == pf.png(12, 2)                   # B's file, nowhere else
+    assert not (rig.repo / "stray.txt").exists() and task["picked"] == {"key": "B", "name": "v2", "note": "a bit bluer"}
+    pick = json.loads((rig.state / "ideas" / "demo" / "picks" / "k1-r1" / "pick.json").read_text())
+    assert (pick["picked"], pick["note"]) == ("B", "a bit bluer") and pick["asked_at"] and pick["at"] >= pick["asked_at"]
+    [answer] = events_of(rig, "pick_answered")
+    assert (answer["task"], answer["key"], answer["note_chars"], answer["via"], answer["device"]) == ("k1", "B", len("a bit bluer"), "drawer", "phone")
+    assert isinstance(answer["seconds"], float)
+    wait_for(runner, rig, "k2", ("merged",))
+    assert [c["tid"] for c in calls(rig)] == ["k1", "k2"]                                      # no new turn for k1: the gate went on from the commit
+    assert 'The person picked B · v2: "a bit bluer"' in calls(rig)[1]["argv"][1]               # the note, told to the task that waits for it
+    assert json.loads((rig.state / "ideas" / "demo" / "state.json").read_text())["state"] == "done"
+
+
+def test_with_review_on_the_picked_file_waits_at_review_as_any_change_does(rig, monkeypatch):
+    runner = start_pick(rig, monkeypatch, review=True)
+    wait_for(runner, rig, "k1", ("picking",))
+    runner.pick("demo", "k1", "A", "", via="hand")
+    task = wait_for(runner, rig, "k1", ("review",))
+    assert task["tests"]["green"] and task["diff"]["files"] == 1 and "assets/logo.png" not in git(rig.repo, "ls-tree", "-r", "--name-only", "main")
+    assert git(rig.repo, "log", "-1", "--format=%s", task["branch"]) == "Draw the logo: A · v1"
+    assert runner.merge("demo", "k1") == git(rig.repo, "rev-parse", "main")
+    assert (rig.repo / "assets" / "logo.png").read_bytes() == pf.png(11, 2)
+
+
+def test_none_of_them_needs_a_note_then_runs_the_task_again_as_its_next_round_and_the_old_variants_stay(rig, monkeypatch):
+    runner = start_pick(rig, monkeypatch)
+    wait_for(runner, rig, "k1", ("picking",))
+    for note in ("", "   \n"):
+        with pytest.raises(RunnerError, match="A note says what to change: write one first"):
+            runner.pick("demo", "k1", None, note)
+    assert tasks_of(rig)["k1"]["state"] == "picking"                                            # a refusal leaves it asked
+    runner.pick("demo", "k1", None, "rounder, and no anchor", via="screen")
+    task = wait_for(runner, rig, "k1", ("picking",))
+    assert task["round"] == 2 and len(calls(rig)) == 2 and calls(rig)[1]["resume"] is True
+    first, second = (json.loads((rig.state / "ideas" / "demo" / "picks" / f"k1-r{n}" / "pick.json").read_text()) for n in (1, 2))
+    assert first["picked"] is None and first["note"] == "rounder, and no anchor"                # the history keeps the answer
+    assert "picked" not in second and [v["w"] for v in second["variants"]] == [21, 22, 23]
+    assert (rig.state / "ideas" / "demo" / "picks" / "k1-r1" / "a.png").is_file()
+    log = runner.log("demo", "k1")
+    assert 'None of the last variants: "rounder, and no anchor"' in log and "Make 3 new ones" in log and "`.orkcraft-pick/`" in log
+    [answer] = events_of(rig, "pick_answered")
+    assert (answer["key"], answer["note_chars"], answer["via"]) == (None, len("rounder, and no anchor"), "screen")
+    assert [(e["round"]) for e in events_of(rig, "pick_asked")] == [1, 2]
+    runner.pick("demo", "k1", "C", "")                                                         # the second round's, then
+    wait_for(runner, rig, "k1", ("merged",))
+    assert (rig.repo / "assets" / "logo.png").read_bytes() == pf.png(23, 2)
+
+
+def test_a_pick_answered_twice_a_task_not_picking_or_a_key_that_is_not_one_is_refused(rig, monkeypatch):
+    runner = start_pick(rig, monkeypatch)
+    with pytest.raises(RunnerError, match="That pick is answered already"):
+        runner.pick("demo", "k1", "A", "")                                                      # not picking yet
+    wait_for(runner, rig, "k1", ("picking",))
+    for key in ("D", "", "Z", 1):
+        with pytest.raises(RunnerError, match="Pick one of A, B, C"):
+            runner.pick("demo", "k1", key, "")
+    with pytest.raises(RunnerError, match="That task is gone"):
+        runner.pick("demo", "k9", "A", "")
+    runner.pick("demo", "k1", "A", "")
+    with pytest.raises(RunnerError, match="That pick is answered already"):
+        runner.pick("demo", "k1", "B", "")                                                      # twice
+    wait_for(runner, rig, "k1", ("merged",))
+    with pytest.raises(RunnerError, match="That pick is answered already"):
+        runner.pick("demo", "k1", "B", "")
+    assert (rig.repo / "assets" / "logo.png").read_bytes() == pf.png(11, 2)
+
+
+def test_a_place_git_ignores_is_said_and_the_pick_stays_asked(rig, monkeypatch):
+    monkeypatch.setenv("STUB_MODE", "k1=pick:2")
+    plan_of(rig, [{"id": "k1", "title": "Draw the logo", "pick": {**PICK, "n": 2, "target": "ignored/logo.png"}}])
+    runner = runner_of(rig)
+    runner.start("demo")
+    wait_for(runner, rig, "k1", ("picking",))
+    with pytest.raises(RunnerError, match="ignored/logo.png is ignored by git"):
+        runner.pick("demo", "k1", "A", "")
+    assert tasks_of(rig)["k1"]["state"] == "picking" and "picked" not in json.loads(
+        (rig.state / "ideas" / "demo" / "picks" / "k1-r1" / "pick.json").read_text())
+
+
+def test_picking_waits_for_stop_all_start_again_and_goes_with_drop(rig, monkeypatch):
+    runner = start_pick(rig, monkeypatch)
+    wait_for(runner, rig, "k1", ("picking",))
+    runner.stop_all()
+    assert tasks_of(rig)["k1"]["state"] == "picking"                                            # it waits, spending nothing
+    runner.start("demo")                                                                       # Start again keeps what waits for the person
+    assert tasks_of(rig)["k1"]["state"] == "picking"
+    runner.pick("demo", "k1", "B", "")                                                         # … and a stopped goal goes on with the answer
+    wait_for(runner, rig, "k1", ("merged",))
+    assert json.loads((rig.state / "ideas" / "demo" / "state.json").read_text())["state"] in ("working", "done")
+
+
+def test_a_picking_task_can_be_dropped(rig, monkeypatch):
+    runner = start_pick(rig, monkeypatch)
+    wait_for(runner, rig, "k1", ("picking",))
+    runner.drop_task("demo", "k1")
+    assert tasks_of(rig)["k1"]["state"] == "failed" and tasks_of(rig)["k1"]["error"] == "dropped by you"
+    with pytest.raises(RunnerError, match="That pick is answered already"):
+        runner.pick("demo", "k1", "A", "")
+
+
+def test_a_plan_task_without_a_valid_pick_is_an_ordinary_task(rig, monkeypatch):
+    monkeypatch.setenv("STUB_MODE", "k1=edit")
+    plan_of(rig, [{"id": "k1", "title": "Plain", "pick": {**PICK, "n": 1}}])
+    runner = runner_of(rig)
+    runner.start("demo")
+    assert wait_for(runner, rig, "k1", ("merged",))["state"] == "merged"

@@ -6,7 +6,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from orkboard.realm import idea_checks, idea_secrets
+from orkboard.realm import idea_checks, idea_pick, idea_secrets
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, env_name, has_summary, parse_tests, read_secret, spec_paths
 
 
@@ -16,6 +16,11 @@ FINDINGS_ASK = (
     'at most 20. Write `{"findings": []}` when you found nothing that blocks, and then change nothing else. Fix only what is small '
     'and certain; leave the rest as findings with `"fixed": false`.')
 NO_FINDINGS = "You left no findings file and changed no file. Write your findings file, as the task asks."
+PICK_BACK = """The person looked at your last variants and picked none of them:
+
+None of the last variants: "{note}"
+
+Make {n} new ones in this same worktree."""
 NO_RUN = {"passed": 0, "failed": 0, "failing": [], "tail": "", "green": True, "ran": False, "command": ""}      # a check that changed no file: no gate ran
 NO_DIFF = {"files": 0, "added": 0, "removed": 0}
 
@@ -29,6 +34,24 @@ def _r():
     """The runner's module (it imports this one: looked up when a task runs)."""
     from orkboard.core import idea_runner
     return idea_runner
+
+
+def is_pick(task: dict) -> bool:
+    """A task that ends with variants for the person to pick from (spec 51): its plan's task has a `pick`; a check never does."""
+    return not is_check(task) and idea_pick.ask_of(task) is not None
+
+
+def pick_ask(task: dict) -> str:
+    """What a task that makes variants is told besides its brief (spec 51 §2.2): how many, of which kind, for what, where to write
+    them and the manifest, and that it changes nothing else (as a check's findings file, they are read and never committed)."""
+    ask = idea_pick.ask_of(task) or {}
+    kind = idea_pick.KINDS[ask["kind"]]
+    return (f"This task ends with {ask['n']} variants for the person to pick from, not with a change. Make {ask['n']} {kind.many} "
+            f"({kind.formats}; at most {idea_pick.size_words(kind.limit)} each) for this: {ask['ask']}\n"
+            f"Write each as a file into `{idea_pick.PICK_DIR}/` at the worktree's root, and a manifest `{idea_pick.PICK_FILE}` at the root, as JSON: "
+            '`{"variants": [{"name": "24 characters at most", "file": "its file name in the folder", "why": "one line"}]}`, '
+            f"exactly {ask['n']}, each different from the others. Make the files with your own tools. Change nothing else and commit nothing: "
+            f"the person picks one, and it is written to `{ask['target']}` for you.")
 
 
 class TaskMixin:
@@ -131,7 +154,8 @@ class TaskMixin:
         after = set(task.get("after") or [])
         done = [f"- {t.get('id')} · {t.get('title', '')} ({t.get('state')})"
                 + (f" — merged: {'; '.join(t.get('subjects') or [])}" if t.get("state") == "merged" and t.get("subjects") else "")
-                + f"\n  {t.get('brief', '')}" for t in plan.get("tasks") or [] if t.get("id") in after]
+                + f"\n  {t.get('brief', '')}" + (f"\n  {idea_pick.picked_words(t['picked'])}" if t.get("picked") else "")
+                for t in plan.get("tasks") or [] if t.get("id") in after]
         env = self._env(slug, task.get("id"), plan)
         files = [n for n in env if n.startswith("ORKCRAFT_FILE_")]
         secrets = [n for n in env if n not in ("ORKCRAFT_ORC", "ORKCRAFT_IDEA", "ORKCRAFT_TASK", *files)]
@@ -158,4 +182,31 @@ class TaskMixin:
         parts += [f"The file is at ${name}; copy it into the repository only if the task says so." for name in files]
         if is_check(task):
             parts.append(FINDINGS_ASK)
+        elif is_pick(task):
+            parts.append(pick_ask(task))
         return "\n\n".join(parts)
+
+    def _again_prompt(self, slug: str, plan: dict, task: dict, again: dict, base: str) -> tuple[str, str]:
+        """(what a task is told, the session it resumes) when it goes on: a send back, the gate's conflict, a pick of none of them
+        (spec 51 §2.3); a pick taken needs no turn, the gate runs on what was committed. The task's own prompt comes first when
+        there is no session to resume."""
+        resume = str(task.get("session") or "")
+        if again.get("taken"):
+            return "", resume
+        extra, tests = "", task.get("tests") or {}
+        if again["files"]:
+            extra += (f"Your branch conflicted with `{base}` in {', '.join(again['files'])}. The merge of "
+                      f"`{base}` into your branch is open in this worktree: rebase onto {base} and resolve "
+                      "it by editing those files until no conflict marker is left (keep what both sides "
+                      "meant). Do not abort the merge.\n\n")
+        if tests and not tests.get("green", not tests.get("failed")):
+            extra += f"The tests were red:\n{tests.get('tail', '')}\n\n"
+        if again.get("pick"):
+            prompt = PICK_BACK.format(note=again["why"], n=(idea_pick.ask_of(task) or {}).get("n")) + "\n\n" + pick_ask(task)
+        else:
+            prompt = _r().BACK.format(why=again["why"], extra=extra)
+            if resume and is_check(task):
+                prompt += self._again_ask(task)
+        if not resume:
+            prompt = self._prompt(slug, plan, task) + "\n\n" + prompt
+        return prompt, resume

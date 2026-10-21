@@ -32,9 +32,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from orkboard.core.idea_picking import PickMixin
 from orkboard.core.idea_review import BACK, STOP_ONE, STOPPED_NOTE, ReviewMixin, RunnerError  # noqa: F401
-from orkboard.core.idea_task import FINDINGS_ASK, NO_DIFF, NO_FINDINGS, NO_RUN, TaskMixin, is_check
-from orkboard.realm import call_log, event_log, halt, harnesses, idea_checks, idea_spend, idea_target, ideas, jobs, roles, status, tool_errors
+from orkboard.core.idea_task import FINDINGS_ASK, NO_DIFF, NO_FINDINGS, NO_RUN, TaskMixin, is_check, is_pick
+from orkboard.realm import call_log, event_log, halt, harnesses, idea_checks, idea_pick, idea_spend, idea_target, ideas, jobs, roles, status, tool_errors
 from orkboard.realm.idea_git import BOARD_PAGE, CRITICAL_TESTS, Conflict, IdeaGit, env_name, has_summary, parse_tests, read_secret, spec_paths  # noqa: F401
 
 CHANGED = "ideas.changed"          # slug: an idea's state or one of its tasks changed
@@ -98,7 +99,7 @@ class Run:
     role: str = ""                 # the role it runs as (spec 34 §3): its `max_parallel` is held
 
 
-class IdeaRunner(TaskMixin, ReviewMixin):
+class IdeaRunner(TaskMixin, PickMixin, ReviewMixin):
     def __init__(self, repo_root: Path, state_dir: Path, settings: Any, bus: Any = None, *,
                  limits: Callable[[], list] | None = None, events: bool = True,
                  on_held: Callable[[], None] | None = None, rank: Callable[[str], Any] | None = None) -> None:
@@ -231,7 +232,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
             for t in plan["tasks"]:
                 if (slug, t.get("id")) in self._runs:
                     continue
-                if t.get("state") not in ("merged", "review"):
+                if t.get("state") not in ("merged", "review", "picking"):      # a pick that waits keeps its variants
                     t.update(state="waiting", error="", note="")
                 self._until.pop((slug, t.get("id")), None)
             self._save_tasks(slug, plan["tasks"])
@@ -440,8 +441,10 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         task.update(tool=HARNESS, model=(h.pick(run) if h else run) or run)    # the model the run names (spec 35 §12)
         task.update(state="running", started=now_iso(), finished="", error="", note="",
                     branch=f"idea/{slug}/{tid}", commit="", session="", cost=None, tokens=None,
-                    tests=None, diff=None, round=1, conflict="", why="", base="", role=self._role(task)["slug"],
-                    ran_tier=idea_target.tier_of(run), effort=effort, **({"findings": None} if is_check(task) else {}))
+                    tests=None, diff=None, round=idea_pick.next_round(self.state_dir, slug, str(tid)) if is_pick(task) else 1,
+                    conflict="", why="", base="", role=self._role(task)["slug"],
+                    ran_tier=idea_target.tier_of(run), effort=effort, **({"findings": None} if is_check(task) else {}),
+                    **({"picked": None} if is_pick(task) else {}))
         self._clear_log(slug, tid)
         self._spawn(slug, tid, cancel, None)
 
@@ -476,24 +479,16 @@ class IdeaRunner(TaskMixin, ReviewMixin):
                 path, branch = self.git.reopen(slug, tid), str(task.get("branch") or f"idea/{slug}/{tid}")
                 start_sha = str(task.get("base") or "") or self.git.head(path)
                 spent.update(cost=task.get("cost"), tokens=task.get("tokens"))
-                extra = ""
-                tests = task.get("tests") or {}
-                if again["files"]:
-                    extra += (f"Your branch conflicted with `{base}` in {', '.join(again['files'])}. The merge of "
-                              f"`{base}` into your branch is open in this worktree: rebase onto {base} and resolve "
-                              "it by editing those files until no conflict marker is left (keep what both sides "
-                              "meant). Do not abort the merge.\n\n")
-                if tests and not tests.get("green", not tests.get("failed")):
-                    extra += f"The tests were red:\n{tests.get('tail', '')}\n\n"
-                prompt, resume = BACK.format(why=again["why"], extra=extra), str(task.get("session") or "")
-                if not resume:
-                    prompt = self._prompt(slug, plan, task) + "\n\n" + prompt
-                elif is_check(task):
-                    prompt += self._again_ask(task)
+                prompt, resume = self._again_prompt(slug, plan, task, again, base)
                 if is_check(task):
                     self._set_task(slug, tid, findings=None)       # replaced by this round's
-            self._log(slug, tid, f"== round {rnd} · {now_iso()} · {model}\n{prompt}\n", env)
-            session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent, effort)
+            if again is not None and again.get("taken"):           # a variant was picked and committed (spec 51 §2.3): the gate goes on from there
+                session = resume
+            else:
+                self._log(slug, tid, f"== round {rnd} · {now_iso()} · {model}\n{prompt}\n", env)
+                session = self._session(slug, tid, path, cancel, model, env, prompt, resume, spent, effort)
+                if is_pick(task) and (again is None or again.get("pick")) and self._variants(slug, tid, task, path, start_sha, rnd):
+                    return                                        # it ends with variants for the person, not with a change (spec 51 §2.2)
             check_task, findings, changed = is_check(task), None, True
             problem, out = None, ""
             for attempt in (1, 2):
@@ -549,7 +544,7 @@ class IdeaRunner(TaskMixin, ReviewMixin):
         except Held as e:
             with self._lock:
                 self._until[(slug, tid)] = e.until
-            self._set_task(slug, tid, state="held" if again is None else "review",
+            self._set_task(slug, tid, state="held" if again is None or again.get("pick") else "review",
                            note=f"after {dt.datetime.fromtimestamp(e.until):%H:%M}", finished="")
         except (InterruptedError, halt.Halted) as e:
             run = self._runs.get((slug, tid))

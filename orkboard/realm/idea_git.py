@@ -145,6 +145,23 @@ class IdeaGit:
                  message.strip()[:200] or "Orkline: the task's work"))
         return True
 
+    def commit_file(self, path: Path, rel: str, message: str) -> None:
+        """Commit one file of the worktree, whatever else is there (the one a person picked, spec 51 §2.3). RuntimeError, in words,
+        when git refuses it (the place is ignored) or when it changes nothing (the same file is there already)."""
+        if _git(path, "check-ignore", "-q", "--", rel).returncode == 0:
+            raise RuntimeError(f"{rel} is ignored by git: it cannot be committed there")
+        _ok(_git(path, "add", "--", rel))
+        if _git(path, "diff", "--cached", "--quiet", "--", rel).returncode == 0:
+            raise RuntimeError(f"{rel} already holds that file: nothing changes")
+        _ok(_git(path, "-c", "user.name=Orkline", "-c", "user.email=orkline@localhost", "commit", "-q", "-m",
+                 message.strip()[:200] or "Orkline: the picked file", "--", rel))
+
+    def restore(self, path: Path, sha: str) -> None:
+        """The worktree as it was cut: `sha` checked out over everything the session did, what it added taken away (a task that
+        makes variants changes nothing else, spec 51 §2.2)."""
+        _ok(_git(path, "reset", "--hard", "-q", sha))
+        _ok(_git(path, "clean", "-fdq"))
+
     # -- the gate --------------------------------------------------------------------------------
 
     def gate(self, path: Path, base: str, cancel: threading.Event,
