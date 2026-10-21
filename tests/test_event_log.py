@@ -67,3 +67,13 @@ def test_a_goal_raising_its_flag_is_an_event_with_what_it_took(tmp_path):
     assert (row["event"], row["idea"], row["goal"], row["by"], row["tasks"], row["first_time"], row["usd"], row["days"]) == (
         "idea_flagged", "dark-mode", "ux", "gate", 4, 3, None, 2)
     assert event_log.counts(tmp_path)["idea_flagged"] == 1
+
+
+def test_a_pick_asked_and_answered_are_events_with_what_the_measure_needs(tmp_path):
+    """Spec 51 §2.4, §4: `pick_asked` and `pick_answered` — how many, of which kind, which round; which key (null: none), a note's length, where, how long."""
+    assert event_log.record(tmp_path, event_log.PICK_ASKED, idea="dark-mode", task="k2", n=4, media="image", round=1)
+    assert event_log.record(tmp_path, event_log.PICK_ANSWERED, idea="dark-mode", task="k2", key="B", note_chars=0, via="hand", seconds=12.5, device="phone")
+    asked, answered = event_log.read(tmp_path)
+    assert (asked["event"], asked["n"], asked["media"], asked["round"]) == ("pick_asked", 4, "image", 1)
+    assert (answered["key"], answered["note_chars"], answered["via"], answered["seconds"], answered["device"]) == ("B", 0, "hand", 12.5, "phone")
+    assert event_log.counts(tmp_path)["pick_asked"] == 1 and event_log.counts(tmp_path)["pick_answered"] == 1

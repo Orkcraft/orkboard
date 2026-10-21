@@ -87,6 +87,7 @@ def test_what_was_a_goal_is_a_party_and_what_was_an_idea_is_a_goal():
     assert say("New idea") == "New goal" and say("3 ideas") == "3 goals"                            # an old idea in today's word (spec 50 §2.1)
     rows = {key: (word, was) for key, word, was in lexicon.glossary()}
     assert rows["track"] == ("party", "track") and rows["idea"] == ("goal", "idea") and rows["steward_goal"] == ("Target", "")
-    assert rows["flag"] == ("flag", "")
+    assert rows["flag"] == ("flag", "") and rows["pick"] == ("pick", "")                            # spec 51: the stop Pick one
+    assert lexicon.term("pick") == "pick" and lexicon.term("pick", many=True) == "picks"
     table = dict(lexicon.table())
     assert table["track"] == "party" and table["Tracks"] == "Parties" and "Goal" not in table and "goal" not in table
