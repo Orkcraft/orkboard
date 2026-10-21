@@ -28,6 +28,9 @@ other than the page makes first (docs/design/mobile.md): what this server speaks
 
     ← {"name": "orkcraft", "version": "0.1.0", "protocol": 1, "api": 1}
 
+`GET /media/<goal>/<pick-id>/<file>?s=<signature>` is a pick's file (gui/media.py, spec 51 §3): the address is signed by the host
+and is the proof, so it needs no token and an `<img>`, `<audio>` or `<video>` loads it; Range is served (206).
+
 `GET /api/analytics?days=7` (the same token) is the day logs of the last days, with what each day added up to, as one
 zip (realm/analytics.py, the host's `day_logs`).
 

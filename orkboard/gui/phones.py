@@ -12,6 +12,8 @@ is paired or a pairing code is shown: a machine with no phone opens no port on t
          ← {"outcome": "asked"}      for a client with no socket: Shortcuts, Tasker (docs/design/phone-places.md)
     GET  /app/          the town in a phone's browser, on the tailnet (gui/pwa.py; its socket names the token
                         as a subprotocol, `bearer.<token>`, since a browser cannot set Authorization)
+    GET  /media/<goal>/<pick-id>/<file>?s=<signature>   a pick's file (gui/media.py, spec 51 §3): the address is signed by the host
+                        and is the proof, so an <img>, <audio> or <video> loads it without a header; Range is served (206)
     GET  /ws            Authorization: Bearer <device token>; a WebSocket:
          ← {"t": "state", "state": {...}}     the compact snapshot (gui/mobile.py), at most every PUSH_S
          → {"t": "cmd", "id": 7, "name": "orders.answer", "args": {"id": "…", "key": "1"}}
