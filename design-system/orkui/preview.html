@@ -27,7 +27,11 @@
   .box { border: 1px solid var(--ork-frame); }
   .marks { display: flex; flex-wrap: wrap; gap: var(--ork-4); }
   .marks figure { width: 96px; }
-  .marks .pair { display: flex; align-items: end; gap: var(--ork-3); }
+  .marks .pair, .elems .pair { display: flex; align-items: end; gap: var(--ork-3); }
+  .elems { display: grid; gap: var(--ork-4); }
+  .elems .ground { display: flex; flex-wrap: wrap; align-items: end; gap: var(--ork-6); padding: var(--ork-5); border: 1px solid var(--ork-frame); }
+  .elems .ground.panel { background: var(--ork-panel); }
+  .elems .ground.raised { background: var(--ork-raised); }
 </style>
 </head>
 <body>
@@ -98,6 +102,27 @@
   <div class="ork-frame alert" style="width:156px;padding:var(--ork-3);display:grid;gap:var(--ork-2)"><span class="ork-gem alert" style="justify-self:start">?</span><b>Asks you</b><span style="color:var(--ork-ink-muted)">alert edge</span></div>
   <div class="ork-frame danger" style="width:156px;padding:var(--ork-3);display:grid;gap:var(--ork-2)"><span class="ork-gem danger" style="justify-self:start">!</span><b>Failed</b><span style="color:var(--ork-ink-muted)">danger edge</span></div></div></section>
 
+<section><h2>Elements (a goal's mark; 14 and 28 px)</h2><div class="elems">
+  <div class="ground panel" title="on panel">
+    <figure><span class="pair"><span class="ork-elem meadow" aria-hidden="true"></span><span class="ork-elem meadow big" aria-hidden="true"></span></span><figcaption>meadow</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem ice" aria-hidden="true"></span><span class="ork-elem ice big" aria-hidden="true"></span></span><figcaption>ice</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem dust" aria-hidden="true"></span><span class="ork-elem dust big" aria-hidden="true"></span></span><figcaption>dust</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem void" aria-hidden="true"></span><span class="ork-elem void big" aria-hidden="true"></span></span><figcaption>void</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem lava" aria-hidden="true"></span><span class="ork-elem lava big" aria-hidden="true"></span></span><figcaption>lava</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem meadow dim" aria-hidden="true"></span><span class="ork-elem meadow big dim" aria-hidden="true"></span></span><figcaption>meadow dim</figcaption></figure></div>
+  <div class="ground raised" title="on raised">
+    <figure><span class="pair"><span class="ork-elem meadow" aria-hidden="true"></span><span class="ork-elem meadow big" aria-hidden="true"></span></span><figcaption>meadow</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem ice" aria-hidden="true"></span><span class="ork-elem ice big" aria-hidden="true"></span></span><figcaption>ice</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem dust" aria-hidden="true"></span><span class="ork-elem dust big" aria-hidden="true"></span></span><figcaption>dust</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem void" aria-hidden="true"></span><span class="ork-elem void big" aria-hidden="true"></span></span><figcaption>void</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem lava" aria-hidden="true"></span><span class="ork-elem lava big" aria-hidden="true"></span></span><figcaption>lava</figcaption></figure>
+    <figure><span class="pair"><span class="ork-elem meadow dim" aria-hidden="true"></span><span class="ork-elem meadow big dim" aria-hidden="true"></span></span><figcaption>meadow dim</figcaption></figure></div></div>
+  <div class="cards">
+  <div class="ork-card"><div class="row"><span class="ork-elem meadow" aria-hidden="true"></span><b>Fewer steps to install</b></div><div style="color:var(--ork-ink-muted)">3 of 5 tasks</div></div>
+  <div class="ork-card"><div class="row"><span class="ork-elem lava" aria-hidden="true"></span><b>Faster first run</b></div><div style="color:var(--ork-ink-muted)">waits for main</div></div>
+  <div class="ork-card"><div class="row"><span class="ork-elem void" aria-hidden="true"></span><b>Quiet nights</b></div><div style="color:var(--ork-ink-muted)">2 of 4 tasks</div></div>
+  <div class="ork-card"><div class="row"><span class="ork-elem meadow dim" aria-hidden="true"></span><b>New goal</b></div><div style="color:var(--ork-ink-muted)">not yet read: dim</div></div></div></section>
+
 <section><h2>Dialog, menu, toast, key line, think</h2><div class="row" style="align-items:start">
   <div class="ork-dialog" style="width:360px"><h3 class="ork-dialog__title">New goal</h3><input class="ork-field" placeholder="Description">
     <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="ork-btn">Cancel</button><button class="ork-btn primary">Save goal</button></div></div>
@@ -140,9 +165,9 @@
 <script>
   const css = getComputedStyle(document.documentElement);
   const sw = document.getElementById("sw");
-  for (const n of ["canvas","panel","raised","frame","edge","ink","ink-muted","ink-faint","on-ink","action","action-hi","action-press","danger","alert","success"]) {
+  for (const n of ["canvas","panel","raised","frame","edge","ink","ink-muted","ink-faint","on-ink","action","action-hi","action-press","danger","alert","success","elem-meadow","elem-ice","elem-dust","elem-void","elem-lava"]) {
     const d = document.createElement("div"); d.style.background = "var(--ork-" + n + ")"; d.textContent = n;
-    d.style.color = ["ink","ink-muted","ink-faint","action","action-hi","action-press","danger","alert","success","edge"].includes(n) ? "var(--ork-on-ink)" : "var(--ork-ink)"; sw.append(d); }
+    d.style.color = ["ink","ink-muted","ink-faint","action","action-hi","action-press","danger","alert","success","edge","elem-meadow","elem-ice","elem-dust","elem-void","elem-lava"].includes(n) ? "var(--ork-on-ink)" : "var(--ork-ink)"; sw.append(d); }
   const cells = (el, on) => { for (let i = 0; i < 16; i++) { const c = document.createElement("i"); if (i < on) c.className = "on"; el.append(c); } };
   cells(document.getElementById("m1"), 6); cells(document.getElementById("m2"), 13); cells(document.getElementById("m3"), 16);
   for (const n of ["ork","ork-asleep","ork-asks","ork-failed","ork-working"]) {

@@ -31,6 +31,13 @@ Seasoned, Veteran): 16 x 16 and @2x 32 x 32, copied unchanged from orkLine (`mar
 src="marks/harness-claude.png" srcset="marks/harness-claude@2x.png 2x" alt="">` draws one at 16 x 16, `.ork-mark.big` 32 x 32 from the
 @2x file. A mark is an accent beside its name, never alone; its colours are the tool's own, so a person tells the tools apart.
 
+## The elements
+`elements/` holds a goal's five marks in orkBoard (spec 50): meadow (a leaf), ice (a flake), dust (stones), void (a crescent), lava (a
+flame), each a 7 x 7 grid of unit squares (`elements/README.md`). `<span class="ork-elem meadow" aria-hidden="true"></span>` draws one at
+14 x 14, `.ork-elem.big` at 28 x 28, as a mask in the element's colour (`--ork-elem-meadow` … `--ork-elem-lava`: muted, none the success
+green nor the alert or danger hue, each 3:1 on panel and raised); `.dim` draws it in `--ork-ink-faint`, for a goal not yet given one.
+No size between 14 and 28: whole pixels. The element is shown on a card, never named in the interface.
+
 ## The parts of the one window
 `.ork-gem` a price or a mark before a move (inverted, 22 px; `.alert`, `.danger`, `.dim`; 24 px on a phone) · `.ork-stat` a
 measured number (outlined, 20 px) · `.ork-crystals` a row of `<i>` diamonds for what is left of a tool (`.on`, `.kept` hatched

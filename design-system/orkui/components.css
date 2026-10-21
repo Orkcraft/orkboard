@@ -149,6 +149,18 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
 .ork-frame.alert { border-color: var(--ork-alert); }
 .ork-frame.danger { border-color: var(--ork-danger); }
 
+/* --- Elements: a goal's mark (elements/, five 7 x 7 pixel shapes), drawn as a mask in the element's token. 14 x 14 or 28 x 28, never a
+   size between: two or four pixels a cell, whole pixels. `.dim` is a goal not yet given one; it goes after the elements so it wins ----- */
+.ork-elem { display: inline-block; flex: none; width: 14px; height: 14px; vertical-align: middle;
+  -webkit-mask-size: 100%; mask-size: 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+.ork-elem.big { width: 28px; height: 28px; }
+.ork-elem.meadow { background: var(--ork-elem-meadow); -webkit-mask-image: url(elements/meadow.svg); mask-image: url(elements/meadow.svg); }
+.ork-elem.ice { background: var(--ork-elem-ice); -webkit-mask-image: url(elements/ice.svg); mask-image: url(elements/ice.svg); }
+.ork-elem.dust { background: var(--ork-elem-dust); -webkit-mask-image: url(elements/dust.svg); mask-image: url(elements/dust.svg); }
+.ork-elem.void { background: var(--ork-elem-void); -webkit-mask-image: url(elements/void.svg); mask-image: url(elements/void.svg); }
+.ork-elem.lava { background: var(--ork-elem-lava); -webkit-mask-image: url(elements/lava.svg); mask-image: url(elements/lava.svg); }
+.ork-elem.dim { background: var(--ork-ink-faint); }
+
 /* --- Dialog, menu, toast ------------------------------------------------------------------------------------------------------- */
 .ork-scrim { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--ork-6); background: var(--ork-scrim); }
 .ork-dialog, .ork-menu { background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-double) double var(--ork-edge); clip-path: var(--ork-notch); box-sizing: border-box; }
