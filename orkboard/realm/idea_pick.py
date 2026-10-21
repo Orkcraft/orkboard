@@ -176,7 +176,7 @@ def _file(folder: Path, name: object) -> Path | None:
     try:
         if not stat.S_ISREG(path.lstat().st_mode) or path.resolve().parent != folder.resolve():
             return None
-    except OSError:
+    except (OSError, ValueError):                    # a name that is no name (a NUL in it)
         return None
     return path
 

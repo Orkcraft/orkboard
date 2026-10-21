@@ -65,6 +65,8 @@ class PickMixin:
             if os.path.commonpath([root, os.path.realpath(dest.parent)]) != root:
                 raise RunnerError("The place the plan names for it is outside the project")
             dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.is_symlink():                                          # a link of the project's own is replaced, never followed out of it
+                dest.unlink()
             shutil.copyfile(idea_pick.folder_of(self.state_dir, slug, str(pick["id"])) / variant["file"], dest)
             self.git.commit_file(path, target, message)
         except RunnerError:
@@ -102,7 +104,7 @@ class PickMixin:
                                picked={"key": key, "name": variant["name"], "note": note})
                 again = {"why": "", "files": [], "taken": True}
             self._emit(event_log.PICK_ANSWERED, idea=slug, task=tid, key=key, note_chars=len(note),
-                       via=via, seconds=asked, device=device or "desktop")
+                       via=via, seconds=asked, device=device or "desktop", round=rnd)
             if slug not in self._active:
                 self._active.append(slug)
                 self._set_idea(slug, "working")

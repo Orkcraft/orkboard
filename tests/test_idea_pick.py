@@ -163,7 +163,7 @@ def test_a_file_outside_the_folder_a_missing_one_or_a_link_is_refused(tmp_path):
     leave(tree, {"a.png": pf.png()}, rows=[{"name": "a", "file": "a.png"}, {"name": "b", "file": "../../secret.png"}])
     got, why = idea_pick.read(tree, task(2))
     assert got == [] and why.startswith("B is not a file in the variants' folder")
-    for bad in ("/etc/passwd", str(secret), "sub/a.png", ".", "", None, 3, "missing.png"):
+    for bad in ("/etc/passwd", str(secret), "sub/a.png", ".", "", None, 3, "missing.png", "a\x00.png"):
         leave(tree, {"a.png": pf.png()}, rows=[{"name": "a", "file": "a.png"}, {"name": "b", "file": bad}])
         got, why = idea_pick.read(tree, task(2))
         assert got == [] and why.startswith("B is not a file in the variants' folder"), bad
@@ -522,7 +522,8 @@ def test_a_key_commits_the_picked_file_at_its_target_with_its_message_and_the_ta
     pick = json.loads((rig.state / "ideas" / "demo" / "picks" / "k1-r1" / "pick.json").read_text())
     assert (pick["picked"], pick["note"]) == ("B", "a bit bluer") and pick["asked_at"] and pick["at"] >= pick["asked_at"]
     [answer] = events_of(rig, "pick_answered")
-    assert (answer["task"], answer["key"], answer["note_chars"], answer["via"], answer["device"]) == ("k1", "B", len("a bit bluer"), "drawer", "phone")
+    assert (answer["task"], answer["key"], answer["note_chars"], answer["via"], answer["device"], answer["round"]) == (
+        "k1", "B", len("a bit bluer"), "drawer", "phone", 1)
     assert isinstance(answer["seconds"], float)
     wait_for(runner, rig, "k2", ("merged",))
     assert [c["tid"] for c in calls(rig)] == ["k1", "k2"]                                      # no new turn for k1: the gate went on from the commit
@@ -559,7 +560,7 @@ def test_none_of_them_needs_a_note_then_runs_the_task_again_as_its_next_round_an
     assert 'None of the last variants: "rounder, and no anchor"' in log and "Make 3 new ones" in log and "`.orkcraft-pick/`" in log
     [answer] = events_of(rig, "pick_answered")
     assert (answer["key"], answer["note_chars"], answer["via"]) == (None, len("rounder, and no anchor"), "screen")
-    assert [(e["round"]) for e in events_of(rig, "pick_asked")] == [1, 2]
+    assert [(e["round"]) for e in events_of(rig, "pick_asked")] == [1, 2] and answer["round"] == 1
     runner.pick("demo", "k1", "C", "")                                                         # the second round's, then
     wait_for(runner, rig, "k1", ("merged",))
     assert (rig.repo / "assets" / "logo.png").read_bytes() == pf.png(23, 2)
@@ -582,6 +583,21 @@ def test_a_pick_answered_twice_a_task_not_picking_or_a_key_that_is_not_one_is_re
     with pytest.raises(RunnerError, match="That pick is answered already"):
         runner.pick("demo", "k1", "B", "")
     assert (rig.repo / "assets" / "logo.png").read_bytes() == pf.png(11, 2)
+
+
+def test_a_link_of_the_project_at_the_target_is_replaced_not_followed(rig, monkeypatch, tmp_path):
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"outside")
+    (rig.repo / "assets").mkdir()
+    (rig.repo / "assets" / "logo.png").symlink_to(outside)
+    git(rig.repo, "add", "-A")
+    git(rig.repo, "commit", "-m", "a link")
+    runner = start_pick(rig, monkeypatch)
+    wait_for(runner, rig, "k1", ("picking",))
+    runner.pick("demo", "k1", "A", "")
+    wait_for(runner, rig, "k1", ("merged",))
+    assert outside.read_bytes() == b"outside" and (rig.repo / "assets" / "logo.png").read_bytes() == pf.png(11, 2)
+    assert not (rig.repo / "assets" / "logo.png").is_symlink()
 
 
 def test_a_place_git_ignores_is_said_and_the_pick_stays_asked(rig, monkeypatch):
