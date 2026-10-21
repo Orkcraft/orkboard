@@ -146,3 +146,20 @@ def test_a_check_that_found_nothing_is_no_result(where):
     assert got["merged"]["tasks"] == 2 and got["merged"]["first_time"] == 1
     assert [i["slug"] for i in got["merged"]["ideas"]] == ["queue"]
     assert board_recap.merges([{"state": "merged", "clean": True}, {"state": "merged", "round": 1}]) == (1, 1)
+
+
+def test_a_goals_flag_reads_in_main_beside_a_partys_old_flag_and_a_flag_alone_makes_a_card_spec_50(where):
+    root, state = where
+    rows = _rows(("queue", "working"), ("csv", "done"))
+    assert board_recap.build(root, state, SINCE, NOW, rows)["empty"] is True
+    _log(root, "idea_flagged", 5, idea="csv", goal="offline", by="gate", tasks=3, first_time=2, usd=None, days=2)
+    _log(root, "idea_flagged", 4, idea="csv", goal="offline", by="done", tasks=3, first_time=2, usd=None, days=2)       # never twice, but a log may say so
+    _log(root, "idea_flagged", 4, idea="deleted", goal="offline", by="gate", tasks=1, first_time=1, usd=None, days=1)   # a goal the Board lost
+    _log(root, "idea_flagged", 12, idea="queue", goal="offline", by="gate", tasks=1, first_time=1, usd=None, days=1)    # before the period
+    got = board_recap.build(root, state, SINCE, NOW, rows)
+    assert got["flags"] == [{"goal": "offline", "idea": "csv", "short": "Csv", "title": "Title of csv", "met": True, "by": "gate"}]
+    assert got["empty"] is False
+    _log(root, "goal_accepted", 3, goal="offline", met=True, by="Product manager")
+    old, new = board_recap.build(root, state, SINCE, NOW, rows)["flags"]
+    assert old == {"goal": "offline", "short": "Offline", "title": "Offline goal", "met": True, "by": "Product manager"}      # the old line keeps its fields
+    assert new["idea"] == "csv" and "idea" not in old

@@ -154,3 +154,14 @@ def test_ideas_today_reads_the_log_since_midnight_and_joins_the_titles_from_the_
 
 def test_ideas_today_of_a_quiet_day_is_empty(host):
     assert host.command("ideas.today") == {"events": []}
+
+
+def test_a_goals_flag_is_a_row_that_opens_the_goal_spec_50():
+    titles = {**TITLES, "ideas": {**TITLES["ideas"], "sync": {**TITLES["ideas"]["sync"], "short": "Sync queue"}}}
+    (got,) = board_today.rows([line("idea_flagged", 1, idea="sync", goal="offline", by="gate", tasks=3, first_time=2, usd=None, days=2)], titles)
+    assert got == {"at": "14:30", "mark": "⚑", "tone": "ok", "words": "is in main", "title": "Sync queue", "goal": "offline",
+                   "idea": "sync", "task": "", "open": {"kind": "idea", "slug": "sync"}}
+    assert one("idea_flagged", idea="csv", goal="reports", by="done")["title"] == "CSV export"          # no short name: its title
+    gone = one("idea_flagged", idea="gone", goal="elsewhere", by="gate")
+    assert (gone["title"], gone["goal"], gone["open"]) == ("gone", "elsewhere", {"kind": "idea", "slug": "gone"})   # a goal the Board lost reads as its slug
+    assert board_today.rows([line("idea_flagged", 1, goal="offline", by="gate")], TITLES) == []        # no goal named: no row

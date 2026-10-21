@@ -266,3 +266,16 @@ def test_a_night_where_only_a_clean_check_merged_is_not_worked(root):
     log(root, "task_state", at(18, 3), idea="a", task="k2", state="merged", was="review", round=1)
     got = board_week.nights(root, SETTINGS, NOW, n=3)
     assert [(n["date"], n["kind"]) for n in got] == [("2026-10-20", "off"), ("2026-10-19", "idle"), ("2026-10-18", "worked")]
+
+
+def test_last_week_counts_a_goals_flag_beside_a_partys_old_one_spec_50(root, tmp_path):
+    state = tmp_path / "state"
+    log(root, "idea_flagged", at(15, 9), idea="export", goal="offline", by="gate", tasks=2, first_time=2, usd=None, days=1)
+    log(root, "idea_flagged", at(15, 9), idea="gone", goal="offline", by="gate", tasks=2, first_time=2, usd=None, days=1)
+    log(root, "idea_flagged", at(8, 9), idea="table", goal="offline", by="gate", tasks=2, first_time=2, usd=None, days=1)     # the week before
+    got = board_week.last_week(root, state, SETTINGS, NOW, _rows())
+    assert got["flags"] == [{"goal": "offline", "idea": "export", "short": "Export", "title": "The export", "met": True, "by": "gate"}]
+    assert got["empty"] is False
+    log(root, "goal_accepted", at(17, 9), goal="billing", met=True, by="Growth")
+    old, new = board_week.last_week(root, state, SETTINGS, NOW, _rows())["flags"]
+    assert old == {"goal": "billing", "short": "Billing", "title": "Billing goal", "met": True, "by": "Growth"} and new["idea"] == "export"

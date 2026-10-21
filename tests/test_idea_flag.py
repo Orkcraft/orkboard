@@ -164,6 +164,11 @@ def test_the_gate_raises_the_flag_of_each_done_goal_it_took_into_main(host, repo
     assert isinstance(e["days"], int) and e["days"] >= 1
     assert done in heard and heard.index(done) < len(heard) - 1 and heard[-1] == ""                  # ideas.changed with its slug, then the press's own
     assert len(events(host, "gate_merged")) == 1
+    row = next(r for r in host.command("ideas.today")["events"] if r["mark"] == "⚑")                # today's strip, the recap and the flags say it
+    assert (row["words"], row["title"], row["goal"], row["idea"], row["open"]) == ("is in main", "Sync the queue", "first-party", done, {"kind": "idea", "slug": done})
+    recap = host.command("ideas.recap", {"since": (dt.datetime.now() - dt.timedelta(hours=1)).timestamp() * 1000})
+    assert [(f["idea"], f["goal"], f["met"], f["by"]) for f in recap["flags"]] == [(done, "first-party", True, "gate")]
+    assert [g["slug"] for g in host.command("ideas.flags")["goals"]] == [done]
 
 
 def test_a_goal_done_after_the_press_with_all_its_commits_in_main_raises_when_it_is_done(host, repo):
