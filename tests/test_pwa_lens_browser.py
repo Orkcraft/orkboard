@@ -8,7 +8,7 @@ import base64
 import pytest
 
 from tests.test_pwa_idea_field_browser import _png
-from tests.test_pwa_shell_browser import _open_idea, NO_SCROLL, WAIT_MS, _called, _goal_row, _phone, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import _dial, _open_idea, NO_SCROLL, WAIT_MS, _called, _phone, _pick_goal, _shot  # noqa: F401
 
 pytestmark = pytest.mark.browser
 
@@ -26,8 +26,8 @@ async def _new_idea(stub, page, lens=PARTY):
     stub.lens, stub.parts = lens, PARTS
     stub.screen_png = base64.b64encode(_png(390, 300)).decode()
     stub.bump({})
-    await _goal_row(page, "ship")
-    await page.get_by_role("button", name="New idea", exact=True).click()
+    await _pick_goal(page, "ship")                                                                      # the goal is on the phone and shown
+    await _dial(page, "New idea")                                                                       # the create button's first item
     sheet = page.get_by_role("dialog", name="New idea")
     await sheet.wait_for(timeout=WAIT_MS)
     assert await _called(stub, "ideas.lens", {"track": "ship"})
