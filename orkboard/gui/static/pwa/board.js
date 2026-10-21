@@ -174,9 +174,18 @@ export function makeBoard(ctx) {
   }
 
   // -- reading the town ------------------------------------------------------------------------------------------
+  // The listener lets a phone send a burst of ten commands and then five a second: a read it refused for that (a reading is seven commands) is asked once more a moment later,
+  // not left stale until the next change.
+  const TOO_FAST = /Too many commands/i;
+  const read = async (name) => {
+    const r = await ctx.send(name);
+    if (r.ok || !TOO_FAST.test(r.error || "")) return r;
+    await new Promise((done) => setTimeout(done, 1200));
+    return ctx.send(name);
+  };
+
   async function refresh() {
-    const [b, r, a, ro, m, td, g] = await Promise.all([ctx.send("ideas.board"), ctx.send("ideas.review_list"), ctx.send("ideas.agents"), ctx.send("ideas.roles"),
-      ctx.send("ideas.map"), ctx.send("ideas.today"), ctx.send("ideas.gate")]);
+    const [b, r, a, ro, m, td, g] = await Promise.all(["ideas.board", "ideas.review_list", "ideas.agents", "ideas.roles", "ideas.map", "ideas.today", "ideas.gate"].map(read));
     const ok = (x) => x.ok && x.result && !x.result.error;
     if (ok(b)) st.board = b.result;
     if (ok(r)) st.review = r.result;

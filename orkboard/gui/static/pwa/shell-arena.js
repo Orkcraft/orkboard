@@ -76,7 +76,7 @@ export function makeArena(core, ctx, parts) {
 
   function header(m) {
     const g = m.goal, v = g.verdict;
-    const end = v ? (v.met ? `Met · ${v.by}` : `Not met yet · ${v.by}`) : m.left ? "The goal" : "Its ideas are done";
+    const end = v ? (v.met ? `Met · ${v.by}` : `Not met yet · ${v.by}`) : m.left || !m.nodes.length ? "The goal" : "Its ideas are done";
     const flag = h("span", { class: `trail-flag ${v ? (v.met ? "is-met" : "is-not") : ""}`.trim() }, icon("flag"));
     flags.raiseWhenSeen(g, flag);
     const mark = h("span", { class: "tport", role: "img", "aria-label": `The flag: ${end}`, title: end }, flag,

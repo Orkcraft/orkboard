@@ -479,9 +479,9 @@ async def _open_idea(page, title):
     await page.locator(".screen").wait_for(state="visible", timeout=WAIT_MS)
 
 
-async def _open_idea_of(page, task_title, idea_title):
+async def _open_idea_of(page, task_title, idea_title, band="build"):
     """The screen of an idea that has tasks (so it is not in Planning, but in the stages): one of its tasks' screen, then the idea among that task's facts."""
-    await _band(page, "build")
+    await _band(page, band)
     await _item(page, task_title).click()
     await page.locator(".screen .facts").get_by_role("button", name=idea_title).click()
     await page.locator(".screen .plan, .screen .tasks").first.wait_for(timeout=WAIT_MS)
