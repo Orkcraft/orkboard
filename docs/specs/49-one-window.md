@@ -297,7 +297,7 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
    events: the Today sheet), and the **limits chip** (the worst tool's diamonds: the tools sheet). It slides away as
    the page scrolls, as today.
 2. **The goals** as a row of chips under it (scrolling sideways): the short title, its %, its stops' count, ↻; an
-   *Operations* chip when the project has them, and **+ New goal** last (dashed). The goal's header under them: its title, *k ideas left · n % · ≈$ so
+   *Operations* chip when the project has them (no *New goal* chip: the FAB creates, §10.6). The goal's header under them: its title, *k ideas left · n % · ≈$ so
    far*, and the gate's button (*dev → main*, off when main is up to date; its screen full-screen).
 3. **The ideas bar**: *▾ n · Now: …*; open, the ideas at work (title, pips, stage track, note; a tap shows only that
    idea's tasks) and *Done · n*.
@@ -314,11 +314,15 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
    free seats after them; a tap on a member shows only its work over the field (§5.3: the same order, three to a row
    across the width, bottom-up; its price and numbers in a line on top; *Everyone*).
 6. **What waits for you** lies along the bottom (56 px, **no line over it**): the stops of §6 and, after them, the
-   results to look at (*To look at*, the edge's muted frame), fanned and only their tops showing; **New idea** is the
-   FAB in its right corner (as the phone's FAB of before, `ideas.fab`: a 48 px square in the action colour with *+*, the
-   new idea for the goal shown), above the fan and clear of it: the fan's area ends 68 px before the right edge, its
-   items overlap so that they fit it (each turned 3° a step from the middle, 3 px lower a step²), and a reset of
-   buttons' margins must not undo the overlap. A tap **pops** one out:
+   results to look at (*To look at*, the edge's muted frame), fanned across the whole width and only their tops
+   showing (the items overlap so that they fit, each turned 3° a step from the middle and 3 px lower a step²; a reset of
+   buttons' margins must not undo the overlap). **The FAB creates** (the phone's FAB of before, a 48 px square in the
+   action colour with *+*): it floats over the field's bottom right, 8 px above the members' row, over everything; the
+   right column (and a member's solo) start 58 px higher so that it covers no task. A tap opens **its three ways** above
+   it over a scrim, the FAB turning to ×: **New idea** (nearest the thumb, in the action colour: *for <goal>*, today's
+   new idea sheet, `ideas.fab`), **New goal** (*its title, what done means, its party*: today's new goal sheet) and **Add
+   to the party** (*n free seats in this party*, or *the party is full: change a member*: the goal's party, as Edit the
+   party). Each is 48 px high; a tap on the scrim or × closes them. A tap **pops** one out:
    it leaps from its place in the fan to a raised sheet above the scrim (≈ 0.34 s in steps, from its turn to upright;
    none under `prefers-reduced-motion`; its place in the fan stays empty while it is up): its gem, kind, head, title,
    text, its quick answers as 44 px buttons (§6.2's; a result's *Merge into dev* · *Send back* · *Drop…*) and **Open it
@@ -387,7 +391,7 @@ else: stop and write it in §14 (as built) first.
 - **C** (browser, phone): no tab bar; the top bar's Today and limits sheets; the goal chips and header; the stage
   switch (the first shown, a press, the counts, the columns shown, no sideways scroll with three); the members' cards
   (three across at 390 px, their signs; `marks/*.png` served); a member's solo (the column's order, three to a row);
-  + New goal last among the chips; the New idea FAB in the bottom row's corner, clear of the fan;
+  the FAB over the field's bottom right covering no task, its three ways and their sheets; the fan across the width;
   the stops and results along the bottom with no line over them, a tap pops one (the class, none under reduced
   motion), its quick answers' commands, *Open it on its own screen*; `#needs`; 44 px targets; the service worker's
   version and `SHELL`.
