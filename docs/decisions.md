@@ -588,3 +588,49 @@ four launches, one product and its labs. So:
    factory game), never another studio's title; a tool's card opens from its building on the line (orkPage `8081bc3`).
 The line's frame and its page: no product's code and no spec. §27 and §50.8 stand (no new mechanic before the testers'
 numbers); a lab starts with a spec of its own, OrkWiki's first.
+
+## 61. The Map shows one goal: its ideas by stage, its party in lanes; results are merged on the idea; Review's column goes (21 October, the owner)
+
+Why: the owner's notes on the trail Map (decisions §59, spec 46). It shows every goal at once and tells how far each is,
+but not who is on an idea now, in which step, and what waits for the person's look: for that the person leaves for
+Agents and Review, and on the desktop a column of results sits beside the Board for work that belongs to ideas. The
+owner and the PM worked out a Map of one goal, drawn as an interactive mockup (Ideas and Phone Ideas; the older variants
+Main, States, Lanes and Phone were turned down). So:
+1. **The Map shows one goal.** Its header is the goal: title, priority, state, progress and %, *n of m ideas done*, *done
+   when*, *≈$ so far*, today's merged and $; under it one line with the whole party and each member's state (*at work*,
+   *next*, *tonight*, *free*, or the Needs you words in alert). The desktop picks the goal in its header; the phone's top
+   bar already does.
+2. **Below it, the goal's ideas in trail order.** An idea at work or waiting for the person is expanded; the rest are one
+   line (the head of who is on it, the title, *<stage> · <state>*, a mark); the done ones fold into *Done (n)*, with *in
+   dev · waits for main* while they are not in main.
+3. **Every idea is in one of three stages**, worked out from its state and its plan, never written by hand: **Planning**
+   (raw, reading, asks, ready, planning, plan, proposed), **Implementation** (a passed plan whose build tasks are not
+   all merged), **Checking** (only check tasks left: their kind is a checker's tag), then Done. A word for the step, not
+   a new state: the keeper's and the runner's states do not change.
+4. **An expanded idea** is a stage track (the current one underlined, the past ones ✓), **lanes** of the party members
+   active in the stage (the leader in Planning, the builders with tasks in Implementation, the checkers in Checking:
+   at most 3 by the party's seats), **columns** that are the plan's waves, a task's card in its agent's lane and wave;
+   tasks of one agent in one wave **stack** with a count. A merged task leaves the field with one animation, none
+   under `prefers-reduced-motion` (§55.2). Members' questions in Planning are in the leader's lane, wearing the asker's
+   head (spec 46 `by`).
+5. **The idea's card**, in orkUI's double frame, on the right: title, stage, pips, *k of n tasks in dev*, ≈$ so far and
+   the plan's estimate. In Planning with a plan waiting: **Start the work** (the plan's pass, autostart stays) and **Open
+   the plan**. In Implementation and Checking: *Waits for your look* for that idea's results with **Merge into dev**,
+   **Send back** and **Drop**, which are Review's actions, unchanged. On the phone the card is on top of the block, the
+   waves rise bottom-up and one idea is expanded at a time.
+6. **Yellow goes only on the agent the work stopped on**: a member who asks, the leader for a plan, a spec or a proposal,
+   the agent of a failed task (its task in danger). A result waiting for a look is not a signal (§54.1): *in Review* in
+   muted ink; it still counts in Needs you.
+7. **The desktop's Review column goes.** Results are merged on the idea's card, one place each. The dev → main gate stays
+   where §49.5 has it, in Needs you. No branch per idea and no *merge into main* on an idea: the person sees dev and
+   main only (§49).
+8. **The Map is no longer only a view.** This supersedes §52.1 (its one action *open*) and §54.4's single button, and
+   spec 39's *Not in this spec: acting from the Map*: it has the actions of item 5, which are the Board's own commands;
+   it invents no command and no setting.
+9. **A check with findings** stays in Checking: its result waits for the person with its findings, *Send back* runs it
+   again as round 2 (*Checking · round 2*); an idea is back in Implementation when a build task is sent back or fails.
+   The runner is not changed.
+10. **Measured:** the share of results merged from the Map against Review (`opened` `via: "map"`), the Map's opens per day
+    (§52.4).
+An improvement of v1's existing mechanics (§27) and a view's rewrite: the owner's call, before the testers' numbers, as
+§55 and §59. Spec 48.
