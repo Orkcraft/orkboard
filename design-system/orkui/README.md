@@ -38,6 +38,14 @@ flame), each a 7 x 7 grid of unit squares (`elements/README.md`). `<span class="
 green nor the alert or danger hue, each 3:1 on panel and raised); `.dim` draws it in `--ork-ink-faint`, for a goal not yet given one.
 No size between 14 and 28: whole pixels. The element is shown on a card, never named in the interface.
 
+## The signs
+`signs/` holds the eight signs of orkBoard's window (spec 50 §1.6): check (done), cross (failed), work (at work), night (held for tonight,
+a clock), alert (a stop that asks), flag (a goal in main), before (what a task waits for) and after (what waits for it), each a 7 x 7
+grid of unit squares (`signs/README.md`). `<span class="ork-sign check" aria-hidden="true"></span>` draws one at 14 x 14, `.ork-sign.big`
+at 28 x 28, as a mask in `currentColor`: the colour of the text it stands in (ink, muted, success, danger or alert; a sign adds no colour
+of its own). `vertical-align: -3px` sets it on the baseline of a 16 px line. No size between 14 and 28: whole pixels. A sign stands beside
+its words (or a `title`) and is `aria-hidden`. The close (×), the plus (+) and the chevrons (›, ⌄) are icons (`icons/icons.svg`).
+
 ## The parts of the one window
 `.ork-gem` a price or a mark before a move (inverted, 22 px; `.alert`, `.danger`, `.dim`; 24 px on a phone) · `.ork-stat` a
 measured number (outlined, 20 px) · `.ork-crystals` a row of `<i>` diamonds for what is left of a tool (`.on`, `.kept` hatched
