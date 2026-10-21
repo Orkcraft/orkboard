@@ -30,6 +30,7 @@ export function makeBoard(ctx) {
   let seenRev;                          // the snapshot's ideas_rev read last
   let seenSnap;                         // the snapshot's rev read last (the project switcher's)
   let loading = false;
+  let again = false;                    // the snapshot said the Board changed while it was being read
   let pushed = false;                   // the preview put a step in the history: the system back gesture closes it
 
   // The listener lets a phone send a burst of ten commands and then five a second (a reading is seven commands): a command it refused for that, and so did not run, is sent once
@@ -202,6 +203,13 @@ export function makeBoard(ctx) {
     schedule();
   }
 
+  /** Reads the Board for the snapshot's `ideas_rev`, and once more when the snapshot said it changed meanwhile. */
+  function readBoard() {
+    loading = true;
+    seenRev = st.snap?.ideas_rev;
+    refresh().finally(() => { loading = false; if (again) { again = false; readBoard(); } });
+  }
+
   function schedule() {
     clearTimeout(poll);
     const busy = (st.board?.ideas || []).some((i) => BUSY.has(i.state)) || (st.board?.tracks || []).some((t) => t.state === "reading")
@@ -224,10 +232,9 @@ export function makeBoard(ctx) {
       top.render(s, s.rev !== seenSnap ? s.rev : undefined);
       boardTab.ops.sync(s.ops_rev ?? 0);
       seenSnap = s.rev;
-      if (loading || (seenRev !== undefined && s.ideas_rev === seenRev)) return;
-      loading = true;
-      refresh().finally(() => { loading = false; });
-      seenRev = s.ideas_rev;
+      if (seenRev !== undefined && s.ideas_rev === seenRev) return;
+      if (loading) { again = true; return; }                  // the Board changed while it was being read: read once more when this ends (the host says it once)
+      readBoard();
     },
     dispose() { clearTimeout(poll); },
   };

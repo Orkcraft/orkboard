@@ -397,7 +397,8 @@ async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
                 errors: list[str] = []
                 page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
                 await page.goto(f"{server.phones.address}/app/#pair={offer['code']}{extra}")
-                await page.locator(".gchips").wait_for(timeout=WAIT_MS)
+                await page.locator(".arena").wait_for(state="attached", timeout=WAIT_MS)
+                await page.locator(".gchips, .arena > p.arena-empty:not(:has-text('Loading'))").first.wait_for(state="attached", timeout=WAIT_MS)      # the goals as chips (or, with no project, what it says)
                 try:                                  # the goal's window read (its Map comes with its ideas): drawn once more then
                     await page.locator(".ghead").first.wait_for(timeout=3000)
                 except Exception:                     # a test with no goal or no project: nothing to wait for
@@ -516,6 +517,7 @@ async def _pop(page, name):
     await page.mouse.click(at["x"], at["y"])
     raised = page.locator(".raised")
     await raised.wait_for(timeout=WAIT_MS)
+    await raised.evaluate("(e) => Promise.all(e.getAnimations().map((a) => a.finished))")              # it leaps in steps: a press is made when it stands
     return raised
 
 
