@@ -737,6 +737,11 @@ for the product, one for the platform, one for the whole flow, each with its own
 11. **The parties are a switch in the top bar, not a row of tabs** (the owner): a project has a few, three at most as a
    rule, and they change seldom; the switch says where you are (*project › party*) and the board gains the tab row's
    height. The phone keeps its chips.
+12. **On the phone the party is in the top bar too** (the owner): one *where* button, *project › party ⌄*, with a count of
+   what waits in the other parties; its sheet lists the parties, a new one and the other projects. The chips row goes.
+13. **A card keeps its size; the members scroll instead** (the owner): a member's column is as wide as its card, and
+   three or more members are a sideways strip with the third peeking; the cards never shrink to fit (this replaces
+   spec 49's *no sideways scroll with three*).
 A new face and new words over v1's mechanics, two small additions to the host (a goal's flag, its element), and the
 end of a model call (a party's acceptance): the owner's call, before the testers' numbers, as §55, §59, §61 and §62.
 Mockups E and F of *Orkboard: one window*. Spec 50.

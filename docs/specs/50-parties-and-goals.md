@@ -332,11 +332,16 @@ the spread's cards 120 × 168; the arrows 2 px. No page scroll; the left column'
 
 ## 6. The phone (C)
 The mockup F is the target. As spec 49 §10 with:
-1. **The top bar**: the project's name is a button (*harbor ⌄*) that opens the **Projects** sheet (from the top): the
-   projects as rows (the name; *this one*; what waits), *Open on your computer: a tap switches this phone to one.*; a tap
-   switches as the drawer's projects do today (`projects.use`). The menu keeps Stop all, Spend, Agents and the settings;
-   its aria-label *Menu: Stop all, Spend, Agents and settings*; the projects leave it.
-2. **The party chips** (56 px row): the leader's head (20 px), the party's short name, the stops' count, ↻; no %.
+1. **The top bar: one *where* button** (decisions §63.12): beside the menu, *harbor › <the leader's head> Tech ⌄* (the
+   project's name muted, the party's short name in ink, cut when it must, 44 px high), the stops' count of this party
+   before the ⌄ and, after it, a small warning count of the stops waiting in the project's **other** parties (none when
+   none: a question elsewhere is never hidden). A tap opens one sheet from the top: **the project's parties** (rows of
+   52 px at least: the leader's head, the name, *k/n done*, the stops' count, the work sign; the picked one marked),
+   **+ New party**, then **Other projects** (the name, what waits; a tap switches as the drawer's projects do today,
+   `projects.use`) and *Open on your computer: a tap switches this phone to one.* A pick is kept (`orkcraft.goal`, as
+   today) and closes the sheet. The menu keeps Stop all, Spend, Agents and the settings; its aria-label *Menu: Stop all,
+   Spend, Agents and settings*; the projects leave it.
+2. **No chips row**: the parties are in the *where* button's sheet; the board gains the row's 56 px.
 3. **The party bar** (44 px, one line, quiet: faint 12 px text, no title, no second line): *k/n done* (the count,
    §0), the party's price a goal (*≈$2–4 a goal*), and **›**; a tap opens **About this party** (a sheet: §3.7's blocks, *Edit the party*, *Save it to
    your parties*). At its right the gate, quiet (no green): *dev → main* with its count (ink), its screen as spec 49;
@@ -347,7 +352,11 @@ The mockup F is the target. As spec 49 §10 with:
    *Flags · n* (⚑); a goal's row 52 px (the pile with its element, the title, its line, its mark, ✓ when picked) and ›
    (44 px). A tap picks or unpicks (the filter as §3.5: the columns, the results and the stops).
 5. **The stage switch** stays (Planning · Implementation · Checking). Under the members, the **rows by phase** with
-   their stacks (§3.4's rules): a card **132 × 185** (5:7), two columns at 390 px; the leader's Planning (a goal per
+   their stacks (§3.4's rules): a card **132 × 185** (5:7), always; a member's column is **148 px wide** (decisions
+   §63.13): with three members or more the members and their columns are **one sideways strip** (a member and its
+   column move together, snapped to a column's start, no scrollbar drawn), two columns whole and about 70 px of the
+   third showing at 390 px; with two or fewer there is no scroll and the columns share the width (spec 49 §10's *no
+   sideways scroll with three* goes: the cards no longer shrink to fit); the leader's Planning (a goal per
    card, the element top left, its words at the foot) and a member's solo: two cards to a row, centred, 16 px apart.
    A raw goal's card is dashed with its element dim.
 6. **A spread** is a strip over the field: the line *<goal> · n tasks of <member> at this phase*, the cards (172 × 240)
@@ -390,7 +399,9 @@ The mockup F is the target. As spec 49 §10 with:
   reduced motion); the arrows on hover (both ways, none for a hidden end; the foot's words); New goal's pile (the turn,
   the dialog, the element it shows); the flag line (once, its words, ×, its press); every template in today's words
   (`tests/test_gui_wording.py`); no page scroll at 1 440 × 900; below 1 024 px.
-- **C** (browser, phone): the Projects sheet from the top bar and the menu without the projects; the chips (head, no %);
+- **C** (browser, phone): the *where* button (the project, the party, its stops, the other parties' count) and its
+  sheet (the parties, *+ New party*, *Other projects*); no chips row; the menu without the projects; the members' strip
+  (148-px columns, the snap, the third peeking, no scroll with two, the cards 132 × 185 with three);
   the party bar's one line (*k/n done*) and About this party's sheet; the gate's quiet button; the goals bar and its sheet (picks,
   *k of n goals*, *Show all*, the filter on the columns, results and stops); the rows by phase, the cards 132 × 185, two
   to a row in Planning and solo; a spread's strip (snap, the dependency lines, Put them back); the dial's three ways and
