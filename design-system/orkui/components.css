@@ -161,7 +161,7 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
 .ork-elem.lava { background: var(--ork-elem-lava); -webkit-mask-image: url(elements/lava.svg); mask-image: url(elements/lava.svg); }
 .ork-elem.dim { background: var(--ork-ink-faint); }
 
-/* --- Signs: every symbol a face draws (signs/, eight 7 x 7 pixel shapes), drawn as a mask in the colour of the text it stands in
+/* --- Signs: every symbol a face draws (signs/, thirteen 7 x 7 pixel shapes), drawn as a mask in the colour of the text it stands in
    (`currentColor`). 14 x 14 or 28 x 28, never a size between. -3px sets the 14 px box on the baseline of a 16 px line ---------- */
 .ork-sign { display: inline-block; flex: none; width: 14px; height: 14px; vertical-align: -3px; background: currentColor;
   -webkit-mask-size: 100%; mask-size: 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
@@ -174,6 +174,11 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
 .ork-sign.flag { -webkit-mask-image: url(signs/flag.svg); mask-image: url(signs/flag.svg); }
 .ork-sign.before { -webkit-mask-image: url(signs/before.svg); mask-image: url(signs/before.svg); }
 .ork-sign.after { -webkit-mask-image: url(signs/after.svg); mask-image: url(signs/after.svg); }
+.ork-sign.play { -webkit-mask-image: url(signs/play.svg); mask-image: url(signs/play.svg); }
+.ork-sign.pause { -webkit-mask-image: url(signs/pause.svg); mask-image: url(signs/pause.svg); }
+.ork-sign.sound { -webkit-mask-image: url(signs/sound.svg); mask-image: url(signs/sound.svg); }
+.ork-sign.film { -webkit-mask-image: url(signs/film.svg); mask-image: url(signs/film.svg); }
+.ork-sign.text { -webkit-mask-image: url(signs/text.svg); mask-image: url(signs/text.svg); }
 
 /* --- Dialog, menu, toast ------------------------------------------------------------------------------------------------------- */
 .ork-scrim { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--ork-6); background: var(--ork-scrim); }

@@ -1,6 +1,6 @@
 # orkUI / office / signs
 
-The eight signs: **every symbol a face draws is orkUI's** (orkBoard's spec 50 §1.6, decisions §63.10). A sign stands beside the
+The thirteen signs: **every symbol a face draws is orkUI's** (orkBoard's spec 50 §1.6 and spec 51 §1, decisions §63.10). A sign stands beside the
 words it explains (a state, a stop, an order), in the colour of that text; it is never the only thing that says it, so the words
 (or a `title`) stay and the sign is `aria-hidden`.
 
@@ -8,6 +8,9 @@ words it explains (a state, a stop, an order), in the colour of that text; it is
     work    at work (↻)                              night   held for tonight (a clock)
     alert   a stop that asks (!)                     flag    a goal in main (⚑)
     before  what a task waits for (←)                after   what waits for it (→)
+    play    a sound's or a clip's control (▶)        pause   a sound's or a clip's control (‖)
+    sound   a sound's tile (a loudspeaker)           film    a clip's tile (a film strip)
+    text    a text's tile (lines of text)
 
 *night* is a clock: a crescent is the *void* element (`../elements/`), so a moon would say two things. The close (×), the plus (+)
 and the chevrons (›, ⌄) are not here: they are orkUI's icons already (`../icons/icons.svg`).
@@ -24,4 +27,4 @@ file's black is only the shape. `vertical-align: -3px` sets the 14 px box on the
 
 A sign takes the signal colour of its text (success, danger, alert) or the muted ink, never a colour of its own: colour is a
 signal, and the sign does not add one. A shape is changed here, in the table of `tests/test_orkui.py` and in orkBoard's spec 50
-§1.6 together, never in a face.
+§1.6 (spec 51 §1 for the media signs) together, never in a face.
