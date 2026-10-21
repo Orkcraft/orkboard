@@ -312,15 +312,17 @@ The phone (390 × 844) is the same window on one column, **with no tab bar** (Bo
    more scroll sideways. The members stand at the foot of their columns (§5.2's row, a 60 px row: three fit across); a tap on a member shows only its work over the field (§5.3: the same order, three to a row
    across the width, bottom-up; its price and numbers in a line on top; *Everyone*).
 6. **What waits for you** lies along the bottom (56 px, **no line over it**): the stops of §6 and, after them, the
-   results to look at (*To look at*, the edge's muted frame), fanned across the whole width and only their tops
-   showing (the items overlap so that they fit, each turned 3° a step from the middle and 3 px lower a step²; a reset of
-   buttons' margins must not undo the overlap). **The FAB creates** (the phone's FAB of before, a 48 px square in the
-   action colour with *+*): it floats over the field's bottom right, 8 px above the members' row, over everything; the
-   right column (and a member's solo) start 58 px higher so that it covers no task. A tap opens **its three ways** above
-   it over a scrim, the FAB turning to ×: **New idea** (nearest the thumb, in the action colour: *for <goal>*, today's
-   new idea sheet, `ideas.fab`), **New goal** (*its title, what done means, its party*: today's new goal sheet) and **Add
-   to the party** (*n free seats in this party*, or *the party is full: change a member*: the goal's party, as Edit the
-   party). Each is 48 px high; a tap on the scrim or × closes them. A tap **pops** one out:
+   results to look at (*To look at*, the edge's muted frame), fanned and only their tops showing, **centred on the
+   screen between two equal 64 px margins**: on the left the count of what waits for you (*6 / for you*, in the alert
+   colour while a stop is among them), on the right **the FAB** (the phone's FAB of before, a 48 px square in the action
+   colour with *+*, docked in this row, above the fan in stacking order). The fan's items overlap so that they fit
+   between the margins (each turned 3° a step from the middle and 3 px lower a step²; the first and the last keep no
+   outer negative margin; a reset of buttons' margins must not undo the overlap). Nothing floats over the field: every
+   column's tasks rest on their member. A tap on the FAB opens **its three ways** above it over a scrim, the FAB turning
+   to ×: **New idea** (nearest the thumb, in the action colour: *for <goal>*, today's new idea sheet, `ideas.fab`),
+   **New goal** (*its title, what done means, its party*: today's new goal sheet) and **Add to the party** (*n free seats
+   in this party*, or *the party is full: change a member*: the goal's party, as Edit the party). Each is 48 px high; a
+   tap on the scrim or × closes them. A tap **pops** one out:
    it leaps from its place in the fan to a raised sheet above the scrim (≈ 0.34 s in steps, from its turn to upright;
    none under `prefers-reduced-motion`; its place in the fan stays empty while it is up): its gem, kind, head, title,
    text, its quick answers as 44 px buttons (§6.2's; a result's *Merge into dev* · *Send back* · *Drop…*) and **Open it
@@ -389,7 +391,8 @@ else: stop and write it in §14 (as built) first.
 - **C** (browser, phone): no tab bar; the top bar's Today and limits sheets; the goal chips and header; the stage
   switch (the first shown, a press, the counts, the columns shown, no sideways scroll with three); the members' cards
   (three across at 390 px, their signs; `marks/*.png` served); a member's solo (the column's order, three to a row);
-  the FAB over the field's bottom right covering no task, its three ways and their sheets; the fan across the width;
+  the FAB docked in the bottom row, the count on its left, the fan centred between them and touching neither (3, 6, 8,
+  10 items), every column resting on its member; the FAB's three ways and their sheets;
   the stops and results along the bottom with no line over them, a tap pops one (the class, none under reduced
   motion), its quick answers' commands, *Open it on its own screen*; `#needs`; 44 px targets; the service worker's
   version and `SHELL`.
