@@ -1,6 +1,6 @@
-// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2): Stop all and Spend today at its head, then This project — the
-// Target, Start plans by themselves, the night's hours, Push after merging, What is left — and This phone — Pair a phone, Download the
-// logs, Unpair this phone. Each setting writes with today's command (`ideas.board_set`, `ideas.into`) at once.
+// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1): Stop all and Spend today at its head, Agents (a screen of its own) and
+// Flags, then This project — the Target, Start plans by themselves, the night's hours, Merge into, Push after merging, What is left — and This phone — Pair a phone,
+// Download the logs, Unpair this phone. Each setting writes with today's command (`ideas.board_set`, `ideas.into`) at once.
 import { h, sheet } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { TARGETS } from "./shell-words.js";
@@ -12,7 +12,7 @@ import { makeWeek, pushWeek } from "./shell-cards.js";
 export function makeSettings(core, ctx, drawer, limits) {
   const spend = h("p", { class: "board-spend muted" });
   // This week (spec 42 §6): the Spend today row opens a sheet of the week's work. New idea is the Board's button, pressed from here.
-  const week = makeWeek(core, () => { drawer.close(); document.querySelector(".fab")?.click(); });
+  const week = makeWeek(core, () => { drawer.close(); core.newIdea(); });
 
   // Stop all: a tap asks first (the confirm is a sheet whose button sits away from this one), as the town's does.
   const stop = h("button", { class: "ork-btn danger board-stop", type: "button" }, "Stop all");
@@ -76,11 +76,17 @@ export function makeSettings(core, ctx, drawer, limits) {
   nightTo.addEventListener("change", setNight);
   pushBox.addEventListener("change", async () => { await write("ideas.into", { push: pushBox.checked }); await core.refresh(); });
 
+  // Agents: today's Agents pane as a screen of its own (Back to the Board); Flags: the goals met (a sheet).
+  const flagsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "flags", onclick: () => { drawer.close(); core.openFlags(); } }, "Flags");
+  const agentsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "agents", onclick: () => { drawer.close(); core.open({ kind: "agents" }); } }, "Agents");
+  const intoBtn = h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", "data-act": "into", onclick: () => { drawer.close(); core.openInto(); } });
+
   const project = [
     h("h3", {}, "This project"),
     h("div", { class: "field target-picks", role: "radiogroup", "aria-label": "Target" }, h("span", { class: "field-label" }, "Target"), ...picks.map((p) => p[2])),
     h("label", { class: "check-line", for: "autostart" }, autoBox, h("span", {}, "Start plans by themselves")),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Night"), h("div", { class: "row night-row" }, nightFrom, h("span", {}, "to"), nightTo)),
+    h("div", { class: "row" }, intoBtn),
     h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => { drawer.close(); limits(); } }, "What is left")),
   ];
@@ -92,7 +98,6 @@ export function makeSettings(core, ctx, drawer, limits) {
       const got = await core.call("ideas.week");
       if (!got) return;
       drawer.close();
-      core.go("board");
       pushWeek(core, got, "map");
     } }, "Last week")),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => pairSheet.open() }, "Pair a phone")),
@@ -104,13 +109,16 @@ export function makeSettings(core, ctx, drawer, limits) {
   ];
 
   return {
-    head: [h("div", { class: "row" }, stop), spend],
+    head: [h("div", { class: "row" }, stop), spend, h("div", { class: "row" }, agentsBtn, flagsBtn)],
     project,
     phone,
     sheets: [stopSheet.el, pairSheet.el, week.el],
     /** The settings' values from what the Board read last. */
     sync() {
       push.draw();
+      const met = core.flagCount();
+      flagsBtn.textContent = met ? `Flags (${met})` : "Flags";
+      intoBtn.replaceChildren("Merge into ", h("b", {}, core.st.review?.into || "dev"), h("i", { class: "ork-chev", "aria-hidden": "true" }));
       if (writing) return;
       for (const [id, input] of picks) input.checked = id === (core.st.board?.target || "balance");
       pushBox.checked = Boolean(core.st.review?.push);

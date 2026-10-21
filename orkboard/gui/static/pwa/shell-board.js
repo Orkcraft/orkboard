@@ -1,16 +1,12 @@
-// The Board tab (docs/specs/35-goals-window.md §11, one column; 33-v1-shell.md §6; decisions §53; spec 41 §2: no heading, no Target — the drawer has it): the Map
-// — the goals as tabs with how far each is, the goal shown (the top bar's: the one this phone showed last, else the first) as a trail
-// from its % through its ideas left to its flag (shell-map.js). Needs you is a tab of its own, with Review (board.js). Operations takes
-// the tab's place, Board back. A tap opens the idea's spec, or a task, on its own screen; every dialog is a sheet. A secret or a file is
-// entered only over this paired link (29a).
-import { h } from "./util.js";
-import { steady } from "./shell-util.js";
+// The Board on the phone (docs/specs/35-goals-window.md §11; 33-v1-shell.md §6; decisions §53, §62; spec 49 §10): the goal's window (shell-arena.js) with the
+// pieces it opens — the goal's and the party's sheets, Operations, New idea, the cards at the top (While you were away, Last week) and the flags. A tap on a
+// task, an idea or a stop opens it on its own full screen; every dialog is a sheet. A secret or a file is entered only over this paired link (29a).
 import { makeGoalSheet } from "./shell-goal.js";
 import { makeIdeas, BUSY } from "./shell-ideas.js";
-import { makeOps, OPS_VIEW } from "./shell-ops.js";
-import { makeMap } from "./shell-map.js";
-import { keptGoal } from "./shell-top.js";
+import { makeOps } from "./shell-ops.js";
+import { makeArena } from "./shell-arena.js";
 import { makeCards, pushWeek, isoWeek } from "./shell-cards.js";
+import { makeFlags } from "./shell-map.js";
 
 export { BUSY };
 
@@ -25,16 +21,13 @@ export function stateWords(idea) {
 
 export function makeBoardTab(core, ctx) {
   const st = core.st;
-  const pane = h("section", { class: "pane board-tab-pane", "aria-label": "Board" });
-  const fresh = steady(pane);
-  const goals = () => (st.board?.tracks || []).filter((t) => t.slug !== "general" || t.count);   // General once it holds ideas (older ones)
-
   const goalSheet = makeGoalSheet(core);
   const ops = makeOps(core, ctx);
   const ideas = makeIdeas(core, ctx, goalSheet);
-  const map = makeMap(core, goalSheet);
   const cards = makeCards(core);
-  let mapRev;                                        // the board's rev the Map was read at
+  const flags = makeFlags(core);
+  const arena = makeArena(core, ctx, { goalSheet, ops, ideas, cards, flags });
+  let mapLogged = false;                             // `opened` `map` is logged once per page load (spec 49 §9)
 
   // -- Last week (spec 42 §7.3): the first look of a new ISO week shows the card; `orkboard.week.<project>` holds the last week shown ---------
   let weekFor = "";                                  // the project the week was checked for
@@ -59,62 +52,19 @@ export function makeBoardTab(core, ctx) {
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") weekCheck(); });
 
-  /** The Map — the Board's trails — is read again when the board's rev moves, not on a clock of its own (spec 39 §4.8). */
-  async function loadMap() {
-    const rev = st.board?.rev;
-    if (mapRev === undefined) {                       // the first time this Board is shown: *new* since the last time
-      map.enter();
-      ctx.send("ideas.log", { event: "opened", what: "map", device: "phone" });
-    }
-    mapRev = rev;
-    const r = await ctx.send("ideas.map");
-    if (mapRev !== rev || st.view === OPS_VIEW) return;
-    if (r.ok && r.result && !r.result.error) { st.map = r.result; st.mapError = ""; }
-    else st.mapError = r.error || r.result?.error || "Loading…";
-    core.draw();
-  }
-  /** The Map is the Board: showing it is showing the Board. */
-  function showMap() {
-    st.view = "";
-    core.draw();
-  }
-
-  /** The New… and Settings buttons beside Operations' heading, with no project open. */
-  function opsButtons() {
-    return h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…"),
-      h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings"));
-  }
-
   return {
-    el: pane,
+    el: arena.el,
     editGoal: (slug) => goalSheet.open(slug),
     editTeam: (g) => goalSheet.editTeam(g),
     ops,
-    sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, ...map.sheets],
-    showMap,
-    fab: ideas.fab,
-    /** New idea's button is on the Board of a goal (not Operations', nor the Map's). */
-    fabOn: () => Boolean(st.board) && !st.view,
+    flags,
+    show: arena.show,
+    openNew: (goal) => ideas.openNew(goal),
+    sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, flags.sheet.el],
     draw() {
       if (st.board && st.snap?.project && st.snap.project !== weekFor) weekCheck();
-      if (!fresh(JSON.stringify([st.board, st.track, st.mapGoal, st.mapOpen, st.mapTick, st.view, st.ops, st.boardError, st.map, st.mapError, st.cards, st.roles?.roles?.length]))) return;
-      if (!st.board && st.boardError) {                // no project open: Operations is the person's, so it is offered all the same
-        pane.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Board")), h("p", { class: "muted" }, st.boardError),
-          h("div", { class: "section-head" }, h("h3", {}, "Operations"), opsButtons()), ...ops.section());
-        return;
-      }
-      if (!st.board) { pane.replaceChildren(h("h2", {}, "Board"), h("p", { class: "muted" }, "Loading…")); return; }
-      if (!goals().some((t) => t.slug === st.track)) {             // the goal this phone showed last, else the first
-        const kept = keptGoal(st.snap?.project);
-        st.track = (goals().find((t) => t.slug === kept) || goals()[0])?.slug || "";
-        if (st.tab === "board") queueMicrotask(() => core.draw());                // the top bar names it
-      }
-      const inOps = st.view === OPS_VIEW;
-      if (!inOps && mapRev !== st.board.rev) { if (mapRev === undefined) { st.map = null; st.mapError = ""; } loadMap(); }
-      const gear = h("button", { class: "ork-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
-      const back = h("div", { class: "row goal-pick" }, inOps ? h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…") : null,
-        h("button", { class: "ork-btn", type: "button", "aria-label": "Back to the Board", onclick: () => { st.view = ""; core.draw(); } }, "Board"));
-      pane.replaceChildren(...(inOps ? [h("div", { class: "pane-head" }, h("h2", {}, "Operations"), gear), back, ...ops.section()] : [cards.section(st.cards[0]), ...map.section()].filter(Boolean)));
+      if (st.map && !mapLogged) { mapLogged = true; ctx.send("ideas.log", { event: "opened", what: "map", device: "phone" }); }
+      arena.draw();
     },
   };
 }

@@ -1,9 +1,7 @@
-// Review, in the Needs you tab under what waits for an answer (docs/specs/33-v1-shell.md §3, §6, §8; board.js): Merge into `dev` ▾
-// at its head, then the results oldest first,
-// one card each. Three answers, on the card and pinned at the foot of the result's screen: Merge (only when the tests are
-// green and nothing conflicts), Send back / Fix (one line, required), Drop (quiet, apart, asks first).
+// Review's pieces on the phone (docs/specs/33-v1-shell.md §3, §6, §8; spec 49 §10.6): the words of a result's tests and changes, and its three answers —
+// on the raised stop along the bottom (shell-stops.js) and pinned at the foot of the result's screen: Merge (only when the tests are green and nothing
+// conflicts), Send back / Fix (one line, required), Drop (quiet, apart, asks first). The results themselves lie along the bottom with what waits for an answer.
 import { h, sheet } from "./util.js";
-import { steady } from "./shell-util.js";
 import { foot } from "./shell-forms.js";
 
 const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
@@ -143,13 +141,10 @@ export function resultActions(core, r, done = () => {}) {
   return h("div", { class: "result-actions", "data-task": r.task }, why, merge, h("div", { class: "row between" }, back, drop), form);
 }
 
+/** Merge into `dev` ▾ (the branch results merge into): the sheet of branches, opened from the menu. `core`: the board's frame. Returns {sheets, openInto()}. */
 export function makeReview(core) {
-  const el = h("section", { class: "pane review", "aria-label": "Review" });
-  const fresh = steady(el);
   const branchBody = h("div", { class: "branches" });
   const branchSheet = sheet("Merge into", branchBody);
-  const intoBtn = h("button", { class: "ork-btn into", type: "button", "aria-haspopup": "dialog" });
-  intoBtn.addEventListener("click", () => { drawBranches(); branchSheet.open(); });
 
   async function pick(branch) {
     branchSheet.close();
@@ -168,26 +163,8 @@ export function makeReview(core) {
       h("button", { class: "branch", type: "button", onclick: () => { form.hidden = false; name.focus(); } }, "New branch…"), form);
   }
 
-  function card(r) {
-    const fact = factsOf(r);
-    return h("article", { class: "card result", "data-task": r.task, "data-idea": r.idea },
-      h("button", { class: "result-open", type: "button", "aria-label": `${r.title}: open its code`, onclick: () => core.open({ kind: "result", slug: r.idea, task: r.task }) },
-        h("b", {}, r.title), h("small", { class: "muted" }, r.idea_title, r.round > 1 ? h("span", { class: "round" }, ` · round ${r.round}`) : null), foundOf(r), fact,
-        r.conflict ? h("small", { class: "warn" }, `⚠ ${r.conflict}`) : null),
-      resultActions(core, r));
-  }
-
   return {
-    el,
     sheets: [branchSheet.el, dropSheet.el],
-    draw() {
-      const rv = core.st.review;
-      if (!fresh(JSON.stringify(rv))) return;
-      if (!rv) { el.replaceChildren(h("h3", {}, "Review"), h("p", { class: "muted" }, "Loading…")); return; }
-      intoBtn.replaceChildren("Merge into ", h("b", {}, rv.into), h("i", { class: "ork-chev", "aria-hidden": "true" }));
-      el.replaceChildren(h("div", { class: "section-head" }, h("h3", {}, "Review", rv.results.length ? h("span", { class: "count ork-count on" }, String(rv.results.length)) : null), intoBtn),
-        rv.results.length ? h("div", { class: "results" }, ...rv.results.map(card))
-          : h("p", { class: "muted" }, "No result to check. A result lands here when a Grunt's work has been tested."));
-    },
+    openInto() { drawBranches(); branchSheet.open(); },
   };
 }

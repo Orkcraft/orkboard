@@ -82,6 +82,10 @@ class Stub:
         self.check_week: dict[str, dict] = {}             # spec 43 §4.1: a checker's check of the last 7 days by slug (`check_week`)
         self.record: dict[str, dict | None] = {}          # spec 42 §4: a role's record of the last 30 days by slug (`record`)
         self.told = {"taskmaster": "The Taskmaster reads each step's prompt.", "grunt": "A Grunt gets the task's brief and the repository."}   # `told`
+        self.gate: dict = {"main": "main", "same": False, "commits": 0, "files": 0, "ideas": []}       # ideas.gate (spec 49 §2.1); `into` is the stub's own
+        self.events: list[dict] = []                      # ideas.today (spec 49 §2.2): the day's rows, newest first
+        self.reserve = {"share": 0.1, "night": False}     # the snapshot's `reserve` (spec 49 §2.3)
+        self.harness = {"id": "claude", "name": "Claude"}  # the tool each role runs on (spec 49 §2.5)
 
     @staticmethod
     def idea(slug, title, state, order, **more):
@@ -103,6 +107,7 @@ class Stub:
             return None
         return {"slug": a.id, "name": a.name, "head": {"craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier}}
 
+    LEADER = {"slug": "taskmaster", "name": "Taskmaster", "head": {"craft": "engineering", "race": "peon", "tier": "elder"}}      # the goal's leader (spec 49 §5)
     NEEDS_OF = {"plan": "plan", "asks": "asks", "proposed": "proposal", "failed": "failed"}
 
     def map_doc(self) -> dict:
@@ -132,8 +137,10 @@ class Stub:
                       "done": sum(n["goal"] == g["slug"] and n["state"] == "done" for n in nodes), "usd": None,
                       "team": [{"slug": t, "name": self.roles[t]["name"], "head": self.roles[t].get("head"), "checks": False, "every": False}
                                for t in g.get("team", []) if t in self.roles],
-                      "party": [{"slug": t, "name": self.roles[t]["name"], "head": self.roles[t].get("head"), "band": "build", "state": "free", "why": ""}
-                                for t in g.get("team", []) if t in self.roles], "today": {"merged": 0, "usd": 0}}
+                      "leader": g.get("leader") or self.LEADER,
+                      "party": [{**(g.get("leader") or self.LEADER), "band": "lead", "state": "free", "why": ""},
+                                *({"slug": t, "name": self.roles[t]["name"], "head": self.roles[t].get("head"), "band": "build", "state": "free", "why": ""}
+                                  for t in g.get("team", []) if t in self.roles)], "today": {"merged": 0, "usd": 0}}
                  for g in self.goals.values() if g["slug"] != "general" or g["slug"] in used]
         return {"goals": goals, "nodes": nodes, "edges": [], "rev": str(self.rev)}
 
@@ -141,7 +148,8 @@ class Stub:
         names = ("board", "page", "review_list", "agents", "task", "diff", "merge", "back", "drop_task", "stop_task", "into", "todo", "say",
                  "plan", "start", "stop", "move", "add", "drop", "log", "logs", "goal_save", "goal", "read_now", "roles", "role_save", "role_drop",
                  "kind_set", "doc", "queue", "read_stop", "start_now", "proposal", "board_set", "answer", "spend", "words", "goal_accept", "lens",
-                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer", "parties", "party_save", "party_drop")
+                 "lens_code", "lens_screen", "map", "check_skip", "role_add", "party", "party_price", "party_answer", "parties", "party_save", "party_drop",
+                 "gate", "gate_merge", "today")
         return {f"ideas.{n}": (lambda a, n=n: self.run(f"ideas.{n}", a)) for n in names}
 
     def results(self):
@@ -173,6 +181,13 @@ class Stub:
                                   "at": "", "todo": {k: t.get(k) for k in ("id", "title", "kind", "why", "choices", "steps", "accept", "done")}})
             return {"tracks": list(self.goals.values()), "ideas": ideas, "needs_you": needs + self.extra_needs,
                     "target": self.target, "autostart": self.autostart, "night": self.night, "rev": self.rev, "demo": False}
+        if name == "ideas.gate":                        # spec 49 §2.1: what dev holds that main lacks
+            return {"into": self.into, **copy.deepcopy(self.gate)}
+        if name == "ideas.gate_merge":
+            self.gate = {**self.gate, "commits": 0, "files": 0, "ideas": []}
+            return self.bump({"ok": True, "commit": "abc", "note": ""})
+        if name == "ideas.today":                       # spec 49 §2.2: the day's events of the log
+            return {"events": copy.deepcopy(self.events)}
         if name == "ideas.party_answer":                # spec 43 D: a party's proposal answered
             self.extra_needs = [n for n in self.extra_needs if not (n["kind"] == "party" and n["goal"] == a["goal"])]
             return self.bump({"ok": True})
@@ -195,13 +210,14 @@ class Stub:
                      for t in self.plan["tasks"] if t["state"] in ("running", "review", "held")]
             blocks = [{"role": "taskmaster", "name": "Taskmaster", "model": "elder", "max_parallel": 1, "builtin": True, "spend_today": 0, "state": "waiting",
                        "waits_on": {"idea": "dark", "text": "waiting for your answers on “Dark mode”"}, "chips": [],
-                       "week": self.week.get("taskmaster"), "usd_task": None, "head": {"craft": "engineering", "race": "peon", "tier": "elder"}},
+                       "week": self.week.get("taskmaster"), "usd_task": None, "head": {"craft": "engineering", "race": "peon", "tier": "elder"},
+                       "harness": self.harness},
                       {"role": "grunt", "name": "Grunts", "model": "", "max_parallel": 8, "builtin": True, "spend_today": 1.25, "chips": chips,
                        "kinds": [k for k, r in self.kinds.items() if r == "grunt"], "week": self.week.get("grunt"), "usd_task": self.usd_task.get("grunt"),
-                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}}]
+                       "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "harness": self.harness}]
             blocks += [{"role": r["slug"], "name": r["name"], "model": r["model"], "max_parallel": r["max_parallel"], "builtin": False, "spend_today": 0,
                         "chips": [], "kinds": [k for k, x in self.kinds.items() if x == r["slug"]], "week": self.week.get(r["slug"]), "usd_task": self.usd_task.get(r["slug"]),
-                        "head": r.get("head"), **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})}
+                        "head": r.get("head"), "harness": self.harness, **({"check_week": self.check_week[r["slug"]]} if r["slug"] in self.check_week else {})}
                        for r in self.roles.values() if not r["builtin"]]
             return {"roles": blocks, "done_today": [{"idea": "sync", "task": "k1", "title": "Read the sync code", "role": "grunt"}]}
         if name == "ideas.roles":
@@ -353,7 +369,7 @@ async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
     def snap(host):
         s = real(host)
         return {**s, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
-                "review_count": len(stub.results()),
+                "review_count": len(stub.results()), "reserve": stub.reserve,
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
                             "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
                            {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]},
@@ -381,9 +397,9 @@ async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
                 errors: list[str] = []
                 page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
                 await page.goto(f"{server.phones.address}/app/#pair={offer['code']}{extra}")
-                await page.locator(".board-tabs").wait_for(timeout=WAIT_MS)
-                try:                                  # the Board's trails read (its Map comes after its ideas): drawn once more then
-                    await page.locator(".map-goal").first.wait_for(timeout=3000)
+                await page.locator(".gchips").wait_for(timeout=WAIT_MS)
+                try:                                  # the goal's window read (its Map comes with its ideas): drawn once more then
+                    await page.locator(".ghead").first.wait_for(timeout=3000)
                 except Exception:                     # a test with no goal or no project: nothing to wait for
                     pass
                 yield stub, page

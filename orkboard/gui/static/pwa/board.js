@@ -1,24 +1,21 @@
-// The v1 shell on a phone (docs/specs/33-v1-shell.md §6, §8; decisions §45.2): the one face when the compact snapshot's `focus` is
-// "board". Three tabs at the foot — Board (the Map: the goals' trails) · Agents · Needs you (what waits for an answer, then Review's
-// results to check), Needs you the signal (spec 41 §1): orkUI's warning mark and colour while something waits for an answer, the eye and
-// a plain count while only results wait — under a top bar (the menu, the goal shown, what is left of the AI tools when one is low; the
-// menu opens the drawer: Stop all, Spend, the projects and the settings). New idea is the button at the bottom right of the Board. An idea's spec, a plan, a task or a result's code opens on its own full
-// screen over the tab, with Back (and the system back gesture) to the tab it came from and its actions pinned at the bottom.
-// It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's
-// `ideas_rev` changes (and every POLL_MS while the Taskmaster or a task works). Always Office's calm look.
-import { h, icon } from "./util.js";
+// The v1 shell on a phone (docs/specs/33-v1-shell.md §6, §8; decisions §45.2, §62; spec 49 §10): the one face when the compact snapshot's `focus` is "board", with no
+// tab bar. One screen: the top bar (the menu, the project, Today, what is left of the AI tools), the goal's window under it — the goals as chips, the goal's header, the
+// ideas bar, the stage switch and the party's columns (shell-arena.js) — and what waits for you along the bottom: the stops, then the results to look at, fanned, a tap
+// popping one out with its quick answers (shell-stops.js). The menu opens the drawer: Stop all, Spend, Agents (a screen of its own), the projects and the settings. An
+// idea's spec, a plan, a task, a result's code or the gate opens on its own full screen over the board, with Back (and the system back gesture) and its actions pinned at
+// the bottom. It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's `ideas_rev` changes (and every POLL_MS while
+// the Taskmaster or a task works). Always Office's calm look.
+import { h } from "./util.js";
 import { makeTop } from "./shell-top.js";
 import { makeBoardTab, BUSY } from "./shell-board.js";
 import { makeAgents } from "./shell-agents.js";
 import { makeReview } from "./shell-review.js";
 import { makePreview } from "./shell-preview.js";
 import { makeNeeds } from "./shell-needs.js";
-import { steady } from "./shell-util.js";
+import { makeStops } from "./shell-stops.js";
+import { firstStopGoal } from "./shell-arena-words.js";
 
 const POLL_MS = 10000;
-const TABS = [["board", "Board"], ["agents", "Agents"], ["needs", "Needs you"]];
-const MARKS = { board: () => icon("map"), agents: () => icon("robot"), needs: () => icon("eye") };   // a head says a craft, not every agent
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const LIVE = new Set(["running", "testing"]);
 
 export { stateWords } from "./shell-board.js";
@@ -26,7 +23,8 @@ export { price } from "./shell-preview.js";
 
 /** `ctx`: {send, deliver, flash, unpair}. Returns {el, sheets, content(), render(snapshot), dispose()}. */
 export function makeBoard(ctx) {
-  const st = { board: null, review: null, agents: null, roles: null, snap: null, tab: "board", track: "", view: "", ops: null, boardError: "", preview: null, cards: [] };
+  const st = { board: null, review: null, agents: null, roles: null, snap: null, track: "", view: "", ops: null, boardError: "", preview: null, cards: [],
+    map: null, mapError: "", today: null, gate: null, band: "", focus: "", idea: "", ideasOpen: false, hand: "" };
   let poll = 0;
   let seenRev;                          // the snapshot's ideas_rev read last
   let seenSnap;                         // the snapshot's rev read last (the project switcher's)
@@ -44,7 +42,12 @@ export function makeBoard(ctx) {
     refresh, open, close, back, reset, go,
     editGoal(slug) { boardTab.editGoal(slug); },
     editTeam(g) { boardTab.editTeam(g); },
-    showMap() { boardTab.showMap(); },
+    newIdea() { boardTab.openNew(st.track); },
+    openInto() { review.openInto(); },
+    openFlags() { boardTab.flags.open(); },
+    flagCount: () => boardTab.flags.met(st.map?.goals || []),
+    setToday(data) { top.today.set(data); },
+    log: (what, ref, via) => logOpened(what, ref, via),
     draw() { drawAll(); },
     flash(text) { ctx.flash(text); },
   };
@@ -53,20 +56,10 @@ export function makeBoard(ctx) {
   const boardTab = makeBoardTab(core, ctx);
   const agents = makeAgents(core);
   const review = makeReview(core);
-  const preview = makePreview(core, ctx);
-  const needs = makeNeeds(core, ctx, boardTab.ops);
-  const needsBody = h("div", { class: "needs-body" });
-  const needsPane = h("section", { class: "pane needs-pane", "aria-label": "Needs you" }, needsBody, review.el);   // the answers, then Review
-  const panes = { board: boardTab.el, agents: agents.el, needs: needsPane };
-
-  const tabs = {};
-  const tabBar = h("nav", { class: "board-tabs ork-tabbar", role: "tablist", "aria-label": "Board, Agents, Needs you" });
-  for (const [id, label] of TABS) {
-    tabs[id] = h("button", { class: "board-tab ork-tabbar__tab", type: "button", role: "tab", onclick: () => go(id) }, MARKS[id](), h("span", {}, label),
-      h("span", { class: "count ork-count on", hidden: true }));
-    tabBar.append(tabs[id]);
-  }
-  const el = h("div", { class: "board v1" }, top.el, ...Object.values(panes), boardTab.fab, tabBar, preview.el);
+  const needs = makeNeeds(core, ctx);
+  const stops = makeStops(core, ctx, needs, boardTab.ops);
+  const preview = makePreview(core, ctx, { agents: agents.el });
+  const el = h("div", { class: "board v1" }, top.el, boardTab.el, stops.el, preview.el);
 
   /** What the person opened, for the day's analysis (docs/specs/33-v1-shell.md §9): the host's one loggable event. The listener
    *  allows a device only a few commands a second, so the lines go out one at a time, a moment apart, behind the ones that matter. */
@@ -120,67 +113,35 @@ export function makeBoard(ctx) {
   window.addEventListener("pagehide", () => touch());
   for (const type of ["pointerdown", "keydown"]) window.addEventListener(type, () => away(), true);
 
+  /** Needs you, now what lies along the bottom: the goal of the first stop is shown and the stop popped out (a push's arrival, a card's link). */
+  let wantStop = false;
+  function showStop() {
+    const slug = firstStopGoal(st);
+    if (!slug) return false;
+    boardTab.show(slug);
+    return stops.pop();
+  }
   function go(id) {
     logOpened("tab", id);
-    st.tab = id;
-    drawPanes();
+    if (id === "needs") { if (!showStop()) wantStop = !st.board || !st.map; }
+    else if (id === "agents") open({ kind: "agents" });
     window.scrollTo(0, 0);
-  }
-
-  const needsFresh = steady(needsBody);
-  function drawNeeds() {
-    if (!needsFresh(needs.key())) return;                // drawn again only when what it shows changed: a choice half made stays
-    needsBody.replaceChildren(h("div", { class: "pane-head" }, h("h2", {}, "Needs you")), ...needs.draw());
-  }
-  /** What waits on the person: the rows to answer (the ones put away aside) and the results to check. */
-  const asking = () => (st.board ? needs.count() : st.snap?.needs_you || 0);
-  const checking = () => (st.review ? st.review.results.length : st.snap?.review_count || 0);
-  const waiting = () => asking() + checking();
-
-  function drawPanes() {
-    for (const [id, p] of Object.entries(panes)) p.hidden = st.tab !== id;
-    boardTab.fab.hidden = st.tab !== "board" || Boolean(st.preview) || !boardTab.fabOn();
-    for (const [id, b] of Object.entries(tabs)) { b.classList.toggle("is-active", id === st.tab); b.setAttribute("aria-selected", String(id === st.tab)); }
-    el.classList.toggle("is-open", Boolean(st.preview));
-  }
-
-  /** The tabs' counts; Needs you is the signal (spec 41 §1): while an answer waits its mark is the warning diamond and its count the
-   *  warning colour; with results only, the eye and a plain count. */
-  function counts() {
-    const asks = asking(), results = checking();
-    const n = { board: 0, agents: 0, needs: asks + results };
-    for (const [id, b] of Object.entries(tabs)) {
-      const c = b.querySelector(".count");
-      c.hidden = !n[id];
-      c.textContent = String(n[id] || "");
-      let label = TABS.find((x) => x[0] === id)[1];
-      if (id === "needs") {
-        const mark = asks ? "warning-diamond" : "eye";
-        if (b.dataset.mark !== mark) { b.dataset.mark = mark; b.firstChild.replaceWith(icon(mark)); }
-        c.classList.toggle("warning", asks > 0);
-        c.classList.toggle("on", !asks);
-        const said = [asks ? `${asks} ${asks === 1 ? "waits" : "wait"} for your answer` : "", results ? plural(results, "result to check", "results to check") : ""].filter(Boolean);
-        label = said.length ? `Needs you: ${said.join(", ")}` : label;
-      } else label = `${label}${n[id] ? `, ${n[id]}` : ""}`;
-      b.setAttribute("aria-label", label);
-    }
   }
 
   function drawAll() {
     top.draw();
-    drawNeeds();
     boardTab.draw();
     agents.draw();
-    review.draw();
-    counts();
-    drawPanes();
+    stops.draw();
     preview.redraw();
+    if (wantStop && st.board && st.map) { wantStop = false; showStop(); }
   }
 
   // -- the preview on its own screen: opened over the tab, Back (or the system gesture) to it -----------------------
   function open(p, via = "") {
-    if (p.kind !== "doc") logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
-      p.kind === "goal" ? `goal:${p.slug}` : p.task ? `${p.slug}/${p.task}` : p.todo ? `${p.slug}/${p.todo}` : p.slug, via);
+    if (p.kind === "agents") logOpened("tab", "agents");
+    else if (p.kind !== "doc") logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
+      p.kind === "goal" ? `goal:${p.slug}` : p.task ? `${p.slug}/${p.task}` : p.todo ? `${p.slug}/${p.todo}` : p.slug || "", via);
     if (!st.preview) {
       try { history.pushState({ preview: true }, ""); pushed = true; } catch { pushed = false; }
     }
@@ -199,8 +160,9 @@ export function makeBoard(ctx) {
 
   /** Another project is shown: what was read of the last one is dropped before the new one is read. */
   function reset() {
-    st.board = st.review = st.agents = st.roles = null;
-    st.track = st.view = st.boardError = "";
+    st.board = st.review = st.agents = st.roles = st.today = st.gate = null;
+    st.track = st.view = st.boardError = st.band = st.focus = st.idea = st.hand = "";
+    st.ideasOpen = false;
     st.map = null;
     st.mapError = "";
     st.cards = [];
@@ -208,12 +170,16 @@ export function makeBoard(ctx) {
 
   // -- reading the town ------------------------------------------------------------------------------------------
   async function refresh() {
-    const [b, r, a, ro] = await Promise.all([ctx.send("ideas.board"), ctx.send("ideas.review_list"), ctx.send("ideas.agents"), ctx.send("ideas.roles")]);
+    const [b, r, a, ro, m, td, g] = await Promise.all([ctx.send("ideas.board"), ctx.send("ideas.review_list"), ctx.send("ideas.agents"), ctx.send("ideas.roles"),
+      ctx.send("ideas.map"), ctx.send("ideas.today"), ctx.send("ideas.gate")]);
     const ok = (x) => x.ok && x.result && !x.result.error;
     if (ok(b)) st.board = b.result;
     if (ok(r)) st.review = r.result;
     if (ok(a)) st.agents = a.result;
     if (ok(ro)) st.roles = ro.result;
+    if (ok(m)) { st.map = m.result; st.mapError = ""; } else if (!st.map) st.mapError = m.error || m.result?.error || "Loading…";
+    if (ok(td)) st.today = td.result;
+    if (ok(g)) st.gate = g.result;
     st.boardError = !st.board && !ok(b) ? b.error || b.result?.error || "Loading…" : "";
     drawAll();
     if (st.preview) preview.reload();
@@ -227,21 +193,21 @@ export function makeBoard(ctx) {
     if (busy) poll = setTimeout(refresh, POLL_MS);
   }
 
-  drawPanes();
   drawAll();
 
   return {
     el,
-    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets],
+    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets, ...stops.sheets],
     // What is acted on only while the town answers: not the bar's Stop all, nor New idea (kept with no signal).
-    content: () => [panes.board, panes.agents, panes.needs, preview.el],
+    content: () => [boardTab.el, ...stops.content(), preview.el],
+    /** A push's arrival (board-app.js `arrive`): the goal of the first stop is shown and the stop popped out, as soon as the Board has been read. */
+    showNeeds: () => go("needs"),
     render(s) {
       st.snap = s;
       if (s.project !== lookProject) { lookProject = s.project; st.cards = []; away(); }       // another project is shown, or the page starts
       top.render(s, s.rev !== seenSnap ? s.rev : undefined);
       boardTab.ops.sync(s.ops_rev ?? 0);
       seenSnap = s.rev;
-      counts();
       if (loading || (seenRev !== undefined && s.ideas_rev === seenRev)) return;
       loading = true;
       refresh().finally(() => { loading = false; });
