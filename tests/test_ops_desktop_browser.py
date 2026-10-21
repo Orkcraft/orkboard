@@ -250,8 +250,16 @@ def _sent(stub, want):
 
 
 def _operations(pg):
-    pg.get_by_label("Goal", exact=True).select_option("@operations")
+    pg.locator('.arena-gtab[data-goal="@operations"]').click()                       # Operations: the last goal tab
     pg.locator(".board-ops").wait_for(timeout=WAIT_MS)
+
+
+def _row(pg, kind, ref):
+    """An Operations row in the fan along the bottom, raised by the focus (its answers are then in reach)."""
+    item = pg.locator(f'.arena-hc[data-key="{kind}/{ref}"]')
+    item.wait_for(timeout=WAIT_MS)
+    item.locator(".arena-hc__open").focus()
+    return item
 
 
 def _dialog(pg, name):
@@ -274,8 +282,8 @@ def test_a_held_run_says_why_the_limits_or_the_days_spend_cap(world):
 
 def test_operations_is_in_the_goal_select_and_new_lists_the_templates(world):
     def body(pg, stub):
-        select = pg.get_by_label("Goal", exact=True)
-        assert select.locator("option").last.inner_text() == "Operations"           # last, after a divider
+        tabs = pg.get_by_role("tablist", name="Goals").get_by_role("tab")
+        assert tabs.last.inner_text().strip() == "Operations"                       # the last tab, after the goals
         assert pg.get_by_role("button", name="New idea").count() == 1 and pg.get_by_role("button", name="Target:", exact=False).count() == 1
         _operations(pg)
         assert pg.get_by_role("button", name="New idea").count() == 0               # New… takes the place of New idea and the Target
@@ -306,11 +314,10 @@ def test_the_jira_form_adds_one_its_check_changes_and_create_in_jira_does_it(wor
         assert "preparing" in running.inner_text()
         op = stub.runs[0]["id"]
         stub.prepared(op)
-        row = pg.locator(f".board-need[data-op={op}]")
-        row.wait_for(timeout=WAIT_MS)
-        assert "Checkout fails on a full cart" in row.inner_text() and "at your check" in row.inner_text()
+        row = _row(pg, "op", op)
+        assert "Checkout fails on a full cart" in row.inner_text() and "at your check" in row.inner_text().lower()
         assert pg.get_by_role("region", name="Running").count() == 0
-        row.click()
+        row.locator(".arena-hc__open").click()
         check = _dialog(pg, "New Jira task")
         assert "SHOP-12 Checkout" in check.get_by_role("group", name="What was found").inner_text()
         assert "Maybe a duplicate of SHOP-80" in check.get_by_label("Doubts").inner_text()
@@ -357,7 +364,7 @@ def test_prepare_again_sends_the_changed_field_and_the_form_keeps_what_was_typed
         pg.keyboard.press("Escape")
         op = stub.seed("jira-task", "check", fields={"what": "x", "epic": ""})
         stub.prepared(op)
-        pg.locator(f".board-need[data-op={op}]").click()
+        _row(pg, "op", op).locator(".arena-hc__open").click()
         check = _dialog(pg, "New Jira task")
         check.get_by_label("Epic").fill("Payments")
         check.get_by_role("button", name="Prepare again").click()
@@ -403,7 +410,7 @@ def test_by_itself_shows_and_not_right_teaches_and_check_again_resets(world):
         stub.changed()
         pg.get_by_text("Templates (3)").click()
         mail = pg.locator(".board-op--template[data-template=email-reply]")
-        expect(mail).to_contain_text("goes by itself", timeout=WAIT_MS)                # after ops_rev moves, not before
+        expect(mail.locator("[data-template-state=alone]")).to_have_count(1, timeout=WAIT_MS)   # after ops_rev moves, not before
         assert "save as a draft in gmail without asking you" in mail.inner_text()
         assert "checks with you" in pg.locator(".board-op--template[data-template=jira-task]").inner_text()
         assert pg.locator(".board-op--template[data-template=jira-task]").get_by_role("button", name="Check again").count() == 0
@@ -418,16 +425,13 @@ def test_a_rules_proposal_is_taken_in_its_row_in_needs_you_and_the_rules_are_sav
     stub.templates[1]["proposal"] = {"lines": ["Keep a reply under five lines"], "why": "you shortened two replies", "op": "op1", "at": ""}
 
     def body(pg, stub):
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()                    # Needs you: a tab of its own
-        row = pg.locator(".board-proposal[data-kind=op_rules]")
-        row.wait_for(timeout=WAIT_MS)
+        _operations(pg)                                                             # the proposal waits along the bottom of Operations
+        row = _row(pg, "op_rules", "email-reply")
         assert "Keep a reply under five lines" in row.inner_text()
-        assert pg.locator(".shell-count").count() == 0                              # a proposal is no count
-        row.get_by_role("button", name="Take").click()
+        assert pg.locator(".arena-gtab .ork-count").count() == 0                    # a proposal is no count
+        row.locator(".arena-hc__quick").get_by_role("button", name="Take").click()
         _sent(stub, ("ops.rules_answer", {"template": "email-reply", "take": True}))
         row.wait_for(state="detached", timeout=WAIT_MS)
-        pg.locator(".shell-board").get_by_role("tab", name="Board").click()
-        _operations(pg)
         pg.get_by_text("Templates (3)").click()
         pg.get_by_role("button", name="Rules: Email reply").click()
         rules = _dialog(pg, "Rules: Email reply")
@@ -483,25 +487,29 @@ def test_needs_you_shows_an_op_row_in_another_project_too(world):
     failed = stub.seed("jira-task", "failed", why="Jira refused it", acted=False)
 
     def body(pg, stub):
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()                    # Needs you: a tab of its own
-        row = pg.locator(f".board-need[data-kind=op]")
+        pg.locator('.arena-gtab[data-goal="@operations"]').click()                  # Operations' tab carries the count; its rows wait along the bottom
+        row = pg.locator(".arena-hc[data-kind=op]")
         row.wait_for(timeout=WAIT_MS)
+        assert pg.locator(".arena-gtab .ork-count").inner_text() == "2"
         assert "Checkout fails on a full cart" in row.inner_text()
-        assert pg.locator(".board-need[data-kind=op_failed]").count() == 1
+        assert pg.locator(".arena-hc[data-kind=op_failed]").count() == 1
         pg.keyboard.press("Control+o")
         dlg = _dialog(pg, "Open folder")
         dlg.get_by_label("Folder").fill(str(blog))
         dlg.get_by_role("button", name="Open folder").click()
         dlg.wait_for(state="detached", timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
-        row = pg.locator(".board-need[data-kind=op]")                               # the person's: seen in every project
+        pg.locator('.arena-gtab[data-goal="@operations"]').click()
+        row = pg.locator(".arena-hc[data-kind=op]")                                 # the person's: seen in every project
         row.wait_for(timeout=WAIT_MS)
-        row.click()
+        row.locator(".arena-hc__open").focus()
+        row.locator(".arena-hc__open").click()
         check = _dialog(pg, "New Jira task")
         assert check.locator(f"[data-op={op}]").count() == 1
         pg.keyboard.press("Escape")
-        pg.locator(".board-need[data-kind=op_failed]").click()
+        failed_row = pg.locator(".arena-hc[data-kind=op_failed]")
+        failed_row.locator(".arena-hc__open").focus()
+        failed_row.locator(".arena-hc__open").click()
         assert "Jira refused it" in _dialog(pg, "Failed: New Jira task").inner_text()
     _run(world[0], body)
 

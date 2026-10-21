@@ -64,7 +64,7 @@ export function GoalTabs() {
           working=${(g.party || []).some((x) => x.state === "work") || g.state === "reading"}
           tip=${`${g.title} · ${pct} % of the way${when ? ` · done when ${when}` : ""}${g.verdict ? (g.verdict.met ? ` · accepted by ${g.verdict.by}` : ` · not met, says ${g.verdict.by}`) : ""}`} />`;
       })}
-      ${ops && html`<${Tab} key=${OPS} on=${want === OPS} pick=${pick} slug=${OPS} title="Operations" stops=${opStopsOf(needs).length} plain=${true} tip="Your everyday work by templates" />`}
+      ${ops && html`<${Tab} key=${OPS} on=${want === OPS} pick=${pick} slug=${OPS} title="Operations" stops=${opStopsOf(needs).filter((s) => s.kind !== "op_rules").length} plain=${true} tip="Your everyday work by templates" />`}
     </div>
     <button type="button" class="ork-btn arena-tabs__new" onClick=${() => openDialog("goal")}>+ New goal</button>
     <span class="arena-spacer"></span>

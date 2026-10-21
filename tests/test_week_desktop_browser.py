@@ -7,7 +7,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import StubHost, _open, _sent  # noqa: E402
+from tests.test_shell_browser import StubHost, _agents, _open, _sent  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -150,7 +150,7 @@ def _seed(week=None, look_hours=None):
 
 
 def test_the_first_look_of_a_new_week_shows_last_weeks_card_with_its_lines_then_the_recap_and_not_twice(gui):
-    pg, host, errors = _open_map(gui, LastHost(), init=_seed(_iso(14), 9), ready=".map-goal")
+    pg, host, errors = _open_map(gui, LastHost(), init=_seed(_iso(14), 9), ready=".arena-gtab")
     card = pg.get_by_label("Last week")
     card.wait_for(timeout=WAIT_MS)
     assert " ".join(card.locator(".away__title").text_content().split()) == "Last week · 12–18 October"
@@ -170,7 +170,7 @@ def test_the_first_look_of_a_new_week_shows_last_weeks_card_with_its_lines_then_
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "recap", "ref": "9h", "device": "desktop"})) and len(recap_logs()) == 1
     pg.get_by_label("While you were away").get_by_role("button", name="Close").click()
     pg.reload()
-    pg.locator(".map-goal").first.wait_for(timeout=WAIT_MS)
+    pg.locator(".arena").first.wait_for(timeout=WAIT_MS)
     pg.wait_for_timeout(400)
     assert pg.get_by_label("Last week").count() == 0 and len([n for n, _a in host.log if n == "ideas.week"]) == 1
     pg.close()
@@ -180,7 +180,7 @@ def test_the_first_look_of_a_new_week_shows_last_weeks_card_with_its_lines_then_
 def test_the_week_ideas_week_answered_is_the_one_kept_so_its_card_shows_once(gui):
     host = LastHost()
     host.last = {**LAST, "week": "2026-W41"}                          # the host's idea of last week is not this device's
-    pg, host, errors = _open_map(gui, host, init=_seed("2026-W41"), ready=".map-goal")
+    pg, host, errors = _open_map(gui, host, init=_seed("2026-W41"), ready=".arena-gtab", goal="")
     pg.wait_for_function(f"localStorage.getItem({json.dumps(WEEK_KEY)}) === '2026-W41'", timeout=WAIT_MS)
     pg.wait_for_timeout(400)
     assert [n for n, _a in host.log if n == "ideas.week"] == ["ideas.week"] and pg.get_by_label("Last week").count() == 0     # asked, kept, not shown
@@ -189,13 +189,13 @@ def test_the_week_ideas_week_answered_is_the_one_kept_so_its_card_shows_once(gui
 
 
 def test_a_device_with_no_week_key_writes_it_and_shows_nothing_and_an_empty_week_shows_nothing(gui):
-    pg, host, errors = _open_map(gui, LastHost(), ready=".map-goal")
+    pg, host, errors = _open_map(gui, LastHost(), ready=".arena-gtab")
     pg.wait_for_function(f"localStorage.getItem({json.dumps(WEEK_KEY)}) !== null", timeout=WAIT_MS)
     assert pg.get_by_label("Last week").count() == 0 and not [n for n, _a in host.log if n == "ideas.week"]
     pg.close()
     host = LastHost()
     host.last = {**LAST, "empty": True}
-    pg, host, errors2 = _open_map(gui, host, init=_seed(_iso(14)), ready=".map-goal")
+    pg, host, errors2 = _open_map(gui, host, init=_seed(_iso(14)), ready=".arena-gtab")
     pg.wait_for_function(f"localStorage.getItem({json.dumps(WEEK_KEY)}) === {json.dumps(_iso(7))}", timeout=WAIT_MS)
     assert pg.get_by_label("Last week").count() == 0
     pg.close()
@@ -205,7 +205,7 @@ def test_a_device_with_no_week_key_writes_it_and_shows_nothing_and_an_empty_week
 def test_the_maps_last_week_link_shows_the_card_any_time_and_logs_via_map(gui):
     host = LastHost()
     host.last = {**LAST, "goals": [], "flags": [], "dearest": None, "fastest": None, "answers": None, "before": None, "usd_per_merged": None}
-    pg, host, errors = _open_map(gui, host, ready=".map-goal")
+    pg, host, errors = _open_map(gui, host, ready=".arena-gtab")
     pg.get_by_role("button", name="Last week", exact=True).click()
     card = pg.get_by_label("Last week")
     card.wait_for(timeout=WAIT_MS)
@@ -233,7 +233,7 @@ def test_nights_in_a_row_is_line_four_of_this_week_from_two_and_after_the_nights
     pg.close()
     host = LastHost()
     host.last = {**LAST, "streak": 5}
-    pg, host, errors2 = _open_map(gui, host, init=_seed(_iso(14)), ready=".map-goal")
+    pg, host, errors2 = _open_map(gui, host, init=_seed(_iso(14)), ready=".arena-gtab")
     card = pg.get_by_label("Last week")
     card.wait_for(timeout=WAIT_MS)
     assert [" ".join(p.text_content().split()) for p in card.locator(".away__lines p").all()][-1] == "Nights: 5 with work done, 2 with none · 5 in a row"
@@ -247,7 +247,7 @@ def test_a_chip_of_a_task_the_pace_started_says_the_week_has_room_and_a_week_wai
     host = StubHost()
     host.chip_extra = {"k3": {"pace": True}}
     pg, host, errors = _open(gui, host=host)
-    chips = pg.locator(".shell-agents .shell-chip")
+    chips = _agents(pg).locator(".shell-chip")
     assert "by itself: the week has room" in chips.filter(has_text="Retry on a lost signal").inner_text()
     assert "the week has room" not in chips.filter(has_text="Add the queue").inner_text()
     words = pg.evaluate("""async () => {

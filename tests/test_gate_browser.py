@@ -42,21 +42,18 @@ def test_desktop_review_card_reads_ran_then_the_exit_code_then_the_counts(gui):
     pg, host, errors = _open(gui, host=StubHost())
     host.plan["tasks"] = tasks()
     host.bump(None)
-    more = pg.locator(".map-card__more")                                          # the card lists three results and *and n more*
-    more.wait_for(timeout=WAIT_MS)
-    more.click()
-    pg.locator(".map-result", has_text="Pytest counts").wait_for(timeout=WAIT_MS)
+    pg.locator(".arena-result", has_text="Pytest counts").wait_for(timeout=WAIT_MS)                # the column lists every result waiting
     for title, line in LINES.items():
-        facts = pg.locator(".map-result", has_text=title).locator(".shell-facts dd").first
+        facts = pg.locator(".arena-result", has_text=title).locator(".arena-result__tests")
         assert " ".join(facts.inner_text().split()) == line, title
-    exit_one = pg.locator(".map-result", has_text="Exit one")
+    exit_one = pg.locator(".arena-result", has_text="Exit one")
     assert exit_one.get_by_role("button", name="Fix", exact=True).is_visible()
     assert exit_one.get_by_role("button", name="Merge into dev").is_disabled()
-    assert pg.locator(".map-result", has_text="Nothing ran").get_by_role("button", name="Merge into dev").is_enabled()
-    pg.locator(".map-result", has_text="Exit one").locator(".map-result__open").click()                       # the result's preview says it too
+    assert pg.locator(".arena-result", has_text="Nothing ran").get_by_role("button", name="Merge into dev").is_enabled()
+    pg.locator(".arena-result", has_text="Exit one").locator(".arena-link").click()                       # the result's preview says it too
     pg.locator(".shell-preview").get_by_text("failed (exit 1)").wait_for(timeout=WAIT_MS)
-    pg.get_by_role("tab", name="Map").click()
-    pg.locator(".map-result").first.scroll_into_view_if_needed()
+    pg.get_by_role("button", name="Close the drawer").click()
+    pg.locator(".arena-result").first.scroll_into_view_if_needed()
     shot(pg, "review-desktop-1440x900")
     pg.close()
     assert not errors, "\n".join(errors)

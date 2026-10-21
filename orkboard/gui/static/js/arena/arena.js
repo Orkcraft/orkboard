@@ -21,6 +21,7 @@ import { PartyRow } from "./members.js";
 import { GateBox } from "./gate.js";
 import { Stops } from "./stops.js";
 import { Limits } from "./limits.js";
+import { Cards } from "../board/cards.js";
 
 const NARROW = "(max-width: 1023px)";
 
@@ -58,6 +59,7 @@ function Goal({ m, g }) {
     <section class="arena-field" aria-label="The goal at work">
       <${IdeasBar} g=${g} nodes=${nodes} lead=${lead?.name || "Taskmaster"} reading=${reading} />
       <div class="arena-play">
+        ${!wide && html`<div class="arena-cards"><${Cards} /></div>`}
         ${solo.value ? html`<${Solo} g=${g} members=${members} lead=${lead} nodes=${nodes} planning=${planning} />` : html`<${Columns} g=${g} members=${members} nodes=${nodes} cols=${cols} />`}
         <${PartyRow} g=${g} members=${members} nodes=${nodes} planning=${planning} cols=${cols} />
       </div>

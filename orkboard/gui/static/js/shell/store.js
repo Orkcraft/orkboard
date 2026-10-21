@@ -93,12 +93,21 @@ export function goneWords(p, bd = board.value) {
 
 const LIVE = ["running", "testing"];
 
+/** A task, as the host tells it. It carries its own `error` (its failure), so a refusal is the answer that has only that. */
+async function taskOf(slug, task) {
+  try {
+    const got = await command("ideas.task", { slug, task });
+    if (got?.error && !got.id) { toast(got.error, "error"); return null; }
+    return got || {};
+  } catch { return null; }
+}
+
 /** What the open preview reads besides the idea's page: a task, a result's task and its code, a goal, a linked document. */
 async function detailFor(p) {
   if (p?.kind === "goal") return { goal: await ask("ideas.goal", { slug: p.slug }) };
   if (p?.kind === "doc") return { doc: await ask("ideas.doc", { path: p.path }) };
   if (!p || (p.kind !== "task" && p.kind !== "result")) return null;
-  const [task, diff, spend] = await Promise.all([ask("ideas.task", { slug: p.slug, task: p.task }),
+  const [task, diff, spend] = await Promise.all([taskOf(p.slug, p.task),
     p.kind === "result" ? ask("ideas.diff", { slug: p.slug, task: p.task }) : null,
     p.kind === "result" ? ask("ideas.spend", { idea: p.slug }) : null]);
   return { task, diff, spend };

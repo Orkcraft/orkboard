@@ -5,7 +5,7 @@
 import { useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { showResult, review, mapData } from "../shell/store.js";
-import { ResultActions, Found, testsWords, foundWords, usd } from "../shell/review.js";
+import { ResultActions, Found, testsWords, usd } from "../shell/review.js";
 import { Cards } from "../board/cards.js";
 import { MapFoot } from "../board/mapfoot.js";
 import { useColumn } from "./motion.js";
@@ -16,16 +16,14 @@ function Result({ r, nodes, sign = "", quiet = false, fresh = false }) {
   const leaving = !!sign || quiet;
   const node = nodes.find((n) => n.slug === r.idea), task = node?.tasks.find((t) => t.id === r.task);
   const by = task?.by?.name || "";
-  const t = r.check ? null : testsWords(r);
+  const t = testsWords(r);
   const size = [r.diff ? plural(r.diff.files, "file", "files") : "", r.cost != null ? usd(r.cost) : ""].filter(Boolean).join(" · ");
-  const dim = (!!ideaOn.value && ideaOn.value !== r.idea);
-  return html`<div class=${cls("arena-result ork-frame", { "is-dim": dim, "is-leaving": !!sign, "is-gone": quiet, "is-drawn": fresh })} data-key=${`${r.idea}/${r.task}`} data-task=${r.task} data-idea=${r.idea}
+  return html`<div class=${cls("arena-result ork-frame", { "is-leaving": !!sign, "is-gone": quiet, "is-drawn": fresh })} data-key=${`${r.idea}/${r.task}`} data-task=${r.task} data-idea=${r.idea}
       data-sign=${sign || undefined} aria-hidden=${leaving ? "true" : undefined}>
     <span class="arena-cap arena-result__idea">${r.idea_title || node?.title || r.idea}</span>
     <button type="button" class="arena-link" title="Open the result: its code" onClick=${() => showResult(r.idea, r.task, { via: "map" })}>${r.title}${r.round > 1 ? html` <span class="shell-round">round ${r.round}</span>` : ""}</button>
     <span class="arena-cap">${by}${r.check ? " · its check" : ""}</span>
-    ${t ? html`<span class=${cls("arena-result__tests", `is-${t.tone}`)}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</span>`
-      : html`<span class="arena-result__tests">${foundWords(r.findings) || "Found nothing"}</span>`}
+    <span class=${cls("arena-result__tests", `is-${t.tone}`)}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</span>
     <span class="arena-cap">${size}</span>
     ${html`<${Found} r=${r} />${r.conflict && html`<p class="ok-tone-error shell-conflict">⚠ ${r.conflict}</p>`}`}
     ${leaving ? html`<span class="arena-cap">${sign === "✓" ? `merged into ${review.value?.into || "dev"}` : "dropped"}</span>` : html`<${ResultActions} r=${r} />`}

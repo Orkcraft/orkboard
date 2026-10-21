@@ -12,7 +12,7 @@ pytest.importorskip("playwright.sync_api")
 from orkboard.realm import roles  # noqa: E402
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
 from tests.test_shell_36_browser import Stub36  # noqa: E402
-from tests.test_shell_browser import SHOTS, _open  # noqa: E402
+from tests.test_shell_browser import SHOTS, _agents, _open  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -69,6 +69,7 @@ def _drawn(pg, selector):
 @pytest.fixture
 def races(gui):
     pg, host, errors = _open(gui, host=StubRaces())
+    _agents(pg)
     yield pg, host
     pg.close()
     assert not errors, "\n".join(errors)
@@ -120,12 +121,13 @@ def test_the_agents_dialog_picks_the_craft_and_shows_the_head_it_will_wear(races
     assert dialog.get_by_label("Craft").is_disabled() and "orks" in dialog.inner_text()   # Taskmaster and Grunt are orks
 
 
-def test_below_1024_the_agents_tab_is_a_robot(gui):
-    pg, host, errors = _open(gui, viewport={"width": 800, "height": 900}, host=StubRaces(), ready=".shell-tabs")
+def test_below_1024_agents_open_in_a_drawer_as_wide_as_the_window_and_wear_their_heads(gui):
+    pg, host, errors = _open(gui, viewport={"width": 800, "height": 900}, host=StubRaces(), ready=".arena-gtab")
     try:
-        tab = pg.get_by_role("tab", name="Agents")
-        assert tab.locator("img").count() == 0 and tab.locator("svg.ork-icon use").get_attribute("href").endswith("#robot")
-        assert pg.get_by_role("tab", name="Board").locator("svg.ork-icon use").get_attribute("href").endswith("#list-box")
+        _agents(pg)
+        drawer = pg.locator(".shell-drawer").bounding_box()
+        assert drawer["x"] == 0 and drawer["width"] == 800
+        assert pg.locator(".shell-role[data-slug=layout] .shell-role__head > img.ork-race__head").count() == 1 and _drawn(pg, ".shell-agents img.ork-race__head")
     finally:
         pg.close()
     assert not errors, "\n".join(errors)

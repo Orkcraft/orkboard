@@ -82,7 +82,7 @@ def _run(world, body):
 
 
 def _files_tab(pg):
-    pg.get_by_role("tab", name="Files").click()
+    pg.locator(".shell-top").get_by_role("button", name="Files").click()                          # Files: a tab of the drawer
     pg.locator(".shell-tree__row").first.wait_for(timeout=WAIT_MS)
 
 
@@ -93,8 +93,7 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
     def body(pg, host):
         pg.locator(".shell-proj__btn").wait_for(timeout=WAIT_MS)
         assert pg.locator(".shell-proj__btn").inner_text().startswith("shop")
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()                    # Needs you: a tab of its own
-        pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)
+        pg.locator(".arena-hc[data-kind=goal]").wait_for(timeout=WAIT_MS)                           # the goal's question waits along the bottom
         pg.keyboard.press("Control+o")                                              # Open folder…, as an IDE
         dlg = pg.get_by_role("dialog", name="Open folder")
         dlg.get_by_label("Folder").fill(str(Path.home()))                           # refused, in words
@@ -104,9 +103,8 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
         dlg.get_by_role("button", name="Open folder").click()
         dlg.wait_for(state="detached", timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
-        pg.locator(".board-today").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".board-need[data-kind=goal]").count() == 0               # shop's goal is not seen in blog
+        pg.get_by_text("No goals yet").wait_for(timeout=WAIT_MS)
+        assert pg.locator(".arena-hc[data-kind=goal]").count() == 0 and pg.locator(".arena-gtab:not([data-goal='@operations'])").count() == 0       # shop's goal is not seen in blog
         pg.locator(".shell-proj__btn").click()
         rows = pg.locator(".shell-proj__one")
         assert rows.count() == 2
@@ -114,8 +112,7 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
         assert "needs you 1" in shop_row.inner_text()                               # the counts, live
         shop_row.click()
         pg.locator(".shell-proj__btn").filter(has_text="shop").wait_for(timeout=WAIT_MS)
-        pg.locator(".shell-board").get_by_role("tab", name="Needs you").click()
-        pg.locator(".board-need[data-kind=goal]").wait_for(timeout=WAIT_MS)
+        pg.locator(".arena-hc[data-kind=goal]").wait_for(timeout=WAIT_MS)
         assert host.command("projects.list")["current"] == str(shop.resolve())
     _run(world, body)
 
@@ -183,9 +180,9 @@ def test_the_start_screen_with_no_project_open_and_recent(tmp_path, monkeypatch,
         pg.get_by_role("main", name="Start").wait_for(timeout=WAIT_MS)
         assert pg.get_by_role("button", name="Open folder…").is_visible()
         assert pg.locator(".shell-start__recent").get_by_role("button", name="shop").is_visible()
-        assert pg.locator(".shell-board").count() == 0                              # no Board without a project
+        assert pg.locator(".arena-tabs").count() == 0                               # no window without a project
         pg.locator(".shell-start__recent").get_by_role("button", name="shop").click()
-        pg.locator(".shell-board").wait_for(timeout=WAIT_MS)
+        pg.locator(".arena-tabs").wait_for(timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="shop").wait_for(timeout=WAIT_MS)
     _run(world, body)
 
@@ -205,6 +202,7 @@ def test_files_markdown_rendered_edited_and_saved_code_with_line_numbers_env_gre
         env.click()
         assert "may hold secrets" in pg.locator("[data-kind=secret]").inner_text()
         assert "TOKEN" not in pg.locator(".shell-preview").inner_text()            # never read
+        _files_tab(pg)                                                              # the file is a tab of its own: back to the tree
         pg.locator(".shell-tree__row", has_text="README.md").click()               # Markdown, rendered
         assert pg.locator(".shell-md h1").inner_text() == "Shop"
         assert pg.locator(".shell-md strong").inner_text() == "things"
@@ -215,6 +213,7 @@ def test_files_markdown_rendered_edited_and_saved_code_with_line_numbers_env_gre
         pg.locator(".shell-md").wait_for(timeout=WAIT_MS)
         assert "many things" in pg.locator(".shell-md strong").inner_text()
         assert (shop / "README.md").read_text(encoding="utf-8") == "# Shop\n\nSells **many things**.\n"
+        _files_tab(pg)
         pg.locator(".shell-tree__row", has_text="src/").click()                    # a folder opens one level
         pg.locator(".shell-tree__row", has_text="app.py").click()
         pg.locator(".shell-code").wait_for(timeout=WAIT_MS)
@@ -272,6 +271,8 @@ def test_git_section_a_changed_files_diff_and_a_commit(world):
         app.get_by_role("button", name="src/app.py").click()                        # its diff, in the preview
         pg.locator(".shell-patch__line.is-add", has_text="hello, world").wait_for(timeout=WAIT_MS)
         assert pg.locator(".shell-patch__line.is-del", has_text="print('hello')").count() == 1
+        _files_tab(pg)                                                              # the diff is a tab of its own: back to Files
+        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
         assert git.get_by_role("button", name="Commit").is_disabled()               # nothing ticked
         git.get_by_label("Commit src/app.py").check()
         git.get_by_label("Commit message").fill("Greet the world")

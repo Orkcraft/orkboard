@@ -5,6 +5,7 @@ import { html } from "../html.js";
 import { Icon } from "../orkui.js";
 import { town, command, say } from "../link.js";
 import { TargetChip } from "../board/target.js";
+import { track, OPS } from "../board/store.js";
 import { showAgents, showFiles } from "./store.js";
 import { openDialog } from "./modals.js";
 import { ProjectSwitcher, currentProject, projectsOn } from "./projects.js";
@@ -28,11 +29,12 @@ function Gear() {
 export function TopBar() {
   const hud = town.value?.hud || {};
   const spend = hud.show_gold ? hud.gold : hud.lumber;
+  // Operations has its templates, not a Target: the chip goes while it is shown.
   const shown = !projectsOn.value || !!currentProject.value?.path;      // the window is behind the project: the start screen has no drawer
   return html`<header class="shell-top">
     <${ProjectSwitcher} />
     <span class="shell-top__brand">Orkline</span>
-    ${shown && html`<${TargetChip} />`}
+    ${shown && track.value !== OPS && html`<${TargetChip} />`}
     <span class="shell-top__spacer"></span>
     ${shown && html`<button type="button" class="ork-btn" title="The agents, what each takes and is doing" onClick=${() => showAgents()}>Agents</button>`}
     ${shown && projectsOn.value && html`<button type="button" class="ork-btn" title="The project’s files" onClick=${() => showFiles()}>Files</button>`}

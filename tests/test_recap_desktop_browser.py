@@ -48,7 +48,7 @@ def seed(hours_ago=None):
     return f"if (!localStorage.getItem({json.dumps(LOOK)})) localStorage.setItem({json.dumps(LOOK)}, String(Date.now() - {hours_ago} * 3600 * 1000));"
 
 
-def _page(gui, hours_ago, host=None, viewport=None, ready=".map-goal"):
+def _page(gui, hours_ago, host=None, viewport=None, ready=".arena-gtab"):
     pg, host, errors = _open(gui, host or RecapHost(), viewport=viewport, init=seed(hours_ago), ready=ready)
     return pg, host, errors
 
@@ -66,7 +66,7 @@ def test_a_last_look_nine_hours_old_shows_the_card_at_the_top_of_the_map_with_it
         "5 results in dev, 4 the first time", "Export notes · done, Dark mode", "Flag raised: Ship sync, met, says Product manager",
         "The night: drafted 2 ideas, started 1 plan, proposed 2 ideas", "Proposed for you: Tag the notes", "Failed: Sync ideas · The table",
         "≈$4.20 of work at API prices, not your bill.", "Waits for you: 1 answer, 3 results to check"]
-    assert pg.locator(".map > *").first.get_attribute("aria-label") == "While you were away"     # at the top, above the goals
+    assert pg.locator(".arena-look__list > *").first.get_attribute("aria-label") == "While you were away"     # at the top of the results' column
     assert pg.locator(".away__failed.ok-tone-error").count() == 1
     assert pg.locator("[data-modal-backdrop]").count() == 0 and card.get_by_role("button", name="Close").get_attribute("class") == "ork-btn quiet"
     since = _calls(pg, host, "ideas.recap")[0]["since"]
@@ -107,7 +107,7 @@ def test_close_and_esc_remove_the_card_and_it_is_not_shown_again(gui):
     card.get_by_role("button", name="Close").click()
     assert card.count() == 0
     pg.reload()
-    pg.wait_for_selector(".map-goal", timeout=WAIT_MS)
+    pg.wait_for_selector(".arena-gtab", timeout=WAIT_MS)
     pg.wait_for_timeout(300)
     assert pg.get_by_label("While you were away").count() == 0 and len([n for n, _a in host.log if n == "ideas.recap"]) == 1
     pg.close()
@@ -115,7 +115,7 @@ def test_close_and_esc_remove_the_card_and_it_is_not_shown_again(gui):
     pg.get_by_label("While you were away").wait_for(timeout=WAIT_MS)
     pg.get_by_label("While you were away").get_by_role("button", name="Close").focus()
     pg.keyboard.press("Escape")
-    assert pg.get_by_label("While you were away").count() == 0 and pg.locator(".shell-preview .map").is_visible()   # Esc closed the card, not the Map
+    assert pg.get_by_label("While you were away").count() == 0 and pg.locator(".arena").is_visible() and pg.locator(".shell-drawer").count() == 0   # Esc closed the card, not the drawer
     pg.close()
     assert not errors and not errors2
 
@@ -127,17 +127,15 @@ def test_a_click_on_an_idea_opens_it_and_waits_for_you_opens_needs_you(gui):
     card.get_by_role("button", name="Dark mode").click()
     pg.locator(".shell-preview .board-sec").first.wait_for(timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "idea", "ref": "dark", "device": "desktop", "via": "recap"}))
-    pg.locator(".shell-tabstrip").get_by_role("tab", name="Map").click()
+    pg.get_by_role("button", name="Close the drawer").click()
     pg.get_by_label("While you were away").get_by_role("button", name="Waits for you: 1 answer, 3 results to check").click()
-    pg.locator(".board-today").wait_for(timeout=WAIT_MS)
-    assert pg.locator(".shell-board").get_by_role("tab", name="Needs you").get_attribute("aria-selected") == "true"
+    pg.wait_for_function("() => document.activeElement.classList.contains('arena-hc__open')", timeout=WAIT_MS)       # the first stop along the bottom is in focus (and so raised)
     pg.close()
     assert not errors, "\n".join(errors)
 
 
 def test_the_card_does_not_scroll_the_page_sideways_at_390_px(gui):
-    pg, host, errors = _page(gui, 9, viewport={"width": 390, "height": 844}, ready=".shell")
-    pg.get_by_role("button", name="Map").click()
+    pg, host, errors = _page(gui, 9, viewport={"width": 390, "height": 844}, ready=".arena-gtab")
     pg.get_by_label("While you were away").wait_for(timeout=WAIT_MS)
     assert pg.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
     assert pg.get_by_label("While you were away").bounding_box()["width"] <= 390

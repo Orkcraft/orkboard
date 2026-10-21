@@ -9,7 +9,8 @@ from orkboard.design import orkui, tokens
 from orkboard.gui import server
 
 STATIC = server.STATIC
-SHEETS = [STATIC / "page.css", STATIC / "js" / "shell" / "shell.css", STATIC / "js" / "board" / "board.css", STATIC / "pwa" / "app.css"]
+SHEETS = [STATIC / "page.css", STATIC / "js" / "shell" / "shell.css", STATIC / "js" / "board" / "board.css",
+          STATIC / "js" / "arena" / "arena.css", STATIC / "pwa" / "app.css"]
 
 
 def test_the_copy_is_orkuis_office_look_as_stamped():

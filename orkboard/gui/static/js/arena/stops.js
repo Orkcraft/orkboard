@@ -109,7 +109,7 @@ export function Stops({ g, stops }) {
   const shown = useHeld(box, stops, (s) => s.key);
   const focus = needsFocus.value;
   useEffect(() => { if (focus) box.current?.querySelector(".arena-hc__open")?.focus(); }, [focus]);
-  return html`<div class="arena-hand" aria-label="Waits for you" ref=${box}>
+  return html`<div class="arena-hand" role="region" aria-label="Waits for you" ref=${box}>
     ${!shown.length && html`<p class="arena-cap arena-hand__empty">Nothing waits for you on this goal.</p>`}
     ${shown.map((s, i) => html`<${Stop} key=${s.key} s=${s} g=${g} at=${i} of=${shown.length} />`)}
   </div>`;

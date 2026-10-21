@@ -9,6 +9,10 @@ order**, each idea in one of three stages (Planning · Implementation · Checkin
 party's members in lanes and the plan's waves in columns, and **the idea's card** on its right, where its results are
 merged. **Builds:** Claude · **Review:** full · P1.
 
+**Superseded in part by spec 49** (docs/specs/49-one-window.md, decisions §62): the Map is no longer a tab of the preview but
+the window itself (the goals are tabs, the party's columns, the stops along the bottom, the results in a column, the preview a
+drawer); this spec's data (`ideas.map`) and its actions stand.
+
 **What it is, and is not:** the Map is no longer only a view (this supersedes decisions §52.1 and spec 39's *Not in this
 spec: acting from the Map*): it has the actions of §5, each one the Board's own (`ideas.start`, `ideas.merge`,
 `ideas.back`, `ideas.drop_task`); the Map invents no action and no command. The gate between dev and main stays where

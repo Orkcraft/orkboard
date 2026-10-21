@@ -19,7 +19,7 @@ def test_the_leader_s_lens_is_open_first_each_lens_points_its_way_and_the_spec_s
     pg, host, errors = _open(gui, host=host)
     try:
         _show_goal(pg)
-        pg.get_by_role("button", name="New idea").click()
+        pg.get_by_role("button", name="+ New idea").click()
         dlg = pg.get_by_role("dialog", name="New idea")
         bar = dlg.get_by_role("radiogroup", name="Lens")
         bar.wait_for(timeout=WAIT_MS)
@@ -62,7 +62,7 @@ def test_the_leader_s_lens_is_open_first_each_lens_points_its_way_and_the_spec_s
         host.ideas["dark"]["lens"] = [{"kind": "pain", "segment": "Shop owners", "pain": "Orders get lost"},
                                       {"kind": "screen", "screen": "abc123", "name": "Orders", "marks": [{"x": 0.1, "y": 0.2, "w": 0.4, "h": 0.2, "note": "Say which orders wait"}]}]
         host.bump({})
-        pg.locator(".board-card", has_text="Dark mode").click()
+        pg.locator(".arena-prow", has_text="Dark mode").click()
         pointed = pg.locator(".shell-preview").get_by_role("list", name="Pointed at")
         pointed.wait_for(timeout=WAIT_MS)
         assert [" ".join(t.split()) for t in pointed.get_by_role("listitem").all_inner_texts()] == [
@@ -76,7 +76,7 @@ def test_with_no_lens_in_the_party_the_dialog_is_the_text_alone(gui):
     pg, host, errors = _open(gui)
     try:
         _show_goal(pg)
-        pg.get_by_role("button", name="New idea").click()
+        pg.get_by_role("button", name="+ New idea").click()
         dlg = pg.get_by_role("dialog", name="New idea")
         dlg.get_by_label("Your idea").fill("Dark mode please")
         assert dlg.get_by_role("radiogroup", name="Lens").count() == 0

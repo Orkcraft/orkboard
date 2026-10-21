@@ -141,7 +141,7 @@
 .board-op-rules { display: flex; flex-direction: column; gap: var(--ork-4); }
 .board-op-lines { margin: 0; padding-left: 1.2em; }
 .board-newmenu { position: relative; }
-.board-newmenu .board-target__menu { left: auto; right: auto; top: 100%; min-width: 240px; }
+.board-newmenu .board-target__menu { left: auto; right: auto; top: 100%; min-width: 240px; font: 400 14px/20px var(--ork-font-text); text-transform: none; letter-spacing: normal; }   /* it opens from a heading: its words are a person's, not the heading's */
 .board-newmenu__off { cursor: default; opacity: .8; }
 .board-doubts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); color: var(--ork-alert); }
 .board-found { margin: 0; display: flex; flex-direction: column; gap: var(--ork-2); }

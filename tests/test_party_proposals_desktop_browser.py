@@ -8,7 +8,7 @@ pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
 from tests.test_shell_36_browser import Stub36  # noqa: E402
-from tests.test_shell_browser import _calls, _open, _sent, _show_goal  # noqa: E402
+from tests.test_shell_browser import _agents, _calls, _open, _sent, _show_goal, _stop  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -33,17 +33,17 @@ def shell(gui):
 
 
 def _needs(pg):
-    pg.get_by_role("tab", name="Needs you").click()
-    pg.locator(".board-need").first.wait_for(timeout=WAIT_MS)
+    pg.locator(".arena-hc").first.wait_for(timeout=WAIT_MS)
+    return _stop(pg, "party")
 
 
 def test_the_party_row_is_a_proposal_s_with_take_it_out_and_keep_it_and_is_never_counted(shell):
     pg, host = shell
-    _needs(pg)
-    row = pg.locator(".board-need[data-kind=party]")
-    assert row.inner_text().startswith("Take Reviewer out of Ship sync's party?") and "It found nothing in the last 8 ideas; a check costs about $0.35." in row.inner_text()
+    row = _needs(pg)
+    assert "Take Reviewer out of Ship sync's party?" in row.inner_text() and "It found nothing in the last 8 ideas; a check costs about $0.35." in row.inner_text()
+    assert "proposed" in row.inner_text().lower()
     assert row.get_by_role("button", name="Take it out: Take Reviewer out of Ship sync's party?").is_visible()
-    rows = pg.locator(".board-need").evaluate_all("els => els.map(e => e.dataset.kind)")
+    rows = pg.locator(".arena-hc").evaluate_all("els => els.map(e => e.dataset.kind)")
     assert rows[-1] == "party" or rows[-2:] == ["proposal", "party"]                                    # last, with the proposals
     row.get_by_role("button", name="Keep it: Take Reviewer out of Ship sync's party?").click()
     why = row.get_by_label("Why not: Take Reviewer out of Ship sync's party?")
@@ -51,34 +51,34 @@ def test_the_party_row_is_a_proposal_s_with_take_it_out_and_keep_it_and_is_never
     why.fill("the public page needs it")
     row.get_by_role("button", name="Keep: Take Reviewer out of Ship sync's party?").click()
     assert _sent(pg, host, ("ideas.party_answer", {"goal": "ship-sync", "take": False, "reason": "the public page needs it"}))
-    pg.wait_for_function("() => document.querySelectorAll('.board-need[data-kind=party]').length === 0", timeout=WAIT_MS)
+    pg.wait_for_function("() => document.querySelectorAll('.arena-hc[data-kind=party]').length === 0", timeout=WAIT_MS)
 
 
 def test_take_it_out_answers_at_once_and_a_keep_with_no_reason_sends_none(shell):
     pg, host = shell
-    _needs(pg)
-    pg.locator(".board-need[data-kind=party]").get_by_role("button", name="Take it out: Take Reviewer out of Ship sync's party?").click()
+    _needs(pg).get_by_role("button", name="Take it out: Take Reviewer out of Ship sync's party?").click()
     assert _sent(pg, host, ("ideas.party_answer", {"goal": "ship-sync", "take": True}))
+    pg.mouse.move(5, 5)                                                                                 # nothing shifts under the pointer: it is away
     host.party_rows = [dict(ROW)]
     host.bump({})
-    pg.locator(".board-need[data-kind=party]").wait_for(timeout=WAIT_MS)
-    pg.locator(".board-need[data-kind=party]").get_by_role("button", name="Keep it: Take Reviewer out of Ship sync's party?").click()
+    pg.locator(".arena-hc[data-kind=party]").wait_for(timeout=WAIT_MS)
+    _stop(pg, "party").get_by_role("button", name="Keep it: Take Reviewer out of Ship sync's party?").click()
     pg.get_by_role("button", name="Keep: Take Reviewer out of Ship sync's party?").click()
     assert _calls(pg, host, "ideas.party_answer", 2)[-1] == {"goal": "ship-sync", "take": False}
 
 
-def test_the_row_is_not_in_the_signal(shell):
+def test_the_row_is_one_of_the_goal_s_stops_on_its_tab(shell):
     pg, host = shell
     host.party_rows = [dict(ROW)]
     host.bump({})
-    pg.wait_for_timeout(300)
-    needs_tab = pg.get_by_role("tab", name="Needs you")
-    others = [n for n in host.needs_you() if n["kind"] not in ("proposal", "party")]
-    assert needs_tab.locator(".shell-count").inner_text() == str(len(others))
+    pg.locator(".arena-hc[data-kind=party]").wait_for(timeout=WAIT_MS)
+    count = pg.locator('.arena-gtab[data-goal="ship-sync"] .ork-count')
+    assert count.inner_text() == str(pg.locator(".arena-hc").count())                                   # the stops along the bottom, the row among them
 
 
 def test_a_checker_s_muted_line_ends_with_its_check_and_its_dialog_says_it_over_30_days(shell):
     pg, host = shell
+    _agents(pg)
     week = pg.locator(".shell-role[data-slug='reviewer'] .shell-role__week")
     week.wait_for(timeout=WAIT_MS)
     assert week.inner_text() == "its check: 6 ideas, caught 2"

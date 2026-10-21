@@ -31,7 +31,7 @@ def test_save_this_party_asks_a_name_asks_again_before_it_replaces_and_says_it_i
     pg, host = shell
     host.goals["ship-sync"].update(team=["grunt", "reviewer"], every=["reviewer"], craft="design", leader=host.leader("architect"))
     host.bump({})
-    pg.get_by_role("button", name="Open goal Ship sync").click()
+    pg.get_by_role("button", name="About this goal").click()
     team = pg.locator(".shell-goal").get_by_role("region", name="Team")
     team.get_by_role("button", name="Save this party").click()
     name = team.get_by_label("Name of your party")
@@ -52,7 +52,7 @@ def test_save_this_party_asks_a_name_asks_again_before_it_replaces_and_says_it_i
 
 
 def _new_goal(pg):
-    pg.get_by_role("button", name="New goal").click()
+    pg.get_by_role("button", name="+ New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
     dlg.locator('.shell-craft-tile[data-craft="design"]').click()
     return dlg
@@ -107,7 +107,7 @@ def test_edit_goal_picks_a_party_too_and_says_what_a_goal_keeps(shell):
     host.goal_notes = ["Docs scribe is this project's already: kept as it is"]
     host.goals["ship-sync"]["about"] = "Sync is the first thing a second device needs."
     host.bump({})
-    pg.get_by_role("button", name="Edit goal Ship sync").click()
+    pg.get_by_role("button", name="Edit the party").click()
     dlg = pg.get_by_role("dialog", name="Edit goal")
     dlg.get_by_role("button", name="Change the party").click()
     dlg.get_by_role("region", name="Your parties").get_by_role("button", name="Pick your party “Lean web”").click()

@@ -28,7 +28,7 @@ def asked(host):
 
 def test_new_goal_asks_the_price_when_the_party_is_picked_and_says_it_under_the_bands(shell):
     pg, host = shell
-    pg.get_by_role("button", name="New goal").click()
+    pg.get_by_role("button", name="+ New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
     assert not asked(host)                                                                        # step 1: no party yet
     dlg.locator('.shell-craft-tile[data-craft="design"]').click()
@@ -62,7 +62,7 @@ def test_below_a_dollar_the_price_is_said_in_cents(shell):
     original = t.party_price
     t.party_price = lambda a, learned=True, hints=(): {**original(a, learned, hints), "low": 0.4, "high": 1.2}
     try:
-        pg.get_by_role("button", name="New goal").click()
+        pg.get_by_role("button", name="+ New goal").click()
         dlg = pg.get_by_role("dialog", name="New goal")
         dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
         dlg.locator(".shell-price").wait_for(timeout=WAIT_MS)
@@ -73,7 +73,7 @@ def test_below_a_dollar_the_price_is_said_in_cents(shell):
 
 def test_edit_goal_asks_when_the_party_is_changed_and_its_checks_say_what_they_add(shell):
     pg, host = shell
-    pg.get_by_role("button", name="Edit goal Ship sync").click()
+    pg.get_by_role("button", name="Edit the party").click()
     dlg = pg.get_by_role("dialog", name="Edit goal")
     assert not asked(host)                                                                        # the party is not picked yet
     dlg.get_by_role("button", name="Change the party").click()
@@ -91,7 +91,7 @@ def test_hints_are_quiet_lines_under_the_price_and_never_block_save(shell):
     """Spec 43 E: muted, one line each, no button; the craft is sent with the party (not for a Mixed goal)."""
     pg, host = shell
     host.hints = list(HINTS)
-    pg.get_by_role("button", name="New goal").click()
+    pg.get_by_role("button", name="+ New goal").click()
     dlg = pg.get_by_role("dialog", name="New goal")
     dlg.locator('.shell-craft-tile[data-craft="engineering"]').click()
     dlg.locator(".shell-hint").first.wait_for(timeout=WAIT_MS)

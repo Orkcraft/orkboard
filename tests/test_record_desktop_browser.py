@@ -8,7 +8,7 @@ pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
 from tests.test_shell_36_browser import Stub36  # noqa: E402
-from tests.test_shell_browser import _open  # noqa: E402
+from tests.test_shell_browser import _agents, _open  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -22,6 +22,7 @@ def recorded(gui):
     host = Stub36()
     host.record = dict(RECORDS)
     pg, host, errors = _open(gui, host=host)
+    _agents(pg)
     yield pg, host
     pg.close()
     assert not errors, "\n".join(errors)
