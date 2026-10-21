@@ -1,16 +1,20 @@
 // What waits for you (docs/specs/49-one-window.md §6): the bottom row. The stops of the goal shown — a plan ready, a question, a
-// proposal, a to-do, a failure — each a framed item standing in a fan along the bottom edge, only its top showing; hovering or
-// focusing one raises it whole, with its quick answers. A press answers; a click outside the buttons opens it in the drawer.
+// proposal, a to-do, a failure, a pick — each a framed item standing in a fan along the bottom edge, only its top showing; hovering or
+// focusing one raises it whole, with its quick answers. A press answers; a click outside the buttons opens it in the drawer. A *Pick one*
+// (docs/specs/51-pick-one.md §6) holds its variants as small tiles, two by two (picks.js): a press on a strip picks one, *Take B* answers
+// with it, *Pick, with a note…* (*Add a note…* once one is picked) opens the drawer where the note is written.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Head, Sign } from "../orkui.js";
 import { say, toast } from "../link.js";
-import { act, showIdea, showPlan, showTask, showGoal, showResult, needsFocus } from "../shell/store.js";
+import { act, showIdea, showPlan, showTask, showGoal, showResult, showPick, needsFocus } from "../shell/store.js";
 import { ResultActions } from "../shell/review.js";
 import { openDialog } from "../shell/modals.js";
 import { run as runOp } from "../board/ops.js";
 import { useHeld } from "./motion.js";
 import { askedOf, fanOf } from "./arenawords.js";
+import { Tiles, choiceOf } from "./picks.js";
+import { manyWords, variantOf } from "./pickwords.js";
 
 const SENT = "Sent: the Taskmaster answers in a moment.";
 
@@ -28,8 +32,19 @@ function Decline({ s, yes, ask, sure, take, go }) {
       <button type="button" class="ork-btn arena-hc__q" aria-label=${`${ask[1]}: ${s.full}`} onClick=${() => setDeclining(true)}>${ask[0]}</button>`;
 }
 
+/** A pick's answers on the card: *Take B* once one is picked (it answers at once, `via: "hand"`), and the way to the drawer for the note. */
+function PickAnswers({ s }) {
+  const row = s.row, key = choiceOf(row).key, [busy, setBusy] = useState(false);
+  const take = async () => { setBusy(true); await act("ideas.pick", { slug: row.slug, task: row.task, key, via: "hand" }); setBusy(false); };
+  return html`${key && html`<button type="button" class="ork-btn primary arena-hc__q" disabled=${busy} title=${`Goes on with ${key} · ${variantOf(row, key)?.name || ""}`}
+      aria-label=${`Take ${key}: ${s.full}`} onClick=${take}>Take ${key}</button>`}
+    <button type="button" class="ork-btn arena-hc__q" title=${`The ${manyWords(row)} large, a note, None of them`} aria-label=${`${key ? "Add a note" : "Pick, with a note"}: ${s.full}`}
+      onClick=${() => showPick(row.slug, row.task, { via: "hand" })}>${key ? "Add a note…" : "Pick, with a note…"}</button>`;
+}
+
 function Answers({ s, g }) {
   if (s.kind === "result") return html`<${ResultActions} r=${s.result} />`;
+  if (s.kind === "pick") return html`<${PickAnswers} s=${s} />`;
   const row = s.row, n = s.node, slug = row?.idea || n?.slug || "";
   if (s.kind === "plan") {
     const night = n?.start_at === "night";
@@ -84,22 +99,23 @@ function open(s) {
   else if (s.kind === "goal" || s.kind === "party") showGoal(row.goal, via);
   else if (s.kind === "todo") showPlan(row.idea, row.todo?.id || "", via);
   else if (s.kind === "failed") (s.task ? showTask(n.slug, s.task.id, via) : showIdea(row.idea, via));
+  else if (s.kind === "pick") showPick(row.slug, row.task, via);
   else openDialog("opcheck", { op: row.op });
 }
 
 function Stop({ s, g, at, of }) {
-  const fan = fanOf(at, of);
+  const fan = fanOf(at, of), pick = s.kind === "pick";
   return html`<div class=${cls("arena-hc ork-frame", { alert: s.tone === "alert", danger: s.tone === "danger", "is-compact": s.small })} data-kind=${s.kind} data-key=${s.key}
       style=${`--rot:${fan.rot}deg;--dy:${fan.dy}px;--z:${fan.z}`}>
-    <button type="button" class="arena-hc__open" aria-label=${`${s.label}: ${s.full}`} onClick=${() => open(s)}>
+    <button type="button" class="arena-hc__open" aria-label=${`${s.label}: ${s.full}`} title=${pick ? `${s.full} · ${s.text}` : undefined} onClick=${() => open(s)}>
       <span class="arena-hc__top"><span class=${cls("ork-gem", { danger: s.tone === "danger" })} title=${s.gemTip}>${typeof s.gem === "object" ? html`<${Sign} name=${s.gem.sign} />` : s.gem}</span>
         <span class=${cls("arena-hc__kind", { "is-no": s.tone === "danger" })}>${s.label}</span>
         ${s.small && s.head && html`<span class="arena-hc__who" title=${s.whoTip}><${Head} race=${s.head.race} tier=${s.head.tier} /></span>`}</span>
       ${!s.small && html`<span class="arena-art">${s.head && html`<${Head} race=${s.head.race} tier=${s.head.tier} size="mid" />`}</span>`}
-      <span class="arena-banner">${s.title}</span>
-      <span class="arena-hc__text" title=${s.text}>${s.text}</span>
+      ${!pick && html`<span class="arena-banner">${s.title}</span><span class="arena-hc__text" title=${s.text}>${s.text}</span>`}
     </button>
-    <div class="arena-hc__quick" role="group" aria-label=${s.kind === "asks" || s.kind === "goal" ? "Answer in one click" : "Quick moves"}><${Answers} s=${s} g=${g} /></div>
+    ${pick && html`<${Tiles} row=${s.row} />`}
+    <div class="arena-hc__quick" role="group" aria-label=${s.kind === "asks" || s.kind === "goal" ? "Answer in one click" : pick ? "Pick one" : "Quick moves"}><${Answers} s=${s} g=${g} /></div>
   </div>`;
 }
 

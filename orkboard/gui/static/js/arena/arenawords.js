@@ -5,9 +5,10 @@ import { leftToDo, TASK_STATE } from "../board/maplayout.js";
 import { memberWords, soFarWords, todayWords } from "../board/mapstage.js";
 import { holdWords, hhmm } from "../board/store.js";
 import { TIER_WORDS, RACE_WORDS } from "../orkui.js";
+import { kindCount } from "./pickwords.js";
 
 export const RUN = ["running", "testing"];
-export const RANK = { running: 0, testing: 0, failed: 1, review: 2, ready: 3, waiting: 4, held: 5 };      // a column, from the member up (§5.4)
+export const RANK = { running: 0, testing: 0, failed: 1, picking: 1.5, review: 2, ready: 3, waiting: 4, held: 5 };      // a column, from the member up (§5.4); a pick waits for the person, after a failure (spec 51)
 const LEVEL = { laborer: 1, warrior: 2, elder: 3 };      // the level's chevrons (marks/rank-1 … 3)
 
 export const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -113,9 +114,9 @@ export function partyOf(g, nodes) {
       if (known.has(t.by.slug)) continue;
       known.add(t.by.slug);
       const mine = nodes.filter(atWork).flatMap((x) => openTasks(x).filter((y) => y.by.slug === t.by.slug));
-      const failed = mine.some((y) => y.state === "failed"), run = mine.some((y) => RUN.includes(y.state));
+      const failed = mine.some((y) => y.state === "failed"), pick = mine.some((y) => y.state === "picking"), run = mine.some((y) => RUN.includes(y.state));
       team.push({ slug: t.by.slug, name: t.by.name, head: t.head, band: t.band === "check" ? "check" : "build",
-        state: failed ? "needs" : run ? "work" : "next", why: failed ? "failed" : "" });
+        state: failed || pick ? "needs" : run ? "work" : "next", why: failed ? "failed" : pick ? "pick" : "" });
     }
   }
   return { lead, members: [...team.filter((m) => m.band === "build"), ...team.filter((m) => m.band === "check")] };
@@ -200,11 +201,12 @@ export function nowOf(m, col, planning, isLead) {
     return { now, next };
   }
   const run = col.filter((x) => RUN.includes(x.t.state)), failed = col.find((x) => x.t.state === "failed"), held = col.find((x) => x.t.state === "held");
+  const picking = col.find((x) => x.t.state === "picking");
   const nx = col.find((x) => x.t.state === "ready" || x.t.state === "waiting"), rv = col.filter((x) => x.t.state === "review").length;
   const name = (x) => x.t.short || x.t.title, min = (x) => sinceWords(x.t.started);
-  const now = run.length ? line(`${name(run[0])}${min(run[0]) ? ` · ${min(run[0])}` : ""}`, "work") : failed ? line(name(failed), "cross") : nx ? line(`next: ${name(nx)}`)
-    : rv ? line(`${rv} in Review`) : line("");
-  const next = failed && run.length ? line(name(failed), "cross") : held ? line(`tonight: ${name(held)}`) : rv && run.length ? line(`${rv} in Review`)
+  const now = run.length ? line(`${name(run[0])}${min(run[0]) ? ` · ${min(run[0])}` : ""}`, "work") : failed ? line(name(failed), "cross") : picking ? line(`asks you to pick: ${name(picking)}`, "alert")
+    : nx ? line(`next: ${name(nx)}`) : rv ? line(`${rv} in Review`) : line("");
+  const next = failed && run.length ? line(name(failed), "cross") : picking && run.length ? line(`asks you to pick: ${name(picking)}`, "alert") : held ? line(`tonight: ${name(held)}`) : rv && run.length ? line(`${rv} in Review`)
     : nx && run.length ? line(`next: ${name(nx)}`) : line("");
   return { now, next };
 }
@@ -244,6 +246,7 @@ export function taskFoot(t, n) {
   if (t.state === "running") return `working${sinceWords(t.started) ? ` ${sinceWords(t.started)}` : ""}`;
   if (t.state === "testing") return "testing";
   if (t.state === "review") return "in Review";
+  if (t.state === "picking") return "asks you to pick";
   if (t.state === "failed") return "failed";
   if (t.state === "held") {
     if (n?.waits?.kind === "night") return `tonight${n.waits.until ? ` · after ${hhmm(n.waits.until)}` : ""}`;
@@ -307,7 +310,7 @@ export function gateOf(gate) {
 
 /** Today's rows of the goal shown, and the gate's (it has no goal): newest first. */
 export const todayOf = (today, goal) => (today?.events || []).filter((e) => !e.goal || e.goal === goal);
-export const TODAY_TONE = { ok: "is-ok", danger: "is-no", muted: "is-muted", ink: "" };
+export const TODAY_TONE = { ok: "is-ok", danger: "is-no", muted: "is-muted", alert: "is-alert", ink: "" };
 export const todayTip = (e) => `${e.at} · ${e.title} · ${e.words}`;
 
 // -- the limits ---------------------------------------------------------------------------------------------------------------------------
@@ -327,10 +330,10 @@ export function limitLine(l, reserve, resetOf) {
 
 // -- the stops: the bottom row (§6) -------------------------------------------------------------------------------------------------
 
-export const KIND_WORD = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed",
+export const KIND_WORD = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", pick: "Pick one",
   op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
 export const isOp = (n) => n.kind === "op" || n.kind === "op_failed" || n.kind === "op_rules";
-const GEM = { plan: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: { sign: "cross" }, op: "·", op_failed: { sign: "cross" }, op_rules: "—" };
+const GEM = { plan: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: { sign: "cross" }, pick: "", op: "·", op_failed: { sign: "cross" }, op_rules: "—" };
 
 /** The question a row asks first: its `asked` (with the choices and the pick), else its plain text. */
 export const firstAsk = (row, node) => (row.asked?.[0] || node?.asked?.[0] || { ask: row.text, choices: [], pick: null, why: "" });
@@ -353,7 +356,7 @@ export function stopsOf(needs, g, nodes) {
       for (const t of failedTasks(n)) if (!done.has(`${n.slug}/${t.id}`)) { done.add(`${n.slug}/${t.id}`); out.push(taskItem(n, t)); }
       continue;
     }
-    const base = { key: `${row.kind}/${row.idea || row.goal}/${row.todo?.id || ""}`, kind: row.kind, row, node: n, task: null, label: KIND_WORD[row.kind] || row.kind,
+    const base = { key: `${row.kind}/${row.idea || row.goal}/${row.todo?.id || row.task || ""}`, kind: row.kind, row, node: n, task: null, label: KIND_WORD[row.kind] || row.kind,
       gem: GEM[row.kind] ?? "·", tone: row.kind === "failed" ? "danger" : "alert", gemTip: "", title: row.title, full: row.title, text: row.text, head: lead, small: false, whoTip: "" };
     if (row.kind === "plan") {
       const tasks = n?.tasks || [], checks = tasks.filter((t) => t.band === "check").length, builds = tasks.length - checks;
@@ -366,6 +369,10 @@ export function stopsOf(needs, g, nodes) {
       if (row.kind === "asks") { base.head = q.by?.head || n?.asked?.[0]?.by?.head || lead; base.small = true; base.whoTip = q.by?.name ? `asked by ${q.by.name}` : ""; }
       else base.small = false;
     } else if (row.kind === "failed") { base.small = true; base.head = lead; base.gemTip = "It failed"; }
+    else if (row.kind === "pick") {                 // the gem is the count; the member's head; the ask is its line (spec 51 §6)
+      base.gem = String(row.n); base.gemTip = kindCount(row); base.small = true; base.head = row.by?.head || lead; base.whoTip = row.by?.name ? `made by ${row.by.name}` : "";
+      base.title = row.short || row.title; base.text = `“${row.ask}”`;
+    }
     else if (row.kind === "proposal" || row.kind === "party") base.gemTip = "Not planned yet";
     out.push(base);
   }

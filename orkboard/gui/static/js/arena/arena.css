@@ -303,6 +303,67 @@
 .arena-hc__why .ork-field { width: 100%; box-sizing: border-box; }
 .arena-hc .shell-actions__main { gap: var(--ork-2); }
 
+/* -- Pick one (docs/specs/51-pick-one.md §5, §6): the tiles of a pick's variants, small in the raised stop (two by two), large in the drawer (four across at 1 440). A
+   tile is its media on the canvas ground and under it the label strip that picks it; the picked one is in a double ink line with the check sign. Nothing animates. -- */
+.pick-tiles { display: grid; gap: var(--ork-2); min-width: 0; }
+.pick-tiles.is-small { flex: 1; min-height: 0; margin-top: var(--ork-2); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+.pick-tiles.is-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }              /* five or six variants: three across, still two rows */
+.pick-tiles.is-one { grid-template-columns: minmax(0, 1fr); }                           /* two: one over the other, each as wide as the card */
+.pick-tiles.is-large { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--ork-5); }
+.pick-tile { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--ork-1); background: var(--ork-canvas);
+  border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: var(--ork-ink-muted); }
+.pick-tile:hover { border-color: var(--ork-edge); }
+.pick-tile.is-on { padding: 0; border: var(--ork-double) double var(--ork-ink); color: var(--ork-ink); }
+.pick-tile__media { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; background: var(--ork-canvas); cursor: pointer; }
+.pick-tiles.is-large .pick-tile__media { flex: none; aspect-ratio: 1; }
+.pick-tile__label { appearance: none; display: flex; align-items: center; gap: var(--ork-2); flex: none; width: 100%; box-sizing: border-box; height: 20px; margin: 0; padding: 0 var(--ork-3); border: 0;
+  background: none; color: inherit; font: var(--ork-type-caption); text-align: left; cursor: pointer; }
+.pick-tile__t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick-tile__label:hover { color: var(--ork-ink); }
+.pick-tile__label:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.pick-tile.is-on .pick-tile__label { font-weight: 600; }
+.pick-tile__on { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; background: var(--ork-ink); color: var(--ork-on-ink); clip-path: var(--ork-notch); }
+.pick-tiles.is-small .pick-tile__label { height: 18px; padding: 0 var(--ork-1); font-size: 10px; line-height: 18px; }
+
+/* a picture: contained, never cropped, never drawn past twice its size (picks.js gives a capped one its width and height), crisp when it is 64 px or less on its side */
+.pick-img { position: absolute; inset: 0; margin: auto; display: block; width: 100%; height: 100%; object-fit: contain; }
+.pick-img.is-pixel { image-rendering: pixelated; }
+.pick-miss { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: var(--ork-2); box-sizing: border-box; text-align: center; font: var(--ork-type-caption); color: var(--ork-ink-faint); }
+
+/* a sound or a clip: its sign and length, Play/Pause (and a clip's sound), a thin bar of where it is */
+.pick-player { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ork-ink); }
+.pick-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--ork-canvas); }
+.pick-badge { position: absolute; left: var(--ork-2); top: var(--ork-2); display: inline-flex; align-items: center; gap: var(--ork-2); height: 18px; padding: 0 var(--ork-2); background: var(--ork-canvas);
+  color: var(--ork-ink); font: var(--ork-type-caption); line-height: 18px; clip-path: var(--ork-notch); }
+.pick-tiles.is-small .pick-badge { gap: var(--ork-1); padding: 0 var(--ork-1); font-size: 10px; }
+.pick-sound { display: flex; flex-direction: column; align-items: center; gap: var(--ork-2); font: var(--ork-type-caption); }
+.pick-tiles.is-small .pick-sound { position: absolute; left: var(--ork-2); top: var(--ork-2); flex-direction: row; gap: var(--ork-2); font-size: 10px; }
+.pick-len { font-variant-numeric: tabular-nums; }
+.pick-ctl { position: absolute; left: var(--ork-2); bottom: var(--ork-3); display: flex; gap: var(--ork-2); }
+.pick-btn { --_bg: var(--ork-canvas); height: 24px; padding: 0 var(--ork-3); }
+.pick-tiles.is-small .pick-btn { height: 20px; min-width: 20px; padding: 0 var(--ork-1); }
+.pick-tiles.is-small .pick-play__w { display: none; }
+.pick-snd[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); }
+.pick-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--ork-frame); }
+.pick-bar > i { display: block; height: 100%; background: var(--ork-ink); }
+
+/* a text: its words (a small tile shows the first lines, a large one all of them, scrolled), the text sign before them */
+.pick-words { position: absolute; inset: 0; box-sizing: border-box; padding: var(--ork-3); overflow: hidden; color: var(--ork-ink); font: var(--ork-type-body); text-align: left; }
+.pick-tiles.is-large .pick-words { overflow-y: auto; }
+.pick-tiles.is-large .pick-words:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.pick-words__t { margin: 0; white-space: pre-wrap; overflow-wrap: break-word; }
+.pick-words__sign { float: left; margin: 2px var(--ork-3) 0 0; color: var(--ork-ink-faint); }
+.pick-tiles.is-small .pick-words { padding: var(--ork-2); font-size: 10px; line-height: 12px; }
+.pick-tiles.is-small .pick-words__t { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pick-tiles.is-small .pick-words__sign { float: none; display: block; margin: 0 0 var(--ork-1); }
+
+/* the raised stop of a pick: the top, the tiles, the answers (Take B, Pick/Add a note) — the answers keep their room so a pick shifts nothing */
+.arena-hc[data-kind="pick"] .arena-hc__open { flex: none; }
+.arena-hc[data-kind="pick"] .arena-hc__quick { min-height: 52px; justify-content: flex-end; }
+.arena-task.is-pick .arena-task__foot { color: var(--ork-alert); }
+.arena-task.is-pick .arena-task__line { white-space: normal; }                         /* *asks you to pick* is two short lines on a card 104 px wide */
+.arena-hitem.is-alert { color: var(--ork-alert); }
+
 /* -- what is left of your AI tools (312 px, bottom right) -------------------------------------------------------------------------- */
 .arena-limits { position: absolute; right: 0; top: 0; bottom: 0; width: 312px; box-sizing: border-box; border-left: var(--ork-line) solid var(--ork-frame); padding: var(--ork-2) var(--ork-5); display: flex; flex-direction: column;
   overflow-y: auto; scrollbar-width: none; z-index: 9; background: var(--ork-canvas); }

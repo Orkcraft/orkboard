@@ -6,7 +6,7 @@
 // What the member's rows do as tasks come and go is motion.js's (a column's `useColumn`).
 import { html, cls } from "../html.js";
 import { Elem, Sign } from "../orkui.js";
-import { showResult, showTask } from "../shell/store.js";
+import { showPick, showResult, showTask } from "../shell/store.js";
 import { taskHover, taskHoverBy, spread } from "./arenastate.js";
 import { rowsOf, taskFoot, taskMark, waitersOf, waitsForOf } from "./arenawords.js";
 import { elementOf } from "./goalwords.js";
@@ -27,7 +27,7 @@ export function relationOf(n, t) {
 
 /** A card's foot: its state in words; under a hover the words of the dependency (*<before> waits for <short>*, *<after> n wait for it*). Parts: [{sign, text}]. */
 export function footParts(n, t, rel) {
-  const rest = { sign: "", text: taskFoot(t, n) };
+  const rest = { sign: t.state === "picking" ? "alert" : "", text: taskFoot(t, n) };         // a pick waits for the person: *asks you to pick* with the alert sign (spec 51 §6)
   const mine = waitersOf(n, t).length;
   if (rel.src && mine) return [{ sign: "after", text: `${mine} ${mine === 1 ? "waits" : "wait"} for it` }];
   if (rel.after) return [{ sign: "before", text: `waits for ${rel.hovered.short || rel.hovered.title}` }];
@@ -42,7 +42,8 @@ export function cardTip(n, t) {
   return t.state === "failed" ? `${t.title} · ${t.error || "failed"}` : t.state === "held" ? `${t.title} · ${foot}` : `${t.title} · wave ${t.wave}${t.after?.length ? ` · after ${t.after.join(", ")}` : ""}`;
 }
 
-const open = (n, t) => (t.state === "review" ? showResult(n.slug, t.id, { via: "map" }) : showTask(n.slug, t.id, { via: "map" }));
+/** What a press on a card opens: its result at Review, its pick while it asks, else the task. */
+export const open = (n, t) => (t.state === "review" ? showResult(n.slug, t.id, { via: "map" }) : t.state === "picking" ? showPick(n.slug, t.id, { via: "map" }) : showTask(n.slug, t.id, { via: "map" }));
 
 /** The look of a card (shared by a stack's front and a spread's): the element, the mark, the goal, the name. `phase`: the spread's word over the name. */
 export function CardBody({ n, t, phase = "", foot, deps = [], many = 0 }) {
@@ -57,7 +58,7 @@ export function CardBody({ n, t, phase = "", foot, deps = [], many = 0 }) {
 }
 
 /** The classes a card wears for its task's state and what the hover says of it. */
-export const stateCls = (n, t, rel, later) => ({ "is-run": t.state === "running" || t.state === "testing", "is-review": t.state === "review", "is-next": t.state === "ready",
+export const stateCls = (n, t, rel, later) => ({ "is-run": t.state === "running" || t.state === "testing", "is-review": t.state === "review", "is-pick": t.state === "picking", "is-next": t.state === "ready",
   "is-wait": t.state === "waiting" || t.state === "held", "is-fail": t.state === "failed", "is-later": later, "is-src": rel.src && waitersOf(n, t).length > 0,
   "is-after": rel.after, "is-before": rel.before });
 

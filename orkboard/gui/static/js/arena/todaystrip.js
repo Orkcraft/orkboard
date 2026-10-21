@@ -3,7 +3,7 @@
 // a click opens what the event is about in the drawer.
 import { html, cls } from "../html.js";
 import { Icon, Sign } from "../orkui.js";
-import { todayData, showResult, showTask, showIdea, showGoal, showGate } from "../shell/store.js";
+import { todayData, showResult, showTask, showIdea, showGoal, showGate, showPick } from "../shell/store.js";
 import { TODAY_TONE, todayOf, todayTip } from "./arenawords.js";
 
 function open(e) {
@@ -11,11 +11,12 @@ function open(e) {
   if (o.kind === "result") showResult(o.slug, o.task, via);
   else if (o.kind === "task") showTask(o.slug, o.task, via);
   else if (o.kind === "goal") showGoal(o.slug, via);
+  else if (o.kind === "pick") showPick(o.slug, o.task, via);
   else if (o.kind === "gate") showGate(via);
   else showIdea(o.slug, via);
 }
 
-const SIGNS = { "✓": "check", "✗": "cross", "⚑": "flag" };           // the host's marks that orkUI draws as signs (spec 50 §1.6)
+const SIGNS = { "✓": "check", "✗": "cross", "⚑": "flag", "!": "alert" };           // the host's marks that orkUI draws as signs (spec 50 §1.6)
 
 export function TodayStrip({ goal }) {
   const rows = todayOf(todayData.value, goal);

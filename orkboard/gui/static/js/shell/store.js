@@ -7,7 +7,7 @@ import { command, toast } from "../link.js";
 import { ask, board, opened, page, BUSY } from "../board/store.js";
 import { openDialog } from "./modals.js";
 
-export const preview = signal(null);       // the active tab's thing, null with no tab: {kind: "idea"|"plan"|"task"|"result"|"goal"|"doc"|"file"|"gitdiff"|"gate"|"agents"|"files", slug?, task?, todo?, path?}
+export const preview = signal(null);       // the active tab's thing, null with no tab: {kind: "idea"|"plan"|"task"|"result"|"goal"|"pick"|"doc"|"file"|"gitdiff"|"gate"|"agents"|"files", slug?, task?, todo?, path?}
 export const review = signal(null);        // ideas.review_list
 export const agents = signal(null);        // ideas.agents
 export const detail = signal(null);        // the preview's own data: {task} (ideas.task) · {task, diff, spend} (a result; spend: ideas.spend of its idea) · {goal} · {doc}
@@ -30,8 +30,8 @@ export const flagsData = signal(null);     // ideas.flags: the goals' flags (`go
 export const aboutAt = signal("");         // the section of About this party to scroll to when it opens ("flags": Its flags); "" for the top
 export const mapFolded = signal([]);       // the folds kept with the tabs (the Flags fold)
 
-const KINDS = ["idea", "plan", "task", "result", "goal", "doc", "file", "gitdiff", "gate", "agents", "files"];
-const KIND_WORDS = { idea: "Goal", plan: "Plan", task: "Task", result: "Code", goal: "Party", doc: "Document", file: "File", gitdiff: "Changes",
+const KINDS = ["idea", "plan", "task", "result", "goal", "pick", "doc", "file", "gitdiff", "gate", "agents", "files"];
+const KIND_WORDS = { idea: "Goal", plan: "Plan", task: "Task", result: "Code", goal: "Party", pick: "Pick one", doc: "Document", file: "File", gitdiff: "Changes",
   gate: "Gate", agents: "Agents", files: "Files" };
 export const kindWords = (kind) => KIND_WORDS[kind] || "";
 export const tabId = (p) => `${p.kind}:${p.slug || ""}:${p.task || ""}:${p.path || ""}`;
@@ -90,6 +90,7 @@ export function goneWords(p, bd = board.value) {
   if (!p || !bd) return "";
   if (p.kind === "goal") return (bd.tracks || []).some((t) => t.slug === p.slug) ? "" : "This party is gone";
   if (["idea", "plan", "task", "result", "doc"].includes(p.kind) && p.slug) return (bd.ideas || []).some((i) => i.slug === p.slug) ? "" : "This goal is gone";
+  if (p.kind === "pick") return (bd.needs_you || []).some((n) => n.kind === "pick" && n.slug === p.slug && n.task === p.task) ? "" : "That pick is answered already";
   return "";
 }
 
@@ -289,6 +290,7 @@ export const showDoc = (slug, path, o) => show({ kind: "doc", slug, path }, o);
 export const showFile = (path, o) => show({ kind: "file", path }, o);
 export const showGitDiff = (path, o) => show({ kind: "gitdiff", path }, o);
 export const showResult = (slug, task, o) => show({ kind: "result", slug, task }, o);
+export const showPick = (slug, task, o) => show({ kind: "pick", slug, task }, o);
 export const showGate = (o) => show({ kind: "gate" }, o);
 export const showAgents = (o) => show({ kind: "agents" }, { keep: true, ...o });      // the panes are kept: a file or a task opened from them is a tab of its own
 export const showFiles = (o) => show({ kind: "files" }, { keep: true, ...o });

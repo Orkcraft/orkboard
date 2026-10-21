@@ -1,12 +1,12 @@
 // The drawer's body (docs/specs/33-v1-shell.md §6, spec 39 §3, spec 49 §9): tabs, one per thing opened: an idea's spec (29a's
 // sections view), an idea's plan (scrolled to a to-do, said what it unblocks), a task (its brief, state and log), a result's code
-// (commits, then the files changed, each patch folded), a goal, a document, a file, a diff, the gate's screen, Agents, Files. A
-// result's actions stay pinned at its foot.
+// (commits, then the files changed, each patch folded), a goal, a pick (its variants large, a note: shell/pickview.js), a document, a file, a diff,
+// the gate's screen, Agents, Files. A result's actions stay pinned at its foot.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Sign, Who } from "../orkui.js";
 import { ErrorLine } from "./errors.js";
-import { page } from "../board/store.js";
+import { board, page } from "../board/store.js";
 import { IdeaView, PlanView } from "../board/idea.js";
 import { TASK_STATE } from "../board/maplayout.js";
 import { preview, detail, review, goal, editing, active, goneWords, keepTab, setTabTitle, act, closePreview, showIdea, showResult, showGoal, refreshShell } from "./store.js";
@@ -18,6 +18,8 @@ import { FileView, FilesPane } from "./files.js";
 import { GitDiffView } from "./gitpane.js";
 import { AgentsPane } from "./agents.js";
 import { GateView } from "../arena/gate.js";
+import { rowOf } from "../arena/pickwords.js";
+import { PickView } from "./pickview.js";
 
 /** A failed task's way on: run its idea's tasks again, or drop it (asked first). */
 function FailedActions({ t }) {
@@ -108,6 +110,7 @@ function Doc({ d, p }) {
 function titleOf(p, d, pg) {
   if (p.kind === "task" || p.kind === "result") return d?.task?.title || "";
   if (p.kind === "goal") return goal.value?.title || "";
+  if (p.kind === "pick") return rowOf(board.value?.needs_you, p.slug, p.task)?.title || "";
   if (p.kind === "doc" || p.kind === "file" || p.kind === "gitdiff") return p.path;
   if (p.kind === "gate") return "dev → main";
   if (p.kind === "agents") return "Agents";
@@ -131,6 +134,7 @@ export function Preview() {
         : p.kind === "idea" ? (pg ? html`<${IdeaView} p=${pg} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "plan" ? (pg ? html`<${PlanView} p=${pg} todo=${p.todo} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "goal" ? html`<${GoalView} />`
+        : p.kind === "pick" ? html`<${PickView} p=${p} />`
         : p.kind === "doc" ? html`<${Doc} d=${d} p=${p} />`
         : p.kind === "file" ? html`<${FileView} path=${p.path} />`
         : p.kind === "gitdiff" ? html`<${GitDiffView} path=${p.path} />`
