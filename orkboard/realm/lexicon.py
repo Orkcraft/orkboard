@@ -138,21 +138,21 @@ TERMS: tuple[Term, ...] = (
     _t("council_word", "Review board", "", "Council"),
     # the Task Fields' other two parts (one board: the orks' kanban, the person's checklist, the notes)
     _t("chore", "to-do", "to-dos", "chore", "chores"),             # a to-do of the person's own
-    _t("track", "goal", "goals", "track", "tracks"),               # the project's line of work: ideas in order (spec 29, 32)
-    _t("steward_goal", "Target", "", "Goal"),                      # the Steward's setting: what the retros improve it towards (spec 32)
+    _t("track", "party", "parties", "track", "tracks"),            # a team you picked and the goals dealt to it, in order (decisions §63; the code's track, goal)
+    _t("steward_goal", "Target"),                                  # the Steward's setting: what the retros improve it towards (spec 32); "Goal" is today's word for a goal
     _t("agent", "agent", "agents"),                                # a role: a model, an instruction, a limit (realm/roles.py, spec 34)
     # an agent's craft, drawn as the head of its race in orkUI (realm/roles.py CRAFTS, RACES; decisions §53): the race says
     # what the agent does, the gear on its head its tier (a novice bare, a seasoned in iron, a veteran hooded)
     _t("craft", "craft", "crafts"),
-    _t("team", "team", "teams"),                                   # a goal's agents, picked from the library (realm/goal_team.py)
+    _t("team", "team", "teams"),                                   # a party's agents, picked from the library (realm/goal_team.py)
     _t("library", "library"),                                      # the agents that come with Orkline (realm/library.py)
-    _t("check", "check", "checks"),                                # what a team's checker holds each idea to (realm/idea_checks.py)
+    _t("check", "check", "checks"),                                # what a team's checker holds each goal to (realm/idea_checks.py)
     _t("checker", "checker", "checkers"),                          # an agent of the library that brings a check
     _t("pace", "the week's pace"),                                  # the Claude week's share left against the share of it still to come (spec 44)
-    _t("party_work", "What the party did"),                         # a goal's party's work, member by member and check by check (spec 43 §2)
-    _t("party_proposal", "party proposal", "party proposals"),      # the night's proposal to take a checker out of a goal's party (spec 43 §4)
-    _t("own_party", "your party", "your parties"),                  # a party the person saved from a goal, kept in their own folder and picked in any project (spec 43 §6)
-    _t("party_price", "This party"),                                # about what an idea costs with a party, before it starts (spec 43 §3)
+    _t("party_work", "What the party did"),                         # a party's work, member by member and check by check (spec 43 §2)
+    _t("party_proposal", "party proposal", "party proposals"),      # the night's proposal to take a checker out of a party (spec 43 §4)
+    _t("own_party", "your party", "your parties"),                  # a party the person saved from one of theirs, kept in their own folder and picked in any project (spec 43 §6)
+    _t("party_price", "This party"),                                # about what a goal costs with a party, before it starts (spec 43 §3)
     _t("check_finding", "finding", "findings"),                    # one thing a check found: where, what goes wrong, fixed or left (spec 43 §0; `finding` is the Mine's)
     _t("tag", "tag", "tags"),                                      # a task's kind of work: who of the team does it (roles.TASK_KINDS)
     _t("craft.engineering", "Engineering"),                        # an ork: the Taskmaster, the Grunts, a role of code
@@ -166,30 +166,30 @@ TERMS: tuple[Term, ...] = (
     _t("race.goblin", "goblin", "goblins"),
     _t("race.gnome", "gnome", "gnomes"),
     _t("race.lich", "lich", "liches"),
-    _t("leader", "leader", "leaders"),                             # a goal's party's: its steps run as it (core/idea_lead.py)
-    _t("party", "party", "parties"),                               # a goal's leader, builders and checkers (realm/goal_team.py)
-    _t("verdict", "verdict", "verdicts"),
-    _t("lens", "lens", "lenses"),                                  # what a new idea points at, the party's way: code, a screen, a pain (realm/idea_lens.py)
-    _t("segment", "segment", "segments"),                          # whom an idea is for, a product manager's lens                          # a goal accepted, or not, against its metrics (realm/goal_verdict.py)
+    _t("leader", "leader", "leaders"),                             # a party's: its steps run as it (core/idea_lead.py)
+    _t("party", "party", "parties"),                               # a party's leader, builders and checkers (realm/goal_team.py)
+    _t("verdict", "verdict", "verdicts"),                          # a party's old verdict against its metrics, kept as history (realm/goal_verdict.py)
+    _t("lens", "lens", "lenses"),                                  # what a new goal points at, the party's way: code, a screen, a pain (realm/idea_lens.py)
+    _t("segment", "segment", "segments"),                          # whom a goal is for, a product manager's lens
     _t("task_kind", "task type", "task types"),                    # code · tests · docs · text for people · research
-    _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
-    _t("stage", "stage", "stages"),                                # an idea's step on the Map: Planning, Implementation, Checking (spec 48; not the spec's Stages section)
-    _t("wave", "wave", "waves"),                                   # a task's depth in its plan by `after`: a column of the Map's idea (spec 48)
+    _t("board_map", "Map"),                                        # a project's parties, goals and tasks on one screen (spec 39; not the camp's War Map)
+    _t("stage", "stage", "stages"),                                # a goal's step on the Map: Planning, Implementation, Checking (spec 48; not the spec's Stages section)
+    _t("wave", "wave", "waves"),                                   # a task's depth in its plan by `after`: a column of the Map's goal (spec 48)
     _t("gate", "gate", "gates"),                                   # the one press that merges dev into main (decisions §49.5, spec 49 §2.1)
     _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
-    _t("flag", "flag", "flags"),                                   # a goal accepted by its leader against its metrics (spec 42 §2)
+    _t("flag", "flag", "flags"),                                   # a goal the gate took into main (spec 50 §2.2); a party's old flag is its verdict met (spec 42 §2)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)
     _t("last_week", "Last week"),                                  # the card of the week before this one, Monday to Sunday (spec 42 §7)
     _t("nights_in_a_row", "nights in a row"),                      # the Board's nights with work done, one after another, up to last night (spec 42 §8)
-    _t("short_name", "short name", "short names"),                 # an idea's, a goal's or a task's name in 24 characters (spec 41 §3)
+    _t("short_name", "short name", "short names"),                 # a goal's, a party's or a task's name in 24 characters (spec 41 §3)
     _t("recommended_answer", "recommended answer", "recommended answers"),   # the choice the Taskmaster picks for its question (spec 41 §9)
-    _t("idea", "idea", "ideas"),                                   # a spec under discussion, a page in the Wiki (spec 29)
-    _t("proposal", "proposal", "proposals"),                       # an idea the keeper proposes at night, for the morning (spec 35 §8)
-    _t("scribble", "note", "notes", "scribble", "scribbles"),       # an idea or a note on the board
+    _t("idea", "goal", "goals"),                                   # a goal: a page with its spec and plan, done in dev, its flag raised in main (spec 29, 50; the code's idea)
+    _t("proposal", "proposal", "proposals"),                       # a goal the keeper proposes at night, for the morning (spec 35 §8)
+    _t("scribble", "note", "notes", "scribble", "scribbles"),       # a goal or a note on the board
     # Operations (docs/specs/38-operations.md §0): the person's everyday work by templates, across projects
-    _t("operations", "Operations"),                                # the person's list, one for all projects; not a goal
+    _t("operations", "Operations"),                                # the person's list, one for all projects; not a party
     _t("operation", "operation", "operations"),                    # one piece of it, from one template
     _t("op_template", "template", "templates"),                    # a Claude skill with Orkboard's manifest beside it
     _t("op_check", "check", "checks"),                             # the person's look before its action

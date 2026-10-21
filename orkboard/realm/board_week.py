@@ -148,8 +148,8 @@ def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
     by_goal = {g["slug"]: g for g in rows.get("tracks") or []}
     now_week = _results(root, state_dir, since, until)
     prior = _results(root, state_dir, prev_since, prev_until)
-    log = board_recap.events_between(root, since, until, event_log.KEEPER_STATE, event_log.GOAL_ACCEPTED, event_log.IDEA_ANSWERED,
-                                     event_log.GOAL_ANSWERED)
+    log = board_recap.events_between(root, since, until, event_log.KEEPER_STATE, event_log.GOAL_ACCEPTED, event_log.IDEA_FLAGGED,
+                                     event_log.IDEA_ANSWERED, event_log.GOAL_ANSWERED)
 
     done: dict[str, set[str]] = {}
     for r in log:
@@ -165,6 +165,7 @@ def last_week(root: Path, state_dir: Path, settings: dict, now: dt.datetime, row
             accepted[str(r["goal"])] = r
     flags = [{"goal": g, "short": by_goal[g].get("short") or by_goal[g].get("title") or g, "title": by_goal[g].get("title") or g,
               "met": bool(r.get("met")), "by": str(r.get("by") or "")} for g, r in accepted.items()]
+    flags += board_recap.idea_flags(log, by_idea)           # a goal's flag reads "⚑ <goal> is in main" (spec 50 §2.4)
 
     cost = {s: usd for s, usd in idea_spend.by_idea_between(state_dir, since, until).items() if s in by_idea and usd >= 0.01}
     top = max(cost, key=cost.get) if cost else None

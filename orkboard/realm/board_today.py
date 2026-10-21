@@ -4,7 +4,7 @@ Board's field. A pure read of lines already read: no face, no git, no write.
     board_today.rows(lines, titles, into="dev", since=board_today.midnight(now))     # newest first, at most 40
 
 `lines`: the log's lines (`event_log.read`), oldest first; `titles`: the Board's names for them,
-`{"ideas": {slug: {"title", "goal"}}, "goals": {slug: title}, "tasks": {slug: {task id: title}}}`; a title the Board no
+`{"ideas": {slug: {"title", "short"?, "goal"}}, "goals": {slug: title}, "tasks": {slug: {task id: title}}}`; a title the Board no
 longer has reads as the slug (a task's as its idea's title, else the idea's slug). `into`: the branch a merge went into
 (a line that says its own wins). One row per line of these events, the rest skipped:
 
@@ -16,6 +16,7 @@ longer has reads as the slug (a task's as its idea's title, else the idea's slug
     idea_answered, goal_answered   ·  muted  you answered
     proposal_answered        + / · muted taken / left out
     gate_merged              ✓ ok     dev merged into main    (title dev → main; the line's own `into` and `main` win)
+    idea_flagged             ⚑ ok     is in main              (title: the goal's short name; spec 50 §2.4)
 
 A row is `{at ("HH:MM", local), mark, tone, words, title, goal, idea, task, open}`: `goal` is its idea's goal (the gate's row
 has none: it belongs to every goal), `open` what a click opens, `{kind, slug, task?}`: a `result` (the code a merge or a
@@ -72,6 +73,11 @@ def _row(r: dict, titles: dict, into: str) -> dict | None:
     if event == event_log.GATE_MERGED:
         a, b = str(r.get("into") or into), str(r.get("main") or "main")
         return _made(r, "✓", "ok", f"{a} merged into {b}", f"{a} → {b}", "", "", "", {"kind": "gate", "slug": ""})
+    if event == event_log.IDEA_FLAGGED:
+        slug = str(r.get("idea") or "")
+        title, goal = _idea_of(titles, slug)
+        short = str((_get(titles.get("ideas"), slug) or {}).get("short") or "") or title
+        return _made(r, "⚑", "ok", "is in main", short, goal or str(r.get("goal") or ""), slug, "", {"kind": "idea", "slug": slug}) if slug else None
     if event == event_log.GOAL_ANSWERED:
         slug = str(r.get("goal") or "")
         title = str(_get(titles.get("goals"), slug) or slug)

@@ -38,7 +38,7 @@ MATRIX: dict[str, dict[str, tuple[Any, str] | None]] = {
     "plan": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "refresh": {"thrift": None, "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "propose": {"thrift": None, "balance": ("elder", "low"), "quality": ("elder", "medium")},
-    # a goal's leader accepts the goal against its metrics once its ideas are done (core/idea_lead.py)
+    # a party's leader accepts it against its metrics when the person asks, for a party with metrics of before (core/idea_lead.py; spec 50 §2.2)
     "accept": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "task": {"thrift": (-1, "low"), "balance": (0, "medium"), "quality": (1, "high")},
     # Operations' calls (docs/specs/38-operations.md §4), under Operations' own Target: no effort on the laborer tier

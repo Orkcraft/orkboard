@@ -24,7 +24,7 @@ from orkboard.realm.idea_words import short_of
 TICK_S = 30.0
 PUSH_GAP_S = 900.0
 MORNING_H = 3                                   # the morning is the first tick within this many hours after the quiet hours end
-KIND_WORDS = {"goal": "A goal asks", "asks": "A spec asks", "plan": "A plan waits for you", "todo": "A to-do", "failed": "Failed",
+KIND_WORDS = {"goal": "A party asks", "asks": "A spec asks", "plan": "A plan waits for you", "todo": "A to-do", "failed": "Failed",
               "op": "At your check", "op_failed": "Failed"}      # js/board/today.js KIND_WORDS, the kinds that wait for an answer
 
 
@@ -111,7 +111,7 @@ class Pusher:
             return ""
         parts = [results and f"{results} {'result' if results == 1 else 'results'} in {into}",
                  flags and f"{flags} {'flag' if flags == 1 else 'flags'} raised",
-                 proposed and f"{proposed} {'idea' if proposed == 1 else 'ideas'} proposed",
+                 proposed and f"{proposed} {'goal' if proposed == 1 else 'goals'} proposed",
                  failed and f"{failed} failed"]
         said = ", ".join(str(x) for x in parts if x) or "the night's work"
         return f"While you were away: {said} · {waiting} {'waits' if waiting == 1 else 'wait'} for your answer" if waiting \

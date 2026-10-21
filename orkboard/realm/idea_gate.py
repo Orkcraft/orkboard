@@ -3,6 +3,7 @@ decisions §49.5). Git reads and the merge, no face.
 
     shas, files = idea_gate.waiting(git, "dev", "main")      # `git rev-list main..dev` (newest first), the files `main...dev` changes
     idea_gate.ideas_in(shas, rows)                           # the ideas with a merged task whose `commit` is among them
+    idea_gate.all_in(git, shas, "main")                      # every sha is in main already (a goal's flag, spec 50 §2.2)
     got = idea_gate.merge(git, "dev", "main", push=True)     # main moved to dev's work: {"commit", "how", "commits", "files", "note", "pushed"}
 
 `git` is an `IdeaGit` (realm/idea_git.py). `merge` runs under the repository's lock. When main is an ancestor of dev,
@@ -13,10 +14,13 @@ refused, main is as it was and no worktree is left behind. Nothing here moves de
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Iterable
 
 from orkboard.realm import worktrees
 from orkboard.realm.idea_git import PUSH_TIMEOUT_S, IdeaGit, _git, _ok
+
+_SHA = re.compile(r"[0-9a-f]{7,64}")
 
 WORKTREE = "gate-merge"                      # the merge commit's worktree, under `.orkcraft/worktrees/`
 IDENTITY = ("-c", "user.name=Orkline", "-c", "user.email=orkline@localhost")
@@ -65,6 +69,16 @@ def ideas_in(shas: Iterable[str], rows: Iterable[tuple[str, str, str, list[dict]
         if n:
             out.append({"slug": slug, "title": title, "goal": goal, "tasks": n})
     return out
+
+
+def all_in(git: IdeaGit, shas: Iterable[str], main: str) -> bool:
+    """Every sha is in `main` (an ancestor of it); no sha is False. One `rev-list` of the shas that main does not hold: a sha
+    git does not know, or a branch that is not there, is not in main either."""
+    held = list(dict.fromkeys(str(s) for s in shas if s))
+    if not held or not main or not all(_SHA.fullmatch(s) for s in held):
+        return False
+    got = _git(git.root, "rev-list", "--max-count=1", *held, "--not", _ref(main), "--")
+    return got.returncode == 0 and not got.stdout.strip()
 
 
 def merge(git: IdeaGit, into: str, main: str, push: bool = False) -> dict[str, Any]:

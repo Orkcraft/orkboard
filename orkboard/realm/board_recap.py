@@ -4,8 +4,10 @@ read of the event log and the ledgers: no face, no model, it writes nothing, sta
     board_recap.build(root, state_dir, since, now, rows)      # §1.1's object
     board_recap.when("2026-10-20T09:00:00+02:00")             # a log's time or a ledger's, as a datetime
 
-`root` is the project's folder (where the event log is). `rows`: the Board's `{"ideas": [...], "tracks": [...]}` (`ideas.board`), for titles and short names; an idea or a goal
-the Board no longer has is left out of every list. Times are never compared as text.
+`flags` holds a party's old flags (`goal_accepted`: `{goal, short, title, met, by}`) and then the goals' (`idea_flagged`, spec 50
+§2.4: the same fields and the goal's `idea`, `goal` being its party; a face reads one "⚑ <goal> is in main"). `root` is the project's
+folder (where the event log is). `rows`: the Board's `{"ideas": [...], "tracks": [...]}` (`ideas.board`), for titles and short names;
+an idea or a party the Board no longer has is left out of every list. Times are never compared as text.
 """
 from __future__ import annotations
 
@@ -49,11 +51,26 @@ def _int(value: object) -> int:
     return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
 
 
+def idea_flags(log: list[dict], by_idea: dict[str, dict]) -> list[dict]:
+    """The goals that raised their flag in `log` (spec 50 §2.4), oldest first, each once: `{goal (its party), idea, short, title,
+    met: True, by ("gate" · "done")}`. A goal the Board no longer has is left out. A party's old flag (`goal_accepted`) has no
+    `idea`; it keeps its own line."""
+    out: dict[str, dict] = {}
+    for r in log:
+        slug = str(r.get("idea") or "")
+        if r["event"] == event_log.IDEA_FLAGGED and slug in by_idea and slug not in out:
+            i = by_idea[slug]
+            out[slug] = {"goal": i.get("track") or str(r.get("goal") or ""), "idea": slug, "short": i.get("short") or i.get("title") or slug,
+                         "title": i.get("title") or slug, "met": True, "by": str(r.get("by") or "")}
+    return list(out.values())
+
+
 def build(root: Path, state_dir: Path, since: dt.datetime, now: dt.datetime, rows: dict, into: str = "dev") -> dict[str, Any]:
     from orkboard.realm.board_map import task_short           # board_map reads goal_flags, which reads `when`
     by_idea = {i["slug"]: i for i in rows.get("ideas") or []}
     by_goal = {g["slug"]: g for g in rows.get("tracks") or []}
-    log = events_between(root, since, now, event_log.TASK_STATE, event_log.GOAL_ACCEPTED, event_log.NIGHT_RUN, event_log.PROPOSAL_MADE)
+    log = events_between(root, since, now, event_log.TASK_STATE, event_log.GOAL_ACCEPTED, event_log.IDEA_FLAGGED, event_log.NIGHT_RUN,
+                         event_log.PROPOSAL_MADE)
 
     def idea(slug: str) -> dict:
         i = by_idea[slug]
@@ -74,6 +91,7 @@ def build(root: Path, state_dir: Path, since: dt.datetime, now: dt.datetime, row
             accepted[str(r["goal"])] = r
     flags = [{"goal": g, "short": by_goal[g].get("short") or by_goal[g].get("title") or g, "title": by_goal[g].get("title") or g,
               "met": bool(r.get("met")), "by": str(r.get("by") or "")} for g, r in accepted.items()]
+    flags += idea_flags(log, by_idea)                       # a goal's flag reads "⚑ <goal> is in main" (spec 50 §2.4)
 
     sums = {k: sum(_int(r.get(k)) for r in log if r["event"] == event_log.NIGHT_RUN) for k in ("drafted", "started", "refreshed", "proposed")}
     night = sums if any(sums.values()) else None

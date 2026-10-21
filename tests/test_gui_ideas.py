@@ -760,3 +760,76 @@ def test_the_gate_and_the_strip_are_opened_and_logged_through_ideas_log(host):
         host.command("ideas.log", {"event": "opened", "what": "gate", "via": "elsewhere"})
     with pytest.raises(CommandError, match="gate, today"):
         host.command("ideas.log", {"event": "opened", "what": "elsewhere"})
+
+
+# -- spec 50 A: a goal's element and flag, and no acceptance by itself -----------------------------------------------------------
+
+def test_a_new_goal_answers_with_its_element_and_every_card_of_it_will_wear_it(host):
+    first, second = _add(host, "Dark mode for the night"), _add(host, "Larger text")
+    assert (first["element"], second["element"]) == ("meadow", "ice") and set(first) == {"slug", "queue", "element"}
+    assert ideas.state(host.ideas.state_dir, first["slug"])["element"] == "meadow"
+    nodes = {n["slug"]: n["element"] for n in host.command("ideas.map", {})["nodes"]}
+    assert nodes == {first["slug"]: "meadow", second["slug"]: "ice"}
+
+
+def test_ideas_flags_gains_the_goals_flags_every_partys_newest_first_and_keeps_the_old_ones(host):
+    from orkboard.realm import idea_flag
+    assert host.command("ideas.flags", {}) == {"flags": [], "goals": []}
+    a, b, c = _add(host, "Dark mode for the night")["slug"], _add(host, "Larger text")["slug"], _add(host, "Not flagged")["slug"]
+    other = ideas.add_track(host.ideas.root(), "Second party")
+    d = host.command("ideas.add", {"text": "In another party", "track": other, "night": True})["slug"]
+    state, root = host.ideas.state_dir, host.ideas.root()
+    for slug, at in ((a, "2026-10-19T09:00:00"), (b, "2026-10-21T09:00:00"), (d, "2026-10-20T09:00:00")):
+        idea_flag.raise_flag(root, state, slug, "gate", "c" * 40)
+        path = ideas.state_folder(state, slug) / "flag.json"
+        path.write_text(json.dumps({**json.loads(path.read_text()), "at": at}))
+    got = host.command("ideas.flags", {})
+    json.dumps(got)
+    assert got["flags"] == [] and [g["slug"] for g in got["goals"]] == [b, d, a]                      # newest first, every party's
+    assert got["goals"][0] == {"slug": b, "title": "Larger text", "short": "Larger text", "goal": "first-goal", "element": "ice",
+                               "at": "2026-10-21T09:00:00", "tasks": 0, "first_time": 0, "usd": None, "days": got["goals"][0]["days"]}
+    assert got["goals"][1]["goal"] == "second-party" and c not in {g["slug"] for g in got["goals"]}
+
+
+def test_nothing_accepts_a_party_when_its_goals_are_all_done(host, monkeypatch):
+    called = []
+    monkeypatch.setattr(host.ideas.keeper, "accept_goal", lambda slug: called.append(slug))
+    slug = _add(host, "Dark mode for the night")["slug"]
+    ideas.save_state(host.ideas.state_dir, slug, state="working")
+    host.ideas.changed(slug)                                                                          # seen at work …
+    ideas.save_state(host.ideas.state_dir, slug, state="done")
+    host.ideas.changed(slug)                                                                          # … then done: the party's last goal
+    assert called == [] and not hasattr(host.ideas, "_accept_when_done")
+    assert "ideas.goal_accept" in host.commands                                                       # asked for a party of before, it stays
+
+
+def test_what_the_host_says_to_a_person_says_party_for_the_container_and_goal_for_the_idea_spec_50(host):
+    """Spec 50 §2.6: errors the host sends a face are in today's words (decisions §63); keys, commands and prompts keep the code's."""
+    def says(command: str, args: dict) -> str:
+        with pytest.raises(CommandError) as err:
+            host.command(command, args)
+        return str(err.value)
+
+    assert says("ideas.add", {"text": "x"}) == "A goal needs a party"
+    assert says("ideas.add", {"text": "x", "track": "general"}) == "A goal needs a party"
+    assert says("ideas.add", {"text": "x", "track": "nope"}) == "That party is gone"
+    assert says("ideas.page", {"slug": "nope"}) == "That goal is gone"
+    assert says("ideas.start", {"slug": "nope"}) == "This goal has no plan yet: Take it to work first"
+    assert says("ideas.map", {"goal": "nope"}) == says("ideas.goal", {"slug": "nope"}) == says("ideas.party", {"goal": "nope"}) == "That party is gone"
+    assert says("ideas.words", {"track": "nope"}) == says("ideas.spend", {"goal": "nope"}) == "That party is gone"
+    assert says("ideas.spend", {"idea": "nope"}) == says("ideas.read_stop", {"slug": "nope"}) == "That goal is gone"
+    assert says("ideas.move", {"slug": "nope"}) == "No goal 'nope'" and says("ideas.edit", {"slug": "nope", "priority": "high"}) == "Priority is High, Normal or Low"
+    slug = _add(host, "Dark mode for the night")["slug"]
+    assert says("ideas.move", {"slug": slug, "track": "nope"}) == "No party 'nope'"
+    with pytest.raises(ValueError, match="^A party needs a title$"):
+        ideas.add_track(host.ideas.root(), " ")
+    assert says("ideas.goal_save", {"title": "", "about": ""}) == "A party needs a description, or at least a title"
+    host.ideas.keeper._busy[slug] = "reading"
+    assert says("ideas.drop", {"slug": slug}) == "The keeper is busy with this goal: a moment"
+    assert says("ideas.edit", {"slug": slug, "section": "Gist", "text": "x"}) == "The keeper is writing this goal: a moment"
+    with pytest.raises(idea_keeper.KeeperError, match="^The keeper is busy with this goal: a moment$"):
+        host.ideas.keeper._claim(slug, "draft")
+    host.ideas.keeper._busy.pop(slug)
+    host.ideas.keeper._busy["goal:first-goal"] = "reading"
+    with pytest.raises(idea_keeper.KeeperError, match="^The keeper is busy with this party: a moment$"):
+        host.ideas.keeper._claim("goal:first-goal", "goal")

@@ -198,7 +198,9 @@ def test_the_words_never_hold_a_questions_text(rig):
 def test_the_kinds_are_the_pages_words():
     page = Path(phone_push.__file__).parent / "static" / "js" / "board" / "today.js"
     table = dict(re.findall(r'(\w+): "([^"]+)"', re.search(r"const KIND_WORDS = \{(.*?)\};", page.read_text(encoding="utf-8")).group(1)))
-    assert {k: table[k] for k in phone_push.KIND_WORDS} == phone_push.KIND_WORDS
+    later = {"goal": "A goal asks"}               # the page's word until spec 50 part B writes today's (js/board/today.js): "A party asks"
+    assert {k: table[k] for k in phone_push.KIND_WORDS} in (phone_push.KIND_WORDS, {**phone_push.KIND_WORDS, **later})
+    assert phone_push.KIND_WORDS["goal"] == "A party asks"                               # a party's question: spec 50 §0
 
 
 # -- the commands -----------------------------------------------------------------------------------------------
@@ -271,3 +273,17 @@ def test_push_off_and_push_quiet(rig):
     assert "push" not in rig.pairing.get(rig.device)
     lines = [r for r in event_log.read(Path(rig.host.repo_root)) if r["event"] == "push_set"]
     assert [r["on"] for r in lines] == [False]
+
+
+def test_the_morning_counts_a_goals_flag_beside_a_partys_old_one_spec_50(rig):
+    slug = ideas.add_idea(rig.root, "Export notes", rig.goal, rig.state)
+    other = ideas.add_idea(rig.root, "Queue the writes", rig.goal, rig.state)
+    _log(rig, "idea_flagged", at(4), idea=slug, goal=rig.goal, by="gate", tasks=2, first_time=2, usd=None, days=1)
+    rig.set_seen("2026-10-19T20:00:00")
+    (msg,) = rig.tick(at(8, 30))
+    assert msg["body"] == "While you were away: 1 flag raised and nothing waits for you"
+    _log(rig, "idea_flagged", at(3), idea=other, goal=rig.goal, by="done", tasks=1, first_time=1, usd=None, days=1)
+    _log(rig, "goal_accepted", at(2), goal=rig.goal, met=True, by="Product manager")
+    rig.pairing.set_push(rig.device, SUB)                                                       # the day is not checked yet
+    msg = rig.tick(at(8, 45, DAY + dt.timedelta(days=1)))[-1]                                # the sent list: the day's second morning
+    assert msg["body"].startswith("While you were away: 3 flags raised")

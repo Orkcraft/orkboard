@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
+from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_flag, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
 from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
@@ -133,6 +133,15 @@ def _asked(st: dict, asks: list[str], by_slug: dict, lead: dict | None, target: 
 
 
 ERROR_CHARS = 300                       # a failed task's error as the Map carries it (spec 49 §2.4)
+BRIEF_CHARS = 140                       # a party's brief (spec 50 §2.4)
+
+
+def brief_of(g: dict) -> str:
+    """What a party is for, in one short line (spec 50 §2.4): its Description's first paragraph, else its Summary's first line,
+    at most 140 characters."""
+    paragraph = next((p for p in re.split(r"\n\s*\n", str(g.get("about") or "").strip()) if p.strip()), "")
+    text = " ".join(paragraph.split()) or " ".join(next((ln for ln in str(g.get("summary") or "").splitlines() if ln.strip()), "").split())
+    return text if len(text) <= BRIEF_CHARS else text[:BRIEF_CHARS - 1].rstrip() + "…"
 
 
 def _run_of(t: dict) -> dict:
@@ -266,7 +275,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                       "verdict": {"met": verdict.get("met") is True, "by": verdict.get("by") or "", "at": verdict.get("at") or "",
                                   **({"tally": goal_flags.tally(root, state_dir, g["slug"])} if verdict.get("met") is True else {})}
                       if verdict else None,
-                      "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
+                      "brief": brief_of(g), "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2)})
         mine_nodes, today_tasks = [], []
@@ -281,6 +290,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             est = (plan or {}).get("estimate")
             waves = map_stage.waves_of(tasks)
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
+                    "element": st.get("element") or "", "flag": idea_flag.flag_of(state_dir, slug),
                     "held_until": r["held_until"], "start_at": r["start_at"], "night_by": r["night_by"], "by_pace": bool((plan or {}).get("by_pace")),
                     "priority": r["priority"], "size": r["size"],
                     "risk": r["risk"], "tier": tier[slug], "depends_on": r["depends_on"], "waits_on": r["waits_on"],
@@ -310,5 +320,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             today_tasks += [t for t in tasks if t.get("state") == "merged" and str(t.get("finished") or "").startswith(today)]
             edges += [{"from": d, "to": slug} for d in r["depends_on"] if d in tier and slug in kept and d in kept]
         cost = sum(float(t["cost"]) for t in today_tasks if isinstance(t.get("cost"), (int, float)))
-        goals[-1].update(party=map_party.party_of(goals[-1], mine_nodes), today={"merged": len(today_tasks), "usd": round(cost, 2)})
+        goals[-1].update(party=map_party.party_of(goals[-1], mine_nodes), today={"merged": len(today_tasks), "usd": round(cost, 2)},
+                         flags=sum(1 for n in mine_nodes if n["flag"]),
+                         waits_main=sum(1 for n in mine_nodes if n["state"] == "done" and not n["flag"]))
     return {"goals": goals, "nodes": nodes, "edges": edges, "rev": rev}

@@ -82,13 +82,13 @@ class DraftMixin:
         """Draft a `raw` idea at once, in the background. In a spent window the person's ask (Process now) is refused;
         what drafts by itself (Add, the clock) waits with `held_until`. False when it was held."""
         if ideas.idea_page(self.wiki_root(), slug) is None:
-            raise _kw().KeeperError("That idea is gone")
+            raise _kw().KeeperError("That goal is gone")
         if ideas.state(self.state_dir, slug)["state"] != "raw":
-            raise _kw().KeeperError("The keeper has read this idea already")
+            raise _kw().KeeperError("The keeper has read this goal already")
         if why := self._may_run():
             raise _kw().KeeperError(why)
         if self.busy(slug):
-            raise _kw().KeeperError("The keeper is busy with this idea: a moment")
+            raise _kw().KeeperError("The keeper is busy with this goal: a moment")
         if person:
             self.refuse_spent()
         elif self.hold(slug):
@@ -119,7 +119,7 @@ class DraftMixin:
         return ("\n- The goal's team, by the tags each does: " + "; ".join(rows) + ". Tag each task so one of them does it.") if rows else ""
 
     def draft_prompt(self, root: Path, slug: str) -> str:
-        """§0's `draft` context: its goal's Summary and Metrics, the goal's links as paths, the titles of the goal's other
+        """§0's `draft` context: its goal's Summary and, when it has some, its Metrics, the goal's links as paths, the titles of the goal's other
         ideas and of the other goals' open ideas (≤ 40), the person's text."""
         page = ideas.idea_page(root, slug)
         track = page.get("track") or ideas.GENERAL
@@ -140,10 +140,12 @@ class DraftMixin:
         checks = [c for c in self.team_checks(root, slug) if c["by"] not in spared]
         checks_json = ',\n "checks": [{"by": "<a check\'s id>", "applies": true, "why": "when it does not apply: why, in one line"}]' if checks else ""
         context = idea_target.cut([("The idea, in the person's words", page.section("Gist")),
-                                   ("Its goal's summary", (g or {}).get("summary", "")), ("Its goal's metrics", metrics),
+                                   ("Its goal's summary", (g or {}).get("summary", "")),
+                                   *([("Its goal's metrics", metrics)] if metrics else []),          # only when the party has some (spec 50 §2.5)
                                    ("Its goal's links (paths)", "\n".join(f"- {x}" for x in links)),
                                    ("The goal's other ideas", "\n".join(mine)),
                                    ("The other goals' open ideas", "\n".join(others))], idea_target.CONTEXT["draft"])
+        why = "which of its goal's metrics it moves, and why it matters" if metrics else "why it matters"
         return f"""You are the keeper of this project's Task board. A person wrote an idea under the goal
 {(g or {}).get('title', track)}: write its spec straight away. You may read the repository (read only).
 {self.reads("draft", links)}
@@ -152,7 +154,7 @@ class DraftMixin:
 {{"title": "a short title",
  "short": "its name in two or three words, 24 characters at most",
  "gist": "the idea rewritten clearly: its first line one sentence, the thesis; then a few lines if needed",
- "why": "which of its goal's metrics it moves, and why it matters",
+ "why": "{why}",
  "done_when": ["one to five lines, each one a check that proves it is done"],
  "out": ["zero to three things it does not do"],
  "risks": {{"product": ["…"], "tech": ["…"]}},
@@ -219,10 +221,10 @@ class DraftMixin:
         kw = _kw()
         page = ideas.idea_page(self.wiki_root(), slug)
         if page is None:
-            raise kw.KeeperError("That idea is gone")
+            raise kw.KeeperError("That goal is gone")
         questions = ideas.items(page.section("Open questions"))
         if ideas.state(self.state_dir, slug)["state"] != "asks" or not questions:
-            raise kw.KeeperError("This idea asks nothing now")
+            raise kw.KeeperError("This goal asks nothing now")
         if decide:
             answers = idea_questions.picks(questions)
         answers = [" ".join(str(a or "").split())[:2000] for a in answers][:len(questions)]
@@ -231,7 +233,7 @@ class DraftMixin:
         if why := self._may_run():
             raise kw.KeeperError(why)
         if self.busy(slug):
-            raise kw.KeeperError("The keeper is busy with this idea: a moment")
+            raise kw.KeeperError("The keeper is busy with this goal: a moment")
         self.refuse_spent()
         pairs = [(q, answers[n] if n < len(answers) else "") for n, q in enumerate(questions)]
         said = "\n".join(f"{idea_questions.parse(q)['ask']} — {a or '(no answer)'}" for q, a in pairs)

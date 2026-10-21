@@ -112,10 +112,31 @@ def test_ideas_flags_is_the_hosts_and_a_phones_and_needs_a_project(host):
     assert BoardPhone.allowed(Orkboard(), "ideas.flags", {})
     with pytest.raises(CommandError, match="Open a folder first"):
         Orkboard().command("ideas.flags", {})
-    assert host.command("ideas.flags", {}) == {"flags": []}
+    assert host.command("ideas.flags", {}) == {"flags": [], "goals": []}                  # spec 50 §2.4: `goals` beside the old `flags`
     root, state = host.ideas.root(), host.ideas.state_dir
     goal = _goal(root, "Offline mode")
     _verdict(state, goal, True, "2026-10-18T10:00:00")
-    (flag,) = host.command("ideas.flags", {})["flags"]
+    got = host.command("ideas.flags", {})
+    (flag,) = got["flags"]
     json.dumps(flag)
-    assert flag["goal"] == goal and flag["tally"]["ideas"] == 0
+    assert flag["goal"] == goal and flag["tally"]["ideas"] == 0 and got["goals"] == []
+
+
+def test_the_goals_flags_are_each_goals_with_its_element_and_tally_newest_first_and_a_partys_old_flag_stays_apart(host):
+    """Spec 50 §2.4: `goal_flags.goals` lists the goals' flags (realm/idea_flag.py); `goal_flags.flags` the parties' old ones."""
+    from orkboard.realm import idea_flag
+    root, state = host.ideas.root(), host.ideas.state_dir
+    party = _goal(root, "Offline mode")
+    older, newer, plain = (_idea(root, state, party, t, "done") for t in ("Cache the table", "Queue the writes", "Not flagged"))
+    _verdict(state, party, True, "2026-10-18T10:00:00")                                    # the party's old flag: history
+    for slug, at in ((older, "2026-10-19T09:00:00"), (newer, "2026-10-20T09:00:00")):
+        idea_flag.raise_flag(root, state, slug, "done")
+        path = ideas.state_folder(state, slug) / "flag.json"
+        path.write_text(json.dumps({**json.loads(path.read_text()), "at": at, "tasks": 3, "first_time": 2, "usd": 1.5, "days": 4}))
+    ideas.save_state(state, newer, element="lava")
+    got = goal_flags.goals(root, state)
+    assert [g["slug"] for g in got] == [newer, older] and plain not in {g["slug"] for g in got}
+    assert got[0] == {"slug": newer, "title": "Queue the writes", "short": "Queue the writes", "goal": party, "element": "lava",
+                      "at": "2026-10-20T09:00:00", "tasks": 3, "first_time": 2, "usd": 1.5, "days": 4}
+    assert got[1]["element"] == ""                                                         # none given yet: the faces draw it dim
+    assert [f["goal"] for f in goal_flags.flags(root, state)] == [party]                  # the old flag is the party's, as before

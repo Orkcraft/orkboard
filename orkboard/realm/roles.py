@@ -57,7 +57,7 @@ KIND_LINES = {"code": "the code a change needs", "tests": "tests only", "docs": 
               "design": "flows and screens", "uikit": "components and tokens of the design system",
               "a11y": "accessibility checks and fixes", "art": "pixel art: icons, heads, pictures",
               "data": "events, tables and the jobs that fill them", "query": "queries for a report",
-              "metrics": "counting a goal's metrics", "experiment": "an A/B test", "seo": "search: pages found by their words",
+              "metrics": "counting a party's metrics", "experiment": "an A/B test", "seo": "search: pages found by their words",
               "campaign": "a launch, its channels and what they bring", "community": "answers to people, what they ask",
               "security": "a security check of a change", "datacheck": "checking numbers and personal data",
               "edit": "editing texts people read"}
@@ -72,10 +72,10 @@ CRAFT_LABELS = {"engineering": "Engineering", "design": "Design", "data": "Data"
 RACES = {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome", "product": "lich"}
 # What the built-in two are told already, beside the field that adds to it (spec 41 §8): their prompts are Orkboard's own.
 TOLD = {
-    TASKMASTER: "Each of its steps (reading a goal, drafting an idea's spec, taking your answers, planning, the night's "
+    TASKMASTER: "Each of its steps (reading a party, drafting a goal's spec, taking your answers, planning, the night's "
                 "proposals) has its own prompt in Orkboard, with only what that step needs. What you write here goes "
-                "before each step it runs; a goal's leader, where it has one, runs that goal's steps in its place.",
-    GRUNT: "Every task's prompt says where it works (its own git worktree and branch), where the idea's spec is, its "
+                "before each step it runs; a party's leader, where it has one, runs that party's steps in its place.",
+    GRUNT: "Every task's prompt says where it works (its own git worktree and branch), where the goal's spec is, its "
            "task and the tasks before it, the names of the secrets it may use, and that the gate then runs the critical "
            "tests and those of what it touched. Claude Code reads the project's CLAUDE.md itself. What you write here "
            "goes first.",

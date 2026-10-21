@@ -244,7 +244,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
 
     def _may_run(self) -> str:
         if self.demo:
-            return "The demo runs no model: the keeper only reads ideas in a real town"
+            return "The demo runs no model: the keeper only reads goals in a real town"
         if not self.budget_ok():
             return "Today's spend limit is reached: the keeper waits"
         return ""
@@ -317,7 +317,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
     def _claim(self, key: str, what: str) -> None:
         with self._lock:
             if self._busy.get(key):
-                raise KeeperError("The keeper is busy with this idea: a moment")
+                raise KeeperError(f"The keeper is busy with this {'party' if key.startswith('goal:') else 'goal'}: a moment")
             self._busy[key] = what
 
     def _start(self, slug: str, what: str, fn: Callable[[], None], key: str = "") -> None:
@@ -350,9 +350,9 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
     def read_now(self, slug: str) -> None:
         """Process now: a `raw` idea drafted at once, in the background (`ideas.read_now`, `ideas.queue` now)."""
         if ideas.idea_page(self.wiki_root(), slug) is None:
-            raise KeeperError("That idea is gone")
+            raise KeeperError("That goal is gone")
         if ideas.state(self.state_dir, slug)["state"] != "raw":
-            raise KeeperError("The keeper has read this idea already")
+            raise KeeperError("The keeper has read this goal already")
         self.draft(slug, person=True)
 
     # -- the talk: an edit of one section, one shot ------------------------------------------------------
@@ -361,15 +361,15 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
         root = self.wiki_root()
         text = str(text or "").strip()[:ideas.SECTION_CHARS]
         if ideas.idea_page(root, slug) is None:
-            raise KeeperError("That idea is gone")
+            raise KeeperError("That goal is gone")
         if not text:
             raise KeeperError("Say something to the keeper")
         if section and section not in ideas.SECTIONS:
-            raise KeeperError(f"An idea has no section {section!r}")
+            raise KeeperError(f"A goal has no section {section!r}")
         if why := self._may_run():
             raise KeeperError(why)
         if self.busy(slug):
-            raise KeeperError("The keeper is busy with this idea: a moment")
+            raise KeeperError("The keeper is busy with this goal: a moment")
         self.refuse_spent()
         ideas.add_turn(self.state_dir, slug, "you", text, section)
         self._start(slug, "talking", lambda: self.talk_one(slug, text, section, device))
@@ -430,14 +430,14 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         with `held_until`). False when it was held."""
         root = self.wiki_root()
         if ideas.idea_page(root, slug) is None:
-            raise KeeperError("That idea is gone")
+            raise KeeperError("That goal is gone")
         old = ideas.plan(self.state_dir, slug)
         if old and old.get("passed_at"):
             raise KeeperError("Its plan is passed already: the tasks are in work")
         if why := self._may_run():
             raise KeeperError(why)
         if self.busy(slug):
-            raise KeeperError("The keeper is busy with this idea: a moment")
+            raise KeeperError("The keeper is busy with this goal: a moment")
         if not auto:
             self.refuse_spent()
         elif self.hold(slug):

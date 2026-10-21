@@ -107,8 +107,7 @@ def test_a_goal_from_a_description_and_a_priority_is_read_at_once_and_written(ho
     g = host.command("ideas.goal", {"slug": slug})
     assert g["title"] == "Runs at a glance" and g["title_by"] == "keeper" and g["priority"] == "high"
     assert g["summary"].startswith("The table lives in src/app.py.") and g["state"] == "ready"
-    assert [(m["name"], m["how"]) for m in g["metrics"]] == [("done when the table shows", "a browser test"),
-                                                             ("done when it sorts", "a unit test")]
+    assert g["metrics"] == [] and '"metrics"' not in call["prompt"]            # spec 50 §2.5: a party has no end, the keeper asks no metrics (and the answer's are not read)
     assert g["links"] == ["src/app.py"]                                      # only paths that exist, never a URL
     st = ideas.goal_state(host.ideas.state_dir, slug)
     assert len(st["read_at"]) == 40 and st["read_at"] == host.ideas.keeper.head()
@@ -121,10 +120,10 @@ def test_a_goal_from_a_description_and_a_priority_is_read_at_once_and_written(ho
     assert next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == slug)["title_by"] == "person"
 
 
-def test_an_idea_needs_a_goal_high_and_normal_are_drafted_at_once_low_and_night_wait(host, model, runner):
-    with pytest.raises(CommandError, match="needs a goal"):
+def test_a_goal_needs_a_party_high_and_normal_are_drafted_at_once_low_and_night_wait(host, model, runner):
+    with pytest.raises(CommandError, match="^A goal needs a party$"):
         host.command("ideas.add", {"text": "x"})
-    with pytest.raises(CommandError, match="needs a goal"):
+    with pytest.raises(CommandError, match="^A goal needs a party$"):
         host.command("ideas.add", {"text": "x", "track": "general"})
     g = _goal(host)
     seen = len(model.seen)

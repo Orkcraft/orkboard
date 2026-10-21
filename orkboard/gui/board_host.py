@@ -486,7 +486,7 @@ def main(argv: list[str] | None = None) -> int:
     shown project, else the one it was started in, else the start screen. `board` is the old habit of
     `orkcraft board`, and changes nothing. `orkboard --make-app`: Orkboard.app in ~/Applications (gui/mac_app.py)."""
     from orkboard.realm import project_folder
-    parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: goals, ideas, agents, review")
+    parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: parties, goals, agents, review")
     parser.add_argument("words", nargs="*", metavar="folder", help="The project's folder to open")
     parser.add_argument("--version", action="version", version=f"Orkboard {__version__}")
     parser.add_argument("--repo", type=Path, default=None, help="Path to project root (as a folder named)")

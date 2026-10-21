@@ -247,7 +247,9 @@ def test_a_goal_s_steps_run_as_its_leader_its_voice_and_model_and_the_taskmaster
     assert seen[-1]["prompt"].startswith("Answer in Russian.\n\nYou are the keeper")
 
 
-def test_the_leader_accepts_the_goal_when_its_last_idea_is_done_and_when_asked(host, monkeypatch):
+def test_a_party_is_never_accepted_by_itself_but_the_person_can_still_ask_its_leader(host, monkeypatch):
+    """Spec 50 §2.2: nothing accepts a party when its goals are all done (no model call); `ideas.goal_accept` stays, for a party
+    with metrics written before, and its verdict is kept as history."""
     seen = []
 
     def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
@@ -256,16 +258,22 @@ def test_the_leader_accepts_the_goal_when_its_last_idea_is_done_and_when_asked(h
             return json.dumps({"met": False, "verdict": "Reports ship, but nobody reads them yet.",
                                "metrics": [{"name": "weekly reports", "status": "not met", "why": "0 opened"}, {"name": "x", "status": "odd"}],
                                "next": ["Mail the report every Monday"]}), 0.1, 10, "s"
-        return json.dumps({"summary": "ok", "questions": [], "metrics": [{"name": "weekly reports", "target": "10 opened"}]}), 0.1, 10, "s"
+        return json.dumps({"summary": "ok", "questions": []}), 0.1, 10, "s"
 
     monkeypatch.setattr(jobs, "run_read", run_read)
-    goal = host.command("ideas.goal_save", {"about": "Weekly numbers.", "craft": "product", "leader": "product-manager", "team": []})["slug"]
+    goal = host.command("ideas.goal_save", {"about": "Weekly numbers.", "craft": "product", "leader": "product-manager", "team": [],
+                                            "metrics": [{"name": "weekly reports", "target": "10 opened"}]})["slug"]
     _wait(host, goal, goal=True)
     a = ideas.add_idea(host.ideas.root(), "A weekly report", goal, host.ideas.state_dir)
     ideas.save_state(host.ideas.state_dir, a, state="working")
     host.ideas._state_event(a)                                                          # seen working …
     ideas.save_state(host.ideas.state_dir, a, state="done")
-    host.ideas._state_event(a)                                                          # … then done: the goal's last
+    host.ideas._state_event(a)                                                          # … then done: the party's last goal
+    _wait(host, goal, goal=True)
+    assert not any("accept the goal or" in p for p in seen)                             # no model call: nothing accepts a party by itself
+    g = next(t for t in host.command("ideas.board")["tracks"] if t["slug"] == goal)
+    assert g["verdict"] is None
+    assert host.command("ideas.goal_accept", {"slug": goal}) == {"ok": True}           # asked, from the party (a party with metrics of before)
     _wait(host, goal, goal=True)
     prompt = next(p for p in seen if "accept the goal or" in p)
     assert prompt.startswith("You are Product manager") and "weekly reports → 10 opened" in prompt and "A weekly report" in prompt
@@ -276,7 +284,7 @@ def test_the_leader_accepts_the_goal_when_its_last_idea_is_done_and_when_asked(h
     from orkboard.realm import event_log
     from pathlib import Path
     assert [e for e in event_log.read(Path(host.repo_root)) if e["event"] == "goal_accepted"][-1]["met"] is False
-    assert host.command("ideas.goal_accept", {"slug": goal}) == {"ok": True}           # asked again, from the goal
+    assert host.command("ideas.goal_accept", {"slug": goal}) == {"ok": True}           # asked again
     _wait(host, goal, goal=True)
     assert sum(1 for p in seen if "accept the goal or" in p) == 2
 
@@ -307,7 +315,7 @@ def test_a_check_skipped_before_the_plan_is_left_out_and_after_it_its_task_is_ta
     assert [t["id"] for t in plan["tasks"]] == ["k1", "k3"] and plan["tasks"][1]["after"] == []      # what waited for it does not
     st = idea_checks.status(keeper.idea_checks(root, idea), keeper.team_checks(root, idea), plan["tasks"])
     assert st[0]["skipped"] and st[0]["state"] == "" and st[0]["task"] == ""
-    with pytest.raises(CommandError, match="comes back with the idea's next plan"):
+    with pytest.raises(CommandError, match="comes back with the goal's next plan"):
         host.command("ideas.check_skip", {"slug": idea, "by": "reviewer", "skip": False})
     with pytest.raises(CommandError, match="no such check"):
         host.command("ideas.check_skip", {"slug": idea, "by": "editor"})
@@ -375,3 +383,11 @@ def test_an_agent_of_the_library_is_added_once_and_each_agent_says_about_what_a_
     assert "told" not in by["copywriter"]
     blocks = {b["role"]: b for b in host.command("ideas.agents")["roles"]}
     assert blocks["grunt"]["usd_task"] == by["grunt"]["usd_task"] and blocks["taskmaster"]["usd_task"] is None
+
+
+def test_the_leaders_preamble_says_it_plans_the_goals_and_no_longer_that_it_accepts_the_party(host):
+    """Spec 50 §2.5: a party's steps run as its leader, who plans; nothing accepts a party by itself."""
+    from orkboard.core.idea_lead import LeadMixin
+    voice = LeadMixin.voice({"name": "Product manager", "instruction": "Be brief."})
+    assert voice.startswith("You are Product manager, the leader of this goal's party: you plan its ideas. Be brief.")
+    assert "accept" not in voice

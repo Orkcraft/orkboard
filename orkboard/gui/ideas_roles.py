@@ -165,11 +165,11 @@ class RolesMixin:
         """`ideas.spend` (spec 36 §4): an idea's money by stage (`{"idea"}`), or a goal's with its ideas' (`{"goal"}`)."""
         if idea := _opt(args, "idea"):
             if ideas.idea_page(self.root(), idea) is None and not (self.state_dir / "ideas" / idea).is_dir():
-                raise IdeasError("That idea is gone")
+                raise IdeasError("That goal is gone")
             return idea_spend.of_idea(self.state_dir, idea)
         goal = _text(args, "goal", 100)
         if ideas.track_page(self.root(), goal) is None:
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         return idea_spend.of_goal(self.state_dir, goal, [i["slug"] for i in ideas.ideas(self.root(), goal)])
 
     def agents(self, args: dict) -> dict:

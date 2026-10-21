@@ -35,7 +35,7 @@ from typing import Any, Callable
 
 from orkboard import settings
 from orkboard.core import idea_keeper
-from orkboard.realm import event_log, idea_checks, idea_lens, idea_photos, idea_secrets, idea_target, ideas, wiki
+from orkboard.realm import event_log, idea_checks, idea_element, idea_lens, idea_photos, idea_secrets, idea_target, ideas, wiki
 from orkboard.gui.ideas_args import VIA, IdeasError, _device, _opt, _str, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_gate import GateMixin
@@ -181,7 +181,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             self._what.setdefault(slug, what)
         self._ev(event_log.KEEPER_STATE, idea=slug, state=state, was=was, seconds=round(now - since, 1) if since else None)
         if state == "done" and was and was != "done":
-            self._accept_when_done(slug)
+            self._flag_when_done(slug)             # a goal done where there is no gate, or with its commits in main already (spec 50 §2.2)
         if state == "plan":
             plan = ideas.plan(self.state_dir, slug) or {}
             est = plan.get("estimate") or {}
@@ -190,17 +190,6 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                      usd_low=est.get("usd_low"), usd_high=est.get("usd_high"),
                      **{k: m.get(k) for k in ("step", "prompt_chars", "tokens", "cost")} if m.get("step") == "plan" else
                      {"step": "plan", "prompt_chars": None, "tokens": None, "cost": None})
-
-    def _accept_when_done(self, slug: str) -> None:
-        """The last idea of a goal is done: its leader accepts the goal against its metrics (core/idea_lead.py)."""
-        root = self.root()
-        goal = (ideas.idea_page(root, slug) or ideas.Page()).get("track") or ""
-        if not goal or goal == ideas.GENERAL or any(ideas.state(self.state_dir, i["slug"])["state"] != "done" for i in ideas.ideas(root, goal)):
-            return
-        try:
-            self.keeper.accept_goal(goal)
-        except idea_keeper.KeeperError:
-            pass                                 # the person asks again from the goal (ideas.goal_accept)
 
     def _since(self, iso: object) -> float | None:
         try:
@@ -298,7 +287,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         root = self.root()
         page = ideas.idea_page(root, slug)
         if page is None:
-            raise IdeasError("That idea is gone")
+            raise IdeasError("That goal is gone")
         names = list(ideas.SECTIONS) + [n for n, _t in page.sections if n not in ideas.SECTIONS]
         st = self._state(slug)
         plan = ideas.plan(self.state_dir, slug)
@@ -324,9 +313,9 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         track = _opt(args, "track")
         goals = {t["slug"]: t for t in ideas.tracks(self.root(), make=False)}
         if not track or track == ideas.GENERAL:
-            raise IdeasError("An idea needs a goal")
+            raise IdeasError("A goal needs a party")
         if track not in goals:
-            raise IdeasError("That goal is gone")
+            raise IdeasError("That party is gone")
         priority = _opt(args, "priority").lower() or goals[track]["priority"]
         if priority not in ideas.PRIORITIES:
             raise IdeasError("Priority is High, Normal or Low")
@@ -341,10 +330,11 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
         idea_lens.save(self.state_dir, slug, pointed)
+        element = idea_element.give(self.root(), self.state_dir, slug)    # the mark of every card of it (spec 50 §2.3)
         ideas.add_turn(self.state_dir, slug, "you", text, "Gist")     # the person's own words, kept
         self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
                  priority=priority, queue=queue, photos=len(photos), lens=[a["kind"] for a in pointed])
-        out = {"slug": slug, "queue": queue}
+        out = {"slug": slug, "queue": queue, "element": element}
         if queue == "now":                      # drafted at once, in the background (held in a spent window)
             try:
                 self.keeper.draft(slug)
@@ -376,7 +366,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         """The person passes the plan (`passed_by: "person"`): it is the runner's from now on, and it starts."""
         slug = _text(args, "slug", 100)
         if ideas.plan(self.state_dir, slug) is None:
-            raise IdeasError("This idea has no plan yet: Take it to work first")
+            raise IdeasError("This goal has no plan yet: Take it to work first")
         st = self._state(slug)["state"]
         if st not in ("plan", "failed", "working"):
             raise IdeasError("Its plan is not ready")
@@ -413,7 +403,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             self.changed(slug)
             return {"ok": True}
         if self.keeper.busy(slug):
-            raise IdeasError("The keeper is writing this idea: a moment")
+            raise IdeasError("The keeper is writing this goal: a moment")
         ideas.set_section(self.root(), slug, _text(args, "section", 60), _str(args, "text", ideas.SECTION_CHARS))
         self.changed(slug)
         return {"ok": True}
@@ -476,7 +466,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
     def drop(self, args: dict) -> dict:
         slug = _text(args, "slug", 100)
         if self.keeper.busy(slug):
-            raise IdeasError("The keeper is busy with this idea: a moment")
+            raise IdeasError("The keeper is busy with this goal: a moment")
         plan = ideas.plan(self.state_dir, slug) or {}
         if self._runner is not None and plan.get("passed_at"):
             self._runner.stop(slug)

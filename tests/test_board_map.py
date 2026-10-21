@@ -87,7 +87,7 @@ def test_one_goal_and_a_goal_that_is_gone(fixture):
     got = host.command("ideas.map", {"goal": f["two"]})
     assert [g["slug"] for g in got["goals"]] == [f["two"]] and {n["goal"] for n in got["nodes"]} == {f["two"]}
     for bad in ("nope", ideas.GENERAL):
-        with pytest.raises(CommandError, match="That goal is gone"):
+        with pytest.raises(CommandError, match="That party is gone"):
             host.command("ideas.map", {"goal": bad})
 
 
@@ -377,3 +377,41 @@ def test_a_question_says_its_recommended_choice_and_why_spec_49(host):
         ("Which store after?", ["App Store", "Google Play"], None, ""),               # no pick: null
         ("Anything else to know?", [], None, "")]                                    # no choices: the person writes
     assert all(set(q) == {"ask", "choices", "pick", "why", "by"} for q in asked)
+
+
+def test_a_node_has_its_element_and_its_flag_and_a_party_its_flags_waits_and_brief_spec_50(host):
+    from orkboard.realm import idea_flag
+    root, state = _board(host)
+    g = _goal(root, "Speed")
+    other = _goal(root, "Docs")
+    flagged = _idea(root, state, g, "Cache the table", "done")
+    waiting = _idea(root, state, g, "Index the runs", "done")
+    open_one = _idea(root, state, g, "Page the runs", "working", element="lava")
+    _idea(root, state, other, "Write the guide", "done")
+    _plan(state, flagged, [_t("k1", "merged"), _t("k2", "merged")])
+    pure = board_map.build(root, state, {}, [], time.time(), rev=0)                               # the pure read gives none: it writes nothing
+    assert {n["slug"]: n["element"] for n in pure["nodes"]} == {n["slug"]: "" if n["slug"] != open_one else "lava" for n in pure["nodes"]}
+    assert all(n["flag"] is None for n in pure["nodes"]) and all((p["flags"], p["waits_main"]) == (0, 1 if p["slug"] == other else 2) for p in pure["goals"])
+    flag = idea_flag.raise_flag(root, state, flagged, "gate", "c" * 40)
+    got = host.command("ideas.map", {})
+    nodes = {n["slug"]: n for n in got["nodes"]}
+    assert nodes[flagged]["flag"] == flag and set(flag) == {"at", "by", "commit", "tasks", "first_time", "usd", "days"} and flag["tasks"] == 2
+    assert nodes[waiting]["flag"] is None and nodes[open_one]["flag"] is None
+    assert all(n["element"] in ("meadow", "ice", "dust", "void", "lava") for n in nodes.values()) and nodes[open_one]["element"] == "lava"
+    parties = {p["slug"]: p for p in got["goals"]}
+    assert (parties[g]["flags"], parties[g]["waits_main"]) == (1, 1)                              # one flagged; one done, waiting for main; one at work
+    assert (parties[other]["flags"], parties[other]["waits_main"]) == (0, 1)
+    json.dumps(got)
+
+
+def test_a_partys_brief_is_its_descriptions_first_paragraph_else_its_summarys_first_line_in_140_characters(host):
+    root, state = _board(host)
+    both = ideas.save_goal(root, None, "Both", "The first paragraph\nruns over two lines.\n\nThe second paragraph is not the brief.", None, "normal")[0]
+    long = ideas.save_goal(root, None, "Long", "w" * 200, None, "normal")[0]
+    titled = ideas.save_goal(root, None, "Only a title", "", None, "normal")[0]
+    ideas.write_goal_reading(root, titled, "\nSummary line one\nline two", {}, [])
+    bare = ideas.save_goal(root, None, "Bare", "", None, "normal")[0]
+    briefs = {g["slug"]: g["brief"] for g in host.command("ideas.map", {})["goals"]}
+    assert briefs[both] == "The first paragraph runs over two lines."
+    assert briefs[long] == "w" * 139 + "…" and len(briefs[long]) == 140
+    assert briefs[titled] == "Summary line one" and briefs[bare] == ""

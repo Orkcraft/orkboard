@@ -70,7 +70,7 @@ def set_team(root: Path, slug: str, team: list[str], every: list[str] | None = N
     with ideas.LOCK:
         page = ideas.track_page(root, slug)
         if page is None:
-            raise ValueError(f"No goal {slug!r}")
+            raise ValueError(f"No party {slug!r}")
         kept = clean(team)
         page.set("team", json.dumps(kept))
         page.set("team_every", json.dumps([s for s in clean(every or []) if s in kept]))
