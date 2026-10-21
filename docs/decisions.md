@@ -650,3 +650,43 @@ Main, States, Lanes and Phone were turned down). So:
     (§52.4).
 An improvement of v1's existing mechanics (§27) and a view's rewrite: the owner's call, before the testers' numbers, as
 §55 and §59. Spec 48.
+
+## 62. One window: the goals as tabs, Planning over the leader, the party at the foot, what waits for you along the bottom; the gate is built (21 October, the owner and the PM)
+
+Why: the owner's call to simplify the desktop radically, to one window (and the phone to one screen with no tabs). After
+spec 48 the person still moves between three regions (the Board's column with Needs you, the Map with its tab strip,
+Agents) to answer one question asked all day: *where is my goal, and what waits for me*. The owner and the PM drew it as
+an interactive mockup (Design artifact *Orkboard: one window*: B, the desktop, and D, the phone; A, waves as columns,
+was turned down; C lists what was taken from the game). So:
+1. **One window.** The goals are tabs with their progress and their stops' count; under the tab, Planning runs down the
+   left above the goal's leader; the party stands along the foot, each member's open tasks rising bottom-up from it,
+   the bottom row lit and the rows above muted (what is taken next is what is bright); the results that wait for a look
+   are a column on the right; what waits for the person lies along the bottom with its quick answers; anything opened
+   slides in as a drawer from the right, its tabs kept. The Agents pane, the Board's column and Needs you's list go as
+   regions (the pool by agent and the files open in the drawer). The phone is the same on one column with no tab bar: a
+   stage switch (Planning · Implementation · Checking) shows one stage's columns at a time, and a tap pops a stop out
+   of the bottom row.
+2. **The shape of a collectible card game, the words of the Board.** What a person reads there at a glance is taken
+   where it means the same: a price before a move (a gem), two measured numbers on a member, the things to answer as a
+   hand at the bottom with their answers on them, the end of a turn as the gate, what is left of a tool as diamonds with
+   its reserve hatched, the day as a strip of marks, a peek at a member's whole face on hover, what waits for a task lit
+   on hover. Taken with care: the checks stay in the party; a task appears with one motion. Not taken: packs, golden
+   members, quests and streaks, a timer, emotes and sounds, dragging to play, a forecast of *done when* (no data). It is
+   also the product's picture for marketing. The interface never says card, deck, hand, mana, hero or boss (§56).
+3. **A member says two numbers and its kit**: its runs and redos this week (a checker's checks and catches, the
+   leader's plans and plans made again) and its average price for a run (an estimate, by its level, until three have
+   finished), then its name, its harness and level (*Claude · Veteran*), its state. No octagon frame: the head is the
+   picture (§53), small; the member is a small framed card like the tasks above it.
+4. **The gate is built** (§49.5's item 5, its one press): *Merge dev into main*, beside the party, with its count of
+   ideas in dev not in main, its screen in the drawer, a fast-forward or a merge commit made in a worktree of its own, a
+   conflict refused with main as it was. Its report (the full suite, the browser tests, `checks.toml`) and *Revert* stay
+   §49.5's next round.
+5. **Today's events** become a command and the strip on the left (the phone's *Today* sheet); the reserve is in the
+   snapshot so the limits can show it.
+6. **Quiet by default** (the owner, on the mockup): the goal's numbers are one line in the ideas bar, its details
+   behind *About this goal*; Planning's rows are plain lines with a mark only for a stop; the alert colour stays where
+   §61.6 puts it.
+7. **Measured:** the share of answers given from the bottom row (`via: "hand"`) against the drawer and Needs you of
+   before; opens from the strip (`via: "today"`) and from a member (`via: "party"`); the gate's presses a week.
+A new face over v1's mechanics and the gate decided in §49.5: the owner's call, before the testers' numbers, as §55,
+§59 and §61. Spec 49.

@@ -60,7 +60,8 @@ def test_orkboards_own_sheets_carry_no_colour_no_font_and_no_corner_of_their_own
         assert not re.findall(r"border-radius", css), path.name
         assert all(f.startswith("var(--ork-font-") for f in re.findall(r"font-family:\s*([^;}]+)", css)), path.name
         assert "[data-look=\"camp\"]" not in css and "[data-theme" not in css, path.name
-        legacy = set(re.findall(r"var\((--(?!ork-)[\w-]+)", css)) - {"--agents-h", "--sec", "--role", "--tabs"}
+        legacy = set(re.findall(r"var\((--(?!ork-)[\w-]+)", css)) - {"--agents-h", "--sec", "--role", "--tabs",
+                                                                   "--rot", "--dy", "--z", "--ov", "--cols"}   # spec 49: a fan's turn, rise, order and overlap; the columns
         assert not legacy, (path.name, legacy)
 
 
