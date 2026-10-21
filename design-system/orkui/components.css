@@ -113,8 +113,12 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
 .ork-race__head { flex: none; display: block; width: 24px; height: 22px; image-rendering: pixelated; }
 .ork-race.big .ork-race__head, .ork-race__head.big { width: 48px; height: 44px; }
 .ork-race.small .ork-race__head, .ork-race__head.small { width: 12px; height: 11px; }      /* 1 px a cell: an accent in a line of text */
+.ork-race.mid .ork-race__head, .ork-race__head.mid { width: 36px; height: 33px; }         /* 3 px a cell, from the @2x image: a member's head */
 .ork-race__word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ork-race__tier { color: var(--ork-ink-muted); }
+/* an AI tool's mark or a level's chevrons (marks/, 16 x 16, @2x 32 x 32), beside a name: an accent, drawn at its own size or a whole multiple */
+.ork-mark { display: inline-block; flex: none; width: 16px; height: 16px; vertical-align: middle; image-rendering: pixelated; }
+.ork-mark.big { width: 32px; height: 32px; }
 
 /* --- Meters, pips and hatching: drawn, never typed ---------------------------------------------------------------------------- */
 .ork-meter, .ork-pips { display: inline-flex; gap: var(--ork-1); vertical-align: middle; }
@@ -126,6 +130,24 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
 .ork-pips > i.f { background: var(--ork-danger); }
 .ork-pips > i.a { background: var(--ork-alert); }
 .ork-hatch { background: repeating-linear-gradient(45deg, var(--ork-frame) 0 2px, transparent 2px 6px); min-height: 14px; }
+
+/* --- Gem, stat, crystals, frame: a price or a mark before a move (inverted), a measured number (outlined), what is left of a tool
+   (drawn), the double frame of a raised thing. Colour is the signal's: alert and danger, never a new one ------------------------ */
+.ork-gem { display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box; min-width: 22px; height: 22px;
+  padding: 0 var(--ork-3); background: var(--ork-ink); color: var(--ork-on-ink); clip-path: var(--ork-notch); font: 600 12px/16px var(--ork-font-text); white-space: nowrap; }
+.ork-gem.alert { background: var(--ork-alert); }
+.ork-gem.danger { background: var(--ork-danger); }
+.ork-gem.dim { background: var(--ork-edge); }
+.ork-stat { display: inline-flex; align-items: center; justify-content: center; flex: none; box-sizing: border-box; min-width: 30px; height: 20px;
+  padding: 0 var(--ork-2); background: var(--ork-canvas); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch);
+  font: 600 12px/16px var(--ork-font-text); white-space: nowrap; }
+.ork-crystals { display: inline-flex; align-items: center; gap: var(--ork-1); vertical-align: middle; }
+.ork-crystals > i { display: block; flex: none; width: 10px; height: 10px; background: var(--ork-frame); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.ork-crystals > i.on { background: var(--ork-ink); }
+.ork-crystals > i.kept { background: repeating-linear-gradient(45deg, var(--ork-edge) 0 1px, transparent 1px 3px); }   /* left, but kept for tonight */
+.ork-frame { box-sizing: border-box; background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-double) double var(--ork-edge); clip-path: var(--ork-notch); }
+.ork-frame.alert { border-color: var(--ork-alert); }
+.ork-frame.danger { border-color: var(--ork-danger); }
 
 /* --- Dialog, menu, toast ------------------------------------------------------------------------------------------------------- */
 .ork-scrim { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--ork-6); background: var(--ork-scrim); }
@@ -166,4 +188,5 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
   .ork-btn.quiet { padding: 0 var(--ork-4); }
   .ork-field { height: var(--ork-tap); font-size: 16px; }
   .ork-row, .ork-card { padding: var(--ork-4); }
+  .ork-gem { height: 24px; }
 }

@@ -25,6 +25,9 @@
   .row { display: flex; gap: var(--ork-4); flex-wrap: wrap; align-items: center; }
   .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--ork-4); }
   .box { border: 1px solid var(--ork-frame); }
+  .marks { display: flex; flex-wrap: wrap; gap: var(--ork-4); }
+  .marks figure { width: 96px; }
+  .marks .pair { display: flex; align-items: end; gap: var(--ork-3); }
 </style>
 </head>
 <body>
@@ -72,6 +75,29 @@
   <span class="ork-pips"><i class="d"></i><i class="d"></i><i class="w"></i><i></i><i class="a"></i><i class="f"></i></span>
   <span class="ork-hatch" style="width:160px"></span></div></section>
 
+<section><h2>Gem (a price or a mark; 22 px, 24 on a phone)</h2><div class="row">
+  <span class="ork-gem" title="default">$0.38</span><span class="ork-gem alert" title="alert">$1&ndash;2</span><span class="ork-gem alert" title="alert">?</span>
+  <span class="ork-gem danger" title="danger">!</span><span class="ork-gem dim" title="dim">&mdash;</span><span class="ork-gem dim" title="dim">&middot;</span></div>
+  <div class="row"><span class="ork-gem alert">$1&ndash;2</span> Plan ready <span class="ork-gem alert">?</span> Asks you <span class="ork-gem danger">!</span> Failed
+  <span class="ork-gem dim">&mdash;</span> Proposed</div></section>
+
+<section><h2>Stat (a measured number)</h2><div class="row">
+  <span class="ork-stat" title="runs and redos">5/1</span><span class="ork-stat" title="checks and catches">6/2</span><span class="ork-stat" title="its price for a run">$0.38</span>
+  <span class="ork-stat" title="about: too few runs yet">&asymp;$0.40</span><span class="ork-stat">3</span></div>
+  <div class="row"><span class="ork-stat">5/1</span> <span style="color:var(--ork-ink-muted)">runs / sent back</span>
+  <span class="ork-stat">$0.38</span> <span style="color:var(--ork-ink-muted)">a run</span></div></section>
+
+<section><h2>Crystals (what is left of a tool)</h2><div class="row">
+  <span class="ork-crystals" role="img" aria-label="7 of 10 left"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span> 70 %
+  <span class="ork-crystals" role="img" aria-label="6 of 10 left, the last kept for tonight"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="kept"></i><i></i><i></i><i></i><i></i></span> 60 %, the last kept
+  <span class="ork-crystals" role="img" aria-label="none left"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span> 0 %</div>
+  <div class="ork-label">hatched: kept for tonight</div></section>
+
+<section><h2>Frame (the double frame of a raised thing)</h2><div class="row" style="align-items:start">
+  <div class="ork-frame" style="width:156px;padding:var(--ork-3);display:grid;gap:var(--ork-2)"><span class="ork-gem alert" style="justify-self:start">$1&ndash;2</span><b>Plan ready</b><span style="color:var(--ork-ink-muted)">2 tasks, 1 check</span></div>
+  <div class="ork-frame alert" style="width:156px;padding:var(--ork-3);display:grid;gap:var(--ork-2)"><span class="ork-gem alert" style="justify-self:start">?</span><b>Asks you</b><span style="color:var(--ork-ink-muted)">alert edge</span></div>
+  <div class="ork-frame danger" style="width:156px;padding:var(--ork-3);display:grid;gap:var(--ork-2)"><span class="ork-gem danger" style="justify-self:start">!</span><b>Failed</b><span style="color:var(--ork-ink-muted)">danger edge</span></div></div></section>
+
 <section><h2>Dialog, menu, toast, key line, think</h2><div class="row" style="align-items:start">
   <div class="ork-dialog" style="width:360px"><h3 class="ork-dialog__title">New goal</h3><input class="ork-field" placeholder="Description">
     <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="ork-btn">Cancel</button><button class="ork-btn primary">Save goal</button></div></div>
@@ -90,6 +116,26 @@
   <span class="ork-race"><img class="ork-race__head" src="races/peon-warrior.png" srcset="races/peon-warrior@2x.png 2x" alt=""><span class="ork-race__word">peon <span class="ork-race__tier">warrior</span></span></span>
   <span class="ork-race small"><img class="ork-race__head" src="races/goblin-warrior.png" alt=""><span class="ork-race__word">goblin <span class="ork-race__tier">warrior, small</span></span></span>
   <span style="color:var(--ork-alert)"><svg class="ork-icon"><use href="icons/icons.svg#warning-diamond"/></svg> needs your answer</span></div></section>
+
+<section><h2>A head at 36 x 33 (mid; 3 px a cell)</h2><div class="row" style="align-items:end">
+  <figure><img class="ork-race__head small" src="races/gnome-warrior.png" alt=""><figcaption>small 12 x 11</figcaption></figure>
+  <figure><img class="ork-race__head mid" src="races/gnome-warrior@2x.png" alt=""><figcaption>mid 36 x 33</figcaption></figure>
+  <figure><img class="ork-race__head big" src="races/gnome-warrior@2x.png" alt=""><figcaption>big 48 x 44</figcaption></figure></div>
+  <div class="row"><span class="ork-race"><img class="ork-race__head" src="races/peon-warrior.png" srcset="races/peon-warrior@2x.png 2x" alt=""><span class="ork-race__word">peon <span class="ork-race__tier">warrior</span></span></span>
+  <span class="ork-race mid"><img class="ork-race__head" src="races/peon-warrior@2x.png" alt=""><span class="ork-race__word">peon <span class="ork-race__tier">warrior</span></span></span>
+  <span class="ork-race mid"><img class="ork-race__head" src="races/knight-elder@2x.png" alt=""><span class="ork-race__word">knight <span class="ork-race__tier">elder</span></span></span></div></section>
+
+<section><h2>Marks (the AI tools and the levels; 16 and 32 px)</h2><div class="marks">
+  <figure><span class="pair"><img class="ork-mark" src="marks/harness-claude.png" srcset="marks/harness-claude@2x.png 2x" alt=""><img class="ork-mark big" src="marks/harness-claude@2x.png" alt=""></span><figcaption>Claude</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/harness-codex.png" srcset="marks/harness-codex@2x.png 2x" alt=""><img class="ork-mark big" src="marks/harness-codex@2x.png" alt=""></span><figcaption>Codex</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/harness-agy.png" srcset="marks/harness-agy@2x.png 2x" alt=""><img class="ork-mark big" src="marks/harness-agy@2x.png" alt=""></span><figcaption>Antigravity</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/harness-cursor.png" srcset="marks/harness-cursor@2x.png 2x" alt=""><img class="ork-mark big" src="marks/harness-cursor@2x.png" alt=""></span><figcaption>Cursor</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/harness-hermes.png" srcset="marks/harness-hermes@2x.png 2x" alt=""><img class="ork-mark big" src="marks/harness-hermes@2x.png" alt=""></span><figcaption>Hermes</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/harness-pi.png" srcset="marks/harness-pi@2x.png 2x" alt=""><img class="ork-mark big" src="marks/harness-pi@2x.png" alt=""></span><figcaption>Pi</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/harness-pipeline.png" srcset="marks/harness-pipeline@2x.png 2x" alt=""><img class="ork-mark big" src="marks/harness-pipeline@2x.png" alt=""></span><figcaption>Pipeline</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/rank-1.png" srcset="marks/rank-1@2x.png 2x" alt=""><img class="ork-mark big" src="marks/rank-1@2x.png" alt=""></span><figcaption>Novice</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/rank-2.png" srcset="marks/rank-2@2x.png 2x" alt=""><img class="ork-mark big" src="marks/rank-2@2x.png" alt=""></span><figcaption>Seasoned</figcaption></figure>
+  <figure><span class="pair"><img class="ork-mark" src="marks/rank-3.png" srcset="marks/rank-3@2x.png 2x" alt=""><img class="ork-mark big" src="marks/rank-3@2x.png" alt=""></span><figcaption>Veteran</figcaption></figure></div></section>
 
 <script>
   const css = getComputedStyle(document.documentElement);
