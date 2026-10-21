@@ -534,6 +534,7 @@ def test_what_waits_for_you_a_fan_raised_on_hover_and_focus_each_kind_and_its_qu
     pg.wait_for_function("(el) => el.getBoundingClientRect().bottom > 900", arg=plan.element_handle(), timeout=WAIT_MS)
     asks = items.nth(2)
     asks.locator(".arena-hc__open").focus()                                                                      # focus raises it too
+    assert pg.evaluate("document.querySelector('.shell').scrollTop") == 0 and box(pg, ".shell-top")["y"] == 0     # and the window does not move to show it
     pg.wait_for_function("(el) => el.getBoundingClientRect().bottom < 900", arg=asks.element_handle(), timeout=WAIT_MS)
     assert "?" == asks.locator(".ork-gem").inner_text() and "“Should a lost phone sign out every passkey?”" in asks.inner_text() and asks.locator(".arena-hc__who img").count() == 1
     only = asks.get_by_role("button", name=re.compile("Only the lost phone"))

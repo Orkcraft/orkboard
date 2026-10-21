@@ -2,7 +2,7 @@
    (design-system/orkui, docs/specs/40-design-system.md): orkUI's tokens and components only, no raw colour, nothing round;
    the pixel face for headings and buttons, never for a person's text; selected is raised with a 2 px ink bar. board.css
    still draws the idea's sections, the cards and the plan; this file is the frame around them. */
-.shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--ork-canvas); color: var(--ork-ink); font: var(--ork-type-body); }
+.shell { display: flex; flex-direction: column; height: 100vh; overflow: clip; background: var(--ork-canvas); color: var(--ork-ink); font: var(--ork-type-body); }
 .shell h2, .shell h3 { margin: 0; }
 .shell-h { font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
 
