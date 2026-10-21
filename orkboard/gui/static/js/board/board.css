@@ -150,28 +150,12 @@
 .board-found dd { margin: 0; overflow-wrap: anywhere; }
 .board-num { width: 5em; }
 
-/* spec 39 §4: the Map — a section per goal, its ideas as a tree under the ideas they depend on. Monochrome: weight, dashes and dots carry the meaning. */
-.map { height: 100%; overflow-y: auto; overflow-x: hidden; padding: var(--ork-5) var(--ork-6); box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-6); }
-/* The cards at the top of the Map (spec 42 §1.4): they cover nothing and take their place in the column. */
+/* The cards at the top of Waits for your look (spec 42 §1.4, spec 49 §5.5): they cover nothing and take their place in the column; the Map's foot (Flags, Last week) is under the results. */
 .away { flex: none; display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; }
 .away__title { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
 .away__lines { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
 .away__lines p { margin: 0; overflow-wrap: anywhere; }
 .away__foot { display: flex; justify-content: flex-end; }
-.map-note { padding: var(--ork-5) var(--ork-6); }
-.map-goal { display: flex; flex-direction: column; gap: var(--ork-4); min-width: 0; }
-.map-goal__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ork-4) var(--ork-5); }
-.map-goal__title { margin: 0; font: var(--ork-type-body); font-weight: 600; }      /* a person's words: never the pixel face */
-.map-goal__count { font-variant-numeric: tabular-nums; }
-.map-goal__when { margin: 0; }
-.trail-end { align-items: center; color: var(--ork-ink-muted); }
-.trail-end__flag { display: inline-flex; padding: var(--ork-3); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); }
-.trail-end.is-met { color: var(--ork-success); }
-.trail-end.is-met .trail-end__flag { border-color: var(--ork-success); }
-.trail-end__tally { text-align: center; }
-.trail-end__flag.is-raising { animation: map-flag-raise 0.6s steps(6) 1; }
-@keyframes map-flag-raise { from { transform: translateY(var(--ork-6)); } to { transform: none; } }
-@media (prefers-reduced-motion: reduce) { .trail-end__flag.is-raising { animation: none; } }
 .map-foot { flex: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ork-3) var(--ork-5); }
 .map-flags { display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; flex: 1 1 100%; }
 .map-flags__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
@@ -179,14 +163,6 @@
 .map-flag:hover, .map-flag:focus-visible { border-color: var(--ork-edge); }
 .map-flag__mark { color: var(--ork-success); display: inline-flex; }
 .map-flag__body { display: flex; flex-direction: column; gap: var(--ork-1); min-width: 0; overflow-wrap: anywhere; }
-.trail-end.is-not { color: var(--ork-alert); }
-.trail-end.is-not .trail-end__flag { border-color: var(--ork-alert); }
-.trail-empty { margin: 0; }
-.map-pip { display: inline-block; flex: none; width: 8px; height: 8px; border: 1px solid var(--ork-ink-muted); box-sizing: border-box; }
-.map-pip[data-pip="done"] { background: var(--ork-ink); border-color: var(--ork-ink); }
-.map-pip[data-pip="working"] { background: var(--ork-ink); box-shadow: inset 0 0 0 2px var(--ork-canvas); border-color: var(--ork-ink); }
-.map-done { display: flex; flex-direction: column; gap: var(--ork-4); align-items: flex-start; }
-.map-done__btn { color: var(--ork-ink-muted); }
 
 /* -- the checks a goal's team holds an idea to (idea.js Checks; realm/idea_checks.py) -- */
 .board-checks { display: flex; flex-wrap: wrap; gap: var(--ork-3); align-items: center; margin: var(--ork-3) 0; }
@@ -196,7 +172,6 @@
 .board-check.is-passed { border-color: var(--ork-success); }
 .board-check .ork-icon { color: var(--ork-success); width: 12px; height: 12px; }
 .board-checks > .ok-font-label { flex: 1 0 100%; }
-/* -- the Map: a goal's team, an idea's checks (map.js) -- */
 /* Needs you as its own tab (today.js): a row with Later beside it; questions answered in their row. */
 .board-need-row { display: flex; align-items: stretch; gap: var(--ork-2); }
 .board-need-row > .board-need { flex: 1; min-width: 0; }
@@ -219,106 +194,3 @@
 /* A template's way to going by itself (spec 42 §5): its pips and the words beside them. */
 .board-op__way { display: inline-flex; align-items: center; gap: var(--ork-3); }
 .map-flags__list .shell-party { margin: var(--ork-2) 0 0 var(--ork-5); }
-
-/* spec 48: the Map of one goal — its header and party line, its ideas as rows or expanded with the party in lanes and the plan's waves in
-   columns, and the idea's card in orkUI's double frame. The alert is only on the agent the work stopped on; a result in Review is muted. */
-.map-goal__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-3) var(--ork-5); min-width: 0; }
-.map-goal__pick { max-width: 220px; }
-.map-goal__into { margin-left: auto; }
-.map-goal__flag { flex-direction: row; gap: var(--ork-3); }
-.map-party { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ork-3); }
-.map-party__member { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: var(--ork-2); padding: 1px var(--ork-3);
-  border: var(--ork-line) solid var(--ork-frame); font: var(--ork-type-caption); white-space: nowrap; }
-.map-party__member:hover, .map-party__member:focus-visible { border-color: var(--ork-ink); outline: none; }
-.map-party__member.is-work { border-color: var(--ork-edge); }
-.map-party__member.is-needs { border-color: var(--ork-alert); }
-.map-party__member.is-needs .map-party__state { color: var(--ork-alert); font-weight: 600; }
-.map-party__state { color: var(--ork-ink-muted); }
-.map-ideas { list-style: none; margin: 0; padding: var(--ork-4) 0 0; display: flex; flex-direction: column; gap: var(--ork-4); border-top: var(--ork-line) solid var(--ork-frame); }
-.map-row__btn { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--ork-4); width: 100%; padding: var(--ork-3) var(--ork-4);
-  background: var(--ork-panel); border: var(--ork-line) dashed var(--ork-edge); }
-.map-row__btn:hover, .map-row__btn:focus-visible { border-color: var(--ork-ink); outline: none; }
-.map-row.is-needs .map-row__btn { border-style: solid; border-color: var(--ork-alert); }
-.map-row.is-done .map-row__btn { border: 0; background: var(--ork-raised); color: var(--ork-ink-muted); }
-.map-row__title { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.map-row__words { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.map-row__tick { display: inline-flex; color: var(--ork-success); }
-.trail-chip__nohead { width: 12px; height: 11px; flex: none; }
-.trail-chip__mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
-.trail-chip__mark.is-gate { color: var(--ork-alert); }
-.map-done__list { padding-top: 0; border-top: 0; }
-.map-idea { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: var(--ork-4); align-items: start; min-width: 0; }
-.map-idea.is-on .map-idea__fold { text-decoration: underline; }
-.map-idea__body { display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; overflow-x: auto; }
-.map-idea__head { display: flex; align-items: baseline; gap: var(--ork-4); }
-.map-idea__fold { all: unset; cursor: pointer; font-weight: 600; }
-.map-idea__fold:focus-visible { outline: 2px solid var(--ork-ink); }
-.map-track { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--ork-5); font: var(--ork-type-label); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
-.map-track__stage { color: var(--ork-ink-muted); padding-bottom: 2px; }
-.map-track__stage.is-now { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
-.map-track__stage + .map-track__stage::before { content: ""; display: inline-block; width: 24px; margin-right: var(--ork-4); border-top: var(--ork-line) dotted var(--ork-edge); vertical-align: middle; }
-.map-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.map-field { display: flex; flex-direction: column; min-width: max-content; }
-.map-field__cols, .map-lane { display: flex; align-items: flex-start; gap: var(--ork-4); }
-.map-field__corner, .map-lane__head { flex: none; width: 172px; box-sizing: border-box; }
-.map-field__col, .map-lane__cell { flex: none; width: 140px; box-sizing: border-box; }
-.map-field--plan .map-field__col { width: auto; flex: 1; }
-.map-field__corner, .map-field__col { font: var(--ork-type-label); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); color: var(--ork-ink-muted); padding-bottom: var(--ork-2); }
-.map-lane { padding: var(--ork-3) 0; border-top: var(--ork-line) dotted var(--ork-frame); }
-.map-lane__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2) var(--ork-3); padding: var(--ork-2) var(--ork-3); border: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
-.map-lane__head.is-needs { border-color: var(--ork-alert); box-shadow: inset 0 0 0 1px var(--ork-alert); }
-.map-lane__state { flex: 1 0 100%; color: var(--ork-ink-muted); font: var(--ork-type-caption); }
-.map-lane__head.is-needs .map-lane__state { color: var(--ork-alert); font-weight: 600; }
-.map-lane__cells { display: flex; flex-wrap: wrap; gap: var(--ork-3); flex: 1; min-width: 0; }
-.map-lane__empty { align-self: center; }
-.map-taskcard-pair { display: inline-flex; align-items: stretch; max-width: 100%; }
-.map-taskcard { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; gap: var(--ork-2); width: 128px; min-height: 56px;
-  padding: var(--ork-3); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-caption); }
-.map-taskcard:hover, .map-taskcard:focus-visible { border-color: var(--ork-ink); outline: none; }
-.map-taskcard__title { font-weight: 600; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.map-taskcard__words { color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.map-taskcard.is-wait { border-style: dashed; color: var(--ork-ink-muted); }
-.map-taskcard.is-failed { border-color: var(--ork-danger); box-shadow: inset 0 0 0 1px var(--ork-danger); }
-.map-taskcard.is-failed .map-taskcard__words { color: var(--ork-danger); font-weight: 600; }
-.map-taskcard.is-needs { border-color: var(--ork-alert); box-shadow: inset 0 0 0 1px var(--ork-alert); }
-.map-taskcard.is-needs .map-taskcard__words { color: var(--ork-alert); font-weight: 600; }
-.map-ask, .map-plan { width: 160px; }
-.map-stack { position: relative; display: inline-block; margin: 0 var(--ork-3) var(--ork-3) 0; }
-.map-stack__edge { position: absolute; left: 6px; top: 6px; width: 128px; height: 100%; box-sizing: border-box; border: var(--ork-line) solid var(--ork-ink); background: var(--ork-panel); }
-.map-stack > .map-taskcard { position: relative; }
-.map-stack__count { position: absolute; right: -6px; top: -6px; z-index: 2; min-width: 16px; padding: 0 var(--ork-2); box-sizing: border-box; text-align: center;
-  background: var(--ork-ink); color: var(--ork-on-ink); font: var(--ork-type-label); font-variant-numeric: tabular-nums; }
-.map-stack__list { position: absolute; left: 0; top: 0; z-index: 20; width: 236px; margin: 0; padding: var(--ork-2); list-style: none; display: flex; flex-direction: column; gap: 2px;
-  background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); }
-.map-stack__item { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; width: 100%; padding: var(--ork-2) var(--ork-3); font: var(--ork-type-caption); }
-.map-stack__item:hover, .map-stack__item:focus-visible { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); outline: none; }
-.map-checks { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
-.map-task-pair { display: inline-flex; align-items: stretch; max-width: 100%; }
-.map-task-pair.is-check .map-task { border-style: dashed; }
-.map-task { display: inline-flex; align-items: center; gap: var(--ork-2); padding: 1px var(--ork-3); border: var(--ork-line) solid var(--ork-frame); font: var(--ork-type-caption); }
-.map-task__skip { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; padding: 0 var(--ork-1);
-  border: var(--ork-line) solid var(--ork-frame); border-left: 0; color: var(--ork-ink-muted); }
-.map-task__skip:hover, .map-task__skip:focus-visible { color: var(--ork-ink); outline: 1px solid var(--ork-ink); }
-.map-task__skip .ork-icon { width: 10px; height: 10px; }
-.map-task-pair.is-skipped .map-task { opacity: .5; text-decoration: line-through; }
-/* the idea's card, in orkUI's double frame */
-.map-card-frame { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-4); background: var(--ork-panel); border: 3px double var(--ork-edge); font: var(--ork-type-caption); min-width: 0; }
-.map-card-frame__title { font: var(--ork-type-body); font-weight: 600; overflow-wrap: anywhere; }
-.map-card-frame__pips { display: flex; align-items: center; gap: var(--ork-3); }
-.map-pips-row { display: inline-flex; gap: 2px; }
-.map-card__actions, .map-result .shell-actions__main { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
-.map-card__waits { display: flex; flex-direction: column; gap: var(--ork-3); padding-top: var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
-.map-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-4); }
-.map-result { display: flex; flex-direction: column; gap: var(--ork-2); }
-.map-result__gone { color: var(--ork-success); font-weight: 600; }
-.map-result .is-success { color: var(--ork-success); }
-.map-result .is-danger { color: var(--ork-danger); }
-.map-result .is-muted { color: var(--ork-ink-muted); }
-/* a merged task, or a result, leaves once: it moves up and fades in steps; none under reduced motion (its component draws none) */
-.map-leaving { pointer-events: none; animation: map-leave 0.9s steps(5, end) 0.2s forwards; }
-.map-leaving .map-taskcard { border-color: var(--ork-success); box-shadow: inset 0 0 0 1px var(--ork-success); }
-@keyframes map-leave { 0% { opacity: 1; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-8px); } 100% { opacity: 0; transform: translateY(-28px); } }
-@media (prefers-reduced-motion: reduce) { .map-leaving { animation: none; } }
-.map-result__open { all: unset; box-sizing: border-box; cursor: pointer; overflow-wrap: anywhere; }
-.map-result__open:hover b, .map-result__open:focus-visible b { text-decoration: underline; }
-.map-result__open:focus-visible { outline: 2px solid var(--ork-ink); }

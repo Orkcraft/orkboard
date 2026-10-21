@@ -14,9 +14,10 @@ import { openDialog } from "../shell/modals.js";
 import { clearPicks } from "./arenastate.js";
 import { goalsOf, nodesOf, opStopsOf, stopsOf } from "./arenawords.js";
 
-/** The goal shown: the picked one if the Map has it (or Operations), else the one kept for this project, else the first. */
+/** The goal shown: the picked one if the Map has it (or Operations, or the Board has it and the Map comes a moment later: a goal just
+ *  saved), else the one kept for this project, else the first. */
 export function shownOf(goals, picked) {
-  if (picked === OPS || goals.some((g) => g.slug === picked)) return picked;
+  if (picked === OPS || goals.some((g) => g.slug === picked) || goalList().some((g) => g.slug === picked)) return picked;
   return (goals.find((g) => g.slug === keptGoal()) || goals[0])?.slug || "";
 }
 
@@ -35,8 +36,9 @@ export function GoalTabs() {
   const m = mapData.value, needs = board.value?.needs_you || [];
   const goals = goalsOf(m, goalList().map((g) => g.slug));
   const want = m ? shownOf(goals, track.value) : track.value;
-  useEffect(() => { if (m && want !== track.value) track.value = want; }, [m, want]);
-  useEffect(() => { if (m && want && want !== OPS) keepGoal(want); }, [m, want]);
+  // The goal shown is `want`; `track` follows it only to start (a pick that no list has yet, a goal just saved, shows the kept one until it does).
+  useEffect(() => { if (m && !track.value && want) track.value = want; }, [m, want]);
+  useEffect(() => { if (m && want && want !== OPS && want === track.value) keepGoal(want); }, [m, want, track.value]);
   const ops = town.value?.ops_rev !== undefined;
   const into = review.value?.into;
   const pick = (slug) => { if (slug !== track.value) { clearPicks(); track.value = slug; } };
@@ -60,7 +62,7 @@ export function GoalTabs() {
       })}
       ${ops && html`<${Tab} key=${OPS} on=${want === OPS} pick=${pick} slug=${OPS} title="Operations" stops=${opStopsOf(needs).length} plain=${true} tip="Your everyday work by templates" />`}
     </div>
-    <button type="button" class="ork-btn quiet arena-tabs__new" onClick=${() => openDialog("goal")}>+ New goal</button>
+    <button type="button" class="ork-btn arena-tabs__new" onClick=${() => openDialog("goal")}>+ New goal</button>
     <span class="arena-spacer"></span>
     ${into && html`<button type="button" class="ork-btn arena-tabs__into" aria-haspopup="dialog" onClick=${() => openDialog("into")}>Merge into <b>${into}</b><${Chev} /></button>`}
   </div>`;

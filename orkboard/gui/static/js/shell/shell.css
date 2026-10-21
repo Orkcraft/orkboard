@@ -2,7 +2,7 @@
    (design-system/orkui, docs/specs/40-design-system.md): orkUI's tokens and components only, no raw colour, nothing round;
    the pixel face for headings and buttons, never for a person's text; selected is raised with a 2 px ink bar. board.css
    still draws the idea's sections, the cards and the plan; this file is the frame around them. */
-.shell { display: flex; flex-direction: column; height: 100vh; background: var(--ork-canvas); color: var(--ork-ink); font: var(--ork-type-body); }
+.shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--ork-canvas); color: var(--ork-ink); font: var(--ork-type-body); }
 .shell h2, .shell h3 { margin: 0; }
 .shell-h { font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
 
@@ -20,6 +20,7 @@
 .shell-drawer { position: absolute; top: 0; right: 0; bottom: 0; z-index: 40; width: max(62%, 560px); max-width: 100%; box-sizing: border-box; display: flex; flex-direction: column;
   background: var(--ork-panel); border-left: var(--ork-double) double var(--ork-edge); box-shadow: -24px 0 0 0 var(--ork-scrim); }
 .shell-drawer .shell-preview { flex: 1; min-height: 0; }
+@media (max-width: 1023px) { .shell-drawer { width: 100%; } }
 .shell-pane { min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--ork-panel); }
 .shell-pane__head { display: flex; align-items: center; gap: var(--ork-3); padding: var(--ork-2) var(--ork-4); border-bottom: var(--ork-line) solid var(--ork-frame); min-height: 40px; box-sizing: border-box; }
 .shell-pane__head h2 { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--ork-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

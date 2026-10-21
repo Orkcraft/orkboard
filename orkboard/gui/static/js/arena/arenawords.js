@@ -174,9 +174,17 @@ export function nowOf(m, col, planning, isLead) {
 export function memberView(m, stats, line, race) {
   const words = memberWords(m) || "free";
   const tone = m.state === "needs" ? "is-needs" : m.state === "work" ? "" : "is-quiet";
-  const label = [m.name, `${race ? `${race}, ` : ""}${stats.harness.name}, ${stats.level}`, `${words}${m.state === "work" ? ", at work" : ""}`, stats.runsTip,
+  const label = [m.name, `${race ? `${race}, ` : ""}${stats.harness.name}, ${stats.level}`, words, stats.runsTip,
     `${stats.price === "—" ? "no price yet" : `${stats.price} a run`}`, line.now].filter(Boolean).join(", ");
   return { words, tone, label: `${label}. A click shows its work.` };
+}
+
+/** The sign on a member's head (§5.2): ✗ on the danger ground for a failure, ! on the alert ground for another stop, ↻ at work, a moon tonight; null when next or free. */
+export function signOf(m) {
+  if (m.state === "needs") return m.why === "failed" ? { mark: "✗", tone: "danger" } : { mark: "!", tone: "alert" };
+  if (m.state === "work") return { mark: "↻", tone: "" };
+  if (m.state === "tonight") return { mark: "", tone: "" };           // the moon, drawn
+  return null;
 }
 
 export const raceOf = (head) => (head ? RACE_WORDS[head.race] || "" : "");

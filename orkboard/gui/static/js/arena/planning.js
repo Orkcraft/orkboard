@@ -24,7 +24,7 @@ export function Planning({ g, nodes, planning, lead }) {
   return html`<section class="arena-left" aria-label="Planning">
     <div class="arena-left__head">
       <h2 class="arena-lbl">Planning</h2><span class="ork-count">${planning.rows.length}</span><span class="arena-spacer"></span>
-      <button type="button" class="ork-btn quiet" onClick=${() => openDialog("idea", { goal: g.slug })}>+ New idea</button>
+      <button type="button" class="ork-btn primary" onClick=${() => openDialog("idea", { goal: g.slug })}>+ New idea</button>
     </div>
     <div class="arena-deck">
       ${!planning.rows.length && !planning.raw.length && html`<p class="arena-cap">Nothing in Planning. A new idea starts here.</p>`}

@@ -9,6 +9,7 @@ import { act, showIdea, showPlan, showTask, showGoal, showResult, needsFocus } f
 import { ResultActions } from "../shell/review.js";
 import { openDialog } from "../shell/modals.js";
 import { run as runOp } from "../board/ops.js";
+import { useHeld } from "./motion.js";
 import { askedOf, fanOf } from "./arenawords.js";
 
 const SENT = "Sent: the Taskmaster answers in a moment.";
@@ -102,13 +103,14 @@ function Stop({ s, g, at, of }) {
   </div>`;
 }
 
-/** The fan; `extra`: more items drawn the same (the results, below 1 024 px). */
+/** The fan; a stop does not shift while one is raised (motion.js `useHeld`). */
 export function Stops({ g, stops }) {
   const box = useRef();
+  const shown = useHeld(box, stops, (s) => s.key);
   const focus = needsFocus.value;
   useEffect(() => { if (focus) box.current?.querySelector(".arena-hc__open")?.focus(); }, [focus]);
   return html`<div class="arena-hand" aria-label="Waits for you" ref=${box}>
-    ${!stops.length && html`<p class="arena-cap arena-hand__empty">Nothing waits for you on this goal.</p>`}
-    ${stops.map((s, i) => html`<${Stop} key=${s.key} s=${s} g=${g} at=${i} of=${stops.length} />`)}
+    ${!shown.length && html`<p class="arena-cap arena-hand__empty">Nothing waits for you on this goal.</p>`}
+    ${shown.map((s, i) => html`<${Stop} key=${s.key} s=${s} g=${g} at=${i} of=${shown.length} />`)}
   </div>`;
 }

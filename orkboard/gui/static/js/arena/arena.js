@@ -75,6 +75,10 @@ export function Arena() {
   const goals = goalsOf(m, goalList().map((x) => x.slug)), want = shownOf(goals, track.value);
   if (want === OPS) return html`<${OpsField} />`;
   const g = goals.find((x) => x.slug === want);
-  if (!g) return html`<div class="shell-empty arena-note"><p>No goals yet</p><p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New goal</button></p></div>`;
+  if (!g && want) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;           // a goal just saved: the Map has it in a moment
+  if (!g) {
+    return html`<div class="shell-empty arena-note"><p>No goals yet</p>
+      <p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New goal</button> <button class="ork-btn" onClick=${() => openDialog("goal", { then: "idea" })}>New idea</button></p></div>`;
+  }
   return html`<${Goal} key=${g.slug} m=${m} g=${g} />`;
 }

@@ -66,12 +66,12 @@
 .arena-hero { position: relative; flex: none; border-top: var(--ork-line) solid var(--ork-frame); padding: 10px var(--ork-5); display: flex; flex-direction: column; align-items: stretch; gap: var(--ork-2); }
 .arena-power { align-self: center; }
 
-.arena-field { position: relative; flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 312px; grid-template-rows: auto minmax(0, 1fr) 136px 64px; }
+.arena-field { position: relative; flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 312px; grid-template-rows: auto minmax(0, 1fr) 68px 64px; }
 .arena-ibar { grid-column: 1 / -1; grid-row: 1; border-bottom: var(--ork-line) solid var(--ork-frame); }
 .arena-play { grid-column: 1; grid-row: 2 / 4; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .arena-look { grid-column: 2; grid-row: 2; }
 .arena-gatebox { grid-column: 2; grid-row: 3; }
-.arena-stops { grid-column: 1 / -1; grid-row: 4; position: relative; z-index: 6; height: 64px; background: var(--ork-canvas); border-top: var(--ork-line) solid var(--ork-frame); }
+.arena-stops { grid-column: 1 / -1; grid-row: 4; position: relative; z-index: 6; height: 64px; box-sizing: border-box; background: var(--ork-canvas); border-top: var(--ork-line) solid var(--ork-frame); }
 
 /* -- the ideas bar (36 px) ------------------------------------------------------------------------------------------------------ */
 .arena-ibar__bar { display: flex; align-items: center; gap: var(--ork-3); padding-right: var(--ork-5); }
@@ -120,7 +120,7 @@
 .arena-solo::-webkit-scrollbar { display: none; }
 .arena-solo__empty { text-align: center; }
 
-.arena-task { appearance: none; position: relative; display: flex; flex-direction: column; gap: var(--ork-2); width: 100%; height: 112px; padding: 5px var(--ork-3) var(--ork-3); box-sizing: border-box;
+.arena-task { appearance: none; position: relative; display: flex; flex-direction: column; gap: var(--ork-2); width: 100%; min-width: 0; height: 112px; padding: 5px var(--ork-3) var(--ork-3); box-sizing: border-box;
   text-align: left; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: var(--ork-ink); cursor: pointer; font: var(--ork-type-caption); }
 .arena-task:hover { border-color: var(--ork-edge); }
 .arena-task:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
@@ -152,7 +152,14 @@
 .arena-task.is-src { border-color: var(--ork-ink); background: var(--ork-raised); }
 .arena-task.is-src .arena-task__foot, .arena-task.is-after .arena-task__foot { color: var(--ork-ink); }
 .arena-task.is-after { border-color: var(--ork-ink); box-shadow: inset 0 0 0 1px var(--ork-ink); background: var(--ork-raised); }
-.arena-task.is-drawn { animation: arena-rise 0.36s steps(4) both; }
+.arena-task.is-drawn, .arena-result.is-drawn { animation: arena-rise 0.36s steps(4) both; }
+.arena-task.is-leaving, .arena-result.is-leaving { position: relative; animation: arena-leave 0.3s steps(3) forwards; pointer-events: none; }
+.arena-task.is-leaving::after, .arena-result.is-leaving::after { content: attr(data-sign); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--ork-panel);
+  font: 600 28px/28px var(--ork-font-text); color: var(--ork-success); animation: arena-flash 0.3s steps(1) forwards; }
+.arena-task.is-leaving[data-sign="✗"]::after, .arena-result.is-leaving[data-sign="✗"]::after { color: var(--ork-danger); }
+.arena-task.is-gone, .arena-result.is-gone { visibility: hidden; pointer-events: none; }
+@keyframes arena-leave { to { opacity: 0; } }
+@keyframes arena-flash { 0% { opacity: 1; } 34% { opacity: 0; } 100% { opacity: 0; } }
 @keyframes arena-rise { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* -- Waits for your look (312 px) ----------------------------------------------------------------------------------------------- */
@@ -174,40 +181,40 @@
 .arena-result .shell-round { color: var(--ork-ink-muted); }          /* a result is not a signal: no alert colour (decisions §54.1) */
 .arena-result .shell-actions__main { gap: var(--ork-3); }
 
-/* -- the party row (136 px) and the gate ----------------------------------------------------------------------------------------- */
-.arena-team { flex: none; height: 136px; box-sizing: border-box; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); padding: var(--ork-4) var(--ork-5) 0; align-items: start; border-top: var(--ork-line) solid var(--ork-frame); }
+/* -- the party row (68 px) and the gate ---------------------------------------------------------------------------------------------- */
+.arena-team { flex: none; height: 68px; box-sizing: border-box; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); padding: var(--ork-4) var(--ork-5); align-items: center; border-top: var(--ork-line) solid var(--ork-frame); }
 .arena-mcol { position: relative; min-width: 0; }
-.arena-member { appearance: none; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: var(--ork-3) var(--ork-3) 5px; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: inherit; cursor: pointer; font: var(--ork-type-caption); }
+/* a member: a small framed row — its head wears three signs on its corners, three short lines beside it */
+.arena-member { appearance: none; width: 100%; max-width: 200px; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: var(--ork-5);
+  padding: var(--ork-3) var(--ork-4) var(--ork-3) 9px; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: inherit; cursor: pointer; font: var(--ork-type-caption); }
 .arena-member:hover { border-color: var(--ork-edge); }
 .arena-member:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .arena-member.is-on { background: var(--ork-raised); border-color: var(--ork-ink); box-shadow: inset 0 2px 0 var(--ork-ink); }
 .arena-member.is-dim { opacity: 0.45; }
-.arena-member > .arena-member__name, .arena-member > .arena-member__state, .arena-member > .arena-member__now { max-width: 100%; }
-.arena-member__top { display: flex; align-items: center; justify-content: center; gap: var(--ork-4); }
-.arena-port { position: relative; display: block; box-sizing: border-box; padding: var(--ork-1); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); }
-.arena-port.is-ink { border-color: var(--ork-ink); }
-.arena-port.is-alert { border-color: var(--ork-alert); }
-.arena-port__spin { position: absolute; top: -2px; right: -2px; display: none; }
-.arena-nums { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-1); }
-.arena-num { font-weight: 600; font-size: 12px; line-height: 16px; color: var(--ork-ink); white-space: nowrap; }
+.arena-hero .arena-member { max-width: none; }
+.arena-tport { position: relative; flex: none; width: 36px; height: 33px; }
+.arena-tport .ork-race__head { display: block; }
+.arena-mark--r { position: absolute; left: -7px; top: -7px; }
+.arena-mark--h { position: absolute; left: -7px; bottom: -5px; }
+.arena-sign { position: absolute; right: -3px; top: -7px; min-width: 16px; height: 16px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 var(--ork-1);
+  background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: 600 11px/14px var(--ork-font-text); color: var(--ork-ink); }
+.arena-sign .ork-icon { width: 12px; height: 12px; }
+.arena-sign.danger { background: var(--ork-danger); border-color: var(--ork-danger); color: var(--ork-on-ink); }
+.arena-sign.alert { background: var(--ork-alert); border-color: var(--ork-alert); color: var(--ork-on-ink); }
+.arena-tbody { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; text-align: left; }
+.arena-member__nm { display: block; max-width: 100%; font: 600 12px/14px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arena-num { font: 600 11px/13px var(--ork-font-text); color: var(--ork-ink); white-space: nowrap; }
 .arena-num.is-muted { font-weight: 400; color: var(--ork-ink-muted); }
-.arena-member__name { display: flex; align-items: center; justify-content: center; gap: var(--ork-2); font-weight: 600; font-size: 12px; line-height: 16px; }
-.arena-member__nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.arena-member__state { font-weight: 600; font-size: 11px; line-height: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.arena-member__state.is-needs { color: var(--ork-alert); }
-.arena-member__state.is-quiet { color: var(--ork-ink-muted); }
-.arena-member__now { font-size: 11px; line-height: 15px; color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.arena-hero .arena-member { padding: var(--ork-4) var(--ork-4) var(--ork-3); }
-.arena-seat { appearance: none; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: var(--ork-2) var(--ork-1); background: none;
-  border: var(--ork-line) dashed var(--ork-frame); clip-path: var(--ork-notch); color: var(--ork-ink-muted); cursor: pointer; font: var(--ork-type-caption); }
-.arena-seat:hover { border-color: var(--ork-edge); }
+/* a free seat in its narrow column: just the dashed square with its + */
+.arena-seat { appearance: none; display: flex; align-items: center; justify-content: center; width: 36px; height: 33px; margin: 0 auto; padding: 0; box-sizing: border-box; background: none;
+  border: var(--ork-line) dashed var(--ork-frame); color: var(--ork-ink-faint); cursor: pointer; font: 600 16px/16px var(--ork-font-text); }
+.arena-seat:hover { border-color: var(--ork-edge); color: var(--ork-ink); }
 .arena-seat:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .arena-seat.is-dim { opacity: 0.45; }
-.arena-seat__plus { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 33px; color: var(--ork-ink-faint); font: 600 18px/18px var(--ork-font-text); }
-.arena-gate { box-sizing: border-box; height: 100%; border-left: var(--ork-line) solid var(--ork-frame); border-top: var(--ork-line) solid var(--ork-frame); padding: var(--ork-5); display: flex; flex-direction: column; gap: var(--ork-3); justify-content: center; }
+.arena-gate { box-sizing: border-box; height: 100%; border-left: var(--ork-line) solid var(--ork-frame); border-top: var(--ork-line) solid var(--ork-frame); padding: 0 var(--ork-5); display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.arena-gate .arena-cap { flex: 1; min-width: 0; }
 .arena-gatebox { min-height: 0; }
-.arena-gate__btn { height: 44px; width: 100%; font: 500 14px/16px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }
+.arena-gate__btn { flex: none; height: 44px; font: 500 14px/16px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }
 .arena-gateview { display: flex; flex-direction: column; gap: var(--ork-6); }
 .arena-gateview__head { display: flex; flex-direction: column; gap: var(--ork-1); }
 .arena-gateview__head h2 { font: 600 14px/20px var(--ork-font-text); }
@@ -288,6 +295,6 @@
   .arena-gate__btn { width: auto; height: 32px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .arena-task.is-drawn { animation: none; }
+  .arena-task.is-drawn, .arena-result.is-drawn, .arena-task.is-leaving, .arena-result.is-leaving, .arena-task.is-leaving::after, .arena-result.is-leaving::after { animation: none; }
   .arena-hc { transition: none; }
 }

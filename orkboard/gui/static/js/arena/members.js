@@ -1,20 +1,20 @@
 // The party (docs/specs/49-one-window.md §5.1–§5.3): a member is a small framed card — its head, its two numbers (runs and redos,
 // its price for a run), its name between two marks (the tool it runs on, its level), its state and what it does now. Hovering or
 // focusing it shows its whole face beside it (the peek); a click shows only its work (solo). Free seats are narrow and dashed.
+import { useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { Head, TIER_WORDS, ORKUI } from "../orkui.js";
+import { Head, Icon, TIER_WORDS, ORKUI } from "../orkui.js";
 import { agents, roles } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { solo } from "./arenastate.js";
-import { BAND_WORDS, BAND_KEYWORD, columnOf, nowOf, statsOf, roleOf, memberView, raceOf } from "./arenawords.js";
+import { useLit } from "./motion.js";
+import { BAND_WORDS, BAND_KEYWORD, columnOf, nowOf, statsOf, roleOf, memberView, raceOf, signOf } from "./arenawords.js";
 
 const MARKS = `${ORKUI}/marks`;
 /** One of orkUI's marks (a tool's, a level's) at 16 × 16 from the @2x image, pixelated; its word is its tooltip. */
-function Mark({ name, tip }) {
-  return html`<img class="ork-mark" src=${`${MARKS}/${name}.png`} srcset=${`${MARKS}/${name}@2x.png 2x`} alt="" title=${tip} draggable="false" />`;
+function Mark({ name, tip, where = "" }) {
+  return html`<img class=${`ork-mark${where ? ` arena-mark--${where}` : ""}`} src=${`${MARKS}/${name}.png`} srcset=${`${MARKS}/${name}@2x.png 2x`} alt="" title=${tip} draggable="false" />`;
 }
-
-const stateClass = (m) => (m.state === "needs" ? "is-alert" : m.state === "work" ? "is-ink" : "");
 
 /** The peek: a larger card, nothing in it pressable (`aria-hidden`): the price in a gem, the head, who it is, its state, now and next, what it takes. */
 function Peek({ m, st, line, role, view, lead, side, nodes }) {
@@ -44,33 +44,36 @@ function Peek({ m, st, line, role, view, lead, side, nodes }) {
   </div>`;
 }
 
-/** A member of the party row, or the leader (`lead`: its big head, its peek to the side). */
+/** A member of the party row, or the leader: a small framed row. Its head wears three signs on its corners, half over it — its level's chevrons
+ *  top left, the tool it runs on bottom left, its state top right (✗ a failure, ! another stop, ↻ at work, a moon tonight; none when next or free) —
+ *  and beside it three short lines: its name, its runs and redos, its price for a run. The words of all that are in the peek and the label. */
 export function Member({ m, nodes, planning, lead = false }) {
   const role = roleOf(agents.value, m.slug), st = statsOf(m, role, lead);
   const col = lead ? [] : columnOf(m, nodes), line = nowOf(m, col, planning, lead);
-  const view = memberView(m, st, line, raceOf(m.head));
+  const view = memberView(m, st, line, raceOf(m.head)), sign = signOf(m);
   const on = solo.value === m.slug, dim = !!solo.value && !on;
   const pick = () => { solo.value = on ? "" : m.slug; };
+  const runs = useRef();
+  useLit(runs, st.runs);                                   // a merge lights the first number once (§11)
   return html`<div class="arena-mcol" data-agent=${m.slug}>
     <button type="button" class=${cls("arena-member", { "is-on": on, "is-dim": dim, "is-lead": lead })} data-state=${m.state} data-agent=${m.slug}
       aria-pressed=${on} aria-label=${view.label} onClick=${pick}>
-      <span class="arena-member__top"><span class=${cls("arena-port", stateClass(m))}>${m.head && html`<${Head} race=${m.head.race} tier=${m.head.tier} size=${lead ? "big" : "mid"} />`}${m.state === "work" && html`<span class="arena-port__spin shell-spin" aria-hidden="true">↻</span>`}</span>
-      <span class="arena-nums"><span class="arena-num" title=${st.runsTip}>${st.runs}</span><span class="arena-num is-muted" title=${st.priceTip}>${st.price}</span></span></span>
-      <span class="arena-member__name"><${Mark} name=${`harness-${st.harness.id}`} tip=${st.harnessTip} /><span class="arena-member__nm">${m.name}</span><${Mark} name=${`rank-${st.rank}`} tip=${st.rankTip} /></span>
-      <span class=${cls("arena-member__state", view.tone)}>${view.words}${m.state === "work" ? " ↻" : ""}</span>
-      <span class="arena-member__now">${line.now}</span>
+      <span class="arena-tport">${m.head && html`<${Head} race=${m.head.race} tier=${m.head.tier} size="mid" />`}
+        <${Mark} name=${`rank-${st.rank}`} tip=${st.rankTip} where="r" /><${Mark} name=${`harness-${st.harness.id}`} tip=${st.harnessTip} where="h" />
+        ${sign && html`<span class=${cls("arena-sign", sign.tone)} title=${view.words} data-sign=${sign.mark || "moon"}>${sign.mark || html`<${Icon} name="moon" />`}</span>`}</span>
+      <span class="arena-tbody"><span class="arena-member__nm">${m.name}</span>
+        <span class="arena-num" ref=${runs} title=${st.runsTip}>${st.runs}</span><span class="arena-num is-muted" title=${st.priceTip}>${st.price}</span></span>
     </button>
     <${Peek} m=${m} st=${st} line=${line} role=${role} view=${view} lead=${lead} side=${lead} nodes=${nodes} />
   </div>`;
 }
 
-/** A free seat: narrow, dashed; a click opens Edit the party. */
+/** A free seat: a dashed square with a +, in the narrow column; a click opens Edit the party. */
 function Seat({ m, g }) {
   const band = m.band === "check" ? "checks" : "builds";
   return html`<div class="arena-mcol is-seat">
-    <button type="button" class=${cls("arena-seat", { "is-dim": !!solo.value })} data-band=${m.band} title="A free seat: Edit the party to pick an agent"
-      aria-label=${`A free seat, ${band}. Edit the party`} onClick=${() => openDialog("goal", { slug: g.slug })}>
-      <span class="arena-seat__plus" aria-hidden="true">+</span><span class="arena-member__nm">A free seat</span><span class="arena-member__now">${band}</span></button>
+    <button type="button" class=${cls("arena-seat", { "is-dim": !!solo.value })} data-band=${m.band} title="A free seat: pick an agent from the library"
+      aria-label=${`A free seat, ${band}`} onClick=${() => openDialog("goal", { slug: g.slug })}><span aria-hidden="true">+</span></button>
   </div>`;
 }
 
