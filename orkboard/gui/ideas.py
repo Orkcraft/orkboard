@@ -3,7 +3,7 @@
     ideas = Ideas(host)
     host.commands.update(ideas.commands())     # ideas.board, ideas.page, ideas.add, … (the phone may call them all)
     ideas.tick(now)                            # the host's clock: the keeper's batch, the runner's tick
-    ideas.snapshot()                           # focus, ideas_rev, needs_you, review_count, limits: in the snapshot
+    ideas.snapshot()                           # focus, ideas_rev, needs_you, review_count, limits, reserve: in the snapshot
     ideas.stop_all()                           # Stop all
 
 The pages live in the Wiki joined to the board (`realm/ideas.py`), what runs on them in `.orkcraft/ideas/`. The
@@ -17,6 +17,9 @@ with its log (`ideas.task`) and the branch results merge into (`ideas.into`).
 
 Spec 35: an idea needs a goal and is drafted at once (High, Normal) or at night (Low); the board, Needs you, autostart
 and the Board's own commands are in gui/ideas_board.py; a file to-do's file is kept beside the secrets.
+
+Spec 49: the gate, dev → main (`ideas.gate`, `ideas.gate_merge`: gui/ideas_gate.py), today's events (`ideas.today`:
+gui/ideas_recap.py) and the reserve in the snapshot.
 
 Spec 37 §8: the Board's settings are the project's (`BoardHost.board_settings`: `<repo>/.orkcraft/board.json` over the
 machine's `ideas`), read through `settings_now()` and written with `save_settings()`.
@@ -32,9 +35,10 @@ from typing import Any, Callable
 
 from orkboard import settings
 from orkboard.core import idea_keeper
-from orkboard.realm import event_log, idea_checks, idea_lens, idea_photos, idea_secrets, ideas, wiki
-from orkboard.gui.ideas_args import IdeasError, _device, _opt, _str, _text
+from orkboard.realm import event_log, idea_checks, idea_lens, idea_photos, idea_secrets, idea_target, ideas, wiki
+from orkboard.gui.ideas_args import VIA, IdeasError, _device, _opt, _str, _text
 from orkboard.gui.ideas_board import BoardMixin
+from orkboard.gui.ideas_gate import GateMixin
 from orkboard.gui.ideas_goals import GoalsMixin
 from orkboard.gui.ideas_map import MapMixin
 from orkboard.gui.ideas_party import PartyMixin
@@ -47,8 +51,7 @@ from orkboard.gui.ideas_roles import RolesMixin
 RUNNER_TICK_S = 3.0               # how often the runner looks at its tasks
 SNAPSHOT_S = 10.0                 # the most a cached Needs you count is kept without a change
 PHONE_ZIP_MAX = 8 * 1024 * 1024   # a zip the phone is handed in a message: larger waits for the computer
-OPENED = ("idea", "plan", "todo", "task", "result", "tab", "map", "recap", "flag", "week", "push", "party")
-VIA = ("map", "board", "needs", "agents", "review", "recap", "week", "flags", "push")      # where an opened idea was reached from (spec 39 §2, spec 42 §1.2)
+OPENED = ("idea", "plan", "todo", "task", "result", "tab", "map", "recap", "flag", "week", "push", "party", "gate", "today")
 
 
 def focus_of(machine) -> str:
@@ -79,7 +82,7 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin, RolesMixin, ReviewMixin, BoardMixin):
+class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin, RolesMixin, ReviewMixin, BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
         host makes one from its town, Orkboard its own."""
@@ -273,7 +276,15 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
                 data = {"needs_you": 0, "idea_states": [], "review_count": 0, "review_results": []}
             self._cache = (self.rev, now, data)
         return {"focus": focus_of(self.host.machine), "ideas_rev": self.rev, **self._cache[2],
-                "limits": self.limits()}
+                "limits": self.limits(), "reserve": self.reserve()}
+
+    def reserve(self) -> dict[str, Any]:
+        """`{share, night}` (spec 49 §2.3): the part of the AI tool's window the Board keeps from work that starts by
+        itself right now (the day's, inside the night window the night's), and whether the night window holds now. It is
+        read at each snapshot: the clock moves it, not a change."""
+        s = self.settings_now()
+        night = idea_target.in_night(str(s.get("night") or settings.IDEAS["night"]))
+        return {"share": idea_target.reserve(s, night), "night": night}
 
     # -- reading -------------------------------------------------------------------------------------------
 
@@ -529,6 +540,7 @@ class Ideas(LensMixin, LimitsMixin, GoalsMixin, MapMixin, PartyMixin, RecapMixin
                  "ideas.queue": self.queue, "ideas.read_stop": self.read_stop, "ideas.start_now": self.start_now,
                  "ideas.proposal": self.proposal, "ideas.board_set": self.board_set, "ideas.answer": self.answer,
                  "ideas.spend": self.spend, "ideas.lens": self.lens, "ideas.lens_code": self.lens_code,
-                 "ideas.lens_screen": self.lens_screen, "ideas.check_skip": self.check_skip}
+                 "ideas.lens_screen": self.lens_screen, "ideas.check_skip": self.check_skip,
+                 "ideas.gate": self.gate, "ideas.gate_merge": self.gate_merge, "ideas.today": self.today}
         return {name: guarded(fn) for name, fn in table.items()}
 

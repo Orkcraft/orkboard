@@ -127,9 +127,21 @@ def _asked(st: dict, asks: list[str], by_slug: dict, lead: dict | None, target: 
     for n, q in enumerate(idea_questions.parse(a) for a in asks[:5]):
         r = by_slug.get(who[n]) if n < len(who) and isinstance(who[n], str) else None
         r = r or lead
-        out.append({"ask": q["ask"], "choices": q.get("choices") or [],
+        out.append({"ask": q["ask"], "choices": q.get("choices") or [], "pick": q.get("pick"), "why": q.get("why") or "",
                     "by": {"slug": r["slug"], "name": r["name"], "head": roles.head(r, target)} if r else None})
     return out
+
+
+ERROR_CHARS = 300                       # a failed task's error as the Map carries it (spec 49 §2.4)
+
+
+def _run_of(t: dict) -> dict:
+    """What a task's run left, for its card (spec 49 §2.4): the failure as the runner wrote it (cut), a hold's or a stop's
+    note, the round, what it cost (usd; None before it ran) and when it started (ISO, "" before)."""
+    cost = t.get("cost")
+    return {"error": str(t.get("error") or "")[:ERROR_CHARS], "note": str(t.get("note") or ""), "round": int(t.get("round") or 1),
+            "cost": cost if isinstance(cost, (int, float)) and not isinstance(cost, bool) else None,
+            "started": str(t.get("started") or "")}
 
 
 # -- the Map -------------------------------------------------------------------------------------------------
@@ -283,6 +295,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                                "after": list(t.get("after") or []), "tier": t.get("tier") or "",
                                "head": roles.task_head(state_dir, t, target, read),
                                "by": _by(t, read), "band": "check" if map_stage.is_check(t) else "build", "wave": waves[str(t.get("id"))],
+                               **_run_of(t),
                                "tag": roles.KIND_LABELS.get(str(t.get("kind") or ""), roles.KIND_LABELS[roles.DEFAULT_KIND])} for t in tasks],
                     "checks": idea_checks.status(idea_checks.kept(list_of_dicts(page.get("checks")) if page else [], checks),
                                                  checks, tasks) if checks else [],

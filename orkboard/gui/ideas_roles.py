@@ -6,14 +6,16 @@ money by stage.
 
 A role is a small file in the repository's `.orkcraft/roles/` (realm/roles.py); the runner runs a task as its type's
 role (core/idea_runner.py). Each role, each chip, carries the head the page draws for it (`head`: its craft's race at the
-tier it runs at, realm/roles.py `head`; decisions §53). Split from ideas.py to keep it under ~600 lines.
+tier it runs at, realm/roles.py `head`; decisions §53), and each role the tool it runs on (`harness`: {id, name}, spec 49
+§2.5). Split from ideas.py to keep it under ~600 lines.
 """
 from __future__ import annotations
 
 import datetime as dt
 
+from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import board_map, event_log, idea_spend, idea_target, ideas, library, party_work, roles
+from orkboard.realm import board_map, event_log, harnesses, idea_spend, idea_target, ideas, library, party_work, roles
 from orkboard.realm.idea_words import short_of
 
 
@@ -24,6 +26,19 @@ CHECK_WEEK = 7                     # a checker's check, the muted line under its
 class RolesMixin:
     def _target(self) -> str:
         return idea_target.target_of(self.board_settings())
+
+    @staticmethod
+    def _harness(slug: str) -> dict:
+        """The tool a role runs on, `{id, name}` (spec 49 §2.5): the Taskmaster's is the keeper's, the others' the runner's
+        (loaded on demand, as `runner()` does: a build without it reads the keeper's); the name as `harnesses` says it."""
+        tool = idea_keeper.HARNESS
+        if slug != roles.TASKMASTER:
+            try:
+                from orkboard.core import idea_runner
+                tool = getattr(idea_runner, "HARNESS", tool)
+            except ImportError:
+                pass
+        return {"id": tool, "name": harnesses.title(tool).split()[0]}
 
     def _with_heads(self, plan: dict | None) -> dict | None:
         """A plan as the page reads it: each task with the head of who does it (`head`: race and tier, realm/roles.py) and
@@ -81,7 +96,8 @@ class RolesMixin:
         target, costs = self._target(), idea_spend.tier_costs(self.state_dir)
         mine = [{**r, "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]),
                  "kinds": [k for k, v in kinds.items() if v == r["slug"]], "hand_model": roles.hand_set(r),
-                 "head": roles.head(r, target), "record": self._with_check(self._record(record.get(r["slug"]), r["slug"]), r["slug"]),
+                 "head": roles.head(r, target), "harness": self._harness(r["slug"]),
+                 "record": self._with_check(self._record(record.get(r["slug"]), r["slug"]), r["slug"]),
                  "usd_task": self._usd_task(r, week, costs, target),
                  **({"check_week": c} if (c := self._checker_record(r["slug"], CHECK_WEEK)) is not None else {}),
                  **({"told": roles.TOLD[r["slug"]]} if r["slug"] in roles.TOLD else {})}
@@ -205,7 +221,7 @@ class RolesMixin:
             block = {"role": r["slug"], "name": "Grunts" if r["slug"] == roles.GRUNT and r["name"] == "Grunt" else r["name"],
                      "model": r["model"], "max_parallel": r["max_parallel"], "builtin": r["builtin"],
                      "spend_today": spent.get(r["slug"], 0.0), "week": week.get(r["slug"]), "head": roles.head(r, target),
-                     "usd_task": self._usd_task(r, week, costs, target),
+                     "harness": self._harness(r["slug"]), "usd_task": self._usd_task(r, week, costs, target),
                      **({"check_week": c} if (c := self._checker_record(r["slug"], CHECK_WEEK)) is not None else {})}
             if r["slug"] == roles.TASKMASTER:
                 out.append({**block, "state": mode, "waits_on": waits, "chips": chips})

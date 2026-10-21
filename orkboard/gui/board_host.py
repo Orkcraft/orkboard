@@ -27,7 +27,7 @@ from orkboard import __version__, settings
 from orkboard.core import bus as b
 from orkboard.core import treasury, updates as core_updates
 from orkboard.core.board_limits import BoardLimits
-from orkboard.realm import analytics, call_log, day_log, event_log, halt
+from orkboard.realm import analytics, call_log, day_log, event_log, halt, idea_target
 from orkboard.sources import telemetry
 
 TELEMETRY_REFRESH_S = 5.0       # as Orkline's host: this run's spend read again
@@ -297,7 +297,7 @@ class Orkboard:
         _quota, _level, show_gold = treasury.quota(self.machine, self.limits())
         board = self.ideas.snapshot() if self.ideas is not None else {
             "focus": "board", "ideas_rev": 0, "needs_you": 0, "idea_states": [], "review_count": 0,
-            "review_results": [], "limits": []}
+            "review_results": [], "limits": [], "reserve": {"share": idea_target.reserve({}, False), "night": False}}
         try:
             ops_needs = self.ops.count()
         except Exception:                      # Operations never breaks the snapshot
@@ -309,12 +309,13 @@ class Orkboard:
                 "update": self.updates.snapshot()}
 
     def phone_snapshot(self) -> dict[str, Any]:
-        """The snapshot as a phone gets it; `rev` names its content (gui/phones.py sends it again only when it moved)."""
+        """The snapshot as a phone gets it; `rev` names its content (gui/phones.py sends it again only when it moved), the
+        reserve (spec 49 §2.3) among it."""
         s = self.snapshot()
         root = self.repo_root
         out = {"v": 1, "project": root.name if root is not None else "", "focus": "board", "look": "office",
                **{k: s[k] for k in ("ideas_rev", "ops_rev", "needs_you", "idea_states", "review_count", "review_results",
-                                    "limits")},
+                                    "limits", "reserve")},
                "hud": dict(s["hud"])}
         out["rev"] = hashlib.sha256(json.dumps(out, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
         return out

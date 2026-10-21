@@ -20,7 +20,7 @@ BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.
                   "ideas.review_list", "ideas.diff", "ideas.merge", "ideas.back", "ideas.drop_task",
                   "ideas.stop_task", "ideas.agents", "ideas.task", "ideas.into", "ideas.log", "ideas.logs", "ideas.goal_save",
                   "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_add", "ideas.role_drop",
-                  "ideas.kind_set"}
+                  "ideas.kind_set", "ideas.gate", "ideas.gate_merge", "ideas.today"}          # … and spec 49's three
 
 
 @pytest.fixture
@@ -668,3 +668,95 @@ def test_every_role_says_its_record_of_the_last_30_days_spec_42_d(host):
     assert got[few]["record"] == {"days": 30, "finished": 1, "merged": 1, "first_time": 1, "usd_per_merged": None}     # under TOO_FEW: no price
     assert got["grunt"]["record"] is None                                                                          # no row
     assert got["taskmaster"]["record"] == {"days": 30, "plans": 1, "finished": 5, "first_time": 4}                    # of its plans' tasks
+
+
+# -- spec 49 A: the reserve, each role's tool, where a press was -------------------------------------------------------
+
+def _night_around(hours: float) -> str:
+    """A night window `hours` from now, an hour long (HH:MM-HH:MM, local time; it may cross midnight)."""
+    now = dt.datetime.now()
+    return f"{now + dt.timedelta(hours=hours):%H:%M}-{now + dt.timedelta(hours=hours + 1):%H:%M}"
+
+
+def test_the_snapshot_carries_the_reserve_by_day_and_inside_the_night_window_and_the_phones_rev_follows(host):
+    host.ideas.save_settings({**host.ideas.settings_now(), "night": _night_around(2), "reserve_day": 0.25, "reserve_night": 0.05})
+    day = host.snapshot()
+    assert day["reserve"] == {"share": 0.25, "night": False}
+    phone = BoardPhone.phone_snapshot(host)
+    assert phone["reserve"] == {"share": 0.25, "night": False}
+    host.ideas.save_settings({**host.ideas.settings_now(), "night": _night_around(-0.5)})      # now is inside it: no change of the Board
+    night = host.snapshot()
+    assert night["reserve"] == {"share": 0.05, "night": True} and night["ideas_rev"] == day["ideas_rev"]
+    moved = BoardPhone.phone_snapshot(host)
+    assert moved["reserve"] == {"share": 0.05, "night": True} and moved["rev"] != phone["rev"]   # the phone is sent it again
+    assert BoardPhone.phone_snapshot(host)["rev"] == moved["rev"]
+    json.dumps(moved)
+
+
+def test_the_reserve_is_the_default_shares_until_the_person_changes_them(host):
+    host.ideas.save_settings({**host.ideas.settings_now(), "night": _night_around(2)})
+    assert host.snapshot()["reserve"] == {"share": 0.3, "night": False}
+    host.ideas.save_settings({**host.ideas.settings_now(), "night": _night_around(-0.5)})
+    assert host.snapshot()["reserve"] == {"share": 0.1, "night": True}
+    assert Orkboard().snapshot()["reserve"] == {"share": 0.3, "night": False}                  # no project open: the day's
+
+
+def test_every_role_says_the_tool_it_runs_on_and_the_taskmasters_is_the_keepers(host, monkeypatch):
+    from orkboard.core import idea_runner
+    from orkboard.realm import harnesses
+    host.command("ideas.role_save", {"name": "Scribe", "model": "", "max_parallel": 1, "kinds": ["docs"]})
+    claude = {"id": "claude", "name": "Claude"}
+    assert idea_runner.HARNESS == idea_keeper.HARNESS == "claude" and harnesses.title("claude") == "Claude Code"
+    for got in (host.command("ideas.roles")["roles"], host.command("ideas.agents")["roles"]):
+        assert len(got) == 3 and all(r["harness"] == claude for r in got)
+    monkeypatch.setattr(idea_keeper, "HARNESS", "codex")
+    monkeypatch.setattr(idea_runner, "HARNESS", "agy")
+    for got, key in ((host.command("ideas.roles")["roles"], "slug"), (host.command("ideas.agents")["roles"], "role")):
+        by = {r[key]: r["harness"] for r in got}
+        assert by["taskmaster"] == {"id": "codex", "name": "Codex"}
+        assert by["grunt"] == by["scribe"] == {"id": "agy", "name": "Antigravity"}
+
+
+def test_a_start_or_a_queue_says_where_the_press_was_when_it_is_one_of_via(host, monkeypatch):
+    from orkboard.gui import ideas_args
+
+    class Runner:
+        def __init__(self, *a, **k):
+            pass
+
+        def start(self, slug):
+            pass
+
+        def tick(self):
+            pass
+
+        def stop_all(self):
+            pass
+    monkeypatch.setitem(sys.modules, "orkboard.core.idea_runner", types.SimpleNamespace(IdeaRunner=Runner))
+    assert gui_ideas.VIA is ideas_args.VIA and {"hand", "party", "today", "gate"} <= set(gui_ideas.VIA)
+    assert {"gate", "today"} <= set(gui_ideas.OPENED)
+    assert [ideas_args._via({"via": v}) for v in gui_ideas.VIA] == list(gui_ideas.VIA)           # a press from anywhere VIA names
+    assert [ideas_args._via(a) for a in ({}, {"via": ""}, {"via": "elsewhere"}, {"via": None}, {"via": 3}, {"via": ["map"]})] == ["idea"] * 6
+    first, second, third = (_add(host, f"idea {n}")["slug"] for n in (1, 2, 3))
+    _plan(host, first)
+    host.command("ideas.start", {"slug": first, "via": "hand"})
+    host.command("ideas.queue", {"slug": second, "queue": "night", "via": "party"})
+    host.command("ideas.queue", {"slug": third, "queue": "night", "via": "map"})
+    _plan(host, second)
+    ideas.edit_plan(host.ideas.state_dir, second, lambda p: p.update(start_at="night"))
+    ideas.save_state(host.ideas.state_dir, second, state="plan")
+    host.command("ideas.start_now", {"slug": second, "via": "today"})
+    assert [(e["idea"], e["via"]) for e in _events(host, "plan_passed")] == [(first, "hand")]
+    assert [(e["idea"], e["via"]) for e in _events(host, "idea_queued")] == [(second, "party"), (third, "map")]
+    assert [(e["idea"], e["via"]) for e in _events(host, "plan_started_now")] == [(second, "today")]
+
+
+def test_the_gate_and_the_strip_are_opened_and_logged_through_ideas_log(host):
+    for what, via in (("gate", "hand"), ("gate", "gate"), ("today", "today"), ("idea", "party"), ("task", "hand"), ("result", "map")):
+        assert host.command("ideas.log", {"event": "opened", "what": what, "ref": "x", "via": via}) == {"ok": True}
+    assert [(e["what"], e["via"]) for e in _events(host, "opened")] == [
+        ("gate", "hand"), ("gate", "gate"), ("today", "today"), ("idea", "party"), ("task", "hand"), ("result", "map")]
+    with pytest.raises(CommandError, match="hand"):
+        host.command("ideas.log", {"event": "opened", "what": "gate", "via": "elsewhere"})
+    with pytest.raises(CommandError, match="gate, today"):
+        host.command("ideas.log", {"event": "opened", "what": "elsewhere"})

@@ -175,7 +175,8 @@ def test_tasks_estimate_and_by_itself(host):
     assert n[begun]["estimate"] is None and n[begun]["by_itself"] is False and n[begun]["progress"] == {"done": 1, "total": 2}
     assert n[begun]["tasks"][1] == {"id": "k2", "title": "Task k2", "short": "Task k2", "state": "running", "after": ["k1"], "tier": "warrior",
                                      "head": {"craft": "engineering", "race": "peon", "tier": "warrior"}, "tag": "Code",   # who does it: a Grunt; its tag
-                                     "by": {"slug": "grunt", "name": "Grunt"}, "band": "build", "wave": 2}
+                                     "by": {"slug": "grunt", "name": "Grunt"}, "band": "build", "wave": 2,
+                                     "error": "", "note": "", "round": 1, "cost": None, "started": ""}
     assert n[none]["tasks"] == [] and n[none]["estimate"] is None and n[none]["by_itself"] is False
 
 
@@ -297,6 +298,7 @@ def test_asked_says_who_asks_and_results_wait_on_their_idea(host):
     other = _idea(root, state, g, "Other", "ready")
     n = {x["slug"]: x for x in host.command("ideas.map", {})["nodes"]}
     assert n[asks]["asked"][0]["ask"] == "Which store first?" and n[asks]["asked"][0]["by"]["slug"] == "taskmaster"     # the leader's: no `asks_by`
+    assert (n[asks]["asked"][0]["choices"], n[asks]["asked"][0]["pick"], n[asks]["asked"][0]["why"]) == (["App Store", "Google Play"], 0, "iPhone first")
     assert n[other]["asked"] == [] and n[asks]["results"] == []
     review = _idea(root, state, g, "In review", "working")
     _plan(state, review, [{**_t("k1", "review"), "tests": {"passed": 20, "failed": 0, "failing": [], "tail": ""}, "cost": 0.42,
@@ -337,3 +339,41 @@ def test_a_result_in_review_is_not_a_stop_on_its_agent_spec_48(host):
     _plan(state, slug, [_t("k1", "review")], passed_at="x")
     party = {m["slug"]: m["state"] for m in host.command("ideas.map", {"goal": g})["goals"][0]["party"]}
     assert party["grunt"] == "free" and party["architect"] == "free"
+
+
+# -- spec 49 A: what a task's run left, and the recommended answer --------------------------------------------------
+
+def test_a_task_carries_its_failure_note_round_cost_and_start_spec_49(host):
+    root, state = _board(host)
+    g = _goal(root, "Runs")
+    slug = _idea(root, state, g, "Runs", "working")
+    long = "The test run failed:\n" + "x" * 400
+    _plan(state, slug, [{**_t("k1", "failed"), "error": long, "round": 2, "cost": 0.42, "started": "2026-10-21T09:12:00"},
+                        {**_t("k2", "held", after=["k1"], note="reserve · after 18:00")},
+                        {**_t("k3", "ready", after=["k1"], note="stopped by you"), "cost": 0},
+                        {**_t("k4", "waiting", after=["k2"]), "cost": "free", "error": None, "round": 0}], passed_at="x")
+    tasks = {t["id"]: t for t in next(n for n in host.command("ideas.map", {})["nodes"] if n["slug"] == slug)["tasks"]}
+    k1, k2, k3, k4 = (tasks[k] for k in ("k1", "k2", "k3", "k4"))
+    assert k1["error"] == long[:300] and len(k1["error"]) == 300 and k1["error"].startswith("The test run failed:\nxxx")    # as the runner wrote it, cut
+    assert (k1["round"], k1["cost"], k1["started"], k1["note"]) == (2, 0.42, "2026-10-21T09:12:00", "")
+    assert (k2["note"], k2["error"], k2["cost"], k2["started"], k2["round"]) == ("reserve · after 18:00", "", None, "", 1)       # null before it ran
+    assert (k3["note"], k3["cost"]) == ("stopped by you", 0)
+    assert (k4["cost"], k4["error"], k4["round"]) == (None, "", 1)                                                            # nothing odd gets through
+    json.dumps(tasks)
+    assert k1["id"] == "k1" and k1["state"] == "failed" and k1["after"] == [] and k2["after"] == ["k1"] and k1["wave"] == 1   # the old fields stay
+
+
+def test_a_question_says_its_recommended_choice_and_why_spec_49(host):
+    root, state = _board(host)
+    g = _goal(root, "Asks")
+    slug = _idea(root, state, g, "Asks", "asks")
+    ideas.set_section(root, slug, "Open questions", "\n".join([
+        "- Which store first? (**App Store** / Google Play) — iPhone first",
+        "- Which store after? (App Store / Google Play)",
+        "- Anything else to know?"]))
+    asked = next(n for n in host.command("ideas.map", {})["nodes"] if n["slug"] == slug)["asked"]
+    assert [(q["ask"], q["choices"], q["pick"], q["why"]) for q in asked] == [
+        ("Which store first?", ["App Store", "Google Play"], 0, "iPhone first"),
+        ("Which store after?", ["App Store", "Google Play"], None, ""),               # no pick: null
+        ("Anything else to know?", [], None, "")]                                    # no choices: the person writes
+    assert all(set(q) == {"ask", "choices", "pick", "why", "by"} for q in asked)

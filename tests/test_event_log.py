@@ -48,3 +48,12 @@ def test_the_analytics_zip_carries_the_periods_events(tmp_path):
     z = zipfile.ZipFile(io.BytesIO(analytics.pack(tmp_path, [today], {}, lambda b, d: [], lambda b, d: [])))
     [row] = [json.loads(x) for x in z.read("events.jsonl").decode().splitlines()]
     assert row["event"] == "quest_done" and row["quest"] == "1"
+
+
+def test_the_gate_merging_dev_into_main_is_an_event_with_its_counts(tmp_path):
+    assert event_log.GATE_MERGED == "gate_merged" and event_log.GATE_MERGED in event_log.EVENTS
+    assert event_log.record(tmp_path, event_log.GATE_MERGED, commits=3, ideas=2, files=5, how="merge", pushed=False,
+                            into="dev", main="main", device="desktop")
+    [row] = event_log.read(tmp_path)
+    assert (row["event"], row["commits"], row["ideas"], row["files"], row["how"], row["pushed"]) == ("gate_merged", 3, 2, 5, "merge", False)
+    assert event_log.counts(tmp_path)["gate_merged"] == 1 and len(set(event_log.EVENTS)) == len(event_log.EVENTS)

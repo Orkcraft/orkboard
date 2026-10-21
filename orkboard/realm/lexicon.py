@@ -175,6 +175,7 @@ TERMS: tuple[Term, ...] = (
     _t("board_map", "Map"),                                        # a project's goals, ideas and tasks on one screen (spec 39; not the camp's War Map)
     _t("stage", "stage", "stages"),                                # an idea's step on the Map: Planning, Implementation, Checking (spec 48; not the spec's Stages section)
     _t("wave", "wave", "waves"),                                   # a task's depth in its plan by `after`: a column of the Map's idea (spec 48)
+    _t("gate", "gate", "gates"),                                   # the one press that merges dev into main (decisions §49.5, spec 49 §2.1)
     _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
     _t("flag", "flag", "flags"),                                   # a goal accepted by its leader against its metrics (spec 42 §2)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
