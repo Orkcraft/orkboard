@@ -1,11 +1,10 @@
 // The party (docs/specs/49-one-window.md §5.1–§5.3): a member is a small framed card — its head, its two numbers (runs and redos,
 // its price for a run), its name between two marks (the tool it runs on, its level), its state and what it does now. Hovering or
-// focusing it shows its whole face beside it (the peek); a click shows only its work (solo). Free seats are narrow and dashed.
+// focusing it shows its whole face beside it (the peek); a click shows only its work (solo).
 import { useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Head, Icon, TIER_WORDS, ORKUI } from "../orkui.js";
 import { agents, roles } from "../shell/store.js";
-import { openDialog } from "../shell/modals.js";
 import { solo } from "./arenastate.js";
 import { useLit } from "./motion.js";
 import { BAND_WORDS, BAND_KEYWORD, columnOf, nowOf, statsOf, roleOf, memberView, raceOf, signOf } from "./arenawords.js";
@@ -68,18 +67,9 @@ export function Member({ m, nodes, planning, lead = false }) {
   </div>`;
 }
 
-/** A free seat: a dashed square with a +, in the narrow column; a click opens Edit the party. */
-function Seat({ m, g }) {
-  const band = m.band === "check" ? "checks" : "builds";
-  return html`<div class="arena-mcol is-seat">
-    <button type="button" class=${cls("arena-seat", { "is-dim": !!solo.value })} data-band=${m.band} title="A free seat: pick an agent from the library"
-      aria-label=${`A free seat, ${band}`} onClick=${() => openDialog("goal", { slug: g.slug })}><span aria-hidden="true">+</span></button>
-  </div>`;
-}
-
-/** The party row (§5.1): the builders, the checkers, the free seats, each over its column. */
+/** The party row (§5.1): the builders, then the checkers, each under its column. */
 export function PartyRow({ g, members, nodes, planning, cols }) {
   return html`<section class="arena-team" aria-label="Party" style=${`--cols:${cols}`}>
-    ${members.map((m) => (m.free ? html`<${Seat} key=${m.slug} m=${m} g=${g} />` : html`<${Member} key=${m.slug} m=${m} nodes=${nodes} planning=${planning} />`))}
+    ${members.map((m) => html`<${Member} key=${m.slug} m=${m} nodes=${nodes} planning=${planning} />`)}
   </section>`;
 }

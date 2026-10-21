@@ -49,7 +49,7 @@ function Goal({ m, g }) {
   const planning = planningOf(g, nodes, lead?.name || g.leader?.name);
   const results = resultsOf(nodes), stops = stopsOf(board.value?.needs_you || [], g, nodes);
   const wide = !narrow.value;
-  const cols = members.map((x) => (x.free ? "88px" : wide ? "minmax(0,1fr)" : "minmax(150px,1fr)")).join(" ");
+  const cols = members.map(() => (wide ? "minmax(0,1fr)" : "minmax(150px,1fr)")).join(" ") || "minmax(0,1fr)";
   const reading = planning.rows.find((r) => r.busy)?.full || "";
   const all = wide ? stops : [...stops, ...results.map((r) => resultStop(r, nodes))];                 // below 1 024 px the results join the bottom row (§3)
   return html`<div class=${cls("arena", { "is-narrow": narrow.value })} data-goal=${g.slug}>

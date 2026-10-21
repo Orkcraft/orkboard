@@ -81,19 +81,19 @@ function Column({ m, nodes, col }) {
   </div>`;
 }
 
-/** The columns: the labels over the first builder and the first checker, a column per member, a free seat's narrow and hatched. */
+/** The columns: the labels over the first builder and the first checker, a column per member. */
 export function Columns({ members, nodes, cols }) {
   const first = {};
   const heads = members.map((m) => {
-    const label = !m.free && !first[m.band] ? (m.band === "build" ? "Implementation" : "Checking") : "";
+    const label = !first[m.band] ? (m.band === "build" ? "Implementation" : "Checking") : "";
     if (label) first[m.band] = true;
     return { key: m.slug, label };
   });
   return html`<div class="arena-cols" style=${`--cols:${cols}`}>
     <div class="arena-cols__head">${heads.map((h) => html`<span key=${h.key} class=${cls("arena-lbl", { "is-blank": !h.label })}>${h.label}</span>`)}</div>
     <div class="arena-cols__grid">
-      ${members.map((m) => (m.free ? html`<div key=${m.slug} class="arena-stack is-free" role="group" aria-label="A free seat" data-band=${m.band}></div>`
-        : html`<${Column} key=${m.slug} m=${m} nodes=${nodes} col=${columnOf(m, nodes)} />`))}
+      ${!members.length && html`<p class="arena-cap arena-cols__none">No builder and no checker in this party. Edit the party in the bar above.</p>`}
+      ${members.map((m) => html`<${Column} key=${m.slug} m=${m} nodes=${nodes} col=${columnOf(m, nodes)} />`)}
     </div>
   </div>`;
 }

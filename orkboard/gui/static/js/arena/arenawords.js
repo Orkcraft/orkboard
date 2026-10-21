@@ -6,7 +6,6 @@ import { memberWords, planWords, soFarWords, todayWords } from "../board/mapstag
 import { holdWords, hhmm } from "../board/store.js";
 import { TIER_WORDS, RACE_WORDS } from "../orkui.js";
 
-export const SEATS = { build: 3, check: 2 };            // a party's seats beside the leader (decisions §56)
 const RUN = ["running", "testing"];
 const RANK = { running: 0, testing: 0, failed: 1, review: 2, ready: 3, waiting: 4, held: 5 };      // a column, from the member up (§5.4)
 const LEVEL = { laborer: 1, warrior: 2, elder: 3 };      // the level's chevrons (marks/rank-1 … 3)
@@ -83,12 +82,12 @@ export function powerOf(raw, lead) {
 
 // -- the party -----------------------------------------------------------------------------------------------------------------------
 
-/** The party row (§5.1): the goal's builders, then its checkers (agents outside the party that hold a task among them), then the
- *  free seats: [{slug, name, head, band, state, why, free}]; the leader apart. */
+/** The party row (§5.1): the goal's builders, then its checkers (agents outside the party that hold a task among them); the leader apart.
+ *  The seats a party leaves are not drawn: the party is changed from Edit the party in the ideas bar. [{slug, name, head, band, state, why}]. */
 export function partyOf(g, nodes) {
   const party = g.party || [];
   const lead = party.find((m) => m.band === "lead") || (g.leader ? { ...g.leader, band: "lead", state: "free", why: "" } : null);
-  const team = party.filter((m) => m.band !== "lead").map((m) => ({ ...m, free: false }));
+  const team = party.filter((m) => m.band !== "lead").map((m) => ({ ...m }));
   const known = new Set([lead?.slug, ...team.map((m) => m.slug)]);
   for (const n of nodes.filter(atWork)) {
     for (const t of openTasks(n)) {
@@ -96,15 +95,11 @@ export function partyOf(g, nodes) {
       known.add(t.by.slug);
       const mine = nodes.filter(atWork).flatMap((x) => openTasks(x).filter((y) => y.by.slug === t.by.slug));
       const failed = mine.some((y) => y.state === "failed"), run = mine.some((y) => RUN.includes(y.state));
-      team.push({ slug: t.by.slug, name: t.by.name, head: t.head, band: t.band === "check" ? "check" : "build", free: false,
+      team.push({ slug: t.by.slug, name: t.by.name, head: t.head, band: t.band === "check" ? "check" : "build",
         state: failed ? "needs" : run ? "work" : "next", why: failed ? "failed" : "" });
     }
   }
-  const builders = team.filter((m) => m.band === "build"), checkers = team.filter((m) => m.band === "check");
-  const seat = (band, i) => ({ slug: `seat-${band}-${i}`, name: "A free seat", band, free: true, state: "free", why: "" });
-  const free = [...Array.from({ length: Math.max(0, SEATS.build - builders.length) }, (_, i) => seat("build", i)),
-    ...Array.from({ length: Math.max(0, SEATS.check - checkers.length) }, (_, i) => seat("check", i))];
-  return { lead, members: [...builders, ...checkers, ...free] };
+  return { lead, members: [...team.filter((m) => m.band === "build"), ...team.filter((m) => m.band === "check")] };
 }
 
 export const BAND_WORDS = { lead: "Leads", build: "Builds", check: "Checks" };
