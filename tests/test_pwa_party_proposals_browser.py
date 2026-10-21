@@ -1,5 +1,5 @@
-"""Spec 43 D on the phone (docs/specs/43-party-measured.md §4, Tests → D): Needs you's party row with *Take it out* and *Keep it*, never counted;
-a checker's muted line and its sheet's *Its check* line."""
+"""Spec 43 D on the phone (docs/specs/43-party-measured.md §4, Tests → D): the party's proposal, a stop along the bottom (spec 49 §6) with *Take it out* and
+*Keep it* and a line for why not; a checker's muted line and its sheet's *Its check* line."""
 from __future__ import annotations
 
 import pytest
@@ -7,8 +7,7 @@ import pytest
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
-from tests.test_pwa_agents36_browser import _agents  # noqa: E402
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _called, _phone  # noqa: E402,F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _agents, _called, _phone, _pop  # noqa: E402,F401
 
 ROW = {"idea": "", "goal": "general", "kind": "party", "by": "reviewer", "title": "Take Reviewer out of Billing's party?",
        "text": "It found nothing in the last 8 ideas; a check costs about $0.35.", "priority": "normal", "blocks": False, "at": "2026-10-20T03:00:00"}
@@ -16,25 +15,28 @@ HEAD = {"craft": "engineering", "race": "peon", "tier": "elder"}
 
 
 @pytest.mark.asyncio
-async def test_the_party_row_is_answered_in_its_row_and_never_counted(fake_repo, monkeypatch):
+async def test_the_party_proposal_is_a_stop_answered_where_it_is_and_the_row_counts_it(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.get_by_role("tab", name="Needs you").click()
-        before = int((await page.get_by_role("tab", name="Needs you").locator(".count").inner_text()).strip())
+        hand = page.locator(".hc")
+        before = await hand.count()
         stub.extra_needs.append(dict(ROW))
         stub.bump({})
-        row = page.locator(".need-party")
-        await row.wait_for(timeout=WAIT_MS)
-        assert "Take Reviewer out of Billing's party?" in await row.inner_text() and "It found nothing in the last 8 ideas; a check costs about $0.35." in await row.inner_text()
-        assert int((await page.get_by_role("tab", name="Needs you").locator(".count").inner_text()).strip()) == before        # the party row is not in the count
+        row = await _pop(page, "Proposed: Take Reviewer out of Billing's party?")
+        text = await row.inner_text()
+        assert "Take Reviewer out of Billing's party?" in text and "It found nothing in the last 8 ideas; a check costs about $0.35." in text
+        await row.get_by_role("button", name="Put it back").click()
+        await row.wait_for(state="hidden", timeout=WAIT_MS)
+        assert await hand.count() == before + 1                                                             # it waits for the person like the others: one more along the bottom
         assert await page.evaluate(NO_SCROLL)
+        row = await _pop(page, "Proposed: Take Reviewer out of Billing's party?")
         await row.get_by_label("Why not: Take Reviewer out of Billing's party?").fill("the public page needs it")
         await row.get_by_role("button", name="Keep it").click()
         assert await _called(stub, "ideas.party_answer", {"goal": "general", "take": False, "reason": "the public page needs it"})
-        await page.locator(".need-party").wait_for(state="detached", timeout=WAIT_MS)
+        await page.locator('.hc[data-kind="party"]').wait_for(state="detached", timeout=WAIT_MS)
         stub.extra_needs.append(dict(ROW))
         stub.bump({})
-        await page.locator(".need-party").wait_for(timeout=WAIT_MS)
-        await page.locator(".need-party").get_by_role("button", name="Take it out").click()
+        row = await _pop(page, "Proposed: Take Reviewer out of Billing's party?")
+        await row.get_by_role("button", name="Take it out").click()
         assert await _called(stub, "ideas.party_answer", {"goal": "general", "take": True})
 
 

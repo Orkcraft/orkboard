@@ -8,7 +8,7 @@ import zlib
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _called, _goal_row, _phone, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _called, _dial, _phone, _pick_goal, _shot  # noqa: F401
 
 pytestmark = pytest.mark.browser
 
@@ -35,8 +35,8 @@ def _png(w: int = 40, h: int = 30) -> bytes:
 async def _new_idea(stub, page):
     stub.goals["ship"] = stub.goal("ship", "Ship v1", "normal", "ready")
     stub.bump({})
-    await _goal_row(page, "ship")                                                                       # the goal is on the phone
-    await page.get_by_role("button", name="New idea", exact=True).click()
+    await _pick_goal(page, "ship")                                                                      # the goal is on the phone and shown
+    await _dial(page, "New idea")                                                                       # the create button's first item
     sheet = page.get_by_role("dialog", name="New idea")
     await sheet.wait_for(timeout=WAIT_MS)
     assert await _called(stub, "ideas.words", {"track": "ship"})
@@ -82,7 +82,7 @@ async def test_photo_attaches_a_shrunk_jpeg_that_goes_with_the_idea_and_one_can_
         added = [a for n, a in stub.calls if n == "ideas.add"][-1]
         assert added["text"] == "The login screen is cut off" and len(added["photos"]) == 1
         assert base64.b64decode(added["photos"][0]["data"])[:3] == b"\xff\xd8\xff"                     # made a JPEG on the phone
-        await page.get_by_role("button", name="New idea", exact=True).click()
+        await _dial(page, "New idea")
         assert await sheet.locator(".idea-photo").count() == 0                                          # a new idea starts with none
 
 

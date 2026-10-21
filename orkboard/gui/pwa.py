@@ -44,6 +44,7 @@ from orkboard.gui import tailnet
 ROOT = Path(__file__).resolve().parent / "static" / "pwa"
 FONTS = tokens.ORKUI / "fonts"      # orkUI's faces (design-system/orkui/fonts), served as fonts/<file>
 RACES = tokens.ORKUI / "races"      # orkUI's race heads (an agent's craft and tier), served as races/<file>
+MARKS = tokens.ORKUI / "marks"      # orkUI's marks (an AI tool's, a level's chevrons; spec 49 §1.6), served as marks/<file>
 STYLES = ("fonts.css", "tokens.css", "components.css")   # orkUI itself: its faces, colours and components
 PREFIX = "/app/"
 SUBPROTOCOL = "orkcraft.v1"
@@ -60,13 +61,14 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
 
 def files() -> dict[str, Path]:
     """The app's files by the name they are served at (under PREFIX), orkUI's styles beside them, its fonts under fonts/
-    its race heads under races/ and its pixel icons as icons/icons.svg: the same look as the desktop's, from one place (docs/specs/40-design-system.md).
-    Orkboard's phone is the shell alone (spec 37 §4): no camp file, no sprite but the heads."""
+    its race heads under races/, its marks under marks/ and its pixel icons as icons/icons.svg: the same look as the desktop's, from one place
+    (docs/specs/40-design-system.md). Orkboard's phone is the shell alone (spec 37 §4): no camp file, no sprite but the heads and the marks."""
     own = {p.name: p for p in sorted(ROOT.iterdir()) if p.is_file() and p.suffix in TYPES}
     styles = {name: tokens.ORKUI / name for name in STYLES}
     faces = {f"fonts/{p.name}": p for p in sorted(FONTS.iterdir()) if p.suffix == ".woff2"}
     heads = {f"races/{p.name}": p for p in sorted(RACES.iterdir()) if p.suffix == ".png"}
-    return {**own, **styles, **faces, **heads, "icons/icons.svg": tokens.ORKUI / "icons" / "icons.svg"}
+    marks = {f"marks/{p.name}": p for p in sorted(MARKS.iterdir()) if p.suffix == ".png"}
+    return {**own, **styles, **faces, **heads, **marks, "icons/icons.svg": tokens.ORKUI / "icons" / "icons.svg"}
 
 
 def wants(path: str) -> bool:

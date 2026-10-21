@@ -12,6 +12,7 @@ import { goalBody } from "./shell-goal.js";
 import { heldWords } from "./shell-words.js";
 import { limitsNote } from "./shell-limits.js";
 import { who, whoHead, headWords, TIER_WORDS } from "./shell-who.js";
+import { gateScreen } from "./shell-gate.js";
 
 const TALK_SHOWN = 6;
 const LOG_MS = 5000;
@@ -44,7 +45,8 @@ export function unblocks(todo) {
   return `${ids.length === 1 ? "task" : "tasks"} ${list} ${ids.length === 1 ? "waits" : "wait"} for it`;
 }
 
-export function makePreview(core, ctx) {
+/** `core`: the board's frame; `ctx`: {send, flash}; `screens`: {agents}: the Agents pane, put in its own screen (the menu's Agents, spec 49 §10.1). */
+export function makePreview(core, ctx, screens = {}) {
   const st = core.st;
   const back = h("button", { class: "ork-btn back", type: "button", "aria-label": "Back", onclick: () => core.back() }, "‹ Back");
   const title = h("h2", { class: "screen-title" });
@@ -62,14 +64,17 @@ export function makePreview(core, ctx) {
 
   const failed = (r) => !r.ok || r.result?.error;
   async function read(p) {
+    if (p.kind === "agents") return;                    // its pane draws itself (shell-agents.js)
     const mine = ++seq;
     const names = p.kind === "task" || p.kind === "result" ? [["ideas.task", { slug: p.slug, task: p.task }]]
-      : p.kind === "goal" ? [["ideas.goal", { slug: p.slug }]] : p.kind === "doc" ? [["ideas.doc", { path: p.path }]] : [["ideas.page", { slug: p.slug }]];
+      : p.kind === "goal" ? [["ideas.goal", { slug: p.slug }]] : p.kind === "doc" ? [["ideas.doc", { path: p.path }]]
+        : p.kind === "gate" ? [["ideas.gate", {}]] : [["ideas.page", { slug: p.slug }]];
     if (p.kind === "result") names.push(["ideas.diff", { slug: p.slug, task: p.task }], ["ideas.spend", { idea: p.slug }]);
     const got = await Promise.all(names.map(([n, a]) => ctx.send(n, a)));
     if (mine !== seq || !st.preview) return;
     if (failed(got[0])) { ctx.flash(got[0].error || got[0].result?.error); if (p.kind === "doc") data = { doc: null }; else return; }
     else if (p.kind === "goal") data = { goal: got[0].result };
+    else if (p.kind === "gate") data = { gate: got[0].result };
     else if (p.kind === "doc") data = { doc: got[0].result };
     else data = p.kind === "task" ? { task: got[0].result } : p.kind === "result" ? { task: got[0].result, diff: got[1].ok && !got[1].result?.error ? got[1].result : null,
       spend: got[2].ok && !got[2].result?.error ? got[2].result : null }
@@ -240,6 +245,14 @@ export function makePreview(core, ctx) {
     return [];
   }
 
+  // -- the gate: dev → main (shell-gate.js) ------------------------------------------------------------------------
+  function gateView(g) {
+    const screen = gateScreen(g, core, act);
+    title.replaceChildren(...screen.title);
+    body.replaceChildren(...screen.body);
+    return screen.actions;
+  }
+
   // -- a task -------------------------------------------------------------------------------------------------
   function taskScreen(t, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Task "), t.title);
@@ -297,6 +310,7 @@ export function makePreview(core, ctx) {
     else if (cur.kind === "plan") actions = planScreen(data.page, cur);
     else if (cur.kind === "goal") actions = goalScreen(data.goal, cur);
     else if (cur.kind === "doc") actions = docScreen(data.doc, cur);
+    else if (cur.kind === "gate") actions = gateView(data.gate);
     else if (cur.kind === "task") actions = taskScreen(data.task, cur);
     else actions = resultScreen(data.task, data.diff, cur, data.spend);
     bar.replaceChildren(...actions.filter(Boolean));
@@ -308,6 +322,16 @@ export function makePreview(core, ctx) {
     show(p) {
       fresh(`opened ${Math.random()}`);
       data = null;
+      if (p.kind === "agents") {                        // the Agents pane in a screen of its own: it draws itself
+        unfolded = new Set();
+        el.hidden = false;
+        title.replaceChildren("Agents");
+        body.replaceChildren(screens.agents);
+        bar.replaceChildren();
+        bar.hidden = true;
+        body.scrollTop = 0;
+        return;
+      }
       unfolded = new Set();
       section = "";
       asked = "";

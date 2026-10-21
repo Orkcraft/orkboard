@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _called, _phone, _shot  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, _agents, _called, _phone, _pop, _shot  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -15,13 +15,6 @@ from playwright.async_api import expect  # noqa: E402
 WEEK = {"spent": 4.2, "merged": 8, "first_time": 8, "finished": 10, "usd_per_merged": 0.9}
 SPEND = {"usd": 3.1, "unpriced": 0, "tasks": {},
          "stages": {"goal": {"usd": 0.4}, "spec": {"usd": 0.5}, "plan": {"usd": 0.2}, "work": {"usd": 1.5}, "rework": {"usd": 0.5}, "dropped": {"usd": 0}}}
-
-
-async def _agents(page):
-    await page.get_by_role("tab", name="Agents").click()
-    agents = page.locator(".agents")
-    await agents.get_by_role("button", name="+ Add agent").wait_for(timeout=WAIT_MS)
-    return agents
 
 
 def _grunt_head(agents):
@@ -191,8 +184,7 @@ async def test_grunts_types_are_shown_not_editable_the_taskmaster_has_no_takes_a
 async def test_a_result_says_what_its_idea_cost_so_far_by_stage(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.spend = SPEND
-        await page.get_by_role("tab", name="Needs you").click()
-        await page.get_by_role("button", name="Add the queue: open its code").click()
+        await (await _pop(page, "To look at: Add the queue")).get_by_role("button", name="Open it on its own screen").click()
         line = page.locator(".screen .spend-line")
         await line.wait_for(timeout=WAIT_MS)
         assert await line.inner_text() == "This idea so far: ≈$3.10 — goal 0.40 · spec 0.50 · plan 0.20 · work 1.50 · rework 0.50"
@@ -202,12 +194,12 @@ async def test_a_result_says_what_its_idea_cost_so_far_by_stage(fake_repo, monke
         assert await page.evaluate(NO_SCROLL)
         await page.get_by_role("button", name="Back", exact=True).click()
         stub.spend = {"usd": None, "unpriced": 3, "tasks": {}, "stages": {"work": {"usd": None}}}          # all unpriced: a dash
-        await page.get_by_role("button", name="Add the queue: open its code").click()
+        await (await _pop(page, "To look at: Add the queue")).get_by_role("button", name="Open it on its own screen").click()
         await page.locator(".screen .spend-line", has_text="—").wait_for(timeout=WAIT_MS)
         assert await page.locator(".screen .spend-line").inner_text() == "This idea so far: —"
         await page.get_by_role("button", name="Back", exact=True).click()
         stub.spend = None                                                                                  # the host cannot say: no line, the result still opens
-        await page.get_by_role("button", name="Add the queue: open its code").click()
+        await (await _pop(page, "To look at: Add the queue")).get_by_role("button", name="Open it on its own screen").click()
         await page.locator(".screen .code").wait_for(timeout=WAIT_MS)
         assert await page.locator(".screen .spend-line").count() == 0
 
@@ -220,7 +212,7 @@ async def test_an_agents_sheet_says_its_record_of_the_last_30_days_in_each_wordi
         stub.roles["scribe"] = {"slug": "scribe", "name": "Scribe", "model": "", "max_parallel": 2, "instruction": "", "builtin": False}
         stub.record["scribe"] = {"days": 30, "finished": 2, "merged": 2, "first_time": 2, "usd_per_merged": None}
         stub.bump({})
-        await page.wait_for_timeout(800)
+        await page.wait_for_timeout(2500)
         agents = await _agents(page)
         line = await agents.locator(".role[data-slug='grunt']").inner_text()
 
@@ -235,7 +227,7 @@ async def test_an_agents_sheet_says_its_record_of_the_last_30_days_in_each_wordi
         assert await said("Edit Taskmaster") == "The last 30 days: 12 plans; of their 41 tasks, 36 merged the first time"
         stub.record = {}
         stub.bump({})
-        await page.wait_for_timeout(1200)
+        await page.wait_for_timeout(2600)
         assert await said("Edit Grunts") == "No tasks in the last 30 days"
         assert await agents.locator(".role[data-slug='grunt']").inner_text() == line                   # the line stays its own (§54.6)
         await agents.get_by_role("button", name="+ Add agent").click()

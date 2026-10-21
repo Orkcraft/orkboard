@@ -60,6 +60,11 @@ def test_the_app_is_its_own_files_and_nothing_else():
     assert _split(pwa.serve("GET", "/app/fonts/OFL-IBM-Plex-Mono.txt"))[0].startswith("HTTP/1.1 404")
     head, body = _split(pwa.serve("GET", "/app/races/elf-elder.png"))                         # orkUI's race heads
     assert "Content-Type: image/png" in head and body[:8] == b"\x89PNG\r\n\x1a\n"
+    for mark in ("harness-claude", "rank-1"):                                                    # orkUI's marks (spec 49 §1.6), the cache-first kind
+        for suffix in (".png", "@2x.png"):
+            head, body = _split(pwa.serve("GET", f"/app/marks/{mark}{suffix}"))
+            assert "Content-Type: image/png" in head and "immutable" in head and body[:8] == b"\x89PNG\r\n\x1a\n", mark + suffix
+    assert _split(pwa.serve("GET", "/app/marks/README.md"))[0].startswith("HTTP/1.1 404")
     assert "image/svg+xml" in _split(pwa.serve("GET", "/app/icons/icons.svg"))[0]              # orkUI's pixel icons
     head, body = _split(pwa.serve("HEAD", "/app/app.css"))
     assert head.startswith("HTTP/1.1 200") and body == b""
@@ -360,7 +365,7 @@ def test_the_workers_install_fills_its_cache_past_the_http_cache():
 
 def test_service_worker_names_cache_version_and_cache_first_prefixes():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert "orkcraft-app-v54" in sw
+    assert "orkcraft-app-v55" in sw
     prefixes = sw[sw.index("CACHE_PREFIXES = ["):sw.index("];", sw.index("CACHE_PREFIXES = ["))]
     assert set(re.findall(r'"([^"]+)"', prefixes)) == set(pwa.CACHE_PREFIXES) == {"fonts/"}
 

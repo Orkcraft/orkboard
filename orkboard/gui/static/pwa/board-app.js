@@ -27,7 +27,7 @@ if (hash.get("k") && !device) {                  // an iOS Home Screen app's fir
   store.set(device);
 }
 const code = hash.get("pair");
-// Opened from a notification (sw.js `notificationclick`): which push, logged once; `needs` asks for the Needs you tab.
+// Opened from a notification (sw.js `notificationclick`): which push, logged once; `needs` asks for the goal of the first stop, popped out.
 let arrival = hash.get("from")?.startsWith("push-") ? { tag: hash.get("from").slice(5), needs: hash.has("needs") } : null;
 // Nothing of it stays in the address: a code is once, a token is this phone's own.
 if (location.hash || location.search) history.replaceState(null, "", location.pathname);
@@ -218,12 +218,12 @@ function layout() {
   return parts;
 }
 
-/** The person came from a notification: `opened` `push` is logged once and, for an answer that waits, the Needs you tab is shown. */
+/** The person came from a notification: `opened` `push` is logged once and, for an answer that waits, the goal of the first stop is shown and the stop popped out. */
 function arrive(from = arrival) {
   if (!from || !ui) return;
   arrival = null;
   send("ideas.log", { event: "opened", what: "push", ref: from.tag, device: "phone" });
-  if (from.needs) ui.board.el.querySelector(".board-tab:nth-of-type(3)")?.click();
+  if (from.needs) ui.board.showNeeds();
 }
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.addEventListener("message", (e) => {

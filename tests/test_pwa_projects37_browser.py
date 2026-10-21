@@ -66,9 +66,8 @@ async def test_a_linked_spec_opens_read_only_rendered_with_no_edit_or_git_contro
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready", links=[SPEC])
         stub.bump({})
-        await page.locator(".map-goal, .goal-pick").first.wait_for(timeout=WAIT_MS)
         await _pick_goal(page, "ship")
-        await page.locator('.map-goal[data-goal="ship"]').get_by_role("button", name="Open goal Ship v1").click()
+        await page.locator(".ghead").get_by_role("button", name="Open goal Ship v1").click()
         await page.locator(".screen").get_by_role("button", name=SPEC).click()
         doc = page.locator(".screen .md.doc")
         await doc.wait_for(timeout=WAIT_MS)

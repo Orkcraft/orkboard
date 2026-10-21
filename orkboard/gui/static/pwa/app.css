@@ -1,8 +1,8 @@
 /* Orkboard on a phone (gui/pwa.py, board-app.js, board.js, shell-*.js; docs/specs/33-v1-shell.md §6, §8), in orkUI's office
    look (fonts.css, tokens.css, components.css beside this file; docs/specs/40-design-system.md): dark, monochrome, colour a
    signal, the pixel face for headings and buttons only, nothing round. Designed at 390 × 844: a control is 40 px drawn and
-   44 to hit, text 16/22, the tabs at the thumb. What is here is only the phone's layout on top of orkUI's components. */
-:root { --tabs: 64px; }
+   44 to hit, text 16/22, what waits for you at the thumb. What is here is only the phone's layout on top of orkUI's components. */
+:root { --tabs: 56px; }                              /* the bottom row of stops: the news and the raised stop stand above it */
 
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--ork-canvas); color: var(--ork-ink); }
@@ -53,9 +53,9 @@ input[type="checkbox"]:checked { background: var(--ork-ink); box-shadow: inset 0
 input[type="checkbox"]:disabled { border-style: dashed; border-color: var(--ork-ink-faint); }
 input[type="radio"] { accent-color: var(--ork-ink); }
 .ork-btn.big { width: 100%; }
-.ork-btn .ork-icon, .ork-tabbar__tab .ork-icon { pointer-events: none; }
+.ork-btn .ork-icon{ pointer-events: none; }
 
-/* -- news over the tabs ------------------------------------------------------------------------------------------------- */
+/* -- news over the bottom row ------------------------------------------------------------------------------------------------- */
 .news { position: fixed; left: 0; right: 0; bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); z-index: 2; display: flex; flex-direction: column;
   gap: var(--ork-3); padding: 0 var(--ork-6) var(--ork-4); max-width: 640px; margin: 0 auto; pointer-events: none; }
 .flash { margin: 0; padding: var(--ork-3) var(--ork-4); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch);
@@ -94,11 +94,13 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .pill:focus-within { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .check-line { display: flex; align-items: center; gap: var(--ork-4); min-height: var(--ork-tap); }
 
-/* -- the frame: the top bar, the panes, the tabs at the foot (orkUI's tab bar), the preview on its own screen --------------- */
-.board { display: flex; flex-direction: column; gap: var(--ork-5); }
-.board-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-3) var(--ork-4); margin: 0 calc(-1 * var(--ork-6));
-  padding: max(var(--ork-4), env(safe-area-inset-top)) var(--ork-6) var(--ork-4); background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); }
-.board-name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+/* -- the frame: the top bar, the goal's window, the stops along the foot, the preview on its own screen --------------- */
+.focus-board:has(.board) .app { padding: 0; gap: 0; max-width: 640px; }
+.board { display: flex; flex-direction: column; gap: 0; min-height: 100dvh; }
+.board-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--ork-1); margin: 0; padding: max(var(--ork-1), env(safe-area-inset-top)) var(--ork-1) var(--ork-1);
+  background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); }
+.board-name { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+.board-project { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 13px/16px var(--ork-font-text); }
 .board-bar .ork-btn, .board-bar .limit-chip { flex: none; }
 .board-bar .ork-btn.gear { min-width: var(--ork-tap); padding: 0 var(--ork-3); }
 .board-spend { flex: 1 0 100%; order: 9; margin: 0; font-variant-numeric: tabular-nums; }
@@ -115,12 +117,8 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
 .pane-head h2 { margin: 0; }
 .pane-head .row { margin-top: 0; flex-wrap: nowrap; }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
-.section-head h3 { margin: 0; }
-.board-tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; }
-.board-tab .count[hidden] { display: none; }
-.is-open .board-tabs, .is-open .board-bar { display: none; }
-.focus-board:has(.board.is-open) .app { padding-bottom: var(--ork-6); }
+
+.is-open .board-bar { display: none; }
 
 .screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--ork-canvas); max-width: 100vw; overflow: hidden; }
 .screen[hidden] { display: none; }
@@ -191,19 +189,9 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .prio { font: var(--ork-type-caption); color: var(--ork-ink-muted); }
 .prio-high { color: var(--ork-alert); font-weight: 600; }
 .ideas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-4); }
-.idea-card { display: flex; flex-direction: column; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch);
-  touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.idea-card.is-dragging { position: relative; z-index: 2; border-color: var(--ork-ink); box-shadow: inset 2px 0 0 var(--ork-ink); touch-action: none; }
-.idea-open { all: unset; box-sizing: border-box; width: 100%; min-height: 56px; padding: var(--ork-4) var(--ork-5); cursor: pointer; display: flex;
-  flex-direction: column; gap: var(--ork-2); }
-.idea-open:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
-.idea-title { font-weight: 600; }
-.idea-thesis { color: var(--ork-ink-muted); font: var(--ork-type-caption); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.idea-meta { display: flex; gap: var(--ork-4); align-items: center; font: var(--ork-type-caption); }
-.idea-actions { display: flex; flex-wrap: wrap; gap: var(--ork-4); margin: 0 var(--ork-5) var(--ork-4); }
-.idea-card .idea-actions .now { margin: 0; }
+
 .done-ideas { margin-top: var(--ork-4); }
-.done-ideas summary, .done-today summary, .ops-other summary, .ops-fold summary, .map-done-when summary {
+.done-ideas summary, .done-today summary, .ops-other summary, .ops-fold summary{
   min-height: var(--ork-tap); display: flex; align-items: center; cursor: pointer; color: var(--ork-ink-muted); }
 .size { border: var(--ork-line) solid var(--ork-edge); padding: 0 var(--ork-2); font-weight: 600; }
 .state-word { border: var(--ork-line) solid currentColor; padding: 0 var(--ork-3); color: var(--ork-ink-muted); }
@@ -298,8 +286,7 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .branch { all: unset; box-sizing: border-box; display: flex; align-items: center; min-height: var(--ork-tap); width: 100%; cursor: pointer; gap: var(--ork-3); }
 .branch.is-on { font-weight: 600; box-shadow: inset 2px 0 0 var(--ork-ink); padding-left: var(--ork-4); }
 .result { display: flex; flex-direction: column; gap: var(--ork-4); }
-.result-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-2); cursor: pointer; min-height: var(--ork-tap); width: 100%; }
-.result-open:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+
 .round { color: var(--ork-alert); }
 .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ork-1) var(--ork-5); margin: 0; }
 .facts dt { color: var(--ork-ink-muted); }
@@ -368,51 +355,13 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .ops-proposal .row .ork-field { min-width: 0; flex: 1 1 100%; order: -1; }
 .ops-proposal .row .ork-btn { flex: 1 1 0; }
 
-/* -- the Map (spec 39 C): a goal's ideas as rows; the marks differ by shape, not by colour alone (spec 39 §4.3): needs your hand
-   = a heavier frame and its dot; working = the spinner; waits = dashed; done = filled; proposed = dotted. ---------------- */
-.map-goal { display: flex; flex-direction: column; gap: var(--ork-4); margin-top: var(--ork-6); min-width: 0; }
-.map-goal h3 { margin: 0; color: var(--ork-ink); font: var(--ork-type-body); font-weight: 600; text-transform: none; letter-spacing: 0; }
-.map-goal-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); margin: 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
-.map-done-when ul { margin: 0; padding-left: var(--ork-8); }
-.map-row { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); min-width: 0; }
-.map-row.needs-hand { border: 3px solid var(--ork-edge); }
-.map-row.is-waiting { border-style: dashed; }
-.map-row.is-proposed { border-style: dotted; }
-.map-row.state-done { background: var(--ork-raised); }
-.map-open { all: unset; box-sizing: border-box; width: 100%; min-height: var(--ork-tap); padding: var(--ork-5); cursor: pointer; display: flex; flex-direction: column;
-  gap: var(--ork-2); }
-.map-open:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.map-top { display: flex; align-items: baseline; gap: var(--ork-4); min-width: 0; }
-.map-dots { flex: none; letter-spacing: 1px; color: var(--ork-ink-muted); }
-.map-row .idea-meta { flex-wrap: wrap; }
-.map-hand { font-weight: 600; color: var(--ork-ink); }
-.map-why, .map-after { color: var(--ork-ink-muted); font: var(--ork-type-caption); }
-.map-mark, .map-new { border: var(--ork-line) solid var(--ork-edge); padding: 0 var(--ork-3); font: var(--ork-type-caption); }
-.map-new { font-weight: 600; }
-.map-pips { display: inline-flex; gap: var(--ork-2); align-items: center; }
-.pip { width: 10px; height: 10px; border: 2px solid var(--ork-edge); background: transparent; }
-.pip-done { background: var(--ork-ink); border-color: var(--ork-ink); }
-.pip-work { border-width: 3px; border-style: double; }
 .plan .tasks .task-title { display: inline-flex; align-items: center; gap: var(--ork-3); }
 .facts .ork-race { vertical-align: middle; }
 
 /* -- the top bar in one line (shell-top.js): the project / the goal with its head, the limits, the gear; it slides away going down ------ */
-.board-bar { position: sticky; top: 0; z-index: 4; flex-wrap: nowrap; transition: transform 0.2s ease; }
+.board-bar { position: sticky; top: 0; z-index: 4; transition: transform 0.2s ease; }
 .board-bar.is-away { transform: translateY(-100%); }
-.board-name { flex-direction: row; align-items: center; gap: var(--ork-2); overflow: hidden; }
-.board-bar .goal-chip { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; min-height: var(--ork-tap); display: inline-flex;
-  align-items: center; gap: var(--ork-2); color: var(--ork-ink); font: var(--ork-type-caption); }
-.goal-chip[hidden] { display: none; }
-.goal-chip b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.goal-chip:focus-visible, .goal-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.goal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.goal-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; min-height: var(--ork-tap); display: grid;
-  grid-template-columns: 24px 1fr; grid-template-areas: "head word" "head small"; column-gap: var(--ork-4); align-items: center;
-  padding: var(--ork-3) 0; border-bottom: var(--ork-line) solid var(--ork-frame); }
-.goal-row > img { grid-area: head; }
-.goal-row > b { grid-area: word; overflow-wrap: anywhere; }
-.goal-row > small { grid-area: small; }
-.goal-row[aria-current="true"] > b { box-shadow: inset 0 -2px 0 var(--ork-ink); justify-self: start; }
+
 .craft-pick { align-items: center; flex-wrap: nowrap; margin-top: 0; }
 .craft-pick .ork-field { flex: 1 1 auto; min-width: 0; }
 .goal-meta .craft-word { color: var(--ork-ink-muted); }
@@ -440,26 +389,19 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 
 /* -- the phone's round of UX: the bar without frames, project over goal, ! for Needs you; quick answers; the + at the bottom right;
       the projects' drawer ------------------------------------------------------------------------------------------------------ */
-.board-bar .board-bar .goal-chip { max-width: 100%; }                           /* the head and the short name on one line (spec 41 §2) */
-.goal-chip__goal { display: inline-flex; align-items: center; gap: var(--ork-2); max-width: 100%; min-width: 0; font: var(--ork-type-body); }
+
 .board-bar .limit-chip { border: 0; clip-path: none; padding: 0 var(--ork-2); }
 .bar-btn { all: unset; box-sizing: border-box; cursor: pointer; flex: none; min-width: var(--ork-tap); min-height: var(--ork-tap); display: inline-flex;
   align-items: center; justify-content: center; color: var(--ork-ink); }
-.bar-btn:focus-visible, .fab:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.needs-pane .need { touch-action: pan-y; transition: transform 0.15s ease; }
+.bar-btn:focus-visible{ outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+
 .need.quick { display: flex; align-items: flex-start; }
-.quick-q p { margin: var(--ork-2) 0; color: var(--ork-ink); }
-.quick-q .answers { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+
 .ork-btn.answer[aria-pressed="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }   /* chosen: inverted, as orkUI's hover */
 .limits-note { margin: 0; font: var(--ork-type-caption); }
 .limits-note.is-warn { color: var(--ork-alert); }
 .goal-progress { margin: 0; font: var(--ork-type-caption); }
-.fab-stack { position: fixed; right: var(--ork-6); bottom: calc(var(--tabs) + var(--ork-6) + env(safe-area-inset-bottom)); z-index: 3; display: flex;
-  flex-direction: column; align-items: flex-end; gap: var(--ork-4); }
-.fab-stack[hidden] { display: none; }
-.fab { all: unset; box-sizing: border-box; cursor: pointer; width: 56px; height: 56px; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--ork-action); color: var(--ork-on-ink); clip-path: var(--ork-notch); }
-.fab .ork-icon { width: 28px; height: 28px; }
+
 /* The cards at the top of the Board tab (spec 42 §1.4): they cover nothing and take their place in the column. */
 .ork-card.away { display: flex; flex-direction: column; gap: var(--ork-3); margin-bottom: var(--ork-4); min-width: 0; text-align: left; }
 .away-head h3 { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
@@ -471,8 +413,6 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 @keyframes map-flag-raise { from { transform: translateY(var(--ork-6)); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .trail-flag.is-raising { animation: none; } }
 .trail-tally { margin: var(--ork-2) 0 0; overflow-wrap: anywhere; }
-.map-flags { margin-top: var(--ork-5); }
-.map-flags summary { cursor: pointer; min-height: var(--ork-tap); display: flex; align-items: center; color: var(--ork-ink-muted); }
 .map-flags-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
 .map-flag { all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: var(--ork-3); width: 100%; min-height: var(--ork-tap); padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame); }
 .map-flag:focus-visible { outline: 2px solid var(--ork-ink); }
@@ -484,7 +424,6 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .week { display: flex; flex-direction: column; gap: var(--ork-3); }
 .week p { margin: 0; overflow-wrap: anywhere; }
 .board-spend__open { color: inherit; text-decoration: none; }
-.board-tab-pane { padding-bottom: 96px; }                           /* the last card never under the + */
 dialog.sheet.drawer { margin: 0 auto 0 0; top: 0; bottom: 0; height: 100dvh; max-height: 100dvh; width: min(86vw, 360px); max-width: 86vw; }
 dialog.sheet.drawer .sheet-in { height: 100%; }
 dialog.sheet.drawer .sheet-foot { margin-top: auto; }
@@ -514,8 +453,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .party-checks .checks-block { align-self: stretch; }
 .new-goal-craft { align-items: stretch; }
 .answer .recommended { display: block; font: var(--ork-type-caption); }
-.decide { align-self: flex-start; min-height: var(--ork-tap); }
-.quick-q .why { display: block; margin-bottom: var(--ork-2); }
+
 .team-list { display: flex; flex-direction: column; }
 .team-row { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 24px 1fr 32px; grid-template-areas: "head name mark" "head line mark";
   column-gap: var(--ork-4); align-items: center; min-height: var(--ork-tap); padding: var(--ork-3) 0; border-bottom: var(--ork-line) solid var(--ork-frame); }
@@ -547,8 +485,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .check-chip.is-passed .ork-icon { color: var(--ork-success); width: 12px; height: 12px; }
 .checks-line > .field-label { flex: 1 0 100%; }
 .check-chip b { display: inline-flex; align-items: center; gap: var(--ork-2); }
-.map-team { margin: 0; font: var(--ork-type-caption); }
-.map-checks.is-passed { color: var(--ork-success); }
+
 /* A goal's verdict (shell-goal.js): met or not, each metric's status, the next ideas; on the Map, one word. */
 .verdict-line.is-met b, .verdict-word.is-met, .verdict-metrics .status-met b { color: var(--ork-success); }
 .verdict-line.is-not b, .verdict-word.is-not, .verdict-metrics .status-not-met b { color: var(--ork-alert); }
@@ -590,152 +527,266 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .pointed p { margin: 0; }
 .lens-hint { margin: 0; font: var(--ork-type-caption); }
 .lens-chips .ork-btn { font: var(--ork-type-body); text-transform: none; letter-spacing: normal; }   /* the person's own words: never the pixel face */
-/* The trail on the phone (shell-map.js): the goals as tabs with how far each is, then the chosen goal's trail, standing up. */
-.map-goal-tabs { display: flex; gap: var(--ork-2); overflow-x: auto; margin: 0 calc(var(--ork-5) * -1); padding: 0 var(--ork-5) var(--ork-2); scrollbar-width: none; }
-.map-goal-tab { all: unset; box-sizing: border-box; flex: none; max-width: 180px; min-height: var(--ork-tap); padding: var(--ork-2) var(--ork-4); cursor: pointer;
-  display: flex; flex-direction: column; justify-content: center; gap: var(--ork-1); border: var(--ork-line) solid var(--ork-frame); }
-.map-goal-tab.is-on { border-color: var(--ork-ink); background: var(--ork-raised); }
-.map-goal-tab:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.map-goal-tab-title { font: var(--ork-type-caption); font-weight: 600; }
-.map-goal-tab small { font: var(--ork-type-caption); color: var(--ork-ink-muted); }
-.map-goal-tab-bar { display: block; height: 3px; background: var(--ork-frame); }
-.map-goal-tab-fill { display: block; height: 100%; width: 0; background: var(--ork-success); }
-.p10 { width: 10%; } .p20 { width: 20%; } .p30 { width: 30%; } .p40 { width: 40%; } .p50 { width: 50%; }
-.p60 { width: 60%; } .p70 { width: 70%; } .p80 { width: 80%; } .p90 { width: 90%; } .p100 { width: 100%; }
-.trail-v { position: relative; display: flex; flex-direction: column; gap: var(--ork-5); padding-left: var(--ork-6); }
-.trail-v::before { content: ""; position: absolute; left: 7px; top: 10px; bottom: 18px; border-left: 2px solid var(--ork-edge); }
-.trail-start, .trail-end { position: relative; display: flex; align-items: baseline; gap: var(--ork-3); }
-.trail-start::before, .trail-step::before, .trail-end::before { content: ""; position: absolute; left: calc(var(--ork-6) * -1 + 3px); top: 8px; width: 10px; height: 10px; background: var(--ork-ink); }
-.trail-step::before { background: var(--ork-canvas); border: 2px solid var(--ork-edge); box-sizing: border-box; top: 14px; }
-.trail-end::before { display: none; }
-.trail-pct { font: var(--ork-type-title); }
-.trail-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-5); }
-.trail-step { position: relative; display: flex; flex-direction: column; gap: var(--ork-2); }
-.trail-lanes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ork-3); }
-.trail-lanes.is-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.trail-lanes .map-open { padding: var(--ork-4); }
-.trail-gate { display: flex; align-items: center; gap: var(--ork-2); padding: var(--ork-1) var(--ork-4) 0; font: var(--ork-type-caption); font-weight: 600; color: var(--ork-alert); }
-.map-row .map-tasks { display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-2) var(--ork-4) var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
-.map-row .map-wave { display: flex; flex-direction: column; gap: var(--ork-1); }
-.map-row .map-wave + .map-wave { border-top: var(--ork-line) dotted var(--ork-frame); padding-top: var(--ork-1); }
-.map-task { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-2); align-items: center; min-height: 32px; font: var(--ork-type-caption); }
-.map-task:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
-.map-task small { grid-column: 2; color: var(--ork-ink-muted); }
-.map-tasks-done { align-self: flex-end; font: var(--ork-type-caption); }
-.trail-end { align-items: center; color: var(--ork-ink-muted); }
-.trail-flag { display: inline-flex; padding: var(--ork-2); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); margin-left: calc(var(--ork-6) * -1 - 2px); }
-.trail-end.is-met { color: var(--ork-success); }
-.trail-end.is-met .trail-flag { border-color: var(--ork-success); }
-.trail-end.is-not { color: var(--ork-alert); }
-.trail-end.is-not .trail-flag { border-color: var(--ork-alert); }
-.trail-more { align-self: flex-start; }
-.trail-empty { margin: 0; }
-/* The trail's chips on the phone (shell-map.js): a stop in one line, its tasks smaller under it. */
-.trail-lanes .map-open.trail-chip { flex-direction: row; align-items: center; gap: var(--ork-2); min-height: var(--ork-tap); padding: 0 var(--ork-3); }
-.trail-chip .idea-title { flex: 1 1 auto; min-width: 0; font: var(--ork-type-caption); font-weight: 600; }
-.trail-chip .idea-title, .map-task-title, .map-goal-tab-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
-  overflow: hidden; white-space: normal; overflow-wrap: anywhere; }        /* a short name on two lines at most (spec 41 §3) */
-.map-line { display: flex; align-items: stretch; }
-.map-line .map-open { flex: 1 1 auto; min-width: 0; width: auto; }
-.map-act { flex: none; min-height: var(--ork-tap); gap: var(--ork-2); }
-.trail-lanes.is-two > .map-row.has-act { grid-column: 1 / -1; }          /* a node with a button takes its step's whole row */
-.trail-chip-nohead { width: 12px; height: 11px; flex: none; }
-.trail-mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
-.trail-mark.is-gate { color: var(--ork-alert); }
-.trail-chip .map-new { flex: none; }
-.map-row.needs-hand { border-color: var(--ork-alert); }
-.map-row .map-tasks { flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); padding: var(--ork-1) var(--ork-3) var(--ork-2); }
-.map-row .map-wave { flex-direction: row; flex-wrap: wrap; gap: var(--ork-1); }
-.map-row .map-wave + .map-wave { border-top: 0; padding-top: 0; }
-.map-row .map-task { display: inline-flex; align-items: center; gap: var(--ork-1); min-height: 26px; max-width: 100%; min-width: 0; padding: 0 var(--ork-2); border: var(--ork-line) solid var(--ork-frame); }
-.map-row .map-task[data-state="running"], .map-row .map-task[data-state="testing"] { border-color: var(--ork-ink); }
-.map-row .map-task[data-state="failed"] { border-color: var(--ork-danger); color: var(--ork-danger); }
-.map-goal-meta .ork-btn.small { height: 32px; padding: 0 var(--ork-3); }
-/* Needs you holds Review under what waits for an answer (board.js). */
-.needs-body { display: flex; flex-direction: column; gap: var(--ork-4); }
-.needs-pane .review { padding-top: var(--ork-5); border-top: var(--ork-line) solid var(--ork-edge); }
-.needs-pane .review .section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-4); }
-.needs-pane .review h3 { margin: 0; display: inline-flex; align-items: center; gap: var(--ork-2); }
-.map-row .map-wave, .map-row .map-tasks { min-width: 0; max-width: 100%; }
-.map-row .map-task-title { min-width: 0; }
+
+
+
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .check-chip .check-skip { margin-top: var(--ork-2); align-self: flex-start; }
-/* A checker's chip on the trail is a button a finger's size: it asks, then skips (shell-map.js). */
-.map-row .map-task.check-step { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: var(--ork-1);
-  min-height: var(--ork-tap); max-width: 100%; min-width: 0; padding: 0 var(--ork-3); border: var(--ork-line) dashed var(--ork-edge); font: var(--ork-type-caption); }
-.map-row .map-task.check-step .ork-icon { width: 12px; height: 12px; flex: none; color: var(--ork-ink-muted); }
-.map-row .map-task.check-step:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
-.map-row .map-task.check-step.is-skipped .map-task-title { text-decoration: line-through; color: var(--ork-ink-muted); }
 
-/* -- the Map of one goal (spec 48 C): the party line, the open idea's card and its field. Yellow (--ork-alert) is only on a stop: a member
-   who asks, the leader for a plan or a proposal, the agent of a failed task; a result in Review is muted ink (decisions §54.1). -------- */
-.map-bar { display: block; flex: 1 1 auto; min-width: 48px; height: 4px; background: var(--ork-frame); }
-.map-goal .trail-start { align-items: center; padding-left: 0; }
-.map-goal .trail-start::before, .map-goal .trail-end::before { display: none; }
-.map-party { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--ork-3) var(--ork-5); font: var(--ork-type-caption); }
-.map-member { display: inline-flex; align-items: center; gap: var(--ork-2); min-width: 0; }
-.map-member.is-stop { color: var(--ork-alert); font-weight: 600; }
-.map-members .map-member.is-stop { outline: var(--ork-line) solid var(--ork-alert); outline-offset: 2px; }
-.map-ideas-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
-.idea-stage { flex: none; font: var(--ork-type-caption); }
-.map-idea { display: flex; flex-direction: column; gap: var(--ork-4); border: var(--ork-line) solid var(--ork-frame); padding: var(--ork-3); background: var(--ork-canvas); }
-.map-card-frame { display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-4); background: var(--ork-panel); border: var(--ork-double) double var(--ork-edge); min-width: 0; }
-.map-card-frame .map-open.map-card-title { font-weight: 600; padding: 0; min-height: var(--ork-tap); align-items: center; }
-.map-card-frame .map-open .idea-title { -webkit-line-clamp: 3; line-clamp: 3; font: var(--ork-type-body); font-weight: 600; }
-.stage-track { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2) var(--ork-4);
-  font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
-.stage.is-now { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
-.stage.is-past { color: var(--ork-ink-muted); }
-.stage + .stage::before { content: ""; display: inline-block; width: var(--ork-6); border-top: var(--ork-line) dotted var(--ork-edge); vertical-align: middle; margin-right: var(--ork-3); }
-.map-pips-line, .map-wait { margin: 0; font: var(--ork-type-caption); }
-.map-looks { display: flex; flex-direction: column; gap: var(--ork-3); padding-top: var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
-.map-looks h4 { margin: 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
-.map-looks p { margin: 0; font: var(--ork-type-caption); }
-.map-result { display: flex; flex-direction: column; gap: var(--ork-2); padding-bottom: var(--ork-3); }
-.map-result .result-actions { margin-top: var(--ork-2); }
-.map-result .is-success { color: var(--ork-success); }
-.map-result .is-danger { color: var(--ork-danger); }
-.map-card-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ork-4); }
-.map-card-acts .ork-btn { min-height: var(--ork-tap); }
-.map-view { align-self: flex-start; min-height: var(--ork-tap); }
-/* the field: the waves rise bottom-up (the highest first in the DOM, Wave 1 just above the members' row) */
-.map-field { position: relative; display: flex; flex-direction: column; gap: var(--ork-3); }
-.map-wave-row { display: flex; flex-direction: column; gap: var(--ork-2); }
-.map-wave-label { font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); color: var(--ork-ink-muted); }
-.map-cells, .map-members { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ork-4); }
-.map-field[data-lanes="2"] .map-cells, .map-field[data-lanes="2"] .map-members { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.map-field[data-lanes="3"] .map-cells, .map-field[data-lanes="3"] .map-members { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.map-cell { position: relative; display: flex; flex-direction: column; gap: var(--ork-3); min-width: 0; }
-.map-members { padding-top: var(--ork-3); border-top: var(--ork-line) dotted var(--ork-frame); }
-.map-members .map-member { flex-direction: column; align-items: flex-start; gap: var(--ork-1); padding: var(--ork-2); overflow-wrap: anywhere; }
-.map-tcard { all: unset; box-sizing: border-box; width: 100%; min-height: var(--ork-tap); padding: var(--ork-3) var(--ork-4); cursor: pointer; display: flex; flex-direction: column; justify-content: space-between;
-  gap: var(--ork-1); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); font: var(--ork-type-caption); color: var(--ork-ink); }
-.map-tcard:focus-visible, .stack-row:focus-visible, .map-skip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.tcard-title { font-weight: 600; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.tcard-state { color: var(--ork-ink); }
-.map-tcard.is-wait { border-style: dashed; color: var(--ork-ink-muted); }
-.map-tcard.is-wait .tcard-state { color: var(--ork-ink-muted); }
-.map-tcard.is-review { border-color: var(--ork-frame); }
-.map-tcard.is-review .tcard-state { color: var(--ork-ink-muted); }
-.map-tcard.is-fail, .stack-row.is-fail { border: 3px solid var(--ork-danger); }
-.map-tcard.is-fail .tcard-state { color: var(--ork-danger); font-weight: 600; }
-.map-tcard.is-stop { border: 3px solid var(--ork-alert); }
-.map-tcard.is-stop .tcard-state { color: var(--ork-alert); font-weight: 600; }
-.map-stack { position: relative; min-width: 0; }
-.map-stack.is-stack { padding: 0 var(--ork-3) var(--ork-3) 0; }
-.map-stack.is-stack .stack-back { position: absolute; left: var(--ork-3); top: var(--ork-3); right: 0; bottom: 0; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-ink); }
-.map-stack.is-stack .map-tcard { position: relative; }
-.stack-count { position: absolute; right: calc(var(--ork-1) * -1); top: calc(var(--ork-3) * -1); min-width: 18px; padding: 0 var(--ork-2); text-align: center; background: var(--ork-ink); color: var(--ork-on-ink); font: var(--ork-type-caption); font-weight: 600; }
-.map-stack.has-skip { display: flex; align-items: stretch; gap: var(--ork-2); }
-.map-skip { all: unset; box-sizing: border-box; flex: none; width: var(--ork-tap); min-height: var(--ork-tap); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border: var(--ork-line) solid var(--ork-frame); }
-.stack-list { display: flex; flex-direction: column; gap: var(--ork-3); }
-.stack-row { all: unset; box-sizing: border-box; min-height: var(--ork-tap); padding: var(--ork-3) var(--ork-4); display: grid; grid-template-columns: auto 1fr; column-gap: var(--ork-3); align-items: center; cursor: pointer; border: var(--ork-line) solid var(--ork-frame); }
-.stack-row small { grid-column: 2; }
-.stack-title { font-weight: 600; overflow-wrap: anywhere; }
-.map-empty { font: var(--ork-type-caption); }
-/* a merged task leaves the field once: up and out in steps; none under reduced motion (decisions §55.2) */
-.map-stack.card-out { position: absolute; left: 0; right: 0; top: 0; z-index: 4; pointer-events: none; animation: map-card-up 1s steps(6, end) 0.1s forwards; }
-.map-tcard.is-out { border-color: var(--ork-success); }
-.map-tcard.is-out .tcard-state { color: var(--ork-success); font-weight: 600; }
-@keyframes map-card-up { 0% { opacity: 1; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-12px); } 100% { opacity: 0; transform: translateY(-80px); } }
-@media (prefers-reduced-motion: reduce) { .map-stack.card-out { animation: none; display: none; } }
+
+/* -- the goal's window (shell-arena.js, spec 49 §10): orkUI's tokens and parts alone; the fan's turn, rise, order and overlap (--rot, --dy, --z, --ov) and the
+      columns' template (--cols) are the only variables of its own (tests/test_design_system.py) ----------------------------------------------------------------- */
+.today { gap: var(--ork-1); padding: 0 var(--ork-2); }
+.today .ork-count { min-width: 20px; }
+.arena { position: relative; z-index: 3; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 0; }   /* its own stacking: the ideas list rises over the field, the bar (4), the stops (8) and a screen (10) over it */
+.arena-empty { padding: var(--ork-6); text-align: center; }
+.arena .ork-card.away { margin: var(--ork-4); }
+.ops-view { display: flex; flex-direction: column; gap: var(--ork-4); padding: var(--ork-5) var(--ork-5) var(--ork-8); }
+
+.gchips { flex: none; display: flex; gap: var(--ork-4); min-height: 56px; padding: var(--ork-3) var(--ork-4); overflow-x: auto; scrollbar-width: none; box-sizing: border-box;
+  border-bottom: var(--ork-line) solid var(--ork-frame); }
+.gchips::-webkit-scrollbar { display: none; }
+.gchip { appearance: none; flex: none; display: flex; align-items: center; gap: var(--ork-4); height: var(--ork-tap); padding: 0 var(--ork-5); box-sizing: border-box;
+  border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); background: none; color: var(--ork-ink-muted); font: 400 13px/18px var(--ork-font-text); cursor: pointer; white-space: nowrap; }
+.gchip b { font-weight: 600; }
+.gchip__name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.gchip.is-on { background: var(--ork-raised); color: var(--ork-ink); border-color: var(--ork-edge); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.gchip:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+
+.ghead { flex: none; display: flex; align-items: center; gap: var(--ork-6); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) dashed var(--ork-frame); }
+.ghead .tport { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 44px; margin-bottom: var(--ork-3); }
+.ghead .tport .ork-stat { position: absolute; bottom: -8px; right: -8px; }
+.trail-flag { display: inline-flex; padding: var(--ork-2); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); color: var(--ork-ink-muted); }
+.trail-flag .ork-icon { width: 28px; height: 28px; }
+.trail-flag.is-met { color: var(--ork-success); border-color: var(--ork-success); }
+.trail-flag.is-not { color: var(--ork-alert); border-color: var(--ork-alert); }
+.ghead__body { all: unset; box-sizing: border-box; flex: 1 1 auto; min-width: 0; min-height: var(--ork-tap); display: flex; flex-direction: column; justify-content: center; cursor: pointer; }
+.ghead__body:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
+.ghead__title { font: 600 15px/20px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ghead__line { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ghead .trail-tally { margin: 0; }
+.gate { flex: none; display: flex; flex-direction: column; align-items: center; }
+.gate__btn { padding: 0 var(--ork-4); }
+
+.ibar { position: relative; z-index: 20; flex: none; border-bottom: var(--ork-line) solid var(--ork-frame); }
+.ibar__head { appearance: none; display: flex; align-items: center; gap: var(--ork-4); width: 100%; height: var(--ork-tap); padding: 0 var(--ork-5); box-sizing: border-box; border: 0;
+  background: none; color: var(--ork-ink); text-align: left; font: 400 13px/16px var(--ork-font-text); cursor: pointer; }
+.ibar__head:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.ibar__now { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ibar__list { position: absolute; left: 0; right: 0; top: var(--ork-tap); max-height: 420px; overflow-y: auto; scrollbar-width: none; padding: var(--ork-4); display: flex;
+  flex-direction: column; gap: var(--ork-3); background: var(--ork-panel); border-bottom: var(--ork-double) double var(--ork-edge); }
+.ibar__list h3 { margin: var(--ork-3) 0 0; }
+.irow { appearance: none; flex: none; display: flex; flex-direction: column; gap: var(--ork-1); width: 100%; min-height: 56px; padding: var(--ork-4) var(--ork-5); box-sizing: border-box;
+  background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); text-align: left; color: var(--ork-ink); font: 400 13px/18px var(--ork-font-text); cursor: pointer; }
+.irow.is-on { background: var(--ork-raised); border-color: var(--ork-edge); box-shadow: inset 2px 0 0 var(--ork-ink); }
+.irow__top { display: flex; align-items: center; gap: var(--ork-4); }
+.irow__title { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.irow__note { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.irow__note.no { color: var(--ork-danger); }
+.track { display: flex; align-items: center; gap: var(--ork-3); font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
+.track .is-past { color: var(--ork-ink-muted); }
+.track .is-now { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.track i { display: block; width: 10px; height: 1px; background: var(--ork-frame); }
+.done-row { all: unset; box-sizing: border-box; width: 100%; min-height: var(--ork-tap); display: flex; align-items: center; gap: var(--ork-2); cursor: pointer; font: 400 12px/16px var(--ork-font-text); }
+.done-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.done-row__t { color: var(--ork-ink); }
+.ok { color: var(--ork-success); }
+.no { color: var(--ork-danger); }
+.cap { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); }
+.faint { color: var(--ork-ink-faint); }
+.spacer { flex: 1 1 auto; }
+
+.boardwrap { position: relative; flex: 1 1 auto; min-height: 272px; display: flex; flex-direction: column; }
+.bands { flex: none; display: grid; grid-template-columns: 1fr 1.3fr 1fr; border-bottom: var(--ork-line) solid var(--ork-frame); }
+.band { appearance: none; display: flex; align-items: center; justify-content: center; gap: var(--ork-3); min-width: 0; height: var(--ork-tap); padding: 0 var(--ork-2); border: 0;
+  background: none; color: var(--ork-ink-muted); font: 400 12px/16px var(--ork-font-text); cursor: pointer; }
+.band__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.band.is-on { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.band:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.arena-scroll { flex: 1 1 0; min-height: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.arena-scroll::-webkit-scrollbar { display: none; }
+.arena__in { height: 100%; display: flex; flex-direction: column; box-sizing: border-box; padding: 0 var(--ork-5); }
+.cgrid { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); }
+.stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0; overflow-y: auto; scrollbar-width: none; }
+.stack::-webkit-scrollbar { display: none; }
+.cgrid > .stack:last-child { padding-bottom: 64px; }       /* the create button floats over the far end of the queues: it covers no task */
+.stack.is-col { background: var(--ork-raised); }
+.stack__empty { flex: none; text-align: center; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
+.stack__done { flex: none; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); }
+.pwr { appearance: none; flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--ork-1); width: 100%; min-height: 64px; padding: var(--ork-3) var(--ork-2); box-sizing: border-box;
+  border: var(--ork-line) solid var(--ork-ink); clip-path: var(--ork-notch); background: var(--ork-raised); color: var(--ork-ink); text-align: center; cursor: pointer; font: inherit; }
+.pwr:disabled { border-style: dashed; border-color: var(--ork-ink-faint); color: var(--ork-ink-faint); background: none; cursor: default; }
+.pwr b { font: var(--ork-type-button); }
+.pwr:focus-visible, .newidea:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.newidea { appearance: none; flex: none; width: 100%; min-height: var(--ork-tap); border: var(--ork-line) dashed var(--ork-edge); clip-path: var(--ork-notch); background: none; color: var(--ork-ink-muted);
+  font: var(--ork-type-button); cursor: pointer; }
+
+.tcard { appearance: none; position: relative; flex: none; display: flex; flex-direction: column; gap: var(--ork-1); width: 100%; height: 108px; padding: var(--ork-3) 7px; box-sizing: border-box;
+  text-align: left; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: var(--ork-ink); cursor: pointer; font: inherit; }
+.tcard:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.tcard__top { display: flex; align-items: center; gap: var(--ork-2); min-height: 20px; }
+.tbadge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 var(--ork-2); box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge);
+  clip-path: var(--ork-notch); background: var(--ork-canvas); font: 600 12px/16px var(--ork-font-text); color: var(--ork-ink); }
+.tcard__wave { font: 400 11px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
+.tcard__mark { margin-left: auto; display: flex; align-items: center; font: 600 13px/16px var(--ork-font-text); }
+.tcard__mark .ork-icon { width: 16px; height: 16px; }
+.tcard__idea { padding-top: var(--ork-1); border-top: var(--ork-line) solid var(--ork-frame); font: 400 11px/14px var(--ork-font-text); color: var(--ork-ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard__name { flex: 1 1 0; min-height: 0; font: 400 13px/16px var(--ork-font-text); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tcard__foot { font: 400 12px/14px var(--ork-font-text); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard.is-run { border-color: var(--ork-edge); }
+.tcard.is-run .tbadge { background: var(--ork-ink); border-color: var(--ork-ink); color: var(--ork-on-ink); }
+.tcard.is-run .tcard__foot { color: var(--ork-ink); }
+.tcard.is-wait { border-style: dashed; background: var(--ork-canvas); }
+.tcard.is-fail { border-color: var(--ork-danger); }
+.tcard.is-fail .tbadge { border-color: var(--ork-danger); color: var(--ork-danger); }
+.tcard.is-fail .tcard__mark, .tcard.is-fail .tcard__foot { color: var(--ork-danger); }
+.tcard.is-stop { border-color: var(--ork-alert); }
+.tcard.is-stop .tbadge { background: var(--ork-alert); border-color: var(--ork-alert); color: var(--ork-on-ink); }
+.tcard.is-stop .tcard__foot { color: var(--ork-alert); }
+.tcard.is-later { background: var(--ork-canvas); border-color: var(--ork-frame); }
+.tcard.is-later .tcard__name { color: var(--ork-ink-muted); }
+.tcard.is-later .tcard__foot, .tcard.is-later .tcard__idea, .tcard.is-later .tcard__wave { color: var(--ork-ink-faint); }
+.tcard.is-later .tbadge { background: var(--ork-canvas); border-color: var(--ork-frame); color: var(--ork-ink-muted); }
+.tcard.is-stop.is-later { border-color: var(--ork-alert); }
+.tcard.is-fail.is-later { border-color: var(--ork-danger); }
+.tcard.is-later:focus-visible { background: var(--ork-panel); border-color: var(--ork-edge); }
+.tcard.is-later:focus-visible .tcard__name { color: var(--ork-ink); }
+.tcard.is-out { border-color: var(--ork-success); }
+.tcard.is-out .tcard__foot { color: var(--ork-success); font-weight: 600; }
+.tcard.is-leaving { animation: leave 0.3s steps(3) forwards; pointer-events: none; }
+.tcard.is-leaving::after { content: attr(data-sign); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--ork-panel);
+  font: 600 28px/28px var(--ork-font-text); color: var(--ork-success); animation: flash 0.3s steps(1) forwards; }
+.tcard.is-leaving[data-sign="✗"]::after { color: var(--ork-danger); }
+.tcard.is-drawn { animation: rise 0.36s steps(4) both; }
+@keyframes rise { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes leave { to { opacity: 0; } }
+@keyframes flash { 0% { opacity: 1; } 34% { opacity: 0; } 100% { opacity: 0; } }
+.is-reward { animation: reward 0.6s steps(4, end) both; }
+@keyframes reward { from { background: var(--ork-ink); color: var(--ork-on-ink); } to { background: transparent; } }
+
+.tokens { flex: none; display: grid; grid-template-columns: var(--cols); gap: var(--ork-3); height: 66px; margin-top: var(--ork-4); padding-bottom: var(--ork-4); box-sizing: border-box; border-bottom: var(--ork-line) solid var(--ork-frame); }   /* the members stand at the top of their columns, under the stage switch */
+/* a member: a small framed row filling its column, its head wearing three signs (spec 49 §5.2): the level top-left, the tool bottom-left, its state top-right */
+.token { appearance: none; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; max-width: 100%; min-width: 0; margin: 0 auto;
+  padding: 6px 6px 6px 9px; box-sizing: border-box; background: none; border: 0; color: inherit; clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
+.token { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
+.token:hover { border-color: var(--ork-edge); }
+.token:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.token.is-on { background: var(--ork-raised); border-color: var(--ork-ink); box-shadow: inset 0 2px 0 var(--ork-ink); }
+.token.is-dim { opacity: 0.45; }
+.tport { position: relative; flex: none; width: 36px; height: 33px; }
+.tport > .ork-race__head { display: block; }
+.mark--h { position: absolute; left: -7px; bottom: -5px; }
+.mark--r { position: absolute; left: -7px; top: -7px; }
+.sign { position: absolute; right: -3px; top: -7px; min-width: 16px; height: 16px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 var(--ork-1);
+  background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: 600 11px/14px var(--ork-font-text); color: var(--ork-ink); }
+.sign.danger { background: var(--ork-danger); border-color: var(--ork-danger); color: var(--ork-on-ink); }
+.sign.alert { background: var(--ork-alert); border-color: var(--ork-alert); color: var(--ork-on-ink); }
+.sign .ork-icon { width: 12px; height: 12px; }
+.tbody { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; text-align: left; }
+.token__name { display: block; max-width: 100%; font: 600 11px/14px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tnum { font: 600 11px/13px var(--ork-font-text); color: var(--ork-ink); white-space: nowrap; }
+.tnum.muted { font-weight: 400; color: var(--ork-ink-muted); }
+
+.solo { position: absolute; left: 0; right: 0; top: calc(var(--ork-tap) + var(--ork-line) + var(--ork-4) + 66px); bottom: 0; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
+.solo__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); padding: var(--ork-2) var(--ork-2) var(--ork-2) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); }
+.solo__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/18px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
+.solo__card { flex: none; display: flex; align-items: center; gap: var(--ork-5); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
+.solo__info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.solo__info b { font-weight: 600; }
+.solo__body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-4) var(--ork-5) 64px; overflow-y: auto; scrollbar-width: none; }
+.solo__body::-webkit-scrollbar { display: none; }
+.solo__empty { text-align: center; margin: 0; }
+.srow { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ork-3); }
+
+/* what waits for you, along the bottom: the stops fanned, only their tops showing; no line over it (spec 49 §10.6) */
+.handzone { position: sticky; bottom: 0; flex: none; height: var(--tabs); z-index: 8; overflow: clip; background: var(--ork-canvas);   /* clip, not hidden: a focused card never scrolls the row */
+  padding-bottom: env(safe-area-inset-bottom); box-sizing: content-box; }
+.hand { position: absolute; left: 0; right: 0; top: var(--ork-3); display: flex; justify-content: center; pointer-events: none; }   /* the whole width, centred */
+.handzone__empty { position: absolute; left: 0; right: 0; top: 18px; margin: 0; text-align: center; }
+/* the create button floats over the field's bottom right, 10 px above the bottom row, under a screen (z 10) and a sheet (the top layer) */
+.fab { all: unset; box-sizing: border-box; cursor: pointer; position: fixed; right: 12px; bottom: calc(var(--tabs) + 10px + env(safe-area-inset-bottom)); z-index: 9; width: 48px; height: 48px; display: flex; align-items: center;
+  justify-content: center; clip-path: var(--ork-notch); background: var(--ork-action); color: var(--ork-on-ink); }
+.fab[hidden] { display: none; }
+.fab:active { background: var(--ork-action-hi); }
+.fab:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.fab .ork-icon { width: 28px; height: 28px; }
+.hc { pointer-events: auto; appearance: none; position: relative; flex: none; display: flex; flex-direction: column; align-items: stretch; width: 104px; height: 150px; margin: 0 calc(-1 * var(--ov));
+  padding: 5px; box-sizing: border-box; background: var(--ork-panel); border: var(--ork-double) double var(--ork-alert); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left;
+  cursor: pointer; z-index: var(--z); transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; font: inherit; }
+.hand .hc:first-child { margin-left: 0; }                           /* the fan never spills onto the margins; a reset of buttons' margins must not undo the overlap */
+.hand .hc:last-child { margin-right: 0; }
+.hc.is-fail { border-color: var(--ork-danger); }
+.hc.is-look { border-color: var(--ork-edge); }
+.hc.is-up { visibility: hidden; }
+.hc:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.hc__top { display: flex; align-items: center; gap: var(--ork-2); }
+.hc__kind { font: 500 12px/14px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ork-alert); white-space: nowrap; overflow: hidden; }
+.hc__kind.no { color: var(--ork-danger); }
+.hc__kind.muted { color: var(--ork-ink-muted); }
+
+/* the raised one: a modal over the scrim, leaping from its place in the fan in steps (none under reduced motion) */
+dialog.raised-dlg { margin: auto auto calc(var(--tabs) + var(--ork-6)); padding: 0; border: 0; background: transparent; color: var(--ork-ink); width: calc(100% - 24px); max-width: 330px;
+  max-height: calc(100dvh - var(--tabs) - 32px); overflow: visible; }
+dialog.raised-dlg::backdrop { background: var(--ork-scrim); }
+.raised-in { display: flex; }
+.raised { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-4); max-height: calc(100dvh - var(--tabs) - 32px); overflow-y: auto; transform-origin: 50% 100%; }
+.raised.is-pop { animation: pop 0.34s steps(6) both; }
+@keyframes pop {
+  0% { transform: translateY(420px) rotate(var(--rot)) scale(0.4); opacity: 0.6; }
+  65% { transform: translateY(-12px) rotate(0deg) scale(1.03); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+.raised__top { display: flex; align-items: center; gap: var(--ork-4); }
+.raised__kind { font: 500 14px/16px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ork-alert); }
+.raised__kind.no { color: var(--ork-danger); }
+.raised__kind.muted { color: var(--ork-ink-muted); }
+.art { display: flex; align-items: center; justify-content: center; flex: none; height: 56px; border: var(--ork-line) solid var(--ork-frame);
+  background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, transparent 2px 6px); }
+.banner { display: block; max-width: 100%; padding: 3px var(--ork-4); box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge); background: var(--ork-raised); clip-path: var(--ork-notch);
+  text-align: center; font: 600 14px/18px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.raised__text { max-height: 200px; overflow-y: auto; padding: var(--ork-4) var(--ork-5); border-top: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas); font: 400 14px/20px var(--ork-font-text); color: var(--ork-ink); }
+.raised__quick { display: flex; flex-direction: column; gap: var(--ork-1); }
+.raised__quick .ork-btn, .raised > .ork-btn { width: 100%; }
+.raised__quick .ork-btn.answer { white-space: normal; text-align: left; justify-content: flex-start; font: 400 14px/18px var(--ork-font-text); padding-top: var(--ork-3); padding-bottom: var(--ork-3); }
+.raised__quick .result-actions { display: flex; flex-direction: column; gap: var(--ork-1); }
+.raised__quick .linkish { align-self: center; }
+
+/* the create dial: three items above the button, over a scrim (shell-dial.js) */
+dialog.dial-dlg { position: fixed; inset: 0; margin: 0; padding: 0; border: 0; width: 100%; height: 100%; max-width: none; max-height: none; background: transparent; color: var(--ork-ink); overflow: visible; }
+dialog.dial-dlg::backdrop { background: var(--ork-scrim); }
+.dial { position: absolute; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: var(--ork-4); }
+.dial .fab { position: static; }
+.dial__item { appearance: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-height: 48px; min-width: 200px; padding: 5px var(--ork-5); box-sizing: border-box;
+  background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: right; font: inherit; cursor: pointer; }
+.dial__item b { font: 500 15px/18px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }
+.dial__item.is-main { border-color: var(--ork-action); }
+.dial__item.is-main b { color: var(--ork-action); }
+.dial__item:disabled { border-style: dashed; border-color: var(--ork-ink-faint); color: var(--ork-ink-faint); cursor: default; }
+.dial__sub { font: 400 12px/15px var(--ork-font-text); color: var(--ork-ink-muted); }
+.dial__item:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+
+/* Today and the tools, the two sheets of the top bar */
+.today-list { display: flex; flex-direction: column; gap: var(--ork-3); }
+.hrow { appearance: none; display: flex; align-items: center; gap: var(--ork-5); width: 100%; min-height: 48px; padding: var(--ork-3) var(--ork-5); box-sizing: border-box; background: var(--ork-panel);
+  border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); text-align: left; color: var(--ork-ink); font: inherit; cursor: pointer; }
+.hrow + .hrow { margin-top: var(--ork-3); }
+.today-list .hrow + .hrow { margin-top: 0; }
+.hrow__mark { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; background: var(--ork-raised); border: var(--ork-line) solid var(--ork-frame);
+  clip-path: var(--ork-notch); font: 600 14px/16px var(--ork-font-text); }
+.hrow__mark.ok { color: var(--ork-success); }
+.hrow__mark.no { color: var(--ork-danger); }
+.hrow__mark.muted { color: var(--ork-ink-muted); }
+.hrow__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.hrow__what { font: 600 13px/18px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crow { display: flex; align-items: center; gap: var(--ork-4); font: 400 13px/18px var(--ork-font-text); min-height: 28px; }
+.crow__name { flex: 0 0 84px; color: var(--ork-ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crow.is-warn b { color: var(--ork-alert); }
+.crow.is-danger b { color: var(--ork-danger); }
+.crow__reset { display: block; padding-left: 112px; margin-bottom: var(--ork-3); }
+.tool-letter { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font: 600 12px/16px var(--ork-font-text); }
+.gate-ideas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-2); }
+.gate-idea { text-decoration: none; color: var(--ork-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tcard.is-drawn, .raised.is-pop, .is-reward, .tcard.is-leaving, .tcard.is-leaving::after { animation: none; }
+}

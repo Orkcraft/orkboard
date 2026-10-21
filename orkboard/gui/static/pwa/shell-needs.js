@@ -1,31 +1,10 @@
-// Needs you on the phone (docs/specs/35-goals-window.md §9, §10, §11.2), a screen of its own (the tab opens it): one list the
-// backend sorted, every goal's, an icon per kind, the title and one line. Questions are cards answered there (spec 41 §9): each row's
-// `asked` — the ask, its choices, the one the Taskmaster picks and why — as buttons with the recommended one pressed and marked
-// *Recommended*, so one Send takes every recommendation; More for the form with a box per question, the recommended answers filled in;
-// and Let the Taskmaster decide, which answers every question with its pick. A tap on another row opens what it is about: the plan on its screen, the to-do's sheet (its why, its steps, then its one
-// input: a secret, a choice, a confirm or a file), the goal. A proposal is answered in its row: Take with a priority, No with a reason.
-// Later (or a swipe to the left) puts a row away on this phone for LATER_MS; nothing is sent.
-import { h, sheet, icon } from "./util.js";
-import { field, foot, prioritySwitch } from "./shell-forms.js";
-import { limitsNote } from "./shell-limits.js";
+// What waits for an answer, as the stops along the bottom ask for it (docs/specs/35-goals-window.md §9, §10, spec 41 §9, spec 49 §6): the sheets that
+// answer in full what a stop answers in one press. *More* of a question: the form with a box per question, the recommended answers filled in
+// (`askForm`); a to-do (`todoSheet`): its why, its steps, then its one input — a secret, a choice, a confirm or a file — which is entered only over
+// this paired link (29a). The stops (shell-stops.js) draw the rows and press the quick answers; the list, Later and the swipe went with the Needs you tab.
+import { h, sheet } from "./util.js";
+import { field, foot } from "./shell-forms.js";
 
-const LATER = "orkcraft.later";                       // {row key: until}, this phone's own
-const LATER_MS = 4 * 3600 * 1000;
-const SWIPE_PX = 80;
-const keyOf = (n) => `${n.kind}:${n.idea || n.goal || n.op || ""}:${n.text || ""}`;
-const later = {
-  all() { try { return JSON.parse(localStorage.getItem(LATER)) || {}; } catch { return {}; } },
-  put(n) {
-    const now = Date.now(), all = Object.fromEntries(Object.entries(later.all()).filter(([, t]) => t > now));
-    all[keyOf(n)] = now + LATER_MS;
-    try { localStorage.setItem(LATER, JSON.stringify(all)); } catch { /* this run only */ }
-  },
-  has(n) { return (later.all()[keyOf(n)] || 0) > Date.now(); },
-};
-
-// What needs the person, by kind, as orkUI's pixel icon (as the desktop's js/orkui.js NEED_ICONS).
-const ICONS = { goal: "flag", asks: "warning-diamond", plan: "list-box", todo: "checkbox", failed: "square-alert", proposal: "lightbulb", party: "lightbulb",
-  op: "checkbox", op_failed: "square-alert", op_rules: "sliders" };
 const MAX_FILE = 5 * 1024 * 1024;
 const isList = /^([-*+]|\d+[.)])\s+/;
 
@@ -43,7 +22,7 @@ const toBase64 = (file) => new Promise((ok, no) => {
   r.readAsDataURL(file);
 });
 
-export function makeNeeds(core, ctx, ops) {
+export function makeNeeds(core, ctx) {
   const st = core.st;
 
   // -- the questions of a spec or a goal: one form, one Send (§0's one round) ---------------------------------------------
@@ -138,141 +117,9 @@ export function makeNeeds(core, ctx, ops) {
     tSheet.open();
   }
 
-  // -- questions answered in their card: the recommended answer pressed, one Send; More for the whole form ---------------
-  function quick(n) {
-    const asked = askedOf(n);
-    const isGoal = n.kind === "goal", slug = isGoal ? n.goal : n.idea;
-    const picked = asked.map((q) => (q.pick != null ? q.choices[q.pick] || "" : ""));
-    const send = h("button", { class: "ork-btn primary", type: "button" }, "Send");
-    const sync = () => { send.disabled = !picked.some(Boolean); };
-    const blocks = asked.map((q, i) => {
-      const btns = q.choices.map((c, j) => {
-        const reco = j === q.pick;
-        const b = h("button", { class: `ork-btn answer${reco ? " is-recommended" : ""}`, type: "button", "aria-pressed": String(picked[i] === c), "data-choice": String(j),
-          onclick: () => {
-            picked[i] = picked[i] === c ? "" : c;
-            for (const x of btns) x.setAttribute("aria-pressed", String(x.dataset.choice === String(q.choices.indexOf(picked[i]))));
-            sync();
-          } }, c, reco ? h("small", { class: "recommended" }, "Recommended") : null);
-        return b;
-      });
-      return h("div", { class: "quick-q" }, h("p", {}, q.ask), q.choices.length ? h("div", { class: "answers" }, ...btns) : null,
-        q.why ? h("small", { class: "muted why" }, q.why) : null);
-    });
-    sync();
-    send.addEventListener("click", async () => {
-      send.disabled = true;
-      const r = await core.call("ideas.answer", { slug, answers: picked, ...(isGoal ? { goal: true } : {}) });
-      if (!r) { sync(); return; }
-      ctx.flash(SENT);
-      core.refresh();
-    });
-    const decide = h("button", { class: "linkish decide", type: "button", onclick: async () => {
-      decide.disabled = true;
-      const r = await core.call("ideas.answer", { slug, decide: true, ...(isGoal ? { goal: true } : {}) });
-      if (!r) { decide.disabled = false; return; }
-      ctx.flash(SENT);
-      core.refresh();
-    } }, "Let the Taskmaster decide");
-    const more = h("button", { class: "ork-btn", type: "button", onclick: () => askForm(n, [...picked]) }, "More");
-    return h("div", { class: `card need need-${n.kind} quick`, "data-kind": n.kind, "data-idea": n.idea || null, "data-goal": n.goal || null },
-      h("span", { class: "need-mark" }, icon(ICONS[n.kind] || "flag")),
-      h("span", { class: "need-text" }, h("b", {}, n.title), ...blocks,
-        h("div", { class: "row" }, send, more, laterBtn(n)), decide));
-  }
-
-  const laterBtn = (n) => h("button", { class: "ork-btn", type: "button", "aria-label": `Later: ${n.title}`, onclick: () => putAway(n) }, "Later");
-  function putAway(n) { later.put(n); core.draw(); ctx.flash("Put away for a few hours, on this phone."); }
-
-  /** A swipe to the left puts the row away (Later); a vertical move scrolls as ever. */
-  function swipeable(el, n) {
-    let x0 = null, y0 = 0, dx = 0;
-    el.addEventListener("pointerdown", (e) => { if (e.pointerType !== "mouse") { x0 = e.clientX; y0 = e.clientY; dx = 0; } });
-    el.addEventListener("pointermove", (e) => {
-      if (x0 === null) return;
-      dx = e.clientX - x0;
-      if (Math.abs(e.clientY - y0) > Math.abs(dx)) { x0 = null; el.style.transform = ""; return; }
-      if (dx < 0) el.style.transform = `translateX(${dx}px)`;
-    });
-    const end = () => {
-      if (x0 === null) return;
-      x0 = null;
-      el.style.transform = "";
-      if (dx < -SWIPE_PX) putAway(n);
-    };
-    el.addEventListener("pointerup", end);
-    el.addEventListener("pointercancel", end);
-    return el;
-  }
-
-  // -- a proposal is answered in its row ----------------------------------------------------------------------------
-  function proposal(n) {
-    const prio = prioritySwitch(`prio-${n.idea}`);
-    prio.set(n.priority || "normal");
-    const reason = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: "Why not (optional)" });
-    const act = async (take) => {
-      const r = await core.call("ideas.proposal", { slug: n.idea, take, ...(take ? { priority: prio.get() } : reason.value.trim() ? { reason: reason.value.trim() } : {}) });
-      if (r) core.refresh();
-    };
-    return h("div", { class: "card need need-proposal", "data-kind": "proposal", "data-idea": n.idea },
-      h("span", { class: "need-mark" }, icon(ICONS.proposal)),
-      h("span", { class: "need-text" }, h("b", {}, n.title), n.text ? h("small", {}, n.text) : null,
-        h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), prio.el),
-        h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => act(true) }, "Take"),
-          reason, h("button", { class: "ork-btn", type: "button", onclick: () => act(false) }, "No")), limitsNote(st.snap)));
-  }
-
-  // -- the night's proposal about a party (spec 43 §4.2): Take it out, or Keep it with a line why, answered in its row; never counted --------------
-  function party(n) {
-    const reason = h("input", { class: "ork-field", type: "text", maxlength: "300", "aria-label": `Why not: ${n.title}`, placeholder: "Why not? (optional, one line)" });
-    const answer = async (take) => {
-      const r = await core.call("ideas.party_answer", { goal: n.goal, take, ...(!take && reason.value.trim() ? { reason: reason.value.trim() } : {}) });
-      if (r) core.refresh();
-    };
-    return h("div", { class: "card need need-party", "data-kind": "party", "data-goal": n.goal },
-      h("span", { class: "need-mark" }, icon(ICONS.party)),
-      h("span", { class: "need-text" }, h("b", {}, n.title), n.text ? h("small", {}, n.text) : null,
-        h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => answer(true) }, "Take it out"),
-          reason, h("button", { class: "ork-btn", type: "button", onclick: () => answer(false) }, "Keep it"))));
-  }
-
-  function row(n) {
-    if (n.kind === "proposal") return proposal(n);
-    if (n.kind === "party") return party(n);
-    if (n.kind === "goal" || n.kind === "asks") return swipeable(quick(n), n);
-    const go = () => {
-      if (n.kind === "op") ops.openCheck(n.op);
-      else if (n.kind === "op_failed") ops.openRun(n.op);
-      else if (n.kind === "op_rules") ops.openProposal(n);
-      else if (n.kind === "goal" || n.kind === "asks") askForm(n);
-      else if (n.kind === "todo") todoSheet(n);
-      else core.open({ kind: "idea", slug: n.idea });
-    };
-    return swipeable(h("button", { class: `card need need-${n.kind}`, type: "button", "data-kind": n.kind, onclick: go },
-      h("span", { class: "need-mark" }, icon(ICONS[n.kind] || "flag")),
-      h("span", { class: "need-text" }, h("b", {}, n.title), n.text ? h("small", {}, n.text) : null),
-      h("span", { class: "chev", "aria-hidden": "true" }, "›")), n);
-  }
-
-  let showLater = false;
-  const waiting = () => st.board?.needs_you || [];
-
   return {
     sheets: [qSheet.el, tSheet.el],
-    /** What the screen shows, to draw it again only when it changed. */
-    key: () => JSON.stringify([waiting(), showLater, waiting().map((n) => later.has(n)), Boolean(st.snap?.limits)]),
-    /** How many rows wait on the person now (the ones put away Later aside): the top bar's ! says it. */
-    count: () => waiting().filter((n) => !later.has(n) && n.kind !== "party").length,
-    /** The screen's nodes: every goal's rows, then the ones put away, folded. */
-    draw() {
-      const all = waiting(), now = all.filter((n) => !later.has(n)), away = all.filter((n) => later.has(n));
-      const kids = now.length ? now.map(row) : [h("p", { class: "muted" }, "Nothing waits on you.")];
-      if (away.length) {
-        kids.push(h("button", { class: "linkish", type: "button", onclick: () => { showLater = !showLater; core.draw(); } },
-          showLater ? `Hide the ${away.length} put away` : `Put away for later (${away.length}): show`));
-        if (showLater) kids.push(...away.map(row));
-      }
-      return kids;
-    },
+    askForm, todoSheet, askedOf,
+    SENT,
   };
 }

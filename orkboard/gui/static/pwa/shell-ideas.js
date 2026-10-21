@@ -1,7 +1,7 @@
 // New idea on the phone (docs/specs/35-goals-window.md §3): a sheet — the text (with the goal's words to complete with, Photo and the mic
 // mark at its corner: shell-idea-field.js), the goal, the lens of its party (shell-lens.js) and the priority, one button, Add — opened by
-// the one button at the bottom right (spec 41 §5). An idea's state in words (`rowState`) is said the same on the Board's trail (shell-map.js) and its screen.
-import { h, sheet, icon } from "./util.js";
+// + New idea in the leader's column (spec 49 §10.5). An idea's state in words (`rowState`) is said the same in the leader's column and on its screen.
+import { h, sheet } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { hhmm } from "./shell-words.js";
 import { makeIdeaField } from "./shell-idea-field.js";
@@ -29,7 +29,7 @@ export function rowState(idea, titleOf = (slug) => slug) {
   return { text: STATE_WORDS[idea.state] || idea.state, cls: idea.state };
 }
 
-/** `core`: the board's frame; `ctx`: {deliver, flash}. Returns {sheets, openNew(goalSlug), list(ideas), wireDrag}. */
+/** `core`: the board's frame; `ctx`: {deliver, flash}. Returns {sheets, openNew(goalSlug)}. */
 export function makeIdeas(core, ctx, goalSheet) {
   const st = core.st;
   const tracks = () => (st.board?.tracks || []).filter((t) => t.slug !== "general");
@@ -104,14 +104,10 @@ export function makeIdeas(core, ctx, goalSheet) {
     field_.focus();
   }
   /** New idea needs a goal: with none yet, New goal opens first and then this. */
-  function openNew() {
-    if (tracks().length) open("");
+  function openNew(goal = "") {
+    if (tracks().length) open(goal);
     else goalSheet.open("", (slug) => open(slug));
   }
 
-  // New idea at the bottom right, under the thumb.
-  const fab = h("div", { class: "fab-stack", hidden: true },
-    h("button", { class: "fab", type: "button", "aria-label": "New idea", onclick: () => openNew() }, icon("plus")));
-
-  return { sheets: [addSheet.el], openNew, fab };
+  return { sheets: [addSheet.el], openNew };
 }
