@@ -1,7 +1,7 @@
 // The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1): Stop all and Spend today at its head, Agents (a screen of its own) and
 // Flags, then This project — the Target, Start plans by themselves, the night's hours, Merge into, Push after merging, What is left — and This phone — Pair a phone,
 // Download the logs, Unpair this phone. Each setting writes with today's command (`ideas.board_set`, `ideas.into`) at once.
-import { h, sheet } from "./util.js";
+import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
 import { TARGETS } from "./shell-words.js";
 import { makePush } from "./shell-push.js";
@@ -78,7 +78,7 @@ export function makeSettings(core, ctx, drawer, limits) {
 
   // Agents: today's Agents pane as a screen of its own (Back to the Board); Flags: the goals met (a sheet).
   const flagsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "flags", onclick: () => { drawer.close(); core.openFlags(); } }, "Flags");
-  const agentsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "agents", onclick: () => { drawer.close(); core.open({ kind: "agents" }); } }, "Agents");
+  const agentsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "agents", onclick: () => { drawer.close(); core.open({ kind: "agents" }); } }, icon("robot"), "Agents");   // a head says a craft, not every agent: the button is orkUI's robot
   const intoBtn = h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", "data-act": "into", onclick: () => { drawer.close(); core.openInto(); } });
 
   const project = [
