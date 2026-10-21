@@ -7,7 +7,7 @@ import pytest
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _menu, _phone  # noqa: E402,F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _agents, _called, _menu, _phone  # noqa: E402,F401
 
 WEEK = {"usd": 46.1, "ops_usd": 3.2, "merged": 12, "first_time": 10, "usd_per_merged": 3.84, "nights": {"worked": 4, "idle": 2, "off": 1},
         "tonight": 0, "night_on": True, "into": "dev"}
@@ -217,8 +217,7 @@ async def test_a_chip_of_a_task_the_pace_started_says_the_week_has_room_and_a_we
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.chip_extra = {"k3": {"by": "auto", "pace": True}, "k2": {"by": "auto"}}
         stub.bump({})
-        await page.get_by_role("tab", name="Agents").click()
-        agents = page.locator(".agents")
+        agents = await _agents(page)
         await agents.locator(".chip-why").first.wait_for(timeout=WAIT_MS)
         assert "by itself: the week has room" in await agents.locator(".chip", has_text="Retry on a lost signal").inner_text()
         assert "the week has room" not in await agents.locator(".chip", has_text="Add the queue").inner_text()
