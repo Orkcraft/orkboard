@@ -48,7 +48,7 @@ def seed(hours_ago=None):
     return f"if (!localStorage.getItem({json.dumps(LOOK)})) localStorage.setItem({json.dumps(LOOK)}, String(Date.now() - {hours_ago} * 3600 * 1000));"
 
 
-def _page(gui, hours_ago, host=None, viewport=None, ready=".map-card"):
+def _page(gui, hours_ago, host=None, viewport=None, ready=".map-goal"):
     pg, host, errors = _open(gui, host or RecapHost(), viewport=viewport, init=seed(hours_ago), ready=ready)
     return pg, host, errors
 
@@ -107,7 +107,7 @@ def test_close_and_esc_remove_the_card_and_it_is_not_shown_again(gui):
     card.get_by_role("button", name="Close").click()
     assert card.count() == 0
     pg.reload()
-    pg.wait_for_selector(".map-card", timeout=WAIT_MS)
+    pg.wait_for_selector(".map-goal", timeout=WAIT_MS)
     pg.wait_for_timeout(300)
     assert pg.get_by_label("While you were away").count() == 0 and len([n for n, _a in host.log if n == "ideas.recap"]) == 1
     pg.close()

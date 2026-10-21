@@ -1,13 +1,12 @@
-// Review, on the right (docs/specs/33-v1-shell.md §3, §6): Merge into `dev` ▾ at the top, then the results oldest first,
-// one card each — what changed, its tests, its cost. Three answers, on the card and in the result's preview: Merge
-// (only when the tests are green and nothing conflicts), Send back / Fix (one line, required), Drop (quiet, apart).
+// Review's answers (docs/specs/33-v1-shell.md §3, §6; spec 48 §5): the results are on their idea in the Map (board/mapcard.js), no column
+// of their own. Three answers, on the idea's card and in the result's preview: Merge (only when the tests are green and nothing
+// conflicts), Send back / Fix (one line, required), Drop (quiet, apart). And Merge into ▾, the branch results land in.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { Chev } from "../orkui.js";
-import { review, preview, act, showResult, closePreview } from "./store.js";
+import { review, preview, act, closePreview } from "./store.js";
 import { Modal, openDialog, closeDialog } from "./modals.js";
 
-const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
+export const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
 
 export function isRed(r) { return r.tests.failed > 0 || r.tests.green === false; }
 export function noTests(r) { return !isRed(r) && r.tests.passed === 0; }
@@ -70,7 +69,8 @@ export function ResultActions({ r, pinned = false }) {
   const key = { slug: r.idea, task: r.task };
   const fixThem = async () => { setWorking(true); const got = await act("ideas.back", { ...key, why: fixThemWhy(r) }); setWorking(false); if (got?.ok) done(); };
   const done = () => { if (preview.value?.task === r.task && preview.value?.slug === r.idea) closePreview(); };
-  const merge = async () => { setWorking(true); const got = await act("ideas.merge", key); setWorking(false); if (got?.ok) done(); };
+  const merge = async () => { setWorking(true); const got = await act("ideas.merge", r.over ? { ...key, dear: true } : key);   // dear: it cost more than its plan said (only logged)
+    setWorking(false); if (got?.ok) done(); };
   const back = async (e) => {
     e.preventDefault();
     if (!line.trim()) return;
@@ -106,32 +106,6 @@ export function Found({ r }) {
     <ul class="shell-found__list">${left.map((f, n) => html`<li key=${n}><span class="shell-found__where">${f.where}</span> · ${f.what}</li>`)}</ul></div>`;
 }
 
-function Card({ r, selected }) {
-  const t = testsWords(r);
-  return html`<article class=${cls("shell-card", { "is-on": selected })} tabindex="0" role="listitem" aria-label=${r.title}
-      data-task=${r.task} data-idea=${r.idea} aria-current=${selected} onClick=${() => showResult(r.idea, r.task, { via: "review" })}
-      onKeyDown=${(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); showResult(r.idea, r.task, { via: "review" }); } }}>
-    <div class="shell-card__head"><b>${r.title}</b>
-      <span class="ok-tone-muted">${r.idea_title}${r.round > 1 ? html` · <span class="shell-round">round ${r.round}</span>` : ""}</span></div>
-    <${Found} r=${r} />
-    <dl class="shell-facts">
-      <dt>Tests</dt><dd class=${`is-${t.tone}`}>${t.mark} ${t.text}${t.names.length ? html` <span class="ok-tone-muted">${t.names.join(", ")}</span>` : ""}</dd>
-      <dt>Changes</dt><dd>${changesWords(r.diff)}</dd>
-      ${r.cost != null && html`<dt>Cost</dt><dd>${usd(r.cost)}</dd>`}
-    </dl>
-    ${r.conflict && html`<p class="ok-tone-error shell-conflict">⚠ ${r.conflict}</p>`}
-    <${ResultActions} r=${r} />
-  </article>`;
-}
-
-function Into() {
-  const rv = review.value;
-  if (!rv) return null;
-  return html`<div class="shell-into">
-    <button class="ork-btn" aria-haspopup="dialog" onClick=${() => openDialog("into")}>Merge into <b>${rv.into}</b><${Chev} /></button>
-  </div>`;
-}
-
 /** Merge into ▾ : the branch the results land in, from the local branches, or a new one. */
 export function IntoDialog() {
   const rv = review.value;
@@ -161,28 +135,4 @@ export function DropDialog({ r }) {
       <button type="button" class="ork-btn danger" onClick=${drop}>Drop it</button>`}>
     <p class="shell-modal__text"><b>${r.title}</b> will not be merged. Its worktree goes; its branch stays.</p>
   <//>`;
-}
-
-export function ReviewPane() {
-  const rv = review.value, p = preview.value;
-  const results = rv?.results || [];
-  // ↑ ↓ move through the cards and open each one's code; no shortcut merges
-  const move = (e) => {
-    if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || !results.length) return;
-    e.preventDefault();
-    const at = results.findIndex((r) => r.task === (e.target.closest?.(".shell-card")?.dataset.task ?? p?.task) && r.idea === (e.target.closest?.(".shell-card")?.dataset.idea ?? p?.slug));
-    const next = results[Math.max(0, Math.min(results.length - 1, at + (e.key === "ArrowDown" ? 1 : -1)))];
-    showResult(next.idea, next.task);
-    requestAnimationFrame(() => document.querySelector(`.shell-card[data-task="${next.task}"][data-idea="${next.idea}"]`)?.focus());
-  };
-  return html`<aside class="shell-pane shell-review" aria-label="Review" onKeyDown=${move}>
-    <header class="shell-pane__head"><h2>Review ${results.length > 0 && html`<span class="shell-count">${results.length}</span>`}</h2></header>
-    <${Into} />
-    <div class="shell-pane__body">
-      ${!rv ? html`<p class="ok-tone-muted">Opening…</p>`
-        : results.length ? html`<div role="list" class="shell-cards">${results.map((r) => html`<${Card} key=${r.idea + r.task} r=${r}
-            selected=${p?.kind === "result" && p.task === r.task && p.slug === r.idea} />`)}</div>`
-        : html`<p class="ok-tone-muted">Nothing waits at Review. A result lands here when a Grunt's work has been tested.</p>`}
-    </div>
-  </aside>`;
 }

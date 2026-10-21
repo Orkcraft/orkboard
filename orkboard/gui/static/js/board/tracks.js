@@ -24,8 +24,8 @@ const firstLine = (text) => String(text || "").split("\n").map((l) => l.trim()).
 // -- the goal this computer showed last, by project ------------------------------------------------------------------
 const GOAL_KEPT = "orkboard.goal";                    // {project: goal slug}
 const projectKey = () => currentProject.value?.path || "";
-const keptGoal = () => { try { return (JSON.parse(localStorage.getItem(GOAL_KEPT)) || {})[projectKey()] || ""; } catch { return ""; } };
-function keepGoal(slug) {
+export const keptGoal = () => { try { return (JSON.parse(localStorage.getItem(GOAL_KEPT)) || {})[projectKey()] || ""; } catch { return ""; } };
+export function keepGoal(slug) {
   try { localStorage.setItem(GOAL_KEPT, JSON.stringify({ ...(JSON.parse(localStorage.getItem(GOAL_KEPT)) || {}), [projectKey()]: slug })); } catch { /* this run only */ }
 }
 

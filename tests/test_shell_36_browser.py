@@ -175,7 +175,7 @@ def test_an_instruction_over_600_says_so_and_cannot_be_saved_and_a_hand_set_mode
 
 def test_the_result_preview_says_what_the_idea_cost_so_far_and_dashes_when_nothing_is_priced(shell36):
     pg, host = shell36
-    pg.locator(".shell-card", has_text="Add the queue").click()
+    pg.locator(".map-result", has_text="Add the queue").locator(".map-result__open").click()
     line = pg.locator(".shell-spend")
     line.wait_for(timeout=WAIT_MS)
     assert line.inner_text() == "This idea so far: ≈$3.10 — goal 0.40 · spec 0.50 · plan 0.20 · work 1.50 · rework 0.50"   # dropped at 0 left out
@@ -184,5 +184,5 @@ def test_the_result_preview_says_what_the_idea_cost_so_far_and_dashes_when_nothi
         pg.screenshot(path=str(SHOTS / "desktop-result-spend-1440x900.png"))
     pg.keyboard.press("Escape")
     host.spend = {"usd": None, "unpriced": 3, "tasks": {}, "stages": {k: {"usd": None, "tokens": 1, "calls": 1} for k in ("goal", "spec", "plan")}}
-    pg.locator(".shell-card", has_text="Add the queue").click()
+    pg.locator(".map-result", has_text="Add the queue").locator(".map-result__open").click()
     pg.wait_for_function("() => document.querySelector('.shell-spend')?.textContent === 'This idea so far: —'", timeout=WAIT_MS)

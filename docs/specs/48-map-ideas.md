@@ -205,6 +205,22 @@ Touch targets 44 px high; the stack's list is a sheet (§4.5). The service worke
 each, pointing here, in B. Anything else: stop and write it in §10 first.
 
 ## 10. As built (notes, no change of the contract)
+- **B (desktop).** The Map asks `ideas.map` for every goal, as before, and shows one: the Board's (`track`), else the one kept for the project, else
+  the first. The Map's picker and the Board's select are the same choice (one signal, kept per device by `tracks.js` `keepGoal`), so the goal list
+  needs no second read. The modules: `map.js` (header, party line, ideas, Done), `mapidea.js` (row, stage track, lanes, columns, stacks),
+  `mapcard.js` (the idea's card), `mapstage.js` (the pure words and layout functions), `mapghost.js` (the one-time leave), `mapfoot.js` (flags,
+  *Last week*, moved out of `map.js` unchanged); `maplayout.js` keeps its trail functions, now unused by the page except the shared words.
+- **The shell** is two columns, Board and the centre; `ReviewPane` and its keys are gone. `review.js` keeps what the card and the result's
+  preview use (`ResultActions`, `Found`, the tests' words, *Merge into* and Drop's dialogs). *Merge into ▾* sits in the Map's header, beside the
+  goal, because it is the project's one setting for where results land. Below 1 024 px the tabs are Board · Agents; the Map is the Board's
+  button, as before. A `dear` result (over its plan's price) sends `dear: true` with `ideas.merge`, which only logs it, as the backend says.
+- **Rows.** An idea waiting on the person is expanded when it is in `plan`, has a `needs_you`, or has results at Review. The row of a done idea
+  always says *in dev · waits for main*: the Map does not know whether main has the idea, and the gate is Needs you's.
+- **The card's results** list three and a *and n more* button that lists the rest (the contract's limit, without losing a result). The result's
+  title opens its result in the preview; a task's card in the lane does the same for a task `in Review`.
+- **A leaving task** is drawn once from the tasks the field had a moment ago, only when the new read says it is merged; a result of the card
+  folds out the same way. Both use `useLeaving` (three at most), and neither is drawn under `prefers-reduced-motion`.
+- **Not done in B:** the *Others* lane label for an agent outside the party is only its name; the keyboard order is the DOM order of §8.
 
 ## 11. Tests
 - **A**: `stage_of` for every state (planning states, a passed plan with a build task left, only checks left, a skipped
