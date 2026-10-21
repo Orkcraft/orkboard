@@ -332,24 +332,25 @@ the spread's cards 120 × 168; the arrows 2 px. No page scroll; the left column'
 
 ## 6. The phone (C)
 The mockup F is the target. As spec 49 §10 with:
-1. **The top bar: one *where* button** (decisions §63.12): beside the menu, *harbor › Tech ⌄* (the project's name
-   muted, the party's short name in ink, cut when it must, 12 px, 44 px high; no head: the heads are in its sheet), the stops' count of this party
-   before the ⌄ and, after it, a small warning count of the stops waiting in the project's **other** parties (none when
-   none: a question elsewhere is never hidden). A tap opens one sheet from the top: **the project's parties** (rows of
-   52 px at least: the leader's head, the name, *k/n done*, the stops' count, the work sign; the picked one marked),
-   **+ New party**, then **Other projects** (the name, what waits; a tap switches as the drawer's projects do today,
-   `projects.use`) and *Open on your computer: a tap switches this phone to one.* A pick is kept (`orkcraft.goal`, as
-   today) and closes the sheet. To give it room, the limits' button in the top bar shows its diamonds alone
-   (the *n %* leaves the bar: it stays in the tools sheet and in the button's label). The menu keeps Stop all, Spend, Agents and the settings; its aria-label *Menu: Stop all,
-   Spend, Agents and settings*; the projects leave it.
+1. **The top bar: the menu, one *where* button, the limits** (decisions §63.12, §63.14). The *where* button: *harbor ›
+   <the leader's head, 20 px> Tech ⌄* (the project's name muted, the party's short name in ink, cut when it must, 12 px,
+   44 px high), the stops' count of this party before the ⌄ and, after it, a small warning count of the stops waiting in
+   the project's **other** parties (none when none: a question elsewhere is never hidden). A tap opens one sheet from the
+   top: **the project's parties** (rows of 52 px at least: the leader's head, the name, *k/n done*, the stops' count, the
+   work sign; the picked one marked), **+ New party**, then **Other projects** (the name, what waits; a tap switches as
+   the drawer's projects do today, `projects.use`) and *Open on your computer: a tap switches this phone to one.* A pick
+   is kept (`orkcraft.goal`, as today) and closes the sheet. **No Today button**: *Today* (its count, the same sheet) is
+   an item of the menu, which keeps Stop all, Spend, Agents and the settings (its aria-label *Menu: Today, Stop all,
+   Spend, Agents and settings*; the projects leave it). The limits' button shows its diamonds, with its *n %* only when it
+   fits at 390 px without cutting the party's name (else in the tools sheet and the button's label).
 2. **No chips row**: the parties are in the *where* button's sheet; the board gains the row's 56 px.
-3. **The party bar** (44 px, one line, quiet: faint 12 px text, no title, no second line): *k/n done* (the count,
-   §0), the party's price a goal (*≈$2–4 a goal*), and **›**; a tap opens **About this party** (a sheet: §3.7's blocks, *Edit the party*, *Save it to
-   your parties*). At its right the gate, quiet (no green): *dev → main* with its count (ink), its screen as spec 49;
-   *main ✓* (disabled) when up to date.
-4. **The goals bar** (44 px, one line, quiet): *⌄ Goals n · k at work · j ask you*; while the filter is on: the picked
-   goals' elements, *k of n goals* and *Show all*. A tap opens the **Goals** sheet (from the bottom): a line *A tap shows
-   only that goal’s tasks; tap more to add them. › opens one.*, *At work*, *Planning*, *Waits for main · n* (✓),
+3. **One row for the goals and the gate** (44 px, quiet; decisions §63.15): on the left *⌄ Goals · k of n done* (the
+   count, §0); while the filter is on, the picked goals' elements, *k of m goals* and *Show all*; a tap opens the
+   **Goals** sheet. On the right the gate, quiet (no green): *dev → main* with its count (ink), its screen as spec 49;
+   *main ✓* (disabled) when up to date. No party bar and no *k at work · j ask you*: the stage switch's counts say them.
+4. **The Goals sheet** (from the bottom): its head *Goals* with **About <party> ›** (the **About this party** sheet:
+   §3.7's blocks with the price a goal, *Edit the party*, *Add to the party*, *Save it to your parties*); a line *A tap
+   shows only that goal’s tasks; tap more to add them. › opens one.*, *At work*, *Planning*, *Waits for main · n* (✓),
    *Flags · n* (⚑); a goal's row 52 px (the pile with its element, the title, its line, its mark, ✓ when picked) and ›
    (44 px). A tap picks or unpicks (the filter as §3.5: the columns, the results and the stops).
 5. **The stage switch** stays (Planning · Implementation · Checking). Under the members, the **rows by phase** with
@@ -363,11 +364,13 @@ The mockup F is the target. As spec 49 §10 with:
 6. **A spread** is a strip over the field: the line *<goal> · n tasks of <member> at this phase*, the cards (172 × 240)
    in a row that scrolls sideways (snap to a card), dealt; each card with its **dependency line** (no arrows on the
    phone); *Put them back*. A tap on a card opens it.
-7. **The create dial**: **New goal** (a blank card turns over from the FAB to the middle, ≈ 0.5 s, then the full-screen
-   New goal form: its element, *Its title*, *What it is for*, *Add the goal*, *Put it back*), **New party** (*one of yours,
-   or from the library*: the New party sheet), **Add to the party**. The FAB's aria-label *Create: a new goal, a new party
-   or a member of this one*.
-8. **Elements** on every card, stack, stop and result; the **flag line** under the party bar after a gate's merge (§3.8's
+7. **The FAB is a small face-down deck** (decisions §63.16), the desktop's New goal pile on the phone, and does one
+   thing: about 48 × 64 px, two edges behind, a back with the plus (orkUI's tokens and icon, an edge in the action
+   colour), at the field's bottom right over the hand; a tap lifts its top card, turns it over and grows it into the
+   full-screen **New goal** form (≈ 0.5 s; at once under reduced motion: its element, *Its title*, *What it is for*,
+   *Add the goal*, *Put it back*). Its aria-label *New goal: draw a blank one*. **No dial**: *New party* is in the
+   *where* sheet, *Add to the party* in About this party.
+8. **Elements** on every card, stack, stop and result; the **flag line** under the goals row after a gate's merge (§3.8's
    words, once per device: `localStorage` `orkcraft.flags.goals`), its × 44 px.
 9. **No lost tap** (decisions §63.8). Today a tap can be lost: a press moves the focus, `focusout` releases the holds
    (`shell-motion.js` `makeHolds`), whose 0 ms timer bumps `st.tick` and redraws the whole pane between the mouse's down
@@ -400,13 +403,15 @@ The mockup F is the target. As spec 49 §10 with:
   reduced motion); the arrows on hover (both ways, none for a hidden end; the foot's words); New goal's pile (the turn,
   the dialog, the element it shows); the flag line (once, its words, ×, its press); every template in today's words
   (`tests/test_gui_wording.py`); no page scroll at 1 440 × 900; below 1 024 px.
-- **C** (browser, phone): the *where* button (the project, the party, its stops, the other parties' count) and its
-  sheet (the parties, *+ New party*, *Other projects*); no chips row; the menu without the projects; the members' strip
+- **C** (browser, phone): the *where* button (the project, the head, the party, its stops, the other parties' count) and
+  its sheet (the parties, *+ New party*, *Other projects*); no chips row, no Today button (*Today* in the menu); the menu
+  without the projects; the one row of the goals and the gate (no party bar); About this party from the Goals sheet;
+  the deck FAB (no dial; a tap opens New goal); the members' strip
   (148-px columns, the snap, the third peeking, no scroll with two, the cards 132 × 185 with three);
-  the party bar's one line (*k/n done*) and About this party's sheet; the gate's quiet button; the goals bar and its sheet (picks,
-  *k of n goals*, *Show all*, the filter on the columns, results and stops); the rows by phase, the cards 132 × 185, two
-  to a row in Planning and solo; a spread's strip (snap, the dependency lines, Put them back); the dial's three ways and
-  New goal's turn (none under reduced motion); the flag line once; **one tap opens** (no retries left in the phone tests;
+  the gate's quiet button; the goals row and its sheet (picks, *k of m goals*, *Show all*, the filter on the columns,
+  results and stops); the rows by phase, the cards 132 × 185, two
+  to a row in Planning and solo; a spread's strip (snap, the dependency lines, Put them back); New goal's turn from the deck
+  (none under reduced motion); the flag line once; **one tap opens** (no retries left in the phone tests;
   the down–redraw–up test); 44 px targets; the service worker's version and `SHELL`.
 - Each part: the critical tests (`orkcraft.toml` `always`), its files' tests, `tests/test_gui_wording.py`,
   `tests/test_design_system.py`, `tests/test_architecture.py`.

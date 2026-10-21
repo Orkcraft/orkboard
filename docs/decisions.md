@@ -742,6 +742,12 @@ for the product, one for the platform, one for the whole flow, each with its own
 13. **A card keeps its size; the members scroll instead** (the owner): a member's column is as wide as its card, and
    three or more members are a sideways strip with the third peeking; the cards never shrink to fit (this replaces
    spec 49's *no sideways scroll with three*).
+14. **No Today button on the phone's top bar** (the owner): *Today* is an item of the menu; the bar holds the menu, where
+   you are and the limits.
+15. **One row for the goals and the gate on the phone** (the owner): the party's bar goes; *k at work* and *j ask you*
+   were the stage switch's counts said twice; the party's details are behind the Goals sheet's *About … ›*.
+16. **The phone's FAB is the desktop's New goal deck** (the owner): a small face-down deck that draws a blank goal; the
+   dial goes (a new party is in the *where* sheet, a member in About this party).
 A new face and new words over v1's mechanics, two small additions to the host (a goal's flag, its element), and the
 end of a model call (a party's acceptance): the owner's call, before the testers' numbers, as §55, §59, §61 and §62.
 Mockups E and F of *Orkboard: one window*. Spec 50.
