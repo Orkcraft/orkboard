@@ -768,3 +768,39 @@ reviewed as a change; one variant a round makes the person wait a round for each
    own screen.
 4. **Measured**: picks a week, taken at the first round or asked again, the time to pick, where, with a note or not.
 A new end for a task over v1's runner and the faces of §62–§63, the owner's call. Spec 51.
+
+## 65. The leader deals the goal types; a type says who the party needs; the stages wear the party's faces; a stop is counted only where it cannot be seen; the party switch is a deck (22 October, the owner)
+
+Why: the owner, on the one window as built. A new goal is a blank card, so the person writes from nothing what they
+already know (it is a logo, a bug, a landing page), and the party works it with whoever is in it: a logo asked of a party
+with no Artist goes to the Grunt. The phone's stage switch says *Planning 6 · Implementation 7 · Checking 3* in the
+alert colour, read as *seven wait for you* when one does; and the tabs were always by band (the leader's, the builders',
+the checkers'), not phases in order. So:
+1. **The stages wear the party's faces**: the phone's switch shows the heads of each band over its word (*Planning*,
+   *Implementation*, *Checking*: the words stay, a head never stands alone) and **no number**: a sign (✗ a failure, else
+   ! a stop) on the faces of the band it comes from.
+2. **A stop is counted only where it cannot be seen**: the bottom row is the count of the party shown; where a stop
+   comes from has its sign, once (no alert edge, no alert words beside it); the only count of stops is that of the
+   project's other parties, on the party switch. A failure keeps its danger edge.
+3. **The party switch is a deck** (reverses §63.11 and the party half of §63.12): on the desktop over the leader at the
+   left column's top, a press dealing the parties as cards; on the phone at the end of the stage switch, its sheet the
+   parties. The top bar keeps the project; the phone's goals bar says the party.
+4. **The leader deals the goal types**: each leader of the library has a few (a designer *New screen*, *New icon*, *New
+   logo*, *New feature*; an architect *New feature*, *Fix a bug*, *Restructure*), the Taskmaster a general set (*New
+   feature*, *Fix a bug*, *Clean up*), and a blank goal is always the last. A type is told by **its sign** (orkUI's),
+   never a colour: colour is the goal's element and the signals. A type brings the few lines only the person can give,
+   Refs where looks matter, the lens it opens first, and a line for the leader's draft and plan.
+5. **A type says what kinds of work the party needs**; when no one of the party does one, the form says who would: a
+   free seat, it joins; a full band, **a swap** (the owner: a swap, not a guest for one goal); a member with work open
+   never leaves this way. A goal kept for tonight never changes the party.
+6. **A plan that gives work to no one of the party says so on its stop**: *No one in the party does pixel art: Artist
+   would*, with *Add and start* when a seat is free, else *Edit the party*; *Start without* keeps today's way.
+7. **Members are not added in the stage switch**: the tabs show who works; the team is changed where the need shows
+   (the type's form, a plan's stop, About this party) and, for a band with no one, from its empty line.
+8. **Nothing flies** (§62.8 stays): the owner turned down an answered stop flying onto, or lighting, the task it answered;
+   it would distract.
+9. **Measured**: the share of new goals with a type, by leader and type; the asks answered; the join line kept, unticked
+   or swapped; a plan's line and what was pressed; whether a typed goal's plan passes at its first round and raises its
+   flag sooner.
+A new start for a goal and a new place for the party switch and the counts over v1's mechanics, the owner's call before
+the testers' numbers, as §62–§64. Spec 52.
