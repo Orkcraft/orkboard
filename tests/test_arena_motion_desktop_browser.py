@@ -74,7 +74,7 @@ def test_a_task_that_changes_its_place_slides_there_and_a_merge_lights_the_first
     host.week["backend"] = {**host.week["backend"], "finished": 6, "merged": 6, "first_time": 5}                    # a merge: 5/1 → 6/1
     host.bump({})
     pg.wait_for_function("() => window.__anims.some((a) => a[1].includes('background'))", timeout=WAIT_MS)
-    assert pg.locator(".arena-member[data-agent=backend] .arena-num").first.inner_text() == "6/1"
+    pg.wait_for_function("() => document.querySelector('.arena-member[data-agent=backend] .arena-num')?.innerText === '6/1'", timeout=WAIT_MS)
 
 
 def test_under_reduced_motion_none_of_it_plays(gui):
