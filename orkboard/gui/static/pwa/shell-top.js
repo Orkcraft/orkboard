@@ -1,6 +1,6 @@
-// The phone's top bar (docs/specs/33-v1-shell.md §6, spec 41 §2, spec 49 §10.1, spec 50 §6.1): the menu mark — it opens the drawer: Stop all, Spend today, Agents, the project's settings and the
-// phone's, and Today (a clock, the word and the count of the day's events: the Today sheet; shell-drawer.js; the projects are not in it) · the *where* button (*harbor › Tech 4 ⌄*: the project, the party,
-// the stops that wait; its sheet lists the parties and the other projects: shell-where.js) · what is left of the AI tools as one chip, the worst tool's diamonds alone (the tools sheet, the label and the title say the
+// The phone's top bar (docs/specs/33-v1-shell.md §6, spec 41 §2, spec 49 §10.1, spec 52 §5.1): the menu mark — it opens the drawer: Stop all, Spend today, Agents, the project's settings and the
+// phone's, and Today (a clock, the word and the count of the day's events: the Today sheet; shell-drawer.js; the projects are not in it) · the project's button (*harbor ⌄*: its sheet, Projects,
+// lists this one and the others: shell-where.js; the party and its counts are not in the bar, the party's deck ends the stage switch) · what is left of the AI tools as one chip, the worst tool's diamonds alone (the tools sheet, the label and the title say the
 // rest; shell-today.js). No frames: the words and icons alone. It slides away as the page scrolls down and comes back as it scrolls up. Roles only: warning at 20 % or less left, danger at 5 % or less.
 import { h, icon, sheet } from "./util.js";
 import { makeWhere, keepGoal, keptGoal } from "./shell-where.js";
@@ -12,7 +12,7 @@ import { WARN, DANGER, levelOf } from "./shell-limits.js";
 export { WARN, DANGER, levelOf, resetWords, keepGoal, keptGoal };
 const SLIDE_PX = 6;                       // a scroll this far down hides the bar, this far up brings it back
 
-/** `core`: the board's frame (board.js). Returns {el, today, sheets, render(snapshot), draw()}. */
+/** `core`: the board's frame (board.js). Returns {el, today, sheets, render(snapshot), draw(), deck(), openParties()}. */
 export function makeTop(core, ctx) {
   const tools = makeTools(core);
   const today = makeToday(core);
@@ -40,9 +40,12 @@ export function makeTop(core, ctx) {
     /** The bar drawn again with the Board. */
     draw() {
       if (drawer.el.open) settings.sync();                                       // an open menu shows what the Board read
-      where.draw();                                                              // the party shown and what waits in it and in the others
+      where.draw();                                                              // the project's label, and an open parties' sheet
       if (window.scrollY <= el.offsetHeight) el.classList.remove("is-away");     // back at the top: always there
     },
+    /** The party's deck for the end of the stage switch, and the parties' sheet it opens (shell-where.js). */
+    deck: () => where.deck(),
+    openParties: () => where.openParties(),
     sheets: [drawer.el, ...where.sheets, ...settings.sheets, tools.sheet.el, today.sheet.el],
     render(s, rev) {
       where.render(s, rev);

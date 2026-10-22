@@ -65,12 +65,11 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             ctx.on("request", lambda r: urls.append(r.url))
             pg.on("pageerror", lambda e: errors.append(str(e)))
             pg.goto(server.url)
-            pg.get_by_role("tablist", name="Parties").wait_for(timeout=WAIT_MS)
-            pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)                              # the window: the party switch in the top bar, the arena under it
-            assert pg.locator(".arena-pswitch").is_visible() and pg.locator(".shell-board, .shell-agents, .shell-split").count() == 0
+            pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)                              # the window: no party yet, the arena's note (spec 52: no parties in the top bar)
+            assert pg.locator(".shell-top .arena-ptop").count() == 0 and pg.locator(".shell-board, .shell-agents, .shell-split").count() == 0
             assert pg.evaluate("document.documentElement.dataset.look") == "office"
             assert pg.locator(".gui-hud, .gui-camp, .gui-town, .gui-foot").count() == 0
-            pg.locator(".arena-pswitch__new").click()                                                    # + in the top bar: New party
+            pg.locator(".arena-note").get_by_role("button", name="New party", exact=True).click()       # New party, from the note
             dlg = pg.get_by_role("dialog", name="New party")
             dlg.locator('.shell-craft-tile[data-craft="marketing"]').click()          # a party of the library: its leader, builders and checkers
             dlg.get_by_label("What it is for").fill("More people try Orkline.")
@@ -130,7 +129,7 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 page = await ctx.new_page()
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 await page.goto(f"{server.phones.address}/app/#pair={offer['code']}")
-                await page.locator(".gbar").first.wait_for(timeout=WAIT_MS)                               # the one window: the party in the top bar's where button, the goals bar, no tab bar (spec 49 §10, spec 50 §6)
+                await page.locator(".gbar").first.wait_for(timeout=WAIT_MS)                               # the one window: the project in the top bar, the party in the goals bar, no tab bar (spec 49 §10, spec 52 §5)
                 assert await page.locator(".board-tabs").count() == 0 and await page.get_by_role("tab", name="Needs you").count() == 0
                 assert [(await b.get_attribute("aria-label")).split(":")[0] for b in await page.get_by_role("tab").all()] == ["Planning", "Implementation", "Checking"]   # the stage switch
                 ask = page.locator('.hc[data-kind="goal"]')                                                # Needs you: the signal (spec 41 §1) lies along the bottom
@@ -138,8 +137,8 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 await ask.click(position={"x": 14, "y": 12})
                 await page.get_by_text("Which channel first?").first.wait_for(timeout=WAIT_MS)             # the goal's question, as on the desktop
                 await page.keyboard.press("Escape")
-                bar = page.locator(".board-bar")                                                           # the menu, the where button
-                assert await bar.locator(".where").is_visible() and await bar.get_by_role("button", name="Menu").is_visible() and await page.locator(".gchips").count() == 0
+                bar = page.locator(".board-bar")                                                           # the menu, the project's button
+                assert await bar.locator(".projbtn").is_visible() and await bar.get_by_role("button", name="Menu").is_visible() and await page.locator(".gchips").count() == 0
                 assert await page.evaluate("document.documentElement.dataset.look") == "office"
                 assert await page.locator(".dock, .camp, .grid, .head").count() == 0
                 assert await page.evaluate("document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390")

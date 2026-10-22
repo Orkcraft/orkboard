@@ -31,6 +31,7 @@ async def test_new_goal_is_one_sheet_a_craft_in_one_row_its_team_in_three_folds_
         await sheet.locator('.craft-tile[data-craft="design"]').click()
         line = sheet.locator(".party-line").first
         assert await line.inner_text() == "Leads: Product designer · Builds: Design system designer, Artist · Checks: Accessibility reviewer"   # folded to one line
+        assert "null" not in await sheet.inner_text()                                                    # no saved party of yours: no row, and no word in its place
         await _shot(page, "phone-goal-new-390x844")
         await sheet.locator('.party [data-change="team"]').click()                                      # Change: the folds, Leads open
         leads, builds, checks = (sheet.get_by_role("region", name=n) for n in ("Leads", "Builds", "Checks"))

@@ -144,12 +144,12 @@ export function makeParty(core, opts = {}) {
   function drawTeam() {
     const line = h("p", { class: "party-line" }, h("b", {}, "Leads: "), names("lead"), " · ", h("b", {}, "Builds: "), names("build"), " · ", h("b", {}, "Checks: "), names("check"));
     if (!editing) {
-      teamEl.replaceChildren(h("h3", {}, "The party"), ownRow(), line, priceLine(),
-        h("button", { class: "ork-btn", type: "button", "data-change": "team", onclick: () => { editing = true; fold = "lead"; draw(); } }, "Change"));
+      teamEl.replaceChildren(...[h("h3", {}, "The party"), ownRow(), line, priceLine(),
+        h("button", { class: "ork-btn", type: "button", "data-change": "team", onclick: () => { editing = true; fold = "lead"; draw(); } }, "Change")].filter(Boolean));
       return;
     }
     if (!fold) { editing = false; drawTeam(); return; }            // every fold closed by Done: back to the line
-    teamEl.replaceChildren(h("h3", {}, "The party"), ownRow(), ...BANDS.map(band), priceLine());
+    teamEl.replaceChildren(...[h("h3", {}, "The party"), ownRow(), ...BANDS.map(band), priceLine()].filter(Boolean));
   }
 
   /** The craft the party was started from (the goal's craft sorts its agents first); set by the sheet. */

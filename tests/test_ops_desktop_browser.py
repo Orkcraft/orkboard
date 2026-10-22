@@ -251,7 +251,8 @@ def _sent(stub, want):
 
 
 def _operations(pg):
-    pg.locator('.arena-gtab[data-goal="@operations"]').click()                       # Operations: the last goal tab
+    pg.locator(".arena-ptop__deck").click()                                         # Operations: dealt after the parties (spec 52 §3.4)
+    pg.get_by_role("dialog", name="Parties").locator('.arena-spread__card[data-goal="@operations"]').click()
     pg.locator(".board-ops").wait_for(timeout=WAIT_MS)
 
 
@@ -284,8 +285,11 @@ def test_a_held_run_says_why_the_limits_or_the_days_spend_cap(world):
 
 def test_operations_is_in_the_goal_select_and_new_lists_the_templates(world):
     def body(pg, stub):
-        tabs = pg.get_by_role("tablist", name="Parties").get_by_role("tab")
-        assert tabs.last.inner_text().strip() == "Operations"                       # the last tab, after the parties
+        pg.locator(".arena-ptop__deck").click()
+        cards = pg.get_by_role("dialog", name="Parties").locator(".arena-spread__card")
+        cards.last.wait_for(timeout=WAIT_MS)
+        assert cards.nth(cards.count() - 2).get_attribute("data-goal") == "@operations"     # after the parties, before New party
+        pg.keyboard.press("Escape")
         assert pg.get_by_role("button", name=re.compile("^New goal")).count() == 1  # the pile of New goal stands under the party's goals
         _operations(pg)
         assert pg.get_by_role("button", name=re.compile("^New goal")).count() == 0  # New… takes the place of the pile
@@ -429,7 +433,7 @@ def test_a_rules_proposal_is_taken_in_its_row_in_needs_you_and_the_rules_are_sav
         _operations(pg)                                                             # the proposal waits along the bottom of Operations
         row = _row(pg, "op_rules", "email-reply")
         assert "Keep a reply under five lines" in row.inner_text()
-        assert pg.locator(".arena-gtab .ork-count").count() == 0                    # a proposal is no count
+        assert pg.locator(".arena-ptop .ork-count").count() == 0                    # a proposal is no count
         row.locator(".arena-hc__quick").get_by_role("button", name="Take").click()
         _sent(stub, ("ops.rules_answer", {"template": "email-reply", "take": True}))
         row.wait_for(state="detached", timeout=WAIT_MS)
@@ -488,10 +492,12 @@ def test_needs_you_shows_an_op_row_in_another_project_too(world):
     failed = stub.seed("jira-task", "failed", why="Jira refused it", acted=False)
 
     def body(pg, stub):
-        pg.locator('.arena-gtab[data-goal="@operations"]').click()                  # Operations' tab carries the count; its rows wait along the bottom
+        pg.locator(".arena-ptop__stops").wait_for(timeout=WAIT_MS)
+        assert pg.locator(".arena-ptop__stops").inner_text() == "2"                 # Parties ⌄ counts Operations' rows; they wait along its bottom
+        _operations(pg)
         row = pg.locator(".arena-hc[data-kind=op]")
         row.wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-gtab .ork-count").inner_text() == "2"
+        assert pg.locator(".arena-ptop .ork-count").count() == 0                    # Operations shown: its rows are not counted
         assert "Checkout fails on a full cart" in row.inner_text()
         assert pg.locator(".arena-hc[data-kind=op_failed]").count() == 1
         pg.keyboard.press("Control+o")
@@ -500,7 +506,7 @@ def test_needs_you_shows_an_op_row_in_another_project_too(world):
         dlg.get_by_role("button", name="Open folder").click()
         dlg.wait_for(state="detached", timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
-        pg.locator('.arena-gtab[data-goal="@operations"]').click()
+        _operations(pg)
         row = pg.locator(".arena-hc[data-kind=op]")                                 # the person's: seen in every project
         row.wait_for(timeout=WAIT_MS)
         row.locator(".arena-hc__open").focus()

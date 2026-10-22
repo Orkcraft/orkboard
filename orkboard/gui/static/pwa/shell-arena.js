@@ -1,8 +1,10 @@
-// The party's window on the phone (docs/specs/49-one-window.md §10, spec 50 §6, decisions §62, §63): the Board is one screen with no tab bar. Under the top bar (whose *where* button picks the party:
-// shell-where.js): the goals bar (*⌄ Goals · 3 of 12 done*, the Goals sheet and the filter: shell-goals.js; at its right the gate, quiet: shell-party.js), the flag line after a gate's merge, the stage
-// switch (Planning · Implementation · Checking) and the field of that stage (shell-arena-field.js). What waits for you lies along the bottom (shell-stops.js). Operations takes the field's place when
-// the *where* sheet picks it. The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`, `st.band`, `st.focus`, `st.picks`).
-import { h } from "./util.js";
+// The party's window on the phone (docs/specs/49-one-window.md §10, spec 50 §6, spec 52 §5; decisions §62, §63, §65): the Board is one screen with no tab bar. Under the top bar: the goals bar
+// (*⌄ Tech · 3 of 12 goals done*, the Goals sheet and the filter: shell-goals.js; at its right the gate, quiet: shell-party.js), the flag line after a gate's merge, the stage switch and the field of that
+// stage (shell-arena-field.js). The stage switch wears the party's faces: each tab its band's heads over its word, no number, one sign (✗ a failure, else ! a stop) on the faces of the band it comes
+// from; at its end, outside the tablist, the party's deck (shell-where.js), whose sheet picks the party or Operations. What waits for you lies along the bottom (shell-stops.js). Operations takes the
+// field's place when the parties' sheet picks it (the deck then stands at its head). The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`, `st.band`, `st.focus`, `st.picks`).
+import { h, head as raceHead } from "./util.js";
+import { sign } from "./shell-marks.js";
 import { steady } from "./shell-util.js";
 import { keepGoal, keptGoal } from "./shell-top.js";
 import { OPS_VIEW } from "./shell-ops.js";
@@ -47,14 +49,20 @@ export function makeArena(core, ctx, parts) {
     process: () => current && process(current),
   });
 
-  // -- the stage switch -------------------------------------------------------------------------------------------------------------------------------------
+  // -- the stage switch: three tabs, the band's faces over its word (no number), then the party's deck ------------------------------------------------------------
+  function faces(f) {
+    const heads = f.heads.length ? f.heads.map((x) => (x ? raceHead(x.race, x.tier) : h("span", { class: "band__nohead" }))) : [h("span", { class: "band__nohead is-empty" })];
+    return h("span", { class: "band__faces", "aria-hidden": "true" }, ...heads,
+      f.sign ? h("span", { class: `band__sign ${f.sign === "cross" ? "danger" : "alert"}` }, sign(f.sign)) : null);
+  }
   function stageSwitch(m, band) {
-    return h("div", { class: "bands", role: "tablist", "aria-label": "Stages" }, ...BANDS.map(([key, name]) => {
-      const n = m.counts[key], w = m.warn[key];
+    const tabs = h("div", { class: "bands", role: "tablist", "aria-label": "Stages" }, ...BANDS.map(([key, name]) => {
+      const f = m.faces[key];
       return h("button", { class: `band${key === band ? " is-on" : ""}`, role: "tab", type: "button", "aria-selected": String(key === band), "data-band": key,
-        "aria-label": `${name}: ${n}${w ? `, ${w} ${w === 1 ? "waits" : "wait"} for you` : ""}`, onclick: () => { st.band = key; st.focus = ""; core.draw(); } },
-      h("span", { class: "band__name" }, name), h("span", { class: `ork-count${w ? " warning" : ""}` }, String(n)));
+        "data-sign": f.sign || null, "aria-label": f.label, onclick: () => { st.band = key; st.focus = ""; core.draw(); } },
+      faces(f), h("span", { class: "band__name" }, name));
     }));
+    return h("div", { class: "stagebar" }, tabs, core.partyDeck());
   }
 
   /** Today's sheet and its button: the events of the goal shown (and the gate's), then its Done ideas. */
@@ -70,11 +78,11 @@ export function makeArena(core, ctx, parts) {
   function opsView() {
     const gear = h("button", { class: "ork-btn gear", type: "button", "aria-haspopup": "dialog", "aria-label": "Operations settings", onclick: () => ops.openGear() }, "Settings");
     return h("div", { class: "ops-view" }, h("div", { class: "pane-head" }, h("h2", {}, "Operations"), h("div", { class: "row" },
-      h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…"), gear)), ...ops.section());
+      h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", onclick: () => ops.openMenu() }, "New…"), gear, core.partyDeck())), ...ops.section());
   }
 
   const needsGoal = () => h("div", { class: "arena-empty" }, h("p", { class: "muted" }, "No parties yet."),
-    h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open("") }, "New party"));
+    h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", onclick: () => goalSheet.open("") }, "New party"), core.partyDeck()));
 
   /** The party's window drawn: the goals bar with the gate, the flag line and the field (what the person sees of the Board read). */
   function paint() {
@@ -108,7 +116,7 @@ export function makeArena(core, ctx, parts) {
     sheets: [...party.sheets, ...goals.sheets],
     /** Pick the party of a stop (a push arrival, a link to Needs you) and show it. */
     show(slug) { if (slug) { st.track = slug; Object.assign(st, { view: "", band: "", focus: "" }); core.draw(); } },
-    /** A party picked in the *where* sheet, or Operations. */
+    /** A party picked in the parties' sheet, or Operations. */
     pick: pickGoal,
     pickOps,
     /** The goal shown, from what the Board read and what this phone showed last. */

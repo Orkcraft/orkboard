@@ -273,13 +273,36 @@ export function modelOf(st, slug, now = Date.now()) {
   const counts = { lead: planning.length, build: sum(build), check: sum(check) };
   const warn = { lead: planning.filter((i) => i.kind === "stop").length, build: failed(build), check: failed(check) };
   const done = nodes.filter((n) => n.state === "done");
+  // A stop's band (spec 52 §5.3): a member's question is its band's, a pick its maker's, a plan, a proposal and the leader's questions Planning's.
+  const bandOf = new Map(members.map((x) => [x.slug, x.band]));
+  const waits = { lead: 0, build: 0, check: 0 };
+  for (const it of planning.filter((i) => i.kind === "stop")) {
+    const n = nodes.find((x) => x.slug === it.idea), by = n?.needs_you === "asks" ? bandOf.get(n.asked?.[0]?.by?.slug) : "";
+    waits[by === "build" || by === "check" ? by : "lead"] += 1;
+  }
+  for (const x of [...build, ...check]) waits[x.band] += x.tasks.filter((t) => t.state === "picking").length;
+  const faces = { lead: facesOf("lead", lead ? [lead] : [], 0, waits.lead), build: facesOf("build", build, warn.build, waits.build),
+    check: facesOf("check", check, warn.check, waits.check) };
   return {
-    goal: g, nodes, work, members, lead, build, check, planning, counts, warn,
+    goal: g, nodes, work, members, lead, build, check, planning, counts, warn, faces,
     first: counts.build ? "build" : counts.check ? "check" : "lead",
     freeBuild: freeSeats(st, "build", build.length), freeCheck: freeSeats(st, "check", check.length),
     picks, done,
     process: { next, n: raw.filter((n) => n.queue !== "now" && !n.held_until).length, lead },
   };
+}
+
+const FACES = { lead: 1, build: 3, check: 2 };                    // the heads a stage's tab shows at most
+const NO_ONE = { lead: "no leader", build: "no builder", check: "no checker" };
+
+/** A stage's tab (spec 52 §5.3): its band's heads (at most FACES), its one sign — `cross` when a task of the band failed, else `alert` when a stop of the band waits —
+ *  and its label, *Implementation: Grunt, Tester. 1 failed*, *Planning: the Taskmaster. 2 wait for you*, *Checking: no checker*. No number is drawn. */
+export function facesOf(key, members, failed, waits) {
+  const word = BANDS.find(([k]) => k === key)[1];
+  const names = members.map((x) => (x.slug === "taskmaster" ? "the Taskmaster" : x.name));
+  const said = [failed ? `${failed} failed` : "", waits ? `${waits} ${waits === 1 ? "waits" : "wait"} for you` : ""].filter(Boolean).join(", ");
+  return { heads: members.slice(0, FACES[key]).map((x) => x.head || null), sign: failed ? "cross" : waits ? "alert" : "", failed, waits,
+    label: `${word}: ${names.length ? names.join(", ") : NO_ONE[key]}.${said ? ` ${said}` : ""}`.replace(/\.$/, "") };
 }
 
 /** The goal to show: the one this phone shows (`st.track`) when the Map has it, else the first. */

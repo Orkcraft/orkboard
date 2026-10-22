@@ -58,7 +58,7 @@ export function makeBoardTab(core, ctx) {
     show: arena.show,
     pick: arena.pick,
     pickOps: arena.pickOps,
-    openNew: (goal) => ideas.openNew(goal),
+    openNew: (goal, type) => ideas.openNew(goal, type),
     sheets: [...goalSheet.sheets, ...ops.sheets, ...ideas.sheets, ...arena.sheets],
     draw() {
       if (st.board && st.snap?.project && st.snap.project !== weekFor) weekCheck();

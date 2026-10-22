@@ -8,7 +8,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import WAIT_MS, StubHost, _open, _show_goal  # noqa: E402
+from tests.test_shell_browser import _new_party, WAIT_MS, StubHost, _open, _show_goal  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -40,7 +40,7 @@ def asks(pg, host, at_least):
 
 def test_new_party_asks_the_price_when_it_opens_and_after_a_seat_changes_and_says_it_under_the_bands(shell):
     pg, host = shell
-    pg.get_by_role("button", name="New party", exact=True).click()
+    _new_party(pg)
     dlg = pg.get_by_role("dialog", name="New party")
     price = dlg.locator(".shell-price")
     price.wait_for(timeout=WAIT_MS)
@@ -75,7 +75,7 @@ def test_below_a_dollar_the_price_is_said_in_cents(shell):
     original = t.party_price
     t.party_price = lambda a, learned=True, hints=(): {**original(a, learned, hints), "low": 0.4, "high": 1.2}
     try:
-        pg.get_by_role("button", name="New party", exact=True).click()
+        _new_party(pg)
         dlg = pg.get_by_role("dialog", name="New party")
         dlg.locator(".shell-price").wait_for(timeout=WAIT_MS)
         assert " ".join(dlg.locator(".shell-price").inner_text().split()).startswith("This party: about $0.40–1.20 a goal")
@@ -104,7 +104,7 @@ def test_hints_are_quiet_lines_under_the_price_and_never_block_save(shell):
     """Spec 43 E: muted, one line each, no button; the price is asked with the party's craft when a party of the library is picked."""
     pg, host = shell
     host.hints = list(HINTS)
-    pg.get_by_role("button", name="New party", exact=True).click()
+    _new_party(pg)
     dlg = pg.get_by_role("dialog", name="New party")
     dlg.locator(".shell-hint").first.wait_for(timeout=WAIT_MS)
     lines = dlg.locator(".shell-hint")

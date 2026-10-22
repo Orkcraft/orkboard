@@ -1,7 +1,7 @@
 """Spec 50 part C, the phone (docs/specs/50-parties-and-goals.md §6, §7 "C"): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py (a party, *Sign in with a
 passkey*, of a leader, two builders and two checkers; goals in each stage, a goal's tasks in one phase after another, goals done and flagged). No lost tap (a redraw waits while a
-pointer is down; the holds redraw only what they held back); the where button and its sheet from the top bar, the menu without the projects, Today in the menu; no chips row; the goals bar with the gate and About this
-party; the goals sheet with the filter; the rows by phase and the stacks of cards; a spread's strip; the members' strip; the create button's deck and New goal's turn; the flag line; 44 px targets;
+pointer is down; the holds redraw only what they held back); the party's deck and its sheet, the project's button and its sheet, the menu without the projects, Today in the menu; no chips row; the goals bar with the gate and About this
+party; the goals sheet with the filter; the rows by phase and the stacks of cards; a spread's strip; the members' strip; the create button's deck and New goal's slide; the flag line; 44 px targets;
 the service worker."""
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ async def test_the_holds_redraw_the_field_only_when_they_held_a_redraw_back(fake
         await page.wait_for_function("() => !window.__col.isConnected", timeout=WAIT_MS)
 
 
-# -- the where sheet from the top bar (spec 50 §6.1) -------------------------------------------------------------------------------------------------
+# -- the parties' sheet from the party's deck, the projects' from the top bar (spec 50 §6.1, spec 52 §5.1, §5.3) -------------------------------------------------------------------------------------------------
 
 @pytest.fixture
 def projects(monkeypatch):
@@ -115,7 +115,7 @@ def projects(monkeypatch):
 
 
 def second_party(stops=2):
-    """A second party, *Product*, in the project, with `stops` questions waiting in it (the where button counts them after its ⌄)."""
+    """A second party, *Product*, in the project, with `stops` questions waiting in it (the party's deck counts them)."""
     goal = copy.deepcopy(SCENE["map"]["goals"][0])
     goal.update(slug="product", title="Product", short="Product", ideas=4, done=1, usd=1.0, flags=0, waits_main=0, state="ready")
     SCENE["map"]["goals"].append(goal)
@@ -125,23 +125,20 @@ def second_party(stops=2):
 
 
 @pytest.mark.asyncio
-async def test_the_where_button_opens_one_sheet_from_the_top_with_the_parties_new_party_and_the_other_projects(fake_repo, monkeypatch, projects):
+async def test_the_partys_deck_opens_one_sheet_from_the_top_with_the_parties_and_new_party_and_the_project_button_the_projects(fake_repo, monkeypatch, projects):
     second_party()
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         bar = page.locator(".board-bar")
-        where = bar.locator(".where")
+        where = page.locator(".partydeck")
         await page.locator(".gbar").wait_for(timeout=WAIT_MS)
         assert await where.evaluate("e => e.tagName") == "BUTTON" and await where.get_attribute("aria-haspopup") == "dialog"
-        assert await where.locator(".where__stops").inner_text() == "4" and await where.locator(".where__other").inner_text() == "2"      # this party's stops before the ⌄, the other parties' after it
-        order = await where.evaluate("e => [...e.children].map((c) => c.className.replace('ork-', '') + (c.textContent ? ':' + c.textContent : ''))")
-        assert order == ["where__project:project", "chev right where__sep", "where__head", "where__party:Passkey", "count warning where__stops:4", "chev", "count warning where__other:2"]
-        assert "2 stops wait for you in the other parties" in await where.get_attribute("aria-label")                                  # a question elsewhere is never hidden
-        assert await where.locator(".where__party").evaluate("e => e.scrollWidth <= e.clientWidth")                                    # the party's name is whole beside its head and both counts
+        assert await where.locator(".ork-count.warning").inner_text() == "2"                                                          # the other parties' stops: this one's are the bottom row's
+        assert "2 stops wait in the other parties" in await where.get_attribute("aria-label")                                          # a question elsewhere is never hidden
         menu = bar.get_by_role("button", name="Menu")
         assert await menu.get_attribute("aria-label") == "Menu: Stop all, Spend, Agents, Today and settings" and await bar.locator(".today").count() == 0
         await where.click()
         sheet = page.get_by_role("dialog", name="Parties")
-        await sheet.get_by_role("button", name="beta").wait_for(timeout=WAIT_MS)
+        await sheet.locator(".where-row").first.wait_for(timeout=WAIT_MS)
         box = await sheet.bounding_box()
         assert box["x"] == 0 and box["y"] == 0 and box["width"] == 390 and box["height"] < 760                                          # one sheet from the top
         rows = sheet.locator(".where-row")
@@ -153,24 +150,21 @@ async def test_the_where_button_opens_one_sheet_from_the_top_with_the_parties_ne
         assert await first.locator(".ork-count.warning").inner_text() == "4" and await rows.nth(1).locator(".ork-sign.work").count() == 0
         new = sheet.get_by_role("button", name="+ New party")
         assert norm(await new.inner_text()) == "+ New party one of yours, or from the library" and (await new.bounding_box())["height"] >= 52
-        assert norm(await sheet.locator(".projects-block h3").text_content()) == "Other projects"
-        assert "Open on your computer: a tap switches this phone to one." in await sheet.inner_text()
-        projects_ = sheet.locator(".project-row")
-        assert [norm(await r.inner_text()) for r in await projects_.all()] == ["beta 3 to review", "gamma nothing waits"]                 # the others: this one is the sheet's own
-        assert [(await r.bounding_box())["height"] >= 44 for r in await projects_.all()] == [True, True]
+        assert await sheet.locator(".project-row, .projects-block").count() == 0                                                      # the projects are the project button's
         await rows.nth(1).click()                                                                                                      # a pick: kept and the sheet is put away
         await sheet.wait_for(state="hidden", timeout=WAIT_MS)
-        await bar.locator('.where[data-goal="product"]').wait_for(timeout=WAIT_MS)
-        assert await where.locator(".where__party").inner_text() == "Product" and await where.locator(".where__stops").inner_text() == "2" and await where.locator(".where__other").inner_text() == "4"
+        await page.locator('.partydeck[data-goal="product"]').wait_for(timeout=WAIT_MS)
+        assert await where.locator(".ork-count.warning").inner_text() == "4" and norm(await page.locator(".gbar__head").inner_text()).startswith("Product ·")
         assert json.loads(await page.evaluate("() => localStorage.getItem('orkcraft.goal')")) == {"project": "product"}                 # `orkcraft.goal`, as today
         await where.click()
         await sheet.locator(".where-new").click()                                                                                      # + New party: its sheet
         await page.get_by_role("dialog", name="New party").wait_for(timeout=WAIT_MS)
         await page.keyboard.press("Escape")
-        await where.click()
-        await sheet.get_by_role("button", name="beta").click()                                                                         # a tap on another project switches this phone to it
+        await bar.locator(".projbtn").click()                                                                                          # the project's button: the projects
+        projects_ = page.get_by_role("dialog", name="Projects")
+        await projects_.get_by_role("button", name=re.compile("^beta")).click()                                                       # a tap on another project switches this phone to it
         assert await _called(stub, "projects.use", {"path": "/work/beta"})
-        await sheet.wait_for(state="hidden", timeout=WAIT_MS)
+        await projects_.wait_for(state="hidden", timeout=WAIT_MS)
         drawer = await _menu(page)                                                                                                     # the menu: Stop all, Spend, Agents, Today and the settings
         text = await drawer.inner_text()
         assert await drawer.locator(".project-row").count() == 0 and "Other projects" not in text and "opened and closed at the computer" not in text
@@ -189,7 +183,7 @@ async def test_the_goals_bar_is_one_quiet_line_and_its_sheet_lists_what_is_at_wo
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         bar = page.locator(".gbar__head")
         await bar.wait_for(timeout=WAIT_MS)
-        assert norm(await bar.inner_text()) == "Goals · 2 of 9 done" and await bar.locator(".ork-chev").count() == 1                  # ⌄ Goals · k of n done
+        assert norm(await bar.inner_text()) == "Passkey · 2 of 9 goals done" and await bar.locator(".ork-chev").count() == 1          # ⌄ the party · k of n goals done
         box = await bar.bounding_box()
         assert round(box["height"]) == 44 and await bar.evaluate("e => getComputedStyle(e).fontSize") == "12px"                    # one quiet line, 44 px
         await bar.click()
@@ -212,7 +206,7 @@ async def test_the_goals_bar_is_one_quiet_line_and_its_sheet_lists_what_is_at_wo
         assert lines["magic"] == "new · tonight" and lines["log"] == "new · Taskmaster reads it later"
         marks = {await r.get_attribute("data-idea"): await r.locator(".dk__mark .ork-sign").get_attribute("class") if await r.locator(".dk__mark .ork-sign").count() else "" for r in await rows.all()}
         assert marks["register"] == "ork-sign work" and marks["cookie"] == "ork-sign cross" and marks["recovery"] == "ork-sign alert" and marks["ratelimit"] == "ork-sign work" and marks["magic"] == ""
-        assert "asks" in await rows.nth(3).get_attribute("class")                                                                     # a goal that asks you has the alert edge
+        assert "asks" not in await rows.nth(3).get_attribute("class") and await rows.nth(3).locator(".dk__mark .ork-sign.alert").count() == 1     # a goal that asks you: its sign, no alert edge (spec 52 §5.8)
         for r in await rows.all():
             assert (await r.locator(".dk__main").bounding_box())["height"] >= 52 and (await r.locator(".dk__open").bounding_box())["width"] == 44       # 52 px rows, › 44 px wide
         pile = rows.nth(0).locator(".pile")                                                                                           # its pile: a back with its element, edges behind it for its open tasks
@@ -243,18 +237,20 @@ async def test_a_tap_picks_a_goal_more_add_and_the_filter_leaves_only_their_card
         sheet = page.get_by_role("dialog", name="Goals")
         register = sheet.locator('.dk__main[data-idea="register"]')
         await register.click()                                                                                                        # a tap picks it
-        assert await register.get_attribute("aria-pressed") == "true" and await register.locator(".dk__check .ork-sign.check").count() == 1
+        await sheet.locator('.dk__main[data-idea="register"][aria-pressed="true"]').wait_for(timeout=WAIT_MS)                        # (the sheet is drawn again just after the tap)
+        assert await register.locator(".dk__check .ork-sign.check").count() == 1
         assert await sheet.locator('[data-act="show-all"]').is_visible()                                                              # *Show all* appears
         await page.wait_for_function("() => document.querySelectorAll('.stack[data-column=\"backend\"] .deck:not(.is-leaving)').length === 2", timeout=WAIT_MS)
         assert await keys(backend) == ["register|now", "register|next"] and await keys(screens) == ["register|now", "register|later"]      # the columns: only its stacks
         assert [await b.get_attribute("data-kind") for b in await page.locator(fan).all()] == ["look"]                                 # the bottom row: only its results (and stops: it has none)
-        assert await page.locator(".board-bar .where .where__stops").inner_text() == "4"                                                # the where button's count still counts every stop
+        assert await page.locator(".board-bar .ork-count, .partydeck .ork-count").count() == 0                                         # no count of the party shown's stops: the bottom row is it
         await sheet.locator('.dk__main[data-idea="cookie"]').click()                                                                  # more add to it
         await page.wait_for_function("() => document.querySelectorAll('.hc').length === 2", timeout=WAIT_MS)
+        await page.wait_for_function("() => document.querySelectorAll('.stack[data-column=\"backend\"] .deck:not(.is-leaving)').length === 3", timeout=WAIT_MS)
         assert await keys(backend) == ["register|now", "cookie|now", "register|next"] and [await b.get_attribute("data-kind") for b in await page.locator(fan).all()] == ["failed", "look"]
         await page.keyboard.press("Escape")
         bar = page.locator(".gbar")
-        assert norm(await bar.locator(".gbar__head").inner_text()) == "2 of 9 goals" and norm(await bar.locator(".gbar__all").inner_text()) == "Show all"
+        assert norm(await bar.locator(".gbar__head").inner_text()) == "Passkey 2 of 9 goals" and norm(await bar.locator(".gbar__all").inner_text()) == "Show all"
         assert await bar.locator(".ork-elem.meadow").count() == 1 and await bar.locator(".ork-elem.dust").count() == 1 and await bar.locator(".gbar__gate").is_visible()   # the picked goals' elements, *k of n goals*, *Show all*, the gate
         assert (await bar.bounding_box())["height"] == 44 and (await bar.locator('[data-act="show-all"]').bounding_box())["height"] >= 44
         await _band(page, "lead")                                                                                                     # Planning: only the picked goals' cards (none of these is in Planning)
@@ -262,7 +258,8 @@ async def test_a_tap_picks_a_goal_more_add_and_the_filter_leaves_only_their_card
         await _band(page, "build")
         await page.locator(".gbar__all").click()                                                                                      # Show all clears the filter
         await page.wait_for_function("() => document.querySelectorAll('.hc').length === 6", timeout=WAIT_MS)
-        assert norm(await page.locator(".gbar__head").inner_text()) == "Goals · 2 of 9 done" and await keys(backend) == ["register|now", "cookie|now", "register|next"]
+        await page.locator(".gbar:not(.is-on)").wait_for(timeout=WAIT_MS)                                                             # (the bar is drawn again with the field)
+        assert norm(await page.locator(".gbar__head").inner_text()) == "Passkey · 2 of 9 goals done" and await keys(backend) == ["register|now", "cookie|now", "register|next"]
         await page.locator(".gbar__head").click()                                                                                     # a goal of Planning: a member with none of its work says so
         await sheet.locator('.dk__main[data-idea="recovery"]').click()
         await page.keyboard.press("Escape")
@@ -271,7 +268,7 @@ async def test_a_tap_picks_a_goal_more_add_and_the_filter_leaves_only_their_card
         assert [await b.get_attribute("data-kind") for b in await page.locator(fan).all()] == ["plan"]
         page = await _reopen(page)                                                                                                    # the picks are the session's: not kept across a reload
         await page.locator(".gbar__head").wait_for(timeout=WAIT_MS)
-        assert norm(await page.locator(".gbar__head").inner_text()) == "Goals · 2 of 9 done"
+        assert norm(await page.locator(".gbar__head").inner_text()) == "Passkey · 2 of 9 goals done"
 
 
 # -- rows by phase and the stacks (spec 50 §3.4, §6.5) ----------------------------------------------------------------------------------------------------
@@ -554,53 +551,31 @@ async def test_a_swipe_on_the_strip_is_a_scroll_not_a_tap_and_it_never_holds_a_r
 # -- the create button, a face-down deck, and New goal's card (spec 50 §6.7, §4.2) ------------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_new_goal_turns_a_blank_card_over_from_the_button_to_the_middle_then_the_full_screen_form_opens(fake_repo, monkeypatch):
+async def test_new_goal_slides_the_full_screen_form_up_at_once_with_no_card_lifted_dealt_or_turned(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch, init=RECORD_DEAL) as (stub, page):
         fab = page.locator(FAB)
         await fab.wait_for(timeout=WAIT_MS)
-        fb = await fab.bounding_box()
-        await fab.click()                                                                                                             # one tap: the top card lifts, turns over and grows
-        layer = page.locator(".drawlayer")
-        await layer.wait_for(timeout=WAIT_MS)                                                                                         # the blank card turns …
-        assert await page.locator("dialog.full[open]").count() == 0                                                                   # … and the form is not open yet
-        turn = [d for d in await page.evaluate("() => window.__deal") if d["el"] == "drawcard"]
-        assert len(turn) == 1 and turn[0]["ms"] == 500 and turn[0]["easing"] == "steps(8)" and "rotateY(0deg)" in turn[0]["from"] and "rotateY(180deg)" in turn[0]["to"]     # ≈ 0.5 s, in steps, turned over
-        assert turn[0]["n"] == 3                                                                                                      # lifted off the deck first, then turned and grown
-        m = re.search(r"translate\((-?\d+)px, (-?\d+)px\)", turn[0]["from"])
-        assert abs(fb["x"] + fb["width"] / 2 - 195 - int(m.group(1))) <= 2 and abs(fb["y"] + fb["height"] / 2 - 422 - int(m.group(2))) <= 2                       # it starts at the button, ends in the middle
-        assert await layer.locator(".drawcard__back .ork-icon").count() == 1                                                          # a back with orkUI's plus
+        await fab.click()                                                                                                             # one tap: the form, at once
         form = page.get_by_role("dialog", name="New goal")
-        await form.wait_for(timeout=WAIT_MS)                                                                                          # then the form
-        await layer.wait_for(state="detached", timeout=WAIT_MS)
+        await form.wait_for(timeout=WAIT_MS)
+        assert await page.locator(".drawlayer, .typedeal").count() == 0 and [d for d in await page.evaluate("() => window.__deal") if d["el"] == "drawcard"] == []     # no lift, no deal, no turn
+        await page.wait_for_function("() => !document.getAnimations().some((a) => a.playState === 'running')", timeout=WAIT_MS)
         box = await form.bounding_box()
         assert box["x"] == 0 and box["y"] == 0 and box["width"] == 390 and box["height"] == 844                                      # full-screen
-        assert norm(await form.locator(".newgoal__head").inner_text()) == "A blank goal for Sign in with a passkey · the Taskmaster reads it next"
-        assert await form.locator(".newgoal__el .ork-elem.big.lava").count() == 1 and "Its element marks every task of it." in await form.inner_text()      # the element it will get, shown, never named
-        assert not re.search(r"lava|meadow|dust|void|ice\b", await form.inner_text())
+        text = await form.inner_text()
+        assert not re.search(r"lava|meadow|dust|void|ice\b", text) and "Its element marks every task of it." not in text             # the element is the host's: the form says none
         add = form.get_by_role("button", name="Add the goal")
         assert await add.is_disabled() and await form.get_by_role("button", name="Put it back").is_visible()
-        assert await form.get_by_label("Its title").is_visible() and await form.get_by_label("What it is for").is_visible() and await form.get_by_label("Party").input_value() == "passkey"
-        await form.get_by_label("Its title").fill("Let people sign in on a phone")
-        await form.get_by_label("What it is for").fill("No password: the phone's own unlock.")
+        assert await form.get_by_label("The goal", exact=True).is_visible() and await form.locator(".newgoal__party").get_attribute("data-goal") == "passkey"
+        await form.get_by_label("The goal", exact=True).fill("Let people sign in on a phone\n\nNo password: the phone's own unlock.")
         await add.click()
         assert await _called(stub, "ideas.add", {"text": "Let people sign in on a phone\n\nNo password: the phone's own unlock.", "track": "passkey", "priority": "high"})
         await form.wait_for(state="hidden", timeout=WAIT_MS)
         await fab.click()                                                                                                             # Put it back with words in it keeps the goal for tonight
         await form.wait_for(timeout=WAIT_MS)
-        await form.get_by_label("Its title").fill("Only a title")
+        await form.get_by_label("The goal", exact=True).fill("Only a title")
         await form.get_by_role("button", name="Put it back").click()
         assert await _called(stub, "ideas.add", {"text": "Only a title", "track": "passkey", "priority": "high", "night": True})
-
-
-@pytest.mark.asyncio
-async def test_under_reduced_motion_the_form_opens_at_once_with_no_card_turned(fake_repo, monkeypatch):
-    async with _phone(fake_repo, monkeypatch, init=RECORD_DEAL + "(() => { window.__layers = 0; document.addEventListener('DOMContentLoaded', () => new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains('drawlayer')) window.__layers += 1; }).observe(document.body, { childList: true })); })();") as (stub, page):
-        await page.emulate_media(reduced_motion="reduce")
-        fab = page.locator(FAB)
-        await fab.wait_for(timeout=WAIT_MS)
-        await fab.click()
-        await page.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)
-        assert await page.evaluate("() => window.__layers") == 0 and await page.evaluate("() => window.__deal") == [] and await page.locator(".drawlayer").count() == 0
 
 
 @pytest.mark.asyncio
@@ -700,7 +675,7 @@ async def test_no_typed_symbol_stands_in_for_an_orkui_sign_and_no_old_word_is_on
         old = re.compile(r"\b[Ii]deas?\b|\bIn play\b|\b[Dd]ecks?\b|\b[Hh]and\b|\b[Ss]tacks?\b|\b[Ss]pread\b|\b[Ee]lements?\b|\b[Cc]ards?\b")
         async def texts():
             return await page.evaluate("() => document.body.innerText + ' ' + [...document.querySelectorAll('[aria-label], [title]')].map((e) => (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')).join(' ')")
-        for opener in (None, ".gbar__head", ".board-bar .where", "about", "today", "menu"):
+        for opener in (None, ".gbar__head", ".partydeck", ".board-bar .projbtn", "about", "today", "menu"):
             if opener == "about":
                 await _about(page)
             elif opener == "today":

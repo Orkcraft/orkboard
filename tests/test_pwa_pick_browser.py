@@ -205,9 +205,9 @@ async def test_a_sounds_tile_has_its_sign_its_length_play_pause_and_a_thin_bar_t
         assert await bar.get_attribute("type") == "range" and await bar.evaluate("e => e.value") == "0" and await bar.evaluate("e => getComputedStyle(e).height") == "44px"
         await tile.get_by_role("button", name="Play").click()
         await page.wait_for_function("() => document.querySelector('.raised .pk[data-key=\"A\"] audio').currentTime > 0.3", timeout=WAIT_MS)
-        assert await bar.evaluate("e => Number(e.value)") > 20                                                       # the bar follows the sound
+        await page.wait_for_function("() => Number(document.querySelector('.raised .pk[data-key=\"A\"] .pk__bar').value) > 20", timeout=WAIT_MS)   # the bar follows the sound
         await tile.get_by_role("button", name="Pause").click()
-        assert await tile.get_by_role("button", name="Play").count() == 1
+        await tile.get_by_role("button", name="Play").wait_for(timeout=WAIT_MS)                                     # (named again when the sound says it paused)
         box = await bar.bounding_box()
         await page.mouse.click(box["x"] + box["width"] * 0.75, box["y"] + box["height"] / 2)                          # a press on the bar seeks
         await page.wait_for_function("() => document.querySelector('.raised .pk[data-key=\"A\"] audio').currentTime > 2.4", timeout=WAIT_MS)
@@ -302,6 +302,7 @@ async def test_one_plays_at_a_time_and_nothing_plays_by_itself(fake_repo, monkey
         await page.wait_for_function("() => document.querySelector('.raised .pk[data-key=\"B\"]').querySelector('audio, video').currentTime > 0.1", timeout=WAIT_MS)
         await page.keyboard.press("Escape")
         await page.locator("dialog.raised-dlg").wait_for(state="hidden", timeout=WAIT_MS)
+        await page.wait_for_function("() => [...document.querySelectorAll('audio, video')].every((m) => m.paused)", timeout=WAIT_MS)      # (stopped as the dialog closes)
         assert await _playing(page) == []
 
 
@@ -577,7 +578,9 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
         await deck.wait_for(timeout=WAIT_MS)
         face = deck.locator(".tcard")
         assert await face.locator(".tcard__foot").inner_text() == "asks you to pick" and await face.locator(".tcard__mark .ork-sign.alert").count() == 1
-        assert "is-stop" in await face.get_attribute("class") and "asks you to pick" in await deck.get_attribute("aria-label")
+        assert "asks you to pick" in await deck.get_attribute("aria-label")
+        alert = await face.evaluate("e => { const i = document.createElement('i'); i.style.color = 'var(--ork-alert)'; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }")
+        assert await face.evaluate("e => getComputedStyle(e).borderTopColor") != alert                                  # its sign, no alert edge (spec 52 §5.8)
         member = page.locator('.token[data-member="screens"]')
         assert "asks you to pick" in await member.get_attribute("aria-label") and await member.locator(".sign.alert").count() == 1       # its member: the alert sign too
         await _shot_to(page, "pick-field")
@@ -585,7 +588,7 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
         goals = page.get_by_role("dialog", name="Goals")
         row = goals.locator('.dk[data-idea="logo"]')
         await row.wait_for(timeout=WAIT_MS)
-        assert "asks you to pick" in await row.locator(".dk__line").inner_text() and await row.locator(".dk__mark .ork-sign.alert").count() == 1 and "asks" in await row.get_attribute("class")
+        assert "asks you to pick" in await row.locator(".dk__line").inner_text() and await row.locator(".dk__mark .ork-sign.alert").count() == 1 and "asks" not in await row.get_attribute("class")
         await page.keyboard.press("Escape")
         await goals.wait_for(state="hidden", timeout=WAIT_MS)
         await deck.click()                                                                                              # a tap opens the pick on its own screen

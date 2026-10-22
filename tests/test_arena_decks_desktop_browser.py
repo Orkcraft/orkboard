@@ -13,7 +13,7 @@ pytest.importorskip("playwright.sync_api")
 from orkboard.realm import library  # noqa: E402
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
 from tests.test_arena_desktop_browser import ELF, ELDER, ArenaHost, LEAD, _keys, _settle, arena, pip  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import _calls, _drawer, _open, _sent, _show_goal, box  # noqa: E402
+from tests.test_shell_browser import _new_party, _calls, _drawer, _open, _sent, _show_goal, box  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -101,7 +101,7 @@ def test_about_this_party_lists_the_newest_ten_flags_then_all_of_them(arena):
 
 def test_new_party_has_its_fields_and_sends_goal_save_with_them(arena):
     pg, host = arena
-    pg.get_by_role("button", name="New party", exact=True).click()
+    _new_party(pg)
     dialog = pg.get_by_role("dialog", name="New party")
     dialog.wait_for(timeout=WAIT_MS)
     text = _text(dialog)
@@ -120,12 +120,12 @@ def test_new_party_has_its_fields_and_sends_goal_save_with_them(arena):
     assert sent["title"] == "Billing" and sent["about"] == "Money matters and receipts" and sent["priority"] == "high"
     assert sent["leader"] == start["lead"] and sent["team"] == [*start["build"], *start["check"]] and sent["every"] == []
     pg.locator(".arena[data-goal=money-matters]").wait_for(timeout=WAIT_MS)                                           # the new party is shown (its tab picked)
-    assert pg.get_by_role("tablist", name="Parties").get_by_role("tab", name=re.compile("Billing")).count() == 1
+    assert pg.locator(".arena-ptop__name").inner_text() == "Billing"                                                  # the left column's top line says it
 
 
 def test_new_party_takes_a_party_of_the_library_and_the_checks_on_every_goal(arena):
     pg, host = arena
-    pg.get_by_role("button", name="New party", exact=True).click()
+    _new_party(pg)
     dialog = pg.get_by_role("dialog", name="New party")
     dialog.get_by_role("button", name="Design", exact=True).click()                                             # the library's design party fills the seats
     dialog.locator(".shell-price").wait_for(timeout=WAIT_MS)
@@ -172,11 +172,10 @@ def test_the_goals_list_has_at_work_planning_new_and_flags_with_their_piles_elem
     plan = {s: goals.locator(f".arena-goal[data-slug={s}]") for s in ("recovery", "second", "pagewords", "ratelimit")}
     assert "plan ready" in plan["recovery"].inner_text() and "asks you · Reviewer" in plan["second"].inner_text() and "proposed" in plan["pagewords"].inner_text()
     assert "Taskmaster is reading" in plan["ratelimit"].inner_text() and plan["ratelimit"].locator(".ork-sign.work").count() == 1
-    for s in ("recovery", "second", "pagewords"):                                                              # a stop: the alert colour on its line and its mark
-        assert plan[s].locator(".arena-goal__line.is-alert").count() == 1 and plan[s].locator(".arena-goal__mark .ork-sign.alert").count() == 1
-    assert plan["ratelimit"].locator(".arena-goal__line.is-alert").count() == 0
+    for s in ("recovery", "second", "pagewords"):                                                              # a stop: its mark, once (spec 52 §4.5): no alert words
+        assert plan[s].locator(".arena-goal__line.is-alert").count() == 0 and plan[s].locator(".arena-goal__mark .ork-sign.alert").count() == 1
     assert plan["recovery"].locator(".ork-elem.void").count() == 1 and plan["second"].locator(".ork-elem.lava").count() == 1
-    assert plan["recovery"].evaluate("e => getComputedStyle(e.querySelector('.arena-goal__main')).boxShadow").count("rgb") >= 1       # the alert edge
+    assert plan["recovery"].evaluate("e => getComputedStyle(e.querySelector('.arena-goal__main')).boxShadow") == "none"       # no alert edge
     for s, kind in (("register", "idea"), ("recovery", "plan")):                                                # › opens the goal's screen: its spec, its plan
         goals.locator(f".arena-goal[data-slug={s}] .arena-goal__open").click()
         assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": kind, "ref": s, "device": "desktop", "via": "map"}))
@@ -252,9 +251,9 @@ def test_a_press_picks_a_goal_a_second_press_takes_it_out_a_hover_peeks_show_all
     _settled(pg, ["cookie"])
     pg.keyboard.press("Escape")                                                                               # Esc
     pg.wait_for_function("() => document.querySelectorAll('.arena-stack .arena-task').length >= 9", timeout=WAIT_MS)
-    cookie.click()                                                                                            # a press on the party's tab clears it
+    cookie.click()                                                                                            # Show all clears it (the party's tab that did is gone, spec 52 §3.5)
     _settled(pg, ["cookie"])
-    pg.locator(".arena-gtab.is-on").click()
+    pg.get_by_role("button", name="Show all").click()
     pg.wait_for_function("() => document.querySelectorAll('.arena-stack .arena-task').length >= 9", timeout=WAIT_MS)
     assert pg.locator(".arena-goal__main[aria-pressed=true]").count() == 0
 
@@ -283,7 +282,7 @@ def test_the_filter_takes_the_results_the_stops_and_the_other_members_cards_with
     assert pg.get_by_text("Nothing of these goals").count() >= 3                                               # the results and the members with none say so
     words = pg.locator(".arena-stack[data-agent=words]")
     assert "Nothing of these goals" in words.inner_text() and "No task now" not in words.inner_text()
-    assert pg.locator(".arena-gtab.is-on .ork-count.warning").inner_text() == "4"                              # the tab still counts every stop
+    assert pg.locator(".arena-ptop .ork-count").count() == 0                                                  # no count of the party shown's stops: the bottom row is it
     pg.get_by_role("button", name="Show all").click()
     pg.wait_for_function("() => document.querySelectorAll('.arena-result').length === 2 && document.querySelectorAll('.arena-hc').length === 4", timeout=WAIT_MS)
     pg.locator(".arena-goal[data-slug=register] .arena-goal__main").click()
@@ -313,7 +312,7 @@ def test_a_card_the_filter_takes_leaves_where_it_stands_without_a_check_and_come
 def test_a_stack_per_goal_in_a_row_the_goals_in_the_boards_order_two_to_a_row_with_5_to_7_cards_of_104_at_most(gui):
     host = ArenaHost()
     host.node_of("signin")["tasks"] = [*host.node_of("signin")["tasks"], pip("b1", "Hash the key", "ready", wave=2, by="backend")]       # a third goal for Backend's first row
-    pg, host, errors = _open(gui, host=host, ready=".arena-gtab", viewport={"width": 1500, "height": 900})
+    pg, host, errors = _open(gui, host=host, ready=".arena-ptop", viewport={"width": 1500, "height": 900})
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         column = pg.locator(".arena-stack[data-agent=backend]")
@@ -349,7 +348,7 @@ def test_the_stack_of_two_edges_for_three_cards_and_the_top_of_a_stack_is_the_on
     host.node_of("register")["tasks"][3]["wave"] = 1                                                          # k5 joins the first phase: three cards in Backend's register stack
     host.bump({})
     stack = pg.locator(".arena-stack[data-agent=backend] .arena-stk[data-goal=register]")
-    stack.locator(".arena-stk__n").wait_for(timeout=WAIT_MS)
+    stack.locator(".arena-stk__n", has_text="×3").wait_for(timeout=WAIT_MS)                                  # the board read again (it was ×2)
     assert stack.locator(".arena-stk__n").inner_text() == "×3" and stack.locator(".arena-stk__edge").count() == 2
     assert stack.locator(".arena-task").get_attribute("data-task") == "k2"                                      # at work first, then failed, in Review, ready, waiting
     assert [r.get_attribute("data-row") for r in pg.locator(".arena-stack[data-agent=backend] .arena-phase").all()] == ["now"]       # next row gone: nothing is a wave after
@@ -539,7 +538,7 @@ def test_the_arrows_join_the_cards_of_a_spread_both_ways(arena):
 def test_the_new_goal_pile_turns_its_top_card_over_then_opens_new_goal_with_the_element_it_will_get(arena):
     pg, host = arena
     pile = pg.locator(".arena-new__pile")
-    assert "New goal" in pg.locator(".arena-new__words").text_content() and "draw a blank one" in pg.locator(".arena-new__words").text_content()
+    assert "New goal" in pg.locator(".arena-new__words").text_content() and "pick its type" in pg.locator(".arena-new__words").text_content()
     assert pile.locator(".arena-new__edge").count() == 3 and pile.locator(".arena-new__back .ork-icon").count() == 1
     assert pile.locator(".arena-new__card").evaluate("e => getComputedStyle(e).transitionDuration") == "0.42s"
     pile.click()
@@ -669,7 +668,7 @@ def test_under_reduced_motion_the_flag_line_stands_and_nothing_flies(gui):
 # -- below 1 024 px and every word in today's (§0, §3) ---------------------------------------------------------------------------------
 
 def test_below_1024_the_goals_list_the_filter_and_the_stacks_still_work(gui):
-    pg, host, errors = _open(gui, host=ArenaHost(), viewport={"width": 900, "height": 800}, ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=ArenaHost(), viewport={"width": 900, "height": 800}, ready=".arena-ptop")
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         assert box(pg, ".arena-left")["width"] == 200 and pg.locator(".arena-today").count() == 0
@@ -713,7 +712,10 @@ def test_the_page_says_party_and_goal_never_idea_and_none_of_the_games_words(are
     read()
     pg.get_by_role("button", name="Close the drawer").click()
     for name, dialog in (("Edit the party", "Edit the party"), ("New party", "New party")):
-        pg.get_by_role("button", name=name, exact=True).click()
+        if name == "New party":
+            _new_party(pg)
+        else:
+            pg.get_by_role("button", name=name, exact=True).click()
         pg.get_by_role("dialog", name=dialog).wait_for(timeout=WAIT_MS)
         read()
         pg.keyboard.press("Escape")

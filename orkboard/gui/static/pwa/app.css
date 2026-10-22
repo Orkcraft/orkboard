@@ -100,16 +100,11 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .board-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--ork-1); margin: 0; padding: max(var(--ork-1), env(safe-area-inset-top)) var(--ork-1) var(--ork-1);
   background: var(--ork-panel); border-bottom: var(--ork-line) solid var(--ork-frame); }
 .board-name { all: unset; box-sizing: border-box; cursor: pointer; flex: 0 1 auto; min-width: 0; min-height: var(--ork-tap); padding: 0 var(--ork-3); display: inline-flex; align-items: center;
-  gap: var(--ork-2); overflow: hidden; font: 400 12px/16px var(--ork-font-text); }      /* the *where* button: the project, the party, what waits; it opens the parties' sheet (shell-where.js) */
+  gap: var(--ork-2); overflow: hidden; font: 400 12px/16px var(--ork-font-text); }      /* the project's button: the project's name; it opens the Projects sheet (shell-where.js) */
 .board-name:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
 .board-bar .spacer { flex: 1 1 auto; }
-.where__project { flex: 0 8 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink-muted); }
-.where__sep { flex: none; color: var(--ork-ink-faint); }
-.where__head { flex: none; display: inline-flex; }
-.where__head .ork-race__head { width: 20px; height: 18px; }              /* the leader's head: an accent, a little smaller than orkUI's own 24 x 22 */
-.where__party { flex: 0 1 auto; min-width: 2ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ork-ink); font-weight: 600; }
-.board-name .ork-count { flex: none; }
-.where.is-bare .where__sep { display: none; }
+.projbtn { gap: var(--ork-2); font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink); }
+.projbtn__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-bar .ork-btn, .board-bar .limit-chip { flex: none; }
 .menu-today { gap: var(--ork-3); }
 .board-bar .ork-btn.gear { min-width: var(--ork-tap); padding: 0 var(--ork-3); }
@@ -549,7 +544,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
   color: var(--ork-ink-faint); font: 400 12px/16px var(--ork-font-text); white-space: nowrap; overflow: hidden; }
 .gbar__head:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .gbar__head .ork-chev { margin-left: 0; }
-.gbar__lbl { color: var(--ork-ink-muted); }
+.gbar__lbl { color: var(--ork-ink); font-weight: 600; white-space: nowrap; }
 .gbar__n { color: var(--ork-ink-muted); font-weight: 600; }
 .gbar__quiet { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .gbar__els { display: inline-flex; gap: var(--ork-2); }
@@ -564,7 +559,6 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .dk__main { all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 auto; min-width: 0; min-height: 52px; padding: var(--ork-2) var(--ork-4); display: flex; align-items: center; gap: var(--ork-5);
   border: var(--ork-line) solid transparent; clip-path: var(--ork-notch); color: var(--ork-ink); }
 .dk.is-on .dk__main { background: var(--ork-raised); border-color: var(--ork-ink); }
-.dk.asks .dk__main { box-shadow: inset 2px 0 0 var(--ork-alert); }
 .dk__main:focus-visible { box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .pile { position: relative; flex: none; width: 26px; height: 36px; margin-top: var(--ork-3); }
 .pile__edge { position: absolute; width: 26px; height: 36px; box-sizing: border-box; background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); }
@@ -576,7 +570,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .dk__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .dk__title { font: 400 14px/18px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dk__line { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dk__line.care { color: var(--ork-alert); }
+.dk__type { display: inline-flex; vertical-align: -2px; margin-right: var(--ork-2); color: var(--ork-ink-muted); }
 .dk__mark { flex: none; width: 14px; display: inline-flex; justify-content: center; color: var(--ork-ink-muted); }
 .dk__mark .ork-sign.alert { color: var(--ork-alert); }
 .dk__mark .ork-sign.cross { color: var(--ork-danger); }
@@ -594,10 +588,34 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .spacer { flex: 1 1 auto; }
 
 .boardwrap { position: relative; flex: 1 1 auto; min-height: 272px; display: flex; flex-direction: column; }
-.bands { flex: none; display: grid; grid-template-columns: 1fr 1.3fr 1fr; border-bottom: var(--ork-line) solid var(--ork-frame); }
-.band { appearance: none; display: flex; align-items: center; justify-content: center; gap: var(--ork-3); min-width: 0; height: var(--ork-tap); padding: 0 var(--ork-2); border: 0;
-  background: none; color: var(--ork-ink-muted); font: 400 12px/16px var(--ork-font-text); cursor: pointer; }
-.band__name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the stage switch wears the party's faces (spec 52 §5.3): three tabs 52 px high, each its band's heads (24 x 22, each 14 px after the one before) over its word, one sign at the faces'
+   top right, no number; at its end, outside the tablist, the party's deck (52 x 52) */
+.stagebar { flex: none; display: flex; align-items: stretch; border-bottom: var(--ork-line) solid var(--ork-frame); }
+.bands { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; }
+.band { appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--ork-1); min-width: 0; height: 52px; padding: 0 var(--ork-1); border: 0;
+  background: none; color: var(--ork-ink-muted); font: 600 11px/13px var(--ork-font-text); cursor: pointer; }
+.band__name { white-space: nowrap; }
+.band__faces { position: relative; display: inline-flex; align-items: flex-start; height: 22px; }
+.band__faces .ork-race__head { width: 24px; height: 22px; }
+.band__faces > * + .ork-race__head, .band__faces > * + .band__nohead { margin-left: -10px; }
+.band__nohead { flex: none; width: 24px; height: 22px; box-sizing: border-box; border: 1px dashed var(--ork-edge); }
+.band__sign { flex: none; display: inline-flex; margin-left: -4px; margin-top: -4px; }
+.band__sign.danger { color: var(--ork-danger); }
+.band__sign.alert { color: var(--ork-alert); }
+.partydeck { all: unset; box-sizing: border-box; cursor: pointer; position: relative; flex: none; width: 52px; height: 52px; }
+.partydeck:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.partydeck__edge, .partydeck__back { position: absolute; width: 22px; height: 30px; box-sizing: border-box; clip-path: var(--ork-notch); }
+.partydeck__edge { background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-edge); }
+.partydeck__edge.e2 { left: 19px; top: 7px; }
+.partydeck__edge.e1 { left: 17px; top: 9px; }
+.partydeck__back { left: 15px; top: 11px; display: flex; align-items: center; justify-content: center; color: var(--ork-ink); border: var(--ork-line) solid var(--ork-ink);
+  background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
+.partydeck__back .ork-chev { margin: 0; }
+.partydeck__n { position: absolute; right: 2px; top: 2px; }
+.pane-head .partydeck, .arena-empty .partydeck { width: var(--ork-tap); height: var(--ork-tap); }
+/* a band with no one (spec 52 §5.4): what happens to its work, and Add to the party */
+.band-none { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); padding: var(--ork-5); }
+.band-none .cap { margin: 0; }
 .band.is-on { color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
 .band:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 /* the members and their columns: one sideways strip (spec 50 §6.5) — a member with its column, 148 px wide, snapped to a column's start, the third peeking at 390 px, no scrollbar drawn;
@@ -638,8 +656,6 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .tcard.is-wait, .tcard.is-raw { border-style: dashed; background: var(--ork-canvas); }
 .tcard.is-fail { border-color: var(--ork-danger); }
 .tcard.is-fail .tcard__mark, .tcard.is-fail .tcard__foot { color: var(--ork-danger); }
-.tcard.is-stop { border-color: var(--ork-alert); }
-.tcard.is-stop .tcard__mark, .tcard.is-stop .tcard__foot { color: var(--ork-alert); }
 .tcard.is-out { border-color: var(--ork-success); }
 .tcard.is-out .tcard__foot { color: var(--ork-success); font-weight: 600; }
 .tcard__mark .ork-sign.cross { color: var(--ork-danger); }
@@ -660,13 +676,11 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .deck__edge.e1 { left: 4px; top: -4px; }
 .deck__edge.e2 { left: 8px; top: -8px; }
 .deck.is-fail .deck__edge { border-color: var(--ork-danger); }
-.deck.is-stop .deck__edge { border-color: var(--ork-alert); }
 .deck__n { position: absolute; z-index: 3; right: -6px; top: -12px; min-width: 22px; height: 18px; font: 600 11px/14px var(--ork-font-text); }
 .phase.is-next .tcard, .phase.is-later .tcard { background: var(--ork-canvas); border-color: var(--ork-frame); }
 .phase.is-next .tcard__name, .phase.is-later .tcard__name { color: var(--ork-ink-muted); }
 .phase.is-next .tcard__foot, .phase.is-later .tcard__foot, .phase.is-next .tcard__idea, .phase.is-later .tcard__idea { color: var(--ork-ink-faint); }
 .phase.is-next .tcard.is-fail, .phase.is-later .tcard.is-fail { border-color: var(--ork-danger); }
-.phase.is-next .tcard.is-stop, .phase.is-later .tcard.is-stop { border-color: var(--ork-alert); }
 .deck:focus-visible .tcard { background: var(--ork-panel); }
 .deck.is-leaving { animation: leave 0.3s steps(3) forwards; pointer-events: none; }
 .deck__flash { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; background: var(--ork-panel); animation: flash 0.3s steps(1) forwards; }
@@ -712,7 +726,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .tnum { font: 600 11px/13px var(--ork-font-text); color: var(--ork-ink); white-space: nowrap; }
 .tnum.muted { font-weight: 400; color: var(--ork-ink-muted); }
 
-.solo { position: absolute; left: 0; right: 0; top: calc(var(--ork-tap) + var(--ork-line) + var(--ork-4) + 66px); bottom: 0; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
+.solo { position: absolute; left: 0; right: 0; top: calc(52px + var(--ork-line) + var(--ork-4) + 66px); bottom: 0; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
 .solo__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); padding: var(--ork-2) var(--ork-2) var(--ork-2) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); }
 .solo__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/18px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
 .solo__card { flex: none; display: flex; align-items: center; gap: var(--ork-5); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
@@ -755,6 +769,8 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .hc__kind { font: 500 12px/14px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ork-alert); white-space: nowrap; overflow: hidden; }
 .hc__kind.no { color: var(--ork-danger); }
 .hc__kind.muted { color: var(--ork-ink-muted); }
+.hc__miss { margin-top: var(--ork-2); font: 400 11px/14px var(--ork-font-text); color: var(--ork-ink-muted); }
+.raised__miss { margin: 0; padding: 0 var(--ork-5); font: 400 13px/18px var(--ork-font-text); }
 
 /* the raised one: a modal over the scrim, leaping from its place in the fan in steps (none under reduced motion) */
 dialog.raised-dlg { margin: auto auto calc(var(--tabs) + var(--ork-6)); padding: 0; border: 0; background: transparent; color: var(--ork-ink); width: calc(100% - 24px); max-width: 330px;
@@ -823,19 +839,47 @@ dialog.sheet.top { margin: 0 0 auto; border-top: 0; border-bottom: var(--ork-dou
 .party-about__acts { display: flex; align-items: center; gap: var(--ork-4); margin-top: var(--ork-5); flex-wrap: wrap; }
 .party-about__acts .party-save { flex: 1 1 auto; }
 
-/* New goal: the full-screen form, and the blank card that turns over to it (shell-ideas.js, shell-dial.js; spec 50 §6.7) */
+/* New goal: the full-screen form that slides up (shell-ideas.js; spec 53 §2) */
 dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0; }
 .sheet.full .sheet-in { min-height: 100%; }
-.sheet.full .sheet-foot { flex-direction: column-reverse; }
-.newgoal__head { display: flex; flex-direction: column; gap: var(--ork-1); }
-.newgoal__for { margin: 0; }
-.newgoal__el { display: flex; align-items: center; gap: var(--ork-4); }
-.drawlayer { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: var(--ork-scrim); perspective: 600px; }
-.drawcard { position: relative; width: 150px; height: 210px; transform-style: preserve-3d; }
-.drawcard__back, .drawcard__face { position: absolute; inset: 0; box-sizing: border-box; display: flex; align-items: center; justify-content: center; backface-visibility: hidden; clip-path: var(--ork-notch); }
-.drawcard__back { border: 2px solid var(--ork-action); color: var(--ork-action); background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
-.drawcard__back .ork-icon { width: 40px; height: 40px; }
-.drawcard__face { border: var(--ork-double) double var(--ork-edge); background: var(--ork-panel); transform: rotateY(180deg); }
+.sheet.newgoal .sheet-in { gap: var(--ork-4); }
+.sheet.newgoal .sheet-foot { margin-top: auto; }
+.newgoal__party { appearance: none; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-4); width: 100%; min-height: 52px; padding: var(--ork-2) var(--ork-4); text-align: left;
+  background: var(--ork-raised); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
+.newgoal__party:focus-visible, .newgoal__opt:focus-visible, .newgoal__chip:focus-visible, .newgoal__newparty:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.newgoal__head { flex: none; display: inline-flex; width: 24px; height: 22px; }
+.newgoal__who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.newgoal__name { font: 600 13px/18px var(--ork-font-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newgoal__line { font: 400 11px/15px var(--ork-font-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newgoal__party .ork-chev { margin: 0; flex: none; }
+.newgoal__menu { display: flex; flex-direction: column; margin-top: calc(-1 * var(--ork-3)); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-panel); }
+.newgoal__parties { display: flex; flex-direction: column; }
+.newgoal__opt, .newgoal__newparty { appearance: none; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-4); width: 100%; min-height: var(--ork-tap); padding: var(--ork-2) var(--ork-4);
+  text-align: left; background: none; color: var(--ork-ink); border: 0; border-top: var(--ork-line) solid var(--ork-frame); font: inherit; cursor: pointer; }
+.newgoal__parties .newgoal__opt:first-child { border-top: 0; }
+.newgoal__opt.is-on { background: var(--ork-raised); }
+.newgoal__newparty { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; }
+.newgoal__newparty b { font: 600 13px/18px var(--ork-font-text); }
+.newgoal__newparty span { font: 400 11px/15px var(--ork-font-text); }
+.newgoal__low { margin: 0; font: 400 11px/15px var(--ork-font-text); }
+.newgoal__types { display: flex; gap: var(--ork-3); margin: 0 calc(-1 * var(--ork-6)); padding: 0 var(--ork-6); overflow-x: auto; scrollbar-width: none; }
+.newgoal__types::-webkit-scrollbar { display: none; }
+.newgoal__chip { appearance: none; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--ork-3); min-height: var(--ork-tap); padding: 0 var(--ork-4);
+  background: none; color: var(--ork-ink-muted); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: 500 13px/16px var(--ork-font-pixel); cursor: pointer; }
+.newgoal__chip[aria-checked="true"] { color: var(--ork-ink); background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.newgoal__chip.is-blank { border-style: dashed; }
+.newgoal__typeline { margin: 0; font: 400 11px/15px var(--ork-font-text); }
+.newgoal__goallabel { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ork-4); }
+.newgoal__goallabel small { font: 400 11px/15px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
+.newgoal__asks, .newgoal__refs { display: flex; flex-direction: column; gap: var(--ork-4); }
+.newgoal__asks[hidden], .newgoal__refs[hidden], .joins[hidden] { display: none; }
+/* the join line (spec 52 §4.3): who joins, or who swaps, and what happens without it */
+.joins { display: flex; flex-direction: column; gap: var(--ork-4); }
+.joinline { display: flex; flex-direction: column; gap: var(--ork-2); }
+.joinline__tick { display: flex; align-items: center; flex-wrap: wrap; gap: var(--ork-3); min-height: var(--ork-tap); cursor: pointer; }
+.joinline__tick input { width: 22px; height: 22px; margin: 0; accent-color: var(--ork-ink); }
+.joinline__who select { min-height: var(--ork-tap); }
+.joinline.is-full, .joinline__without { margin: 0; font: 400 13px/18px var(--ork-font-text); }
 
 /* Today and the tools, the two sheets of the top bar */
 .today-list { display: flex; flex-direction: column; gap: var(--ork-3); }

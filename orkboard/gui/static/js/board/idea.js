@@ -8,6 +8,7 @@ import { say } from "../link.js";
 import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
 import { Stages } from "./stages.js";
 import { act as run, showTask, showIdea, closePreview, roles } from "../shell/store.js";
+import { missingWords } from "../arena/types.js";
 import { ErrorLine } from "../shell/errors.js";
 import { PointedAt } from "../shell/lens.js";
 
@@ -155,12 +156,14 @@ function Actions({ p }) {
   </div>`;
 }
 
-/** The goal's plan with the to-do it was opened from highlighted and said what it unblocks; Start stays here. */
+/** The goal's plan with the to-do it was opened from highlighted and said what it unblocks; Start stays here. A plan that gives work to no one of the party says
+ *  so under it (docs/specs/52-goal-types.md §4.4). */
 export function PlanView({ p, todo }) {
   const plan = p.plan, e = plan?.estimate;
   if (!plan) return html`<p class="ok-tone-muted">This goal has no plan yet.</p>`;
   return html`<div class="board-actions">
     <${Plan} plan=${plan} todo=${todo} />
+    ${(plan.missing || []).length > 0 && html`<p class="ok-font-status ok-tone-muted board-missing">${missingWords(plan.missing)}</p>`}
     ${p.state === "plan" && e && html`<button class="ork-btn primary" onClick=${() => run("ideas.start", { slug: p.slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
     <button class="board-link" onClick=${() => showIdea(p.slug)}>Open the spec</button>
   </div>`;

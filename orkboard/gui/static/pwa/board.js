@@ -54,11 +54,14 @@ export function makeBoard(ctx) {
     },
     refresh, open, close, back, reset, go,
     editGoal(slug) { boardTab.editGoal(slug); },
-    /** The parties of the project as the top bar's *where* button and its sheet say them (spec 50 §6.1), and a pick in it. */
+    /** The parties of the project as the party's deck and its sheet say them (spec 52 §5.3), and a pick in it. */
     parties() { return partiesOf(st, keptGoal(st.snap?.project)); },
+    /** The party's deck, a new node for the end of the stage switch (shell-where.js). */
+    partyDeck() { return top.deck(); },
     pick(slug) { boardTab.pick(slug); },
     pickOps() { boardTab.pickOps(); },
     editTeam(g) { boardTab.editTeam(g); },
+    /** New goal, the party shown first (spec 53 §2); the form picks its goal type. */
     newIdea() { boardTab.openNew(st.track); },
     /** Edit the party of a goal: the goal as `ideas.goal` sends it, in the team's sheet. */
     async editParty(slug) { const got = await core.call("ideas.goal", { slug }); if (got) core.editTeam(got); },

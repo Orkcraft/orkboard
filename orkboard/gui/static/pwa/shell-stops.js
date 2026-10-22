@@ -4,7 +4,8 @@
 // fan to a raised sheet above the scrim (in steps, none under reduced motion; its place in the fan stays empty while it is up) with its gem, its kind, its head, its
 // title and text, its quick answers as 44 px buttons and *Open it on its own screen*. A tap on the scrim lays it back. The answers are the commands Needs you had:
 // a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped. Each wears its goal's element
-// (spec 50 §6.8) and draws its marks with orkUI's signs.
+// (spec 50 §6.8) and draws its marks with orkUI's signs. A plan that gives work to no one of the party says so on its card and its raised one (spec 52 §5.7): *No one in the party does pixel art:
+// Artist would.*, with *Add and start* (the agent joins, then the work starts) when its seat is free, else *Edit the party*; *Start without* keeps today's way.
 import { h, icon } from "./util.js";
 import { elem, sign } from "./shell-marks.js";
 import { midHead, whoHead } from "./shell-who.js";
@@ -22,6 +23,14 @@ const gemOf = (g) => h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: 
 const CARD = 104, WIDTH = 330;                           // a card's width in the fan, and the room it was drawn for (the row's width less 30 px at each side)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
+
+/** A plan's missing line (spec 52 §4.4): *No one in the party does pixel art: Artist would.*, *… would, and 1 more.* when it misses more than one kind; "" when it misses no one. */
+export function missingWords(missing) {
+  const m = (missing || [])[0];
+  if (!m) return "";
+  const more = missing.length - 1;
+  return `No one in the party does ${m.words}: ${m.name} would${more ? `, and ${more} more` : ""}.`;
+}
 
 /** `core`: the board's frame; `ctx`: {flash}; `needs`: shell-needs.js (the forms); `ops`: shell-ops.js.
  *  Returns {el, sheets, content(), draw(), pop(key)}. */
@@ -75,13 +84,21 @@ export function makeStops(core, ctx, needs, ops) {
     const asking = n.kind === "asks" || n.kind === "goal", q = asking ? needs.askedOf(n)[0] : null;
     if (n.kind === "plan") {
       const tasks = node?.tasks || [], checks = tasks.filter((t) => t.band === "check").length, price = planPrice(node?.plan_estimate || node?.estimate);
-      const night = node?.start_at === "night";
+      const night = node?.start_at === "night", missing = n.missing || [], first = missing[0];
+      const openPlan = () => btn("Open the plan", away((via) => core.open({ kind: "plan", slug: n.idea }, via)), { attrs: { "data-act": "open-plan" } });
+      const without = () => btn("Start without", go("ideas.start", { slug: n.idea, via: "hand" }, "Started."), { primary: !first?.free, tip: "Passes the plan as it is; the work starts", attrs: { "data-act": "start" } });
+      let quick;
+      if (night) quick = () => [btn("Start now", go("ideas.start_now", { slug: n.idea, via: "hand" }, "Started."), { primary: true, tip: "Starts the plan now, instead of tonight", attrs: { "data-act": "start-now" } }), openPlan()];
+      else if (first?.free) {
+        quick = () => [btn("Add and start", go("ideas.start", { slug: n.idea, join: { add: first.agent }, via: "hand" }, `${first.name} joined the party; the work started.`),
+          { primary: true, tip: `${first.name} joins the party, then the work starts`, attrs: { "data-act": "add-start" } }), without()];
+      } else if (first) quick = () => [without(), btn("Edit the party", away(() => core.editParty(n.goal)), { attrs: { "data-act": "edit-party" } })];
+      else {
+        quick = () => [btn("Start the work", go("ideas.start", { slug: n.idea, via: "hand" }, "Started."), { primary: true, tip: "Passes the plan; the work starts", attrs: { "data-act": "start" } }), openPlan()];
+      }
       return { ...base, gem: { text: price || "—", tip: "What the plan should cost, at API prices" }, big: lead,
-        text: tasks.length ? `${plural(tasks.length - checks, "task")}${checks ? `, ${plural(checks, "check")}` : ""}` : n.text,
-        open: { kind: "plan", slug: n.idea }, quickLabel: "Quick moves",
-        quick: () => [night ? btn("Start now", go("ideas.start_now", { slug: n.idea, via: "hand" }, "Started."), { primary: true, tip: "Starts the plan now, instead of tonight", attrs: { "data-act": "start-now" } })
-          : btn("Start the work", go("ideas.start", { slug: n.idea, via: "hand" }, "Started."), { primary: true, tip: "Passes the plan; the work starts", attrs: { "data-act": "start" } }),
-        btn("Open the plan", away((via) => core.open({ kind: "plan", slug: n.idea }, via)), { attrs: { "data-act": "open-plan" } })] };
+        text: tasks.length ? `${plural(tasks.length - checks, "task")}${checks ? `, ${plural(checks, "check")}` : ""}` : n.text, miss: missingWords(missing),
+        open: { kind: "plan", slug: n.idea }, quickLabel: "Quick moves", quick };
     }
     if (asking) {
       const isGoal = n.kind === "goal", slug = isGoal ? n.goal : n.idea, asked = needs.askedOf(n);
@@ -164,7 +181,7 @@ export function makeStops(core, ctx, needs, ops) {
       "aria-label": `${KIND[it.kind]}: ${it.title}`, onclick: () => pop(it.key) },
     h("span", { class: "hc__top" }, gemOf(it.gem),
       h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element)),
-    it.thumbs ? it.thumbs() : null);
+    it.miss ? h("span", { class: "hc__miss" }, it.miss) : null, it.thumbs ? it.thumbs() : null);
     for (const [k, v] of [["--rot", `${f.rot}deg`], ["--dy", `${f.dy}px`], ["--z", String(f.z)], ["--ov", `${f.ov}px`]]) b.style.setProperty(k, v);
     return b;
   }
@@ -182,6 +199,7 @@ export function makeStops(core, ctx, needs, ops) {
       it.big ? h("span", { class: "art" }, midHead(it.big)) : null,
       h("span", { class: "banner" }, it.title),
       h("div", { class: "raised__text" }, it.text),
+      it.miss ? h("p", { class: "muted raised__miss" }, it.miss) : null,
       it.more ? it.more() : null,
       quick,
       it.open ? h("button", { class: "ork-btn quiet", type: "button", "data-act": "open-screen", onclick: away((via) => core.open(it.open, via)) }, "Open it on its own screen") : null);
@@ -229,7 +247,7 @@ export function makeStops(core, ctx, needs, ops) {
       if (guard.waits()) return;
       forget((st.board?.needs_you || []).filter((n) => n.kind === "pick"));        // a draft of a pick that is answered is let go
       items = build();
-      const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.element, i.sig])) + st.hand;
+      const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig])) + st.hand;
       if (sig !== sigs && !dlg.open) {
         sigs = sig;
         hand.replaceChildren(...items.map((it, i) => card(it, i, items.length)));

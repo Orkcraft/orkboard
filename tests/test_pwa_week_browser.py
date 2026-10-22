@@ -190,7 +190,7 @@ async def test_no_key_writes_it_and_the_drawers_row_shows_the_card_any_time(fake
         await card.wait_for(timeout=WAIT_MS)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "week", "ref": "2026-W42", "device": "phone", "via": "map"})
         await card.get_by_role("button", name="Close").click()
-        assert await card.count() == 0
+        await card.wait_for(state="detached", timeout=WAIT_MS)                                       # (gone once the sheet has closed)
 
 
 @pytest.mark.asyncio
