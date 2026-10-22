@@ -1,0 +1,114 @@
+[
+ {
+  "name": "stall",
+  "for": "store",
+  "meaning": "a market stall under a striped awning: where the wares are sold",
+  "grid": [
+   "#######",
+   "#.#.#.#",
+   "#######",
+   ".#...#.",
+   ".#...#.",
+   "#######",
+   "#.....#"
+  ]
+ },
+ {
+  "name": "hanging-sign",
+  "for": "store",
+  "meaning": "a shop's board on two posts: the shop's name, read from the street",
+  "grid": [
+   "#.....#",
+   "#.....#",
+   "#######",
+   "#.###.#",
+   "#.....#",
+   "#.###.#",
+   "#######"
+  ]
+ },
+ {
+  "name": "scales",
+  "for": "store",
+  "meaning": "a merchant's scales: the price weighed out",
+  "grid": [
+   "...#...",
+   "#######",
+   "#.#.#.#",
+   "#.#.#.#",
+   "##...##",
+   "#.###.#",
+   "#.###.#"
+  ]
+ },
+ {
+  "name": "crate",
+  "for": "store",
+  "meaning": "a wares' crate: goods packed and slatted for the road",
+  "grid": [
+   ".......",
+   "#######",
+   "#.#.#.#",
+   "#######",
+   "#.#.#.#",
+   "#######",
+   "......."
+  ]
+ },
+ {
+  "name": "lute",
+  "for": "tune",
+  "meaning": "a lute: a string instrument played for the camp",
+  "grid": [
+   "......#",
+   ".....#.",
+   "..###..",
+   ".#####.",
+   ".#.#.#.",
+   "..###..",
+   "......."
+  ]
+ },
+ {
+  "name": "drum",
+  "for": "tune",
+  "meaning": "a drum laced at its skin: a beat the whole party hears",
+  "grid": [
+   ".#####.",
+   "#######",
+   "#.#.#.#",
+   "#######",
+   "#.#.#.#",
+   "#######",
+   ".#####."
+  ]
+ },
+ {
+  "name": "pan-pipe",
+  "for": "tune",
+  "meaning": "a pan pipe, its reeds of three lengths: a short tune",
+  "grid": [
+   "#......",
+   "#.#....",
+   "#.#.#..",
+   "#.#.#.#",
+   "#.#.#.#",
+   "#######",
+   "......."
+  ]
+ },
+ {
+  "name": "harp",
+  "for": "tune",
+  "meaning": "a harp, its frame and strings: a long song",
+  "grid": [
+   ".....##",
+   "....#.#",
+   "...#..#",
+   "..#...#",
+   ".#....#",
+   ".#....#",
+   ".#####."
+  ]
+ }
+]
