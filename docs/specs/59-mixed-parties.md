@@ -324,6 +324,26 @@ in *As built* first.
 - Tests outside the files B's row names: `tests/test_goal_types_desktop_browser.py` (a §9 file) read `goal_types.of`, which A removed: it reads `CATALOG` now. `tests/test_shell_browser.py`'s stub answers `presets` and `stages` and its New party count is nine tiles. `tests/test_mixed_parties_desktop_browser.py` is B's new file.
 - `tests/test_shell_browser.py::test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its_steps_too` fails on main too (the *Open…* button is outside the viewport); not touched.
 
+**The pick (G's sheet), 22 October: a provisional pick by Claude, for the owner to change.** `store` is the candidate
+`stall` (a market stall under a striped awning), `tune` the candidate `drum` (a drum laced at its skin): the most solid
+silhouettes at 14 px, each 16 cells from every sign and emblem. Passed over: `hanging-sign` (read as `landing`'s
+signpost), `lute` and `harp` (too thin at 14 px), `scales`, `crate`, `pan-pipe`. Another pick changes A0's two drawings
+only.
+
+**C (the phone), 22 October.** §7 built as written. What the builder chose or found:
+- New party reads `roles.presets`: one column of `.craft-tile.preset-tile` buttons in *Mixed*, *One craft*, *Taskmaster alone* groups (`data-preset` on each, `data-craft`
+  on the crafts and the Taskmaster alone only, so the old selectors still find them; a mixed party's craft is its goal's `craft`). A host with no `presets` keeps the
+  row of six crafts. A pick sends `preset` with `ideas.goal_save` (the Taskmaster alone and a person's own party send none); a seat or *Every goal* changed clears it.
+- Seats by the leader come from `roles.stages[leader].seats` (`default` for a leader it does not name; `roles.seats` for an older host). A fold's head says the stage's
+  word and *<word> · 4 seats*; a band over its seats draws the extra seats in the alert colour, *<stage> has <n> seats with <leader>: take one out first.* under the fold
+  and under the party's line, and keeps *Save party* off (`makeParty().fits()`; a goal's own screen, `shell-goal.js`, is not in C's row and does not use it yet).
+  An older host (no `stages`) refuses a full band in today's words.
+- The stage switch reads the Map goal's `stages` (`shell-map-idea.js` `stageWords`, `shell-arena-words.js` `bandsOf`); `STAGES` stays the default words. Up to four builders'
+  and three checkers' heads show; four sit 14 px apart (66 px). `shell-goals-words.js` (the goals sheet's *… · implementation* line) is not in C's row and still says
+  today's words.
+- Four tests outside C's row changed, only the pinned `CACHE` (`v66`): `test_pwa_deal_start_browser`, `test_pwa_goal_types_browser`, `test_pwa_one_hand_browser`,
+  `test_pwa_board53_browser`. `shell-party.js` needed no change.
+
 ## 11. Running G, A, A0, B and C
 Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass
 (CLAUDE.md, alpha), no pull request left waiting. **G and A start together. A0 starts after the owner's pick. B and C

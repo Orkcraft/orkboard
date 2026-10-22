@@ -59,8 +59,8 @@ export function makeField(core, hooks) {
     h("b", {}, "Process now"), h("span", { class: "cap" }, p.next ? plural(p.n, "new goal") : "no new goal"));
     const items = model.planning.filter((it) => keep(ui, it.idea));
     const cards = items.map((it) => deckNode({ key: it.key, idea: it.idea, phase: "", items: [it], top: it, n: 1 }, { planning: true, press: () => core.open(it.open, "map"), label: it.label }));
-    const kids = [power, cards.length ? phaseRow("planning", cards, true) : h("span", { class: "stack__empty" }, ui.picks.length && model.planning.length ? "Nothing of these goals" : "Nothing in Planning. A new goal starts here.")];
-    return column(`${lead?.name || "Taskmaster"}: Planning`, kids, ui.focus === lead?.slug ? "is-col" : "", lead?.slug);
+    const kids = [power, cards.length ? phaseRow("planning", cards, true) : h("span", { class: "stack__empty" }, ui.picks.length && model.planning.length ? "Nothing of these goals" : `Nothing in ${model.bands[0][1]}. A new goal starts here.`)];
+    return column(`${lead?.name || "Taskmaster"}: ${model.bands[0][1]}`, kids, ui.focus === lead?.slug ? "is-col" : "", lead?.slug);
   }
 
   function memberColumn(model, m, ui, rows) {
@@ -143,7 +143,7 @@ export function makeField(core, hooks) {
     const body = lead ? (items.length ? [phaseRow("planning", items.map((it) => deckNode({ key: it.key, idea: it.idea, phase: "", items: [it], top: it, n: 1 }, { planning: true,
       press: () => core.open(it.open, "map"), label: it.label })), true)] : [])
       : rows.map((r) => phaseRow(r.phase, r.stacks.map((s) => deck(m, s)), true));
-    const none = lead ? "Nothing in Planning." : ui.picks.length && m.tasks.length ? "Nothing of these goals" : `${m.name} has no task on this party now.`;
+    const none = lead ? `Nothing in ${model.bands[0][1]}.` : ui.picks.length && m.tasks.length ? "Nothing of these goals" : `${m.name} has no task on this party now.`;
     return h("div", { class: "solo", role: "group", "aria-label": title },
       h("div", { class: "solo__head" }, h("h2", { class: "solo__title" }, title), h("span", { class: "ork-count" }, String(n)), h("span", { class: "spacer" }),
         h("button", { class: "ork-btn quiet", type: "button", "data-act": "everyone", onclick: () => { st.focus = ""; core.draw(); } }, "Everyone")),
