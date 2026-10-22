@@ -8,7 +8,7 @@ import { sign } from "./shell-marks.js";
 import { steady } from "./shell-util.js";
 import { keepGoal, keptGoal } from "./shell-top.js";
 import { OPS_VIEW } from "./shell-ops.js";
-import { BANDS, modelOf, shownGoal, doneWords } from "./shell-arena-words.js";
+import { modelOf, shownGoal, doneWords } from "./shell-arena-words.js";
 import { makeParty } from "./shell-party.js";
 import { makeGoals } from "./shell-goals.js";
 import { makeField } from "./shell-arena-field.js";
@@ -61,10 +61,10 @@ export function makeArena(core, ctx, parts) {
   function faces(f, pressable) {
     const heads = f.heads.length ? f.heads.map((x) => (pressable ? face(x) : h("span", { class: "band__face", "data-member": x.slug }, faceHead(x), faceSign(x))))
       : [h("span", { class: "band__nohead is-empty" })];
-    return h("span", { class: "band__faces", ...(pressable ? {} : { "aria-hidden": "true" }) }, ...heads);
+    return h("span", { class: `band__faces${f.heads.length > 3 ? " is-four" : ""}`, ...(pressable ? {} : { "aria-hidden": "true" }) }, ...heads);
   }
   function stageSwitch(m, band) {
-    return h("div", { class: "stagebar" }, h("div", { class: "bands", role: "tablist", "aria-label": "Stages" }, ...BANDS.map(([key, name]) => {
+    return h("div", { class: "stagebar" }, h("div", { class: "bands", role: "tablist", "aria-label": "Stages" }, ...m.bands.map(([key, name]) => {
       const f = m.faces[key], on = key === band;
       const attrs = { class: `band${on ? " is-on" : ""}`, role: "tab", "aria-selected": String(on), "data-band": key, "data-sign": f.sign || null, "aria-label": f.label };
       return on ? h("div", attrs, faces(f, true), h("span", { class: "band__name" }, name))                      // the tab shown: its faces are buttons, so the tab is not one

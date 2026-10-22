@@ -12,3 +12,7 @@ export const stageOf = (n) => n.stage || (n.state === "done" ? "done" : (n.tasks
 
 /** A member's state in words: *at work*, *next*, *tonight*, *free*, or the Needs you words (`why`); its sign (↻, the clock) is drawn beside them. */
 export const memberWords = (state, why) => (state === "needs" ? NEEDS[why] || "needs you" : MEMBER_WORDS[state] || "free");
+
+/** The words of a party's three stages (spec 59 §3): its leader's, from the Map's `stages`; today's for a party with none (an older host). */
+export const stageWords = (stages) => ({ planning: stages?.lead?.word || STAGE_WORDS.planning, implementation: stages?.build?.word || STAGE_WORDS.implementation,
+  checking: stages?.check?.word || STAGE_WORDS.checking });

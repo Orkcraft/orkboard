@@ -322,6 +322,20 @@ silhouettes at 14 px, each 16 cells from every sign and emblem. Passed over: `ha
 signpost), `lute` and `harp` (too thin at 14 px), `scales`, `crate`, `pan-pipe`. Another pick changes A0's two drawings
 only.
 
+**C (the phone), 22 October.** §7 built as written. What the builder chose or found:
+- New party reads `roles.presets`: one column of `.craft-tile.preset-tile` buttons in *Mixed*, *One craft*, *Taskmaster alone* groups (`data-preset` on each, `data-craft`
+  on the crafts and the Taskmaster alone only, so the old selectors still find them; a mixed party's craft is its goal's `craft`). A host with no `presets` keeps the
+  row of six crafts. A pick sends `preset` with `ideas.goal_save` (the Taskmaster alone and a person's own party send none); a seat or *Every goal* changed clears it.
+- Seats by the leader come from `roles.stages[leader].seats` (`default` for a leader it does not name; `roles.seats` for an older host). A fold's head says the stage's
+  word and *<word> · 4 seats*; a band over its seats draws the extra seats in the alert colour, *<stage> has <n> seats with <leader>: take one out first.* under the fold
+  and under the party's line, and keeps *Save party* off (`makeParty().fits()`; a goal's own screen, `shell-goal.js`, is not in C's row and does not use it yet).
+  An older host (no `stages`) refuses a full band in today's words.
+- The stage switch reads the Map goal's `stages` (`shell-map-idea.js` `stageWords`, `shell-arena-words.js` `bandsOf`); `STAGES` stays the default words. Up to four builders'
+  and three checkers' heads show; four sit 14 px apart (66 px). `shell-goals-words.js` (the goals sheet's *… · implementation* line) is not in C's row and still says
+  today's words.
+- Four tests outside C's row changed, only the pinned `CACHE` (`v66`): `test_pwa_deal_start_browser`, `test_pwa_goal_types_browser`, `test_pwa_one_hand_browser`,
+  `test_pwa_board53_browser`. `shell-party.js` needed no change.
+
 ## 11. Running G, A, A0, B and C
 Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass
 (CLAUDE.md, alpha), no pull request left waiting. **G and A start together. A0 starts after the owner's pick. B and C

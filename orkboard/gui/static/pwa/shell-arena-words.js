@@ -1,7 +1,7 @@
 // The goal's window as data (docs/specs/49-one-window.md §4–§6, §10): from what the Board read (the Map's goals and ideas, the agents, Needs you,
 // Review, the gate) the party's members and the tasks in their columns, Planning's items, the stage switch's counts, the ideas at work, the
 // stops and the numbers on a member. Pure: no node is made here, so what the window says can be checked without a page.
-import { memberWords, stageOf, STAGE_WORDS } from "./shell-map-idea.js";
+import { memberWords, stageOf, stageWords, STAGE_WORDS } from "./shell-map-idea.js";
 import { rowState } from "./shell-ideas.js";
 import { waitsWords } from "./shell-map.js";
 import { heldWords, say } from "./shell-words.js";
@@ -12,6 +12,8 @@ import { doneWords as partyDone } from "./shell-goals-words.js";
 import { OPS_VIEW } from "./shell-ops.js";
 
 export const BANDS = [["lead", "Planning"], ["build", "Implementation"], ["check", "Checking"]];
+/** A party's bands with its leader's words for the stages (`stages` of the Map's goal; today's words without it). */
+export const bandsOf = (stages) => { const w = stageWords(stages); return [["lead", w.planning], ["build", w.implementation], ["check", w.checking]]; };
 export const SEATS = { build: 3, check: 2 };                         // the seats a party leaves (decisions §56), the host's `seats` when it says them
 const RANK = ["running", "testing", "failed", "picking", "review", "ready", "waiting", "held"];      // nearest the member first (spec 49 §5.4); a task that waits for a pick is a stop like a failure
 const RANK_OF = { laborer: 1, warrior: 2, elder: 3 };                // a head's tier → the level's chevrons (marks/rank-N.png)
@@ -260,7 +262,7 @@ export function membersOf(st, g, work, now = Date.now()) {
 }
 
 /** The seats a party leaves free in a band (3 builders, 2 checkers). */
-export const freeSeats = (st, band, taken) => Math.max(0, ((st.roles?.seats || SEATS)[band] ?? SEATS[band]) - taken);
+export const freeSeats = (st, band, taken, stages = null) => Math.max(0, (stages?.[band]?.seats ?? (st.roles?.seats || SEATS)[band] ?? SEATS[band]) - taken);
 
 // -- the ideas at work, Done, the Now line ------------------------------------------------------------------------------------------
 
@@ -310,24 +312,25 @@ export function modelOf(st, slug, now = Date.now()) {
   for (const x of [...build, ...check]) { const k = x.tasks.filter((t) => t.state === "picking").length; waits[x.band] += k; if (k) waiting.set(x.slug, (waiting.get(x.slug) || 0) + k); }
   const signs = new Map([...build, ...check].map((x) => [x.slug, x.tasks.some((t) => t.state === "failed") ? "cross" : waiting.get(x.slug) ? "alert" : ""]));
   if (lead) signs.set(lead.slug, waiting.get(lead.slug) ? "alert" : "");
-  const faces = { lead: facesOf("lead", lead ? [lead] : [], 0, waits.lead, signs), build: facesOf("build", build, warn.build, waits.build, signs),
-    check: facesOf("check", check, warn.check, waits.check, signs) };
+  const bands = bandsOf(g.stages);
+  const faces = { lead: facesOf("lead", lead ? [lead] : [], 0, waits.lead, signs, bands), build: facesOf("build", build, warn.build, waits.build, signs, bands),
+    check: facesOf("check", check, warn.check, waits.check, signs, bands) };
   return {
-    goal: g, nodes, work, members, lead, build, check, planning, counts, warn, faces,
+    goal: g, bands, nodes, work, members, lead, build, check, planning, counts, warn, faces,
     first: counts.build ? "build" : counts.check ? "check" : "lead",
-    freeBuild: freeSeats(st, "build", build.length), freeCheck: freeSeats(st, "check", check.length),
+    freeBuild: freeSeats(st, "build", build.length, g.stages), freeCheck: freeSeats(st, "check", check.length, g.stages),
     picks, done,
     process: { next, n: raw.filter((n) => n.queue !== "now" && !n.held_until).length, lead },
   };
 }
 
-const FACES = { lead: 1, build: 3, check: 2 };                    // the heads a stage's tab shows at most
+const FACES = { lead: 1, build: 4, check: 3 };                    // the heads a stage's tab shows at most (a Game's four builders, spec 59 §7.3)
 const NO_ONE = { lead: "no leader", build: "no builder", check: "no checker" };
 
 /** A stage's tab (spec 52 §5.3, spec 53 §1.2): its band's faces (at most FACES), each {head, slug, name, sign} — the sign (`cross` when a task of the member failed, else `alert`
  *  when a stop waits on it, else none) stands on the face it comes from (`signs`: slug → sign) — the band's own `sign` (for the tab's data), and its label, *Implementation: Grunt, Tester. 1 failed*, *Planning: the Taskmaster. 2 wait for you*, *Checking: no checker*. No number is drawn. */
-export function facesOf(key, members, failed, waits, signs = new Map()) {
-  const word = BANDS.find(([k]) => k === key)[1];
+export function facesOf(key, members, failed, waits, signs = new Map(), bands = BANDS) {
+  const word = bands.find(([k]) => k === key)[1];
   const names = members.map((x) => (x.slug === "taskmaster" ? "the Taskmaster" : x.name));
   const said = [failed ? `${failed} failed` : "", waits ? `${waits} ${waits === 1 ? "waits" : "wait"} for you` : ""].filter(Boolean).join(", ");
   return { heads: members.slice(0, FACES[key]).map((x) => ({ head: x.head || null, slug: x.slug, name: x.name, lead: x.band === "lead", sign: signs.get(x.slug) || "" })), sign: failed ? "cross" : waits ? "alert" : "", failed, waits,
