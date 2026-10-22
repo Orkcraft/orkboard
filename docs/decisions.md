@@ -827,3 +827,21 @@ screen that names the party twice. So:
    §4.6's *no other place*). A type is still never a colour (§65.4).
 6. **Nothing flies** (§62.8 stays).
 The owner's call on the phone as built, before the testers' numbers, as §62–§65. Spec 53.
+
+## 67. One hand: every stop of the project in it, the most urgent in the middle, no count anywhere; every stop has a way out (22 October, the owner)
+
+Why: the owner, on the window as specs 52–53 built it. An Artist asked for a reference picture as a plan's to-do; a file
+to-do was done only with a file, so the goal stood still. And what waits was split: the party shown's in the hand, the
+others' as a number on the party's deck. So:
+1. **One hand for the project**: every party's stops and Operations' lie in it; a stop of another party says its party
+   and opens there. What waits for the person is their inbox, not a party's.
+2. **The most urgent in the middle**: red (a failure) first, then what holds work back, then what does not, then the
+   results; the oldest first in each. The keys and a screen reader read them in that order.
+3. **No count of stops anywhere** (reverses §65.2's one count and the count of §65.3's deck): nothing waits out of
+   sight. The parties' list marks a party with a stop by a dot (red when one failed).
+4. **Every stop has a way out that needs nothing from the person**: a question *Let <asker> decide*; a file to-do
+   *Describe it instead* or *Go without it*; a choice *Let <leader> choose*; any other to-do *Go without it* (its tasks
+   run without it and say so if they cannot). How often each is pressed, by agent and kind, says who asks too much.
+5. On the phone, **the Target is one switch**, and **Agents is reached from a member** (*Edit* on its card); the menu
+   keeps Stop all, Today and Spend at its head.
+The owner's call on the window as built, before the testers' numbers, as §62–§66. Spec 54.
