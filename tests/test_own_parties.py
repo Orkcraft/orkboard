@@ -274,3 +274,20 @@ def test_mark_with_a_party_marks_only_that_party_s_use():
         own_parties.used(p, "aaaaaaaaaaaa", "shop", "billing")
     own_parties.mark("aaaaaaaaaaaa", "billing", True, b)                                                    # the goal has party b now
     assert [own_parties.get(p)["uses"][0]["met"] for p in (a, b)] == [None, True]
+
+
+def test_a_party_keeps_the_library_party_it_started_from_as_one_optional_key_and_a_file_without_it_reads_as_before():
+    """Spec 59 §2.4 (storage): `preset` only when given and one of the library's ids' shape; a party saved before has none."""
+    plain = lean()
+    tagged = own_parties.save("Game one", "design", "game-designer", ["grunt", "artist"], [], preset="game")
+    got = {p["id"]: p for p in own_parties.list()}
+    assert "preset" not in got[plain] and got[tagged]["preset"] == "game"
+    odd = own_parties.save("Odd", "design", "game-designer", [], [], preset="Not A Preset!")
+    assert "preset" not in {p["id"]: p for p in own_parties.list()}[odd]
+    again = own_parties.save("Game one", "design", "game-designer", ["grunt"], [], replace=True, preset="game")
+    assert again == tagged and {p["id"]: p for p in own_parties.list()}[tagged]["preset"] == "game"
+    path = own_parties.path()
+    data = json.loads(path.read_text())
+    data["parties"] = [{k: v for k, v in p.items() if k != "preset"} for p in data["parties"]]
+    path.write_text(json.dumps(data))                                                    # a file written before
+    assert all("preset" not in p for p in own_parties.list()) and len(own_parties.list()) == 3

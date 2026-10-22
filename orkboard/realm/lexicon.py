@@ -173,13 +173,13 @@ TERMS: tuple[Term, ...] = (
     _t("segment", "segment", "segments"),                          # whom a goal is for, a product manager's lens
     _t("task_kind", "task type", "task types"),                    # code · tests · docs · text for people · research
     _t("board_map", "Map"),                                        # a project's parties, goals and tasks on one screen (spec 39; not the camp's War Map)
-    _t("stage", "stage", "stages"),                                # a goal's step on the Map: Planning, Implementation, Checking (spec 48; not the spec's Stages section)
+    _t("stage", "stage", "stages"),                                # a party's step a goal goes through, one a band; its leader words them (Concept, Build, Playtest for a Game designer; Planning, Implementation, Checking by default; spec 48, spec 59 §3)
     _t("wave", "wave", "waves"),                                   # a task's depth in its plan by `after`: a column of the Map's goal (spec 48)
     _t("gate", "gate", "gates"),                                   # the one press that merges dev into main (decisions §49.5, spec 49 §2.1)
     _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
     _t("flag", "flag", "flags"),                                   # a goal the gate took into main (spec 50 §2.2); a party's old flag is its verdict met (spec 42 §2)
     _t("pick", "pick", "picks"),                                   # the stop Pick one and its screen: a task left two to six variants of one kind for the person to pick from (spec 51)
-    _t("goal_type", "goal type", "goal types"),                    # what kind of goal a party's leader deals: New logo, Fix a bug; realm/goal_types.py, spec 52
+    _t("goal_type", "goal type", "goal types"),                    # what kind of goal a party's team can take on: New logo, Fix a bug; realm/goal_types.py, specs 52 and 59
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)

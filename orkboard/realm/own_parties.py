@@ -2,8 +2,9 @@
 project. Kept as Operations are (decisions §51.1), for every project: `parties.json` beside the machine's settings
 (`~/.config/orkcraft/parties.json`), written whole and atomically, mode 600, never in a repository. No face, no model.
 
-    own_parties.list()                                   # [{"id", "name", "craft", "leader", "team", "every", "own", "saved", "uses"}]
+    own_parties.list()                                   # [{"id", "name", "craft", "leader", "team", "every", "own", "saved", "uses", "preset"?}]
     own_parties.save("Lean web", "engineering", "architect", ["grunt", "reviewer"], ["reviewer"], own=[])   # → its id
+                                                         # `preset=`: the library's party it started from (spec 59), kept when given
     own_parties.drop(id)
     own_parties.used(id, project, name, goal)            # a goal that picked it
     own_parties.mark(project, goal, met)                 # the goal's leader accepted it (or not): the last verdict
@@ -86,9 +87,10 @@ def _own(rows: object) -> builtins.list[dict]:
     return [{k: r.get(k) for k in OWN_KEYS if k in r} for r in (rows if isinstance(rows, (builtins.list, tuple)) else []) if isinstance(r, dict) and r.get("slug")]
 
 
-def save(name: str, craft: str, leader: str, team: object, every: object, own: object = (), replace: bool = False) -> str:
+def save(name: str, craft: str, leader: str, team: object, every: object, own: object = (), replace: bool = False, preset: str = "") -> str:
     """The party kept under its name: its id. A taken name (whatever its case) is refused unless `replace`, which keeps the party's id and
-    its uses; a thirteenth party is refused."""
+    its uses; a thirteenth party is refused. `preset`: the id of the library's party it started from (spec 59), kept as the one optional key
+    `preset` when it is one (a file without it reads as before)."""
     name = " ".join(str(name or "").split())
     if not 1 <= len(name) <= NAME_CHARS:
         raise OwnPartyError(f"Name the party in 1 to {NAME_CHARS} characters")
@@ -101,7 +103,7 @@ def save(name: str, craft: str, leader: str, team: object, every: object, own: o
             raise OwnPartyError(f"You have {MAX} parties: remove one first")
         row = {"id": same["id"] if same else f"p-{secrets.token_hex(4)}", "name": name, "craft": str(craft or ""), "leader": str(leader or "taskmaster"),
                "team": _slugs(team), "every": _slugs(every), "own": _own(own), "saved": dt.datetime.now().isoformat(timespec="seconds"),
-               "uses": (same or {}).get("uses") or []}
+               "uses": (same or {}).get("uses") or [], **({"preset": preset} if re.fullmatch(r"[a-z][a-z-]{0,29}", str(preset or "")) else {})}
         _write([row if p is same else p for p in parties] if same else [*parties, row])
     return row["id"]
 

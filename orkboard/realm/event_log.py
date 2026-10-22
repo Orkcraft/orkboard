@@ -51,7 +51,8 @@ LOOKED = "look"                   # started, seconds: the GUI in front of the pe
 
 # The board (docs/specs/33-v1-shell.md §9): every action of the v1 shell, for the day's analysis. `device` is "desktop" or "phone".
 IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it at once), priority, queue, photos (how many came with it), lens (the kinds pointed at), device,
-#                                    type (its goal type's key, else ""), asks (how many answered), refs (how many pictures were Refs'), joined (the agent, else ""), out (the member, else "") (spec 52 §2.7)
+#                                    type (its goal type's id, else ""), asks (how many answered), refs (how many pictures were Refs'), joined (the agent, else ""), out (the member, else "") (spec 52 §2.7),
+#                                    offered (how many types the party offered), near (how many of them with someone missing) (spec 59 §5)
 IDEA_SAID = "idea_said"           # idea, section, chars, text, device (the person's turn to the Taskmaster)
 KEEPER_STATE = "keeper_state"     # idea, state, was, seconds in the previous state
 PLAN_MADE = "plan_made"           # idea, tasks, todos, usd_low, usd_high
@@ -79,7 +80,8 @@ OPENED = "opened"                 # what (idea · plan · todo · task · result
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
 GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device, party (the id of the saved party it was picked from, else ""),
-#                                    joined, out (the agent who joined, the member who left, else ""), via ("type": New goal by its type · "plan": a plan's stop · "": Edit the party) (spec 52 §2.7)
+#                                    joined, out (the agent who joined, the member who left, else ""), via ("type": New goal by its type · "plan": a plan's stop · "": Edit the party) (spec 52 §2.7),
+#                                    preset (the library's party the seats started from, else ""), stages ("<builders>/<checkers>": the leader's seats) (spec 59 §5)
 GOAL_ACCEPTED = "goal_accepted"   # goal, met, by (its leader's name), and the call's measure
 GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took, tier, effort
 ROLE_SAVED = "role_saved"         # role, model, max_parallel, new, device, kinds (the types it takes), instruction_chars

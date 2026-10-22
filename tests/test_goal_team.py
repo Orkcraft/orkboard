@@ -31,13 +31,14 @@ def _wait(host, slug="", goal=False):
 
 def test_the_library_is_leaders_builders_and_checkers_each_with_its_kinds_and_an_instruction_within_the_limit():
     by_band = {b: [a.name for a in library.LIBRARY if a.band == b] for b in ("lead", "build", "check")}
-    assert by_band["lead"] == ["Taskmaster", "Product manager", "Architect", "Product designer", "Analyst", "Growth"]
-    assert by_band["check"] == ["Security reviewer", "Reviewer", "Accessibility reviewer", "Data reviewer", "Editor"]
+    assert by_band["lead"] == ["Taskmaster", "Product manager", "Architect", "Product designer", "Game designer", "Analyst", "Growth"]
+    assert by_band["check"] == ["Security reviewer", "Reviewer", "Accessibility reviewer", "Playtester", "Data reviewer", "Editor"]
     assert all((a.check is not None) == (a.band == "check") for a in library.LIBRARY)       # a check is a checker's
     assert library.get("product-manager").craft == "product" and roles.RACES["product"] == "lich"   # undead, for now
     for craft, (lead, builds, checks) in library.PARTIES.items():                         # a craft's party fits its seats
         assert library.get(lead).band == "lead" and all(library.get(s).band == "build" for s in builds), craft
         assert all(library.get(s).band == "check" for s in checks) and len(builds) <= 3 and len(checks) <= 2, craft
+        assert not goal_team.seats([*builds, *checks], lead), craft
     assert len({a.id for a in library.LIBRARY}) == len(library.LIBRARY) and library.get("grunt").id in roles.BUILTIN
     for a in library.LIBRARY:
         assert a.tier in roles.TIERS and a.takes and set(a.takes) <= set(roles.TASK_KINDS), a.id
@@ -90,7 +91,7 @@ def test_goal_save_with_a_team_makes_its_agents_keeps_the_team_and_never_overwri
     with pytest.raises(CommandError, match="A leader leads"):
         host.command("ideas.goal_save", {"about": "x", "team": ["architect"]})
     got = host.command("ideas.roles")
-    assert len(got["library"]) == len(library.LIBRARY) == 21 and got["suggested"] == 2
+    assert len(got["library"]) == len(library.LIBRARY) == 26 and got["suggested"] == 2
     artist = next(a for a in got["library"] if a["id"] == "artist")
     assert {"craft": "design", "race": "elf", "tier": "laborer", "takes": ["art"], "check": None}.items() <= artist.items()
     a11y = next(a for a in got["library"] if a["id"] == "accessibility-reviewer")
@@ -391,3 +392,15 @@ def test_the_leaders_preamble_says_it_plans_the_goals_and_no_longer_that_it_acce
     voice = LeadMixin.voice({"name": "Product manager", "instruction": "Be brief."})
     assert voice.startswith("You are Product manager, the leader of this goal's party: you plan its ideas. Be brief.")
     assert "accept" not in voice
+
+
+def test_seats_count_against_the_leaders_stages_and_the_refusal_names_the_leader():
+    """Spec 59 §2.3: four builders and one checker with the Game designer, three and two with any other leader."""
+    four = ["grunt", "artist", "level-designer", "sound-designer"]
+    assert goal_team.seats(four, "game-designer") == "" and goal_team.seats([*four, "aso"], "game-designer") == "A party led by Game designer has at most 4 builders"
+    assert goal_team.seats(four, "architect") == "A party led by Architect has at most 3 builders"
+    assert goal_team.seats(four[:3], "architect") == "" and goal_team.seats(four[:3]) == ""
+    assert goal_team.seats(four[:3] + ["reviewer"], "game-designer") == "" and goal_team.seats(["playtester", "reviewer"], "game-designer") == "A party led by Game designer has at most 1 checkers"
+    assert goal_team.seats(["reviewer", "editor"], "growth") == "" and goal_team.seats(["reviewer", "editor", "data-reviewer"], "growth") == "A party led by Growth has at most 2 checkers"
+    assert goal_team.seats(four[:4], "") == "A party led by Taskmaster has at most 3 builders"
+    assert goal_team.SEATS == 5 and goal_team.seats(["playtester"], "game-designer") == ""

@@ -159,3 +159,15 @@ def test_a_tasks_head_is_who_runs_it_at_the_tier_it_runs_at(tmp_path):
     ran = {"kind": "code", "tier": "elder", "role": seer, "ran_tier": "warrior"}                          # what it ran as, at what it ran at
     assert roles.task_head(tmp_path, ran, "quality", roles.known(tmp_path)) == {"craft": "data", "race": "goblin", "tier": "warrior"}
     assert roles.task_head(tmp_path, {"role": "gone", "tier": "laborer"}, "balance")["race"] == "peon"     # a dropped role: Grunt's
+
+
+def test_the_five_kinds_of_a_mixed_party_follow_edit_with_their_labels_and_lines_spec_59():
+    """Spec 59 §2.1: after `edit`, `gamedesign`, `level`, `sound`, `playtest`, `aso`, each with its label and its line for the plan prompt."""
+    kinds = roles.TASK_KINDS
+    assert kinds[kinds.index("edit"):] == ("edit", "gamedesign", "level", "sound", "playtest", "aso")
+    assert [roles.KIND_LABELS[k] for k in kinds[-5:]] == ["Game design", "Levels", "Sound", "Playtest", "Store pages (ASO)"]
+    assert [roles.KIND_LINES[k] for k in kinds[-5:]] == [
+        "the rules, the loop and the balance of a game", "a level: its layout, its path and its pace",
+        "sounds and music, picked by ear", "playing a change through and saying where it breaks or bores",
+        "an app store's page: its keywords, texts and screenshots"]
+    assert set(roles.KIND_LABELS) == set(roles.KIND_LINES) == set(kinds) and len(set(kinds)) == len(kinds)

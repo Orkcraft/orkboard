@@ -293,6 +293,29 @@ in *As built* first.
 
 ## 10. As built (notes, no change of the contract)
 
+**A (the host), 22 October.** §2–§5 built as written. What the builder chose or found:
+- `library.Stages` is a frozen dataclass with `lead`, `build`, `check`, `build_seats`, `check_seats` and a `seats` property; `STAGES`
+  holds the Game designer's alone, `DEFAULT_STAGES` every other leader's. `library.stages()` answers `ideas.roles`' `stages`.
+  `library.PRESETS` is the three mixed parties as tuples; `presets()` adds the crafts of `PARTIES` (their line the faces' line of today,
+  `CRAFT_LINES`) and the Taskmaster alone last.
+- `goal_types.Party.leader` carries the seats: `missing`' `free` reads `library.seats_of(p.leader)`. `goal_types.lacking(...)` gives the
+  kind a refusal names (*Ship cannot take “New logo”: no one of it does pixel art*).
+- The goal types: `offered` follows §4.3 as written; its lists match the spec's but for two rows, which the rules give and the spec's
+  lists leave out: **Design** is also offered *New character* (its Artist draws it) and **Product** also *A tagline* (its Copywriter
+  writes it). `tests/test_goal_types.py` pins what was built.
+- `idea_added`' `offered` and `near` are added in `gui/ideas_types.py` `type_fields` (the count is stashed by `typed`), so
+  `gui/ideas.py` is untouched. `goal_saved`' `preset` is checked in `ideas_goals.py` `_preset_kept` (the library's party only while the
+  leader and the team are what it gives); `stages` is `<builders>/<checkers>` of the leader's seats. A seat joined later (`via`
+  `type` / `plan`) logs `preset` empty.
+- `own_parties.save` takes `preset=` and keeps it as the one optional key; `gui/ideas_party.py` (not in A's row) does not send it yet,
+  so a saved party carries none until a face needs it.
+- **Two test files outside A's row changed, the tests only**: `tests/test_idea_checks.py` pins `idea_checks.TAGS`, the checkers' kinds
+  in the library's order (the Playtester, after the Artist, §2.2, puts `playtest` before `datacheck`); `tests/test_party_hints.py` pins
+  every checker's `fits` (the Playtester's, `("design", "engineering")`, is added).
+- The seven signs are in `goal_types.SIGNS` by name; `tests/test_goal_types.py` takes them as `NEW_SIGNS` until A0's copy is in
+  (`set(SIGNS) - NEW_SIGNS <= orkUI's signs`, and every sign is drawn by a type).
+- Orkline's frozen copy reads a type id without a `/` as none until its copy is updated (§4.4): its goal works, its sign is not drawn.
+
 ## 11. Running G, A, A0, B and C
 Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass
 (CLAUDE.md, alpha), no pull request left waiting. **G and A start together. A0 starts after the owner's pick. B and C

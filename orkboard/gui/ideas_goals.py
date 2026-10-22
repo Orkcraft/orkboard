@@ -136,13 +136,21 @@ class GoalsMixin:
         if leader:
             library.install(self.state_dir, [leader])
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
-        self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, metrics=[m["name"] for m in g["metrics"]], links=g["links"],
+        self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, preset=self._preset_kept(args, g), metrics=[m["name"] for m in g["metrics"]], links=g["links"],
                  priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER,
                  party=goal_team.party_of(self.root(), got))
         if new or before is None or _what_it_says(before) != _what_it_says(g):
             self._read_goal(got)                      # a save of its party alone reads nothing again (spec 41 §7)
         self.changed(f"goal:{got}")
         return {"slug": got, **({"notes": notes} if notes else {})}
+
+    @staticmethod
+    def _preset_kept(args: dict, g: dict) -> str:
+        """The library's party (`preset`) a party was picked from, as it is saved (spec 59 §5): "" when none was sent, it is not one
+        of the library's, or the leader or the team is not what it gives (a seat changed after)."""
+        one = next((p for p in library.presets() if p["id"] == _opt(args, "preset")), None)
+        same = one is not None and (g["leader"] or roles.TASKMASTER) == one["lead"] and sorted(g["team"]) == sorted([*one["build"], *one["check"]])
+        return one["id"] if same else ""
 
     def _read_goal(self, slug: str, said: str = "") -> None:
         """The keeper reads the goal at once, in the background; a keeper that may not run (the demo, the spend limit)

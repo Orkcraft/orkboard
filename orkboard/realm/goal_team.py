@@ -8,8 +8,9 @@ every team and is never in the list.
     every_of(root, "ship")                                      # ["reviewer"]
     for_idea(root, "dark-mode")                                 # the team of the idea's goal; every_for_idea, its every
 
-A goal's party (library.SEATS): one leader — the goal's steps (its reading, its ideas' drafts, answers and plans, and
-accepting the goal) run as it; the Taskmaster when none is picked —, at most three builders and two checkers (the team).
+A goal's party (library.seats_of): one leader — the goal's steps (its reading, its ideas' drafts, answers and plans, and
+accepting the goal) run as it; the Taskmaster when none is picked —, and its builders and checkers (the team): three and two,
+or the seats its leader sets (a Game designer's four and one; spec 59 §2.3).
 
     leader_of(root, "ship")                                     # "product-manager"; "taskmaster" when none was picked
     seats(team, leader)                                         # the error of a party that has too many in a band, else ""
@@ -47,13 +48,16 @@ def band_of(slug: str) -> str:
 
 
 def seats(team: list[str], leader: str = "") -> str:
-    """Why a party does not fit its seats ("" when it does): one leader, three builders, two checkers at most."""
+    """Why a party does not fit its seats ("" when it does): one leader, and at most the builders and checkers its leader's stages
+    give (library.seats_of)."""
     from orkboard.realm import library
     if leader and band_of(leader) != "lead":
         return f"{leader} does not lead: pick a leader of the library"
+    have = library.seats_of(leader or "taskmaster")
+    name = library.get(leader).name if leader and library.get(leader) is not None else "Taskmaster"
     for band, words in (("build", "builders"), ("check", "checkers")):
-        if sum(1 for s in team if band_of(s) == band) > library.SEATS[band]:
-            return f"A party has at most {library.SEATS[band]} {words}"
+        if sum(1 for s in team if band_of(s) == band) > have[band]:
+            return f"A party led by {name} has at most {have[band]} {words}"
     if any(band_of(s) == "lead" for s in team):
         return "A leader leads: it is not one of the builders or checkers"
     return ""

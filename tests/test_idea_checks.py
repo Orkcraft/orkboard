@@ -22,7 +22,7 @@ def finding(**over):
 
 
 def test_the_tags_are_the_checkers_first_kinds():
-    assert idea_checks.TAGS == ("security", "review", "a11y", "datacheck", "edit")
+    assert idea_checks.TAGS == ("security", "review", "a11y", "playtest", "datacheck", "edit")      # spec 59: the Playtester checks after the Artist in the library
     assert idea_checks.FINDINGS_FILE == ".orkcraft-findings.json"
 
 

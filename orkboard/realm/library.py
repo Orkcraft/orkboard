@@ -47,12 +47,13 @@ LIBRARY: tuple[Agent, ...] = (
     # -- leads of any party: the Taskmaster (an ork, the built-in one) and the Product manager (undead: a lich for now) -----
     Agent("taskmaster", "Taskmaster", "engineering", "elder", ("code",),
           "Leads any party: drafts its goals, asks, plans", "", band="lead"),
-    Agent("product-manager", "Product manager", "product", "elder", ("research",),
+    Agent("product-manager", "Product manager", "product", "elder", ("research", "design"),
           "Leads a product party: who it is for, the metric it moves, what it leaves out",
           "You lead a product goal. For every idea say who it is for and the problem it solves for them, the goal's "
           "metric it moves and by how much you expect, and what it leaves out. Prefer the smallest idea that can show "
-          "the metric move. Write Done when lines a person can check by using the product, not by reading code. When "
-          "the ideas are done, judge the goal by its metrics, not by the work done.", band="lead"),
+          "the metric move. Write Done when lines a person can check by using the product, not by reading code. For a "
+          "screen, write the flow step by step and what is on each screen and why, at phone width first, in the design "
+          "system's words. When the ideas are done, judge the goal by its metrics, not by the work done.", band="lead"),
     # -- engineering: orks ----------------------------------------------------------------------------------------
     Agent("grunt", "Grunt", "engineering", "warrior", ("code", "tests"),
           "Writes the code a task asks for, with its tests", ""),
@@ -92,6 +93,11 @@ LIBRARY: tuple[Agent, ...] = (
           "screen with what is on it and why, at phone width first. Use the design system's components and words "
           "(orkUI); name a component that is missing instead of drawing one. Every label says plainly what happens. "
           "Keep the screens in the task's file as text the next task can build from.", band="lead"),
+    Agent("game-designer", "Game designer", "design", "elder", ("gamedesign",),
+          "Leads a game party: the rules, the loop, what makes it fun",
+          "You lead a game. For every goal say what the player does, sees and gets, and why it is fun. Write the rule "
+          "before the build. Keep every number in one balance file, never in the code. Write Done when lines a player "
+          "can check by playing, not by reading code. Prefer the smallest change that shows the fun.", band="lead"),
     Agent("ui-kit", "Design system designer", "design", "warrior", ("uikit",),
           "Keeps the components and tokens one: adds what is missing to the kit",
           "You keep the design system one. Before adding a component or a token, look for one that does the job. A "
@@ -112,6 +118,24 @@ LIBRARY: tuple[Agent, ...] = (
           "only. An icon is 24 px, one colour, readable at its size; a head is an accent, never a picture to look at. "
           "Keep the source next to the export and name both by what they show. Draw only what the task asks; say what "
           "you would add."),
+    Agent("level-designer", "Level designer", "design", "warrior", ("level",),
+          "Lays out the levels: the path, the beats, where it gets hard",
+          "You lay out levels. First on paper: the path, the beats, where it gets hard and how long it plays. Then "
+          "build it in the game's own format. One new idea a level, taught before it is tested. Say what the player "
+          "learns and where they are likely to get lost."),
+    Agent("sound-designer", "Sound designer", "design", "laborer", ("sound",),
+          "Makes the sounds and the music, picked by ear",
+          "You make sounds and music. Keep each short, and loopable where it loops, at one loudness for all. When "
+          "asked, give a few to pick from (a pick of sounds). Keep the source beside the export and name both by what "
+          "the sound is. Make only what the task asks; say what you would add."),
+    Agent("playtester", "Playtester", "design", "warrior", ("playtest",),
+          "Plays a change through and says where it breaks or bores",
+          "You play the change through: the changed part, in the game's test build, or a headless run when it has one. "
+          "Write each finding with where, what the player does and what goes wrong, the worst first. Say where it bores "
+          "or confuses, not only where it breaks. Fix only what is small and certain.",
+          Check("when the idea changes what a player does, sees or hears", "It was played through: the changed part works "
+                "and nothing near it broke", "Play the idea's change through and write where it breaks, bores or confuses; "
+                "fix what is small.", fits=("design", "engineering")), band="check"),
     # -- data: goblins --------------------------------------------------------------------------------------------
     Agent("analyst", "Analyst", "data", "warrior", ("metrics",),
           "Turns the event log into the party's metrics",
@@ -173,6 +197,11 @@ LIBRARY: tuple[Agent, ...] = (
           "Each page: one title with those words, a plain description, headings that say the content, alt text on "
           "images, links between pages that belong together. Never stuff words or hide text. Write what to measure "
           "and where."),
+    Agent("aso", "ASO", "marketing", "laborer", ("aso",),
+          "Writes the store pages: keywords, title, texts, screenshots' words",
+          "You make the app found in its store. Find the words people search for in the store first. Write the title "
+          "and subtitle within the store's limits, then the description, then the words on the screenshots. Never stuff "
+          "keywords or promise what the app does not do. Submit nothing without the person's yes."),
     Agent("community", "Community", "marketing", "laborer", ("community",),
           "Answers in the forums and channels and brings back what people ask",
           "You keep the conversation with people. Draft answers to what people ask, kind and short, with a link to "
@@ -182,7 +211,7 @@ LIBRARY: tuple[Agent, ...] = (
 
 BY_ID = {a.id: a for a in LIBRARY}
 SUGGESTED = 2                                # (kept for older faces) the first builders of a party's craft
-SEATS = {"lead": 1, "build": 3, "check": 2}  # a party: at most one leader, three builders, two checkers
+SEATS = {"lead": 1, "build": 3, "check": 2}  # the default's seats (older faces); a leader may set its own (STAGES)
 # The party of each craft starts with: its leader, its builders, its checkers (Mixed: the Taskmaster alone).
 PARTIES = {"engineering": ("architect", ("grunt", "tester"), ("reviewer",)),
            "design": ("product-designer", ("ui-kit", "artist"), ("accessibility-reviewer",)),
@@ -190,11 +219,69 @@ PARTIES = {"engineering": ("architect", ("grunt", "tester"), ("reviewer",)),
            "marketing": ("growth", ("copywriter", "seo"), ("editor",)),
            "product": ("product-manager", ("grunt", "copywriter"), ("reviewer",)),
            "mixed": ("taskmaster", (), ())}
+# The library's mixed parties, the ones most used (spec 59 §2.4): (id, name, line, craft, leader, builders, checkers).
+PRESETS = (("game", "Game", "Rules, levels, art and sound, played through", "design", "game-designer",
+            ("grunt", "artist", "level-designer", "sound-designer"), ("playtester",)),
+           ("mobile-app", "Mobile app", "Screens, the store page and the pictures", "product", "product-manager",
+            ("grunt", "artist", "aso"), ("reviewer", "accessibility-reviewer")),
+           ("website", "Website", "Pages that say what it does, and are found", "marketing", "growth",
+            ("grunt", "copywriter", "seo"), ("reviewer", "editor")))
+CRAFT_LINES = {"engineering": "Code, tests and the build", "design": "Screens, flows and words on them",
+               "data": "Numbers, queries and reports", "marketing": "Pages, posts and search",
+               "product": "Who it is for, what it moves, what it leaves out", "mixed": "The Taskmaster plans and a Grunt builds"}
+
+
+@dataclass(frozen=True)
+class Stages:
+    """A leader's stages (spec 59 §2.3): the words of its three steps and the seats of its builders and checkers."""
+    lead: str = "Planning"
+    build: str = "Implementation"
+    check: str = "Checking"
+    build_seats: int = 3
+    check_seats: int = 2
+
+    @property
+    def seats(self) -> dict:
+        return {"lead": 1, "build": self.build_seats, "check": self.check_seats}
+
+
+DEFAULT_STAGES = Stages()
+STAGES: dict[str, Stages] = {"game-designer": Stages("Concept", "Build", "Playtest", 4, 1)}   # one leader and five more at most
+
+
+def stages_of(leader: str) -> Stages:
+    """The stages of a leader's party; the default's for a leader not in STAGES (the Taskmaster, a person's own)."""
+    return STAGES.get(leader, DEFAULT_STAGES)
+
+
+def seats_of(leader: str) -> dict:
+    """The seats of a leader's party: {"lead": 1, "build": n, "check": m}."""
+    return stages_of(leader).seats
 
 
 def parties() -> dict:
-    """The parties as a face reads them: {craft: {lead, build, check}}."""
-    return {c: {"lead": p[0], "build": list(p[1]), "check": list(p[2])} for c, p in PARTIES.items()}
+    """The parties as a face reads them: {craft: {lead, build, check}}, with the three mixed ones added by their ids."""
+    out = {c: {"lead": p[0], "build": list(p[1]), "check": list(p[2])} for c, p in PARTIES.items()}
+    out.update({p[0]: {"lead": p[4], "build": list(p[5]), "check": list(p[6])} for p in PRESETS})
+    return out
+
+
+def presets() -> list[dict]:
+    """The parties New party offers: the mixed first, then one of each craft in today's order, then the Taskmaster alone."""
+    def row(i, name, line, craft, lead, build, check, mixed):
+        return {"id": i, "name": name, "line": line, "craft": craft, "race": roles.RACES.get(craft, roles.RACES["engineering"]),
+                "mixed": mixed, "lead": lead, "build": list(build), "check": list(check)}
+    out = [row(*p, True) for p in PRESETS]
+    for craft, (lead, build, check) in PARTIES.items():
+        out.append(row(craft, "Taskmaster alone" if craft == "mixed" else roles.CRAFT_LABELS[craft], CRAFT_LINES[craft], craft, lead, build, check, False))
+    return out
+
+
+def stages() -> dict:
+    """Every leader's stages as a face reads them: {leader id: {lead, build, check, seats}} and `default`."""
+    def one(s):
+        return {"lead": s.lead, "build": s.build, "check": s.check, "seats": s.seats}
+    return {**{a.id: one(stages_of(a.id)) for a in LIBRARY if a.band == "lead"}, "default": one(DEFAULT_STAGES)}
 
 
 def get(agent_id: str) -> Agent | None:
