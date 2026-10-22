@@ -136,21 +136,19 @@ async def test_a_stack_that_moves_slides_with_the_stacks_it_passes_and_nothing_e
 
 
 @pytest.mark.asyncio
-async def test_a_merge_lights_the_members_first_number_and_its_columns_count_once(fake_repo, monkeypatch):
+async def test_a_merge_lights_its_columns_count_once(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch, init=RECORD) as (stub, page):
         await _ready(page)
-        runs = page.locator('.token[data-member="backend"] .tnum').first
-        assert await runs.inner_text() == "5/1" and " ".join((await page.locator(f"{BACKEND_COLUMN} .stack__done").inner_text()).split()) == "2 in dev"
+        assert " ".join((await page.locator(f"{BACKEND_COLUMN} .stack__done").inner_text()).split()) == "2 in dev"
         tasks_of(register())["k1"]["state"] = "merged"                                                   # its result in Review is merged
         SCENE["agents"]["roles"][1]["week"].update(finished=6, first_time=5, merged=5)                  # … and the week says one run more: 5/1 → 6/1
         stub.bump({})
         await page.wait_for_function("() => window.__seen.some((s) => s.kind === 'reward')", timeout=WAIT_MS * 2)
         await page.wait_for_timeout(300)
         rewards = [s for s in await page.evaluate(SEEN) if s["kind"] == "reward"]
-        assert {(s["cls"].split()[0], s["text"].strip()) for s in rewards} == {("tnum", "6/1"), ("stack__done", "3 in dev")}        # its new value, highlighted
+        assert {(s["cls"].split()[0], s["text"].strip()) for s in rewards} == {("stack__done", "3 in dev")}        # its new value, highlighted (a member's runs are in its solo, not on the board: spec 53 §1.4)
         await page.wait_for_function("() => document.querySelectorAll('.is-reward').length === 0", timeout=3000)                                      # about 0.6 s, then it is plain
-        assert await runs.inner_text() == "6/1" and " ".join((await page.locator(f"{BACKEND_COLUMN} .stack__done").inner_text()).split()) == "3 in dev"
-        assert await page.evaluate("() => getComputedStyle(document.querySelector('.token .tnum')).animationName") == "none"
+        assert " ".join((await page.locator(f"{BACKEND_COLUMN} .stack__done").inner_text()).split()) == "3 in dev"
         await page.wait_for_timeout(1200)
         times = [s["t"] for s in await page.evaluate(SEEN) if s["kind"] == "reward"]
         assert max(times) - min(times) < 400                                                              # once: lit together, not again

@@ -1,6 +1,6 @@
 // The project's button and the parties' sheet (docs/specs/52-goal-types.md §5.1, §5.3; decisions §65.3, which reverses §63.12's party half): beside the menu, the project's button — *harbor ⌄*, the
 // project's name (12 px, 44 px high) — whose sheet from the top is **Projects**: *this one* (the project shown, marked), the other projects with what waits in each, a tap switching this phone to one
-// (shell-projects.js). The party is not in the top bar: it is the stage switch's **deck** at its end (a small deck, two edges behind a back with the chevron down, the warning count of the stops that
+// (shell-projects.js). The party is not in the top bar: it is the **deck** at the goals bar's left (spec 53 §1.1: a 44 × 44 target round a back of 16 × 22 with two edges behind it and the chevron down, the warning count of the stops that
 // wait in the project's other parties and in Operations at its top right). A tap on the deck opens the parties' sheet from the top: the parties as rows (52 px at least: the leader's head, the name,
 // *k/n done*, the stops' count, the work sign; the one shown marked), Operations' row when the project has any, **+ New party**. A pick is kept per project (`orkcraft.goal`) and puts the sheet away.
 import { h, sheet } from "./util.js";
@@ -60,7 +60,7 @@ export function makeWhere(core, ctx) {
     el: btn,
     sheets: [mine.el, sh.el],
     openParties,
-    /** The party's deck at the end of the stage switch: 52 × 52, the count of the stops that wait in the other parties (none when none: the one count of stops on the screen). */
+    /** The party's deck at the goals bar's left: 44 × 44, the count of the stops that wait in the other parties (none when none: the one count of stops on the screen). */
     deck() {
       const p = core.parties();
       return h("button", { class: "partydeck", type: "button", "aria-haspopup": "dialog", "data-act": "parties", "data-goal": p.shown, "aria-label": deckWords(p), onclick: openParties },

@@ -1,7 +1,7 @@
 // The party's window on the phone (docs/specs/49-one-window.md §10, spec 50 §6, spec 52 §5; decisions §62, §63, §65): the Board is one screen with no tab bar. Under the top bar: the goals bar
 // (*⌄ Tech · 3 of 12 goals done*, the Goals sheet and the filter: shell-goals.js; at its right the gate, quiet: shell-party.js), the flag line after a gate's merge, the stage switch and the field of that
-// stage (shell-arena-field.js). The stage switch wears the party's faces: each tab its band's heads over its word, no number, one sign (✗ a failure, else ! a stop) on the faces of the band it comes
-// from; at its end, outside the tablist, the party's deck (shell-where.js), whose sheet picks the party or Operations. What waits for you lies along the bottom (shell-stops.js). Operations takes the
+// stage (shell-arena-field.js). The stage switch wears the party's faces side by side: each tab its band's heads over its word, no number, one sign (✗ a failure, else ! a stop) on the face it comes
+// from; the faces of the tab shown are the members (a tap shows only its tasks: spec 53 §1). The party's deck stands at the goals bar's left (shell-where.js), whose sheet picks the party or Operations. What waits for you lies along the bottom (shell-stops.js). Operations takes the
 // field's place when the parties' sheet picks it (the deck then stands at its head). The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`, `st.band`, `st.focus`, `st.picks`).
 import { h, head as raceHead } from "./util.js";
 import { sign } from "./shell-marks.js";
@@ -49,20 +49,27 @@ export function makeArena(core, ctx, parts) {
     process: () => current && process(current),
   });
 
-  // -- the stage switch: three tabs, the band's faces over its word (no number), then the party's deck ------------------------------------------------------------
-  function faces(f) {
-    const heads = f.heads.length ? f.heads.map((x) => (x ? raceHead(x.race, x.tier) : h("span", { class: "band__nohead" }))) : [h("span", { class: "band__nohead is-empty" })];
-    return h("span", { class: "band__faces", "aria-hidden": "true" }, ...heads,
-      f.sign ? h("span", { class: `band__sign ${f.sign === "cross" ? "danger" : "alert"}` }, sign(f.sign)) : null);
+  // -- the stage switch: three tabs, the band's faces side by side over its word (no number); the faces of the tab shown are the members ---------------------------------------
+  const faceHead = (x) => (x.head ? raceHead(x.head.race, x.head.tier) : h("span", { class: "band__nohead" }));
+  const faceSign = (x) => (x.sign ? h("span", { class: `band__sign ${x.sign === "cross" ? "danger" : "alert"}`, "data-sign": x.sign }, sign(x.sign)) : null);
+  /** A face of the tab shown: a button (a tap shows only that member's tasks, again everyone). */
+  function face(x) {
+    const on = st.focus === x.slug, words = `Only ${x.name}${x.lead ? "’s work" : "’s tasks"}`;
+    return h("button", { class: `band__face${on ? " is-on" : ""}`, type: "button", "aria-pressed": String(on), "data-member": x.slug, "aria-label": words, title: words,
+      onclick: () => { st.focus = on ? "" : x.slug; core.draw(); } }, faceHead(x), faceSign(x));
+  }
+  function faces(f, pressable) {
+    const heads = f.heads.length ? f.heads.map((x) => (pressable ? face(x) : h("span", { class: "band__face", "data-member": x.slug }, faceHead(x), faceSign(x))))
+      : [h("span", { class: "band__nohead is-empty" })];
+    return h("span", { class: "band__faces", ...(pressable ? {} : { "aria-hidden": "true" }) }, ...heads);
   }
   function stageSwitch(m, band) {
-    const tabs = h("div", { class: "bands", role: "tablist", "aria-label": "Stages" }, ...BANDS.map(([key, name]) => {
-      const f = m.faces[key];
-      return h("button", { class: `band${key === band ? " is-on" : ""}`, role: "tab", type: "button", "aria-selected": String(key === band), "data-band": key,
-        "data-sign": f.sign || null, "aria-label": f.label, onclick: () => { st.band = key; st.focus = ""; core.draw(); } },
-      faces(f), h("span", { class: "band__name" }, name));
-    }));
-    return h("div", { class: "stagebar" }, tabs, core.partyDeck());
+    return h("div", { class: "stagebar" }, h("div", { class: "bands", role: "tablist", "aria-label": "Stages" }, ...BANDS.map(([key, name]) => {
+      const f = m.faces[key], on = key === band;
+      const attrs = { class: `band${on ? " is-on" : ""}`, role: "tab", "aria-selected": String(on), "data-band": key, "data-sign": f.sign || null, "aria-label": f.label };
+      return on ? h("div", attrs, faces(f, true), h("span", { class: "band__name" }, name))                      // the tab shown: its faces are buttons, so the tab is not one
+        : h("button", { ...attrs, type: "button", onclick: () => { st.band = key; st.focus = ""; core.draw(); } }, faces(f, false), h("span", { class: "band__name" }, name));
+    })));
   }
 
   /** Today's sheet and its button: the events of the goal shown (and the gate's), then its Done ideas. */
@@ -107,7 +114,7 @@ export function makeArena(core, ctx, parts) {
     field.draw(m, { band, focus: st.focus, picks: m.picks }, stageSwitch(m, band));
     // The field stays where it is in the page: taking it out and putting it back would reset the scroll of its strip and its columns, which it has just put back as they were.
     for (const kid of [...el.childNodes]) if (kid !== field.el) kid.remove();
-    el.prepend(...[...lead, goals.bar(m, party.gate()), party.line(slug)].filter(Boolean));
+    el.prepend(...[...lead, goals.bar(m, party.gate(), core.partyDeck()), party.line(slug)].filter(Boolean));
     if (field.el.parentNode !== el) el.append(field.el);
   }
 

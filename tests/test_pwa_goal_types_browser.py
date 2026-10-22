@@ -1,6 +1,6 @@
 """Spec 52 part C, the phone (docs/specs/52-goal-types.md §5, §6, §7 "C"): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py (a party, *Sign in with a passkey*, of a
 leader, two builders and two checkers), its map given the party's goal types. The top bar's project button and its Projects sheet (no party, no count); the goals bar that says the party; the stage
-switch that wears the party's faces (the overlap, the words whole at 390, the empty head, no number, ✗ over !, the labels); the party's deck at its end (the other parties' count, its sheet, a pick
+switch that wears the party's faces (side by side, the words whole at 390, the empty head, no number, the signs on the faces, the labels); the party's deck at the goals bar's left (the other parties' count, its sheet, a pick
 kept); a band with no one and *Add to the party*; the form by a type (its asks, Refs, the type's lens first, the join line's three shapes and what *Add the goal* sends); a plan's missing line and its answers; the signs without the alert edges; 44 px
 targets; the service worker's version."""
 from __future__ import annotations
@@ -137,22 +137,22 @@ async def test_the_stage_switch_wears_the_partys_faces_over_its_words_with_one_s
         assert [await b.get_attribute("data-band") for b in await bands.all()] == ["lead", "build", "check"]
         assert [norm(await b.inner_text()) for b in await bands.all()] == ["Planning", "Implementation", "Checking"]                    # the words, no number
         assert not re.search(r"\d", await tabs.inner_text()) and await tabs.locator(".ork-count").count() == 0
-        assert [round((await b.bounding_box())["height"]) for b in await bands.all()] == [52, 52, 52]
-        assert all([abs((await b.bounding_box())["width"] - 112) <= 4 for b in await bands.all()])                                     # the width less the deck's, shared
+        assert [round((await b.bounding_box())["height"]) for b in await bands.all()] == [60, 60, 60]                                   # spec 53 §1.2
+        assert all([abs((await b.bounding_box())["width"] - 130) <= 2 for b in await bands.all()])                                     # the whole width, shared (the deck is at the goals bar's left)
         assert all([await b.locator(".band__name").evaluate("e => e.scrollWidth <= e.clientWidth && getComputedStyle(e).fontSize === '11px'") for b in await bands.all()])
         heads = lambda key: tabs.locator(f'.band[data-band="{key}"] img.ork-race__head')                                             # noqa: E731
         assert [await heads(k).count() for k in ("lead", "build", "check")] == [1, 2, 2]
         build = [await h.bounding_box() for h in await heads("build").all()]
-        assert round(build[0]["width"]) == 24 and round(build[0]["height"]) == 22 and round(build[1]["x"] - build[0]["x"]) == 14     # 24 × 22, each 14 px after the one before
+        assert round(build[0]["width"]) == 24 and round(build[0]["height"]) == 22 and round(build[1]["x"] - build[0]["x"]) == 28     # 24 × 22, side by side 4 px apart (spec 53 §1.2)
         assert await heads("lead").first.get_attribute("src") == "races/peon-elder.png"
         signs = {k: await tabs.locator(f'.band[data-band="{k}"] .band__sign .ork-sign').get_attribute("class") for k in ("lead", "build", "check")}
         assert signs == {"lead": "ork-sign alert", "build": "ork-sign cross", "check": "ork-sign alert"}                                 # a plan and a proposal; a failure; the Reviewer's question
-        sign = await tabs.locator('.band[data-band="build"] .band__sign').bounding_box()
-        assert round(build[-1]["x"] + build[-1]["width"] - sign["x"]) == 4                                                              # over the last head by 4 px
+        sign = await tabs.locator('.band[data-band="build"] [data-member="backend"] .band__sign').bounding_box()
+        assert (round(sign["width"]), round(sign["height"])) == (12, 12) and round(build[0]["x"] + build[0]["width"] - sign["x"]) == 7    # 12 × 12 on the face it comes from, over its corner by 5 px
         assert await tabs.locator('.band[data-band="build"] .band__sign').evaluate("e => getComputedStyle(e).color") != await tabs.locator('.band[data-band="lead"] .band__sign').evaluate("e => getComputedStyle(e).color")
         labels = [await b.get_attribute("aria-label") for b in await bands.all()]
         assert labels == ["Planning: the Taskmaster. 2 wait for you", "Implementation: Backend, Screens. 1 failed", "Checking: Reviewer, Words. 1 waits for you"]
-        assert await page.locator(".stagebar > .partydeck").count() == 1 and await tabs.locator(".partydeck").count() == 0              # the deck is outside the tablist, at its end
+        assert await page.locator(".gbar > .partydeck").count() == 1 and await page.locator(".stagebar .partydeck").count() == 0         # the deck stands at the goals bar's left (spec 53 §1.1)
         assert await page.locator('.band[data-band="build"]').get_attribute("aria-selected") == "true"                                  # the tab picked keeps its underline
         assert "inset" in await page.locator('.band[data-band="build"]').evaluate("e => getComputedStyle(e).boxShadow")
         assert await page.evaluate(NO_SCROLL)
@@ -160,7 +160,8 @@ async def test_the_stage_switch_wears_the_partys_faces_over_its_words_with_one_s
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         band = page.locator('.band[data-band="build"]')
         await band.wait_for(timeout=WAIT_MS)
-        assert await band.locator(".band__sign .ork-sign").get_attribute("class") == "ork-sign cross"
+        assert await band.locator('[data-member="backend"] .band__sign .ork-sign').get_attribute("class") == "ork-sign cross"          # ✗ on the member whose task failed …
+        assert await band.locator('[data-member="screens"] .band__sign .ork-sign').get_attribute("class") == "ork-sign alert"          # … ! on the one a pick waits on
         assert await band.get_attribute("aria-label") == "Implementation: Backend, Screens. 1 failed, 1 waits for you"
 
 
@@ -186,7 +187,7 @@ async def test_a_band_with_no_one_shows_an_empty_head_says_what_happens_and_adds
         assert (await add.bounding_box())["height"] >= 44
         await add.click()
         assert await _called(stub, "ideas.goal", {"slug": "passkey"})                                                                 # Edit the party, as About this party's
-        assert await page.locator(".token .add-member, .stagebar [data-act='add-member']").count() == 0                                # no other place adds a member on the field
+        assert await page.locator(".stagebar [data-act='add-member'], .colname [data-act='add-member']").count() == 0                                # no other place adds a member on the field
 
 
 @pytest.mark.asyncio
@@ -201,7 +202,7 @@ async def test_the_partys_deck_counts_the_other_parties_stops_and_its_sheet_pick
         deck = page.locator(".partydeck")
         await deck.wait_for(timeout=WAIT_MS)
         box = await deck.bounding_box()
-        assert (round(box["width"]), round(box["height"])) == (52, 52) and await deck.locator(".partydeck__edge").count() == 2
+        assert (round(box["width"]), round(box["height"])) == (44, 44) and await deck.locator(".partydeck__edge").count() == 2
         assert await deck.locator(".ork-count.warning").inner_text() == "2"                                                            # the one count of stops on the screen
         assert await deck.get_attribute("aria-label") == "Parties: Passkey shown, 2 stops wait in the other parties. A tap shows the parties"
         assert await page.locator(".ork-count.warning:visible").count() == 1

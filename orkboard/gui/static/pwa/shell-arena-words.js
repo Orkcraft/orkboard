@@ -143,6 +143,9 @@ export function marksOf(m) {
 
 // -- tasks and Planning's items ---------------------------------------------------------------------------------------------------
 
+/** A goal's type as its sign and name (spec 53 §3): {id, name, sign}, or null for a goal with no type. */
+export const typeOf = (n) => (n?.type?.sign ? n.type : null);
+
 /** A task's state in words (spec 48 §4): *working 4 min*, *in Review*, *asks you to pick*, *after k1*, the hold's own words, *failed*. */
 export function taskWords(t, now = Date.now()) {
   if (live(t)) {
@@ -165,10 +168,10 @@ export function taskItem(n, t, now = Date.now(), low = lowWave(n)) {
   const sign = live(t) ? "work" : t.state === "failed" ? "cross" : t.state === "picking" ? "alert" : t.state === "held" ? "night" : "";
   const after = (t.after || []).length ? ` · after ${t.after.join(", ")}` : "";
   return {
-    key: `${n.slug}/${t.id}`, idea: n.slug, id: t.id, ideaTitle: short(n), title: short(t), wave: t.wave || 1, phase, phaseWord: when, element: n.element || "", state: t.state,
+    key: `${n.slug}/${t.id}`, idea: n.slug, id: t.id, ideaTitle: short(n), type: typeOf(n), title: short(t), wave: t.wave || 1, phase, phaseWord: when, element: n.element || "", state: t.state,
     sign, signTip: { work: "at work", cross: "failed", alert: "asks you to pick", night: "tonight" }[sign] || "", words, dep: depWords(n, t),
     tip: t.state === "failed" ? `${t.title} · ${t.error || "failed"}` : t.state === "held" ? `${t.title} · ${words}` : `${t.title} · ${when}${after}`,
-    label: `${t.title} (${n.title}): ${words}${phase ? `, ${when}` : ""}`,
+    label: `${t.title} (${n.title}${typeOf(n) ? `, ${typeOf(n).name}` : ""}): ${words}${phase ? `, ${when}` : ""}`,
     open: { kind: t.state === "review" ? "result" : t.state === "picking" ? "pick" : "task", slug: n.slug, task: t.id },
   };
 }
@@ -193,8 +196,9 @@ export function planningItems(nodes, lead, titleOf = (slug) => slug) {
     else if (busy) words = `${who} is ${n.state === "reading" ? "reading" : "planning"}`;
     else if (raw) words = n.queue === "night" || n.waits?.kind === "night" ? "new · tonight" : `new · ${who} reads it later`;
     else { const s = rowState(n, titleOf).text, w = waitsWords(n); words = w && !s.includes(w) ? `${s} · ${w}` : s; }
-    return { key: n.slug, idea: n.slug, title: short(n), element: n.element || "", raw, sign: stop ? "alert" : busy ? "work" : "", signTip: stop ? "asks you" : busy ? "at work" : "",
-      kind: stop ? "stop" : busy ? "busy" : "quiet", words, tip: `${n.title} · ${words}`, label: `${n.title}: ${words}`, open: { kind: n.needs_you === "plan" ? "plan" : "idea", slug: n.slug } };
+    const type = typeOf(n), said = type ? `${n.title}, ${type.name}` : n.title;
+    return { key: n.slug, idea: n.slug, title: short(n), type, element: n.element || "", raw, sign: stop ? "alert" : busy ? "work" : "", signTip: stop ? "asks you" : busy ? "at work" : "",
+      kind: stop ? "stop" : busy ? "busy" : "quiet", words, tip: `${said} · ${words}`, label: `${said}: ${words}`, open: { kind: n.needs_you === "plan" ? "plan" : "idea", slug: n.slug } };
   };
   const rank = (i) => (i.kind === "stop" ? 0 : i.kind === "busy" ? 1 : 2);
   const made = rows.filter((n) => n.state !== "raw").map(item).sort((a, b) => rank(a) - rank(b));
@@ -275,14 +279,18 @@ export function modelOf(st, slug, now = Date.now()) {
   const done = nodes.filter((n) => n.state === "done");
   // A stop's band (spec 52 §5.3): a member's question is its band's, a pick its maker's, a plan, a proposal and the leader's questions Planning's.
   const bandOf = new Map(members.map((x) => [x.slug, x.band]));
-  const waits = { lead: 0, build: 0, check: 0 };
+  const waits = { lead: 0, build: 0, check: 0 }, waiting = new Map();   // the stops of a band, and of each member (spec 53 §1.2: the sign stands on the face it comes from)
   for (const it of planning.filter((i) => i.kind === "stop")) {
-    const n = nodes.find((x) => x.slug === it.idea), by = n?.needs_you === "asks" ? bandOf.get(n.asked?.[0]?.by?.slug) : "";
-    waits[by === "build" || by === "check" ? by : "lead"] += 1;
+    const n = nodes.find((x) => x.slug === it.idea), by = n?.needs_you === "asks" ? n.asked?.[0]?.by?.slug : "", band = bandOf.get(by);
+    const who = band === "build" || band === "check" ? by : lead?.slug;
+    waits[band === "build" || band === "check" ? band : "lead"] += 1;
+    waiting.set(who, (waiting.get(who) || 0) + 1);
   }
-  for (const x of [...build, ...check]) waits[x.band] += x.tasks.filter((t) => t.state === "picking").length;
-  const faces = { lead: facesOf("lead", lead ? [lead] : [], 0, waits.lead), build: facesOf("build", build, warn.build, waits.build),
-    check: facesOf("check", check, warn.check, waits.check) };
+  for (const x of [...build, ...check]) { const k = x.tasks.filter((t) => t.state === "picking").length; waits[x.band] += k; if (k) waiting.set(x.slug, (waiting.get(x.slug) || 0) + k); }
+  const signs = new Map([...build, ...check].map((x) => [x.slug, x.tasks.some((t) => t.state === "failed") ? "cross" : waiting.get(x.slug) ? "alert" : ""]));
+  if (lead) signs.set(lead.slug, waiting.get(lead.slug) ? "alert" : "");
+  const faces = { lead: facesOf("lead", lead ? [lead] : [], 0, waits.lead, signs), build: facesOf("build", build, warn.build, waits.build, signs),
+    check: facesOf("check", check, warn.check, waits.check, signs) };
   return {
     goal: g, nodes, work, members, lead, build, check, planning, counts, warn, faces,
     first: counts.build ? "build" : counts.check ? "check" : "lead",
@@ -295,13 +303,13 @@ export function modelOf(st, slug, now = Date.now()) {
 const FACES = { lead: 1, build: 3, check: 2 };                    // the heads a stage's tab shows at most
 const NO_ONE = { lead: "no leader", build: "no builder", check: "no checker" };
 
-/** A stage's tab (spec 52 §5.3): its band's heads (at most FACES), its one sign — `cross` when a task of the band failed, else `alert` when a stop of the band waits —
- *  and its label, *Implementation: Grunt, Tester. 1 failed*, *Planning: the Taskmaster. 2 wait for you*, *Checking: no checker*. No number is drawn. */
-export function facesOf(key, members, failed, waits) {
+/** A stage's tab (spec 52 §5.3, spec 53 §1.2): its band's faces (at most FACES), each {head, slug, name, sign} — the sign (`cross` when a task of the member failed, else `alert`
+ *  when a stop waits on it, else none) stands on the face it comes from (`signs`: slug → sign) — the band's own `sign` (for the tab's data), and its label, *Implementation: Grunt, Tester. 1 failed*, *Planning: the Taskmaster. 2 wait for you*, *Checking: no checker*. No number is drawn. */
+export function facesOf(key, members, failed, waits, signs = new Map()) {
   const word = BANDS.find(([k]) => k === key)[1];
   const names = members.map((x) => (x.slug === "taskmaster" ? "the Taskmaster" : x.name));
   const said = [failed ? `${failed} failed` : "", waits ? `${waits} ${waits === 1 ? "waits" : "wait"} for you` : ""].filter(Boolean).join(", ");
-  return { heads: members.slice(0, FACES[key]).map((x) => x.head || null), sign: failed ? "cross" : waits ? "alert" : "", failed, waits,
+  return { heads: members.slice(0, FACES[key]).map((x) => ({ head: x.head || null, slug: x.slug, name: x.name, lead: x.band === "lead", sign: signs.get(x.slug) || "" })), sign: failed ? "cross" : waits ? "alert" : "", failed, waits,
     label: `${word}: ${names.length ? names.join(", ") : NO_ONE[key]}.${said ? ` ${said}` : ""}`.replace(/\.$/, "") };
 }
 

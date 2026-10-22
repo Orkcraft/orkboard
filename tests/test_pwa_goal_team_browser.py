@@ -91,15 +91,15 @@ async def test_the_goal_s_card_wears_its_team_s_heads_and_names_them_and_the_top
         stub.bump({})
         await _pick_goal(page, "land")
         await _band(page, "build")                                                                      # its party's members: a column each, a head each
-        tokens = page.locator(".token")
-        await tokens.nth(2).wait_for(timeout=WAIT_MS)
-        assert [await t.locator("img.ork-race__head").get_attribute("src") for t in await tokens.all()] == [
-            "races/elf-elder@2x.png", "races/elf-warrior@2x.png", "races/goblin-warrior@2x.png"]
-        assert [(await t.get_attribute("aria-label")).split(", ")[:2] for t in await tokens.all()] == [
-            ["Product designer", "Veteran elf · Design"], ["Accessibility reviewer", "Seasoned elf · Design"], ["Analyst", "Seasoned goblin · Data"]]   # each named, with its head in words
-        assert [await t.locator(".token__name").inner_text() for t in await tokens.all()] == ["Product designer", "Accessibility reviewer", "Analyst"]
+        faces = page.locator('.band[data-band="build"] button.band__face')                              # the faces are the members (spec 53 §1.3)
+        await faces.nth(2).wait_for(timeout=WAIT_MS)
+        assert [await t.locator("img.ork-race__head").get_attribute("src") for t in await faces.all()] == [
+            "races/elf-elder.png", "races/elf-warrior.png", "races/goblin-warrior.png"]
+        assert [await t.get_attribute("aria-label") for t in await faces.all()] == [
+            "Only Product designer’s tasks", "Only Accessibility reviewer’s tasks", "Only Analyst’s tasks"]                           # each named
+        assert [await t.text_content() for t in await page.locator(".colname").all()] == ["Product designer", "Accessibility reviewer", "Analyst"]      # and over its column
         await _band(page, "lead")                                                                       # the leader's head leads the Planning column
-        assert await page.locator(".token img.ork-race__head").get_attribute("src") == "races/peon-elder@2x.png"
+        assert await page.locator("button.band__face img.ork-race__head").get_attribute("src") == "races/peon-elder.png"
         await _shot(page, "phone-goal-team-board-390x844")
         assert await page.evaluate(NO_SCROLL)
 
@@ -153,7 +153,7 @@ async def test_a_party_whose_goals_are_done_has_no_verdict_to_ask_for_and_its_sc
         stub.bump({})
         await _pick_goal(page, "land")
         await _band(page, "lead")
-        assert await page.locator(".token img.ork-race__head").get_attribute("src") == "races/gnome-elder@2x.png"   # the party's head: its leader's, in Planning
+        assert await page.locator("button.band__face img.ork-race__head").get_attribute("src") == "races/gnome-elder.png"   # the party's head: its leader's, in Planning
         await _open_party(page, "Landing page")
         screen = page.locator(".screen")
         await screen.get_by_text("Landing page").first.wait_for(timeout=WAIT_MS)

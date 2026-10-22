@@ -450,7 +450,7 @@ FAB = '.fab[data-act="new-goal"]'
 
 
 async def _where(page):
-    """The party's deck at the end of the stage switch (at Operations' head while it is shown) and the sheet it opens from the top (spec 52 §5.3): the project's parties, Operations, + New party."""
+    """The party's deck at the goals bar's left (at Operations' head while it is shown) and the sheet it opens from the top (spec 52 §5.3): the project's parties, Operations, + New party."""
     await page.locator(".partydeck").first.click()
     sheet = page.get_by_role("dialog", name="Parties")
     await sheet.wait_for(timeout=WAIT_MS)
@@ -474,7 +474,7 @@ async def _wizard(sheet, craft="engineering"):
 
 async def _band(page, band):
     """The stage switch: "lead" Planning, "build" Implementation, "check" Checking. One tap does it (a redraw waits while a pointer is down, spec 50 §6.9)."""
-    await page.locator(f'.band[data-band="{band}"]').click()
+    await page.locator(f'.band[data-band="{band}"]').click(position={"x": 6, "y": 6})      # a corner: the faces over the word are buttons of the tab shown (spec 53 §1.3), a press there is one's
     await page.locator(f'.band[data-band="{band}"][aria-selected="true"]').wait_for(timeout=WAIT_MS)
 
 
