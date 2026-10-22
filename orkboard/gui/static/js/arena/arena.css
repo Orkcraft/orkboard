@@ -25,7 +25,6 @@
 .arena-ptop__cards i:nth-child(1) { left: 4px; top: 0; }
 .arena-ptop__cards i:nth-child(2) { left: 2px; top: 2px; }
 .arena-ptop__cards b { left: 0; top: 4px; border-color: var(--ork-ink-muted); background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
-.arena-ptop__stops { margin: 0; }
 .arena-ops__top { flex: none; width: 248px; box-sizing: border-box; border-bottom: var(--ork-line) solid var(--ork-frame); border-right: var(--ork-line) solid var(--ork-frame); }
 .arena-hero__deck { position: relative; display: flex; flex-direction: column; isolation: isolate; }      /* the leader's row stands on the deck: an edge behind it per other party, two at most */
 .arena-hero__edge { position: absolute; z-index: -1; box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); clip-path: var(--ork-notch); }
@@ -39,7 +38,8 @@
 .arena-deck__card.is-shown { background: var(--ork-raised); border: var(--ork-double) double var(--ork-ink); transform: translateY(-8px); }
 .arena-deck__top { display: flex; align-items: flex-start; justify-content: space-between; align-self: stretch; }
 .arena-deck__marks { display: inline-flex; align-items: center; gap: var(--ork-2); color: var(--ork-ink-muted); }
-.arena-deck__marks .ork-count { margin: 0; }
+.arena-deck__dot { flex: none; width: 8px; height: 8px; background: var(--ork-alert); }      /* a party with a stop (spec 54 §2.4): a dot where the count was */
+.arena-deck__dot.is-danger { background: var(--ork-danger); }
 .arena-deck__icon { display: inline-flex; color: var(--ork-ink-muted); }
 .arena-deck__icon .ork-icon { width: 24px; height: 24px; }
 .arena-deck__name { font: 500 13px/16px var(--ork-font-pixel); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
@@ -328,7 +328,7 @@
 /* -- what waits for you: the fan along the bottom edge (64 px showing) -------------------------------------------------------------- */
 .arena-hand { position: absolute; left: 0; right: 312px; bottom: -182px; display: flex; justify-content: center; pointer-events: none; z-index: 8; }
 .arena-hand__empty { position: absolute; left: 0; right: 0; top: -160px; text-align: center; pointer-events: none; }
-.arena-hc { pointer-events: auto; position: relative; flex: none; display: flex; flex-direction: column; width: 156px; height: 246px; margin: 0 -14px; padding: var(--ork-3); box-sizing: border-box; z-index: var(--z);
+.arena-hc { pointer-events: auto; position: relative; flex: none; display: flex; flex-direction: column; width: 156px; height: 246px; margin: 0 calc(var(--ov, 14px) * -1); padding: var(--ork-3); box-sizing: border-box; z-index: var(--z);
   transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; transition: transform 0.12s steps(3); }
 .arena-hc:hover, .arena-hc:focus-within { transform: translateY(-184px) rotate(0deg); z-index: 50; }
 .arena-hc.is-compact .arena-art { display: none; }
@@ -338,6 +338,10 @@
 .arena-hc__kind { font: 500 12px/14px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ork-alert); }
 .arena-hc__kind.is-no { color: var(--ork-danger); }
 .arena-hc__who { margin-left: auto; display: inline-flex; }
+.arena-hc__kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arena-hc.is-other .arena-hc__top { padding-right: 20px; }
+.arena-hc__party { position: absolute; top: var(--ork-3); right: var(--ork-3); display: inline-flex; color: var(--ork-ink-muted); }      /* another party's stop wears its leader's small head (Operations': its sliders) */
+.arena-hc__party .ork-icon { width: 16px; height: 16px; }
 .arena-hc .arena-art { height: 44px; }
 .arena-hc .arena-banner { margin: -1px var(--ork-1) 0; }
 .arena-hc__text { flex: 1; min-height: 0; margin-top: var(--ork-2); padding: var(--ork-2) var(--ork-3); border-top: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas); color: var(--ork-ink-muted); display: -webkit-box;

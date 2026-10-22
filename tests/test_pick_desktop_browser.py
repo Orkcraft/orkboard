@@ -85,7 +85,8 @@ def _shot(pg, name: str) -> None:
 
 def test_the_stop_is_pick_one_its_gem_the_count_with_the_members_head_and_the_tiles_two_by_two(picking):
     pg, host = picking
-    assert pg.locator(".arena-hc").count() == 5 and pg.locator(".arena-hc").first.get_attribute("data-kind") == "pick"       # it blocks work in progress: the host puts it first
+    kinds = pg.locator(".arena-hc").evaluate_all("els => els.map((e) => e.dataset.kind)")
+    assert kinds == ["failed", "plan", "asks", "pick", "proposal"]                                                        # red first, then what holds work back (the pick with it), then the proposal (spec 54 §2.3)
     card = _card(pg)
     assert box(pg, ".arena-hc[data-kind=pick]")["width"] == 156 and box(pg, ".arena-hc[data-kind=pick]")["height"] == 246       # the card of the fan, as every stop
     assert card.locator(".arena-hc__kind").text_content() == "Pick one" and card.locator(".ork-gem").text_content() == "4"        # the gem is the count

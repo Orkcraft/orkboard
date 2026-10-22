@@ -113,14 +113,14 @@ def test_the_top_bar_has_no_parties_and_the_left_column_says_the_party_over_the_
     assert count.inner_text() == "2/11" and count.get_attribute("title") == "2 of 11 goals done"
     assert line.locator(".arena-ptop__work .ork-sign.work").count() == 1                                                  # at work
     deck = line.get_by_role("button", name="Parties: Sign in with a passkey shown")
-    assert deck.count() == 1 and deck.locator(".ork-count").count() == 0 and box(pg, ".arena-ptop__deck")["height"] == 28   # nothing waits in the others: no count
+    assert deck.count() == 1 and deck.locator(".ork-count").count() == 0 and box(pg, ".arena-ptop__deck")["height"] == 28   # no count
     assert pg.locator(".arena-hero .arena-hero__edge").count() == 2                                                        # two other parties: two edges
     host.extra_needs.append({"kind": "plan", "goal": "pricing", "idea": "prices", "title": "Prices", "text": "Plan ready", "priority": "normal", "blocks": False, "at": "2026-10-18T09:00:00"})
     host.bump({})
     deck = line.get_by_role("button", name="Parties: Sign in with a passkey shown, 1 stop waits in the other parties")
     deck.wait_for(timeout=WAIT_MS)
-    assert deck.locator(".ork-count.warning").inner_text() == "1"
-    assert pg.locator(".ork-count.warning").count() == 1                                                                   # the one count of stops on the window
+    assert deck.locator(".ork-count").count() == 0 and pg.locator(".ork-count.warning").count() == 0                       # no count of stops anywhere (spec 54 §2.4)
+    assert pg.locator('.arena-hc[data-kind="plan"][data-party="pricing"]').count() == 1                                      # it lies in the one hand, marked with its party
 
 
 def test_parties_deals_the_parties_a_press_picks_one_and_put_them_back_esc_and_the_keys(typed):

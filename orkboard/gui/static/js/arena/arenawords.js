@@ -3,7 +3,7 @@
 // neighbours) draw what these say. The backend writes no words: the member's state, a task's foot and a stop's text are said here.
 import { leftToDo, TASK_STATE } from "../board/maplayout.js";
 import { memberWords, soFarWords, todayWords } from "../board/mapstage.js";
-import { holdWords, hhmm } from "../board/store.js";
+import { holdWords, hhmm, OPS } from "../board/store.js";
 import { TIER_WORDS, RACE_WORDS } from "../orkui.js";
 import { kindCount } from "./pickwords.js";
 
@@ -387,10 +387,51 @@ export function opStopsOf(needs) {
     full: row.title, text: row.kind === "op_rules" ? (row.lines || [row.text]).join(" · ") : row.text }));
 }
 
-/** A fan's turn, rise and order for item `i` of `n` (the middle ones higher): the values of `--rot`, `--dy` and `--z`. */
+// -- one hand (spec 54 §2) ---------------------------------------------------------------------------------------------------------
+
+/** How urgent a kind of stop is (§2.3): 0 red (a failure), 1 what holds work back, 2 what does not, 3 the results to look at. */
+const URGENCY = { failed: 0, op_failed: 0, plan: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, result: 3 };
+export const urgencyOf = (s) => URGENCY[s.kind] ?? 1;
+const ageOf = (s) => String(s.row?.at || s.task?.finished || s.task?.started || s.result?.finished || "9999");
+
+/** The hand's stops by urgency, the oldest first in a group (a stable sort: the host's order breaks a tie). */
+export function byUrgency(stops) {
+  return stops.map((s, i) => [s, i]).sort(([a, i], [b, j]) => urgencyOf(a) - urgencyOf(b) || ageOf(a).localeCompare(ageOf(b)) || i - j).map(([s]) => s);
+}
+
+/** Each stop of a party (`g`; null for Operations) with the party it belongs to — its name, leader (head and name) — and whether it is another party's than the one shown. */
+function inParty(stops, g, shown) {
+  const party = g ? { slug: g.slug, name: g.short || g.title, head: g.leader?.head || null, lead: g.leader?.name || "Taskmaster", ops: false }
+    : { slug: OPS, name: "Operations", head: null, lead: "Taskmaster", ops: true };
+  return stops.map((s) => ({ ...s, g: g || null, party, other: party.slug !== shown }));
+}
+
+/** Every stop of the project (§2.1): each party's Needs you rows, failed tasks and Pick one, then Operations'; `keep(partySlug, stop)` is the filter (only the picked goals'),
+ *  and the party shown's results join them when `withResults` (below 1 024 px). In urgency's order (§2.3). */
+export function handOf({ map, needs, order, shown, keep, withResults = false, ops = true }) {
+  const out = [];
+  for (const g of goalsOf(map, order)) {
+    const nodes = nodesOf(map, g.slug), mine = stopsOf(needs, g, nodes);
+    if (withResults && g.slug === shown) mine.push(...resultsOf(nodes).map((r) => resultStop(r, nodes)));
+    out.push(...inParty(mine.filter((s) => keep(g.slug, s)), g, shown));
+  }
+  if (ops) out.push(...inParty(opStopsOf(needs), null, shown));
+  return byUrgency(out);
+}
+
+/** Where the k-th most urgent of `n` stops lies in the row (§2.3): the most urgent in the middle, the next to its right, the next to its left, and so outward. */
+export function laidOut(n) {
+  const row = [];
+  for (let k = 0; k < n; k += 1) { if (k % 2) row.push(k); else row.unshift(k); }
+  const at = new Array(n);
+  row.forEach((k, place) => { at[k] = place; });
+  return at;
+}
+
+/** A fan's turn, rise and order for the item at place `i` of `n` (the middle ones higher): the values of `--rot`, `--dy` and `--z`. A long hand turns less. */
 export function fanOf(i, n, fanned = true) {
-  const off = i - (n - 1) / 2;
-  return { rot: fanned ? Math.round(off * 5 * 10) / 10 : 0, dy: fanned ? Math.round(off * off * 4) : 0, z: 10 + i };
+  const off = i - (n - 1) / 2, ease = n > 6 ? 6 / n : 1;
+  return { rot: fanned ? Math.round(off * 5 * ease * 10) / 10 : 0, dy: fanned ? Math.round(off * off * 4 * ease * ease) : 0, z: 10 + i };
 }
 
 /** A result among the stops, below 1 024 px (§3): *To look at*, with a result's own answers. */

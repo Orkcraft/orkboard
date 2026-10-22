@@ -1,7 +1,7 @@
 // The party's deck (docs/specs/52-goal-types.md §3, decisions §65.3; it was the top bar's party switch, spec 50 §3.1): the left column's top line, 32 px over
 // the leader's row — the party's short name, *k/n* (its done goals of all its goals, muted: a party has no end) and the work sign while it is at work —, at its
-// right **Parties ⌄** (a small deck, the word, the chevron, and the warning count of the stops that wait in the project's other parties and in Operations: the
-// one count of stops on the window). A press deals the parties as a spread (spread.js `Dealt`): a card per party in the Board's order, Operations when the
+// right **Parties ⌄** (a small deck, the word, the chevron; no count of stops, spec 54 §2.4: its label alone says, for a screen reader, how many wait in the other
+// parties). A press deals the parties as a spread (spread.js `Dealt`): a card per party in the Board's order, Operations when the
 // project has them, then *+ New party*. The party picked is the party shown, kept per device.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -25,15 +25,16 @@ export function shownOf(goals, picked) {
 }
 
 const opsOn = () => town.value?.ops_rev !== undefined;
-const opStops = (needs) => opStopsOf(needs).filter((s) => s.kind !== "op_rules").length;
+const opStops = (needs) => opStopsOf(needs).length;
+const hurt = (stops) => stops.some((s) => s.tone === "danger");               // one of them failed: the dot is the danger colour
 const atWork = (g) => (g.party || []).some((x) => x.state === "work") || g.state === "reading";
 
-/** The project's parties as the deck holds them: [{g, nodes, stops, working}], and whether Operations is one more. */
+/** The project's parties as the deck holds them: [{g, nodes, stops, failed, working}], and whether Operations is one more. */
 function partiesOf() {
   const m = mapData.value, needs = board.value?.needs_you || [];
   const goals = goalsOf(m, goalList().map((g) => g.slug));
-  return { goals: goals.map((g) => { const nodes = nodesOf(m, g.slug); return { g, nodes, stops: stopsOf(needs, g, nodes).length, working: atWork(g) }; }),
-    ops: opsOn(), opStops: opStops(needs) };
+  return { goals: goals.map((g) => { const nodes = nodesOf(m, g.slug); const mine = stopsOf(needs, g, nodes); return { g, nodes, stops: mine.length, failed: hurt(mine), working: atWork(g) }; }),
+    ops: opsOn(), opStops: opStops(needs), opFailed: hurt(opStopsOf(needs)) };
 }
 
 /** The stops that wait in the project's other parties and in Operations: those of every party but the one shown. */
@@ -50,14 +51,15 @@ export function deckEdges(shown) {
 
 export const partiesLabel = (name, n) => `Parties: ${name} shown${n ? `, ${n === 1 ? "1 stop waits" : `${n} stops wait`} in the other parties` : ""}`;
 
-/** A party's card in the spread: its leader's head, its name, *k/n done*, its members' small heads, its stops and the work sign; the one shown raised. */
+/** A party's card in the spread: its leader's head, its name, *k/n done*, its members' small heads, a dot when stops wait in it (danger when one failed) and the work
+ *  sign; the one shown raised. */
 function PartyCard({ x, shown, press }) {
   const { g, nodes, working } = x, stops = shown ? 0 : x.stops, c = countOf(g, nodes);
   const team = (g.party || []).filter((p) => p.band !== "lead" && p.head);
   return html`<button type="button" class=${cls("arena-spread__card arena-deck__card", { "is-shown": shown })} data-goal=${g.slug}
       aria-label=${`${tabWords(g, nodes, stops, working)}${shown ? ", shown" : ""}`} title=${g.brief ? `${g.title} · ${g.brief}` : g.title} onClick=${press}>
     <span class="arena-deck__top">${g.leader?.head ? html`<${Head} race=${g.leader.head.race} tier=${g.leader.head.tier} size="mid" />` : html`<span></span>`}
-      <span class="arena-deck__marks">${stops > 0 && html`<span class="ork-count warning">${stops}</span>`}${working && html`<${Sign} name="work" label="at work" />`}</span></span>
+      <span class="arena-deck__marks">${stops > 0 && html`<span class=${cls("arena-deck__dot", { "is-danger": x.failed })} aria-hidden="true"></span>`}${working && html`<${Sign} name="work" label="at work" />`}</span></span>
     <span class="arena-deck__name">${g.short || g.title}</span>
     <span class="arena-cap">${c.done}/${c.all} done</span>
     <span class="arena-deck__heads">${team.map((p) => html`<${Head} key=${p.slug} race=${p.head.race} tier=${p.head.tier} small=${true} />`)}</span>
@@ -67,7 +69,7 @@ function PartyCard({ x, shown, press }) {
 
 /** The parties dealt from the deck (§3.4): a press picks one (the spread gathers, then the board shows it), opens Operations or New party. */
 function PartiesSpread({ want, from, back, done }) {
-  const { goals, ops, opStops: o } = partiesOf();
+  const { goals, ops, opStops: o, opFailed } = partiesOf();
   const project = currentProject.value?.name || "this project";
   const at = Math.max(0, want === OPS ? goals.length : goals.findIndex((x) => x.g.slug === want));
   const show = (gather, slug) => gather(() => {
@@ -82,7 +84,7 @@ function PartiesSpread({ want, from, back, done }) {
       ${ops && html`<button type="button" class=${cls("arena-spread__card arena-deck__card", { "is-shown": want === OPS })} data-goal=${OPS}
           aria-label=${`Operations${want !== OPS && o ? `, ${plural(o, "stop waits", "stops wait")} for you` : ""}${want === OPS ? ", shown" : ""}`} title="Your everyday work by templates"
           onClick=${() => show(gather, OPS)}>
-        <span class="arena-deck__top"><span class="arena-deck__icon"><${Icon} name="sliders" /></span><span class="arena-deck__marks">${want !== OPS && o > 0 && html`<span class="ork-count warning">${o}</span>`}</span></span>
+        <span class="arena-deck__top"><span class="arena-deck__icon"><${Icon} name="sliders" /></span><span class="arena-deck__marks">${want !== OPS && o > 0 && html`<span class=${cls("arena-deck__dot", { "is-danger": opFailed })} aria-hidden="true"></span>`}</span></span>
         <span class="arena-deck__name">Operations</span><span class="arena-cap">Your everyday work by templates</span>
         ${want === OPS && html`<span class="arena-deck__shown">shown</span>`}</button>`}
       <button type="button" class="arena-spread__card arena-deck__card is-blank" data-goal="" aria-label="New party" title="One of yours, or its leader, builders and checkers from the library"
@@ -109,8 +111,7 @@ export function PartyTop({ g = null, nodes = [] }) {
     <span class="arena-spacer"></span>
     <button type="button" ref=${btn} class="ork-btn quiet arena-ptop__deck" aria-haspopup="dialog" aria-expanded=${!!dealt} aria-label=${partiesLabel(name, n)}
       title="The project's parties" onClick=${(e) => setDealt(e.currentTarget.getBoundingClientRect())}>
-      <span class="arena-ptop__cards" aria-hidden="true"><i></i><i></i><b></b></span>Parties<${Chev} dir="down" />
-      ${n > 0 && html`<span class="ork-count warning arena-ptop__stops" aria-hidden="true">${n}</span>`}</button>
+      <span class="arena-ptop__cards" aria-hidden="true"><i></i><i></i><b></b></span>Parties<${Chev} dir="down" /></button>
     ${dealt && html`<${PartiesSpread} want=${want} from=${dealt} back=${btn.current} done=${() => setDealt(null)} />`}
   </div>`;
 }

@@ -246,7 +246,7 @@ def test_the_partys_deck_its_cards_the_count_of_the_others_operations_and_the_pi
         assert line.locator(".ork-meter").count() == 0 and "%" not in line.inner_text()                        # a party has no end: no meter, no %
         assert line.locator(".arena-ptop__work .ork-sign.work").count() == 1                                   # at work: orkUI's sign
         deck = line.locator(".arena-ptop__deck")
-        assert deck.locator(".ork-count.warning").inner_text() == "1"                                          # Operations' row: the one count, of the others
+        assert deck.locator(".ork-count").count() == 0                                                         # no count of stops anywhere (spec 54 §2.4); the label says it for a screen reader
         assert deck.get_attribute("aria-label") == "Parties: Sign in with a passkey shown, 1 stop waits in the other parties"
         cards = _parties(pg).locator(".arena-spread__card")
         assert [c.get_attribute("data-goal") for c in cards.all()] == ["passkey", "pricing", "weekly", "@operations", ""]      # the Board's order: priority, then the person's
@@ -254,11 +254,11 @@ def test_the_partys_deck_its_cards_the_count_of_the_others_operations_and_the_pi
         assert first.get_attribute("aria-label") == "Sign in with a passkey, 2 of 11 goals done, at work, shown"
         assert "Builds the sign-in" in first.get_attribute("title")                                            # what it is for, in its tooltip
         assert first.locator(".ork-flag, .arena-flag").count() == 0 and first.locator(".ork-count").count() == 0      # no verdict's flag; the shown party's stops not counted
-        assert cards.nth(1).locator(".ork-count").count() == 0 and "1/1 done" in cards.nth(1).inner_text()      # no stop: no count
-        assert cards.nth(3).locator(".ork-count.warning").inner_text() == "1"
+        assert cards.nth(1).locator(".arena-deck__dot").count() == 0 and "1/1 done" in cards.nth(1).inner_text()      # no stop: no dot
+        assert cards.nth(3).locator(".arena-deck__dot").count() == 1 and cards.locator(".ork-count").count() == 0      # Operations' row: a dot where its count was
         cards.nth(3).click()
         pg.locator(".arena-ops").wait_for(timeout=WAIT_MS)                                                    # Operations: its view in the field, its rows below
-        assert pg.locator(".arena-hc[data-kind=op]").count() == 1 and pg.locator(".arena-ptop__deck .ork-count").inner_text() == "4"   # now the passkey party's are the others
+        assert pg.locator(".arena-hc[data-kind=op]").count() == 1 and pg.locator(".arena-hc").count() == 5 and pg.locator(".arena-ptop__deck .ork-count").count() == 0   # the passkey party's lie in the hand too
         _show_goal(pg, "passkey")
         pg.reload()                                                                                         # the pick is kept per device
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
@@ -484,11 +484,12 @@ def test_what_waits_for_you_a_fan_raised_on_hover_and_focus_each_kind_and_its_qu
     pg, host = arena
     hand = pg.get_by_role("region", name="Waits for you")
     kinds = pg.locator(".arena-hc").evaluate_all("els => els.map((e) => e.dataset.kind)")
-    assert kinds == ["failed", "plan", "asks", "proposal"]                                                      # the host's order; a failed task in its row's place
+    assert kinds == ["failed", "plan", "asks", "proposal"]                                                      # urgency's order (spec 54 §2.3), a failed task in its row's place
     items = pg.locator(".arena-hc")
     assert items.nth(0).get_attribute("class").count("danger") == 1 and items.nth(1).get_attribute("class").count("alert") == 1             # the edge: danger, alert
-    tops = [i.bounding_box()["y"] for i in items.all()]
-    assert tops[1] < tops[0] and tops[2] < tops[3]                                                               # the middle ones higher
+    tops = {i.get_attribute("data-kind"): i.bounding_box() for i in items.all()}
+    assert [k for k, _ in sorted(tops.items(), key=lambda kv: kv[1]["x"])] == ["asks", "failed", "plan", "proposal"]                    # the most urgent in the middle, the next to its right, then to its left
+    assert tops["failed"]["y"] < tops["asks"]["y"] and tops["plan"]["y"] < tops["proposal"]["y"]                 # the middle ones higher
     rot = items.nth(0).evaluate("e => getComputedStyle(e).transform")
     assert rot != "none" and items.nth(1).evaluate("e => getComputedStyle(e).transform") != items.nth(0).evaluate("e => getComputedStyle(e).transform")        # each turned a little
     assert items.nth(0).bounding_box()["y"] + items.nth(0).bounding_box()["height"] > 900 and box(pg, ".arena-stops")["height"] == 64        # only the tops show

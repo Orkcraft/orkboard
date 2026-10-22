@@ -10,8 +10,8 @@ import { Operations } from "../board/ops.js";
 import { flagsData, lookTick, mapData } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { town } from "../link.js";
-import { solo, narrow, shownGoals } from "./arenastate.js";
-import { goalsOf, nodesOf, opStopsOf, partyOf, planningOf, resultStop, resultsOf, stopsOf } from "./arenawords.js";
+import { solo, narrow, picks, shownGoals } from "./arenastate.js";
+import { goalsOf, handOf, nodesOf, partyOf, planningOf, resultsOf } from "./arenawords.js";
 import { inFilter } from "./goalwords.js";
 import { PartyTop, shownOf } from "./goaltabs.js";
 import { goalList } from "../board/store.js";
@@ -41,32 +41,36 @@ function useNarrow() {
   }, []);
 }
 
-/** Operations' own field: the deck's line (the way back to the parties), its list, with the rows that wait for the person along the bottom. */
-function OpsField() {
-  const stops = opStopsOf(board.value?.needs_you || []);
-  return html`<div class="arena arena-ops">
-    <div class="arena-ops__top"><${PartyTop} /></div>
-    <section class="arena-ops__body" aria-label="The party at work"><${Operations} withNew=${true} /></section>
-    <div class="arena-stops"><${Stops} g=${null} stops=${stops} /><${Limits} /></div>
-  </div>`;
-}
-
-/** A stop of the party: the goal it is about is one the filter shows (a stop about the party itself, no goal, stays). */
+/** A stop of the project (spec 54 §2.1): the goal it is about is one its party's filter shows (a stop about the party itself, no goal, stays). The party shown has the
+ *  filter and the goal peeked; another party has only its picks. */
 const stopIn = (shown, s) => {
   const goal = s.node?.slug || s.row?.idea || "";
   return !goal || inFilter(shown, goal);
 };
+const keepOf = (shownSlug) => (party, s) => stopIn(party === shownSlug ? shownGoals(party) : picks.value[party] || [], s);
+
+/** The one hand: every stop of the project, the most urgent first (`Stops` lays it out from the middle). */
+const handFor = (m, shown, withResults) => handOf({ map: m, needs: board.value?.needs_you || [], order: goalList().map((x) => x.slug), shown, keep: keepOf(shown), withResults,
+  ops: town.value?.ops_rev !== undefined });
+
+/** Operations' own field: the deck's line (the way back to the parties), its list, with the stops of the project along the bottom. */
+function OpsField({ m }) {
+  return html`<div class="arena arena-ops">
+    <div class="arena-ops__top"><${PartyTop} /></div>
+    <section class="arena-ops__body" aria-label="The party at work"><${Operations} withNew=${true} /></section>
+    <div class="arena-stops"><${Stops} stops=${handFor(m, OPS, false)} /><${Limits} /></div>
+  </div>`;
+}
 
 /** The party shown, in full. Keyed by the party so that what was picked or drawn on the last one does not carry over. */
 function Party({ m, g }) {
   const nodes = nodesOf(m, g.slug), { lead, members } = partyOf(g, nodes), body = useRef();
   const planning = planningOf(g, nodes, lead?.name || g.leader?.name);
   const shown = shownGoals(g.slug), results = resultsOf(nodes);
-  const stops = stopsOf(board.value?.needs_you || [], g, nodes).filter((s) => stopIn(shown, s));
   const wide = !narrow.value;
   const cols = members.map(() => (wide ? "minmax(0,1fr)" : "minmax(150px,1fr)")).join(" ") || "minmax(0,1fr)";
   const reading = planning.rows.find((r) => r.busy)?.full || "";
-  const all = wide ? stops : [...stops, ...results.filter((r) => inFilter(shown, r.idea)).map((r) => resultStop(r, nodes))];                 // below 1 024 px the results join the bottom row (§3)
+  const all = handFor(m, g.slug, !wide);                 // below 1 024 px the party shown's results join the bottom row (§3)
   return html`<div class=${cls("arena", { "is-narrow": narrow.value })} data-goal=${g.slug}>
     ${wide && html`<${TodayStrip} goal=${g.slug} />`}
     <${Left} g=${g} nodes=${nodes} planning=${planning} lead=${lead} />
@@ -84,7 +88,7 @@ function Party({ m, g }) {
       </div>
       ${wide && html`<${Looks} g=${g} results=${results} nodes=${nodes} shown=${shown} />`}
       <div class="arena-gatebox"><${GateBox} /></div>
-      <div class="arena-stops"><${Stops} g=${g} stops=${all} /><${Limits} /></div>
+      <div class="arena-stops"><${Stops} stops=${all} /><${Limits} /></div>
     </div>
   </div>`;
 }
@@ -96,13 +100,15 @@ export function Arena() {
   useEffect(() => { closeFlagLine(); }, [lookTick.value]);                           // another project: nothing of the last one's line stays
   if (!m) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;
   const parties = goalsOf(m, goalList().map((x) => x.slug)), want = shownOf(parties, track.value);
-  if (want === OPS) return html`<${OpsField} />`;
+  if (want === OPS) return html`<${OpsField} m=${m} />`;
   const g = parties.find((x) => x.slug === want);
   if (!g && want) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;           // a party just saved: the Map has it in a moment
   if (!g) {
-    return html`<div class="arena arena-ops">${town.value?.ops_rev !== undefined && html`<div class="arena-ops__top"><${PartyTop} /></div>`}<div class="shell-empty arena-note"><p>No parties yet</p>
+    const ops = town.value?.ops_rev !== undefined;                                    // no party, but Operations' stops still wait in the one hand
+    return html`<div class="arena arena-ops">${ops && html`<div class="arena-ops__top"><${PartyTop} /></div>`}<div class="shell-empty arena-note"><p>No parties yet</p>
       <p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New party</button>
-        <button class="ork-btn" title="A goal needs a party: this makes one first" onClick=${() => openDialog("goal", { then: "idea" })}>New goal</button></p></div></div>`;
+        <button class="ork-btn" title="A goal needs a party: this makes one first" onClick=${() => openDialog("goal", { then: "idea" })}>New goal</button></p></div>
+      ${ops && html`<div class="arena-stops"><${Stops} stops=${handFor(m, "", false)} /><${Limits} /></div>`}</div>`;
   }
   return html`<${Party} key=${g.slug} m=${m} g=${g} />`;
 }
