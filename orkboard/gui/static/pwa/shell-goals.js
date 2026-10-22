@@ -47,7 +47,7 @@ export function makeGoals(core, about) {
     const lines = (rows, mark) => rows.map((r) => h("p", { class: "cap goals__line" }, sign(mark), ` ${r.title} · ${r.line}`));
     count.textContent = String(list.n);
     all.hidden = !on.size;
-    body.replaceChildren(
+    body.replaceChildren(...[
       h("button", { class: "goals__about", type: "button", "data-act": "about", "aria-haspopup": "dialog", title: "About this party: what it is for, its checks, its price and its flags",
         onclick: () => { sh.close(); about(m.goal.slug); } }, h("span", {}, `About ${m.goal.short || m.goal.title}`), h("i", { class: "ork-chev right", "aria-hidden": "true" })),
       h("p", { class: "cap goals__how" }, "A tap shows only that goal’s tasks; tap more to add them. ", h("i", { class: "ork-chev right", "aria-hidden": "true" }), " opens one."),
@@ -55,7 +55,7 @@ export function makeGoals(core, about) {
       h("h3", {}, "Planning"), ...(list.planning.length ? list.planning.map((r) => row(r, on.has(r.slug))) : [h("p", { class: "cap" }, "Nothing in Planning.")]),
       list.waits.length ? h("h3", {}, `Waits for main · ${list.waits.length}`) : null, ...lines(list.waits, "check"),
       h("h3", {}, `Flags · ${list.flags.length}`), ...(list.flags.length ? list.flags.map((f) => h("p", { class: `cap goals__line goals__flag${lit.has(f.slug) ? " is-reward" : ""}`, "data-idea": f.slug },
-        sign("flag"), " ", h("span", { class: "goals__ink" }, f.short), ` · ${flagTally(f)}`)) : [h("p", { class: "cap" }, "None yet.")]));
+        sign("flag"), " ", h("span", { class: "goals__ink" }, f.short), ` · ${flagTally(f)}`)) : [h("p", { class: "cap" }, "None yet.")])].filter(Boolean));
     if (lit.size && sh.el.open) { st.lit = new Set(); setTimeout(() => body.querySelectorAll(".is-reward").forEach((e) => e.classList.remove("is-reward")), LIT_MS + 50); }
   }
 

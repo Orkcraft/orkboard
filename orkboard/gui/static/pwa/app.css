@@ -56,7 +56,7 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .ork-btn .ork-icon{ pointer-events: none; }
 
 /* -- news over the bottom row ------------------------------------------------------------------------------------------------- */
-.news { position: fixed; left: 0; right: 0; bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); z-index: 2; display: flex; flex-direction: column;
+.news { position: fixed; left: 0; right: 0; bottom: calc(var(--tabs) + env(safe-area-inset-bottom)); z-index: 6; display: flex; flex-direction: column;   /* over the party's window (3) and its bar (4): a word is never under a card */
   gap: var(--ork-3); padding: 0 var(--ork-6) var(--ork-4); max-width: 640px; margin: 0 auto; pointer-events: none; }
 .flash { margin: 0; padding: var(--ork-3) var(--ork-4); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch);
   font: var(--ork-type-caption); }

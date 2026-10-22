@@ -131,6 +131,12 @@ async def test_each_stop_answers_in_one_tap_with_the_commands_the_hand_sends(fak
         assert "primary" in await choices.nth(1).get_attribute("class")
         await choices.nth(1).click()
         assert await _called(stub, "ideas.answer", {"slug": "second", "answers": ["Only the lost phone’s passkey"]})
+        said = page.locator("p.flash").last
+        await said.wait_for(timeout=WAIT_MS)
+        on_top = """e => { const news = e.parentElement; news.style.pointerEvents = 'auto'; e.style.pointerEvents = 'auto';      // (the words let a tap through: hit-test them for a moment)
+          const r = e.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          news.style.pointerEvents = ''; e.style.pointerEvents = ''; return e.contains(top); }"""
+        assert await said.evaluate(on_top)                                                                                     # the word is over the cards, never under one
         await ask.wait_for(state="hidden", timeout=WAIT_MS)
         prop = await _pop(page, "Proposed: Words of the sign-in page")
         assert [await b.inner_text() for b in await prop.locator(".raised__quick button").all()] == ["Take", "No"]

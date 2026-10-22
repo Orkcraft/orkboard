@@ -48,10 +48,10 @@ export function makeWhere(core, ctx) {
   function drawList() {
     const p = core.parties();
     const opsOn = p.shown === OPS_VIEW;
-    list.replaceChildren(...p.list.map((c) => rowOf(c, c.slug === p.shown)),
+    list.replaceChildren(...[...p.list.map((c) => rowOf(c, c.slug === p.shown)),
       p.ops ? h("button", { class: `where-row${opsOn ? " is-on" : ""}`, type: "button", "aria-current": opsOn ? "true" : null, "data-goal": OPS_VIEW,
         "aria-label": `Operations${p.ops.stops ? `, ${plural(p.ops.stops, "stop waits", "stops wait")} for you` : ""}`, onclick: () => { sh.close(); core.pickOps(); } },
-      h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, "Operations")), p.ops.stops ? h("span", { class: "ork-count warning" }, String(p.ops.stops)) : null) : null);
+      h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, "Operations")), p.ops.stops ? h("span", { class: "ork-count warning" }, String(p.ops.stops)) : null) : null].filter(Boolean));
     if (!p.list.length && !p.ops) list.replaceChildren(h("p", { class: "muted" }, "No parties yet."));
   }
   function openParties() { drawList(); sh.open(); }

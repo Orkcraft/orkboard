@@ -335,6 +335,8 @@ async def test_what_waits_in_operations_is_counted_by_the_partys_deck_in_every_p
         assert "Jira said no" in await failed.inner_text() and "danger" in await failed.get_attribute("class")
         await failed.get_by_role("button", name="Open…").click()
         dialog = page.get_by_role("dialog", name="Failed")
+        await dialog.get_by_role("button", name="Try again").wait_for(timeout=WAIT_MS)
+        assert "null" not in await dialog.inner_text()                                              # nothing done yet: no line about part of the work, and no word in its place
         await dialog.get_by_role("button", name="Try again").click()
         assert await _called(stub, "ops.retry", {"id": "op2"})
         rules = await _pop(page, "Proposed: New Jira task")

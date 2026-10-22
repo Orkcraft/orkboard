@@ -102,7 +102,7 @@ export function makeTools(core) {
       body.replaceChildren(...lines.flat().filter(Boolean),
         ...unread.map((l) => h("div", { class: "crow", "data-tool": l.provider }, toolMark(l), h("span", { class: "crow__name" }, l.name), h("span", { class: "muted" }, "not read"),
           h("span", { class: "cap crow__reset" }, l.error))),
-        keeps ? h("span", { class: "cap faint" }, `hatched: kept for ${s.reserve?.night ? "the morning" : "tonight"}`) : null);
+        ...(keeps ? [h("span", { class: "cap faint" }, `hatched: kept for ${s.reserve?.night ? "the morning" : "tonight"}`)] : []));
       chip.hidden = !tools.length && !unread.length;
       if (chip.hidden) return;
       if (tools.length) {

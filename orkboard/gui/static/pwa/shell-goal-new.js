@@ -161,8 +161,8 @@ export function makeParty(core, opts = {}) {
     const mine = every.filter((id) => team.includes(id));
     const said = !checkers.length ? "No check" : `${checkers.length} ${checkers.length === 1 ? "check" : "checks"}, ${mine.length ? `${mine.length} on every goal` : "where each applies"}`;
     if (!checking || !checkers.length) {
-      checksEl.replaceChildren(h("h3", {}, "Checks on every goal"), h("p", { class: "party-line" }, checkers.length ? said : "No checker in the party: a goal is done when its own Done when lines are."),
-        checkers.length ? h("button", { class: "ork-btn", type: "button", "data-change": "checks", onclick: () => { checking = true; drawChecks(); } }, "Change") : null);
+      checksEl.replaceChildren(...[h("h3", {}, "Checks on every goal"), h("p", { class: "party-line" }, checkers.length ? said : "No checker in the party: a goal is done when its own Done when lines are."),
+        checkers.length ? h("button", { class: "ork-btn", type: "button", "data-change": "checks", onclick: () => { checking = true; drawChecks(); } }, "Change") : null].filter(Boolean));
       return;
     }
     checksEl.replaceChildren(h("h3", {}, "Checks on every goal"), h("div", { class: "checks-block", role: "group", "aria-label": "Checks" },

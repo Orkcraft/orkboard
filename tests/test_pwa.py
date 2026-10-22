@@ -419,3 +419,55 @@ def test_the_worker_shows_every_push_and_a_tap_opens_the_pushs_address():
     assert "tag" in push and "data: { url" in push and "setAppBadge" in push and "clearAppBadge" in push and 'icon: "icon-192.png"' in push
     click = sw[sw.index('addEventListener("notificationclick"'):]
     assert "e.notification.data" in click and "openWindow(target)" in click and "from=push-" in click and "all[0].focus()" in click
+
+
+def _call_args(text: str, start: int) -> list[str]:
+    """The arguments of the call whose `(` ends at `start`, split at its own commas (not those of what they hold)."""
+    args, depth, cur, quote, i = [], 0, "", None, start
+    while i < len(text):
+        c = text[i]
+        if quote:
+            cur += c
+            if c == "\\":
+                cur += text[i + 1]
+                i += 2
+                continue
+            if c == quote:
+                quote = None
+        elif c in "\"'`":
+            quote, cur = c, cur + c
+        elif c in "([{":
+            depth, cur = depth + 1, cur + c
+        elif c in ")]}":
+            if depth == 0:
+                return [*args, cur]
+            depth, cur = depth - 1, cur + c
+        elif c == "," and depth == 0:
+            args, cur = [*args, cur], ""
+        else:
+            cur += c
+        i += 1
+    return [*args, cur]
+
+
+def test_no_child_handed_to_the_page_can_be_null():
+    """`replaceChildren`, `append` and `prepend` write a null as the word "null" (the owner saw it under *The party*, under Takes and in a failed
+    operation's sheet): an argument that may be null (`a ? b : null`, `a ? null : b`, `a || null`, `a && b`) is filtered first, `...[…].filter(Boolean)`."""
+    found = []
+    for name, path in pwa.files().items():
+        if not name.endswith(".js"):
+            continue
+        text = path.read_text(encoding="utf-8")
+        for m in re.finditer(r"\.(?:replaceChildren|append|prepend)\(", text):
+            for arg in _call_args(text, m.end()):
+                top, depth = "", 0
+                for c in arg:
+                    if c in "([{":
+                        depth += 1
+                    elif c in ")]}":
+                        depth -= 1
+                    elif depth == 0:
+                        top += c
+                if re.search(r"\?.*:\s*null\s*$|\?\s*null\s*:|\|\|\s*null\s*$|&&", top.strip()):
+                    found.append(f"{name}:{text[:m.start()].count(chr(10)) + 1}")
+    assert not found, found

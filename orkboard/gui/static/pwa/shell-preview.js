@@ -250,9 +250,9 @@ export function makePreview(core, ctx, screens = {}) {
   }
   function docScreen(d, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Document "), cur.path);
-    body.replaceChildren(h("p", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "goal", slug: cur.slug }) }, sign("before"), " Back to the party")),
+    body.replaceChildren(...[h("p", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "goal", slug: cur.slug }) }, sign("before"), " Back to the party")),
       d ? docText(d, cur) : h("p", { class: "muted" }, "That document cannot be shown."),
-      d?.truncated ? h("p", { class: "muted" }, "Cut here: the document is longer.") : null);
+      d?.truncated ? h("p", { class: "muted" }, "Cut here: the document is longer.") : null].filter(Boolean));
     return [];
   }
 

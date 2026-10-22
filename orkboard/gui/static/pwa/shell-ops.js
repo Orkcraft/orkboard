@@ -75,11 +75,11 @@ export function makeOps(core, ctx) {
   function openMenu() {
     const list = data?.templates || [];
     const usable = list.filter((t) => !t.unusable);
-    menuBody.replaceChildren(
+    menuBody.replaceChildren(...[
       usable.length ? null : h("p", { class: "muted" }, list.length ? "No template can be used yet." : "No template found."),
       ...usable.map((t) => h("button", { class: "card need", type: "button", "data-template": t.name,
         onclick: () => { menuSheet.close(); openForm(t); } }, h("span", { class: "need-text" }, h("b", {}, t.title)), h("span", { class: "chev", "aria-hidden": "true" }, "›"))),
-      ...list.filter((t) => t.unusable).map((t) => h("p", { class: "muted ops-cant" }, h("b", {}, t.title), ` · ${t.unusable}`)));
+      ...list.filter((t) => t.unusable).map((t) => h("p", { class: "muted ops-cant" }, h("b", {}, t.title), ` · ${t.unusable}`))].filter(Boolean));
     menuSheet.open();
   }
 
@@ -136,7 +136,7 @@ export function makeOps(core, ctx) {
     for (const el of [...Object.values(fieldInputs), ...Object.values(partInputs)]) el.addEventListener("input", sync_);
     const asked = t.fields.filter((f) => f.at);
     const other = t.fields.filter((f) => !f.at);
-    checkBody.replaceChildren(
+    checkBody.replaceChildren(...[
       h("p", { class: "muted" }, r.alone ? `${t.title} · by itself` : t.title),
       r.found.length ? h("ul", { class: "ops-found" }, ...r.found.map((f) => h("li", {}, h("b", {}, `${f.label}: `), f.value))) : null,
       ...r.doubts.map((d) => h("p", { class: "ops-doubt" }, h("span", { "aria-hidden": "true" }, "⚠️ "), d)),
@@ -146,7 +146,7 @@ export function makeOps(core, ctx) {
         h("p", { class: "muted hint" }, "A change here is read again: the button becomes Prepare again."),
         ...other.map((f) => field(f.label, fieldInputs[f.name]))) : null,
       say,
-      foot(h("button", { class: "ork-btn big", type: "button", onclick: async () => { if (await act("ops.drop", { id }, "Dropped.")) checkSheet.close(); } }, "Drop"), go));
+      foot(h("button", { class: "ork-btn big", type: "button", onclick: async () => { if (await act("ops.drop", { id }, "Dropped.")) checkSheet.close(); } }, "Drop"), go)].filter(Boolean));
     checkBody.onsubmit = async (e) => {
       e.preventDefault();
       go.disabled = true;
@@ -176,9 +176,9 @@ export function makeOps(core, ctx) {
     if (!run(id)) await load();
     const r = run(id);
     if (!r) { tell("That operation is gone."); core.refresh(); return; }
-    runBody.replaceChildren(h("h3", {}, r.title), h("p", { class: "warn" }, r.why || "It failed"),
+    runBody.replaceChildren(...[h("h3", {}, r.title), h("p", { class: "warn" }, r.why || "It failed"),
       r.acted === false ? null : h("p", { class: "muted" }, "It may have done part of its work: look at the tool before you add it again."),
-      failedActions(r, () => runSheet.close()));
+      failedActions(r, () => runSheet.close())].filter(Boolean));
     runSheet.title("Failed");
     runSheet.open();
   }
@@ -262,10 +262,10 @@ export function makeOps(core, ctx) {
     });
     const needed = Object.entries(data?.servers_needed || {});
     const serverBox = h("div", { class: "ops-servers" }, needed.length ? h("p", { class: "muted" }, "Reading the servers…") : null);
-    gearBody.replaceChildren(h("h3", {}, "Target"), h("p", { class: "muted" }, "How heavy Operations’ calls are."), ...radios,
+    gearBody.replaceChildren(...[h("h3", {}, "Target"), h("p", { class: "muted" }, "How heavy Operations’ calls are."), ...radios,
       num("trust_after", "Goes by itself after N clean checks", 1, 5, "1 to 5 checks in a row you did not correct."),
       num("daily_alone", "By itself at most N a day", 1, 100, "1 to 100. Past it, every operation waits at your check."),
-      needed.length ? h("h3", {}, "Servers") : null, serverBox);
+      needed.length ? h("h3", {}, "Servers") : null, serverBox].filter(Boolean));
     gearSheet.open();
     if (!needed.length) return;
     const got = await ctx.send("ops.servers");
