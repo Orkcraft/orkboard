@@ -1,0 +1,842 @@
+[
+ {
+  "name": "wand",
+  "for": "feature",
+  "meaning": "a wand: a new spell people can cast",
+  "grid": [
+   "...#...",
+   "..#.#..",
+   ".#####.",
+   "..#.#..",
+   "...#...",
+   "...#...",
+   "...#..."
+  ]
+ },
+ {
+  "name": "bridge",
+  "for": "feature",
+  "meaning": "a bridge: a way over what could not be crossed",
+  "grid": [
+   "..###..",
+   ".##.##.",
+   "##...##",
+   "#.....#",
+   "#.....#",
+   "#######",
+   "......."
+  ]
+ },
+ {
+  "name": "bolt",
+  "for": "feature",
+  "meaning": "a lightning bolt: a new power",
+  "grid": [
+   "....##.",
+   "...##..",
+   "..##...",
+   ".#####.",
+   "...##..",
+   "..##...",
+   ".##...."
+  ]
+ },
+ {
+  "name": "beetle",
+  "for": "bug",
+  "meaning": "a beetle: something that goes wrong in the work",
+  "grid": [
+   "...#...",
+   "..###..",
+   "#.###.#",
+   ".#####.",
+   "#.###.#",
+   "..###..",
+   "...#..."
+  ]
+ },
+ {
+  "name": "scarab",
+  "for": "bug",
+  "meaning": "a scarab: a shelled bug, a fault that hides",
+  "grid": [
+   "..###..",
+   ".##.##.",
+   "#######",
+   "#.###.#",
+   "#######",
+   ".##.##.",
+   "..###.."
+  ]
+ },
+ {
+  "name": "fly",
+  "for": "bug",
+  "meaning": "a fly: a small pest in the code",
+  "grid": [
+   "##.#.##",
+   "###.###",
+   ".#####.",
+   "..###..",
+   "..###..",
+   "...#...",
+   "..#.#.."
+  ]
+ },
+ {
+  "name": "broom",
+  "for": "tidy",
+  "meaning": "a broom: sweeping the same code clean",
+  "grid": [
+   "......#",
+   ".....#.",
+   "....#..",
+   "...##..",
+   "..###..",
+   ".#####.",
+   "#.#.#.."
+  ]
+ },
+ {
+  "name": "whetstone",
+  "for": "tidy",
+  "meaning": "a whetstone: an edge sharpened, the same blade",
+  "grid": [
+   "......#",
+   ".....#.",
+   "....#..",
+   "...#...",
+   "#######",
+   "#######",
+   "......."
+  ]
+ },
+ {
+  "name": "comb",
+  "for": "tidy",
+  "meaning": "a comb: the tangles smoothed out",
+  "grid": [
+   "#######",
+   ".#.#.#.",
+   ".#.#.#.",
+   ".#.#.#.",
+   ".#.#.#.",
+   ".#.#.#.",
+   ".#.#.#."
+  ]
+ },
+ {
+  "name": "blocks",
+  "for": "restructure",
+  "meaning": "stone blocks: one moved to its own place",
+  "grid": [
+   "....###",
+   "....###",
+   "....###",
+   ".......",
+   "###....",
+   "###....",
+   "###...."
+  ]
+ },
+ {
+  "name": "stairs",
+  "for": "restructure",
+  "meaning": "stairs: a tall module cut into tiers",
+  "grid": [
+   "......#",
+   ".....##",
+   "....###",
+   "...####",
+   "..#####",
+   ".######",
+   "#######"
+  ]
+ },
+ {
+  "name": "shift",
+  "for": "restructure",
+  "meaning": "a split path: a piece moved along its line",
+  "grid": [
+   "#......",
+   "##.....",
+   "###....",
+   "....###",
+   ".....##",
+   "......#",
+   "......."
+  ]
+ },
+ {
+  "name": "mirror",
+  "for": "screen",
+  "meaning": "a mirror on its stand: a screen to look into",
+  "grid": [
+   "..###..",
+   ".#...#.",
+   ".#...#.",
+   ".#...#.",
+   "..###..",
+   "...#...",
+   "..###.."
+  ]
+ },
+ {
+  "name": "crystal-ball",
+  "for": "screen",
+  "meaning": "a crystal ball: a screen that shows what comes",
+  "grid": [
+   "..###..",
+   ".#####.",
+   ".#####.",
+   ".#####.",
+   "..###..",
+   "..###..",
+   ".#####."
+  ]
+ },
+ {
+  "name": "window",
+  "for": "screen",
+  "meaning": "an arched window: a view onto the work",
+  "grid": [
+   "..###..",
+   ".#.#.#.",
+   ".#...#.",
+   ".#.#.#.",
+   ".#...#.",
+   ".#.#.#.",
+   ".#####."
+  ]
+ },
+ {
+  "name": "gem",
+  "for": "icon",
+  "meaning": "a cut gem: a picture set in a frame of its own",
+  "grid": [
+   "..###..",
+   ".#####.",
+   "#######",
+   ".#####.",
+   "..###..",
+   "...#...",
+   "......."
+  ]
+ },
+ {
+  "name": "ring",
+  "for": "icon",
+  "meaning": "a ring with a stone: an icon for a person's mark",
+  "grid": [
+   "...#...",
+   "..###..",
+   ".#...#.",
+   "#.....#",
+   "#.....#",
+   ".#...#.",
+   "..###.."
+  ]
+ },
+ {
+  "name": "shard",
+  "for": "icon",
+  "meaning": "a crystal shard: one clear picture",
+  "grid": [
+   "...#...",
+   "..#.#..",
+   ".#...#.",
+   ".#...#.",
+   ".#...#.",
+   "..###..",
+   "...#..."
+  ]
+ },
+ {
+  "name": "seal",
+  "for": "logo",
+  "meaning": "a wax seal: the product's own mark",
+  "grid": [
+   "..###..",
+   ".#####.",
+   "##...##",
+   "##.#.##",
+   "##...##",
+   ".#####.",
+   "..###.."
+  ]
+ },
+ {
+  "name": "chalice",
+  "for": "logo",
+  "meaning": "a chalice: the mark of the camp",
+  "grid": [
+   "#.....#",
+   "#.....#",
+   ".#####.",
+   "..###..",
+   "...#...",
+   "...#...",
+   "..###.."
+  ]
+ },
+ {
+  "name": "mountain",
+  "for": "logo",
+  "meaning": "a mountain: the mark the camp is built under",
+  "grid": [
+   "...#...",
+   "..###..",
+   ".##.##.",
+   "##...##",
+   "#######",
+   "#######",
+   "#######"
+  ]
+ },
+ {
+  "name": "arrow",
+  "for": "pain",
+  "meaning": "an arrow: a hit that hurts",
+  "grid": [
+   "....###",
+   ".....##",
+   "....#.#",
+   "...#...",
+   "..#....",
+   ".#.....",
+   "#......"
+  ]
+ },
+ {
+  "name": "stake",
+  "for": "pain",
+  "meaning": "a sharpened stake: a hazard on the path",
+  "grid": [
+   "...#...",
+   "..###..",
+   "..###..",
+   "..###..",
+   "..###..",
+   ".#####.",
+   "#######"
+  ]
+ },
+ {
+  "name": "caltrop",
+  "for": "pain",
+  "meaning": "a caltrop: spikes scattered on the path",
+  "grid": [
+   "#.....#",
+   ".#.#.#.",
+   "..###..",
+   "##...##",
+   "..###..",
+   ".#.#.#.",
+   "#.....#"
+  ]
+ },
+ {
+  "name": "potion",
+  "for": "experiment",
+  "meaning": "a potion: a brew tried on some and measured",
+  "grid": [
+   "..###..",
+   "...#...",
+   "...#...",
+   ".#####.",
+   "#.....#",
+   "#.....#",
+   ".#####."
+  ]
+ },
+ {
+  "name": "cauldron",
+  "for": "experiment",
+  "meaning": "a cauldron: a mix brewed and watched",
+  "grid": [
+   "..#.#..",
+   "#######",
+   "#.....#",
+   "#.....#",
+   ".#####.",
+   "#.....#",
+   "#.....#"
+  ]
+ },
+ {
+  "name": "beaker",
+  "for": "experiment",
+  "meaning": "a beaker: a test run in glass",
+  "grid": [
+   "..###..",
+   "...#...",
+   "...#...",
+   "..#.#..",
+   ".#...#.",
+   "#.....#",
+   "#######"
+  ]
+ },
+ {
+  "name": "horn",
+  "for": "launch",
+  "meaning": "a war horn: the call that ships the work",
+  "grid": [
+   "......#",
+   ".....##",
+   "....###",
+   "...###.",
+   "..###..",
+   ".##....",
+   "#......"
+  ]
+ },
+ {
+  "name": "rocket",
+  "for": "launch",
+  "meaning": "a rocket: the work goes up",
+  "grid": [
+   "...#...",
+   "..###..",
+   "..###..",
+   ".#####.",
+   "..#.#..",
+   ".#...#.",
+   "#.....#"
+  ]
+ },
+ {
+  "name": "bell",
+  "for": "launch",
+  "meaning": "a bell: rung when it is out",
+  "grid": [
+   "...#...",
+   "..###..",
+   ".#####.",
+   ".#####.",
+   ".#####.",
+   "#######",
+   "...#..."
+  ]
+ },
+ {
+  "name": "abacus",
+  "for": "metric",
+  "meaning": "an abacus: beads counted, one by one",
+  "grid": [
+   "#.....#",
+   "#.##..#",
+   "#######",
+   "#...##.",
+   "#######",
+   "#.#...#",
+   "#.....#"
+  ]
+ },
+ {
+  "name": "tally",
+  "for": "metric",
+  "meaning": "a tally: marks counted on a stone",
+  "grid": [
+   "#.#.#.#",
+   "#.#.###",
+   "#.#.#.#",
+   "#.###.#",
+   "#.#.#.#",
+   "###.#.#",
+   "......."
+  ]
+ },
+ {
+  "name": "dice",
+  "for": "metric",
+  "meaning": "dice: a number rolled from the events",
+  "grid": [
+   "#######",
+   "#.#...#",
+   "#.....#",
+   "#..#..#",
+   "#.....#",
+   "#...#.#",
+   "#######"
+  ]
+ },
+ {
+  "name": "scroll",
+  "for": "report",
+  "meaning": "a scroll: the report written out",
+  "grid": [
+   "#######",
+   ".#####.",
+   "..###..",
+   "..###..",
+   "..###..",
+   ".#####.",
+   "#######"
+  ]
+ },
+ {
+  "name": "tome",
+  "for": "report",
+  "meaning": "a tome: the numbers bound in a book",
+  "grid": [
+   "#######",
+   "#.#...#",
+   "#.#.#.#",
+   "#.#...#",
+   "#.#.#.#",
+   "#.#...#",
+   "#######"
+  ]
+ },
+ {
+  "name": "tablet",
+  "for": "report",
+  "meaning": "a stone tablet: a report carved to last",
+  "grid": [
+   ".#####.",
+   "#.....#",
+   "#.###.#",
+   "#.....#",
+   "#.###.#",
+   "#.....#",
+   ".#####."
+  ]
+ },
+ {
+  "name": "scales",
+  "for": "abtest",
+  "meaning": "scales: two versions weighed by a number",
+  "grid": [
+   "...#...",
+   "#######",
+   "#.#.#.#",
+   "##...##",
+   "#.....#",
+   "#######",
+   "..###.."
+  ]
+ },
+ {
+  "name": "fork",
+  "for": "abtest",
+  "meaning": "a fork in the road: two paths, one taken",
+  "grid": [
+   "##...##",
+   ".#...#.",
+   "..#.#..",
+   "...#...",
+   "...#...",
+   "...#...",
+   "...#..."
+  ]
+ },
+ {
+  "name": "stones",
+  "for": "abtest",
+  "meaning": "two stones, one taller: two versions, one decided by a number",
+  "grid": [
+   "###....",
+   "###....",
+   "###.###",
+   "###.###",
+   "###.###",
+   "###.###",
+   "###.###"
+  ]
+ },
+ {
+  "name": "signpost",
+  "for": "landing",
+  "meaning": "a signpost: the way in",
+  "grid": [
+   "...#...",
+   ".#####.",
+   ".#####.",
+   "...#...",
+   ".#####.",
+   ".#####.",
+   "...#..."
+  ]
+ },
+ {
+  "name": "tent",
+  "for": "landing",
+  "meaning": "a tent: the camp a visitor is welcomed into",
+  "grid": [
+   "...#...",
+   "..#.#..",
+   ".#...#.",
+   "#.....#",
+   "#..#..#",
+   "#.#.#.#",
+   "#######"
+  ]
+ },
+ {
+  "name": "hut",
+  "for": "landing",
+  "meaning": "a hut: the place a visitor comes to first",
+  "grid": [
+   "...#...",
+   "..###..",
+   ".#####.",
+   "#######",
+   ".#...#.",
+   ".#.#.#.",
+   ".#.#.#."
+  ]
+ },
+ {
+  "name": "letter",
+  "for": "post",
+  "meaning": "a letter: a message sent out",
+  "grid": [
+   "#######",
+   "##...##",
+   "#.#.#.#",
+   "#.....#",
+   "#.....#",
+   "#######",
+   "......."
+  ]
+ },
+ {
+  "name": "mailbag",
+  "for": "post",
+  "meaning": "a mail sack: messages carried off",
+  "grid": [
+   "...#...",
+   "..#.#..",
+   ".#####.",
+   "#.###.#",
+   "#.###.#",
+   "#######",
+   ".#####."
+  ]
+ },
+ {
+  "name": "postbox",
+  "for": "post",
+  "meaning": "a post box: where a post is left",
+  "grid": [
+   ".#####.",
+   "#######",
+   "#.#.#.#",
+   "#######",
+   "..###..",
+   "..###..",
+   "..###.."
+  ]
+ },
+ {
+  "name": "quill",
+  "for": "tagline",
+  "meaning": "a quill: one line written",
+  "grid": [
+   "....##.",
+   "...####",
+   "..###..",
+   "..##...",
+   ".##....",
+   "##.....",
+   "#......"
+  ]
+ },
+ {
+  "name": "inkwell",
+  "for": "tagline",
+  "meaning": "an inkwell: the ink a line is written with",
+  "grid": [
+   "..#.#..",
+   "#######",
+   "#.....#",
+   "#.###.#",
+   "#.....#",
+   "#.....#",
+   "#######"
+  ]
+ },
+ {
+  "name": "stamp",
+  "for": "tagline",
+  "meaning": "a stamp: a line pressed into the page",
+  "grid": [
+   "..###..",
+   "...#...",
+   "..###..",
+   "...#...",
+   ".#####.",
+   ".#####.",
+   "#######"
+  ]
+ },
+ {
+  "name": "key",
+  "for": "",
+  "meaning": "a key: a thing unlocked",
+  "grid": [
+   "###....",
+   "#.#....",
+   "###....",
+   "...#...",
+   "....#..",
+   ".....##",
+   "......#"
+  ]
+ },
+ {
+  "name": "chest",
+  "for": "",
+  "meaning": "a chest: something kept",
+  "grid": [
+   "..###..",
+   ".#####.",
+   "#######",
+   "#.....#",
+   "#..#..#",
+   "#.....#",
+   "#######"
+  ]
+ },
+ {
+  "name": "barrel",
+  "for": "",
+  "meaning": "a barrel: stores kept in a cask",
+  "grid": [
+   ".#####.",
+   "#######",
+   "##...##",
+   "##...##",
+   "##...##",
+   "#######",
+   ".#####."
+  ]
+ },
+ {
+  "name": "shield",
+  "for": "",
+  "meaning": "a shield: protection",
+  "grid": [
+   "#######",
+   "#.....#",
+   "#.###.#",
+   "#.###.#",
+   "##.#.##",
+   ".##.##.",
+   "...#..."
+  ]
+ },
+ {
+  "name": "torch",
+  "for": "",
+  "meaning": "a torch: a light carried",
+  "grid": [
+   "..###..",
+   ".#####.",
+   "..###..",
+   "...#...",
+   "...#...",
+   "...#...",
+   "...#..."
+  ]
+ },
+ {
+  "name": "lantern",
+  "for": "",
+  "meaning": "a lantern: a light kept",
+  "grid": [
+   "..#.#..",
+   "..###..",
+   ".#####.",
+   ".#...#.",
+   ".#...#.",
+   ".#####.",
+   "..###.."
+  ]
+ },
+ {
+  "name": "anvil",
+  "for": "",
+  "meaning": "an anvil: where a thing is made",
+  "grid": [
+   "#######",
+   ".#####.",
+   "..###..",
+   "..###..",
+   ".#####.",
+   "#######",
+   "......."
+  ]
+ },
+ {
+  "name": "gate",
+  "for": "",
+  "meaning": "a gate: a way closed to some",
+  "grid": [
+   "..###..",
+   ".#...#.",
+   "#.....#",
+   "#.###.#",
+   "#.###.#",
+   "#.###.#",
+   "#######"
+  ]
+ },
+ {
+  "name": "tower",
+  "for": "",
+  "meaning": "a tower: a height to watch from",
+  "grid": [
+   "#.#.#.#",
+   "#.###.#",
+   "#.###.#",
+   "#.###.#",
+   "#.###.#",
+   "#.###.#",
+   "#######"
+  ]
+ },
+ {
+  "name": "crown",
+  "for": "",
+  "meaning": "a crown: a rank",
+  "grid": [
+   "#.#.#.#",
+   "#######",
+   "#######",
+   "#.....#",
+   "#.....#",
+   "#######",
+   "......."
+  ]
+ },
+ {
+  "name": "coin",
+  "for": "",
+  "meaning": "a coin: money",
+  "grid": [
+   "..###..",
+   ".#####.",
+   "#.###.#",
+   "#######",
+   "#.###.#",
+   ".#####.",
+   "..###.."
+  ]
+ },
+ {
+  "name": "drum",
+  "for": "",
+  "meaning": "a drum: a beat kept",
+  "grid": [
+   "..#.#..",
+   ".#####.",
+   "#######",
+   "#.#.#.#",
+   "#######",
+   "#.#.#.#",
+   ".#####."
+  ]
+ }
+]
