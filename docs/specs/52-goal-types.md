@@ -409,3 +409,34 @@ it in the spec's *As built* first.
   takes A0's eleven by name until orkUI 0.3.3's copy is in `design-system/orkui/signs/` (`tests/test_goal_types.py`
   `A0_SIGNS`). **Beyond A's row** (§9): `tests/test_idea_element.py`'s set of `ideas.add`'s answer gains `type` and
   `joined`.
+- **A0 (orkUI and its copy).** orkUI 0.3.3 (`717ecd6`, built from orkUI's `docs/specs/0.3.3-goal-type-signs.md`, §1's
+  tables unchanged) is copied into `design-system/orkui/` (its stamp names the commit). **Beyond A0's row** (§9): the copy
+  made `tests/test_pwa.py` red, since the service worker keeps every mask the page draws by name: `pwa/sw.js` gains the
+  eleven signs in `SHELL` and its `CACHE` goes to `orkcraft-app-v58`, and `tests/test_pwa.py` counts 29 masks (five
+  elements, twenty-four signs), names the eleven and pins v58. C's own *one up* (§5.9) is then v59.
+
+## 11. Running B and C
+A0 and A are in `main`. **B and C start together**, each a cloud session on orkWorks/orkBoard with the brief below,
+and each **merges into `main` itself** when its tests pass (CLAUDE.md, alpha): no pull request left waiting. They touch no
+file of each other's but this one: a conflict in §10 keeps both notes.
+
+**B, the desktop:**
+
+    Build part B (the desktop) of docs/specs/52-goal-types.md: §3, §4, §6 and B's lines of §7. That file is the contract;
+    read decisions §65 (docs/decisions.md) and CLAUDE.md first. A0 (orkUI 0.3.3 in design-system/orkui) and A (the host)
+    are in main already. Change only the files of B's row and those §9 names for B. The browser tests need
+    `uv sync --extra dev --extra browser`. When the critical tests (orkcraft.toml `always`), tests/test_gui_wording.py,
+    tests/test_design_system.py and the tests of every file you changed pass: write B's note in §10 (As built), commit,
+    merge into main ("Merge spec 52 B: …") and push main. If main moved meanwhile (C merged), merge it in, run the tests
+    again, then push. No pull request.
+
+**C, the phone:**
+
+    Build part C (the phone) of docs/specs/52-goal-types.md: §5, §6 and C's lines of §7. That file is the contract;
+    read decisions §65 (docs/decisions.md) and CLAUDE.md first. A0 (orkUI 0.3.3 in design-system/orkui) and A (the host)
+    are in main already; pwa/sw.js is at orkcraft-app-v58 after the copy, so C's CACHE is v59 with pwa/shell-types.js in
+    SHELL (and tests/test_pwa.py's pin). Change only the files of C's row and those §9 names for C. The browser tests need
+    `uv sync --extra dev --extra browser`. When the critical tests (orkcraft.toml `always`), tests/test_gui_wording.py,
+    tests/test_design_system.py, tests/test_pwa.py and the tests of every file you changed pass: write C's note in §10
+    (As built), commit, merge into main ("Merge spec 52 C: …") and push main. If main moved meanwhile (B merged), merge it
+    in, run the tests again, then push. No pull request.
