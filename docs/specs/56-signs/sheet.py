@@ -149,15 +149,13 @@ def validate(cands, ref):
             d = distance(cells[c["name"]], rcells)
             if d < NEAR:
                 errors.append(f"{c['name']}: {d} cells from the {kind} {rname}; more than {NEAR} needed")
-    # against each other: two drawings for different types, and two library drawings (spec 56 §1.5, §2.3)
+    # against each other, every pair whatever its type (library included; spec 56 §1.5, §2.3, round 2)
     for i, a in enumerate(cands):
         for b in cands[i + 1:]:
-            if a["for"] == b["for"] and a["for"] != "":
-                continue
             d = distance(cells[a["name"]], cells[b["name"]])
             if d < NEAR:
                 where = f"drawn for {b['for']}" if b["for"] else "a library drawing"
-                errors.append(f"{a['name']}: {d} cells from {b['name']} ({where}); more than {NEAR} needed")
+                errors.append(f"{a['name']}: {d} cells from {b['name']} ({where}); at least {NEAR} needed")
     return errors
 
 
