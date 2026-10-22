@@ -1,7 +1,7 @@
 // A member's open tasks as cards in stacks, in rows by phase (docs/specs/50-parties-and-goals.md §3.4): under the member, its tasks lie in rows —
 // *now* (a task at its goal's current wave), *next* (one wave after), *later* —, in a row one stack per goal (the goals in the Board's order),
 // the front card first (at work, failed, in Review, ready, waiting, tonight), behind it one or two edges and ×n when there are more. A card is 5:7:
-// the goal's element top left, its mark top right, the goal's short name, the task's name, its foot. A press on a stack of one opens the
+// the goal's element top left, its type's sign top right in the element's colour (spec 55), the goal's short name, the task's name, its foot. A press on a stack of one opens the
 // task (its result in Review), on a stack of more spreads it (spread.js); hovering a card draws what it waits for and what waits for it (arrows.js).
 // What the member's rows do as tasks come and go is motion.js's (a column's `useColumn`).
 // A stop is marked once (docs/specs/52-goal-types.md §4.5): a pick's card keeps its alert sign and has no alert edge or alert words; a failure keeps its danger edge.
@@ -9,14 +9,15 @@ import { html, cls } from "../html.js";
 import { Elem, Sign } from "../orkui.js";
 import { showPick, showResult, showTask } from "../shell/store.js";
 import { taskHover, taskHoverBy, spread } from "./arenastate.js";
-import { rowsOf, taskFoot, taskMark, waitersOf, waitsForOf } from "./arenawords.js";
+import { rowsOf, taskFoot, waitersOf, waitsForOf } from "./arenawords.js";
 import { elementOf } from "./goalwords.js";
 
 export const keyOf = (n, t) => `${n.slug}/${t.id}`;
-const MARKS = { work: "at work", cross: "failed", night: "tonight" };
 
-/** A goal's type's sign, before the goal's name on a card (docs/specs/53-phone-simpler.md §3); none for a goal with no type. */
-export const typeSign = (n) => (n?.type?.sign ? html`<span class="arena-task__type" title=${n.type.name}><${Sign} name=${n.type.sign} /></span>` : null);
+/** The class of a type's sign, its goal's colour (docs/specs/55-type-top-right.md §1.2): the element's, `dim` (faint) while the element is drawn dim, `none` (muted) for a goal with no element. */
+export const typeTone = (n) => { const el = elementOf(n); return el.name ? (el.dim ? "dim" : el.name) : "none"; };
+/** A goal's type's sign, top right of a card in its goal's colour (spec 55 §1); none for a goal with no type. `kind`: the node's class (a card's or a goal row's). */
+export const typeSign = (n, kind = "arena-task__type") => (n?.type?.sign ? html`<span class=${`${kind} ${typeTone(n)}`} title=${n.type.name}><${Sign} name=${n.type.sign} /></span>` : null);
 /** A goal's name in a card's label, its type after it (spec 53 §3): *Sign in with a passkey, Fix a bug*. */
 export const goalWords = (n) => (n.type?.name ? `${n.title}, ${n.type.name}` : n.title);
 
@@ -51,12 +52,11 @@ export function cardTip(n, t) {
 /** What a press on a card opens: its result at Review, its pick while it asks, else the task. */
 export const open = (n, t) => (t.state === "review" ? showResult(n.slug, t.id, { via: "map" }) : t.state === "picking" ? showPick(n.slug, t.id, { via: "map" }) : showTask(n.slug, t.id, { via: "map" }));
 
-/** The look of a card (shared by a stack's front and a spread's): the element, the mark, the goal, the name. `phase`: the spread's word over the name. */
+/** The look of a card (shared by a stack's front and a spread's): the element, the type, the goal, the name. `phase`: the spread's word over the name. */
 export function CardBody({ n, t, phase = "", foot, deps = [], many = 0 }) {
-  const el = elementOf(n), mark = taskMark(t, n);
-  return html`<span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} />${phase && html`<span class="arena-task__phase">${phase}</span>`}
-      <span class="arena-task__mark" title=${MARKS[mark] || undefined}>${mark && html`<${Sign} name=${mark} />`}</span></span>
-    <span class="arena-task__goal">${typeSign(n)}${n.short || n.title}</span>
+  const el = elementOf(n);
+  return html`<span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} />${phase && html`<span class="arena-task__phase">${phase}</span>`}${typeSign(n)}</span>
+    <span class="arena-task__goal">${n.short || n.title}</span>
     <span class="arena-task__name">${t.short || t.title}</span>
     ${deps.length > 0 && html`<span class="arena-task__deps">${deps.map((d, i) => html`<span key=${i}><${Sign} name=${d.sign} /> ${d.text}</span>`)}</span>`}
     <span class="arena-task__foot"><${Foot} parts=${foot} /></span>

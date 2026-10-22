@@ -1,8 +1,7 @@
-// The cards of the field and the stacks they lie in (docs/specs/50-parties-and-goals.md §3.4, §6.5): a card (5:7) wears its goal's element top left, its mark top right (↻ at work, ✗ failed, the clock
-// tonight, ! a stop or a task that asks you to pick: orkUI's signs), the goal's short name behind its type's sign (a goal of Planning: its type's sign and name; a goal with no type: the name alone, Planning's *Goal*; spec 53 §3), the task's name and a foot (*working 12 min*, *failed*, *in Review*, *tonight*, *after k1, k2*); a stack is one goal's tasks of a member at
+// The cards of the field and the stacks they lie in (docs/specs/50-parties-and-goals.md §3.4, §6.5): a card (5:7) wears its goal's element top left and its goal's type's sign top right, in the element's colour (none for a goal with no type; spec 55), the goal's short name alone (a goal of Planning: its type's name, else *Goal*), the task's name and a foot (*working 12 min*, *failed*, *in Review*, *tonight*, *after k1, k2*); a stack is one goal's tasks of a member at
 // one phase: the front card, behind it one or two edges, and *×n* on its corner. A press on a stack of one opens it; a stack of more spreads (shell-spread.js). Only nodes are made here.
 import { h } from "./util.js";
-import { elem, sign } from "./shell-marks.js";
+import { elem, sign, typeTone } from "./shell-marks.js";
 
 const STATE = { running: "is-run", testing: "is-run", review: "is-review", picking: "is-stop", ready: "is-next", waiting: "is-wait", held: "is-wait", failed: "is-fail", merged: "is-out", dropped: "is-out" };
 
@@ -16,8 +15,8 @@ export function cardFace(it, { planning = false, spread = false } = {}) {
     it.dep?.after ? h("span", { class: "spread__dep" }, sign("after"), ` ${it.dep.after}`) : null] : [];
   return h("span", { class: cls.filter(Boolean).join(" ") },
     h("span", { class: "tcard__top" }, elem(it.element, { dim: Boolean(it.raw) }), spread && !planning ? h("span", { class: "tcard__phase" }, it.phaseWord) : null,
-      h("span", { class: "tcard__mark" }, it.sign ? sign(it.sign, it.signTip) : null)),
-    h("span", { class: "tcard__idea" }, ...(it.type ? [h("span", { class: "tcard__type", "data-type": it.type.id }, sign(it.type.sign, it.type.name)), planning ? it.type.name : it.ideaTitle] : [planning ? "Goal" : it.ideaTitle])),
+      it.type ? h("span", { class: `tcard__type ${typeTone(it.element, it.raw)}`, "data-type": it.type.id }, sign(it.type.sign, it.type.name)) : null),
+    h("span", { class: "tcard__idea" }, planning ? (it.type ? it.type.name : "Goal") : it.ideaTitle),
     h("span", { class: "tcard__name" }, it.title), ...dep, h("span", { class: "tcard__foot" }, it.words));
 }
 

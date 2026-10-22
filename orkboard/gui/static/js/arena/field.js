@@ -62,8 +62,8 @@ function PlanCard({ r }) {
   const el = elementOf(r.node), named = goalWords({ title: r.full, type: r.node?.type });
   return html`<div class="arena-stk"><button type="button" class=${cls("arena-task", { "is-stop": r.stop, "is-run": r.busy && !r.stop, "is-wait": !r.stop && !r.busy })} data-slug=${r.slug}
     title=${`${named} · ${r.words}`} aria-label=${`${named}: ${r.words}`} onClick=${open}>
-    <span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} /><span class="arena-task__mark">${r.mark && html`<${Sign} name=${r.mark} />`}</span></span>
-    <span class="arena-task__goal">${r.node?.type ? html`${typeSign(r.node)}${r.node.type.name}` : "Planning"}</span><span class="arena-task__name">${r.title}</span><span class="arena-task__foot">${r.words}</span></button></div>`;
+    <span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} />${typeSign(r.node)}</span>
+    <span class="arena-task__goal">${r.node?.type?.name || "Planning"}</span><span class="arena-task__name">${r.title}</span><span class="arena-task__foot">${r.words}</span></button></div>`;
 }
 
 function SoloLead({ m, planning }) {

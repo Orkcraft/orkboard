@@ -356,7 +356,7 @@ async def test_signs_keep_their_place_without_an_alert_edge_a_failure_keeps_its_
         await page.locator(".deck").first.wait_for(timeout=WAIT_MS)
         alert = await page.evaluate("() => getComputedStyle(document.documentElement).getPropertyValue('--ork-alert').trim()")
         pick = page.locator('.deck[data-state="picking"]').first
-        assert await pick.locator(".tcard__mark .ork-sign.alert").count() == 1                                                        # its sign stays
+        assert await pick.locator(".tcard__mark").count() == 0 and await pick.locator(".tcard__foot").inner_text() == "asks you to pick"      # its words stay, no sign (spec 55 §2)
         colors = await pick.evaluate("""d => [d.querySelector('.tcard'), ...d.querySelectorAll('.deck__edge')].map((e) => getComputedStyle(e).borderTopColor)
           .concat([getComputedStyle(d.querySelector('.tcard__foot')).color])""")
         probe = await page.evaluate(f"() => {{ const e = document.createElement('i'); e.style.color = '{alert}'; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; }}")
@@ -377,4 +377,4 @@ async def test_signs_keep_their_place_without_an_alert_edge_a_failure_keeps_its_
 
 def test_the_service_worker_is_one_up_and_keeps_the_types_module():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v62";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
+    assert 'const CACHE = "orkcraft-app-v63";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]

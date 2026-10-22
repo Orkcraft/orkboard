@@ -390,13 +390,13 @@ def test_the_columns_hold_rows_by_phase_the_merged_count_and_what_waits_for_a_ta
     assert "1 in dev" in pg.locator(".arena-stack[data-agent=screens] .arena-stack__done").inner_text()
     assert [h.text_content() for h in pg.locator(".arena-cols__head .arena-lbl:not(.is-blank)").all()] == ["Implementation", "Checking"]            # over the first builder, the first checker
     running = pg.locator(".arena-task[data-key='register/k3']")
-    assert "working 4 min" in running.inner_text() and running.locator(".ork-sign.work").count() == 1 and running.locator(".ork-elem.meadow").count() == 1
+    assert "working 4 min" in running.inner_text() and running.locator(".ork-sign.work").count() == 0 and running.locator(".ork-elem.meadow").count() == 1
     assert "WebAuthn register" in running.locator(".arena-task__goal").inner_text() and "Register screen" in running.locator(".arena-task__name").inner_text()
     failed = column.locator(".arena-task[data-state=failed]")
-    assert "failed" in failed.inner_text() and "You changed no file" in failed.get_attribute("title") and failed.locator(".ork-sign.cross").count() == 1   # the error in its tooltip
+    assert "failed" in failed.inner_text() and "You changed no file" in failed.get_attribute("title") and failed.locator(".ork-sign.cross").count() == 0   # the error in its tooltip
     assert "is-fail" in failed.locator("xpath=..").get_attribute("class")                                      # a failed stack has the danger edge
     held = pg.locator(".arena-stack[data-agent=screens] .arena-task[data-state=held]")
-    assert "tonight · after 01:00" in held.inner_text() and held.locator(".ork-sign.night").count() == 1       # a hold for tonight: the clock
+    assert "tonight · after 01:00" in held.inner_text() and held.locator(".ork-sign.night").count() == 0       # a hold for tonight: said by the foot, no clock on the card (spec 55 §2)
     assert column.locator(".arena-stk[data-goal=register] .arena-stk__n").inner_text() == "×2"                  # a stack of two: ×n on its corner
     pg.locator(".arena-task[data-key='register/k5']").hover()                                                  # hovering a card says what waits for it and what it waits for
     assert "1 waits for it" in pg.locator(".arena-task[data-key='register/k5']").inner_text()                   # k4 waits for k5

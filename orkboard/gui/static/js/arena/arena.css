@@ -195,7 +195,7 @@
 .arena-solo::-webkit-scrollbar { display: none; }
 .arena-solo__empty { text-align: center; }
 
-/* a card is 5:7 (104 × 146 at most): the goal's element top left, its mark top right, the goal, the task, its foot */
+/* a card is 5:7 (104 × 146 at most): the goal's element top left, its type top right in the element's colour (spec 55), the goal, the task, its foot */
 .arena-task { appearance: none; position: relative; display: flex; flex-direction: column; gap: var(--ork-1); width: 100%; min-width: 0; padding: 5px var(--ork-3) var(--ork-3); box-sizing: border-box;
   text-align: left; background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: var(--ork-ink); cursor: pointer; font: var(--ork-type-caption); }
 .arena-stk .arena-task { z-index: 1; aspect-ratio: 5 / 7; }
@@ -203,9 +203,14 @@
 .arena-task:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .arena-task__top { display: flex; align-items: center; gap: var(--ork-2); min-height: 18px; }
 .arena-task__phase { font-size: 10px; line-height: 12px; color: var(--ork-ink-faint); text-transform: uppercase; letter-spacing: 0.06em; }
-.arena-task__mark { margin-left: auto; display: flex; align-items: center; color: var(--ork-ink); }
 .arena-task__goal { padding-top: var(--ork-1); border-top: var(--ork-line) solid var(--ork-frame); font-size: 10px; line-height: 13px; color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.arena-task__type { display: inline-flex; vertical-align: -3px; margin-right: var(--ork-1); color: var(--ork-ink-muted); }
+.arena-task__type { display: inline-flex; flex: none; margin-left: auto; color: var(--ork-ink-muted); }
+.arena-task__type.meadow, .arena-goal__type.meadow { color: var(--ork-elem-meadow); }
+.arena-task__type.ice, .arena-goal__type.ice { color: var(--ork-elem-ice); }
+.arena-task__type.dust, .arena-goal__type.dust { color: var(--ork-elem-dust); }
+.arena-task__type.void, .arena-goal__type.void { color: var(--ork-elem-void); }
+.arena-task__type.lava, .arena-goal__type.lava { color: var(--ork-elem-lava); }
+.arena-task__type.dim, .arena-goal__type.dim { color: var(--ork-ink-faint); }
 .arena-task__name { flex: none; font: var(--ork-type-body); line-height: 15px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .arena-task__deps { display: flex; flex-direction: column; color: var(--ork-ink-muted); line-height: 14px; }
 .arena-task__deps > span, .arena-task__line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -215,7 +220,7 @@
 .arena-task.is-run .arena-task__foot { color: var(--ork-ink); }
 .arena-task.is-wait { border-style: dashed; background: var(--ork-canvas); }
 .arena-task.is-fail { border-color: var(--ork-danger); }
-.arena-task.is-fail .arena-task__mark, .arena-task.is-fail .arena-task__foot { color: var(--ork-danger); }
+.arena-task.is-fail .arena-task__foot { color: var(--ork-danger); }
 .arena-task.is-later { background: var(--ork-canvas); border-color: var(--ork-frame); }
 .arena-task.is-later .arena-task__name { color: var(--ork-ink-muted); }
 .arena-task.is-later .arena-task__foot, .arena-task.is-later .arena-task__goal { color: var(--ork-ink-faint); }

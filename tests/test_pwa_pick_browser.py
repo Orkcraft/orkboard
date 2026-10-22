@@ -577,7 +577,7 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
         deck = page.locator('.deck[data-state="picking"]')
         await deck.wait_for(timeout=WAIT_MS)
         face = deck.locator(".tcard")
-        assert await face.locator(".tcard__foot").inner_text() == "asks you to pick" and await face.locator(".tcard__mark .ork-sign.alert").count() == 1
+        assert await face.locator(".tcard__foot").inner_text() == "asks you to pick" and await face.locator(".tcard__mark").count() == 0
         assert "asks you to pick" in await deck.get_attribute("aria-label")
         alert = await face.evaluate("e => { const i = document.createElement('i'); i.style.color = 'var(--ork-alert)'; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }")
         assert await face.evaluate("e => getComputedStyle(e).borderTopColor") != alert                                  # its sign, no alert edge (spec 52 §5.8)

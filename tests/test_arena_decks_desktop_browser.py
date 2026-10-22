@@ -358,10 +358,9 @@ def test_a_card_has_the_goals_element_its_mark_the_goal_the_name_and_the_foot(ar
     pg, host = arena
     card = pg.locator(".arena-task[data-key='register/k3']")
     top = card.locator(".arena-task__top")
-    assert top.locator(".ork-elem.meadow").count() == 1 and top.locator(".arena-task__mark .ork-sign.work").count() == 1
+    assert top.locator(".ork-elem.meadow").count() == 1 and card.locator(".arena-task__mark").count() == 0     # no state sign (spec 55 §2)
     parts = [card.locator(f".arena-task__{p}").inner_text() for p in ("goal", "name", "foot")]
     assert parts[0] == "WebAuthn register" and parts[1] == "Register screen" and parts[2].startswith("working")
-    assert top.locator(".ork-elem").bounding_box()["x"] < card.locator(".arena-task__mark").bounding_box()["x"]       # the element top left, the mark top right
     elem = top.locator(".ork-elem")
     assert elem.evaluate("e => getComputedStyle(e).maskImage").endswith('elements/meadow.svg")') and elem.bounding_box()["width"] == 14
     assert pg.evaluate("fetch('/ds/orkui/elements/meadow.svg').then((r) => r.ok)") and pg.evaluate("fetch('/ds/orkui/signs/work.svg').then((r) => r.ok)")   # orkUI's files are served
@@ -391,7 +390,7 @@ def test_a_press_on_a_stack_of_more_spreads_it_deals_its_cards_and_put_them_back
         assert abs(bb["width"] - 120) < 0.5 and abs(bb["height"] - 168) < 0.5                                   # 120 × 168
     assert [c.get_attribute("data-task") for c in cards.all()] == ["k2", "k1"]
     k2 = cards.nth(0)
-    assert k2.locator(".ork-elem.meadow").count() == 1 and k2.locator(".arena-task__phase").text_content() == "now" and k2.locator(".ork-sign.work").count() == 1
+    assert k2.locator(".ork-elem.meadow").count() == 1 and k2.locator(".arena-task__phase").text_content() == "now" and k2.locator(".ork-sign.work").count() == 0
     assert _text(k2.locator(".arena-task__goal")) == "WebAuthn register" and "Credential table" in k2.locator(".arena-task__name").inner_text()
     pg.mouse.move(5, 5)
     assert "working 12 min" in k2.locator(".arena-task__foot").inner_text()

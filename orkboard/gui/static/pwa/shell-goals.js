@@ -1,9 +1,9 @@
 // The goals bar and the Goals sheet (docs/specs/50-parties-and-goals.md §3.5, §6.2, §6.4; spec 52 §5.2, §5.8). Under the top bar, one quiet line of 44 px that says the party: at its far left the party's deck (spec 53 §1.1), then
 // *⌄ Tech · 3 of 12 goals done* (while the filter is on, the party, the picked goals' elements, *1 of 7 goals* and *Show all*), at its right the gate (shell-party.js). A tap on the left opens the Goals sheet from the bottom: *About Tech ›* (the party's sheet), a line that says
 // what a tap does, **At work**, **Planning**, **Waits for main · n** (✓) and **Flags · n** (⚑); a goal's row (52 px) is its pile (a back with its element and one to three edges behind for its open tasks),
-// its type's sign (muted) before its title, its title, its line, its mark (no alert edge, no alert words: the mark is the stop's one sign) and ✓ when picked, and › (44 px) that opens it. A tap picks or unpicks: only the picked goals' cards stay on the field, only their results and stops stay along the bottom (the filter, kept per party for the session in `st.picks`).
+// its type's sign (in its goal's colour) before its title, its title, its line, its mark (no alert edge, no alert words: the mark is the stop's one sign) and ✓ when picked, and › (44 px) that opens it. A tap picks or unpicks: only the picked goals' cards stay on the field, only their results and stops stay along the bottom (the filter, kept per party for the session in `st.picks`).
 import { h, icon, sheet } from "./util.js";
-import { elem, sign } from "./shell-marks.js";
+import { elem, sign, typeTone } from "./shell-marks.js";
 import { barName, barWords, filterWords, flagTally, goalsOf } from "./shell-goals-words.js";
 
 const LIT_MS = 700;                                  // a flag lit once in the sheet
@@ -34,7 +34,7 @@ export function makeGoals(core, about) {
       h("span", { class: "pile__back" }, elem(r.element, { dim: r.raw })));
     return h("div", { class: `dk${on ? " is-on" : ""}`, "data-idea": r.slug },
       h("button", { class: "dk__main", type: "button", "aria-pressed": String(on), "data-idea": r.slug, title: `${r.title} · ${r.line}`, onclick: () => toggle(r.slug) }, pile,
-        h("span", { class: "dk__body" }, h("span", { class: "dk__title" }, r.type ? h("span", { class: "dk__type", "data-type": r.type.id }, sign(r.type.sign, r.type.name)) : null, r.title),
+        h("span", { class: "dk__body" }, h("span", { class: "dk__title" }, r.type ? h("span", { class: `dk__type ${typeTone(r.element, r.raw)}`, "data-type": r.type.id }, sign(r.type.sign, r.type.name)) : null, r.title),
           h("span", { class: "dk__line" }, r.line)),
         r.mark ? h("span", { class: "dk__mark" }, sign(r.mark, r.markTip)) : null, on ? h("span", { class: "dk__check" }, sign("check", "picked")) : null),
       h("button", { class: "dk__open", type: "button", "aria-label": `Open ${r.title}`, onclick: () => { sh.close(); core.open(r.open, "map"); } }, h("i", { class: "ork-chev right", "aria-hidden": "true" })));

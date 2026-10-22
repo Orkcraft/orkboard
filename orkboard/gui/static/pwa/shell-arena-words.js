@@ -183,15 +183,14 @@ export function taskWords(t, now = Date.now()) {
   return t.state;
 }
 
-/** A task as the field draws it: its phase (0 now, 1 next, 2 later: how many waves after its goal's current one), its sign (↻ at work, ✗ failed, ! asks you to pick, the clock tonight) and what it waits for. */
+/** A task as the field draws it: its phase (0 now, 1 next, 2 later: how many waves after its goal's current one), and what it waits for. */
 export function taskItem(n, t, now = Date.now(), low = lowWave(n)) {
   const words = taskWords(t, now);
   const phase = phaseOf(t, low), when = PHASES[phase];
-  const sign = live(t) ? "work" : t.state === "failed" ? "cross" : t.state === "picking" ? "alert" : t.state === "held" ? "night" : "";
   const after = (t.after || []).length ? ` · after ${t.after.join(", ")}` : "";
   return {
     key: `${n.slug}/${t.id}`, idea: n.slug, id: t.id, ideaTitle: short(n), type: typeOf(n), title: short(t), wave: t.wave || 1, phase, phaseWord: when, element: n.element || "", state: t.state,
-    sign, signTip: { work: "at work", cross: "failed", alert: "asks you to pick", night: "tonight" }[sign] || "", words, dep: depWords(n, t),
+    words, dep: depWords(n, t),
     tip: t.state === "failed" ? `${t.title} · ${t.error || "failed"}` : t.state === "held" ? `${t.title} · ${words}` : `${t.title} · ${when}${after}`,
     label: `${t.title} (${n.title}${typeOf(n) ? `, ${typeOf(n).name}` : ""}): ${words}${phase ? `, ${when}` : ""}`,
     open: { kind: t.state === "review" ? "result" : t.state === "picking" ? "pick" : "task", slug: n.slug, task: t.id },
@@ -219,7 +218,7 @@ export function planningItems(nodes, lead, titleOf = (slug) => slug) {
     else if (raw) words = n.queue === "night" || n.waits?.kind === "night" ? "new · tonight" : `new · ${who} reads it later`;
     else { const s = rowState(n, titleOf).text, w = waitsWords(n); words = w && !s.includes(w) ? `${s} · ${w}` : s; }
     const type = typeOf(n), said = type ? `${n.title}, ${type.name}` : n.title;
-    return { key: n.slug, idea: n.slug, title: short(n), type, element: n.element || "", raw, sign: stop ? "alert" : busy ? "work" : "", signTip: stop ? "asks you" : busy ? "at work" : "",
+    return { key: n.slug, idea: n.slug, title: short(n), type, element: n.element || "", raw,
       kind: stop ? "stop" : busy ? "busy" : "quiet", words, tip: `${said} · ${words}`, label: `${said}: ${words}`, open: { kind: n.needs_you === "plan" ? "plan" : "idea", slug: n.slug } };
   };
   const rank = (i) => (i.kind === "stop" ? 0 : i.kind === "busy" ? 1 : 2);
