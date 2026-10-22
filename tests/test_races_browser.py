@@ -122,7 +122,7 @@ def test_the_agents_dialog_picks_the_craft_and_shows_the_head_it_will_wear(races
 
 
 def test_below_1024_agents_open_in_a_drawer_as_wide_as_the_window_and_wear_their_heads(gui):
-    pg, host, errors = _open(gui, viewport={"width": 800, "height": 900}, host=StubRaces(), ready=".arena-gtab")
+    pg, host, errors = _open(gui, viewport={"width": 800, "height": 900}, host=StubRaces(), ready=".arena-ptop")
     try:
         _agents(pg)
         drawer = pg.locator(".shell-drawer").bounding_box()

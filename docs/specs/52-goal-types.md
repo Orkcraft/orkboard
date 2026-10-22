@@ -433,6 +433,35 @@ it in the spec's *As built* first.
   (now the deck) and `_pick_goal`'s wait, two tests that read the where button (`test_no_tab_bar_…`, `test_what_waits_for_you_…`)
   read the project button, the goals bar and the deck; `tests/test_pwa_projects37_browser.py` (it tapped the where button for the
   projects) taps the project button.
+- **B (the desktop).** Built as §3, §4 and §6, with these choices. (1) *The deck.* `js/arena/goaltabs.js` is the left column's
+  top line (`PartyTop`: the name, *k/n*, the work sign, Parties ⌄) and the parties' spread; it keeps the party shown per
+  device as the switch did (`shownOf`, `keepGoal`). Parties ⌄'s count is the stops of every party but the one shown, with
+  Operations' (its rules' proposals left out, as the switch had them); with Operations shown, the parties' stops. Its label
+  says *1 stop waits* for one. The leader's row stands on its edges (`.arena-hero__deck`, 3 px up and right each). A party's
+  card is named as the tab was (*<party>, k of n goals done[, n stops wait for you][, at work]*) and *, shown*; the shown
+  one has no count. Picking a party gathers the spread, then shows it. *+ New party*'s card is named *New party* (its words,
+  *one of yours, or from the library*, under it). (2) *A deal.* `js/arena/spread.js` gains `dealCards` (a stack's deal, now
+  shared, at once also while the page is hidden) and `Dealt` (the scrim over the window, `position: fixed`, the line, the
+  cards, *Put them back*; a `dialog`; the focus on the card given; ←/→ go round; Esc, the scrim, *Put them back* gather and
+  give the focus back). The types' spread is `js/arena/types.js` `TypesSpread`, a `dialog` named *New goal for <party>*.
+  (3) *New goal by its type* (`js/shell/ideadialog.js` `TypedGoal`; the blank goal is today's form, `BlankGoal`): the text
+  is *Its title* and *What it is for* joined by a blank line, as the phone's; the asks go as `asks` with Refs' links as
+  `asks.refs`; Refs' pictures (a file, a paste or a drop on the form, at most four) are made JPEGs of at most 1 600 px as
+  the phone's and go as `photos` (so a GIF goes as a JPEG: the host takes JPEG, PNG and WebP). The join line's price is the
+  agent's tier's `tier_costs` from `ideas.roles`, its head the library's (`roles.library`). **`ideas.add` takes one `join`**
+  (§2.3): with two entries, the first that can join is ticked at first and ticking one unticks the other (a plan that gives
+  the other one work says so on its stop, §4.4). The toast names the leader
+  as the form does (*the Taskmaster* for the Taskmaster). (4) *A plan's missing line* is
+  *No one in the party does <words>: <name> would.* with *and <n> more* after it; its answers are the stop's own, *Edit the
+  party* opens Edit the party. (5) *A stop marked once*: the goal row's alert edge and alert line went; a pick's card keeps
+  its alert sign in the alert colour and its words are muted; a Planning card (the leader's, in Solo) lost its alert edge;
+  a failure keeps its danger edge. (6) *Operations and no party yet*: Operations' field and the *No parties yet* note (when
+  the project has Operations) have the same top line, so the parties are reached from them (*No party yet* is its name
+  there). **Beyond B's row** (§9): `js/arena/arena.js` (Operations' field and the *No parties yet* note carry the top line),
+  `js/board/idea.js` (the plan's screen in the drawer says the missing line, §4.4), `tests/pick_desktop_host.py` (its ready
+  selector). `js/shell/shell.css`'s rule for the old switch below 1 024 px (`.shell-top .arena-pswitch`) is left: it is not
+  B's file and draws nothing now. *Tests*: new `tests/test_goal_types_desktop_browser.py`; `tests/test_shell_browser.py`
+  gains `_parties`, `_party_card` and `_new_party`, and its `_show_goal` picks from the spread; the tests of §9 press those.
 
 ## 11. Running B and C
 A0 and A are in `main`. **B and C start together**, each a cloud session on orkWorks/orkBoard with the brief below,

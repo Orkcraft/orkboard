@@ -2,7 +2,8 @@
 // proposal, a to-do, a failure, a pick — each a framed item standing in a fan along the bottom edge, only its top showing; hovering or
 // focusing one raises it whole, with its quick answers. A press answers; a click outside the buttons opens it in the drawer. A *Pick one*
 // (docs/specs/51-pick-one.md §6) holds its variants as small tiles, two by two (picks.js): a press on a strip picks one, *Take B* answers
-// with it, *Pick, with a note…* (*Add a note…* once one is picked) opens the drawer where the note is written.
+// with it, *Pick, with a note…* (*Add a note…* once one is picked) opens the drawer where the note is written. A plan that gives work to no one of the party
+// says so under its text (docs/specs/52-goal-types.md §4.4: *No one in the party does pixel art: Artist would.*) and offers *Add and start* when a seat is free.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Head, Sign } from "../orkui.js";
@@ -13,6 +14,7 @@ import { openDialog } from "../shell/modals.js";
 import { run as runOp } from "../board/ops.js";
 import { useHeld } from "./motion.js";
 import { askedOf, fanOf } from "./arenawords.js";
+import { missingWords } from "./types.js";
 import { Tiles, choiceOf } from "./picks.js";
 import { manyWords, variantOf } from "./pickwords.js";
 
@@ -47,7 +49,15 @@ function Answers({ s, g }) {
   if (s.kind === "pick") return html`<${PickAnswers} s=${s} />`;
   const row = s.row, n = s.node, slug = row?.idea || n?.slug || "";
   if (s.kind === "plan") {
-    const night = n?.start_at === "night";
+    const night = n?.start_at === "night", miss = row?.missing || [];
+    if (miss.length && !night) {
+      const m = miss[0];
+      const join = async () => { const got = await act("ideas.start", { slug, join: { add: m.agent }, via: "hand" }); if (got) toast(`${m.name} joined the party; the work started.`); };
+      return m.free ? html`<button type="button" class="ork-btn primary arena-hc__q" title=${`${m.name} joins the party, then the work starts`} onClick=${join}>Add and start</button>
+          <button type="button" class="ork-btn arena-hc__q" title="Passes the plan as it is; the Grunt does that work" onClick=${() => act("ideas.start", { slug, via: "hand" })}>Start without</button>`
+        : html`<button type="button" class="ork-btn primary arena-hc__q" title="Passes the plan as it is; the Grunt does that work" onClick=${() => act("ideas.start", { slug, via: "hand" })}>Start without</button>
+          <button type="button" class="ork-btn arena-hc__q" title="Change a member of the party" onClick=${() => openDialog("goal", { slug: row.goal || g?.slug })}>Edit the party</button>`;
+    }
     return html`${night ? html`<button type="button" class="ork-btn primary arena-hc__q" title="Starts it now, not tonight" onClick=${() => act("ideas.start_now", { slug, via: "hand" })}>Start now</button>`
       : html`<button type="button" class="ork-btn primary arena-hc__q" title="Passes the plan; the work starts" onClick=${() => act("ideas.start", { slug, via: "hand" })}>Start the work</button>`}
       <button type="button" class="ork-btn arena-hc__q" title="The plan in the drawer" onClick=${() => showPlan(slug, "", { via: "hand" })}>Open the plan</button>`;
@@ -113,6 +123,7 @@ function Stop({ s, g, at, of }) {
         ${s.small && s.head && html`<span class="arena-hc__who" title=${s.whoTip}><${Head} race=${s.head.race} tier=${s.head.tier} /></span>`}</span>
       ${!s.small && html`<span class="arena-art">${s.head && html`<${Head} race=${s.head.race} tier=${s.head.tier} size="mid" />`}</span>`}
       ${!pick && html`<span class="arena-banner">${s.title}</span><span class="arena-hc__text" title=${s.text}>${s.text}</span>`}
+      ${s.kind === "plan" && (s.row?.missing || []).length > 0 && html`<span class="arena-hc__miss">${missingWords(s.row.missing)}</span>`}
     </button>
     ${pick && html`<${Tiles} row=${s.row} />`}
     <div class="arena-hc__quick" role="group" aria-label=${s.kind === "asks" || s.kind === "goal" ? "Answer in one click" : pick ? "Pick one" : "Quick moves"}><${Answers} s=${s} g=${g} /></div>

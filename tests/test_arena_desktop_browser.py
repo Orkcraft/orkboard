@@ -17,7 +17,7 @@ pytest.importorskip("playwright.sync_api")
 from orkboard.realm import idea_element  # noqa: E402
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
 from tests.test_map_desktop_browser import node, pip as _pip  # noqa: E402
-from tests.test_shell_browser import LEAD, SHOTS, StubHost, _calls, _drawer, _open, _sent, _show_goal, _stop, box  # noqa: E402
+from tests.test_shell_browser import LEAD, _parties, SHOTS, StubHost, _calls, _drawer, _open, _sent, _show_goal, _stop, box  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -189,7 +189,7 @@ def _settle(pg):
 
 @pytest.fixture
 def arena(gui):
-    pg, host, errors = _open(gui, host=ArenaHost(), ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=ArenaHost(), ready=".arena-ptop")
     pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
     yield pg, host
     pg.close()
@@ -198,27 +198,25 @@ def arena(gui):
 
 def test_the_regions_in_their_order_and_sizes_at_1440_by_900_with_no_page_scroll(arena):
     pg, host = arena
-    sizes = {"top bar": (".shell-top", 32), "party switch": (".arena-pswitch", 28), "party line": (".arena-ibar__bar", 36), "party row": (".arena-team", 64), "bottom row": (".arena-stops", 64)}
+    sizes = {"top bar": (".shell-top", 32), "party's top line": (".arena-ptop", 32), "Parties": (".arena-ptop__deck", 28), "party line": (".arena-ibar__bar", 36),
+             "party row": (".arena-team", 64), "bottom row": (".arena-stops", 64)}
     for name, (css, h) in sizes.items():
         assert box(pg, css)["height"] == h, name
-    top, switch = box(pg, ".shell-top"), box(pg, ".arena-pswitch")                                          # no row of tabs: the switch is in the top bar, after Orkline
-    assert pg.locator(".arena-tabs").count() == 0 and top["y"] <= switch["y"] and switch["y"] + switch["height"] <= top["y"] + top["height"]
-    assert box(pg, ".shell-top__brand")["x"] < switch["x"] and switch["x"] < box(pg, ".shell-top__spacer")["x"]
-    assert pg.locator(".shell-top").get_by_role("tablist", name="Parties").count() == 1
+    assert pg.locator(".arena-tabs").count() == 0 and pg.locator(".shell-top [role=tablist], .shell-top .arena-ptop").count() == 0      # no parties in the top bar (spec 52 §3.1)
     assert all(box(pg, css)["y"] == 32 for css in (".shell-main", ".arena-today", ".arena-left", ".arena-field"))      # the main row starts right under the top bar
     wide = {"strip": (".arena-today", 40), "left column": (".arena-left", 248), "results": (".arena-look", 312), "gate": (".arena-gatebox", 312), "limits": (".arena-limits", 312)}
     for name, (css, w) in wide.items():
         assert box(pg, css)["width"] == w, name
     assert box(pg, ".arena-goal__main")["height"] == 42 and box(pg, ".arena-new")["height"] == 72                 # a goal's row 42; the New goal pile 60 + 12 of padding
     assert box(pg, ".arena-new__pile")["width"] == 44 and box(pg, ".arena-new__pile")["height"] == 60
-    landmarks = [("tablist", "Parties"), ("navigation", "Today"), ("region", "Leader"), ("region", "Goals"), ("region", "Party"), ("region", "The party at work"),
+    landmarks = [("navigation", "Today"), ("region", "Leader"), ("region", "Goals"), ("region", "Party"), ("region", "The party at work"),
                  ("complementary", "Waits for your look"), ("region", "Waits for you"), ("region", "What is left of your AI tools")]
     seen = [pg.get_by_role(role, name=name, exact=True) for role, name in landmarks]
     assert [s.count() for s in seen] == [1] * len(landmarks)                                              # each one, in the order of the page
     handles = [s.element_handle() for s in seen]
     assert all(pg.evaluate("([a, b]) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)", [a, b]) for a, b in zip(handles, handles[1:]))
     by = {name: s.bounding_box() for (_r, name), s in zip(landmarks, seen)}
-    assert by["Parties"]["y"] < by["Today"]["y"] and by["Today"]["x"] < by["Leader"]["x"]
+    assert by["Today"]["x"] < by["Leader"]["x"] and box(pg, ".arena-ptop")["y"] + 32 <= by["Leader"]["y"]          # the party's top line over the leader
     assert by["Leader"]["y"] < by["Goals"]["y"] and by["Leader"]["x"] == by["Goals"]["x"]                  # the leader over its goals, in the left column
     ibar, party, cols, look, gate = box(pg, ".arena-ibar__bar"), by["Party"], by["The party at work"], by["Waits for your look"], box(pg, ".arena-gatebox")
     assert ibar["y"] + ibar["height"] <= party["y"] and party["y"] + party["height"] <= cols["y"]           # the party line, the party row, the columns under it
@@ -235,37 +233,36 @@ def test_the_regions_in_their_order_and_sizes_at_1440_by_900_with_no_page_scroll
         pg.screenshot(path=str(SHOTS / "desktop-one-window-1440x900.png"))
 
 
-def test_the_party_tabs_head_name_count_stops_arrows_and_operations(gui):
+def test_the_partys_deck_its_cards_the_count_of_the_others_operations_and_the_pick_kept(gui):
     host = ArenaHost()
     host.ops = True
     host.extra_needs = [{"kind": "op", "op": "r1", "title": "Weekly report", "text": "Waits at your check", "goal": "", "idea": "", "priority": "normal", "blocks": False, "at": "x"}]
-    pg, host, errors = _open(gui, host=host, ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=host, ready=".arena-ptop")
     try:
-        tabs = pg.get_by_role("tablist", name="Parties").get_by_role("tab")
-        assert [t.get_attribute("data-goal") for t in tabs.all()] == ["passkey", "pricing", "weekly", "@operations"]     # the Board's order: priority, then the person's
-        first = tabs.first
-        assert first.get_attribute("aria-selected") == "true" and "Sign in with a passkey" in first.inner_text()
-        count = first.locator(".arena-gtab__count")
+        line = pg.locator(".arena-ptop")
+        assert line.locator(".arena-ptop__name").inner_text() == "Sign in with a passkey"
+        count = line.locator(".arena-ptop__count")
         assert count.inner_text() == "2/11" and count.get_attribute("title") == "2 of 11 goals done"             # its done goals of all its goals
-        assert first.locator(".ork-meter").count() == 0 and "%" not in first.inner_text()                      # a party has no end: no meter, no %
-        assert first.locator("img.ork-race__head.small").count() == 1 and first.locator(".ork-flag, .arena-flag").count() == 0     # the leader's small head; no verdict's flag
-        assert first.locator(".ork-count.warning").inner_text() == "4"                                       # a failure, a plan, a question, a proposal
-        assert first.locator(".ork-sign.work").count() == 1                                                  # at work: orkUI's sign
-        assert first.get_attribute("aria-label") == "Sign in with a passkey, 2 of 11 goals done, 4 stops wait for you, at work"
-        assert "Builds the sign-in" in first.get_attribute("title")                                          # what it is for, in its tooltip
-        assert tabs.nth(1).locator(".ork-count").count() == 0 and tabs.nth(1).locator(".arena-gtab__count").inner_text() == "1/1"      # no stop: no count
-        assert tabs.nth(1).locator(".ork-sign.work").count() == 0
-        first.focus()
-        pg.keyboard.press("ArrowRight")
-        assert pg.locator(".arena-gtab.is-on").get_attribute("data-goal") == "pricing"
-        pg.keyboard.press("End")
+        assert line.locator(".ork-meter").count() == 0 and "%" not in line.inner_text()                        # a party has no end: no meter, no %
+        assert line.locator(".arena-ptop__work .ork-sign.work").count() == 1                                   # at work: orkUI's sign
+        deck = line.locator(".arena-ptop__deck")
+        assert deck.locator(".ork-count.warning").inner_text() == "1"                                          # Operations' row: the one count, of the others
+        assert deck.get_attribute("aria-label") == "Parties: Sign in with a passkey shown, 1 stop waits in the other parties"
+        cards = _parties(pg).locator(".arena-spread__card")
+        assert [c.get_attribute("data-goal") for c in cards.all()] == ["passkey", "pricing", "weekly", "@operations", ""]      # the Board's order: priority, then the person's
+        first = cards.first
+        assert first.get_attribute("aria-label") == "Sign in with a passkey, 2 of 11 goals done, at work, shown"
+        assert "Builds the sign-in" in first.get_attribute("title")                                            # what it is for, in its tooltip
+        assert first.locator(".ork-flag, .arena-flag").count() == 0 and first.locator(".ork-count").count() == 0      # no verdict's flag; the shown party's stops not counted
+        assert cards.nth(1).locator(".ork-count").count() == 0 and "1/1 done" in cards.nth(1).inner_text()      # no stop: no count
+        assert cards.nth(3).locator(".ork-count.warning").inner_text() == "1"
+        cards.nth(3).click()
         pg.locator(".arena-ops").wait_for(timeout=WAIT_MS)                                                    # Operations: its view in the field, its rows below
-        assert pg.locator(".arena-hc[data-kind=op]").count() == 1 and pg.get_by_role("button", name="New party", exact=True).is_visible()
-        pg.keyboard.press("Home")
-        pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
+        assert pg.locator(".arena-hc[data-kind=op]").count() == 1 and pg.locator(".arena-ptop__deck .ork-count").inner_text() == "4"   # now the passkey party's are the others
+        _show_goal(pg, "passkey")
         pg.reload()                                                                                         # the pick is kept per device
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
-        pg.locator('.arena-gtab[data-goal="pricing"]').click()
+        _show_goal(pg, "pricing")
         pg.reload()
         pg.locator(".arena[data-goal=pricing]").wait_for(timeout=WAIT_MS)
         into = pg.get_by_role("button", name=re.compile("results go into"))                                    # the results' branch: a quiet line under the gate's button
@@ -274,11 +271,10 @@ def test_the_party_tabs_head_name_count_stops_arrows_and_operations(gui):
         into.click()                                                                                          # the same dialog as the results' own Merge into
         assert pg.get_by_role("dialog", name=re.compile("Merge into")).is_visible()
         pg.keyboard.press("Escape")
-        plus = pg.get_by_role("button", name="New party", exact=True)                                           # a last + segment, after Operations: its dialog (spec 50 §3.7)
-        assert plus.get_attribute("title").startswith("New party") and plus.get_attribute("class") == "arena-pswitch__new"
-        assert plus.bounding_box()["x"] > pg.locator('.arena-gtab[data-goal="@operations"]').bounding_box()["x"] and plus.locator(".ork-icon").count() == 1
+        plus = _parties(pg).get_by_role("button", name="New party", exact=True)                               # the last card, after Operations: its dialog (spec 50 §3.7)
+        assert plus.get_attribute("title").startswith("One of yours") and plus.locator(".ork-icon").count() == 1
         plus.click()
-        assert pg.get_by_role("dialog", name="New party").is_visible()
+        pg.get_by_role("dialog", name="New party").wait_for(timeout=WAIT_MS)
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
@@ -539,7 +535,7 @@ def test_a_plan_held_for_the_night_starts_now_and_a_to_do_opens_its_dialog(gui):
     host.nodes[3]["start_at"] = "night"
     host.extra_needs = [{"kind": "todo", "idea": "recovery", "goal": "passkey", "title": "Recovery codes", "text": "SMTP_KEY", "priority": "high", "blocks": False, "at": "x",
                          "todo": {"id": "t1", "title": "SMTP_KEY", "kind": "secret", "why": "to send the codes", "choices": [], "steps": [], "accept": [], "done": False}}]
-    pg, host, errors = _open(gui, host=host, ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=host, ready=".arena-ptop")
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         _stop(pg, "plan").get_by_role("button", name="Start now").click()
@@ -562,7 +558,7 @@ def test_the_strip_marks_the_day_of_the_goal_and_a_click_opens_what_it_says(gui)
         {"at": "11:00", "mark": "·", "tone": "muted", "words": "you answered", "title": "Prices", "goal": "pricing", "idea": "prices", "task": "", "open": {"kind": "idea", "slug": "prices"}},
         {"at": "10:30", "mark": "▸", "tone": "ink", "words": "the work started", "title": "WebAuthn register", "goal": "passkey", "idea": "register", "task": "", "open": {"kind": "idea", "slug": "register"}},
         {"at": "09:00", "mark": "✓", "tone": "ok", "words": "dev merged into main", "title": "dev → main", "goal": "", "idea": "", "task": "", "open": {"kind": "gate", "slug": ""}}]
-    pg, host, errors = _open(gui, host=host, ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=host, ready=".arena-ptop")
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         strip = pg.get_by_role("navigation", name="Today")
@@ -590,7 +586,7 @@ def test_the_strip_marks_the_day_of_the_goal_and_a_click_opens_what_it_says(gui)
 def test_the_limits_inside_the_night_window_say_the_morning(gui):
     host = ArenaHost()
     host.reserve = {"share": 0.2, "night": True}
-    pg, host, errors = _open(gui, host=host, ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=host, ready=".arena-ptop")
     try:
         limits = pg.get_by_role("region", name="What is left of your AI tools")
         claude = limits.locator(".arena-limit[data-provider=claude]")
@@ -605,7 +601,7 @@ def test_the_limits_inside_the_night_window_say_the_morning(gui):
 
 def test_the_drawer_opens_on_a_click_keeps_its_tabs_on_esc_and_holds_agents_and_files(gui):
     from tests.test_map_desktop_browser import MapHost
-    pg, host, errors = _open(gui, host=MapHost(), ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=MapHost(), ready=".arena-ptop")
     try:
         _show_goal(pg)
         assert pg.locator(".shell-drawer").count() == 0
@@ -614,7 +610,7 @@ def test_the_drawer_opens_on_a_click_keeps_its_tabs_on_esc_and_holds_agents_and_
         bb = drawer.bounding_box()
         assert abs(bb["width"] - 0.62 * 1440) < 3 and bb["x"] + bb["width"] == 1440 and bb["height"] > 800                 # 62 % of the window, from the right
         assert drawer.evaluate("e => getComputedStyle(e).borderLeftStyle") == "double"
-        assert pg.locator(".arena-pswitch").is_visible() and pg.locator(".arena-left").is_visible()                    # the window is still there, behind it
+        assert pg.locator(".arena-ptop").is_visible() and pg.locator(".arena-left").is_visible()                       # the window is still there, behind it
         pg.locator(".shell-top").get_by_role("button", name="Agents").click()
         assert "Add agent" in drawer.inner_text() and drawer.get_by_role("tab").count() == 2                        # Agents: today's pane, in a tab of the drawer
         pg.locator(".shell-top").get_by_role("button", name="Files").click()
@@ -632,7 +628,7 @@ def test_the_drawer_opens_on_a_click_keeps_its_tabs_on_esc_and_holds_agents_and_
 
 
 def test_below_1024_the_columns_scroll_sideways_and_the_drawer_takes_the_window(gui):
-    pg, host, errors = _open(gui, host=ArenaHost(), viewport={"width": 900, "height": 800}, ready=".arena-gtab")
+    pg, host, errors = _open(gui, host=ArenaHost(), viewport={"width": 900, "height": 800}, ready=".arena-ptop")
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         assert pg.locator(".arena-today").count() == 0 and box(pg, ".arena-left")["width"] == 200 and pg.locator(".arena-look").count() == 0

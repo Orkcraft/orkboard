@@ -2,7 +2,7 @@
 // always there, and enough alone —, what to point at in the way of the goal's party. A row of the lenses the party has: Text;
 // Code (an engineer's: the repository's parts, what each uses and what uses it, and a note of what to change); Screen (a
 // designer's: lensscreen.js); Pain (a product manager's: whom it is for and what hurts them, the project's own a click away).
-// The leader's lens is open first; switching lenses loses nothing, and what each holds goes with the idea.
+// A goal type's lens is open first, else the leader's (lensFirst); switching lenses loses nothing, and what each holds goes with the idea.
 import { useEffect, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { ask } from "../board/store.js";
@@ -12,6 +12,8 @@ const WORDS = { text: "Text", code: "Code", screen: "Screen", pain: "Pain" };
 const SHOWN = 6;
 
 export const noLens = { on: "", segment: "", pain: "", picked: [], note: "", screen: noScreen };
+/** The lens state New goal starts with: a goal type's lens open first (docs/specs/52-goal-types.md §4.2) when the party offers it, else the leader's. */
+export const lensFirst = (type) => ({ ...noLens, on: type?.lens || "" });
 
 /** The goal's lenses (ideas.lens), read again when the goal changes: {lenses, default, segments, screens}. */
 export function useLenses(goal) {

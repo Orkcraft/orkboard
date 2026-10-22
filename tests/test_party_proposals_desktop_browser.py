@@ -67,13 +67,13 @@ def test_take_it_out_answers_at_once_and_a_keep_with_no_reason_sends_none(shell)
     assert _calls(pg, host, "ideas.party_answer", 2)[-1] == {"goal": "ship-sync", "take": False}
 
 
-def test_the_row_is_one_of_the_party_s_stops_on_its_tab(shell):
+def test_the_row_is_one_of_the_party_s_stops_along_the_bottom(shell):
     pg, host = shell
     host.party_rows = [dict(ROW)]
     host.bump({})
     pg.locator(".arena-hc[data-kind=party]").wait_for(timeout=WAIT_MS)
-    count = pg.locator('.arena-gtab[data-goal="ship-sync"] .ork-count')
-    assert count.inner_text() == str(pg.locator(".arena-hc").count())                                   # the stops along the bottom, the row among them
+    assert pg.locator(".arena-hand .arena-hc[data-kind=party]").count() == 1                             # the stops along the bottom (their count), the row among them
+    assert "Ship sync" in pg.locator(".arena-ptop__deck").get_attribute("aria-label")                  # the shown party's stops are not counted on Parties (spec 52 §4.5)
 
 
 def test_a_checker_s_muted_line_ends_with_its_check_and_its_dialog_says_it_over_30_days(shell):

@@ -401,12 +401,12 @@ def test_a_task_that_asks_you_to_pick_says_so_with_the_alert_sign_on_its_card_it
     foot = task.locator(".arena-task__foot")
     assert _text(foot) == "asks you to pick" and foot.locator(".ork-sign.alert").count() == 1 and "!" not in foot.text_content()               # the alert sign, drawn
     alert = pg.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-alert)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
-    assert foot.evaluate("e => getComputedStyle(e).color") == alert
+    assert foot.evaluate("e => getComputedStyle(e).color") != alert and foot.locator(".ork-sign.alert").evaluate("e => getComputedStyle(e).color") == alert   # marked once: its sign (spec 52 §4.5)
     member = pg.locator(".arena-member[data-agent=screens]")
     assert "asks you to pick" in member.get_attribute("aria-label") and member.locator(".arena-sign .ork-sign.alert").count() == 1             # the member that waits for the person
     row = pg.locator(".arena-goal[data-slug=logo]")
     assert row.locator(".arena-goal__mark .ork-sign.alert").count() == 1 and row.locator(".arena-goal__mark").get_attribute("title") == "waits for you"
-    assert pg.locator(".arena-gtab.is-on .ork-count").text_content() == "5"                                                                     # the pick is one of the stops
+    assert pg.locator(".arena-hc").count() == 5                                                                                                # the pick is one of the stops
     task.click()                                                                                                    # a press on it opens the pick, not its log
     assert _sent(pg, host, ("ideas.log", {"event": "opened", "what": "pick", "ref": "logo/p1", "device": "desktop", "via": "map"}))
     assert "Draw the mark" in _drawer_of(pg).locator(".shell-pickone").inner_text()
@@ -419,8 +419,7 @@ def test_todays_strip_takes_the_alert_tone_and_the_pick_kind_and_an_answered_pic
                              {"at": "13:10", "mark": "↺", "tone": "muted", "words": "New ones asked", "title": "Draw a banner", "goal": "passkey", "idea": "logo", "task": "p9",
                               "open": {"kind": "pick", "slug": "logo", "task": "p9"}}]
     host.bump({})
-    asked = pg.locator(".arena-today .arena-hitem[data-open=pick]").last
-    asked.wait_for(timeout=WAIT_MS)
+    pg.wait_for_function("() => document.querySelectorAll('.arena-today .arena-hitem[data-open=pick]').length === 3", timeout=WAIT_MS)   # the strip read again
     items = pg.locator(".arena-today .arena-hitem[data-open=pick]")
     assert items.count() == 3
     asked = pg.locator(".arena-hitem", has=pg.locator(".ork-sign.alert"))

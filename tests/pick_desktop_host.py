@@ -144,7 +144,7 @@ def open_pick(gui, host, viewport=None, reduced=False):
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.route("**/media/**", host.serve)
     pg.goto(server.url)
-    pg.wait_for_selector(".arena-gtab", timeout=WAIT_MS)
+    pg.wait_for_selector(".arena-ptop", timeout=WAIT_MS)
     pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
     pg.locator(".arena-hc[data-kind=pick]").wait_for(timeout=WAIT_MS)
     return pg, host, errors
