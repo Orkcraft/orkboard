@@ -237,7 +237,8 @@ async def test_a_tap_picks_a_goal_more_add_and_the_filter_leaves_only_their_card
         sheet = page.get_by_role("dialog", name="Goals")
         register = sheet.locator('.dk__main[data-idea="register"]')
         await register.click()                                                                                                        # a tap picks it
-        assert await register.get_attribute("aria-pressed") == "true" and await register.locator(".dk__check .ork-sign.check").count() == 1
+        await sheet.locator('.dk__main[data-idea="register"][aria-pressed="true"]').wait_for(timeout=WAIT_MS)                        # (the sheet is drawn again just after the tap)
+        assert await register.locator(".dk__check .ork-sign.check").count() == 1
         assert await sheet.locator('[data-act="show-all"]').is_visible()                                                              # *Show all* appears
         await page.wait_for_function("() => document.querySelectorAll('.stack[data-column=\"backend\"] .deck:not(.is-leaving)').length === 2", timeout=WAIT_MS)
         assert await keys(backend) == ["register|now", "register|next"] and await keys(screens) == ["register|now", "register|later"]      # the columns: only its stacks
@@ -245,6 +246,7 @@ async def test_a_tap_picks_a_goal_more_add_and_the_filter_leaves_only_their_card
         assert await page.locator(".board-bar .ork-count, .partydeck .ork-count").count() == 0                                         # no count of the party shown's stops: the bottom row is it
         await sheet.locator('.dk__main[data-idea="cookie"]').click()                                                                  # more add to it
         await page.wait_for_function("() => document.querySelectorAll('.hc').length === 2", timeout=WAIT_MS)
+        await page.wait_for_function("() => document.querySelectorAll('.stack[data-column=\"backend\"] .deck:not(.is-leaving)').length === 3", timeout=WAIT_MS)
         assert await keys(backend) == ["register|now", "cookie|now", "register|next"] and [await b.get_attribute("data-kind") for b in await page.locator(fan).all()] == ["failed", "look"]
         await page.keyboard.press("Escape")
         bar = page.locator(".gbar")
@@ -256,6 +258,7 @@ async def test_a_tap_picks_a_goal_more_add_and_the_filter_leaves_only_their_card
         await _band(page, "build")
         await page.locator(".gbar__all").click()                                                                                      # Show all clears the filter
         await page.wait_for_function("() => document.querySelectorAll('.hc').length === 6", timeout=WAIT_MS)
+        await page.locator(".gbar:not(.is-on)").wait_for(timeout=WAIT_MS)                                                             # (the bar is drawn again with the field)
         assert norm(await page.locator(".gbar__head").inner_text()) == "Passkey · 2 of 9 goals done" and await keys(backend) == ["register|now", "cookie|now", "register|next"]
         await page.locator(".gbar__head").click()                                                                                     # a goal of Planning: a member with none of its work says so
         await sheet.locator('.dk__main[data-idea="recovery"]').click()

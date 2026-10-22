@@ -205,9 +205,9 @@ async def test_a_sounds_tile_has_its_sign_its_length_play_pause_and_a_thin_bar_t
         assert await bar.get_attribute("type") == "range" and await bar.evaluate("e => e.value") == "0" and await bar.evaluate("e => getComputedStyle(e).height") == "44px"
         await tile.get_by_role("button", name="Play").click()
         await page.wait_for_function("() => document.querySelector('.raised .pk[data-key=\"A\"] audio').currentTime > 0.3", timeout=WAIT_MS)
-        assert await bar.evaluate("e => Number(e.value)") > 20                                                       # the bar follows the sound
+        await page.wait_for_function("() => Number(document.querySelector('.raised .pk[data-key=\"A\"] .pk__bar').value) > 20", timeout=WAIT_MS)   # the bar follows the sound
         await tile.get_by_role("button", name="Pause").click()
-        assert await tile.get_by_role("button", name="Play").count() == 1
+        await tile.get_by_role("button", name="Play").wait_for(timeout=WAIT_MS)                                     # (named again when the sound says it paused)
         box = await bar.bounding_box()
         await page.mouse.click(box["x"] + box["width"] * 0.75, box["y"] + box["height"] / 2)                          # a press on the bar seeks
         await page.wait_for_function("() => document.querySelector('.raised .pk[data-key=\"A\"] audio').currentTime > 2.4", timeout=WAIT_MS)
@@ -302,6 +302,7 @@ async def test_one_plays_at_a_time_and_nothing_plays_by_itself(fake_repo, monkey
         await page.wait_for_function("() => document.querySelector('.raised .pk[data-key=\"B\"]').querySelector('audio, video').currentTime > 0.1", timeout=WAIT_MS)
         await page.keyboard.press("Escape")
         await page.locator("dialog.raised-dlg").wait_for(state="hidden", timeout=WAIT_MS)
+        await page.wait_for_function("() => [...document.querySelectorAll('audio, video')].every((m) => m.paused)", timeout=WAIT_MS)      # (stopped as the dialog closes)
         assert await _playing(page) == []
 
 

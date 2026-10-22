@@ -136,7 +136,8 @@ async def test_a_party_s_window_has_its_goals_bar_its_members_in_the_stages_and_
         await page.locator(".gbar__gate").wait_for(timeout=WAIT_MS * 2)                              # (the gate was read again, the bar drawn with it)
         await page.wait_for_timeout(700)
         for sel in (".board-bar .projbtn", ".partydeck", ".gbar__head", ".band", ".gbar__gate"):
-            assert min([(await b.bounding_box() or {"height": 0})["height"] for b in await page.locator(sel).all()]) >= 43       # a finger's size
+            heights = await page.evaluate("(sel) => [...document.querySelectorAll(sel)].map((e) => e.getBoundingClientRect().height)", sel)   # read at once: a redraw in between is not a 0
+            assert heights and min(heights) >= 43, sel                                                                                       # a finger's size
         # the Goals sheet: the goals at work, one shown at a time
         await page.locator(".gbar__head").click()
         goals = page.get_by_role("dialog", name="Goals")
@@ -147,9 +148,9 @@ async def test_a_party_s_window_has_its_goals_bar_its_members_in_the_stages_and_
         assert [await h.text_content() for h in await goals.locator("h3").all()] == ["At work", "Planning", "Waits for main · 1", "Flags · 0"]       # (drawn in capitals)
         assert "Old cleanup · in dev" in await goals.locator(".goals__line").first.inner_text()      # a done goal waits for main
         await row.click()                                                                            # one goal shown: its tasks only, and a way back to all of them
-        assert await row.get_attribute("aria-pressed") == "true"
+        await goals.locator('.dk__main[data-idea="sync"][aria-pressed="true"]').wait_for(timeout=WAIT_MS)      # (the sheet is drawn again just after the tap)
         await goals.get_by_role("button", name="Show all").click()
-        assert await row.get_attribute("aria-pressed") == "false"
+        await goals.locator('.dk__main[data-idea="sync"][aria-pressed="false"]').wait_for(timeout=WAIT_MS)
         await page.keyboard.press("Escape")
         await _shot(page, "phone-map-390x844")
         assert await page.evaluate(NO_SCROLL)
