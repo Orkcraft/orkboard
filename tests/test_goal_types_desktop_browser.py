@@ -372,3 +372,29 @@ def test_two_join_lines_one_ticked_at_a_time_since_one_joins_with_the_goal(typed
     dialog.get_by_label("Its title").fill("A settings screen")
     dialog.get_by_role("button", name="Add the goal").click()
     assert _calls(pg, host, "ideas.add")[-1]["join"] == {"add": "ui-kit"}
+
+
+def test_a_task_card_shows_its_goals_type_sign_before_its_name_and_a_planning_card_says_its_type(typed):
+    """Spec 53 §3 (C): a task's card has its goal's type's sign before the goal's name, its label names the type after the goal; a Planning goal's card says its
+    type's name with the sign (*Fix a bug*), and a goal with no type keeps the word *Planning* and no sign."""
+    pg, host = typed
+    bug = {"id": "bug", "name": "Fix a bug", "sign": "bug"}
+    host.node_of("register")["type"] = bug
+    host.node_of("recovery")["type"] = bug
+    host.bump({})
+    card = pg.locator(".arena-task[data-idea=register]").first
+    goal = card.locator(".arena-task__goal")
+    goal.locator(".arena-task__type .ork-sign.bug").wait_for(timeout=WAIT_MS)
+    assert goal.evaluate("e => e.firstElementChild.classList.contains('arena-task__type') && e.textContent === 'WebAuthn register'")   # the sign before the name
+    assert goal.locator(".ork-sign").evaluate("e => e.getBoundingClientRect().width") == 14
+    assert "WebAuthn register, Fix a bug" in card.get_attribute("aria-label") and "(WebAuthn register, Fix a bug)" in card.get_attribute("title")
+    plain = pg.locator(".arena-task[data-idea=cookie] .arena-task__goal").first
+    assert plain.locator(".arena-task__type").count() == 0 and plain.inner_text() != ""                                    # a goal with no type: the name alone
+    pg.locator(".arena-hero .arena-member").click()                                                                       # the leader's solo: its Planning goals
+    lead = pg.locator(".arena-solo[data-agent=product-designer]")
+    planned = lead.locator(".arena-task[data-slug=recovery]")
+    planned.locator(".arena-task__goal .arena-task__type .ork-sign.bug").wait_for(timeout=WAIT_MS)
+    assert planned.locator(".arena-task__goal").inner_text() == "Fix a bug" and "Recovery codes, Fix a bug" in planned.get_attribute("aria-label")
+    untyped = lead.locator(".arena-task:not([data-slug=recovery])").first
+    assert untyped.locator(".arena-task__goal").inner_text() == "Planning" and untyped.locator(".arena-task__type").count() == 0
+    pg.keyboard.press("Escape")

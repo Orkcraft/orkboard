@@ -10,7 +10,7 @@ import { useColumn, useLit } from "./motion.js";
 import { solo } from "./arenastate.js";
 import { columnOf, mergedBy, plural } from "./arenawords.js";
 import { elementOf, inFilter, leaveOf } from "./goalwords.js";
-import { Rows, keyOf } from "./stacks.js";
+import { Rows, goalWords, keyOf, typeSign } from "./stacks.js";
 
 /** A member's column: its rows by phase running down from it, *<check> k in dev* at its far end; what changes in it moves as motion.js says. */
 function Column({ m, nodes, col, shown }) {
@@ -59,11 +59,11 @@ function SoloHead({ title, n }) {
 /** A Planning goal of the leader's, as a card: its element, what it is doing, its name, its words. */
 function PlanCard({ r }) {
   const open = () => (r.kind === "plan" ? showPlan(r.slug, "", { via: "map" }) : showIdea(r.slug, { via: "map" }));
-  const el = elementOf(r.node);
+  const el = elementOf(r.node), named = goalWords({ title: r.full, type: r.node?.type });
   return html`<div class="arena-stk"><button type="button" class=${cls("arena-task", { "is-stop": r.stop, "is-run": r.busy && !r.stop, "is-wait": !r.stop && !r.busy })} data-slug=${r.slug}
-    title=${`${r.full} · ${r.words}`} aria-label=${`${r.full}: ${r.words}`} onClick=${open}>
+    title=${`${named} · ${r.words}`} aria-label=${`${named}: ${r.words}`} onClick=${open}>
     <span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} /><span class="arena-task__mark">${r.mark && html`<${Sign} name=${r.mark} />`}</span></span>
-    <span class="arena-task__goal">Planning</span><span class="arena-task__name">${r.title}</span><span class="arena-task__foot">${r.words}</span></button></div>`;
+    <span class="arena-task__goal">${r.node?.type ? html`${typeSign(r.node)}${r.node.type.name}` : "Planning"}</span><span class="arena-task__name">${r.title}</span><span class="arena-task__foot">${r.words}</span></button></div>`;
 }
 
 function SoloLead({ m, planning }) {

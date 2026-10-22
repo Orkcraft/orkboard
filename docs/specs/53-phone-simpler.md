@@ -142,6 +142,14 @@ New goal or read its form: `test_pwa_goal_types_browser` (its strip and form tes
 A part that needs any other file: stop and write it in *As built* first.
 
 ## 9. As built (notes, no change of the contract)
+- **C (the desktop's cards):** `js/arena/stacks.js` gives a card's goal line its type's sign before the name (`typeSign`,
+  `.arena-task__type`, 14 × 14, muted ink; no sign for a goal with no type) and names the type after the goal in the card's
+  label and tooltip (`goalWords`: *Sign in with a passkey, Fix a bug*). `js/arena/field.js`'s Planning card says its goal's
+  type's sign and name in place of *Planning*. `js/arena/arena.css` adds `.arena-task__type`. The stops along the bottom
+  and the top bars are untouched. The desktop tests that read a card's goal line exactly (`test_arena_decks_desktop_browser`,
+  `test_arena_desktop_browser`, `test_map_desktop_browser`) pass as they are: the sign has no text. The new test is
+  `test_a_task_card_shows_its_goals_type_sign_before_its_name_and_a_planning_card_says_its_type` in
+  `tests/test_goal_types_desktop_browser.py` (the spec's *new* file for C; the test sits in the existing one, not a new file).
 
 ## 10. Running A, B and C
 Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass

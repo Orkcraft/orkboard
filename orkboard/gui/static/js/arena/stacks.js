@@ -15,6 +15,11 @@ import { elementOf } from "./goalwords.js";
 export const keyOf = (n, t) => `${n.slug}/${t.id}`;
 const MARKS = { work: "at work", cross: "failed", night: "tonight" };
 
+/** A goal's type's sign, before the goal's name on a card (docs/specs/53-phone-simpler.md §3); none for a goal with no type. */
+export const typeSign = (n) => (n?.type?.sign ? html`<span class="arena-task__type" title=${n.type.name}><${Sign} name=${n.type.sign} /></span>` : null);
+/** A goal's name in a card's label, its type after it (spec 53 §3): *Sign in with a passkey, Fix a bug*. */
+export const goalWords = (n) => (n.type?.name ? `${n.title}, ${n.type.name}` : n.title);
+
 /** What a task's hover says to a card: it is the one hovered (*src*, with what waits for it), one that waits for it (*after*) or one it waits for (*before*). */
 export function relationOf(n, t) {
   const hover = taskHover.value;
@@ -39,8 +44,8 @@ export const Foot = ({ parts }) => parts.map((p, i) => html`<span key=${i} class
 
 /** The tooltip of a card: its title and what it says of its state. */
 export function cardTip(n, t) {
-  const foot = taskFoot(t, n);
-  return t.state === "failed" ? `${t.title} · ${t.error || "failed"}` : t.state === "held" ? `${t.title} · ${foot}` : `${t.title} · wave ${t.wave}${t.after?.length ? ` · after ${t.after.join(", ")}` : ""}`;
+  const foot = taskFoot(t, n), head = `${t.title} (${goalWords(n)})`;
+  return t.state === "failed" ? `${head} · ${t.error || "failed"}` : t.state === "held" ? `${head} · ${foot}` : `${head} · wave ${t.wave}${t.after?.length ? ` · after ${t.after.join(", ")}` : ""}`;
 }
 
 /** What a press on a card opens: its result at Review, its pick while it asks, else the task. */
@@ -51,7 +56,7 @@ export function CardBody({ n, t, phase = "", foot, deps = [], many = 0 }) {
   const el = elementOf(n), mark = taskMark(t, n);
   return html`<span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} />${phase && html`<span class="arena-task__phase">${phase}</span>`}
       <span class="arena-task__mark" title=${MARKS[mark] || undefined}>${mark && html`<${Sign} name=${mark} />`}</span></span>
-    <span class="arena-task__goal">${n.short || n.title}</span>
+    <span class="arena-task__goal">${typeSign(n)}${n.short || n.title}</span>
     <span class="arena-task__name">${t.short || t.title}</span>
     ${deps.length > 0 && html`<span class="arena-task__deps">${deps.map((d, i) => html`<span key=${i}><${Sign} name=${d.sign} /> ${d.text}</span>`)}</span>`}
     <span class="arena-task__foot"><${Foot} parts=${foot} /></span>
@@ -79,7 +84,7 @@ function Stack({ goal, items, later, wide, member, row }) {
     if (live > 1) spread.value = { goal, member, row, keys: shown.filter((x) => !x.sign).map((x) => x.key), from: e.currentTarget.getBoundingClientRect() };
     else open(n, t);
   };
-  const said = `${t.title} (${n.title}): ${taskFoot(t, n)}, wave ${t.wave}${live > 1 ? `, and ${live - 1} more of this goal: a press shows them all` : ""}`;
+  const said = `${t.title} (${goalWords(n)}): ${taskFoot(t, n)}, wave ${t.wave}${live > 1 ? `, and ${live - 1} more of this goal: a press shows them all` : ""}`;
   return html`<div class=${cls("arena-stk", { "is-many": live > 1, "is-fail": t.state === "failed", "is-wide": wide })} data-goal=${goal} data-n=${live}>
     ${Array.from({ length: edges }, (_, i) => html`<i key=${i} class="arena-stk__edge" style=${`left:${(i + 1) * 4}px;top:${-(i + 1) * 4}px`}></i>`)}
     <button type="button" class=${cls("arena-task", { ...stateCls(n, t, rel, later), "is-drawn": front.fresh, "is-leaving": !!front.sign, "is-gone": front.quiet, "has-n": live > 1 })}
