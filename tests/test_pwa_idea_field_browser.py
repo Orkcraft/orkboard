@@ -47,7 +47,7 @@ async def _new_idea(stub, page):
 async def test_the_goal_s_words_complete_the_one_being_typed_and_a_tap_puts_it_in_with_a_space(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         sheet = await _new_idea(stub, page)
-        text = sheet.get_by_label("What it is for")
+        text = sheet.get_by_label("The goal", exact=True)
         words = sheet.locator(".idea-words")
         await text.press_sequentially("Make o")
         assert await words.is_hidden()                                                                  # one letter: nothing yet
@@ -56,7 +56,7 @@ async def test_the_goal_s_words_complete_the_one_being_typed_and_a_tap_puts_it_i
         assert await words.get_by_role("button").all_inner_texts() == ["Offline mode", "offline"]       # the titles first, case aside
         await words.get_by_role("button", name="Complete with Offline mode").click()
         assert await text.input_value() == "Make Offline mode "
-        assert await page.evaluate("document.activeElement.getAttribute('aria-label')") == "What it is for"   # the keyboard stays up
+        assert await page.evaluate("document.activeElement.getAttribute('aria-label')") == "The goal"   # the keyboard stays up
         assert await words.is_hidden()
         await text.press_sequentially("use sync")
         await words.get_by_role("button", name="Complete with sync_queue.py").click()
@@ -69,7 +69,7 @@ async def test_the_goal_s_words_complete_the_one_being_typed_and_a_tap_puts_it_i
 async def test_photo_attaches_a_shrunk_jpeg_that_goes_with_the_idea_and_one_can_be_removed(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         sheet = await _new_idea(stub, page)
-        await sheet.get_by_label("What it is for").fill("The login screen is cut off")
+        await sheet.get_by_label("The goal", exact=True).fill("The login screen is cut off")
         assert await sheet.get_by_role("button", name="Photo").is_visible()
         await sheet.get_by_label("Photos to attach").set_input_files([
             {"name": "a.png", "mimeType": "image/png", "buffer": _png()}, {"name": "b.png", "mimeType": "image/png", "buffer": _png(20, 20)}])
@@ -91,10 +91,10 @@ async def test_photo_attaches_a_shrunk_jpeg_that_goes_with_the_idea_and_one_can_
 async def test_speak_puts_the_words_heard_in_at_the_caret_and_stops(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch, init=SPEECH) as (stub, page):
         sheet = await _new_idea(stub, page)
-        text = sheet.get_by_label("What it is for")
+        text = sheet.get_by_label("The goal", exact=True)
         await text.fill("Please")
         speak = sheet.get_by_role("button", name="Speak the goal")
-        assert "keyboard’s microphone" not in await sheet.locator(".hint").inner_text()                 # Speak is here: no need to say it
+        assert await sheet.locator(".hint").is_hidden()                                                  # Speak is here: no need to say the keyboard's
         assert await speak.locator("use").get_attribute("href") == "icons/icons.svg#mic"                # the mic mark, in the field's corner
         mic, field = await speak.bounding_box(), await text.bounding_box()
         assert field["x"] + field["width"] - mic["x"] - mic["width"] < 4 and field["y"] + field["height"] - mic["y"] - mic["height"] < 4

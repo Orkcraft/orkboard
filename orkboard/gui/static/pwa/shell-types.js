@@ -1,16 +1,9 @@
-// The goal types on the phone (docs/specs/52-goal-types.md §4.1, §4.3, §5.5; decisions §65.4, §65.5): the party's leader deals what kind of goal a new one is. A tap on the create button's deck
-// lifts its top card and deals the party's types (the map's `types`, the most used first) as a strip over the scrim, above the button: the line *New goal for <party>*, cards 132 × 185 in a sideways
-// strip snapped to a card — the type's sign (28 px) top left, its name (the pixel face), its line (muted, three lines at most) and, when the party misses someone for it, *needs: <agent>* with that
-// agent's small head at its foot (muted ink: it is not a stop) —, the blank card last, *Put them back* (44 px). The scrim and Esc gather them; a tap on a card turns it over into the form (shell-fab.js).
-// Dealt as a spread (≈ 0.3 s, 35 ms apart, in steps); at once under reduced motion. A type is told by its sign, never by a colour. Also here: the join line of the form, one entry per kind the type
-// misses (two at most): a free seat (*<agent> joins the party*), a swap (*Swap: <member> leaves, <agent> joins*, *Who leaves*) or a full band (a muted line), each saying what happens without it.
-import { h, icon } from "./util.js";
-import { sign } from "./shell-marks.js";
+// The goal types on the phone (docs/specs/52-goal-types.md §4.3, spec 53 §2; decisions §65.4, §65.5): what the party's leader deals for a new goal is the types' row of the New goal form
+// (shell-ideas.js), not a strip over a deck (spec 53 drops spec 52 §5.5's strip). Here: the agents' heads and prices the join line speaks with, and the join line of the form, one entry per kind
+// the type misses (two at most): a free seat (*<agent> joins the party*), a swap (*Swap: <member> leaves, <agent> joins*, *Who leaves*) or a full band (a muted line), each saying what happens without it.
+import { h } from "./util.js";
 import { whoHead } from "./shell-who.js";
-import { motionOn } from "./shell-motion.js";
 
-const DEAL_MS = 300;                                 // each card's trip from the deck
-const STEP_MS = 35;                                  // one card after another
 const JOINS = 2;                                     // the join line's entries at most
 const BANDS = { build: "builders", check: "checkers" };
 const HINT = "at API prices, not your bill";
@@ -40,60 +33,6 @@ export function joinWords(m) {
 
 /** *<name> · <n> runs this week*: a member who could leave, as the select says it. */
 export const leaverWords = (o) => `${o.name} · ${o.runs} run${o.runs === 1 ? "" : "s"} this week`;
-
-/** A type's card face (132 × 185): its sign, its name, its line, *needs: <agent>* with the agent's small head. `t`: an entry of the map's `types`; null: the blank card. */
-export function typeCard(st, t) {
-  if (!t) return h("span", { class: "typecard__face is-blank" }, h("span", { class: "typecard__plus" }, icon("plus")), h("b", { class: "typecard__name" }, "A blank goal"));
-  const need = (t.missing || [])[0];
-  return h("span", { class: "typecard__face" }, h("span", { class: "typecard__sign" }, sign(t.sign, "", { big: true })), h("b", { class: "typecard__name" }, t.name),
-    h("span", { class: "typecard__line" }, t.line),
-    need ? h("span", { class: "typecard__needs" }, whoHead(agentHead(st, need.agent), true), ` needs: ${need.name}`) : null);
-}
-
-/** `core`: the board's frame (st). Returns {open(goal, origin, pick), close(animated), isOpen()}: `pick(type, rect)` runs on a card's tap (`type` null: the blank card). */
-export function makeTypes(core) {
-  const st = core.st;
-  let node = null, from = null;
-  const onKey = (e) => { if (e.key === "Escape" && node) { e.preventDefault(); close(); } };
-  const trip = (card) => {                           // where a card travels from: the deck's place, to its own
-    const r = card.getBoundingClientRect();
-    return from ? `translate(${Math.round(from.left + from.width / 2 - (r.left + r.width / 2))}px, ${Math.round(from.top + from.height / 2 - (r.top + r.height / 2))}px) scale(0.3)` : "scale(0.3)";
-  };
-
-  function close(animated = true) {
-    if (!node) return;
-    const gone = node;
-    node = null;
-    document.removeEventListener("keydown", onKey);
-    const cards = [...gone.querySelectorAll(".typecard")];
-    if (!animated || !motionOn() || document.visibilityState === "hidden") { gone.remove(); return; }
-    gone.classList.add("is-gathering");
-    cards.forEach((c, i) => c.animate([{ transform: "none", opacity: 1 }, { transform: trip(c), opacity: 0.4 }],
-      { duration: DEAL_MS, delay: (cards.length - 1 - i) * STEP_MS, easing: "steps(6)", fill: "forwards" }));
-    setTimeout(() => gone.remove(), DEAL_MS + cards.length * STEP_MS + 20);
-  }
-
-  /** Deals `goal`'s types (the map's goal) from `origin` (the deck's rect). */
-  function open(goal, origin, pick) {
-    close(false);
-    from = origin || null;
-    const card = (t) => h("button", { class: `typecard${t ? "" : " is-blank"}`, type: "button", "data-type": t ? t.id : "",
-      "aria-label": t ? `${t.name}: ${t.line}${t.missing?.length ? `. Needs ${t.missing[0].name}` : ""}` : "A blank goal",
-      onclick: (e) => { const r = e.currentTarget.getBoundingClientRect(); close(false); pick(t, r); } }, typeCard(st, t));
-    const row = h("div", { class: "typedeal__row" }, ...(goal.types || []).map(card), card(null));
-    const party = goal.short || goal.title;
-    node = h("div", { class: "typedeal", role: "dialog", "aria-modal": "true", "aria-label": `New goal for ${party}`, onclick: (e) => { if (e.target === node) close(); } },
-      h("div", { class: "typedeal__in" }, h("p", { class: "typedeal__cap" }, "New goal for ", h("b", {}, party)), row,
-        h("button", { class: "ork-btn", type: "button", "data-act": "put-back", onclick: () => close() }, "Put them back")));
-    document.body.append(node);
-    document.addEventListener("keydown", onKey);
-    if (motionOn() && document.visibilityState !== "hidden") [...row.children].forEach((c, i) => c.animate([{ transform: trip(c), opacity: 0.4 }, { transform: "none", opacity: 1 }],
-      { duration: DEAL_MS, delay: i * STEP_MS, easing: "steps(6)", fill: "backwards" }));
-    row.firstChild?.focus({ preventScroll: true });
-  }
-
-  return { open, close, isOpen: () => Boolean(node) };
-}
 
 /** The join line of New goal by its type. `core`: the board's frame (st). Returns {el, set(missing), value(), reset()}: `value()` is `ideas.add`'s `join` — the first entry ticked — or null. */
 export function makeJoin(core) {

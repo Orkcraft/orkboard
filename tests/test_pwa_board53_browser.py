@@ -156,6 +156,6 @@ async def test_a_tasks_card_wears_its_goals_type_before_its_name_a_planning_goal
             assert await spread.count() >= 1
 
 
-def test_the_service_worker_is_at_v60():
+def test_the_service_worker_is_at_v61_with_b_merged_over_a_v60():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v60";' in sw
+    assert 'const CACHE = "orkcraft-app-v61";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7)

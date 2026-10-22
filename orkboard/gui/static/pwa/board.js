@@ -61,8 +61,8 @@ export function makeBoard(ctx) {
     pick(slug) { boardTab.pick(slug); },
     pickOps() { boardTab.pickOps(); },
     editTeam(g) { boardTab.editTeam(g); },
-    /** New goal for the party shown; `type`: one of its goal types (spec 52 §5.5), none for a blank one. */
-    newIdea(type = null) { boardTab.openNew(st.track, type); },
+    /** New goal, the party shown first (spec 53 §2); the form picks its goal type. */
+    newIdea() { boardTab.openNew(st.track); },
     /** Edit the party of a goal: the goal as `ideas.goal` sends it, in the team's sheet. */
     async editParty(slug) { const got = await core.call("ideas.goal", { slug }); if (got) core.editTeam(got); },
     openInto() { review.openInto(); },

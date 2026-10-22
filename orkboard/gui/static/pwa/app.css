@@ -827,15 +827,38 @@ dialog.sheet.top { margin: 0 0 auto; border-top: 0; border-bottom: var(--ork-dou
 .party-about__acts { display: flex; align-items: center; gap: var(--ork-4); margin-top: var(--ork-5); flex-wrap: wrap; }
 .party-about__acts .party-save { flex: 1 1 auto; }
 
-/* New goal: the full-screen form, and the blank card that turns over to it (shell-ideas.js, shell-dial.js; spec 50 §6.7) */
+/* New goal: the full-screen form that slides up (shell-ideas.js; spec 53 §2) */
 dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0; }
 .sheet.full .sheet-in { min-height: 100%; }
-.sheet.full .sheet-foot { flex-direction: column-reverse; }
-.newgoal__head { display: flex; flex-direction: column; gap: var(--ork-1); }
-.newgoal__for { margin: 0; }
-.newgoal__el { display: flex; align-items: center; gap: var(--ork-4); }
-.newgoal__kind { display: inline-flex; align-items: center; gap: var(--ork-4); font: 500 16px/20px var(--ork-font-pixel); }
-.newgoal__party b { font-weight: 600; }
+.sheet.newgoal .sheet-in { gap: var(--ork-4); }
+.sheet.newgoal .sheet-foot { margin-top: auto; }
+.newgoal__party { appearance: none; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-4); width: 100%; min-height: 52px; padding: var(--ork-2) var(--ork-4); text-align: left;
+  background: var(--ork-raised); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
+.newgoal__party:focus-visible, .newgoal__opt:focus-visible, .newgoal__chip:focus-visible, .newgoal__newparty:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.newgoal__head { flex: none; display: inline-flex; width: 24px; height: 22px; }
+.newgoal__who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.newgoal__name { font: 600 13px/18px var(--ork-font-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newgoal__line { font: 400 11px/15px var(--ork-font-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newgoal__party .ork-chev { margin: 0; flex: none; }
+.newgoal__menu { display: flex; flex-direction: column; margin-top: calc(-1 * var(--ork-3)); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-panel); }
+.newgoal__parties { display: flex; flex-direction: column; }
+.newgoal__opt, .newgoal__newparty { appearance: none; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-4); width: 100%; min-height: var(--ork-tap); padding: var(--ork-2) var(--ork-4);
+  text-align: left; background: none; color: var(--ork-ink); border: 0; border-top: var(--ork-line) solid var(--ork-frame); font: inherit; cursor: pointer; }
+.newgoal__parties .newgoal__opt:first-child { border-top: 0; }
+.newgoal__opt.is-on { background: var(--ork-raised); }
+.newgoal__newparty { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; }
+.newgoal__newparty b { font: 600 13px/18px var(--ork-font-text); }
+.newgoal__newparty span { font: 400 11px/15px var(--ork-font-text); }
+.newgoal__low { margin: 0; font: 400 11px/15px var(--ork-font-text); }
+.newgoal__types { display: flex; gap: var(--ork-3); margin: 0 calc(-1 * var(--ork-6)); padding: 0 var(--ork-6); overflow-x: auto; scrollbar-width: none; }
+.newgoal__types::-webkit-scrollbar { display: none; }
+.newgoal__chip { appearance: none; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--ork-3); min-height: var(--ork-tap); padding: 0 var(--ork-4);
+  background: none; color: var(--ork-ink-muted); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: 500 13px/16px var(--ork-font-pixel); cursor: pointer; }
+.newgoal__chip[aria-checked="true"] { color: var(--ork-ink); background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.newgoal__chip.is-blank { border-style: dashed; }
+.newgoal__typeline { margin: 0; font: 400 11px/15px var(--ork-font-text); }
+.newgoal__goallabel { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ork-4); }
+.newgoal__goallabel small { font: 400 11px/15px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
 .newgoal__asks, .newgoal__refs { display: flex; flex-direction: column; gap: var(--ork-4); }
 .newgoal__asks[hidden], .newgoal__refs[hidden], .joins[hidden] { display: none; }
 /* the join line (spec 52 §4.3): who joins, or who swaps, and what happens without it */
@@ -845,30 +868,6 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 .joinline__tick input { width: 22px; height: 22px; margin: 0; accent-color: var(--ork-ink); }
 .joinline__who select { min-height: var(--ork-tap); }
 .joinline.is-full, .joinline__without { margin: 0; font: 400 13px/18px var(--ork-font-text); }
-/* the party's goal types dealt from the create button (spec 52 §5.5): a strip over the scrim, above the button, cards 132 x 185 snapped to a card */
-.typedeal { position: fixed; inset: 0; z-index: 60; background: var(--ork-scrim); }
-.typedeal__in { position: absolute; left: 0; right: 0; bottom: calc(var(--tabs) + 84px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: var(--ork-5); }
-.typedeal__cap { margin: 0; padding: var(--ork-2) var(--ork-5); background: var(--ork-canvas); font: 400 13px/18px var(--ork-font-text); color: var(--ork-ink-muted); }
-.typedeal__cap b { color: var(--ork-ink); font-weight: 600; }
-.typedeal__row { display: flex; gap: var(--ork-5); width: 100%; padding: 0 var(--ork-6); box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 var(--ork-6); scrollbar-width: none; }
-.typedeal__row::-webkit-scrollbar { display: none; }
-.typedeal .ork-btn { min-height: var(--ork-tap); background: var(--ork-canvas); }
-.typecard { all: unset; box-sizing: border-box; cursor: pointer; flex: none; width: 132px; height: 185px; scroll-snap-align: start; }
-.typecard:focus-visible .typecard__face { box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.typecard__face { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; gap: var(--ork-2); padding: var(--ork-4); background: var(--ork-panel);
-  border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); }
-.typecard__name { font: 500 14px/17px var(--ork-font-pixel); }
-.typecard__line { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.typecard__needs { margin-top: auto; display: flex; align-items: center; gap: var(--ork-2); font: 400 11px/14px var(--ork-font-text); color: var(--ork-ink-muted); }
-.typecard__face.is-blank { align-items: center; justify-content: center; border-style: dashed; background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
-.typecard__plus { color: var(--ork-action); }
-.typecard__plus .ork-icon { width: 28px; height: 28px; }
-.drawlayer { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: var(--ork-scrim); perspective: 600px; }
-.drawcard { position: relative; width: 150px; height: 210px; transform-style: preserve-3d; }
-.drawcard__back, .drawcard__face { position: absolute; inset: 0; box-sizing: border-box; display: flex; align-items: center; justify-content: center; backface-visibility: hidden; clip-path: var(--ork-notch); }
-.drawcard__back { border: 2px solid var(--ork-action); color: var(--ork-action); background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
-.drawcard__back .ork-icon { width: 40px; height: 40px; }
-.drawcard__face { border: var(--ork-double) double var(--ork-edge); background: var(--ork-panel); transform: rotateY(180deg); }
 
 /* Today and the tools, the two sheets of the top bar */
 .today-list { display: flex; flex-direction: column; gap: var(--ork-3); }
