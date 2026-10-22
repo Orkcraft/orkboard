@@ -39,10 +39,10 @@ green nor the alert or danger hue, each 3:1 on panel and raised); `.dim` draws i
 No size between 14 and 28: whole pixels. The element is shown on a card, never named in the interface.
 
 ## The signs
-`signs/` holds the twenty-four signs of orkBoard's window (spec 50 §1.6, spec 51 §1, spec 52 §1): check (done), cross (failed), work (at work), night
+`signs/` holds the twenty-nine signs of orkBoard's window (spec 50 §1.6, spec 51 §1, spec 52 §1, spec 56): check (done), cross (failed), work (at work), night
 (held for tonight, a clock), alert (a stop that asks), flag (a goal in main), before (what a task waits for), after (what waits for it),
 and the media signs play and pause (a sound's or a clip's control), sound (a sound's tile), film (a clip's tile) and text (a text's tile),
-and a goal type's mark: feature, bug, tidy, screen, picture, logo, target, flask, horn, chart, page,
+and a goal type's mark, each type its own: feature, bug, tidy, restructure, screen, picture, logo, target, flask, horn, chart, page, abtest, landing, post, tagline,
 each a 7 x 7 grid of unit squares (`signs/README.md`). `<span class="ork-sign check" aria-hidden="true"></span>` draws one at 14 x 14, `.ork-sign.big`
 at 28 x 28, as a mask in `currentColor`: the colour of the text it stands in (ink, muted, success, danger or alert; a sign adds no colour
 of its own). `vertical-align: -3px` sets it on the baseline of a 16 px line. No size between 14 and 28: whole pixels. A sign stands beside

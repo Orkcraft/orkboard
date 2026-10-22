@@ -1,0 +1,258 @@
+[
+ {
+  "name": "wand",
+  "meaning": "a wand: a new spell people can cast",
+  "tags": [
+   "wand",
+   "feature"
+  ],
+  "sign": "feature"
+ },
+ {
+  "name": "beetle",
+  "meaning": "a beetle: something that goes wrong in the work",
+  "tags": [
+   "beetle",
+   "bug"
+  ],
+  "sign": "bug"
+ },
+ {
+  "name": "broom",
+  "meaning": "a broom: sweeping the same code clean",
+  "tags": [
+   "broom",
+   "tidy"
+  ],
+  "sign": "tidy"
+ },
+ {
+  "name": "anvil",
+  "meaning": "an anvil: the work beaten into a new shape",
+  "tags": [
+   "anvil",
+   "restructure"
+  ],
+  "sign": "restructure"
+ },
+ {
+  "name": "mirror",
+  "meaning": "a mirror on its stand: a screen to look into",
+  "tags": [
+   "mirror",
+   "stand",
+   "screen"
+  ],
+  "sign": "screen"
+ },
+ {
+  "name": "gem",
+  "meaning": "a cut gem: a picture set in a frame of its own",
+  "tags": [
+   "cut",
+   "gem",
+   "icon"
+  ],
+  "sign": "picture"
+ },
+ {
+  "name": "seal",
+  "meaning": "a wax seal: the product's own mark",
+  "tags": [
+   "wax",
+   "seal",
+   "logo"
+  ],
+  "sign": "logo"
+ },
+ {
+  "name": "arrow",
+  "meaning": "an arrow: a hit that hurts",
+  "tags": [
+   "arrow",
+   "pain"
+  ],
+  "sign": "target"
+ },
+ {
+  "name": "beaker",
+  "meaning": "a beaker: a test run in glass",
+  "tags": [
+   "beaker",
+   "experiment"
+  ],
+  "sign": "flask"
+ },
+ {
+  "name": "bell",
+  "meaning": "a bell: rung when it is out",
+  "tags": [
+   "bell",
+   "launch"
+  ],
+  "sign": "horn"
+ },
+ {
+  "name": "menhirs",
+  "meaning": "standing stones, each taller: a number that grows",
+  "tags": [
+   "standing",
+   "stones",
+   "each",
+   "taller",
+   "metric"
+  ],
+  "sign": "chart"
+ },
+ {
+  "name": "scroll",
+  "meaning": "a scroll: the report written out",
+  "tags": [
+   "scroll",
+   "report"
+  ],
+  "sign": "page"
+ },
+ {
+  "name": "fork",
+  "meaning": "a fork in the road: two paths, one taken",
+  "tags": [
+   "fork",
+   "in",
+   "road",
+   "abtest"
+  ],
+  "sign": "abtest"
+ },
+ {
+  "name": "signpost",
+  "meaning": "a signpost: the way in",
+  "tags": [
+   "signpost",
+   "landing"
+  ],
+  "sign": "landing"
+ },
+ {
+  "name": "letter",
+  "meaning": "a letter: a message sent out",
+  "tags": [
+   "letter",
+   "post"
+  ],
+  "sign": "post"
+ },
+ {
+  "name": "quill",
+  "meaning": "a quill: one line written",
+  "tags": [
+   "quill",
+   "tagline"
+  ],
+  "sign": "tagline"
+ },
+ {
+  "name": "chalice",
+  "meaning": "a chalice: the mark of the camp",
+  "tags": [
+   "chalice",
+   "logo"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "hut",
+  "meaning": "a hut: the place a visitor comes to first",
+  "tags": [
+   "hut",
+   "landing"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "tome",
+  "meaning": "a tome: the numbers bound in a book",
+  "tags": [
+   "tome",
+   "report"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "ring",
+  "meaning": "a ring with a stone: an icon for a person's mark",
+  "tags": [
+   "ring",
+   "stone",
+   "icon"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "scarab",
+  "meaning": "a scarab: a shelled bug, a fault that hides",
+  "tags": [
+   "scarab",
+   "bug"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "hammer",
+  "meaning": "a hammer: parts knocked into new places",
+  "tags": [
+   "hammer",
+   "restructure"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "key",
+  "meaning": "a key: a thing unlocked",
+  "tags": [
+   "key"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "chest",
+  "meaning": "a chest: something kept",
+  "tags": [
+   "chest"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "shield",
+  "meaning": "a shield: protection",
+  "tags": [
+   "shield"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "torch",
+  "meaning": "a torch: a light carried",
+  "tags": [
+   "torch"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "crown",
+  "meaning": "a crown: a rank",
+  "tags": [
+   "crown"
+  ],
+  "sign": ""
+ },
+ {
+  "name": "cairn",
+  "meaning": "a cairn: stones counted into a pile",
+  "tags": [
+   "cairn",
+   "metric"
+  ],
+  "sign": ""
+ }
+]

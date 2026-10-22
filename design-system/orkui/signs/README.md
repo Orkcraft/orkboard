@@ -1,6 +1,6 @@
 # orkUI / office / signs
 
-The twenty-four signs: **every symbol a face draws is orkUI's** (orkBoard's spec 50 §1.6, spec 51 §1 and spec 52 §1, decisions §63.10). A sign stands beside the
+The twenty-nine signs: **every symbol a face draws is orkUI's** (orkBoard's spec 50 §1.6, spec 51 §1 and spec 52 §1 and spec 56 §6, decisions §63.10 and §69). A sign stands beside the
 words it explains (a state, a stop, an order), in the colour of that text; it is never the only thing that says it, so the words
 (or a `title`) stay and the sign is `aria-hidden`.
 
@@ -12,16 +12,27 @@ words it explains (a state, a stop, an order), in the colour of that text; it is
     sound   a sound's tile (a loudspeaker)           film    a clip's tile (a film strip)
     text    a text's tile (lines of text)
 
-A goal type's mark (spec 52 §1, decisions §65.4: a type is told by its sign, never by a colour):
+A goal type's mark (spec 52 §1 and spec 56, decisions §65.4 and §69: a type is told by its sign, never by a colour; every type has its own sign, a thing of the realm,
+never a being; the thing drawn in brackets):
 
-    feature  a new thing people can do (a star)          bug      a thing that goes wrong (a bug)
-    tidy     the same behaviour in simpler code (a broom) screen  a screen (a display on its stand)
-    picture  a picture or an icon (a framed picture)     logo     a mark (an emblem)
-    target   a pain of someone's (a target)              flask    an experiment (a flask)
-    horn     a launch or a post (a horn)                 chart    a number (bars)
-    page     a page or a report (a page, its corner folded)
+    feature      a new thing people can do (a wand)
+    bug          a thing that goes wrong (a beetle)
+    tidy         the same behaviour in simpler code (a broom)
+    restructure  modules split or moved (an anvil)
+    screen       a screen (a mirror)
+    picture      a picture or an icon (a gem)
+    logo         a mark for the product (a seal)
+    target       a pain of someone's (an arrow)
+    flask        an experiment (a beaker)
+    horn         a launch (a bell)
+    chart        a number (standing stones)
+    page         a report (a scroll)
+    abtest       two versions, one decided by a number (a fork)
+    landing      a page that says the product (a signpost)
+    post         a post for one channel (a letter)
+    tagline      one line that says the product (a quill)
 
-A tagline's type uses *text*.
+The sixteen pictures are also in `../emblems/` (the library), with twelve more that no face draws.
 
 *night* is a clock: a crescent is the *void* element (`../elements/`), so a moon would say two things. The close (×), the plus (+)
 and the chevrons (›, ⌄) are not here: they are orkUI's icons already (`../icons/icons.svg`).
@@ -38,4 +49,4 @@ file's black is only the shape. `vertical-align: -3px` sets the 14 px box on the
 
 A sign takes the signal colour of its text (success, danger, alert) or the muted ink, never a colour of its own: colour is a
 signal, and the sign does not add one. A shape is changed here, in the table of `tests/test_orkui.py` and in orkBoard's spec 50
-§1.6 (spec 51 §1 for the media signs, spec 52 §1 for the goal types') together, never in a face.
+§1.6 (spec 51 §1 for the media signs, spec 52 §1 and spec 56 §6 for the goal types') together, never in a face.
