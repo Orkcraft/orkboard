@@ -157,7 +157,7 @@ async def test_the_create_button_is_a_face_down_deck_that_opens_new_goal_and_not
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         fab = page.locator(FAB)
         await fab.wait_for(timeout=WAIT_MS)
-        assert await fab.get_attribute("aria-label") == "New goal: draw a blank one"
+        assert await fab.get_attribute("aria-label") == "New goal: pick its type, or a blank one"
         box = await fab.bounding_box()
         assert round(box["width"]) == 48 and round(box["height"]) == 64                               # a small deck: 48 × 64
         assert await fab.locator(".deckfab__edge").count() == 2 and await fab.locator(".deckfab__back .ork-icon").count() == 1     # two edges behind, a back with the plus mark
@@ -190,7 +190,7 @@ async def test_a_pushs_needs_arrival_shows_the_goal_of_the_first_stop_and_pops_i
     async with _phone(fake_repo, monkeypatch, extra="&needs&from=push-needs") as (stub, page):
         raised = page.locator(".raised")
         await raised.wait_for(timeout=WAIT_MS)
-        assert await page.locator(".board-bar .where").get_attribute("data-goal") == "passkey"          # the party of the first stop is shown
+        assert await page.locator(".partydeck").get_attribute("data-goal") == "passkey"                  # the party of the first stop is shown
         assert await raised.get_attribute("data-kind") == "plan"                                       # the first stop, in the host's order
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "push", "ref": "needs", "device": "phone"})
         assert "from=push" not in page.url

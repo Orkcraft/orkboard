@@ -56,7 +56,7 @@ async def test_the_drawer_sets_the_target_autostart_and_the_night_and_the_board_
 
 
 @pytest.mark.asyncio
-async def test_the_board_shows_one_party_s_goals_its_goals_bar_and_the_where_button_counts_every_party_s_stops(fake_repo, monkeypatch):
+async def test_the_board_shows_one_party_s_goals_its_goals_bar_and_the_parties_sheet_counts_every_party_s_stops(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _two_goals(stub)
         stub.extra_needs = [{"kind": "proposal", "idea": "p1", "goal": "docs", "title": "A docs page", "text": "Why: it helps", "priority": "low", "blocks": False, "at": ""}]
@@ -67,9 +67,8 @@ async def test_the_board_shows_one_party_s_goals_its_goals_bar_and_the_where_but
         await _band(page, "lead")
         await _item(page, "Offline mode").wait_for(timeout=WAIT_MS)
         assert await page.locator(".stack .deck", has_text="Write the guide").count() == 0              # another party's goal is not here
-        where = page.locator(".board-bar .where")
-        assert await where.locator(".where__party").inner_text() == "Ship v1"
-        assert " ".join((await page.locator(".gbar__head").inner_text()).split()) == "Goals · 1 of 2 done"       # how far: the party's done goals of all its goals, no %
+        where = page.locator(".partydeck")
+        assert " ".join((await page.locator(".gbar__head").inner_text()).split()) == "Ship v1 · 1 of 2 goals done"       # the party, how far: its done goals of all its goals, no %
         sheet = await _where(page)                                                                       # a docs proposal, though Ship v1 is shown: its row counts it
         assert await sheet.locator('.where-row[data-goal="docs"] .ork-count.warning').inner_text() == "1"
         await page.keyboard.press("Escape")
@@ -242,7 +241,7 @@ async def test_agents_chips_say_by_itself_tonight_and_why_a_task_is_held(fake_re
 
 
 @pytest.mark.asyncio
-async def test_the_top_bar_has_the_menu_and_the_where_button_and_slides_away_as_the_page_scrolls_and_its_sheet_says_each_party(fake_repo, monkeypatch):
+async def test_the_top_bar_has_the_menu_and_the_project_button_and_slides_away_as_the_page_scrolls_and_its_sheet_says_each_party(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _two_goals(stub)
         stub.goals["ship"].update(craft="design", race="elf", short="Ship")
@@ -257,7 +256,7 @@ async def test_the_top_bar_has_the_menu_and_the_where_button_and_slides_away_as_
         await page.keyboard.press("Escape")
         await _pick_goal(page, "ship")
         await _band(page, "lead")
-        assert await page.locator(".board-bar .where__party").inner_text() == "Ship" and "Ship v1" not in await page.locator(".board-bar .where").inner_text()   # its short name
+        assert " ".join((await page.locator(".gbar__head").inner_text()).split()).startswith("Ship ·") and "Ship v1" not in await page.locator(".gbar__head").inner_text()   # its short name
         assert "Ship v1" in await (await _where(page)).locator('.where-row[data-goal="ship"]').get_attribute("aria-label")                                # the sheet says its name
         await page.keyboard.press("Escape")
         assert await bar.get_by_role("button", name="Menu").is_visible() and await bar.locator(".goal-chip, .project-chip, .needs-chip, .gear").count() == 0

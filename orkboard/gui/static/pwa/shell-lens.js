@@ -2,7 +2,7 @@
 // enough alone —, what to point at in the way of the goal's party. A row of lenses, the ones the party has: Text; Code (an
 // engineer's: the repository's parts, what each uses and what uses it, and a note of what to change); Screen (a designer's:
 // shell-lens-screen.js); Pain (a product manager's: whom it is for and what hurts them, the project's own kept a tap away).
-// The leader's lens is open first. What each lens holds goes with the idea; switching lenses loses nothing.
+// The leader's lens is open first; a goal by its type opens the type's lens first when the party has it (spec 52 §5.6). What each lens holds goes with the idea; switching lenses loses nothing.
 import { h } from "./util.js";
 import { makeScreenLens } from "./shell-lens-screen.js";
 
@@ -14,6 +14,7 @@ export function makeLens(core, ctx) {
   let lenses = [{ id: "text" }];
   let on = "text";
   let of = "";
+  let prefer = "";                     // the goal type's lens, open first when the party has it
   let segments = [];
   const bar = h("div", { class: "lens-bar", role: "radiogroup", "aria-label": "Lens", hidden: true });
 
@@ -92,8 +93,9 @@ export function makeLens(core, ctx) {
   for (const [k, p] of Object.entries(panes)) p.hidden = k !== "text";
   return {
     el,
-    /** The goal's lenses: read once per goal while the sheet is open; its leader's lens is shown. */
-    async track(slug) {
+    /** The goal's lenses: read once per goal while the sheet is open; its leader's lens is shown, or `first` (a goal type's) when the party has it. */
+    async track(slug, first = "") {
+      prefer = first || "";
       if (!slug || slug === of) return;
       of = slug;
       const got = await core.call("ideas.lens", { track: slug });
@@ -103,7 +105,8 @@ export function makeLens(core, ctx) {
       screen.load(got.screens);
       drawBar();
       drawPain();
-      await show(lenses.some((l) => l.id === on) && on !== "text" ? on : got.default);
+      const has = (id) => lenses.some((l) => l.id === id);
+      await show(prefer && has(prefer) ? prefer : has(on) && on !== "text" ? on : got.default);
     },
     /** What `ideas.add` takes in `lens`: each lens's own, of the lenses the goal's party has. */
     value() {
@@ -115,7 +118,7 @@ export function makeLens(core, ctx) {
       return out;
     },
     reset() {
-      of = ""; on = "text"; picked = []; segment.value = ""; pain.value = ""; note.value = ""; filter.value = "";
+      of = ""; on = "text"; prefer = ""; picked = []; segment.value = ""; pain.value = ""; note.value = ""; filter.value = "";
       screen.reset();
       for (const [k, p] of Object.entries(panes)) p.hidden = k !== "text";
     },

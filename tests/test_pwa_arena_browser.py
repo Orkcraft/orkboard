@@ -1,9 +1,9 @@
 """Spec 49 part C, the phone (docs/specs/49-one-window.md §10, §11, "Tests → C"; spec 50 §6): Chromium at 390 × 844 against the stub of test_pwa_shell_browser.py with
 a Board of one party, *Sign in with a passkey*, as the mockup draws it: a leader, two builders and two checkers, goals in each stage, a plan, a
-question, a proposal and a failure waiting, two results to look at, two goals done and one of them flagged. No tab bar; the top bar's *where* button and the limits' sheet, Today in the menu; the goals bar with the gate at its right
+question, a proposal and a failure waiting, two results to look at, two goals done and one of them flagged. No tab bar; the top bar's project button and the limits' sheet, Today in the menu; the goals bar with the gate at its right
 (two rows under the top bar: it and the stage switch); the stage switch; the members' cards and their marks; a member's solo; the stops along the bottom, popped out with their quick answers; `#needs`;
 44 px targets. The members stand under the stage switch and their tasks run down toward the bottom row in rows by phase (the top row lit); the fan lies across the width; the create
-button floats over the field. The where sheet, the goals bar's sheet, the stacks, the spread, the create button's deck and the flag line are tests/test_pwa_decks_browser.py's."""
+button floats over the field. The parties' sheet, the goals bar's sheet, the stacks, the spread, the create button's deck and the flag line are tests/test_pwa_decks_browser.py's."""
 from __future__ import annotations
 
 import copy
@@ -223,7 +223,7 @@ async def test_the_window_is_one_screen_with_no_tab_bar(fake_repo, monkeypatch):
         assert await page.locator(".tabs, .tab-bar, nav.tabs").count() == 0
         assert [await t.get_attribute("aria-label") for t in await page.get_by_role("tab").all()][0].startswith("Planning")      # the only tabs are the stage switch's
         bar = page.locator(".board-bar")
-        assert await bar.get_by_role("button", name="Menu").is_visible() and await bar.locator(".where").is_visible() and await bar.locator(".limit-chip").is_visible()
+        assert await bar.get_by_role("button", name="Menu").is_visible() and await bar.locator(".projbtn").is_visible() and await bar.locator(".limit-chip").is_visible()
         assert await bar.locator(".today, .bar-btn.today").count() == 0                                          # Today is the menu's
         assert (await bar.bounding_box())["height"] <= 50 and await page.evaluate(NO_SCROLL)                  # one line, no band above it
         await page.wait_for_timeout(600)
@@ -274,29 +274,24 @@ async def test_today_is_the_menus_item_with_its_count_and_lists_the_partys_day_n
 
 
 @pytest.mark.asyncio
-async def test_the_where_button_says_the_party_and_what_waits_the_goals_bar_has_the_gate_and_the_header_is_two_rows(fake_repo, monkeypatch):
+async def test_the_project_button_says_the_project_the_goals_bar_the_party_and_has_the_gate_and_the_header_is_two_rows(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        where = page.locator(".board-bar .where")
+        where = page.locator(".board-bar .projbtn")
         await where.wait_for(timeout=WAIT_MS)
         await page.locator(".gbar").wait_for(timeout=WAIT_MS)
-        assert await where.get_attribute("data-goal") == "passkey" and await where.locator(".where__stops").inner_text() == "4"            # the stops that wait: a plan, a question, a proposal, a failure
-        assert await where.locator(".where__other").is_hidden()                                       # no other party: nothing counted after the ⌄
+        assert await page.locator(".partydeck").get_attribute("data-goal") == "passkey" and await page.locator(".board-bar .ork-count").count() == 0      # no count in the top bar (spec 52 §5.8)
         label = await where.get_attribute("aria-label")
-        assert label.startswith("Project project, party Passkey, 4 stops wait for you here") and "%" not in label + await where.inner_text()      # a party has no end: no %
-        assert [await where.locator(c).inner_text() for c in (".where__project", ".where__party")] == ["project", "Passkey"]
-        assert [await where.locator(c).evaluate("e => getComputedStyle(e).fontSize + ' ' + getComputedStyle(e).fontWeight") for c in (".where__project", ".where__party")] == ["12px 400", "12px 600"]
-        assert await where.locator(".ork-chev.right").count() == 1 and await where.locator(".ork-chev:not(.right)").count() == 1          # harbor › … ⌄
-        head = where.locator("img.ork-race__head")
-        assert await head.get_attribute("src") == "races/peon-elder.png" and [round((await head.bounding_box())[k]) for k in ("width", "height")] == [20, 18]     # its leader's head, 20 px
-        assert await where.locator(".where__party").evaluate("e => e.scrollWidth <= e.clientWidth") and (await where.bounding_box())["height"] >= 44        # the name is not cut at 390 px
+        assert label == "Project project. A tap shows your projects" and "%" not in label + await where.inner_text()      # a party has no end: no %
+        assert await where.inner_text() == "project" and await where.locator(".projbtn__name").evaluate("e => getComputedStyle(e).fontSize") == "12px"
+        assert await where.locator(".ork-chev").count() == 1 and (await where.bounding_box())["height"] >= 44                       # harbor ⌄
         bar, menu, limits = [await page.locator(s).bounding_box() for s in (".board-bar", ".board-bar .menu", ".board-bar .limit-chip")]
         wb = await where.bounding_box()
         assert wb["x"] >= menu["x"] + menu["width"] and wb["x"] + wb["width"] <= limits["x"] + 1 and await page.evaluate(NO_SCROLL)       # it fits beside the menu and the limits
-        assert await page.locator(".gchips, .gchip, .ghead, .ibar, .pbar").count() == 0                # no chips row, no header, no party bar: the party is in the where button
+        assert await page.locator(".gchips, .gchip, .ghead, .ibar, .pbar").count() == 0                # no chips row, no header, no party bar: the goals bar says the party
         line = page.locator(".gbar")
-        assert " ".join((await line.locator(".gbar__head").inner_text()).split()) == "Goals · 2 of 9 done" and "%" not in await line.inner_text()    # the count of the party's done goals
+        assert " ".join((await line.locator(".gbar__head").inner_text()).split()) == "Passkey · 2 of 9 goals done" and "%" not in await line.inner_text()    # the party and its done goals
         assert (await line.bounding_box())["height"] == 44 and await line.locator(".gbar__quiet").evaluate("e => getComputedStyle(e).fontSize") == "12px"       # one quiet line, 44 px
-        first, second = await line.bounding_box(), await page.locator(".bands").bounding_box()
+        first, second = await line.bounding_box(), await page.locator(".stagebar").bounding_box()
         assert round(first["y"]) == round(bar["y"] + bar["height"]) and round(second["y"]) == round(first["y"] + first["height"])           # two rows: the goals bar, the stage switch
         assert "k at work" not in await line.inner_text() and "ask you" not in await line.inner_text()    # the stage switch's counts say it
         gate = line.locator(".gbar__gate")
@@ -365,11 +360,10 @@ async def test_the_stage_switch_starts_on_the_first_stage_with_work_counts_the_s
         assert await page.locator('.band[data-band="build"]').get_attribute("aria-selected") == "true"     # a builder has an open task: Implementation first
         labels = [await b.get_attribute("aria-label") for b in await bands.all()]
         assert labels[0].startswith("Planning: ") and labels[1].startswith("Implementation: ") and labels[2].startswith("Checking: ")
-        assert await page.locator('.band[data-band="build"] .ork-count.warning').count() == 1               # the failure sits in Implementation
-        assert await page.locator('.band[data-band="lead"] .ork-count.warning').count() == 1               # the plan, the question and the proposal in Planning
-        assert await page.locator('.band[data-band="check"] .ork-count.warning').count() == 0
+        assert await page.locator('.band[data-band="build"] .band__sign .ork-sign.cross').count() == 1         # the failure sits in Implementation (spec 52 §5.3: a sign, no number)
+        assert await page.locator('.band[data-band="lead"] .band__sign .ork-sign.alert').count() == 1          # the plan and the proposal in Planning
+        assert await page.locator(".band .ork-count").count() == 0
         assert [await t.get_attribute("data-member") for t in await page.locator(".token").all()] == ["backend", "screens"]       # only the builders' columns
-        assert (await page.locator('.band[data-band="build"]').bounding_box())["width"] > (await page.locator('.band[data-band="lead"]').bounding_box())["width"]   # the wider
         for b in await bands.all():
             assert (await b.bounding_box())["height"] >= 44
         await _band(page, "lead")                                                                    # a press shows another stage's columns

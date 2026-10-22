@@ -116,15 +116,15 @@ async def test_a_party_s_window_has_its_goals_bar_its_members_in_the_stages_and_
         stub.gate.update(commits=1, files=1, ideas=[{"slug": "old", "title": "Old cleanup", "goal": "ship", "tasks": 1}])           # in dev, not in main yet
         stub.bump({})
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "map", "device": "phone"})
-        where = page.locator(".board-bar .where")
+        where = page.locator(".partydeck")
         assert await where.get_attribute("data-goal") == "ship"
         sheet = await _where(page)                                                                   # two parties and Operations
         assert await sheet.locator(".where-row").count() == 3 and await sheet.locator('.where-row[data-goal="ship"]').get_attribute("aria-current") == "true"
         assert await sheet.locator('.where-row[data-goal="ship"]').get_attribute("aria-label") == "Ship v1, 2/5 done, at work"      # the count of done goals, no %
         await page.keyboard.press("Escape")
-        assert " ".join((await page.locator(".gbar__head").inner_text()).split()) == "Goals · 2 of 5 done"
+        assert " ".join((await page.locator(".gbar__head").inner_text()).split()) == "Ship v1 · 2 of 5 goals done"
         # the party, stage by stage: the leader in Planning (it holds the plan), the builders, the checker (a member of its own, free)
-        assert [await b.get_attribute("aria-label") for b in await page.locator(".band").all()] == ["Planning: 2, 1 waits for you", "Implementation: 3", "Checking: 0"]
+        assert [await b.get_attribute("aria-label") for b in await page.locator(".band").all()] == ["Planning: the Taskmaster. 1 waits for you", "Implementation: Grunts, Product designer", "Checking: Reviewer"]
         await _band(page, "lead")
         assert [" ".join((await t.get_attribute("aria-label")).split(", ")[:1] + [(await t.get_attribute("aria-label")).split(", ")[3]]) for t in await page.locator(".token").all()] == ["Taskmaster plan ready"]
         assert await page.locator('.token[data-member="taskmaster"] .sign.alert .ork-sign.alert').count() == 1       # ! on the alert ground: orkUI's sign
@@ -135,7 +135,7 @@ async def test_a_party_s_window_has_its_goals_bar_its_members_in_the_stages_and_
         assert "free" in await page.locator('.token[data-member="reviewer"]').get_attribute("aria-label")
         await page.locator(".gbar__gate").wait_for(timeout=WAIT_MS * 2)                              # (the gate was read again, the bar drawn with it)
         await page.wait_for_timeout(700)
-        for sel in (".board-bar .where", ".gbar__head", ".band", ".gbar__gate"):
+        for sel in (".board-bar .projbtn", ".partydeck", ".gbar__head", ".band", ".gbar__gate"):
             assert min([(await b.bounding_box() or {"height": 0})["height"] for b in await page.locator(sel).all()]) >= 43       # a finger's size
         # the Goals sheet: the goals at work, one shown at a time
         await page.locator(".gbar__head").click()
