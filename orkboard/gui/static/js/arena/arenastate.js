@@ -13,6 +13,25 @@ export const flagsOpen = signal(false);    // its Flags (n) fold
 export const flagsAll = signal(false);     // ... listed in full (All n), not the newest ten
 export const spread = signal(null);        // the stack spread over the field: {goal, member, row, keys, from} (§3.6), null with none
 export const narrow = signal(false);       // below 1 024 px (spec 49 §3)
+export const stopLook = signal("");        // the key of the stop in the hand that is looked at (raised: pointer over it, focus in it), "" with none (spec 58 §2.1)
+export const stopAbout = signal(null);     // what that stop is about: {task: "<goal>/<task>"} or {idea: "<goal>"}, null for one that is about nothing on this field (spec 58 §1)
+export const deal = signal(null);          // the deal waiting (spec 57 §1.2): {goal, from: the stop's box at the press, at: when}, one at a time, null with none
+
+export const DEAL_KEEP_MS = 6000;
+let dealTimer = 0;
+/** A plan is started by a press in the hand: its tasks, new on the field, travel from `from` (the stop's box, a rect) to their places (motion.js `useColumn`). Dropped after 6 s. */
+export function dealWaits(goal, from) {
+  clearTimeout(dealTimer);
+  const mine = { goal, from, at: Date.now() };
+  deal.value = mine;
+  dealTimer = setTimeout(() => dropDeal(mine), DEAL_KEEP_MS);
+}
+/** The deal is played, refused or late: nothing waits. With `mine`, only that deal is dropped (a newer press keeps its own). */
+export function dropDeal(mine) {
+  if (mine && deal.value !== mine) return;
+  clearTimeout(dealTimer);
+  deal.value = null;
+}
 
 /** The goals of a party the board shows: the one peeked, else the ones picked; [] shows all (§3.5). */
 export const shownGoals = (party) => (peek.value ? [peek.value] : picks.value[party] || []);
@@ -28,5 +47,5 @@ export function clearPicks(party) {
 
 /** Another party is shown: what was hovered, spread or opened on the last one goes (the picks stay with their party). */
 export function leaveParty() {
-  solo.value = ""; peek.value = ""; taskHover.value = ""; spread.value = null; rawOpen.value = false; flagsOpen.value = false; flagsAll.value = false;
+  solo.value = ""; peek.value = ""; taskHover.value = ""; stopLook.value = ""; stopAbout.value = null; dropDeal(); spread.value = null; rawOpen.value = false; flagsOpen.value = false; flagsAll.value = false;
 }

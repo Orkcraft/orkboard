@@ -67,3 +67,20 @@ Two parts (they share no file):
 - Arrows from the hand to the field.
 
 ## 7. As built
+
+**B (desktop).** Built in `js/arena/stops.js` (`aboutOf`, the look, the ghost's class), `arenastate.js` (`stopLook`, `stopAbout`), `stacks.js` and `field.js` (`is-linked`), `motion.js` (`useLeaving`), `arena.css`;
+new `tests/test_stop_link_desktop_browser.py`. What the spec left open, and the files beyond the row:
+- **What a stop is about** is worked out by `aboutOf(s)` in `stops.js`, from the stop's data (not from its key): `failed` the task `<node>/<task>`, `pick` `<slug>/<task>`, `result` `<idea>/<task>`; `plan`, `asks`,
+  `proposal`, `todo` the goal `row.idea`; a stop of another party, Operations', `party` and `goal` (a party's own question: it has no card on this field) are about nothing. `arenastate.js` has `stopAbout` beside
+  `stopLook` (the key), set together; the cards read both.
+- **The ring is the stack's box.** The card is clipped to its notch (`clip-path`), which would cut an outline, so the 2-px ink outline (2 px outside) is on the `.arena-stk` around the card (`.arena-stk.is-linked`)
+  and the card wears `is-linked` too. The columns' left padding is 4 px (it was 2 px), so that the ring of the first stack is not cut by the column. A target behind another card of its stack rings the stack
+  (its front); a spread's own cards (spread.js, not in the row) wear no ring.
+- **The words** (§2.3): a hidden `<span id>` that the open button's `aria-describedby` points to, *, its task is ringed on the field* (*, its goal is ringed on the field* for a goal's stop); not drawn, not in the
+  button's label. A stop about nothing has neither.
+- **Looked at** is `pointerenter`/`focusin` (set at once) and `pointerleave`/`focusout` (rechecked on the next tick against `:hover, :focus-within`, so that the focus moving between the stop's own buttons does not blink).
+  The look is also cleared when the stop becomes a ghost or goes.
+- **The leave** is `useLeaving` (motion.js) between `useHeld` and the fan: the stop that is no longer in the list stays as a ghost (`is-leaving`, `inert`, `aria-hidden`, `is-raised` when it was raised) for 300 ms at
+  its place, fading with `arena-leave` (steps(4)), then the hand closes the gap. To make it the frame its task changes, `useHeld`'s apply is a layout effect now (it was an effect, a frame later). None under reduced
+  motion or a hidden page. A stop that leaves for any reason (answered elsewhere, withdrawn, a filter) leaves the same way.
+- Not done: the spread's cards are not ringed; there is no ring for `goal` and `party` stops.

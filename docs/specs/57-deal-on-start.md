@@ -67,3 +67,19 @@ Two parts (they share no file):
 - Switching the phone's stage to where the work went; a sound.
 
 ## 7. As built
+
+**B (desktop).** Built in `js/arena/stops.js` (`startPlan`), `arenastate.js` (`deal`, `dealWaits`, `dropDeal`), `motion.js` (`useColumn`'s `deals`, `claimDeal`, `dealOut`, `rises`), `stacks.js`
+(`is-dealt`), `arena.css` (`arena-deal`, `.is-dealing`); new `tests/test_deal_start_desktop_browser.py`. What the spec left open, and the files beyond the row:
+- **The deal waits from the press, not from the answer.** The host's `ideas.start` reply and its push of the new Board can arrive in either order, so the deal is kept at the press (its `at` is the press)
+  and taken away if the call is refused (`act` answers null). A refused start never shows new cards, so nothing can be dealt by it. It is also dropped by `leaveParty()` (another party is shown).
+- **Who takes the deal.** `useColumn(…, deals)` is asked by the field's columns only (`field.js`, two calls: `true`), so the review column (`waits.js`) never takes it. The first render with new keys of the
+  deal's goal takes it in each column that has some; it is dropped on the next tick, once this flush's other columns have read it. A column held under the pointer settles later and finds no deal: its cards rise.
+  A column that is new while the deal waits (*Add and start*: the member's column mounts with the Board's change) takes it from its first render.
+- **The order and the six.** The cards are numbered in the layout pass after the redraw, over all the columns in the order of the page (left column first, a column's rows from the top), by `slots`. The seventh
+  and the rest are turned into rises (`is-drawn`, delayed 210 ms, after the sixth starts); the choice is kept by `rises(key)` because a card redrawn by itself (a signal: the ring) is given its old props.
+  A card that is not the front of a stack has no element, so it takes no number; the six are the six that are drawn.
+- **Over the field.** The columns clip (`overflow-y: auto`); while its cards travel a column is `.is-dealing` (`overflow: visible`, for `DEALT_MS` = 620 ms) unless it is scrolled, and a dealt card has `z-index: 60`.
+  The variables are `--dx`, `--dy`, `--s`, `--delay`, set inline from the stop's box (its centre; `--s` the stop's width over the card's); the keyframes switch `pointer-events` at their half, so a card takes the pointer
+  at about the middle of its travel, not after the last one lands.
+- **Beyond the row:** `field.js` (the two `useColumn` calls pass `true`), and `tests/test_design_system.py` (`--dx`, `--s`, `--delay` join the custom properties the sheets may use, as `--rot` and `--dy` do).
+- Not done: the cards of the spread (spread.js) and the review column are not dealt; a stack's hidden cards (behind the front) take no number.
