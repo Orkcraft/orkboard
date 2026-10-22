@@ -130,6 +130,7 @@ async def test_the_dialog_is_a_sheet_with_by_target_a_counter_and_takes_that_mov
         assert await sheet.locator(".counter").inner_text() == "149 / 600"
         take = sheet.locator(".take-row[data-kind='docs']")
         assert "now Grunt" in await take.inner_text()
+        assert "null" not in await sheet.locator(".take-row").last.evaluate("e => e.parentElement.textContent")   # not the Grunt: no line under the kinds, and no word in its place
         await take.get_by_label("Docs").check()
         await _shot(page, "phone-agent-dialog-390x844")
         await sheet.get_by_label("Instruction").fill("x" * 601)                                          # over: refused here, as on the host

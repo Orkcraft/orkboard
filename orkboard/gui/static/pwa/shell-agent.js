@@ -106,11 +106,11 @@ export function makeAgentSheet(core) {
     if (none) return;
     const grunt = r?.slug === "grunt";
     const names = Object.fromEntries((data?.roles || []).map((x) => [x.slug, x.name]));
-    takesBox.replaceChildren(h("legend", { class: "field-label" }, "Takes"), ...(data?.kinds || []).map((k) => {
+    takesBox.replaceChildren(...[h("legend", { class: "field-label" }, "Takes"), ...(data?.kinds || []).map((k) => {
       const box = h("input", { type: "checkbox", value: k.kind, "aria-label": k.label, disabled: grunt || undefined });
       box.checked = grunt ? k.role === "grunt" : r ? k.role === r.slug : k.kind === assign;
       return h("label", { class: "take-row", "data-kind": k.kind }, box, h("span", {}, k.label), h("small", { class: "muted" }, `now ${names[k.role] || k.role}`));
-    }), grunt ? h("small", { class: "muted" }, "Grunt takes what no other agent takes") : null);
+    }), grunt ? h("small", { class: "muted" }, "Grunt takes what no other agent takes") : null].filter(Boolean));
   }
 
   return {
