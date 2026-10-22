@@ -7,7 +7,7 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 
 from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
-from tests.test_shell_browser import StubHost, _calls, _open, _sent, _show_goal  # noqa: E402
+from tests.test_shell_browser import _new_party as _deal_new_party, StubHost, _calls, _open, _sent, _show_goal  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
@@ -52,7 +52,7 @@ def test_save_it_to_your_parties_asks_a_name_asks_again_before_it_replaces_and_s
 
 
 def _new_party(pg):
-    pg.get_by_role("button", name="New party", exact=True).click()
+    _deal_new_party(pg)
     dlg = pg.get_by_role("dialog", name="New party")
     dlg.locator('.shell-craft-tile[data-craft="design"]').click()
     return dlg

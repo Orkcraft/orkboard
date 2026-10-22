@@ -65,12 +65,11 @@ def test_orkboard_on_the_desktop_the_four_panes_a_goal_saved_and_needs_you_no_ca
             ctx.on("request", lambda r: urls.append(r.url))
             pg.on("pageerror", lambda e: errors.append(str(e)))
             pg.goto(server.url)
-            pg.get_by_role("tablist", name="Parties").wait_for(timeout=WAIT_MS)
-            pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)                              # the window: the party switch in the top bar, the arena under it
-            assert pg.locator(".arena-pswitch").is_visible() and pg.locator(".shell-board, .shell-agents, .shell-split").count() == 0
+            pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)                              # the window: no party yet, the arena's note (spec 52: no parties in the top bar)
+            assert pg.locator(".shell-top .arena-ptop").count() == 0 and pg.locator(".shell-board, .shell-agents, .shell-split").count() == 0
             assert pg.evaluate("document.documentElement.dataset.look") == "office"
             assert pg.locator(".gui-hud, .gui-camp, .gui-town, .gui-foot").count() == 0
-            pg.locator(".arena-pswitch__new").click()                                                    # + in the top bar: New party
+            pg.locator(".arena-note").get_by_role("button", name="New party", exact=True).click()       # New party, from the note
             dlg = pg.get_by_role("dialog", name="New party")
             dlg.locator('.shell-craft-tile[data-craft="marketing"]').click()          # a party of the library: its leader, builders and checkers
             dlg.get_by_label("What it is for").fill("More people try Orkline.")

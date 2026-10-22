@@ -4,6 +4,7 @@
 // the goal's element top left, its mark top right, the goal's short name, the task's name, its foot. A press on a stack of one opens the
 // task (its result in Review), on a stack of more spreads it (spread.js); hovering a card draws what it waits for and what waits for it (arrows.js).
 // What the member's rows do as tasks come and go is motion.js's (a column's `useColumn`).
+// A stop is marked once (docs/specs/52-goal-types.md §4.5): a pick's card keeps its alert sign and has no alert edge or alert words; a failure keeps its danger edge.
 import { html, cls } from "../html.js";
 import { Elem, Sign } from "../orkui.js";
 import { showPick, showResult, showTask } from "../shell/store.js";

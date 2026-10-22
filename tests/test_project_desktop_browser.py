@@ -104,7 +104,7 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
         dlg.wait_for(state="detached", timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
         pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-hc[data-kind=goal]").count() == 0 and pg.locator(".arena-gtab:not([data-goal='@operations'])").count() == 0       # shop's goal is not seen in blog
+        assert pg.locator(".arena-hc[data-kind=goal]").count() == 0 and pg.locator(".arena-goal, .arena-left").count() == 0       # shop's goal and party are not seen in blog
         pg.locator(".shell-proj__btn").click()
         rows = pg.locator(".shell-proj__one")
         assert rows.count() == 2
@@ -180,9 +180,9 @@ def test_the_start_screen_with_no_project_open_and_recent(tmp_path, monkeypatch,
         pg.get_by_role("main", name="Start").wait_for(timeout=WAIT_MS)
         assert pg.get_by_role("button", name="Open folder…").is_visible()
         assert pg.locator(".shell-start__recent").get_by_role("button", name="shop").is_visible()
-        assert pg.locator(".arena-pswitch").count() == 0                               # no window without a project
+        assert pg.locator(".arena, .arena-note").count() == 0                          # no window without a project
         pg.locator(".shell-start__recent").get_by_role("button", name="shop").click()
-        pg.locator(".arena-pswitch").wait_for(timeout=WAIT_MS)
+        pg.locator(".arena, .arena-note").first.wait_for(timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="shop").wait_for(timeout=WAIT_MS)
     _run(world, body)
 

@@ -83,3 +83,48 @@ def test_with_no_lens_in_the_party_the_dialog_is_the_text_alone(gui):
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
+
+
+class TypedHost(StubHost):
+    """The ship-sync party deals the architect's goal types (docs/specs/52-goal-types.md §2.4): New feature opens the Code lens first."""
+
+    def map_doc(self):
+        from orkboard.realm import goal_types
+        doc = super().map_doc()
+        for g in doc["goals"]:
+            if g["slug"] == "ship-sync":
+                g["types"] = [{"id": t.id, "name": t.name, "sign": t.sign, "line": t.line, "lens": t.lens, "refs": t.refs, "used": 0, "missing": [],
+                               "asks": [{"id": a.id, "label": a.label, "hint": a.hint} for a in t.asks]} for t in goal_types.of("architect")]
+        return doc
+
+
+def _typed_form(pg, name):
+    pg.get_by_role("button", name="New goal: pick its type, or a blank one").click()
+    pg.locator(".arena-type", has_text=name).click()
+    dlg = pg.get_by_role("dialog", name="New goal", exact=True)
+    dlg.wait_for(timeout=WAIT_MS)
+    return dlg
+
+
+def test_a_goal_type_s_lens_is_open_first_when_the_party_offers_it_else_the_leader_s(gui):
+    host = TypedHost()
+    host.lens = PARTY
+    pg, host, errors = _open(gui, host=host)
+    try:
+        _show_goal(pg)
+        dlg = _typed_form(pg, "New feature")
+        bar = dlg.get_by_role("radiogroup", name="Lens")
+        bar.wait_for(timeout=WAIT_MS)
+        assert bar.get_by_role("radio", name="Code").get_attribute("aria-checked") == "true"             # the type's, not the leader's (Pain)
+        dlg.get_by_label("Its title").fill("Sync in the background")
+        dlg.get_by_role("button", name="Add the goal").click()
+        assert _calls(pg, host, "ideas.add")[-1]["type"] == "feature"
+        host.lens = {**PARTY, "lenses": [x for x in PARTY["lenses"] if x["id"] != "code"]}               # a party with no Code lens: the leader's first
+        host.bump({})
+        dlg = _typed_form(pg, "Restructure")
+        bar = dlg.get_by_role("radiogroup", name="Lens")
+        bar.wait_for(timeout=WAIT_MS)
+        assert bar.get_by_role("radio", name="Pain").get_attribute("aria-checked") == "true"
+    finally:
+        pg.close()
+    assert not errors, "\n".join(errors)

@@ -1,5 +1,5 @@
-// The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, decisions §62, §63): under the party tabs, the day's strip, the leader over
-// the party's goals (with the filter and the New goal pile), and the party's field — the party line, the party row with the gate, the members' tasks in
+// The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, docs/specs/52-goal-types.md, decisions §62, §63, §65): the day's strip, the
+// party's deck over its leader over the party's goals (with the filter and the New goal pile), and the party's field — the party line, the party row with the gate, the members' tasks in
 // rows by phase as stacks of cards running down from them with the results beside them, what waits for you and the limits along the bottom. The drawer
 // (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`, `ideas.today`, `ideas.flags` and the snapshot; its
 // commands are the Board's own.
@@ -9,10 +9,11 @@ import { track, board, OPS } from "../board/store.js";
 import { Operations } from "../board/ops.js";
 import { flagsData, lookTick, mapData } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
+import { town } from "../link.js";
 import { solo, narrow, shownGoals } from "./arenastate.js";
 import { goalsOf, nodesOf, opStopsOf, partyOf, planningOf, resultStop, resultsOf, stopsOf } from "./arenawords.js";
 import { inFilter } from "./goalwords.js";
-import { shownOf } from "./goaltabs.js";
+import { PartyTop, shownOf } from "./goaltabs.js";
 import { goalList } from "../board/store.js";
 import { TodayStrip } from "./todaystrip.js";
 import { Left } from "./goals.js";
@@ -40,10 +41,11 @@ function useNarrow() {
   }, []);
 }
 
-/** Operations' own field: its list, with the rows that wait for the person along the bottom. */
+/** Operations' own field: the deck's line (the way back to the parties), its list, with the rows that wait for the person along the bottom. */
 function OpsField() {
   const stops = opStopsOf(board.value?.needs_you || []);
   return html`<div class="arena arena-ops">
+    <div class="arena-ops__top"><${PartyTop} /></div>
     <section class="arena-ops__body" aria-label="The party at work"><${Operations} withNew=${true} /></section>
     <div class="arena-stops"><${Stops} g=${null} stops=${stops} /><${Limits} /></div>
   </div>`;
@@ -98,9 +100,9 @@ export function Arena() {
   const g = parties.find((x) => x.slug === want);
   if (!g && want) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;           // a party just saved: the Map has it in a moment
   if (!g) {
-    return html`<div class="shell-empty arena-note"><p>No parties yet</p>
+    return html`<div class="arena arena-ops">${town.value?.ops_rev !== undefined && html`<div class="arena-ops__top"><${PartyTop} /></div>`}<div class="shell-empty arena-note"><p>No parties yet</p>
       <p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New party</button>
-        <button class="ork-btn" title="A goal needs a party: this makes one first" onClick=${() => openDialog("goal", { then: "idea" })}>New goal</button></p></div>`;
+        <button class="ork-btn" title="A goal needs a party: this makes one first" onClick=${() => openDialog("goal", { then: "idea" })}>New goal</button></p></div></div>`;
   }
   return html`<${Party} key=${g.slug} m=${m} g=${g} />`;
 }
