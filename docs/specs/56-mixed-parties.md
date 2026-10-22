@@ -278,3 +278,30 @@ C: the phone tests that read the stage switch's words or New party's crafts (`te
 in *As built* first.
 
 ## 10. As built (notes, no change of the contract)
+
+## 11. Running A0, A, B and C
+**A0 and A start together**, each a cloud session on orkWorks/orkBoard with the brief below, and each **merges into
+`main` itself** when its tests pass (CLAUDE.md, alpha): no pull request left waiting. **B and C start together once A0
+and A are in `main`.** They touch no file of each other's but this one: a conflict in §10 keeps both notes.
+
+**A0, orkUI's five signs:**
+
+    Build part A0 of docs/specs/56-mixed-parties.md (§1). Read CLAUDE.md and decisions §69 (docs/decisions.md) first;
+    spec 52 §1 and its §10 A0 note say how the last signs were added. Add the repository orkWorks/orkUI to the session
+    (push access), add the five signs there with their classes, gallery, README lines, CHANGELOG 0.3.4, versions and
+    tests/test_orkui.py, and push orkUI's main. Then in orkBoard copy it (`python -m orkboard.design.orkui <orkUI>`),
+    bump pwa/sw.js's CACHE and SHELL with tests/test_pwa.py's count and pin, run the critical tests (orkcraft.toml
+    `always`), tests/test_pwa.py and tests/test_design_system.py, write A0's note in §10, commit, merge into main
+    ("Merge spec 56 A0: …") and push main. If main moved meanwhile, merge it in, run the tests again, then push.
+
+**A, the host:**
+
+    Build part A (the host) of docs/specs/56-mixed-parties.md: §2–§5 and A's lines of §8. That file is the contract;
+    read decisions §69 (docs/decisions.md), spec 52 §2 and CLAUDE.md first. Change only the files of A's row and those
+    §9 names for A. Until A0's copy is in design-system/orkui/signs/, take the five new signs by name in the tests (as
+    spec 52's A0_SIGNS). When the critical tests (orkcraft.toml `always`) and the tests of every file you changed pass:
+    write A's note in §10 (As built), commit, merge into main ("Merge spec 56 A: …") and push main. If main moved
+    meanwhile, merge it in, run the tests again, then push. No pull request.
+
+**B, the desktop** and **C, the phone**: spec 52 §11's briefs, with this file, its §6 / §7, its rows and §9; the browser
+tests need `uv sync --extra dev --extra browser`; C's CACHE is one up from what A0 left.
