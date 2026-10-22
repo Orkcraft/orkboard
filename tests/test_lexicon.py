@@ -91,3 +91,11 @@ def test_what_was_a_goal_is_a_party_and_what_was_an_idea_is_a_goal():
     assert lexicon.term("pick") == "pick" and lexicon.term("pick", many=True) == "picks"
     table = dict(lexicon.table())
     assert table["track"] == "party" and table["Tracks"] == "Parties" and "Goal" not in table and "goal" not in table
+
+
+def test_a_goal_type_is_what_kind_of_goal_a_leader_deals_spec_52():
+    """Spec 52 §2.8: `goal_type`, today's word with no old spelling (the interface seldom says it: it says the type's name)."""
+    assert lexicon.term("goal_type") == "goal type" and lexicon.term("goal_type", many=True) == "goal types"
+    rows = {key: (word, was) for key, word, was in lexicon.glossary()}
+    assert rows["goal_type"] == ("goal type", "")
+    assert lexicon.words("New goal: pick its type, or a blank one") == "New goal: pick its type, or a blank one"

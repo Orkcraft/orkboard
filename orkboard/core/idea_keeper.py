@@ -43,7 +43,7 @@ from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
 from orkboard.core.idea_lead import LeadMixin
 from orkboard.core.idea_plan import _task, _why, estimate, readiness  # noqa: F401  (the plan's small helpers: the callers and tests use them from here)
-from orkboard.realm import event_log, goal_team, idea_checks, idea_lens, idea_pick, idea_spend, idea_target, ideas, roles, status
+from orkboard.realm import event_log, goal_team, goal_types, idea_checks, idea_lens, idea_pick, idea_spend, idea_target, ideas, roles, status
 from orkboard.realm.idea_words import short_said
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
@@ -468,7 +468,7 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         checks = idea_checks.plan_lines(self.idea_checks(root, slug), self.team_checks(root, slug))
         return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
 read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
-{idea_lens.attached(self.state_dir, slug)}{checks}
+{idea_lens.attached(self.state_dir, slug)}{goal_types.prompt_line(self.state_dir, slug)}{checks}
 The spec: {page.title}
 {context}
 Rules:
@@ -508,6 +508,7 @@ Answer with one JSON object and nothing else:
                 team = [*team, lead]                     # the leader does the tags it takes when no builder does
             for t in data["tasks"]:                      # who of the goal's team does it, by its tag (none: the project's)
                 t["role"] = roles.role_for(self.state_dir, t["kind"], team)["slug"] if team else ""
+            data["missing"] = goal_types.of_plan(self.state_dir, data["tasks"], team, lead) if team else []     # what no one of the party does (spec 52 §2.6)
             target = self.target()
             runs = [idea_target.tier_of(idea_target.task_pick(t["tier"], target, str(self.role_of(t).get("model") or ""))[0])
                     for t in data["tasks"]]

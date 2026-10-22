@@ -179,6 +179,7 @@ TERMS: tuple[Term, ...] = (
     _t("recap", "While you were away"),                            # the card of what the Board did since this device's last look (spec 42 §1)
     _t("flag", "flag", "flags"),                                   # a goal the gate took into main (spec 50 §2.2); a party's old flag is its verdict met (spec 42 §2)
     _t("pick", "pick", "picks"),                                   # the stop Pick one and its screen: a task left two to six variants of one kind for the person to pick from (spec 51)
+    _t("goal_type", "goal type", "goal types"),                    # what kind of goal a party's leader deals: New logo, Fix a bug; realm/goal_types.py, spec 52
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)

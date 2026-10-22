@@ -112,7 +112,7 @@ def test_a_new_goal_is_given_its_element_at_once_and_its_answer_says_it(host):
     p = party(host)
     got = [host.command("ideas.add", {"text": f"A goal {n}\nwith a body", "track": p, "night": True}) for n in range(6)]
     assert [g["element"] for g in got] == ["meadow", "ice", "dust", "void", "lava", "meadow"]
-    assert all(set(g) == {"slug", "queue", "element"} for g in got) and got[0]["queue"] == "night"
+    assert all(set(g) == {"slug", "queue", "element", "type", "joined"} for g in got) and got[0]["queue"] == "night"      # spec 52: its type, who joined
     state = host.ideas.state_dir
     assert [ideas.state(state, g["slug"])["element"] for g in got] == [g["element"] for g in got]      # in each goal's state, raw as it is
     assert ideas.state(state, got[0]["slug"])["state"] == "raw"

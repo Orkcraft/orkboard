@@ -292,3 +292,17 @@ def test_a_draft_names_its_partys_metrics_and_asks_which_it_moves_only_when_the_
     prompt = keeper.draft_prompt(keeper.root, slug)
     assert "Its goal's metrics" not in prompt and "which of its goal's metrics" not in prompt
     assert '"why": "why it matters"' in prompt and "Just a team." in prompt and "Its goal's summary" in prompt   # nothing else changes
+
+
+def test_the_draft_prompt_says_the_goals_type_beside_what_its_lens_pointed_at_spec_52(keeper):
+    """Spec 52 §2.5: a goal of a type has one more line, `Its type: <name>. <plan>`; a blank goal's prompt is as before."""
+    from orkboard.realm import goal_types
+    slug = ideas.add_idea(keeper.root, "the login breaks", keeper.goal, keeper.state)
+    before = keeper.draft_prompt(keeper.root, slug)
+    assert "Its type:" not in before
+    ideas.save_state(keeper.state, slug, type="taskmaster/bug")
+    prompt = keeper.draft_prompt(keeper.root, slug)
+    line = f"Its type: Fix a bug. {goal_types.get('taskmaster/bug').plan}\n"
+    assert line in prompt and prompt.replace(line, "") == before                                    # nothing else changes
+    ideas.save_state(keeper.state, slug, type="growth/landing")
+    assert "Its type: A landing page.\n" in keeper.draft_prompt(keeper.root, slug)                 # no plan line: the name alone

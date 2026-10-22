@@ -50,11 +50,13 @@ CART_MOVED = "cart_moved"         # source, target, title: a cart delivered alon
 LOOKED = "look"                   # started, seconds: the GUI in front of the person (looks a day, their length)
 
 # The board (docs/specs/33-v1-shell.md §9): every action of the v1 shell, for the day's analysis. `device` is "desktop" or "phone".
-IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it at once), priority, queue, photos (how many came with it), lens (the kinds pointed at), device
+IDEA_ADDED = "idea_added"         # idea, track, chars, now (the keeper reads it at once), priority, queue, photos (how many came with it), lens (the kinds pointed at), device,
+#                                    type (its goal type's key, else ""), asks (how many answered), refs (how many pictures were Refs'), joined (the agent, else ""), out (the member, else "") (spec 52 §2.7)
 IDEA_SAID = "idea_said"           # idea, section, chars, text, device (the person's turn to the Taskmaster)
 KEEPER_STATE = "keeper_state"     # idea, state, was, seconds in the previous state
 PLAN_MADE = "plan_made"           # idea, tasks, todos, usd_low, usd_high
-PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority, via (where the press was: gui/ideas_args.py VIA, else "idea"), pace (by auto: it goes on by day, the week having room)
+PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made, by ("person" · "auto"), risk, priority, via (where the press was: gui/ideas_args.py VIA, else "idea"), pace (by auto: it goes on by day, the week having room),
+#                                    joined (the agent who joined at the press, else ""), missing (how many kinds the plan missed when it passed) (spec 52 §2.7)
 PLAN_STARTED_NOW = "plan_started_now"   # idea, device, via (gui/ideas_args.py VIA, else "idea"): a plan held for the night started now (spec 41 §4)
 IDEA_QUEUED = "idea_queued"       # idea, queue ("now" · "night"), device, via (gui/ideas_args.py VIA, else "idea") (spec 41 §4)
 TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan (a secret's value never)
@@ -76,7 +78,8 @@ IDEA_FLAGGED = "idea_flagged"   # idea, goal (its party), by ("gate" · "done"),
 OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map · recap · flag · week · push · party · gate · today · pick), ref, via (map · board · needs · agents · review · recap · week · flags · push · hand · party · today · gate; old lines ""), device
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
-GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device, party (the id of the saved party it was picked from, else "")
+GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device, party (the id of the saved party it was picked from, else ""),
+#                                    joined, out (the agent who joined, the member who left, else ""), via ("type": New goal by its type · "plan": a plan's stop · "": Edit the party) (spec 52 §2.7)
 GOAL_ACCEPTED = "goal_accepted"   # goal, met, by (its leader's name), and the call's measure
 GOAL_READ = "goal_read"           # goal, state (asks · ready · raw: not read), seconds the keeper took, tier, effort
 ROLE_SAVED = "role_saved"         # role, model, max_parallel, new, device, kinds (the types it takes), instruction_chars
