@@ -44,10 +44,10 @@ async def test_the_fan_lies_across_the_width_centred_inside_the_screen_and_the_c
         assert abs((got["left"] + got["right"]) / 2 - 195) <= 2                                      # … centred on it
         if n >= 6:
             assert got["right"] - got["left"] > 270                                                  # across the whole width, not a part of it
-        overlap = [await b.evaluate("e => getComputedStyle(e).marginLeft + ' ' + getComputedStyle(e).marginRight") for b in await page.locator(".hand .hc").all()]
-        assert overlap[0].startswith("0px ") and overlap[-1].endswith(" 0px")                          # the first and the last keep no outer negative margin
+        margins = {int(await b.get_attribute("data-place")): await b.evaluate("e => getComputedStyle(e).marginLeft + ' ' + getComputedStyle(e).marginRight") for b in await page.locator(".hand .hc").all()}
+        assert margins[0].startswith("0px ") and margins[n - 1].endswith(" 0px")                      # the row's first and last keep no outer negative margin (by their place in the row: the page keeps the urgency's order, spec 54 §2.3)
         side = max(8, -(-(n * 104 - 330) // (n - 1) // 2)) if n > 1 else 0
-        assert overlap[1] == f"-{side}px -{side}px" or n == 2                                        # overlapping each side so that they fit (a reset of buttons' margins does not undo it)
+        assert margins[1] == f"-{side}px -{side}px" or n == 2                                        # overlapping each side so that they fit (a reset of buttons' margins does not undo it)
         fab = page.locator(FAB)
         box = await fab.bounding_box()
         assert round(box["x"]) == 326 and round(box["y"] + box["height"]) == 844 - 56 - 10 and box["width"] == 48 and box["height"] == 64     # over the field's bottom right, 10 px above the row
@@ -88,7 +88,7 @@ async def test_the_stops_lie_along_the_bottom_with_no_line_over_them_and_a_tap_p
         row = page.locator(".handzone")
         box = await row.bounding_box()
         assert round(box["height"]) == 56 and round(box["y"] + box["height"]) == 844 and await row.evaluate("e => getComputedStyle(e).borderTopWidth") == "0px"      # 56 px, no line over it
-        assert [await b.get_attribute("data-kind") for b in await page.locator(".hc").all()] == ["plan", "asks", "proposal", "failed", "look", "look"]      # the stops, then the results
+        assert [await b.get_attribute("data-kind") for b in await page.locator(".hc").all()] == ["failed", "plan", "asks", "proposal", "look", "look"]      # by urgency (spec 54 §2.3): the failure, what holds work back, what does not, the results
         assert "is-look" in await page.locator('.hc[data-kind="look"]').first.get_attribute("class")
         card = page.locator('.hc[data-kind="plan"]')
         raised = await _pop(page, "Plan ready: Recovery codes")
@@ -197,7 +197,7 @@ async def test_a_pushs_needs_arrival_shows_the_goal_of_the_first_stop_and_pops_i
         raised = page.locator(".raised")
         await raised.wait_for(timeout=WAIT_MS)
         assert await page.locator(".partydeck").get_attribute("data-goal") == "passkey"                  # the party of the first stop is shown
-        assert await raised.get_attribute("data-kind") == "plan"                                       # the first stop, in the host's order
+        assert await raised.get_attribute("data-kind") == "failed"                                     # the first stop: the most urgent (spec 54 §2.3)
         assert await _called(stub, "ideas.log", {"event": "opened", "what": "push", "ref": "needs", "device": "phone"})
         assert "from=push" not in page.url
 

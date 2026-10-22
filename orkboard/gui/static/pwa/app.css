@@ -174,10 +174,12 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .target-chip { all: unset; box-sizing: border-box; cursor: pointer; min-height: var(--ork-tap); padding: 0 var(--ork-5); display: inline-flex; align-items: center;
   gap: var(--ork-2); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: var(--ork-type-button); }
 .target-chip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
-.target-pick { display: flex; align-items: center; gap: var(--ork-5); min-height: 56px; padding: var(--ork-4) var(--ork-2); cursor: pointer;
-  border-bottom: var(--ork-line) solid var(--ork-frame); }
-.target-pick input { width: 22px; height: 22px; flex: none; }
-.target-pick small { color: var(--ork-ink-muted); }
+.target-switch { display: flex; flex-direction: column; gap: var(--ork-3); }                         /* one switch: Thrift · Balance · Quality as the priority's pills, the picked one's words under it (spec 54 §5) */
+.target-line { margin: 0; color: var(--ork-ink-muted); }
+.outs { display: flex; flex-direction: column; gap: var(--ork-1); }                                    /* a stop's ways out: quiet buttons, one under the other (spec 54 §3) */
+.outs .ork-btn, .raised__quick .describe .ork-btn { width: 100%; }
+.describe { display: flex; flex-direction: column; gap: var(--ork-2); }
+.describe[hidden] { display: none; }
 .goal-pick { margin-top: 0; flex-wrap: nowrap; }
 .goal-pick .ork-field { min-width: 0; }
 .goal-pick .ork-btn { flex: none; }
@@ -618,7 +620,6 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .partydeck__back { left: 14px; top: 11px; display: flex; align-items: center; justify-content: center; color: var(--ork-ink); border: var(--ork-line) solid var(--ork-ink);
   background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
 .partydeck__back .ork-chev { margin: 0; }
-.partydeck__n { position: absolute; right: 0; top: 0; }
 .gbar > .partydeck + .gbar__head { padding-left: 0; }
 /* a band with no one (spec 52 §5.4): what happens to its work, and Add to the party */
 .band-none { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); padding: var(--ork-5); }
@@ -717,6 +718,7 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .solo { position: absolute; left: 0; right: 0; top: calc(60px + var(--ork-line)); bottom: 0; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
 .solo__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); padding: var(--ork-2) var(--ork-2) var(--ork-2) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); }
 .solo__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/18px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
+.solo__card .ork-btn { flex: none; margin-left: auto; }
 .solo__card { flex: none; display: flex; align-items: center; gap: var(--ork-5); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
 .solo__info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .solo__info b { font-weight: 600; }
@@ -745,14 +747,17 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .hc { pointer-events: auto; appearance: none; position: relative; flex: none; display: flex; flex-direction: column; align-items: stretch; width: 104px; height: 150px; margin: 0 calc(-1 * var(--ov));
   padding: 5px; box-sizing: border-box; background: var(--ork-panel); border: var(--ork-double) double var(--ork-alert); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left;
   cursor: pointer; z-index: var(--z); transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; font: inherit; }
-.hand .hc:first-child { margin-left: 0; }                           /* the fan never spills onto the margins; a reset of buttons' margins must not undo the overlap */
-.hand .hc:last-child { margin-right: 0; }
+/* the row's first and last card keep no outer overlap: shell-stops.js sets their margin inline, by their place in the row (the page keeps the urgency's order, the CSS order lays them out; spec 54 §2.3) */
 .hc.is-fail { border-color: var(--ork-danger); }
 .hc.is-look { border-color: var(--ork-edge); }
 .hc.is-up { visibility: hidden; }
 .hc:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .hc__top { display: flex; align-items: center; gap: var(--ork-2); }
 .hc__top .ork-elem { margin-left: auto; }
+.hc__party { display: flex; align-items: center; gap: var(--ork-2); margin-top: var(--ork-1); color: var(--ork-ink-muted); }     /* another party's stop wears its leader's small head (Operations': its sliders) */
+.hc__party .ork-icon { width: 14px; height: 14px; }
+.raised__goal { display: flex; align-items: center; gap: var(--ork-2); margin: 0; padding: 0 var(--ork-5); color: var(--ork-ink-muted); }
+.raised__goal .ork-icon { width: 14px; height: 14px; flex: none; }
 .raised__top .ork-elem { margin-left: var(--ork-2); }
 .hc__kind { font: 500 12px/14px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ork-alert); white-space: nowrap; overflow: hidden; }
 .hc__kind.no { color: var(--ork-danger); }
@@ -811,6 +816,8 @@ dialog.sheet.top { margin: 0 0 auto; border-top: 0; border-bottom: var(--ork-dou
 .where-row.is-on { background: var(--ork-raised); border-color: var(--ork-ink); box-shadow: inset 2px 0 0 var(--ork-ink); }
 .where-row:focus-visible, .where-new:focus-visible, .goals__about:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .where-row__head { flex: none; width: 24px; height: 22px; }
+.where-dot { flex: none; width: 8px; height: 8px; background: var(--ork-alert); }                     /* a stop waits in this party (spec 54 §2.4): alert, danger when one of them failed */
+.where-dot.danger { background: var(--ork-danger); }
 .where-row__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .where-row__body b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .where-new { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: var(--ork-1); min-height: 52px; margin-top: var(--ork-3); padding: var(--ork-3) var(--ork-4);

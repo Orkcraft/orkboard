@@ -6,6 +6,20 @@ import { h, sheet, icon } from "./util.js";
 import { field, foot } from "./shell-forms.js";
 import { TARGETS, hhmm } from "./shell-words.js";
 
+/** The Target as one switch (spec 54 §5, the phone's menu and Operations' gear alike): Thrift · Balance · Quality as three 44 px pills in a radiogroup, the picked one raised as the priority's is, and under
+ *  them one line, the picked one's words. `onPick(id)` writes it; `set(id)` shows a value without writing it. Returns {el, set(id), get()}. */
+export function targetSwitch(name, onPick) {
+  const inputs = TARGETS.map(([id, word]) => h("input", { type: "radio", name, value: id, "aria-label": word }));
+  const pills = TARGETS.map(([, word], i) => h("label", { class: "pill" }, inputs[i], h("span", {}, word)));
+  const line = h("p", { class: "cap target-line", "aria-live": "polite" });
+  const set = (id) => {
+    inputs.forEach((i) => { i.checked = i.value === id; i.parentElement.classList.toggle("is-on", i.checked); });
+    line.textContent = (TARGETS.find((t) => t[0] === id) || [])[2] || "";
+  };
+  for (const input of inputs) input.addEventListener("change", () => { set(input.value); onPick(input.value); });
+  return { el: h("div", { class: "target-switch" }, h("div", { class: "pills", role: "radiogroup", "aria-label": "Target" }, ...pills), line), set, get: () => inputs.find((i) => i.checked)?.value || "" };
+}
+
 export const OPS_VIEW = "ops";
 const FORM_KEY = "orkcraft.ops.form.";            // a form closed with typed text keeps it for the next opening, on this phone only
 const SPIN = () => h("span", { class: "spin", "aria-hidden": "true" }, "↻");
@@ -254,15 +268,11 @@ export function makeOps(core, ctx) {
       el.addEventListener("change", async () => { if (!(await setting({ [key]: Number(el.value) }))) el.value = String(mine()[key] ?? ""); });
       return field(label, el, hint);
     };
-    const radios = TARGETS.map(([id, word, line]) => {
-      const input = h("input", { type: "radio", name: "ops-target", value: id, "aria-label": word });
-      input.checked = (mine().target || "balance") === id;
-      input.addEventListener("change", () => setting({ target: id }));
-      return h("label", { class: "target-pick" }, input, h("span", { class: "need-text" }, h("b", {}, word), h("small", {}, line)));
-    });
+    const target = targetSwitch("ops-target", (id) => setting({ target: id }));
+    target.set(mine().target || "balance");
     const needed = Object.entries(data?.servers_needed || {});
     const serverBox = h("div", { class: "ops-servers" }, needed.length ? h("p", { class: "muted" }, "Reading the servers…") : null);
-    gearBody.replaceChildren(...[h("h3", {}, "Target"), h("p", { class: "muted" }, "How heavy Operations’ calls are."), ...radios,
+    gearBody.replaceChildren(...[h("h3", {}, "Target"), h("p", { class: "muted" }, "How heavy Operations’ calls are."), target.el,
       num("trust_after", "Goes by itself after N clean checks", 1, 5, "1 to 5 checks in a row you did not correct."),
       num("daily_alone", "By itself at most N a day", 1, 100, "1 to 100. Past it, every operation waits at your check."),
       needed.length ? h("h3", {}, "Servers") : null, serverBox].filter(Boolean));

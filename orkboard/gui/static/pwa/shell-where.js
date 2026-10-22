@@ -1,8 +1,8 @@
 // The project's button and the parties' sheet (docs/specs/52-goal-types.md §5.1, §5.3; decisions §65.3, which reverses §63.12's party half): beside the menu, the project's button — *harbor ⌄*, the
 // project's name (12 px, 44 px high) — whose sheet from the top is **Projects**: *this one* (the project shown, marked), the other projects with what waits in each, a tap switching this phone to one
-// (shell-projects.js). The party is not in the top bar: it is the **deck** at the goals bar's left (spec 53 §1.1: a 44 × 44 target round a back of 16 × 22 with two edges behind it and the chevron down, the warning count of the stops that
-// wait in the project's other parties and in Operations at its top right). A tap on the deck opens the parties' sheet from the top: the parties as rows (52 px at least: the leader's head, the name,
-// *k/n done*, the stops' count, the work sign; the one shown marked), Operations' row when the project has any, **+ New party**. A pick is kept per project (`orkcraft.goal`) and puts the sheet away.
+// (shell-projects.js). The party is not in the top bar: it is the **deck** at the goals bar's left (spec 53 §1.1: a 44 × 44 target round a back of 16 × 22 with two edges behind it and the chevron down; no count: spec 54 §2.4, decisions §67.3 —
+// what waits lies in the hand, and the sheet says where by a dot). A tap on the deck opens the parties' sheet from the top: the parties as rows (52 px at least: the leader's head, the name,
+// *k/n done*, a dot where a stop waits (8 × 8, danger when one of them failed, else alert), the work sign; the one shown marked), Operations' row when the project has any, **+ New party**. A pick is kept per project (`orkcraft.goal`) and puts the sheet away.
 import { h, sheet } from "./util.js";
 import { sign } from "./shell-marks.js";
 import { whoHead } from "./shell-who.js";
@@ -12,7 +12,7 @@ import { OPS_VIEW } from "./shell-ops.js";
 const GOAL_KEPT = "orkcraft.goal";                    // {project: party slug}: the party this phone showed last
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** The party's deck's label (spec 52 §5.3): *Parties: Tech shown, 2 stops wait in the other parties. A tap shows the parties*; `p`: shell-arena-words.js `partiesOf`. */
+/** The party's deck's label (spec 52 §5.3): *Parties: Tech shown, 2 stops wait in the other parties. A tap shows the parties*; `p`: shell-arena-words.js `partiesOf`. The count is for a screen reader only: nothing on the screen counts the stops. */
 export function deckWords(p) {
   const shown = p.shown === OPS_VIEW ? "Operations" : p.list.find((c) => c.slug === p.shown)?.short || "";
   return `Parties: ${shown ? `${shown} shown` : "none yet"}${p.other ? `, ${plural(p.other, "stop waits", "stops wait")} in the other parties` : ""}. A tap shows the parties`;
@@ -40,18 +40,20 @@ export function makeWhere(core, ctx) {
   const btn = h("button", { class: "board-name projbtn", type: "button", "aria-haspopup": "dialog", "data-act": "project", onclick: () => { mine.open(); projects.load(); } },
     name, h("i", { class: "ork-chev", "aria-hidden": "true" }));
 
+  /** A stop's dot, where a count was: 8 × 8, danger when one of the stops failed, else alert. */
+  const dot = (stops, failed) => (stops ? h("span", { class: `where-dot ${failed ? "danger" : "alert"}`, "aria-hidden": "true", "data-dot": failed ? "danger" : "alert" }) : null);
   const rowOf = (c, on) => h("button", { class: `where-row${on ? " is-on" : ""}`, type: "button", "aria-current": on ? "true" : null, "data-goal": c.slug,
-    "aria-label": `${c.title}, ${c.done}${c.stops ? `, ${plural(c.stops, "stop waits", "stops wait")} for you` : ""}${c.working ? ", at work" : ""}`, onclick: () => { sh.close(); core.pick(c.slug); } },
+    "aria-label": `${c.title}, ${c.done}${c.stops ? `${c.failed ? ", a stop failed" : ""}, something waits for you` : ""}${c.working ? ", at work" : ""}`, onclick: () => { sh.close(); core.pick(c.slug); } },
   c.head ? whoHead(c.head, false) : h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, c.title), h("small", { class: "muted" }, c.done)),
-  c.stops ? h("span", { class: "ork-count warning" }, String(c.stops)) : null, c.working ? sign("work", "at work") : null);
+  dot(c.stops, c.failed), c.working ? sign("work", "at work") : null);
 
   function drawList() {
     const p = core.parties();
     const opsOn = p.shown === OPS_VIEW;
     list.replaceChildren(...[...p.list.map((c) => rowOf(c, c.slug === p.shown)),
       p.ops ? h("button", { class: `where-row${opsOn ? " is-on" : ""}`, type: "button", "aria-current": opsOn ? "true" : null, "data-goal": OPS_VIEW,
-        "aria-label": `Operations${p.ops.stops ? `, ${plural(p.ops.stops, "stop waits", "stops wait")} for you` : ""}`, onclick: () => { sh.close(); core.pickOps(); } },
-      h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, "Operations")), p.ops.stops ? h("span", { class: "ork-count warning" }, String(p.ops.stops)) : null) : null].filter(Boolean));
+        "aria-label": `Operations${p.ops.stops ? `${p.ops.failed ? ", a stop failed" : ""}, something waits for you` : ""}`, onclick: () => { sh.close(); core.pickOps(); } },
+      h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, "Operations")), dot(p.ops.stops, p.ops.failed)) : null].filter(Boolean));
     if (!p.list.length && !p.ops) list.replaceChildren(h("p", { class: "muted" }, "No parties yet."));
   }
   function openParties() { drawList(); sh.open(); }
@@ -60,13 +62,12 @@ export function makeWhere(core, ctx) {
     el: btn,
     sheets: [mine.el, sh.el],
     openParties,
-    /** The party's deck at the goals bar's left: 44 × 44, the count of the stops that wait in the other parties (none when none: the one count of stops on the screen). */
+    /** The party's deck at the goals bar's left: 44 × 44, with no count (the stops lie in the hand; the label tells a screen reader how many wait in the other parties). */
     deck() {
       const p = core.parties();
       return h("button", { class: "partydeck", type: "button", "aria-haspopup": "dialog", "data-act": "parties", "data-goal": p.shown, "aria-label": deckWords(p), onclick: openParties },
         h("i", { class: "partydeck__edge e2", "aria-hidden": "true" }), h("i", { class: "partydeck__edge e1", "aria-hidden": "true" }),
-        h("span", { class: "partydeck__back", "aria-hidden": "true" }, h("i", { class: "ork-chev" })),
-        p.other ? h("span", { class: "ork-count warning partydeck__n", "aria-hidden": "true" }, String(p.other)) : null);
+        h("span", { class: "partydeck__back", "aria-hidden": "true" }, h("i", { class: "ork-chev" })));
     },
     render(s, rev) {
       projects.render(s, rev);

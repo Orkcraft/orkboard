@@ -1,7 +1,7 @@
 // The v1 shell on a phone (docs/specs/33-v1-shell.md §6, §8; decisions §45.2, §62; spec 49 §10): the one face when the compact snapshot's `focus` is "board", with no
 // tab bar. One screen: the top bar (the menu, the project, Today, what is left of the AI tools), the goal's window under it — the goals as chips, the goal's header, the
 // ideas bar, the stage switch and the party's columns (shell-arena.js) — and what waits for you along the bottom: the stops, then the results to look at, fanned, a tap
-// popping one out with its quick answers (shell-stops.js). The menu opens the drawer: Stop all, Spend, Agents (a screen of its own), the projects and the settings. An
+// popping one out with its quick answers (shell-stops.js): every stop of the project, the most urgent in the middle (spec 54). The menu opens the drawer: Stop all, Spend, the projects and the settings (Agents, a screen of its own, is a row of This project). An
 // idea's spec, a plan, a task, a result's code or the gate opens on its own full screen over the board, with Back (and the system back gesture) and its actions pinned at
 // the bottom. It speaks the host's commands (§5) through the phone's protocol (app.js `send`) and reads again when the snapshot's `ideas_rev` changes (and every POLL_MS while
 // the Taskmaster or a task works). Always Office's calm look.
@@ -9,6 +9,7 @@ import { h } from "./util.js";
 import { makeTop, keptGoal } from "./shell-top.js";
 import { makeBoardTab, BUSY } from "./shell-board.js";
 import { makeAgents } from "./shell-agents.js";
+import { makeAgentSheet } from "./shell-agent.js";
 import { makeReview } from "./shell-review.js";
 import { makePreview } from "./shell-preview.js";
 import { makeNeeds } from "./shell-needs.js";
@@ -61,6 +62,8 @@ export function makeBoard(ctx) {
     pick(slug) { boardTab.pick(slug); },
     pickOps() { boardTab.pickOps(); },
     editTeam(g) { boardTab.editTeam(g); },
+    /** An agent's dialog (model, at once, instruction, Takes), from a member's card (spec 54 §6.2). */
+    editAgent(slug) { agentSheet.open(slug); },
     /** New goal, the party shown first (spec 53 §2); the form picks its goal type. */
     newIdea() { boardTab.openNew(st.track); },
     /** Edit the party of a goal: the goal as `ideas.goal` sends it, in the team's sheet. */
@@ -75,6 +78,7 @@ export function makeBoard(ctx) {
   const top = makeTop(core, ctx);
   const boardTab = makeBoardTab(core, ctx);
   const agents = makeAgents(core);
+  const agentSheet = makeAgentSheet(core);                 // the dialog of Agents' Edit, opened from a member's card too
   const review = makeReview(core);
   const needs = makeNeeds(core, ctx);
   const fab = makeFab(core);
@@ -230,7 +234,7 @@ export function makeBoard(ctx) {
 
   return {
     el,
-    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets, ...stops.sheets],
+    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets, agentSheet.el, ...stops.sheets],
     // What is acted on only while the town answers: not the bar's Stop all, nor New idea (kept with no signal).
     content: () => [boardTab.el, ...stops.content(), preview.el],
     /** A push's arrival (board-app.js `arrive`): the goal of the first stop is shown and the stop popped out, as soon as the Board has been read. */
