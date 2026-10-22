@@ -316,6 +316,12 @@ in *As built* first.
   (`set(SIGNS) - NEW_SIGNS <= orkUI's signs`, and every sign is drawn by a type).
 - Orkline's frozen copy reads a type id without a `/` as none until its copy is updated (§4.4): its goal works, its sign is not drawn.
 
+**The pick (G's sheet), 22 October: a provisional pick by Claude, for the owner to change.** `store` is the candidate
+`stall` (a market stall under a striped awning), `tune` the candidate `drum` (a drum laced at its skin): the most solid
+silhouettes at 14 px, each 16 cells from every sign and emblem. Passed over: `hanging-sign` (read as `landing`'s
+signpost), `lute` and `harp` (too thin at 14 px), `scales`, `crate`, `pan-pipe`. Another pick changes A0's two drawings
+only.
+
 ## 11. Running G, A, A0, B and C
 Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass
 (CLAUDE.md, alpha), no pull request left waiting. **G and A start together. A0 starts after the owner's pick. B and C
