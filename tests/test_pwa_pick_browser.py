@@ -19,7 +19,7 @@ from orkboard.gui.board_host import Orkboard
 from orkboard.realm import idea_pick
 from tests import pick_files as pf
 from tests.test_pwa_arena_browser import ELF, SCENE, SCREENS, STAMP, _redrawn, _scene, node, task  # noqa: F401
-from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _called, _phone, _pop, _today  # noqa: F401
+from tests.test_pwa_shell_browser import NO_SCROLL, WAIT_MS, Stub, _band, _called, _phone, _pop, _today  # noqa: F401
 
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
@@ -573,7 +573,7 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
     add_pick(fake_repo, tmp_path, "image")
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".bands").wait_for(timeout=WAIT_MS)
-        await page.locator('.band[data-band="build"]').click()
+        await _band(page, "build")
         deck = page.locator('.deck[data-state="picking"]')
         await deck.wait_for(timeout=WAIT_MS)
         face = deck.locator(".tcard")
@@ -581,8 +581,8 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
         assert "asks you to pick" in await deck.get_attribute("aria-label")
         alert = await face.evaluate("e => { const i = document.createElement('i'); i.style.color = 'var(--ork-alert)'; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }")
         assert await face.evaluate("e => getComputedStyle(e).borderTopColor") != alert                                  # its sign, no alert edge (spec 52 §5.8)
-        member = page.locator('.token[data-member="screens"]')
-        assert "asks you to pick" in await member.get_attribute("aria-label") and await member.locator(".sign.alert").count() == 1       # its member: the alert sign too
+        member = page.locator('button.band__face[data-member="screens"]')
+        assert await member.locator(".band__sign.alert .ork-sign.alert").count() == 1                                    # its member's face: the alert sign too (spec 53 §1.2)
         await _shot_to(page, "pick-field")
         await page.locator(".gbar__head").click()                                                                        # the Goals sheet: the goal says it too
         goals = page.get_by_role("dialog", name="Goals")

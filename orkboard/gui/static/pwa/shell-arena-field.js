@@ -1,12 +1,10 @@
-// The field of the party's window (docs/specs/49-one-window.md §5, §10.5, §11; spec 50 §3.4, §3.5, §6.5, §6.6): under the stage switch the party's members (a small framed row: the head wearing three
-// signs, three short lines) and, under each, its column: its open tasks in **rows by phase** — *now* (a task at its goal's current wave), *next*, *later* — and in each row one
+// The field of the party's window (docs/specs/49-one-window.md §5, §10.5, §11; spec 50 §3.4, §3.5, §6.5, §6.6): under the stage switch (its faces are the members: spec 53 §1) the columns, each under its member's name: its open tasks in **rows by phase** — *now* (a task at its goal's current wave), *next*, *later* — and in each row one
 // **stack** per goal: the front card (132 × 185, its goal's element top left), one or two edges behind it and *×n*; at the far end *✓ k in dev*. A press on a stack of one opens it, on a stack of more
-// spreads it (shell-spread.js). A tap on a member shows only its work under the row, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
+// spreads it (shell-spread.js). A tap on a face shows only that member's work over the columns, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
 // Motion says what changed (shell-motion.js): a stack that was not there rises into its column, one that left (merged ✓, dropped ✗, or put away by the filter, with no sign) fades where it stood and
 // its column settles, one that moved slides to its new place, a merge's numbers are lit once; none under reduced motion, on the first read of a goal, for what changed while the page was hidden, nor
 // under a finger or the focus. A band with no one (spec 52 §5.4) says what happens to its work and offers **Add to the party** (Edit the party): the only place on the field that adds a member.
 import { h } from "./util.js";
-import { midHead, mark } from "./shell-who.js";
 import { sign } from "./shell-marks.js";
 import { PHASES, rowsOf } from "./shell-phases.js";
 import { deckNode } from "./shell-decks.js";
@@ -36,7 +34,7 @@ export function makeField(core, hooks) {
     if (stack.n === 1) { core.open(stack.top.open, "map"); return; }
     spread.open({ key: `${m.slug}|${stack.key}`, member: m.name, ideaTitle: stack.top.ideaTitle, items: stack.items, origin }, el);
   }
-  const stackLabel = (m, s) => (s.n === 1 ? s.top.label : `${s.top.ideaTitle}: ${plural(s.n, "task")} of ${m.name}, ${s.phase}. A tap lays them out in a row`);
+  const stackLabel = (m, s) => (s.n === 1 ? s.top.label : `${s.top.ideaTitle}${s.top.type ? `, ${s.top.type.name}` : ""}: ${plural(s.n, "task")} of ${m.name}, ${s.phase}. A tap lays them out in a row`);
   const deck = (m, s, extra = {}) => deckNode(s, { press: (stack) => press(m, stack, el.querySelector(`[data-key="${CSS.escape(s.key)}"]`)), label: stackLabel(m, s), drawn: s.drawn, ...extra });
 
   /** A row by phase: its word over its left edge and its stacks; `wrap`: two to a row, centred (a member's solo). */
@@ -44,18 +42,8 @@ export function makeField(core, hooks) {
     return h("div", { class: `phase is-${phase}${wrap ? " is-wrap" : ""}`, "data-phase": phase }, h("span", { class: "phase__lbl" }, phase), ...nodes);
   }
 
-  // -- a member: a small framed row, its head wearing three signs (the tool's mark bottom-left, the level's top-right, its state bottom-right), three short lines ---------------
-  function memberCard(m, ui) {
-    const on = ui.focus === m.slug;
-    const port = h("span", { class: "tport" }, midHead(m.head), m.marks.harness ? mark(`harness-${m.marks.harness.id}`, m.marks.harness.tip, "mark--h") : null,
-      m.marks.rank ? mark(`rank-${m.marks.rank.n}`, m.marks.rank.tip, "mark--r") : null,
-      m.sign ? h("span", { class: `sign ${m.sign.cls}`.trim(), title: m.words }, sign(m.sign.name)) : null);
-    const body = h("span", { class: "tbody" }, h("span", { class: "token__name" }, m.name), h("span", { class: "tnum", title: m.runsTip }, m.runs),
-      h("span", { class: "tnum muted", title: m.priceTip }, m.price));
-    const label = [m.name, m.kit, m.marks.harness?.tip, m.words, m.runsTip, `${m.price} a run`].filter(Boolean).join(", ");
-    return h("button", { class: `token${on ? " is-on" : ""}${ui.focus && !on ? " is-dim" : ""}`, type: "button", "aria-pressed": String(on), "data-member": m.slug,
-      "aria-label": `${label}. A tap shows only its work.`, onclick: () => { st.focus = on ? "" : m.slug; core.draw(); } }, port, body);
-  }
+  // -- a column's head: its member's name over it (spec 53 §1.4); the member's face is on the stage switch (shell-arena.js) -----------------------------------------------------
+  const colName = (m) => h("span", { class: "colname", "data-member": m.slug }, m.name);
 
   // -- what a member shows: its open tasks of the picked goals, in rows by phase ----------------------------------------------------------------------------
   const keep = (ui, idea) => !ui.picks.length || ui.picks.includes(idea);
@@ -183,7 +171,7 @@ export function makeField(core, hooks) {
       });
       // The members and their columns are one sideways strip (spec 50 §6.5): a member with its column, 148 px wide, snapped to a column's start, the third peeking at 390 px; with two or fewer
       // there is no scroll and the columns share the width. A card is 132 × 185 in both.
-      const strip = h("div", { class: `strip${shown.length <= FEW ? " is-few" : ""}` }, ...shown.map((m, i) => h("div", { class: "pair" }, memberCard(m, ui), cols[i])));
+      const strip = h("div", { class: `strip${shown.length <= FEW ? " is-few" : ""}` }, ...shown.map((m, i) => h("div", { class: "pair" }, colName(m), cols[i])));
       const wrap = h("div", { class: "arena-scroll" }, strip);
       const focus = shown.find((m) => m.slug === ui.focus);
       const none = !shown.length && NO_ONE[ui.band] ? h("div", { class: "band-none", "data-band": ui.band }, h("p", { class: "cap" }, NO_ONE[ui.band]),
@@ -192,8 +180,7 @@ export function makeField(core, hooks) {
       el.replaceChildren(...[bands, none || wrap, focus ? solo(model, focus, ui) : null, spread.node()].filter(Boolean));
       for (const s of el.querySelectorAll(".stack")) { const top = scrolled.get(s.dataset.column || ""); if (top && !held.has(s.dataset.column)) s.scrollTop = top; }
       if (!none) el.querySelector(".arena-scroll").scrollLeft = left;
-      for (const slug of rewarded) {                  // the quiet reward: the member's first number and its column's count, once
-        pulse(el.querySelector(`.token[data-member="${slug}"] .tnum`));
+      for (const slug of rewarded) {                  // the quiet reward: the column's count, once
         if (!held.has(slug)) pulse(el.querySelector(`.stack[data-column="${slug}"] .stack__done`));
       }
       if (before) play(el, before);

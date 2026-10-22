@@ -487,8 +487,8 @@ async def test_three_members_are_one_sideways_strip_of_148_px_columns_snapped_wi
         css = await scroller.evaluate("e => ({ snap: getComputedStyle(e).scrollSnapType, bar: getComputedStyle(e).scrollbarWidth, x: getComputedStyle(e).overflowX, w: e.scrollWidth, c: e.clientWidth })")
         assert css["snap"] == "x mandatory" and css["bar"] == "none" and css["x"] == "auto" and css["w"] > css["c"]                    # snapping, no scrollbar drawn, scrolling
         assert await page.locator(".pair").first.evaluate("e => getComputedStyle(e).scrollSnapAlign") == "start"                      # to a column's start
-        for pair in await page.locator(".pair").all():                                                                                # the member never separates from its tasks
-            token, column = await pair.locator(".token").bounding_box(), await pair.locator(".stack").bounding_box()
+        for pair in await page.locator(".pair").all():                                                                                # the member's name never separates from its tasks
+            token, column = await pair.locator(".colname").bounding_box(), await pair.locator(".stack").bounding_box()
             box = await pair.bounding_box()
             assert abs(token["x"] + token["width"] / 2 - (column["x"] + column["width"] / 2)) <= 1 and token["y"] < column["y"] and abs(box["x"] - column["x"]) <= 1
         sizes = {(round(b["width"]), round(b["height"])) for b in [await c.locator(".tcard").bounding_box() for c in await page.locator(".pair .deck:not(.is-leaving)").all()]}
@@ -729,7 +729,7 @@ async def test_every_new_target_is_a_finger_wide(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch, init="localStorage.setItem('orkcraft.flags.goals', '{\"project\": 1}');") as (stub, page):
         await page.locator(".deck").first.wait_for(timeout=WAIT_MS)
         small = []
-        for selector in (".board-name", ".gbar__gate", ".gbar__head", ".band", ".token", ".deck", ".flagline__body", ".flagline__close", FAB):
+        for selector in (".board-name", ".gbar__gate", ".gbar__head", ".gbar .partydeck", ".band", ".band button.band__face", ".deck", ".flagline__body", ".flagline__close", FAB):
             for e in await page.locator(selector).all():
                 b = await e.bounding_box()
                 if b and (b["height"] < 44 or (selector in (FAB, ".flagline__close") and b["width"] < 44)):

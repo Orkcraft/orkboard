@@ -126,13 +126,14 @@ async def test_a_party_s_window_has_its_goals_bar_its_members_in_the_stages_and_
         # the party, stage by stage: the leader in Planning (it holds the plan), the builders, the checker (a member of its own, free)
         assert [await b.get_attribute("aria-label") for b in await page.locator(".band").all()] == ["Planning: the Taskmaster. 1 waits for you", "Implementation: Grunts, Product designer", "Checking: Reviewer"]
         await _band(page, "lead")
-        assert [" ".join((await t.get_attribute("aria-label")).split(", ")[:1] + [(await t.get_attribute("aria-label")).split(", ")[3]]) for t in await page.locator(".token").all()] == ["Taskmaster plan ready"]
-        assert await page.locator('.token[data-member="taskmaster"] .sign.alert .ork-sign.alert').count() == 1       # ! on the alert ground: orkUI's sign
+        assert [await t.get_attribute("aria-label") for t in await page.locator("button.band__face").all()] == ["Only Taskmaster’s work"]
+        assert await page.locator('button.band__face[data-member="taskmaster"] .band__sign.alert .ork-sign.alert').count() == 1       # ! on the leader's face: orkUI's sign
         await _band(page, "build")
-        assert [(await t.get_attribute("aria-label")).split(", ")[0] for t in await page.locator(".token").all()] == ["Grunts", "Product designer"]
-        assert "at work" in await page.locator('.token[data-member="grunt"]').get_attribute("aria-label") and "next" in await page.locator('.token[data-member="product-designer"]').get_attribute("aria-label")
+        assert [await t.text_content() for t in await page.locator(".colname").all()] == ["Grunts", "Product designer"]
+        assert [await t.get_attribute("aria-label") for t in await page.locator("button.band__face").all()] == ["Only Grunts’s tasks", "Only Product designer’s tasks"]
+        assert await page.locator("button.band__face .band__sign").count() == 0                          # at work, next, free: no sign
         await _band(page, "check")
-        assert "free" in await page.locator('.token[data-member="reviewer"]').get_attribute("aria-label")
+        assert [await t.get_attribute("aria-label") for t in await page.locator("button.band__face").all()] == ["Only Reviewer’s tasks"] and await page.locator("button.band__face .band__sign").count() == 0
         await page.locator(".gbar__gate").wait_for(timeout=WAIT_MS * 2)                              # (the gate was read again, the bar drawn with it)
         await page.wait_for_timeout(700)
         for sel in (".board-bar .projbtn", ".partydeck", ".gbar__head", ".band", ".gbar__gate"):
@@ -175,7 +176,7 @@ async def test_a_plan_waiting_is_a_stop_with_start_the_work_and_open_the_plan(fa
         await _band(page, "lead")
         plan = _item(page, "Draft the pricing page")                                                # in Planning: the leader's column, the stops first, lit
         assert "is-stop" in await plan.get_attribute("class") and "plan ready · $2–4" in await plan.get_attribute("aria-label")
-        assert await page.locator(".token").count() == 1                                            # only the leader is active in Planning
+        assert await page.locator("button.band__face").count() == 1 and await page.locator(".colname").count() == 1      # only the leader is active in Planning
         raised = await _pop(page, "Plan ready: Draft the pricing page")
         assert "alert" in await raised.get_attribute("class")
         assert [await b.inner_text() for b in await raised.locator(".raised__quick button").all()] == ["Start the work", "Open the plan"]
@@ -197,8 +198,8 @@ async def test_implementation_has_its_members_tasks_running_down_in_rows_by_phas
         await _open_map(page)
         await _band(page, "build")
         grunts, designer = page.locator('.stack[data-column="grunt"]'), page.locator('.stack[data-column="product-designer"]')
-        # the members stand at the top, their tasks run down from them in rows by phase: a goal's tasks of one phase are one stack (the one at work in front)
-        token, column = await page.locator('.token[data-member="grunt"]').bounding_box(), await grunts.bounding_box()
+        # the members' names stand at the top, their tasks run down from them in rows by phase: a goal's tasks of one phase are one stack (the one at work in front)
+        token, column = await page.locator('.colname[data-member="grunt"]').bounding_box(), await grunts.bounding_box()
         stacks = grunts.locator(".deck:not(.is-leaving)")
         first = await stacks.first.bounding_box()
         assert token["y"] + token["height"] <= column["y"] <= first["y"]
@@ -305,11 +306,11 @@ async def test_yellow_is_only_on_the_agent_the_work_stopped_on(fake_repo, monkey
         await _band(page, "lead")
         card = _item(page, "Which store first")
         assert "is-stop" in await card.get_attribute("class") and "asks you" in await card.inner_text()
-        assert [await s.get_attribute("data-member") for s in await page.locator(".token:has(.sign.alert)").all()] == ["taskmaster"]       # the leader, who holds the question
+        assert await page.locator("button.band__face:has(.band__sign)").count() == 0                       # the question is Product designer's: its face wears it in Implementation (a failure's ✗ over it)
         await _band(page, "build")
         fail = page.locator('.stack[data-column="product-designer"] .deck[data-task="f1"]')
         assert "is-fail" in await fail.get_attribute("class") and "is-fail" in await fail.locator(".tcard").get_attribute("class")
-        stops = [await e.get_attribute("data-member") for e in await page.locator(".token:has(.sign.danger)").all()]
+        stops = [await e.get_attribute("data-member") for e in await page.locator("button.band__face:has(.band__sign.danger)").all()]
         assert stops == ["product-designer"]                                                         # the agent of the failed task, not the one whose result waits
         review = page.locator('.stack[data-column="grunt"] .deck[data-task="f2"]')
         assert "is-review" in await review.locator(".tcard").get_attribute("class") and "in Review" in await review.inner_text()
@@ -328,7 +329,7 @@ async def test_checking_has_the_checkers_column_and_its_goal_in_the_goals_sheet(
         await _open_map(page)
         await page.locator(".band").first.wait_for(timeout=WAIT_MS)
         assert await page.locator('.band[data-band="check"]').get_attribute("aria-selected") == "true"        # the first shown: a checker has an open task
-        assert [(await t.get_attribute("aria-label")).split(", ")[0] for t in await page.locator(".token").all()] == ["Reviewer"]
+        assert [await t.text_content() for t in await page.locator(".colname").all()] == ["Reviewer"]
         assert await page.locator('.deck[data-task="c0"]').count() == 0
         assert [await c.get_attribute("data-task") for c in await page.locator('.stack[data-column="reviewer"] .deck').all()] == ["c1", "c2"]
         assert await page.locator('.deck[data-task="c2"]').locator("xpath=ancestor::*[contains(@class, 'phase')][1]").get_attribute("data-phase") == "next"      # wave 2: the next row
