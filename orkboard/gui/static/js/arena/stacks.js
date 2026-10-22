@@ -3,12 +3,14 @@
 // the front card first (at work, failed, in Review, ready, waiting, tonight), behind it one or two edges and ×n when there are more. A card is 5:7:
 // the goal's element top left, its type's sign top right in the element's colour (spec 55), the goal's short name, the task's name, its foot. A press on a stack of one opens the
 // task (its result in Review), on a stack of more spreads it (spread.js); hovering a card draws what it waits for and what waits for it (arrows.js).
-// What the member's rows do as tasks come and go is motion.js's (a column's `useColumn`).
+// What the member's rows do as tasks come and go is motion.js's (a column's `useColumn`); the cards of a plan just started from the hand are dealt in (`is-dealt`, spec 57).
+// A card the stop in the hand that is looked at is about wears `is-linked` (spec 58): the ring is drawn on its stack's box, a 2-px ink outline (the card itself is clipped to its notch).
 // A stop is marked once (docs/specs/52-goal-types.md §4.5): a pick's card keeps its alert sign and has no alert edge or alert words; a failure keeps its danger edge.
 import { html, cls } from "../html.js";
 import { Elem, Sign } from "../orkui.js";
 import { showPick, showResult, showTask } from "../shell/store.js";
-import { taskHover, taskHoverBy, spread } from "./arenastate.js";
+import { rises } from "./motion.js";
+import { taskHover, taskHoverBy, spread, stopAbout, stopLook } from "./arenastate.js";
 import { rowsOf, taskFoot, waitersOf, waitsForOf } from "./arenawords.js";
 import { elementOf } from "./goalwords.js";
 
@@ -20,6 +22,13 @@ export const typeTone = (n) => { const el = elementOf(n); return el.name ? (el.d
 export const typeSign = (n, kind = "arena-task__type") => (n?.type?.sign ? html`<span class=${`${kind} ${typeTone(n)}`} title=${n.type.name}><${Sign} name=${n.type.sign} /></span>` : null);
 /** A goal's name in a card's label, its type after it (spec 53 §3): *Sign in with a passkey, Fix a bug*. */
 export const goalWords = (n) => (n.type?.name ? `${n.title}, ${n.type.name}` : n.title);
+
+/** Whether the stop that is looked at is about one of the cards of a stack (spec 58 §2): `keys` and `goals` are the cards' own. A stop about a task rings that task's card (its stack's front when it
+ *  lies behind another); one about a goal rings every card of the goal. */
+export function linkedTo(keys, goals) {
+  const a = stopLook.value && stopAbout.value;
+  return !!a && (a.task ? keys.includes(a.task) : goals.includes(a.idea));
+}
 
 /** What a task's hover says to a card: it is the one hovered (*src*, with what waits for it), one that waits for it (*after*) or one it waits for (*before*). */
 export function relationOf(n, t) {
@@ -76,6 +85,7 @@ function Stack({ goal, items, later, wide, member, row }) {
   const { n, t } = front.it, live = shown.filter((x) => !x.sign).length;
   const rel = relationOf(n, t), leaving = !!front.sign;
   const foot = footParts(n, t, rel), edges = Math.min(2, shown.length - 1);
+  const linked = linkedTo(shown.filter((x) => !x.sign).map((x) => x.key), shown.filter((x) => !x.sign).map((x) => x.it.n.slug));
   const enter = () => { if (taskHover.value !== front.key) taskHover.value = front.key; taskHoverBy.value = "pointer"; };
   const focus = () => { taskHover.value = front.key; taskHoverBy.value = "focus"; };
   const leave = () => { if (taskHover.value === front.key) taskHover.value = ""; };
@@ -85,9 +95,9 @@ function Stack({ goal, items, later, wide, member, row }) {
     else open(n, t);
   };
   const said = `${t.title} (${goalWords(n)}): ${taskFoot(t, n)}, wave ${t.wave}${live > 1 ? `, and ${live - 1} more of this goal: a press shows them all` : ""}`;
-  return html`<div class=${cls("arena-stk", { "is-many": live > 1, "is-fail": t.state === "failed", "is-wide": wide })} data-goal=${goal} data-n=${live}>
+  return html`<div class=${cls("arena-stk", { "is-many": live > 1, "is-fail": t.state === "failed", "is-wide": wide, "is-linked": linked })} data-goal=${goal} data-n=${live}>
     ${Array.from({ length: edges }, (_, i) => html`<i key=${i} class="arena-stk__edge" style=${`left:${(i + 1) * 4}px;top:${-(i + 1) * 4}px`}></i>`)}
-    <button type="button" class=${cls("arena-task", { ...stateCls(n, t, rel, later), "is-drawn": front.fresh, "is-leaving": !!front.sign, "is-gone": front.quiet, "has-n": live > 1 })}
+    <button type="button" class=${cls("arena-task", { ...stateCls(n, t, rel, later), "is-drawn": front.fresh || (front.dealt && rises(front.key)), "is-dealt": front.dealt && !rises(front.key), "is-linked": linked, "is-leaving": !!front.sign, "is-gone": front.quiet, "has-n": live > 1 })}
       data-key=${front.key} data-task=${t.id} data-idea=${n.slug} data-state=${t.state} data-wave=${t.wave} data-sign=${front.sign || undefined} title=${cardTip(n, t)} aria-label=${said}
       aria-hidden=${leaving ? "true" : undefined} tabindex=${leaving ? -1 : undefined} onClick=${press}
       onMouseEnter=${enter} onMouseLeave=${leave} onFocus=${focus} onBlur=${leave}>
