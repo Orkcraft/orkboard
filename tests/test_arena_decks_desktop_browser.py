@@ -348,7 +348,7 @@ def test_the_stack_of_two_edges_for_three_cards_and_the_top_of_a_stack_is_the_on
     host.node_of("register")["tasks"][3]["wave"] = 1                                                          # k5 joins the first phase: three cards in Backend's register stack
     host.bump({})
     stack = pg.locator(".arena-stack[data-agent=backend] .arena-stk[data-goal=register]")
-    stack.locator(".arena-stk__n").wait_for(timeout=WAIT_MS)
+    stack.locator(".arena-stk__n", has_text="×3").wait_for(timeout=WAIT_MS)                                  # the board read again (it was ×2)
     assert stack.locator(".arena-stk__n").inner_text() == "×3" and stack.locator(".arena-stk__edge").count() == 2
     assert stack.locator(".arena-task").get_attribute("data-task") == "k2"                                      # at work first, then failed, in Review, ready, waiting
     assert [r.get_attribute("data-row") for r in pg.locator(".arena-stack[data-agent=backend] .arena-phase").all()] == ["now"]       # next row gone: nothing is a wave after
