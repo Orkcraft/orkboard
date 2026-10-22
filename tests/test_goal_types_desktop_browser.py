@@ -43,7 +43,7 @@ class TypesHost(ArenaHost):
     def __init__(self):
         super().__init__()
         self.leader = DESIGNER
-        by = {t.id: t for t in goal_types.of("product-designer")}
+        by = {t.id: t for t in goal_types.CATALOG}
         swap = [{"slug": "screens", "name": "Screens", "runs": 2}, {"slug": "backend", "name": "Backend", "runs": 5}]
         self.types = [type_doc(by["icon"], 3, [ARTIST | {"free": True, "out": []}]), type_doc(by["screen"], 1),
                       type_doc(by["logo"], 0, [ARTIST | {"free": False, "out": swap}]), type_doc(by["feature"], 0, [UIKIT | {"free": False, "out": []}])]

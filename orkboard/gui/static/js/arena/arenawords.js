@@ -124,6 +124,10 @@ export function partyOf(g, nodes) {
 
 export const BAND_WORDS = { lead: "Leads", build: "Builds", check: "Checks" };
 export const BAND_KEYWORD = { lead: "Leads:", build: "Takes:", check: "Checks:" };
+/** A party's stage in a band (`g.stages`, spec 59 §3): its word (*Concept*, *Build*, *Playtest* with a Game designer) and its seats. A party with no `stages`
+ *  (an older host) says today's words and no seats. */
+const STAGE_TODAY = { lead: "Planning", build: "Implementation", check: "Checking" };
+export const stageOf = (g, band) => ({ word: g?.stages?.[band]?.word || STAGE_TODAY[band], seats: g?.stages?.[band]?.seats || 0, own: !!g?.stages?.[band]?.word });
 
 /** A task's phase: its wave less the lowest wave among the open tasks of its goal (spec 50 §3.4): 0 now, 1 next, 2 and over later. */
 export function phaseOf(n, t) {
