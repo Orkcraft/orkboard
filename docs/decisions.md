@@ -804,3 +804,26 @@ the checkers'), not phases in order. So:
    flag sooner.
 A new start for a goal and a new place for the party switch and the counts over v1's mechanics, the owner's call before
 the testers' numbers, as §62–§64. Spec 52.
+
+## 66. The phone, simpler: the deck beside the party's name, the faces are the members, New goal at once with the party first, a goal's two marks on every card (22 October, the owner)
+
+Why: the owner, on the phone as spec 52 built it: four bands before the first card, the party's faces twice (on the
+stage switch and in the members' strip under it), New goal behind two motions (≈ 1.2 s) and a form longer than the
+screen that names the party twice. So:
+1. **The party's deck stands at the goals bar's left**, beside the party's name and its *k of n goals done* (moves the
+   phone's half of §65.3 from the stage switch's end); its count and its sheet are §65's.
+2. **The faces are the members**: in the stage shown, a tap on a face shows only that member's tasks, again everyone;
+   a stage's sign (✗, else !) stands on the face it comes from (refines §65.1). The members' strip goes: over each
+   column its member's name; a member's runs and price stay in its solo.
+3. **New goal opens at once**: the form slides up (180 ms; none under reduced motion); the lift, the deal and the turn
+   of the create button go on the phone. The desktop's New goal is unchanged for now.
+4. **The party first**: the form starts with the party (its leader's head, a list of the project's parties), then the
+   priority, then the goal type (the party's leader's types, *No type* last), then **one field for the goal** (its
+   first line its title), then the type's fields. A type belongs to its party's leader, so a change of party deals its
+   types again. The form says no element, names the party once, has no lens switch for a typed goal, and *Low* says
+   *Keep for tonight*.
+5. **A goal's two marks, each in its place**: its element (which goal: shape and colour) at a card's corner; its type's
+   sign (what kind: muted ink) before the goal's name wherever the name is written, task cards too (reverses spec 52
+   §4.6's *no other place*). A type is still never a colour (§65.4).
+6. **Nothing flies** (§62.8 stays).
+The owner's call on the phone as built, before the testers' numbers, as §62–§65. Spec 53.
