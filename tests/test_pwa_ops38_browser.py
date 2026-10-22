@@ -313,7 +313,7 @@ async def test_a_template_that_goes_by_itself_says_so_not_right_and_check_again(
 
 
 @pytest.mark.asyncio
-async def test_what_waits_in_operations_is_counted_by_the_partys_deck_in_every_party_and_lies_along_the_bottom_in_its_own(fake_repo, monkeypatch, _ops):
+async def test_what_waits_in_operations_lies_along_the_bottom_in_every_partys_hand_with_its_sliders_and_the_sheets_dot_is_danger_with_a_failure(fake_repo, monkeypatch, _ops):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready")
         ops = _ops["ops"]
@@ -321,16 +321,19 @@ async def test_what_waits_in_operations_is_counted_by_the_partys_deck_in_every_p
         ops.add_run(state="failed", why="Jira said no", acted=False)
         ops.templates[0]["proposal"] = {"lines": ["Titles start with a verb.", "Name the epic."], "why": "", "op": "op1", "at": ""}
         ops.changed()
-        await _pick_goal(page, "ship")                                # another party: the party's deck counts Operations' stops all the same
+        await _pick_goal(page, "ship")                                # another party: Operations' stops lie in its hand all the same (spec 54 §2.1)
         where = page.locator(".partydeck")
-        await where.locator(".ork-count").wait_for(state="visible", timeout=WAIT_MS)
-        assert await where.locator(".ork-count").inner_text() == "5" and "5 stops wait in the other parties" in await where.get_attribute("aria-label")      # Operations' 3 and General's 2
+        await page.locator(".hc").first.wait_for(timeout=WAIT_MS)
+        assert await where.locator(".ork-count").count() == 0 and "5 stops wait in the other parties" in await where.get_attribute("aria-label")      # no count; Operations' 3 and General's 2 are told to a screen reader
         sheet = await _where(page)
-        assert await sheet.locator('.where-row[data-goal="ops"] .ork-count.warning').inner_text() == "3"           # and its row in the sheet
+        assert await sheet.locator('.where-row[data-goal="ops"] .where-dot').get_attribute("data-dot") == "danger"           # and its row in the sheet wears a dot, danger with a failed run
         await page.keyboard.press("Escape")
-        assert await page.locator(".hc").count() == 0 or all("op" not in (await h.get_attribute("data-kind")) for h in await page.locator(".hc").all())          # not among that goal's stops
+        kinds = [await b.get_attribute("data-kind") for b in await page.locator(".hc").all()]
+        assert sorted(k for k in kinds if k.startswith("op")) == ["op", "op_failed", "op_rules"]                              # in the hand of the party shown, each wearing its sliders
+        assert await page.locator('.hc[data-kind^="op"] .hc__party[data-party="ops"]').count() == 3
         await _pick_goal(page, "ops")
-        assert sorted([await b.get_attribute("data-kind") for b in await page.locator(".hc").all()]) == ["op", "op_failed", "op_rules"]
+        kinds = [await b.get_attribute("data-kind") for b in await page.locator(".hc").all()]
+        assert sorted(k for k in kinds if k.startswith("op")) == ["op", "op_failed", "op_rules"] and await page.locator('.hc[data-kind^="op"] .hc__party').count() == 0     # in its own, none
         failed = await _pop(page, "Failed: ")
         assert "Jira said no" in await failed.inner_text() and "danger" in await failed.get_attribute("class")
         await failed.get_by_role("button", name="Open…").click()

@@ -36,7 +36,7 @@ async def test_the_partys_deck_stands_at_the_goals_bars_left_with_the_other_part
         assert (round(box["width"]), round(box["height"])) == (44, 44) and round(box["x"]) == round(bar["x"]) and await deck.evaluate("e => e.nextElementSibling.matches('.gbar__head')")
         back = await deck.locator(".partydeck__back").bounding_box()
         assert (round(back["width"]), round(back["height"])) == (16, 22) and await deck.locator(".partydeck__edge").count() == 2         # a back of 16 × 22, two edges behind it
-        assert await deck.locator(".ork-count.warning").inner_text() == "2"                                                             # the stops in the other parties
+        assert await deck.locator(".ork-count").count() == 0                                                                            # no count (spec 54 §2.4); the label says it to a screen reader
         assert await deck.get_attribute("aria-label") == "Parties: Passkey shown, 2 stops wait in the other parties. A tap shows the parties"
         assert norm(await page.locator(".gbar__head").inner_text()) == "Passkey · 2 of 9 goals done"
         sheet = await _where(page)
@@ -158,4 +158,4 @@ async def test_a_tasks_card_wears_its_goals_type_before_its_name_a_planning_goal
 
 def test_the_service_worker_is_at_v61_with_b_merged_over_a_v60():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v61";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7)
+    assert 'const CACHE = "orkcraft-app-v62";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7); spec 54 B is v62

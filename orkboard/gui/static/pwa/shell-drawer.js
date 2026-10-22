@@ -1,8 +1,8 @@
-// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1, spec 50 §6.1): Stop all and Spend today at its head, Agents (a screen of its own), then This project — the Target, Start plans by themselves, the night's hours, Merge into, Push after merging, What is left — and This phone — Pair a phone,
+// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1, spec 50 §6.1, spec 54 §5–§6): Stop all and Spend today at its head, then This project — the Target (one switch), Start plans by themselves, the night's hours, Merge into, *Agents of this project ›* (a screen of its own), Push after merging, What is left — and This phone — Pair a phone,
 // Download the logs, Unpair this phone. Each setting writes with today's command (`ideas.board_set`, `ideas.into`) at once.
 import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
-import { TARGETS } from "./shell-words.js";
+import { targetSwitch } from "./shell-ops.js";
 import { makePush } from "./shell-push.js";
 import { makeWeek, pushWeek } from "./shell-cards.js";
 
@@ -57,11 +57,7 @@ export function makeSettings(core, ctx, drawer, limits) {
   // -- This project: the Board's settings (spec 35 §1, §5, §7, §11), written at once ------------------------------------------
   let writing = 0;                                       // settings being written: the board read in between must not put the old value back
   const write = async (name, args) => { writing += 1; try { return await core.call(name, args); } finally { writing -= 1; } };
-  const picks = TARGETS.map(([id, word, line]) => {
-    const input = h("input", { type: "radio", name: "target", value: id, "aria-label": word });
-    input.addEventListener("change", async () => { if (await write("ideas.board_set", { target: id })) await core.refresh(); });
-    return [id, input, h("label", { class: "target-pick" }, input, h("span", { class: "need-text" }, h("b", {}, word), h("small", {}, line)))];
-  });
+  const target = targetSwitch("target", async (id) => { if (await write("ideas.board_set", { target: id })) await core.refresh(); });
   const pushBox = h("input", { type: "checkbox", id: "push-after" });
   const autoBox = h("input", { type: "checkbox", id: "autostart" });
   const nightFrom = h("input", { class: "ork-field", type: "time", "aria-label": "Night from" });
@@ -76,15 +72,17 @@ export function makeSettings(core, ctx, drawer, limits) {
   pushBox.addEventListener("change", async () => { await write("ideas.into", { push: pushBox.checked }); await core.refresh(); });
 
   // Agents: today's Agents pane as a screen of its own (Back to the Board). The flags are the goals': the Goals sheet and About this party (shell-goals.js, shell-party.js).
-  const agentsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "agents", onclick: () => { drawer.close(); core.open({ kind: "agents" }); } }, icon("robot"), "Agents");   // a head says a craft, not every agent: the button is orkUI's robot
+  const agentsBtn = h("button", { class: "ork-btn", type: "button", "data-act": "agents", onclick: () => { drawer.close(); core.open({ kind: "agents" }); } },
+    icon("robot"), "Agents of this project", h("i", { class: "ork-chev right", "aria-hidden": "true" }));   // a head says a craft, not every agent: the button is orkUI's robot; a row of This project (spec 54 §6)
   const intoBtn = h("button", { class: "ork-btn", type: "button", "aria-haspopup": "dialog", "data-act": "into", onclick: () => { drawer.close(); core.openInto(); } });
 
   const project = [
     h("h3", {}, "This project"),
-    h("div", { class: "field target-picks", role: "radiogroup", "aria-label": "Target" }, h("span", { class: "field-label" }, "Target"), ...picks.map((p) => p[2])),
+    h("div", { class: "field target-picks" }, h("span", { class: "field-label" }, "Target"), target.el),
     h("label", { class: "check-line", for: "autostart" }, autoBox, h("span", {}, "Start plans by themselves")),
     h("div", { class: "field" }, h("span", { class: "field-label" }, "Night"), h("div", { class: "row night-row" }, nightFrom, h("span", {}, "to"), nightTo)),
     h("div", { class: "row" }, intoBtn),
+    h("div", { class: "row" }, agentsBtn),
     h("label", { class: "check-line", for: "push-after" }, pushBox, h("span", {}, "Push after merging (sends your code to origin)")),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: () => { drawer.close(); limits(); } }, "What is left")),
   ];
@@ -107,7 +105,7 @@ export function makeSettings(core, ctx, drawer, limits) {
   ];
 
   return {
-    head: [h("div", { class: "row" }, stop), spend, h("div", { class: "row" }, agentsBtn)],
+    head: [h("div", { class: "row" }, stop), spend],
     project,
     phone,
     sheets: [stopSheet.el, pairSheet.el, week.el],
@@ -116,7 +114,7 @@ export function makeSettings(core, ctx, drawer, limits) {
       push.draw();
       intoBtn.replaceChildren("Merge into ", h("b", {}, core.st.review?.into || "dev"), h("i", { class: "ork-chev", "aria-hidden": "true" }));
       if (writing) return;
-      for (const [id, input] of picks) input.checked = id === (core.st.board?.target || "balance");
+      target.set(core.st.board?.target || "balance");
       pushBox.checked = Boolean(core.st.review?.push);
       autoBox.checked = core.st.board?.autostart !== false;
       if (document.activeElement !== nightFrom && document.activeElement !== nightTo) [nightFrom.value, nightTo.value] = String(core.st.board?.night || "01:00-07:00").split("-");

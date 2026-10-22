@@ -1005,20 +1005,20 @@ async def test_what_waits_for_you_is_the_signal_the_chip_counts_the_stops_and_th
                 t["state"] = "merged"
         stub.bump({})
         await hand.first.wait_for(state="detached", timeout=WAIT_MS)                                    # nothing waits: no fan, and it says so
-        assert "Nothing waits for you in this party." in await page.locator(".handzone").inner_text()
+        assert "Nothing waits for you." in await page.locator(".handzone").inner_text()                  # (spec 54 §2.5: the hand is the project's, not a party's)
 
 
 @pytest.mark.asyncio
-async def test_the_drawer_holds_stop_all_spend_agents_today_this_project_and_this_phone_in_that_order(fake_repo, monkeypatch):
+async def test_the_drawer_holds_stop_all_spend_today_this_project_with_agents_and_this_phone_in_that_order(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         drawer = await _menu(page)
         text = (await drawer.inner_text()).lower()
-        order = ["Stop all", "Spend today", "Agents", "This project", "Target", "Start plans by themselves", "Merge into", "Push after merging", "What is left",
+        order = ["Stop all", "Spend today", "This project", "Target", "Start plans by themselves", "Merge into", "Agents of this project", "Push after merging", "What is left",
                  "This phone", "Pair a phone", "Download the logs", "Unpair this phone"]
         at = [text.index(w.lower()) for w in order]
         assert at == sorted(at), dict(zip(order, at))
-        agents, today, project = [(await b.bounding_box())["y"] for b in (drawer.get_by_role("button", name="Agents"), drawer.locator('[data-act="today"]'), drawer.get_by_role("heading", name="This project"))]
-        assert agents < today < project and await drawer.locator('[data-act="today"] .ork-count').count() == 1                          # Today: after Agents, with its count
+        agents, today, project = [(await b.bounding_box())["y"] for b in (drawer.get_by_role("button", name="Agents of this project"), drawer.locator('[data-act="today"]'), drawer.get_by_role("heading", name="This project"))]
+        assert today < project < agents and await drawer.locator('[data-act="today"] .ork-count').count() == 1                          # Today at the head, with its count; Agents a row of This project (spec 54 §6.1)
         assert await drawer.locator(".project-row").count() == 0 and "Other projects" not in text                                         # the projects are the where sheet's
         assert await page.locator(".board-bar").get_by_role("button", name="Settings", exact=True).count() == 0     # the gear is gone
         await drawer.get_by_role("button", name="What is left").click()                                 # the limits' sheet, as the chip opens it

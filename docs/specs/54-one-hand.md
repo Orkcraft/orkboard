@@ -132,6 +132,26 @@ replaces the words; ticking a described to-do again with no file keeps them; unt
 sent before going without stays on disk and in the task's environment (the to-do's value is cleared, not the file).
 Only A's row was changed, plus `docs/specs/54-one-hand.md` for this note.
 
+**B, the phone** (`orkcraft-app-v62`). Built to §2–§6 as written; what the spec left open, and the files it did not name:
+- **The order is in the page, the place is in the CSS.** `shell-arena-words.js` `byUrgency` sorts the hand (a failed task or operation; then a plan, a question, a to-do, a Pick one, an operation at your check; then a proposal, a party's
+  proposal, a template's rules; then the results; the oldest first by the row's `at` — a task's and a result's `finished` — and one without a time last) and `fanPlaces(n)` gives each rank its place in the row (the middle
+  `⌊(n−1)/2⌋`, then its right, then its left, outward). The cards stay in the page in the urgency's order (so Tab and a screen reader read it) and `shell-stops.js` lays them out with `style.order`; the row's first and last
+  card get their outer margin as an inline style by place, not by `:first-child`/`:last-child` (`test_design_system` allows no new custom property, so no `--place`). An even `n` has no card in the middle: the most urgent lies left of it.
+- **A stop of another party** is built from every party of the Map in its order, then Operations': each party's own filter (`st.picks`) applies to its own stops and results. The party mark is `{slug, name, head}` (Operations:
+  `{ops: true}`); `away()` in `shell-stops.js` shows it first (`core.pick(slug)` / `core.pickOps()`) for *Open…*, *Open the plan*, *Edit the party* and *Open it on its own screen*; a quick answer does not. The raised card's line is
+  `.raised__goal` (*Tech · Log format*; a party's own question or Operations' stop: the party alone), its label *Asks you: Log format (Tech)*. A push's arrival still shows the party of the host's first row and pops the most urgent stop.
+- **No count**: the deck keeps its label for a screen reader only; the parties' sheet rows lose their count, their labels say *something waits for you* (no number) and a dot (`.where-dot`, `data-dot` alert/danger, 8 × 8, orkUI's alert and
+  danger tokens). The dot is for stops, not results, as the count was (`stopCount`, `stopFailed` in `shell-arena-words.js`). Operations' row wears one too.
+- **Ways out** are in `shell-needs.js` (`decideButton`, `todoOuts`), used by the raised card and the sheet alike. The to-do row names no asking agent (`board_map.py` sends no `for`), so *Sent: the words go to …* and *Done: …'s plan goes on
+  without it.* both name the party's leader (*the Taskmaster*, *Quill*); *Let … decide* names the first question's asker, else the leader.
+- **The Target**: `targetSwitch` is in `shell-ops.js` (not `shell-forms.js`, which B's row does not name) and the drawer imports it; it reuses orkUI's `.pills`/`.pill` of the priority switch. Agents is a `data-act="agents"` row
+  in *This project*, after *Merge into*.
+- **Edit on a member's card** opens a second `makeAgentSheet` made in `board.js` (`core.editAgent(slug)`), because `shell-agents.js` keeps its sheet to itself and is not in B's row; the sheet is one more entry of `sheets`. A role the host
+  does not list opens the dialog as *Add agent*, as it always has.
+- **Tests changed beyond the new `tests/test_pwa_one_hand_browser.py`** (§8): `test_pwa_arena_stops_browser` (the order, the row's margins by place, a push pops the failure), `test_pwa_board35_browser` (the Target's one line, the dot, a question's
+  and a goal's last button), `test_pwa_decks_browser`, `test_pwa_board53_browser`, `test_pwa_goal_types_browser` (no count, dots), `test_pwa_ops38_browser` (Operations' stops lie in every party's hand), `test_pwa_shell_browser` (*Nothing waits
+  for you.*, the menu's order), and the `sw.js` pins in `test_pwa.py`, `test_pwa_goal_types_browser`, `test_pwa_board53_browser`.
+
 ## 11. Running A, B and C
 Each a cloud session on orkWorks/orkBoard on Sonnet with the brief below; each **merges into `main` itself** when its
 tests pass (CLAUDE.md, alpha): no pull request.

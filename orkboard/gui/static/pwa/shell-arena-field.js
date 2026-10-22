@@ -3,7 +3,7 @@
 // spreads it (shell-spread.js). A tap on a face shows only that member's work over the columns, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
 // Motion says what changed (shell-motion.js): a stack that was not there rises into its column, one that left (merged ✓, dropped ✗, or put away by the filter, with no sign) fades where it stood and
 // its column settles, one that moved slides to its new place, a merge's numbers are lit once; none under reduced motion, on the first read of a goal, for what changed while the page was hidden, nor
-// under a finger or the focus. A band with no one (spec 52 §5.4) says what happens to its work and offers **Add to the party** (Edit the party): the only place on the field that adds a member.
+// under a finger or the focus. A member's card in its solo has **Edit**: the agent's dialog, the leader's and the Grunt's too (spec 54 §6.2). A band with no one (spec 52 §5.4) says what happens to its work and offers **Add to the party** (Edit the party): the only place on the field that adds a member.
 import { h } from "./util.js";
 import { sign } from "./shell-marks.js";
 import { PHASES, rowsOf } from "./shell-phases.js";
@@ -142,7 +142,9 @@ export function makeField(core, hooks) {
         h("button", { class: "ork-btn quiet", type: "button", "data-act": "everyone", onclick: () => { st.focus = ""; core.draw(); } }, "Everyone")),
       h("div", { class: "solo__card" }, h("span", { class: "ork-gem", title: m.priceTip }, `${m.price} a run`),
         h("div", { class: "solo__info" }, h("span", {}, h("b", {}, m.name), h("span", { class: "muted" }, ` · ${m.kit}`)),
-          h("span", { class: "cap" }, h("b", {}, m.kw), ` ${m.rule}`), h("span", { class: "cap" }, `${m.runs} ${m.runsWord}`))),
+          h("span", { class: "cap" }, h("b", {}, m.kw), ` ${m.rule}`), h("span", { class: "cap" }, `${m.runs} ${m.runsWord}`)),
+        h("button", { class: "ork-btn quiet", type: "button", "data-act": "edit-agent", "aria-label": `Edit ${m.name}`, title: `Edit ${m.name}: its model, how many at once, its instruction and what it takes`,
+          onclick: () => core.editAgent(m.slug) }, "Edit")),     // the agent's dialog of Agents, for the leader and the Grunt too (spec 54 §6.2)
       h("div", { class: "solo__body" }, ...(body.length ? body : [h("p", { class: "cap solo__empty" }, none)])));
   }
 

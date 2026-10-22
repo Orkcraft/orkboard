@@ -1,6 +1,9 @@
-// What waits for you, along the bottom (docs/specs/49-one-window.md §6, §10.6, §11): the stops of the goal shown (a plan, a question, a proposal, a to-do, a
-// failure) and, after them, the results to look at, fanned across the whole width and centred, only their tops showing (56 px, no line over them; no count: the fan is
-// the count). The create button floats over the field, not here (shell-fab.js). A tap pops one out: it leaps from its place in the
+// What waits for you, along the bottom (docs/specs/49-one-window.md §6, §10.6, §11; spec 54 §2–§4, decisions §67): **every stop of the project** (every party's plan, question, proposal, to-do, Pick one and
+// failure, and Operations') and every party's results to look at, fanned across the whole width and centred, only their tops showing (56 px, no line over them; no count: the fan is
+// the count). In the order of their urgency (shell-arena-words.js `byUrgency`: red, what holds work back, what does not, the results; the oldest first) laid out with the most urgent in the middle, the next to its
+// right, the next to its left and so outward (`fanPlaces`): the cards stay in the page in the urgency's order, so the keys and a screen reader read it, and their place in the row is the CSS order. A stop of another
+// party wears that party's leader's small head (Operations' its sliders) and says its party on its raised card and in its label; *Open…* and *Open it on its own screen* show that party first. Every stop has a way
+// out that needs nothing from the person (shell-needs.js): a question *Let <asker> decide*, a to-do *Describe it instead*, *Go without it* or *Let <leader> choose*. The create button floats over the field, not here (shell-fab.js). A tap pops one out: it leaps from its place in the
 // fan to a raised sheet above the scrim (in steps, none under reduced motion; its place in the fan stays empty while it is up) with its gem, its kind, its head, its
 // title and text, its quick answers as 44 px buttons and *Open it on its own screen*. A tap on the scrim lays it back. The answers are the commands Needs you had:
 // a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped. Each wears its goal's element
@@ -9,7 +12,7 @@
 import { h, icon } from "./util.js";
 import { elem, sign } from "./shell-marks.js";
 import { midHead, whoHead } from "./shell-who.js";
-import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice } from "./shell-arena-words.js";
+import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice, byUrgency, fanPlaces } from "./shell-arena-words.js";
 import { resultActions, testsWords, changesWords, foundWords, foundOf } from "./shell-review.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { pointerGuard } from "./shell-motion.js";
@@ -37,7 +40,7 @@ export function missingWords(missing) {
 export function makeStops(core, ctx, needs, ops) {
   const st = core.st;
   const hand = h("div", { class: "hand", role: "group", "aria-label": "Waits for you" });
-  const empty = h("p", { class: "cap handzone__empty", hidden: true }, "Nothing waits for you in this party.");
+  const empty = h("p", { class: "cap handzone__empty", hidden: true }, "Nothing waits for you.");
   const el = h("section", { class: "handzone", "aria-label": "Waits for you" }, empty, hand);          // the fan takes the whole width and stays centred on the screen
 
   // -- the raised one: a modal over the scrim; its place in the fan is empty while it is up ------------------------------------------------------
@@ -47,7 +50,7 @@ export function makeStops(core, ctx, needs, ops) {
   dlg.addEventListener("click", (e) => { if (e.target === dlg) lower(); });
   dlg.addEventListener("close", () => { stopAll(); st.hand = ""; mark(); core.draw(); });          // what changed while it was up shows now: the fan does not shift under it; a sound does not play on under it
 
-  let items = [], sigs = "", raisedSig = "";
+  let items = [], places = [], sigs = "", raisedSig = "", raisedParty = null;          // `places[i]`: where in the row the i-th most urgent lies; `raisedParty`: the party of the stop raised (null: the one shown)
   const guard = pointerGuard([el, dlg], () => api.draw());      // no lost tap: a draw waits while a pointer is down on the fan or the raised one (spec 50 §6.9)
 
   // -- the stops of the goal, each with its quick answers ----------------------------------------------------------------------------------------------
@@ -61,21 +64,31 @@ export function makeStops(core, ctx, needs, ops) {
     if (said) ctx.flash(said);
     core.refresh();
   };
-  const away = (open, via = "hand") => () => { lower(); open(via); };
+  /** A press that opens something else: the stop is laid back, the party it belongs to is shown first when it is not the one shown (a pick of it in the parties' list, Operations too), then it opens (spec 54 §2.2). */
+  const away = (open, via = "hand") => () => {
+    const party = raisedParty;
+    lower();
+    if (party) { if (party.ops) core.pickOps(); else core.pick(party.slug); }
+    open(via);
+  };
 
-  function headOf(st_, slug) { return (st_.map?.goals || []).find((g) => g.slug === slug)?.leader?.head || null; }
-
-  /** The items of the goal shown, in the host's order: its Needs you rows, its failed tasks, then its results to look at. */
+  /** Every stop of the project and every party's results to look at, each as an item (spec 54 §2.1): the parties' in the Map's order, Operations' after them. The filter (spec 50 §3.5) is each party's own:
+   *  only the picked goals' stops and results. A stop of another party than the one shown says its party. */
   function build() {
-    const slug = st.track;
-    if (st.view === OPS_VIEW) return (st.board?.needs_you || []).filter((n) => n.kind.startsWith("op")).map(opItem);
-    const nodes = Object.fromEntries(nodesOf(st, slug).map((n) => [n.slug, n]));
-    const goal = (st.map?.goals || []).find((g) => g.slug === slug);
-    const lead = headOf(st, slug);
-    const picks = pickedOf(st, slug), keep = (idea) => !picks.length || picks.includes(idea);       // the filter (spec 50 §3.5): only the picked goals' stops and results
-    const out = needsOf(st, slug).filter((n) => keep(n.idea)).map((n) => ({ ...needItem(n, nodes[n.idea], goal, lead), element: nodes[n.idea]?.element || "" }));
-    out.push(...failedOf(st, slug).filter(({ node }) => keep(node.slug)).map(({ node, task }) => ({ ...failedItem(node, task), element: node.element || "" })));
-    out.push(...looksOf(st, slug).filter((r) => keep(r.idea)).map((r) => ({ ...lookItem(r, nodes[r.idea]), element: nodes[r.idea]?.element || "" })));
+    const shown = core.parties().shown;                       // a party's slug, or OPS_VIEW
+    const out = [];
+    for (const goal of st.map?.goals || []) {
+      const slug = goal.slug, lead = goal.leader?.head || null;
+      const nodes = Object.fromEntries(nodesOf(st, slug).map((n) => [n.slug, n]));
+      const picks = pickedOf(st, slug), keep = (idea) => !picks.length || picks.includes(idea);       // the filter: only the picked goals' stops and results
+      const party = slug === shown ? null : { slug, name: goal.short || goal.title, head: lead };
+      const tag = (it, node, at, goalName) => ({ ...it, element: node?.element || "", at: at || "", party, goalName: goalName || "" });
+      for (const n of needsOf(st, slug).filter((x) => keep(x.idea))) out.push(tag(needItem(n, nodes[n.idea], goal, lead), nodes[n.idea], n.at, n.idea ? nodes[n.idea]?.short || nodes[n.idea]?.title || n.title : ""));
+      for (const { node, task } of failedOf(st, slug).filter(({ node: x }) => keep(x.slug))) out.push(tag(failedItem(node, task), node, task.finished, node.short || node.title));
+      for (const r of looksOf(st, slug).filter((x) => keep(x.idea))) out.push(tag(lookItem(r, nodes[r.idea]), nodes[r.idea], r.finished, r.idea_title));
+    }
+    const party = shown === OPS_VIEW ? null : { ops: true, name: "Operations" };
+    for (const n of (st.board?.needs_you || []).filter((x) => x.kind.startsWith("op"))) out.push({ ...opItem(n), at: n.at || "", party, goalName: "" });
     return out;
   }
 
@@ -106,12 +119,12 @@ export function makeStops(core, ctx, needs, ops) {
       const picks = asked.map((x) => (x.pick != null ? x.choices[x.pick] || "" : ""));
       let quick;
       if (asked.length === 1 && q.choices.length) {
-        quick = () => q.choices.map((c, j) => btn(`${j === q.pick ? "● " : ""}${c}`, answer([c]), { primary: j === q.pick, text: true,
-          tip: j === q.pick ? "Picked for you: one tap answers" : "One tap answers with this", attrs: { "data-choice": String(j) } }));
+        quick = () => [...q.choices.map((c, j) => btn(`${j === q.pick ? "● " : ""}${c}`, answer([c]), { primary: j === q.pick, text: true,
+          tip: j === q.pick ? "Picked for you: one tap answers" : "One tap answers with this", attrs: { "data-choice": String(j) } })), needs.decideButton(n, lower)];
       } else if (asked.length > 1) {
         quick = () => [btn("Send the picks", answer(picks), { primary: true, disabled: !picks.some(Boolean), tip: "Answers each question with its recommended choice", attrs: { "data-act": "picks" } }),
-          btn("Open…", away(() => needs.askForm(n, picks)), { attrs: { "data-act": "more" } })];
-      } else quick = () => [btn("Open…", away(() => needs.askForm(n)), { attrs: { "data-act": "more" } })];
+          btn("Open…", away(() => needs.askForm(n, picks)), { attrs: { "data-act": "more" } }), needs.decideButton(n, lower)];
+      } else quick = () => [btn("Open…", away(() => needs.askForm(n)), { attrs: { "data-act": "more" } }), needs.decideButton(n, lower)];
       return { ...base, gem: { text: "?", tip: "A question costs nothing" }, small: q?.by?.head || null, whoTip: q?.by?.name ? `asked by ${q.by.name}` : "",
         text: q ? `“${q.ask}”` : n.text || "", quickLabel: "Answer in one tap", quick };
     }
@@ -133,7 +146,7 @@ export function makeStops(core, ctx, needs, ops) {
     }
     if (n.kind === "todo") {
       return { ...base, gem: { text: "·", tip: "A to-do costs nothing" }, text: n.todo?.why || n.text || n.title, quickLabel: "Quick moves", open: { kind: "plan", slug: n.idea, todo: n.todo?.id },
-        quick: () => [btn("Open…", away(() => needs.todoSheet(n)), { primary: true, attrs: { "data-act": "todo" } })] };
+        quick: () => [btn("Open…", away(() => needs.todoSheet(n)), { primary: true, attrs: { "data-act": "todo" } }), ...needs.todoOuts(n, lower)] };
     }
     // a failure of the whole idea (a task that failed is the Map's, below)
     return { ...base, cls: "is-fail", tone: "danger", gem: { sign: "cross", cls: "danger", tip: "It failed" }, text: n.text || "Something failed", quickLabel: "Quick moves",
@@ -167,7 +180,7 @@ export function makeStops(core, ctx, needs, ops) {
   }
 
   // -- the fan ----------------------------------------------------------------------------------------------------------------------------------------
-  /** Turn, rise, order and overlap of the card at `i` of `n`: each turned 3° a step from the middle and 3 px lower a step², the middle ones higher, overlapping so that they all fit
+  /** Turn, rise, order and overlap of the card at place `i` of `n` in the row: each turned 3° a step from the middle and 3 px lower a step², the middle ones higher, overlapping so that they all fit
    *  the width the row has and each shows its top. */
   function fan(i, n) {
     const off = i - (n - 1) / 2;
@@ -175,21 +188,30 @@ export function makeStops(core, ctx, needs, ops) {
     return { rot: off * 3, dy: Math.round(off * off * 3), z: 10 + i, ov };
   }
 
+  const labelOf = (it) => `${KIND[it.kind]}: ${it.title}${it.party ? ` (${it.party.name})` : ""}`;          // a stop of another party names it
+  /** The party's mark: its leader's small head, Operations' its sliders. */
+  const partyMark = (p) => (p.ops ? icon("sliders") : p.head ? whoHead(p.head, true) : null);
+
+  /** The card of the i-th most urgent stop: it stays at the i-th place of the page (the keys' and a screen reader's order) and lies at its place of the fan (CSS order); the first and the last of the row keep no outer overlap. */
   function card(it, i, n) {
-    const f = fan(i, n);
-    const b = h("button", { class: `hc ${it.cls || ""}${st.hand === it.key ? " is-up" : ""}`.trim(), type: "button", "data-stop": it.key, "data-kind": it.kind,
-      "aria-label": `${KIND[it.kind]}: ${it.title}`, onclick: () => pop(it.key) },
+    const place = places[i], f = fan(place, n);
+    const b = h("button", { class: `hc ${it.cls || ""}${st.hand === it.key ? " is-up" : ""}`.trim(), type: "button", "data-stop": it.key, "data-kind": it.kind, "data-place": String(place),
+      "aria-label": labelOf(it), onclick: () => pop(it.key) },
     h("span", { class: "hc__top" }, gemOf(it.gem),
       h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element)),
+    it.party ? h("span", { class: "hc__party", "data-party": it.party.ops ? "ops" : it.party.slug, title: it.party.name }, partyMark(it.party)) : null,
     it.miss ? h("span", { class: "hc__miss" }, it.miss) : null, it.thumbs ? it.thumbs() : null);
     for (const [k, v] of [["--rot", `${f.rot}deg`], ["--dy", `${f.dy}px`], ["--z", String(f.z)], ["--ov", `${f.ov}px`]]) b.style.setProperty(k, v);
+    b.style.order = String(place);
+    if (place === 0) b.style.marginLeft = "0px";                             // the fan never spills onto the margins
+    if (place === n - 1) b.style.marginRight = "0px";
     return b;
   }
 
   // -- the raised one --------------------------------------------------------------------------------------------------------------------------------
   function raise(it, i, n) {
     const frame = it.tone === "danger" ? " danger" : it.tone === "look" ? "" : " alert";
-    const f = fan(i, n);
+    const f = fan(places[i], n);
     const quick = h("div", { class: "raised__quick", role: "group", "aria-label": it.quickLabel }, ...it.quick());
     const raised = h("div", { class: `raised ork-frame${frame}${it.kind === "pick" ? " is-pick" : ""}`, role: "document", "data-stop": it.key, "data-kind": it.kind },
       h("div", { class: "raised__top" }, gemOf(it.gem),
@@ -198,6 +220,7 @@ export function makeStops(core, ctx, needs, ops) {
         h("button", { class: "ork-btn quiet", type: "button", "aria-label": "Put it back", onclick: lower }, icon("close"))),
       it.big ? h("span", { class: "art" }, midHead(it.big)) : null,
       h("span", { class: "banner" }, it.title),
+      it.party ? h("p", { class: "cap raised__goal", "data-party": it.party.ops ? "ops" : it.party.slug }, partyMark(it.party), " ", [it.party.name, it.goalName].filter(Boolean).join(" · ")) : null,   // *<party> · <goal>*
       h("div", { class: "raised__text" }, it.text),
       it.miss ? h("p", { class: "muted raised__miss" }, it.miss) : null,
       it.more ? it.more() : null,
@@ -226,11 +249,12 @@ export function makeStops(core, ctx, needs, ops) {
   /** The raised one's content; only the pop that opens it leaps (a draw of the same stop, with the Board changed, does not leap again). */
   function showRaised(at, leaps = false) {
     const it = items[at];
+    raisedParty = it.party;
     const node = raise(it, at, items.length);
     node.classList.toggle("is-pop", leaps && !reducedMotion());
     stopAll();                                              // new tiles replace the old: what played there does not play on unseen
     body.replaceChildren(node);
-    dlg.setAttribute("aria-label", `${KIND[it.kind]}: ${it.title}`);
+    dlg.setAttribute("aria-label", labelOf(it));
     raisedSig = it.key + JSON.stringify(it.sig);
   }
 
@@ -246,8 +270,9 @@ export function makeStops(core, ctx, needs, ops) {
     draw() {
       if (guard.waits()) return;
       forget((st.board?.needs_you || []).filter((n) => n.kind === "pick"));        // a draft of a pick that is answered is let go
-      items = build();
-      const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig])) + st.hand;
+      items = byUrgency(build());
+      places = fanPlaces(items.length);
+      const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig, i.party, i.goalName])) + st.hand;
       if (sig !== sigs && !dlg.open) {
         sigs = sig;
         hand.replaceChildren(...items.map((it, i) => card(it, i, items.length)));

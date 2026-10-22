@@ -203,20 +203,20 @@ async def test_the_partys_deck_counts_the_other_parties_stops_and_its_sheet_pick
         await deck.wait_for(timeout=WAIT_MS)
         box = await deck.bounding_box()
         assert (round(box["width"]), round(box["height"])) == (44, 44) and await deck.locator(".partydeck__edge").count() == 2
-        assert await deck.locator(".ork-count.warning").inner_text() == "2"                                                            # the one count of stops on the screen
+        assert await deck.locator(".ork-count").count() == 0                                                                           # no count of stops on the screen (spec 54 §2.4)
         assert await deck.get_attribute("aria-label") == "Parties: Passkey shown, 2 stops wait in the other parties. A tap shows the parties"
-        assert await page.locator(".ork-count.warning:visible").count() == 1
+        assert await page.locator(".ork-count.warning:visible").count() == 0
         sheet = await _where(page)
         sbox = await sheet.bounding_box()
         assert sbox["x"] == 0 and sbox["y"] == 0 and sbox["width"] == 390
         rows = sheet.locator(".where-row")
         assert [await r.get_attribute("data-goal") for r in await rows.all()] == ["passkey", "product", "ops"]
         assert await sheet.locator(".project-row").count() == 0 and await sheet.locator(".where-new").count() == 1                      # today's where sheet without its projects
-        assert await rows.first.get_attribute("aria-current") == "true" and await rows.nth(1).locator(".ork-count.warning").inner_text() == "2"   # its rows keep their counts
+        assert await rows.first.get_attribute("aria-current") == "true" and await rows.nth(1).locator(".where-dot").get_attribute("data-dot") == "alert"   # its rows wear a dot where a stop waits
         await rows.nth(1).click()
         await sheet.wait_for(state="hidden", timeout=WAIT_MS)
         await page.locator('.partydeck[data-goal="product"]').wait_for(timeout=WAIT_MS)
-        assert await page.locator(".partydeck .ork-count").inner_text() == "4" and norm(await page.locator(".gbar__head").inner_text()).startswith("Product ·")
+        assert await page.locator(".partydeck .ork-count").count() == 0 and norm(await page.locator(".gbar__head").inner_text()).startswith("Product ·")
         assert await page.evaluate("() => JSON.parse(localStorage.getItem('orkcraft.goal'))") == {"project": "product"}
         sheet = await _where(page)
         await sheet.locator('.where-row[data-goal="ops"]').click()                                                                     # Operations: the deck stands at its head
@@ -377,4 +377,4 @@ async def test_signs_keep_their_place_without_an_alert_edge_a_failure_keeps_its_
 
 def test_the_service_worker_is_one_up_and_keeps_the_types_module():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v61";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
+    assert 'const CACHE = "orkcraft-app-v62";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]

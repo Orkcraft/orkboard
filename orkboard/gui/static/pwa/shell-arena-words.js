@@ -54,6 +54,27 @@ export function looksOf(st, slug) {
 
 export const stopCount = (st, slug) => needsOf(st, slug).length + failedOf(st, slug).length;
 
+/** Whether one of the party's stops is a failure (a task that failed, or a goal that did): the dot in the parties' list is then danger, else alert (spec 54 §2.4). */
+export const stopFailed = (st, slug) => failedOf(st, slug).length > 0 || needsOf(st, slug).some((n) => n.kind === "failed");
+
+// -- the hand: every stop of the project, by urgency (spec 54 §2.3) ----------------------------------------------------------
+const URGENCY = { failed: 0, op_failed: 0, plan: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, look: 3 };   // red, what holds work back, what does not, results
+
+/** The stops in the order of their urgency: a failure first, then what holds work back (a plan, a question, a to-do, a Pick one, an operation at your check), then what does not
+ *  (a proposal, a party's proposal, a template's rules), then the results to look at; in a group the oldest first (`at`, an ISO time; one without comes last). */
+export function byUrgency(items) {
+  const rank = (it) => URGENCY[it.kind] ?? 1;
+  const older = (a, b) => (a && b ? (a < b ? -1 : a > b ? 1 : 0) : a ? -1 : b ? 1 : 0);
+  return items.map((it, i) => ({ it, i })).sort((a, b) => rank(a.it) - rank(b.it) || older(a.it.at, b.it.at) || a.i - b.i).map(({ it }) => it);
+}
+
+/** Where in the fan the stop of urgency `r` (0 the most urgent) of `n` lies: `fanPlaces(n)[r]`. The most urgent lies in the middle, the next to its right, the next to its left, and so outward. */
+export function fanPlaces(n) {
+  const mid = Math.floor((n - 1) / 2), out = [];
+  for (let k = 0; out.length < n; k++) for (const p of k ? [mid + k, mid - k] : [mid]) if (p >= 0 && p < n) out.push(p);
+  return out;
+}
+
 /** The goal of the first stop (a Needs you row of a goal in the host's order, else a goal with a task that failed, else one with a result to look at): "" with none. */
 export function firstStopGoal(st) {
   const goals = (st.map?.goals || []).map((g) => g.slug);
@@ -66,7 +87,7 @@ export function chipsOf(st) {
   return (st.map?.goals || []).map((g) => {
     const mine = nodesOf(st, g.slug);
     const working = g.state === "reading" || mine.some((n) => ["reading", "planning"].includes(n.state) || (n.tasks || []).some(live));
-    return { slug: g.slug, title: g.title, short: short(g), head: g.leader?.head || null, stops: stopCount(st, g.slug), working, done: partyDone(g) };
+    return { slug: g.slug, title: g.title, short: short(g), head: g.leader?.head || null, stops: stopCount(st, g.slug), failed: stopFailed(st, g.slug), working, done: partyDone(g) };
   });
 }
 
@@ -75,7 +96,8 @@ export function chipsOf(st) {
 export function partiesOf(st, kept = "") {
   const list = chipsOf(st);
   const hasOps = st.snap?.ops_rev !== undefined && (!st.ops || (st.ops.templates || []).length || (st.ops.runs || []).length);
-  const ops = hasOps ? { stops: (st.board?.needs_you || []).filter((n) => n.kind.startsWith("op")).length } : null;
+  const opsStops = (st.board?.needs_you || []).filter((n) => n.kind.startsWith("op"));
+  const ops = hasOps ? { stops: opsStops.length, failed: opsStops.some((n) => n.kind === "op_failed") } : null;
   const inOps = st.view === OPS_VIEW;
   const shown = inOps ? OPS_VIEW : shownGoal(st, kept);
   const here = inOps ? ops?.stops || 0 : list.find((c) => c.slug === shown)?.stops || 0;

@@ -39,11 +39,12 @@ async def test_the_drawer_sets_the_target_autostart_and_the_night_and_the_board_
         assert await pane.locator("h2").count() == 0 and await page.locator(".target-chip").count() == 0       # spec 41 §2: no heading on the Board, the drawer has the Target
         drawer = await _menu(page)
         text = await drawer.inner_text()
-        assert "lighter models, less reasoning, no proposals at night" in text and "heavier models, more reasoning, three proposals a night" in text
+        assert "the usual models and reasoning, two proposals a night" in text and "lighter models" not in text and "heavier models" not in text      # one switch: the picked one's words under it (spec 54 §5)
         assert await drawer.get_by_role("radio", name="Balance").is_checked()
         await _shot(page, "phone-drawer-390x844")
         await drawer.get_by_role("radio", name="Quality").click()
         assert await _called(stub, "ideas.board_set", {"target": "quality"})
+        assert "heavier models, more reasoning, three proposals a night" in await drawer.inner_text()
         box_ = drawer.get_by_label("Start plans by themselves")
         assert await box_.is_checked() and await drawer.get_by_label("Night from").input_value() == "01:00"
         await box_.uncheck()
@@ -70,7 +71,7 @@ async def test_the_board_shows_one_party_s_goals_its_goals_bar_and_the_parties_s
         where = page.locator(".partydeck")
         assert " ".join((await page.locator(".gbar__head").inner_text()).split()) == "Ship v1 · 1 of 2 goals done"       # the party, how far: its done goals of all its goals, no %
         sheet = await _where(page)                                                                       # a docs proposal, though Ship v1 is shown: its row counts it
-        assert await sheet.locator('.where-row[data-goal="docs"] .ork-count.warning').inner_text() == "1"
+        assert await sheet.locator('.where-row[data-goal="docs"] .where-dot').get_attribute("data-dot") == "alert" and await sheet.locator(".ork-count").count() == 0       # a dot, no count (spec 54 §2.4)
         await page.keyboard.press("Escape")
         await _open_party(page, "Ship v1")                                                               # the party's screen: its edit button pinned
         screen = page.locator(".screen")
@@ -150,8 +151,8 @@ async def test_a_goal_s_questions_are_one_form_and_a_proposal_is_answered_on_its
             {**base, "kind": "proposal", "idea": "p2", "goal": "docs", "title": "A tour", "text": "Why: onboarding", "priority": "low"}]
         stub.bump({})
         await _pick_goal(page, "ship")
-        raised = await _pop(page, "Asks you: Ship v1")                                                  # a goal's questions, with no choices: Open… only
-        assert [await b.inner_text() for b in await raised.locator(".raised__quick button").all()] == ["Open…"]
+        raised = await _pop(page, "Asks you: Ship v1")                                                  # a goal's questions, with no choices: Open… and the way out
+        assert [await b.inner_text() for b in await raised.locator(".raised__quick button").all()] == ["Open…", "Let the Taskmaster decide"]
         await raised.get_by_role("button", name="Open…").click()                                        # a box each, one Send
         sheet = page.get_by_role("dialog", name="Questions")
         await sheet.get_by_label("Answer 1: Which store first?").fill("The App Store")
@@ -180,7 +181,7 @@ async def test_a_goal_s_questions_are_one_form_and_a_proposal_is_answered_on_its
         await two.get_by_label("Why not: A tour").fill("Not now")
         await two.get_by_role("button", name="No").click()
         assert await _called(stub, "ideas.proposal", {"slug": "p2", "take": False, "reason": "Not now"})
-        await page.locator(".hc").first.wait_for(state="detached", timeout=WAIT_MS)
+        await page.locator('.hc[data-kind="proposal"]').first.wait_for(state="detached", timeout=WAIT_MS)       # (General's plan still waits: the hand is the project's)
         assert await page.evaluate(NO_SCROLL)
 
 
@@ -290,9 +291,9 @@ async def test_a_question_comes_with_its_choices_as_buttons_the_recommended_one_
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         _two_goals(stub)
         _asked_needs(stub)
-        count = lambda slug: f'.where-row[data-goal="{slug}"] .ork-count.warning'                          # noqa: E731
+        dot = lambda slug: f'.where-row[data-goal="{slug}"] .where-dot'                                    # noqa: E731
         sheet = await _where(page)
-        assert await _until(page, f"document.querySelector('{count('ship')}')?.textContent || ''", lambda v: v == "1")     # the party's questions: one stop on its row
+        assert await _until(page, f"document.querySelector('{dot('ship')}')?.dataset.dot || ''", lambda v: v == "alert")     # the party's questions: a stop on its row, a dot
         await page.keyboard.press("Escape")
         await _pick_goal(page, "ship")
         goal = await _pop(page, "Asks you: Ship v1")
@@ -316,7 +317,7 @@ async def test_with_more_than_one_question_send_the_picks_answers_with_the_recom
         _asked_needs(stub)
         await _pick_goal(page, "general")
         asks = await _pop(page, "Asks you: Sync ideas")
-        assert [await b.inner_text() for b in await asks.locator(".raised__quick button").all()] == ["Send the picks", "Open…"]
+        assert [await b.inner_text() for b in await asks.locator(".raised__quick button").all()] == ["Send the picks", "Open…", "Let the Taskmaster decide"]
         await asks.get_by_role("button", name="Open…").click()                                          # the form, the picks filled in
         form = page.get_by_role("dialog", name="Questions")
         await form.wait_for(timeout=WAIT_MS)

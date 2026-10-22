@@ -132,8 +132,8 @@ async def test_the_partys_deck_opens_one_sheet_from_the_top_with_the_parties_and
         where = page.locator(".partydeck")
         await page.locator(".gbar").wait_for(timeout=WAIT_MS)
         assert await where.evaluate("e => e.tagName") == "BUTTON" and await where.get_attribute("aria-haspopup") == "dialog"
-        assert await where.locator(".ork-count.warning").inner_text() == "2"                                                          # the other parties' stops: this one's are the bottom row's
-        assert "2 stops wait in the other parties" in await where.get_attribute("aria-label")                                          # a question elsewhere is never hidden
+        assert await where.locator(".ork-count").count() == 0                                                                          # no count of stops anywhere (spec 54 §2.4): they lie in the hand
+        assert "2 stops wait in the other parties" in await where.get_attribute("aria-label")                                          # a screen reader is told that a question elsewhere waits
         menu = bar.get_by_role("button", name="Menu")
         assert await menu.get_attribute("aria-label") == "Menu: Stop all, Spend, Agents, Today and settings" and await bar.locator(".today").count() == 0
         await where.click()
@@ -142,19 +142,19 @@ async def test_the_partys_deck_opens_one_sheet_from_the_top_with_the_parties_and
         box = await sheet.bounding_box()
         assert box["x"] == 0 and box["y"] == 0 and box["width"] == 390 and box["height"] < 760                                          # one sheet from the top
         rows = sheet.locator(".where-row")
-        assert [norm(await r.inner_text()) for r in await rows.all()] == ["Sign in with a passkey 2/9 done 4", "Product 1/4 done 2", "Operations"]      # the parties, then Operations
+        assert [norm(await r.inner_text()) for r in await rows.all()] == ["Sign in with a passkey 2/9 done", "Product 1/4 done", "Operations"]      # the parties, then Operations; a dot (no count) where a stop waits
         assert [round((await r.bounding_box())["height"]) >= 52 for r in await rows.all()] == [True, True, True]                       # rows of 52 px at least
         first = rows.first
         assert await first.get_attribute("aria-current") == "true" and await rows.nth(1).get_attribute("aria-current") is None           # the picked one marked
         assert await first.locator("img.ork-race__head").get_attribute("src") == "races/peon-elder.png" and await first.locator(".ork-sign.work").count() == 1      # its leader's head, the work sign
-        assert await first.locator(".ork-count.warning").inner_text() == "4" and await rows.nth(1).locator(".ork-sign.work").count() == 0
+        assert await first.locator(".where-dot").get_attribute("data-dot") == "danger" and await rows.nth(1).locator(".where-dot").count() == 1 and await rows.nth(1).locator(".ork-sign.work").count() == 0
         new = sheet.get_by_role("button", name="+ New party")
         assert norm(await new.inner_text()) == "+ New party one of yours, or from the library" and (await new.bounding_box())["height"] >= 52
         assert await sheet.locator(".project-row, .projects-block").count() == 0                                                      # the projects are the project button's
         await rows.nth(1).click()                                                                                                      # a pick: kept and the sheet is put away
         await sheet.wait_for(state="hidden", timeout=WAIT_MS)
         await page.locator('.partydeck[data-goal="product"]').wait_for(timeout=WAIT_MS)
-        assert await where.locator(".ork-count.warning").inner_text() == "4" and norm(await page.locator(".gbar__head").inner_text()).startswith("Product ·")
+        assert await where.locator(".ork-count").count() == 0 and norm(await page.locator(".gbar__head").inner_text()).startswith("Product ·")
         assert json.loads(await page.evaluate("() => localStorage.getItem('orkcraft.goal')")) == {"project": "product"}                 # `orkcraft.goal`, as today
         await where.click()
         await sheet.locator(".where-new").click()                                                                                      # + New party: its sheet
