@@ -150,7 +150,7 @@ The types of spec 52 §2.1 keep their names, signs, lines, lenses, asks, refs an
 | `launch` | Write the launch | `research`, `text` | | `product-manager/launch` |
 | `metric` | A new metric | `data` | | `analyst/metric` |
 | `report` | A report | `query` | | `analyst/report` |
-| `abtest` | An A/B test | `experiment` | | `analyst/abtest` |
+| `abtest` | An A/B test | `metrics`, `experiment` | | `analyst/abtest` |
 | `landing` | A landing page | `text`, `seo` | | `growth/landing` |
 | `post` | A launch post | `campaign`, `text` | | `growth/post` |
 | `tagline` | A tagline | `text` | | `growth/tagline` |
@@ -168,32 +168,35 @@ And the new ones (asks as *label* (hint)):
 | `release` | A release | box | A version out: what is new, the build, the stores' list | `aso`, `code` | text | *What is new* (in the person's words) | no | Bump the version, write what is new for the stores in the product's words, make the build, and write the stores' list the person goes through; nothing is submitted without the person's yes. |
 
 ### 4.3 What a party offers (`offered`)
-`offered(state_dir, root, party_slug, *, read=None) -> list[(GoalType, missing)]`, *party* its leader and team
-(`Party.members`; a party with no team: its leader alone, as `met` reads it):
-1. A type whose every need is `met` is **offered**, `missing` `[]`.
-2. A type with exactly **one** need not met, that need having a `taker`, is **offered with that one missing** (spec 52
-   §2.1's row: `{kind, words, agent, name, band, free, out}`; `free` by the leader's seats) **when the party has a reason
-   for it**: another of its needs is met and is not one of the Grunt's own kinds (`code`, `tests`), or the taker's craft
-   is one of the party's (its leader's and its team's crafts, the Grunt and the Taskmaster left out). So a game is not
-   offered a store page, nor a website a level.
-3. Any other is not offered.
-4. **One name once**: a type offered with nothing missing hides the type it stands in for (`over`); a type that would be
+**Fewer, and the leader's** (the owner: *better to show fewer goals than to distract the person; neighbouring goals are
+another party's*). `offered(state_dir, root, party_slug, *, read=None) -> list[(GoalType, missing)]`, *party* its leader
+and team (`Party.members`; a party with no team: its leader alone):
+1. **Code is someone's**: a type that needs `code` or `tests` is offered only when a member takes that kind itself (the
+   Grunt or the Tester in the team, the Taskmaster leading, an agent of the person's own that takes it). (`met` is
+   unchanged: for a plan, the Grunt still fills in for any kind.)
+2. A type whose every need is met (rule 1 for `code` and `tests`, `met` for the rest) is **offered**, `missing` `[]`.
+3. A type with exactly **one** need not met, that need having a `taker`, is **offered with that one missing** (spec 52
+   §2.1's row: `{kind, words, agent, name, band, free, out}`; `free` by the leader's seats) **only when the leader itself
+   takes another of its needs** (the leader's `takes`, `code` and `tests` left out): the leader's own work, done with one
+   more agent. Work beside the leader's is another party's.
+4. Any other is not offered.
+5. **One name once**: a type offered with nothing missing hides the type it stands in for (`over`); a type that would be
    offered with someone missing is not offered when the type it stands in for is offered with nothing missing.
-5. In the catalog's order (the map then sorts by use, §4.5).
+6. In the catalog's order (the map then sorts by use, §4.5).
 
 So the library's parties offer (with someone missing: *needs* and who):
 - **Game**: New feature, Fix a bug, Clean up, New icon, New logo, New mechanic, New level, New character, Balance pass,
-  New sound; *needs*: New screen (Design system designer).
+  New sound.
 - **Mobile app**: New feature, Fix a bug, Clean up, New icon, New logo, Solve a pain, New character, Store listing, A
-  release; *needs*: New screen (Design system designer), Try an experiment (Experimenter), Write the launch (Copywriter),
-  A tagline (Copywriter), New level (Level designer), New sound (Sound designer).
-- **Website**: New feature, Fix a bug, Clean up, A landing page, A launch post, A tagline; *needs*: Store listing (ASO),
-  A release (ASO).
-- The parties of one craft keep spec 52's types (Engineering: the Architect's *New feature* in place of the general one,
-  Fix a bug, Clean up, Restructure; Design: New screen, New icon, New logo, its *New feature*, Fix a bug, Clean up, and
-  *needs*: New level, New sound), with Fix a bug and Clean up in every party (the Grunt's own kinds).
+  release; *needs*: Try an experiment (Experimenter), Write the launch (Copywriter).
+- **Website**: New feature, Fix a bug, Clean up, A landing page, A launch post, A tagline.
+- **Engineering**: the Architect's New feature, Fix a bug, Clean up, Restructure. **Design**: New screen, New icon, New
+  logo, its New feature. **Data**: A new metric, A report; *needs*: An A/B test (Experimenter). **Marketing**: A landing
+  page, A launch post, A tagline. **Product**: New feature, Fix a bug, Clean up, Solve a pain, Write the launch; *needs*:
+  Try an experiment (Experimenter). **Taskmaster alone**: New feature, Fix a bug, Clean up.
 (`tests/test_goal_types.py` checks these lists; a row that differs when built is a note in §10, not a change.)
-- Spec 52's Architect's *Fix a bug* opened the `code` lens first; the catalog's one opens `text` (the person may switch).
+- Against spec 52: the parties of design, data and marketing no longer offer New feature, Fix a bug and Clean up (no one
+  of them writes code); the Architect's *Fix a bug* opened the `code` lens first, the catalog's opens `text`.
 
 ### 4.4 A goal's type
 - `ideas.add`'s `type` is the id of one of `offered` for the party; else refused *<party> cannot take “<id>”: no one of
@@ -245,8 +248,8 @@ the catalog's order. The rows' shape is unchanged, so the faces draw it as today
   `PRESETS`' members known and fitting their leader's seats, `presets()`' order, `parties()` keeps every craft);
   `tests/test_goal_team.py` (`seats` by the leader: four builders with the Game designer, three with the Architect, the
   refusal's words); `tests/test_goal_types.py` (every type needs a known kind; every id unique; every `over` a type of
-  the catalog; every old key read; `offered`: all met, one missing with a taker, one missing with none, two missing,
-  `over` hiding and not hiding; the three presets' lists of §4.3; `missing`' `free` by the leader's seats);
+  the catalog; every old key read; `offered`: code offered only with a member who takes it, all met, one missing with the leader taking another need,
+  one missing without (not offered), one missing with no taker, two missing, `over` hiding and not hiding; the three presets' lists of §4.3; `missing`' `free` by the leader's seats);
   `tests/test_gui_ideas.py` (`ideas.add` with an id offered, not offered, unknown, with `join`; a goal of an old key
   mapped; `ideas.map`'s `types` order and `stages`); `tests/test_gui_roles.py` (`presets`, `stages`);
   `tests/test_own_parties.py` (`preset` kept, a file without it read); `tests/test_event_log.py` (§5's fields);

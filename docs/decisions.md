@@ -884,9 +884,11 @@ whoever was in it; and every party had the same seats (one leader, three builder
    bands (plans, builds, checks), so who plans, who takes a task by its kind and whose check joins a goal stay as they are.
    The leaders of today keep *Planning*, *Implementation*, *Checking* and three and two seats.
 3. **The goal types come from the team** (reverses §65.4's dealer): one catalog of types, each with the kinds of work it
-   needs; a party offers every type its members (the leader with them) can do, and those it misses **one** agent for, with
-   §65.5's *needs:* and its join or swap. A type that stands in for a general one (a designer's *New feature*, a flow and
-   its screens, for the general *New feature*) hides it when the party can do it. A type is still told by its sign (§65.4).
+   needs; a party offers the types its members (the leader with them) can do, **and few others**: one it misses one agent
+   for only when the leader itself does another part of it (§65.5's *needs:*, its join or swap), never work beside the
+   leader's (*better fewer goals than a distracted person; neighbouring goals are another party's*); the general types
+   (*New feature*, *Fix a bug*, *Clean up*) only when someone of the party writes code. A type that stands in for a
+   general one (a designer's *New feature*) hides it when the party can do it. A type is still told by its sign (§65.4).
 4. A goal keeps its type by the catalog's id; a type kept before by its leader (`architect/feature`) is read as the one
    the catalog gives it.
 5. **Measured**: the share of new parties from each of the library's, mixed and of one craft; the types offered, picked and
