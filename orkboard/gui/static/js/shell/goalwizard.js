@@ -1,7 +1,7 @@
 // New party (docs/specs/50-parties-and-goals.md §3.7), one screen: its name, *What it is for* (one line), the party — *one of yours, or from the library*: the
 // leader, builders and checkers in three bands of seats (ideas.roles `seats`, `parties`, realm/library.py), a click takes an agent in or out of its band,
 // with what the party costs a goal (spec 43 §3) —, the checks on every goal and its priority (*goes first when the window is short*). No metrics, no deadline,
-// no links: a party has no end. It sends `ideas.goal_save` with `title`, `about`, `team`, `every`, `leader`, `party` (a party of the person's that was picked) and
+// no links: a party has no end. It sends `ideas.goal_save` with `title`, `about`, `team`, `every`, `leader`, `party` (a party of the person's that was picked), `preset` (the library's party the seats still are) and
 // `priority`. A task goes to the one of the party who does its kind of work; a checker's check adds its line to a goal's Done when and its task to the plan
 // (realm/idea_checks.py). The code's goal is a party.
 import { useState } from "preact/hooks";
@@ -10,42 +10,45 @@ import { say, toast } from "../link.js";
 import { track } from "../board/store.js";
 import { act, roles, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
-import { Head, CRAFT_WORDS } from "../orkui.js";
 import { PRIORITIES } from "./goaldialog.js";
-import { CRAFTS, TASKMASTER, PartyBands, PriceLine, ChecksBlock, OwnParties, agentOf, partyWords, usePartyPrice, useOwnParties } from "./party.js";
+import { TASKMASTER, PartyBands, PriceLine, ChecksBlock, OwnParties, LibraryTiles, agentOf, partyWords, overfull, usePartyPrice, useOwnParties } from "./party.js";
 
 export const FOR_HINT = "goes first when the window is short";
 
 export function GoalWizard({ then = "" }) {
-  const library = (c) => roles.value?.parties?.[c] || { lead: TASKMASTER, build: [], check: [] };
-  const start = library("engineering");
+  const start = roles.value?.parties?.engineering || { lead: TASKMASTER, build: [], check: [] };
   const [title, setTitle] = useState("");
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
-  const [craft, setCraft] = useState("engineering");     // the library's party the seats started from: its agents are listed first in each band
+  const [craft, setCraft] = useState("engineering");     // the library's party's craft the seats started from: its agents are listed first in each band
+  const [preset, setPreset] = useState("");                   // the library's party picked (its id), sent with the party until a seat changes; none for the party it opens with
+  const [lit, setLit] = useState("engineering");               // the tile pressed: the party it opens with, then the one picked
   const [leader, setLeader] = useState(start.lead || TASKMASTER);
   const [team, setTeam] = useState([...(start.build || []), ...(start.check || [])]);
   const [every, setEvery] = useState([]);
   const [saving, setSaving] = useState(false);
   const [partyId, setPartyId] = useState("");              // the saved party of the person's whose seats these are, until a seat changes
   const [owns, loadOwns] = useOwnParties(true);
-  const seat = (set) => (v) => { set(v); setPartyId(""); };      // a seat changed afterwards: the party is then the person's own picking
+  const seat = (set) => (v) => { set(v); setPartyId(""); setPreset(""); setLit(""); };      // a seat changed afterwards: the party is then the person's own picking
   const pickOwn = (p) => {
     if (p.craft) setCraft(p.craft);
     setLeader(p.leader || TASKMASTER);
     setTeam([...p.team]);
     setEvery([...p.every]);
     setPartyId(p.id);
+    setPreset("");
+    setLit("");
   };
-  const fromLibrary = (c) => { const p = library(c); setCraft(c); setPartyId(""); setLeader(p.lead || TASKMASTER); setTeam([...(p.build || []), ...(p.check || [])]); setEvery([]); };
+  const fromLibrary = (p) => { setCraft(p.craft === "mixed" ? "" : p.craft); setPreset(p.id); setLit(p.id); setPartyId(""); setLeader(p.lead || TASKMASTER); setTeam([...(p.build || []), ...(p.check || [])]); setEvery([]); };
   const price = usePartyPrice(true, leader, team, every, craft);
-  const ready = (title.trim() || about.trim()) && !saving;
+  const fits = overfull(leader, team).length === 0;      // a leader with fewer seats than the party fills: it is saved once it fits (spec 59 §6.2)
+  const ready = (title.trim() || about.trim()) && !saving && fits;
   const save = async (e) => {
     e?.preventDefault();
     if (!ready) return;
     setSaving(true);
     const got = await act("ideas.goal_save", { ...(title.trim() ? { title: title.trim() } : {}), about: about.trim(), leader, team, every: every.filter((id) => team.includes(id)), priority,
-      ...(partyId ? { party: partyId } : {}) });
+      ...(partyId ? { party: partyId } : {}), ...(preset && !partyId ? { preset } : {}) });
     setSaving(false);
     if (!got?.slug) return;
     for (const note of got.notes || []) toast(note);       // an agent of the project's own that the party carries stays as it was
@@ -64,8 +67,7 @@ export function GoalWizard({ then = "" }) {
         <input class="ork-field" value=${about} aria-label="What it is for" placeholder="One line: what this party is for" onInput=${(e) => setAbout(e.target.value)} /></label>
       <div class="shell-field" role="group" aria-label="The party"><span class="ok-font-label">The party</span>
         <p class="ok-tone-muted">One of yours, or from the library: its leader plans, its builders work, its checkers check. A task goes to the one who does its kind of work; Grunt fills in.</p>
-        <div class="shell-craft-tiles" role="group" aria-label="From the library">${CRAFTS.map(([c, race, line]) => html`<button type="button" key=${c} class="shell-craft-tile" data-craft=${c}
-          aria-pressed=${String(c === craft && !partyId)} title=${line} onClick=${() => fromLibrary(c)}><${Head} race=${race} small=${true} /><b>${CRAFT_WORDS[c]}</b></button>`)}</div>
+        <${LibraryTiles} picked=${partyId ? "" : lit} onPick=${fromLibrary} />
         <${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
         <${PartyBands} craft=${craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
         <${PriceLine} price=${price} />

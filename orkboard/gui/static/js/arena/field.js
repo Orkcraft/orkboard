@@ -9,7 +9,7 @@ import { Elem, Sign } from "../orkui.js";
 import { showIdea, showPlan } from "../shell/store.js";
 import { useColumn, useLit } from "./motion.js";
 import { solo, stopAbout, stopLook } from "./arenastate.js";
-import { columnOf, mergedBy, plural } from "./arenawords.js";
+import { columnOf, mergedBy, plural, stageOf } from "./arenawords.js";
 import { elementOf, inFilter, leaveOf } from "./goalwords.js";
 import { Rows, goalWords, keyOf, typeSign } from "./stacks.js";
 
@@ -29,15 +29,15 @@ function Column({ m, nodes, col, shown }) {
 }
 
 /** The columns: the labels over the first builder and the first checker, a column per member. `shown`: the goals the filter shows ([] for all). */
-export function Columns({ members, nodes, cols, shown }) {
+export function Columns({ g, members, nodes, cols, shown }) {
   const first = {};
   const heads = members.map((m) => {
-    const label = !first[m.band] ? (m.band === "build" ? "Implementation" : "Checking") : "";
-    if (label) first[m.band] = true;
-    return { key: m.slug, label };
+    const st = !first[m.band] ? stageOf(g, m.band) : null;                    // the party's stage word, its seats in the tooltip
+    if (st) first[m.band] = true;
+    return { key: m.slug, label: st?.word || "", seats: st?.seats ? plural(st.seats, "seat", "seats") : "" };
   });
   return html`<div class="arena-cols" style=${`--cols:${cols}`}>
-    <div class="arena-cols__head">${heads.map((h) => html`<span key=${h.key} class=${cls("arena-lbl", { "is-blank": !h.label })}>${h.label}</span>`)}</div>
+    <div class="arena-cols__head">${heads.map((h) => html`<span key=${h.key} class=${cls("arena-lbl", { "is-blank": !h.label })} title=${h.seats || undefined}>${h.label}</span>`)}</div>
     <div class="arena-cols__grid">
       ${!members.length && html`<p class="arena-cap arena-cols__none">No builder and no checker in this party. Edit the party in the bar above.</p>`}
       ${members.map((m) => html`<${Column} key=${m.slug} m=${m} nodes=${nodes} col=${columnOf(m, nodes).filter((x) => inFilter(shown, x.n.slug))} shown=${shown} />`)}
@@ -46,10 +46,10 @@ export function Columns({ members, nodes, cols, shown }) {
 }
 
 /** A member shown alone: its rows by phase across the field's whole width, the leader's Planning goals the same way. */
-export function Solo({ members, lead, nodes, planning, shown }) {
+export function Solo({ g, members, lead, nodes, planning, shown }) {
   const m = [...members, lead].find((x) => x && x.slug === solo.value);
   if (!m) return null;
-  return m === lead ? html`<${SoloLead} m=${m} planning=${planning} />` : html`<${SoloColumn} m=${m} nodes=${nodes} shown=${shown} />`;
+  return m === lead ? html`<${SoloLead} m=${m} planning=${planning} word=${stageOf(g, "lead").word} />` : html`<${SoloColumn} m=${m} nodes=${nodes} shown=${shown} />`;
 }
 
 function SoloHead({ title, n }) {
@@ -58,22 +58,22 @@ function SoloHead({ title, n }) {
 }
 
 /** A Planning goal of the leader's, as a card: its element, what it is doing, its name, its words. */
-function PlanCard({ r }) {
+function PlanCard({ r, word }) {
   const open = () => (r.kind === "plan" ? showPlan(r.slug, "", { via: "map" }) : showIdea(r.slug, { via: "map" }));
   const el = elementOf(r.node), named = goalWords({ title: r.full, type: r.node?.type });
   const linked = !!stopLook.value && stopAbout.value?.idea === r.slug;                        // the stop looked at is about this goal (spec 58 §1)
   return html`<div class=${cls("arena-stk", { "is-linked": linked })}><button type="button" class=${cls("arena-task", { "is-linked": linked, "is-stop": r.stop, "is-run": r.busy && !r.stop, "is-wait": !r.stop && !r.busy })} data-slug=${r.slug}
     title=${`${named} · ${r.words}`} aria-label=${`${named}: ${r.words}`} onClick=${open}>
     <span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} />${typeSign(r.node)}</span>
-    <span class="arena-task__goal">${r.node?.type?.name || "Planning"}</span><span class="arena-task__name">${r.title}</span><span class="arena-task__foot">${r.words}</span></button></div>`;
+    <span class="arena-task__goal">${r.node?.type?.name || word}</span><span class="arena-task__name">${r.title}</span><span class="arena-task__foot">${r.words}</span></button></div>`;
 }
 
-function SoloLead({ m, planning }) {
+function SoloLead({ m, planning, word }) {
   const items = [...planning.rows, ...planning.raw];
   return html`<div class="arena-solo-wrap"><${SoloHead} title=${`Only ${m.name}’s work`} n=${items.length} />
     <div class="arena-solo" role="group" aria-label=${`Only ${m.name}’s work`} data-agent=${m.slug}>
-      ${!items.length && html`<p class="arena-cap arena-solo__empty">Nothing in Planning.</p>`}
-      <div class="arena-phase is-wide">${items.map((x) => html`<${PlanCard} key=${x.slug} r=${x} />`)}</div>
+      ${!items.length && html`<p class="arena-cap arena-solo__empty">Nothing in ${word}.</p>`}
+      <div class="arena-phase is-wide">${items.map((x) => html`<${PlanCard} key=${x.slug} r=${x} word=${word} />`)}</div>
     </div></div>`;
 }
 

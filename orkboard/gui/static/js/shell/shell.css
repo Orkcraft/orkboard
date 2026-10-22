@@ -327,6 +327,14 @@
 .shell-craft-tile:hover, .shell-team-row:hover { background: var(--ork-raised); }
 .shell-craft-tile:focus-visible, .shell-team-row:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 .shell-craft-heads { display: inline-flex; gap: var(--ork-2); }
+.shell-library-group { display: flex; flex-direction: column; gap: var(--ork-3); margin-bottom: var(--ork-4); }
+.shell-library-group h3 { margin: 0; }
+.shell-library-alone { margin-bottom: var(--ork-4); }
+.shell-craft-tiles.is-mixed { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.shell-craft-tile.is-mixed { align-items: flex-start; }
+.shell-craft-tile__text { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.shell-team-seat.is-over { border-color: var(--ork-alert); }
+.shell-band-over { margin: 0; color: var(--ork-alert); font: var(--ork-type-status); }
 .shell-team-seats { display: flex; gap: var(--ork-3); }
 .shell-team-seat { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border: var(--ork-line) solid var(--ork-edge); }
 .shell-team-seat.is-empty { border-style: dashed; border-color: var(--ork-frame); }

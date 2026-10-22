@@ -299,7 +299,7 @@ class StubHost:
                     "models": [{"id": "", "label": "The task's own tier"}, {"id": "elder", "label": "Elder tier (opus)"},
                                {"id": "warrior", "label": "Warrior tier (sonnet)"}, {"id": "laborer", "label": "Laborer tier (haiku)"}],
                     "library": [x | {"installed": x["id"] in self.roles} for x in library.listed()], "suggested": library.SUGGESTED, "seats": library.SEATS,
-                    "parties": library.parties(), "tier_costs": dict(plans.DEFAULT_COST)}
+                    "parties": library.parties(), "presets": library.presets(), "stages": library.stages(), "tier_costs": dict(plans.DEFAULT_COST)}
         if name == "ideas.role_add":                  # an agent of the library made a role of this project (gui/ideas_roles.py)
             lib = library.get(a["id"])
             if lib is None or lib.id in self.roles:
@@ -813,7 +813,7 @@ def test_new_party_is_a_name_what_it_is_for_its_party_and_a_priority_then_readin
     pg, host = shell
     _new_party(pg)
     dlg = pg.get_by_role("dialog", name="New party")
-    assert dlg.locator(".shell-craft-tile").count() == 5                                            # from the library: its five parties
+    assert dlg.locator(".shell-craft-tile").count() == 9                                            # from the library: the three mixed, the five crafts, the Taskmaster alone
     dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # the library's design party, in three bands
     leads, builds = dlg.get_by_role("region", name="Leads"), dlg.get_by_role("region", name="Builds")
     assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "product-designer"

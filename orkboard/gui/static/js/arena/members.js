@@ -7,7 +7,7 @@ import { Head, Sign, TIER_WORDS, ORKUI } from "../orkui.js";
 import { agents, roles } from "../shell/store.js";
 import { solo } from "./arenastate.js";
 import { useLit } from "./motion.js";
-import { BAND_WORDS, BAND_KEYWORD, columnOf, nowOf, statsOf, roleOf, memberView, raceOf, signOf } from "./arenawords.js";
+import { BAND_WORDS, BAND_KEYWORD, stageOf, columnOf, nowOf, statsOf, roleOf, memberView, raceOf, signOf } from "./arenawords.js";
 
 const MARKS = `${ORKUI}/marks`;
 /** One of orkUI's marks (a tool's, a level's) at 16 × 16 from the @2x image, pixelated; its word is its tooltip. */
@@ -19,7 +19,7 @@ function Mark({ name, tip, where = "" }) {
 const Line = ({ l }) => html`${l.sign && html`<${Sign} name=${l.sign} /> `}${l.text}`;
 
 /** The peek: a larger card, nothing in it pressable (`aria-hidden`): the price in a gem, the head, who it is, its state, now and next, what it takes. */
-function Peek({ m, st, line, role, view, lead, side, nodes }) {
+function Peek({ m, st, line, role, view, lead, side, nodes, stage = "" }) {
   const mine = (role?.chips || []).filter((c) => c.state === "running" || c.state === "testing").length;
   const model = (() => {
     const label = (roles.value?.models || []).find((x) => x.id === (role?.model || ""))?.label || "", named = /\(([^)]+)\)/.exec(label);
@@ -32,7 +32,7 @@ function Peek({ m, st, line, role, view, lead, side, nodes }) {
   return html`<div class=${cls("arena-peek", { "is-side": side })} aria-hidden="true">
     <span class=${cls("ork-frame arena-pcard", { alert: m.state === "needs" })}>
       <span class="arena-pcard__top"><span class="ork-gem" title=${st.priceTip}>${st.price}</span><span class="arena-cap">${lead ? "a plan" : "a run"}</span>
-        <span class="arena-band">${BAND_WORDS[m.band]}</span></span>
+        <span class="arena-band">${BAND_WORDS[m.band]}${stage && ` · ${stage}`}</span></span>
       <span class="arena-art">${m.head && html`<${Head} race=${m.head.race} tier=${m.head.tier} size="mid" />`}</span>
       <span class="arena-banner">${m.name}</span>
       <span class="arena-typeline">${who}</span>
@@ -49,7 +49,7 @@ function Peek({ m, st, line, role, view, lead, side, nodes }) {
 /** A member of the party row, or the leader: a small framed row. Its head wears three signs on its corners, half over it — its level's chevrons
  *  top left, the tool it runs on bottom left, its state top right (✗ a failure, ! another stop, ↻ at work, a moon tonight; none when next or free) —
  *  and beside it three short lines: its name, its runs and redos, its price for a run. The words of all that are in the peek and the label. */
-export function Member({ m, nodes, planning, lead = false }) {
+export function Member({ m, nodes, planning, lead = false, stage = "" }) {
   const role = roleOf(agents.value, m.slug), st = statsOf(m, role, lead);
   const col = lead ? [] : columnOf(m, nodes), line = nowOf(m, col, planning, lead);
   const view = memberView(m, st, line, raceOf(m.head)), sign = signOf(m);
@@ -66,13 +66,13 @@ export function Member({ m, nodes, planning, lead = false }) {
       <span class="arena-tbody"><span class="arena-member__nm">${m.name}</span>
         <span class="arena-num" ref=${runs} title=${st.runsTip}>${st.runs}</span><span class="arena-num is-muted" title=${st.priceTip}>${st.price}</span></span>
     </button>
-    <${Peek} m=${m} st=${st} line=${line} role=${role} view=${view} lead=${lead} side=${lead} nodes=${nodes} />
+    <${Peek} m=${m} st=${st} line=${line} role=${role} view=${view} lead=${lead} side=${lead} nodes=${nodes} stage=${stage} />
   </div>`;
 }
 
 /** The party row (§5.1): the builders, then the checkers, each over its column. */
 export function PartyRow({ g, members, nodes, planning, cols }) {
   return html`<section class="arena-team" aria-label="Party" style=${`--cols:${cols}`}>
-    ${members.map((m) => html`<${Member} key=${m.slug} m=${m} nodes=${nodes} planning=${planning} />`)}
+    ${members.map((m) => html`<${Member} key=${m.slug} m=${m} nodes=${nodes} planning=${planning} stage=${g?.stages ? stageOf(g, m.band).word : ""} />`)}
   </section>`;
 }

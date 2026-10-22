@@ -316,6 +316,14 @@ in *As built* first.
   (`set(SIGNS) - NEW_SIGNS <= orkUI's signs`, and every sign is drawn by a type).
 - Orkline's frozen copy reads a type id without a `/` as none until its copy is updated (§4.4): its goal works, its sign is not drawn.
 
+**B (the desktop), 22 October.** §6 built as written. What the builder chose or found:
+- `js/shell/party.js` holds the library's tiles (`LibraryTiles`, `presetsOf`: *Mixed* under its head, *One craft*, then the Taskmaster alone; a tile's `data-craft` is the library's id), `seatsFor`/`stageWord` (from `ideas.roles` `stages`, the default's for a leader not in it or a host that sends none) and `overfull` (the bands past the leader's seats, with the refusal line). `PartyBands` draws the stage word as the band's head and keeps *Leads*, *Builds*, *Checks* in its muted line and as the region's label, so the picker's tests and the person's old words still read.
+- `goalwizard.js` sends `preset` only for a tile picked (the party it opens with is not a pick: its payload is as before); a seat, the leader or *Every goal* changed clears it, as `party`. *Save party* is off while `overfull` has a band. Edit the party (`goaldialog.js`, not touched) draws the same bands, so it gets the leader's seats and words too, but its *Save* is not held by `overfull`.
+- The board: `arenawords.js` `stageOf(g, band)` gives `{word, seats}` from the party's `stages` (today's words and no seats with none). `field.js` says the word over the first builder and the first checker (the seats in its tooltip) and in the leader's solo (*Nothing in <word>.*); `members.js` adds the word to the peek's band line when the party sent `stages`.
+- **Left as it was, outside B's row (§9 names no such file): `arena/goals.js`'s *Planning* heading and *Nothing in Planning.* line in the left column, and `arena/goalwords.js` `workLine`'s *implementation* / *checking* (*k/n in dev · implementation*).** A party with `stages` still says *Planning* there; one more change of those two files (`stageOf(g, "lead").word` and the build / check words) closes §6.3.
+- Tests outside the files B's row names: `tests/test_goal_types_desktop_browser.py` (a §9 file) read `goal_types.of`, which A removed: it reads `CATALOG` now. `tests/test_shell_browser.py`'s stub answers `presets` and `stages` and its New party count is nine tiles. `tests/test_mixed_parties_desktop_browser.py` is B's new file.
+- `tests/test_shell_browser.py::test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its_steps_too` fails on main too (the *Open…* button is outside the viewport); not touched.
+
 ## 11. Running G, A, A0, B and C
 Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass
 (CLAUDE.md, alpha), no pull request left waiting. **G and A start together. A0 starts after the owner's pick. B and C

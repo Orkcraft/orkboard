@@ -20,8 +20,14 @@ export const TASKMASTER = "taskmaster";
 const library = () => roles.value?.library || [];
 /** A line of the library the host sends in the code's words (a check's *applies when the idea changes code*): said in today's (a goal), after `say()`. */
 export const libraryWords = (text) => say(String(text || "")).replace(/\bideas\b/g, "goals").replace(/\bidea\b/g, "goal");
-const seatsOf = () => roles.value?.seats || { lead: 1, build: 3, check: 2 };
 export const agentOf = (id) => library().find((a) => a.id === id);
+const STAGE_WORDS = { lead: "Planning", build: "Implementation", check: "Checking" };
+/** A leader's stages (ideas.roles `stages`, spec 59 §2.3); the default's for a leader not in it, and for an older host that sends none. */
+const stagesOf = (leader) => roles.value?.stages?.[leader] || roles.value?.stages?.default || null;
+/** The seats of a leader's party: {lead, build, check}. */
+export const seatsFor = (leader) => stagesOf(leader)?.seats || roles.value?.seats || { lead: 1, build: 3, check: 2 };
+/** The word of a leader's stage in a band: *Concept*, *Build*, *Playtest* with a Game designer; *Planning*, *Implementation*, *Checking* otherwise. */
+export const stageWord = (leader, band) => stagesOf(leader)?.[band] || STAGE_WORDS[band];
 /** The agents in a band: the leader alone in Leads; the team's builders or checkers. */
 export const inBand = (band, leader, team) => (band === "lead" ? [leader] : team.filter((id) => agentOf(id)?.band === band));
 /** The party in words: "led by Growth · builds: Copywriter, SEO · checks: Editor". */
@@ -30,10 +36,51 @@ export function partyWords(leader, team) {
   return `led by ${agentOf(leader)?.name || "Taskmaster"} · builds: ${names("build")} · checks: ${names("check")}`;
 }
 
+/** The bands that hold more members than the leader's stage has seats: [{band, extra: [ids past the seats], text}]. A party saved before keeps its
+ *  seats, but one picked under another leader has to fit before it is saved (spec 59 §6.2). */
+export function overfull(leader, team) {
+  const seats = seatsFor(leader), who = agentOf(leader)?.name || "Taskmaster";
+  return ["build", "check"].map((band) => {
+    const taken = inBand(band, leader, team);
+    return { band, extra: taken.slice(seats[band]), text: `${stageWord(leader, band)} has ${seats[band]} seats with ${who}: take one out first.` };
+  }).filter((x) => x.extra.length);
+}
+
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 /** *3 parties in 2 projects · 2 met*: said only once a party of the person's has been used (the code's goals). */
 export function usedWords(p) {
   return p.goals ? `${plural(p.goals, "party", "parties")} in ${plural(p.projects, "project", "projects")} · ${p.met} met` : "";
+}
+
+/** The library's parties New party offers (spec 59 §2.4): the mixed first, the crafts' after them, the Taskmaster alone last. An older host that sends no
+ *  `presets` gives the five crafts as `parties` has them. */
+export function presetsOf() {
+  const sent = roles.value?.presets;
+  if (sent?.length) return sent;
+  return CRAFTS.map(([c, race, line]) => {
+    const p = roles.value?.parties?.[c] || { lead: TASKMASTER, build: [], check: [] };
+    return { id: c, name: CRAFT_WORDS[c], line, craft: c, race, mixed: false, lead: p.lead || TASKMASTER, build: p.build || [], check: p.check || [] };
+  });
+}
+
+/** The library's parties as tiles: *Mixed* (each its leader's head, its name, its line and its members' small heads), *One craft* (a head and a name),
+ *  then the Taskmaster alone. A tile's `data-craft` is the library's id; `picked` is the one pressed (""): none). */
+export function LibraryTiles({ picked, onPick }) {
+  const all = presetsOf(), mixed = all.filter((p) => p.mixed), crafts = all.filter((p) => !p.mixed && p.craft !== "mixed"), alone = all.filter((p) => !p.mixed && p.craft === "mixed");
+  const headOf = (id, fallback) => { const a = agentOf(id); return a ? { race: RACE[a.craft], tier: a.tier } : fallback; };
+  const tile = (p, rich) => {
+    const lead = headOf(p.lead, { race: p.race, tier: "elder" });
+    return html`<button type="button" key=${p.id} class=${`shell-craft-tile${rich ? " is-mixed" : ""}`} data-craft=${p.id} aria-pressed=${String(p.id === picked)} title=${p.line}
+      onClick=${() => onPick(p)}><${Head} race=${lead.race} tier=${lead.tier} small=${true} />
+      ${rich ? html`<span class="shell-craft-tile__text"><b>${p.name}</b><small class="ok-tone-muted">${p.line}</small>
+        <span class="shell-craft-heads">${[...p.build, ...p.check].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${RACE[agentOf(id).craft]} tier=${agentOf(id).tier} small=${true} />`)}</span></span>`
+        : html`<b>${p.name}</b>`}</button>`;
+  };
+  return html`${mixed.length > 0 && html`<section class="shell-library-group" aria-label="Mixed"><h3 class="ok-font-label">Mixed</h3>
+      <div class="shell-craft-tiles is-mixed" role="group" aria-label="Mixed">${mixed.map((p) => tile(p, true))}</div></section>`}
+    <section class="shell-library-group" aria-label="One craft"><h3 class="ok-font-label">One craft</h3>
+      <div class="shell-craft-tiles" role="group" aria-label="One craft">${crafts.map((p) => tile(p, false))}</div></section>
+    ${alone.length > 0 && html`<div class="shell-craft-tiles shell-library-alone" role="group" aria-label="Taskmaster alone">${alone.map((p) => tile(p, false))}</div>`}`;
 }
 
 /** The person's own parties (spec 43 §6): asked when the picker opens (`active`); [parties, ask again]. */
@@ -102,13 +149,13 @@ export function SaveParty({ goal, craft }) {
 
 /** The three bands. `craft`: the party's, its agents listed first in each band. */
 export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
-  const seats = seatsOf();
+  const seats = seatsFor(leader), over = overfull(leader, team);
   const on = (a) => (a.band === "lead" ? leader === a.id : team.includes(a.id));
   const toggle = (a) => {
     if (a.band === "lead") { setLeader(leader === a.id ? TASKMASTER : a.id); return; }
     if (team.includes(a.id)) setTeam(team.filter((x) => x !== a.id));
     else if (inBand(a.band, leader, team).length < seats[a.band]) setTeam([...team, a.id]);
-    else toast(`${BANDS.find((b) => b[0] === a.band)[1]} has ${seats[a.band]} seats: take one out first.`, "warning");
+    else toast(`${stageWord(leader, a.band)} has ${seats[a.band]} seats with ${agentOf(leader)?.name || "Taskmaster"}: take one out first.`, "warning");
   };
   const row = (a) => html`<button type="button" key=${a.id} class="shell-team-row" aria-pressed=${String(on(a))} data-agent=${a.id}
       aria-label=${`${on(a) ? "Take out" : "Take in"}: ${a.name}`} onClick=${() => toggle(a)}>
@@ -118,12 +165,14 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
   return BANDS.map(([id, words, what]) => {
     const taken = inBand(id, leader, team);
     const list = library().filter((a) => a.band === id).sort((x, y) => (x.craft === craft ? 0 : 1) - (y.craft === craft ? 0 : 1));
+    const full = over.find((x) => x.band === id);
     return html`<section key=${id} class=${`shell-party-band band-${id}`} aria-label=${words}>
-      <div class="shell-band-head"><h3>${words}</h3><small class="ok-tone-muted">${taken.length} of ${seats[id]} · ${what}</small></div>
-      <div class="shell-team-seats">${Array.from({ length: seats[id] }, (_, i) => {
-        const a = agentOf(taken[i]);
-        return html`<span key=${i} class=${`shell-team-seat${a ? "" : " is-empty"}${id === "lead" ? " is-lead" : ""}`} title=${a?.name || "A free seat"}>${a && html`<${Head} race=${RACE[a.craft]} tier=${a.tier} />`}</span>`;
+      <div class="shell-band-head"><h3>${stageWord(leader, id)}</h3><small class="ok-tone-muted">${words} · ${taken.length} of ${seats[id]} seats · ${what}</small></div>
+      <div class="shell-team-seats">${Array.from({ length: Math.max(seats[id], taken.length) }, (_, i) => {
+        const a = agentOf(taken[i]), past = i >= seats[id];
+        return html`<span key=${i} class=${`shell-team-seat${a ? "" : " is-empty"}${id === "lead" ? " is-lead" : ""}${past ? " is-over" : ""}`} title=${a?.name || "A free seat"}>${a && html`<${Head} race=${RACE[a.craft]} tier=${a.tier} />`}</span>`;
       })}</div>
+      ${full && html`<p class="shell-band-over" role="alert">${full.text}</p>`}
       <div class="shell-team-list">${list.map(row)}</div></section>`;
   });
 }
