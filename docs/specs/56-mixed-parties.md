@@ -86,6 +86,11 @@ The Playtester's `Check`: applies *when the idea changes what a player does, see
 the changed part works and nothing near it broke*; task *Play the idea's change through and write where it breaks, bores
 or confuses; fix what is small.*; fits `("design", "engineering")`.
 
+**The Product manager takes screens too**: its `takes` become `("research", "design")`, so a party it leads is offered
+*New screen* with the Design system designer missing (§4.3), and a task of `design` in its party, with no builder who
+takes it, is its own (an elder's). Its instruction gains one sentence, within 600 characters: *For a screen, write the
+flow step by step and what is on each screen and why, at phone width first, in the design system's words.*
+
 ### 2.3 The stages and their seats (`realm/library.py` `STAGES`)
 A leader's stages: `Stages(lead, build, check, build_seats, check_seats)`, its three words and the seats of its builders
 and checkers. **One leader and five more at most** (`goal_team.SEATS` stays 5): `build_seats + check_seats == 5`,
@@ -141,7 +146,7 @@ The types of spec 52 §2.1 keep their names, signs, lines, lenses, asks, refs an
 | `tidy` | Clean up | `code` | | `taskmaster/tidy` |
 | `shaped-feature` | New feature | `architecture` | `feature` | `architect/feature` |
 | `restructure` | Restructure | `architecture` | | `architect/restructure` |
-| `screen` | New screen | `uikit` | | `product-designer/screen` |
+| `screen` | New screen | `design`, `uikit` | | `product-designer/screen` |
 | `icon` | New icon | `art` | | `product-designer/icon` |
 | `logo` | New logo | `art` | | `product-designer/logo` |
 | `flow-feature` | New feature | `uikit` | `feature` | `product-designer/feature` |
@@ -188,12 +193,13 @@ So the library's parties offer (with someone missing: *needs* and who):
 - **Game**: New feature, Fix a bug, Clean up, New icon, New logo, New mechanic, New level, New character, Balance pass,
   New sound.
 - **Mobile app**: New feature, Fix a bug, Clean up, New icon, New logo, Solve a pain, New character, Store listing, A
-  release; *needs*: Try an experiment (Experimenter), Write the launch (Copywriter).
+  release; *needs*: New screen (Design system designer), Try an experiment (Experimenter), Write the launch
+  (Copywriter).
 - **Website**: New feature, Fix a bug, Clean up, A landing page, A launch post, A tagline.
 - **Engineering**: the Architect's New feature, Fix a bug, Clean up, Restructure. **Design**: New screen, New icon, New
   logo, its New feature. **Data**: A new metric, A report; *needs*: An A/B test (Experimenter). **Marketing**: A landing
   page, A launch post, A tagline. **Product**: New feature, Fix a bug, Clean up, Solve a pain, Write the launch; *needs*:
-  Try an experiment (Experimenter). **Taskmaster alone**: New feature, Fix a bug, Clean up.
+  New screen (Design system designer), Try an experiment (Experimenter). **Taskmaster alone**: New feature, Fix a bug, Clean up.
 (`tests/test_goal_types.py` checks these lists; a row that differs when built is a note in §10, not a change.)
 - Against spec 52: the parties of design, data and marketing no longer offer New feature, Fix a bug and Clean up (no one
   of them writes code); the Architect's *Fix a bug* opened the `code` lens first, the catalog's opens `text`.
@@ -243,7 +249,7 @@ the catalog's order. The rows' shape is unchanged, so the faces draw it as today
 
 ## 8. Tests
 - **A0**: §1.
-- **A**: `tests/test_roles.py` (the five kinds, their labels and lines); `tests/test_library.py` (the five agents, each
+- **A**: `tests/test_roles.py` (the five kinds, their labels and lines); `tests/test_library.py` (the five agents, the Product manager's `takes` and instruction, each
   instruction ≤ 600, the Playtester's check, `STAGES`' sums, `stages_of`/`seats_of` for a leader in it and one not,
   `PRESETS`' members known and fitting their leader's seats, `presets()`' order, `parties()` keeps every craft);
   `tests/test_goal_team.py` (`seats` by the leader: four builders with the Game designer, three with the Architect, the

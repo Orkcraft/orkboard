@@ -889,6 +889,8 @@ whoever was in it; and every party had the same seats (one leader, three builder
    leader's (*better fewer goals than a distracted person; neighbouring goals are another party's*); the general types
    (*New feature*, *Fix a bug*, *Clean up*) only when someone of the party writes code. A type that stands in for a
    general one (a designer's *New feature*) hides it when the party can do it. A type is still told by its sign (§65.4).
+   The Product manager takes screens too (an app's leader writes its flows), so its parties are offered *New screen*
+   with the Design system designer to join.
 4. A goal keeps its type by the catalog's id; a type kept before by its leader (`architect/feature`) is read as the one
    the catalog gives it.
 5. **Measured**: the share of new parties from each of the library's, mixed and of one craft; the types offered, picked and
