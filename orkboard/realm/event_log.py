@@ -59,7 +59,7 @@ PLAN_PASSED = "plan_passed"       # idea, tasks, device, seconds from plan_made,
 #                                    joined (the agent who joined at the press, else ""), missing (how many kinds the plan missed when it passed) (spec 52 §2.7)
 PLAN_STARTED_NOW = "plan_started_now"   # idea, device, via (gui/ideas_args.py VIA, else "idea"): a plan held for the night started now (spec 41 §4)
 IDEA_QUEUED = "idea_queued"       # idea, queue ("now" · "night"), device, via (gui/ideas_args.py VIA, else "idea") (spec 41 §4)
-TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan (a secret's value never)
+TODO_DONE = "todo_done"           # idea, todo, kind, device, seconds since the plan, skipped (gone without it), words (a file described instead) (a secret's value never; spec 54 §1.3)
 TASK_STATE = "task_state"         # idea, task, state, was, round, tier, role, seconds in the previous state, tokens, cost, ran_tier, effort,
 #                                    check (true: a check task's), clean (true: a check that found nothing, merged with no commit; spec 43 §1.3)
 CHECK_DONE = "check_done"         # idea, task, by (the checker's slug), found, fixed, left, round, cost: a round of a check task ended with findings read

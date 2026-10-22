@@ -726,3 +726,20 @@ def test_a_long_instruction_from_before_goes_to_the_ork_cut_at_a_sentence_end(to
     prompt = runner._prompt("demo", plan, plan["tasks"][0])
     head = prompt.split("\n\n# When you are done")[0].removeprefix("# Your role: Grunt\n\n")
     assert len(head) <= 600 and head.endswith("Be careful.") and "And the tail." not in prompt
+
+
+def test_a_to_do_gone_without_or_described_is_said_in_the_prompt_and_lets_the_task_run(town):
+    todos = [{"id": "t1", "title": "Reference picture", "kind": "file", "why": "", "choices": [], "steps": [], "for": ["k1"], "done": True, "skipped": True, "value": None},
+             {"id": "t2", "title": "Logo", "kind": "file", "why": "", "choices": [], "steps": [], "for": ["k1"], "done": True, "words": True, "value": "A grey ork."},
+             {"id": "t3", "title": "Which port", "kind": "choice", "why": "", "choices": ["80", "81"], "steps": [], "for": ["k1"], "done": True, "skipped": True, "value": None},
+             {"id": "t4", "title": "Other task's", "kind": "confirm", "why": "", "choices": [], "steps": [], "for": ["k2"], "done": True, "skipped": True, "value": None}]
+    plan_of(town, [{"id": "k1"}, {"id": "k2"}], todos)
+    runner, _ = runner_of(town)
+    plan = runner.plan("demo")
+    prompt = runner._prompt("demo", plan, plan["tasks"][0])
+    assert "The person went without “Reference picture”: do the task without it; if it cannot be done without it, say what it blocks and stop." in prompt
+    assert "The person left “Which port” to you: choose one of 80, 81, and say which and why in your result." in prompt
+    assert "Instead of the file “Logo”, the person described it: A grey ork." in prompt
+    assert "Other task's" not in prompt
+    runner.start("demo")
+    assert wait_idle(runner)["state"] == "done"
