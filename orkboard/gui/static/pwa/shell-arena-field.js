@@ -3,13 +3,13 @@
 // spreads it (shell-spread.js). A tap on a face shows only that member's work over the columns, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
 // Motion says what changed (shell-motion.js): a stack that was not there rises into its column, one that left (merged ✓, dropped ✗, or put away by the filter, with no sign) fades where it stood and
 // its column settles, one that moved slides to its new place, a merge's numbers are lit once; none under reduced motion, on the first read of a goal, for what changed while the page was hidden, nor
-// under a finger or the focus. A member's card in its solo has **Edit**: the agent's dialog, the leader's and the Grunt's too (spec 54 §6.2). A band with no one (spec 52 §5.4) says what happens to its work and offers **Add to the party** (Edit the party): the only place on the field that adds a member.
+// under a finger or the focus; the tasks of a plan started from the raised stop are dealt from its box instead (spec 57). A member's card in its solo has **Edit**: the agent's dialog, the leader's and the Grunt's too (spec 54 §6.2). A band with no one (spec 52 §5.4) says what happens to its work and offers **Add to the party** (Edit the party): the only place on the field that adds a member.
 import { h } from "./util.js";
 import { sign } from "./shell-marks.js";
 import { PHASES, rowsOf } from "./shell-phases.js";
 import { deckNode } from "./shell-decks.js";
 import { makeSpread } from "./shell-spread.js";
-import { motionOn, measure, play, settle, pulse, makeHolds } from "./shell-motion.js";
+import { motionOn, measure, play, settle, pulse, makeHolds, deal, dealTo } from "./shell-motion.js";
 
 const FEW = 2;                                       // members or fewer: the columns share the width, no scroll
 const GHOSTS = 3;                                    // stacks that leave with the animation in one refresh; the rest simply go
@@ -35,7 +35,7 @@ export function makeField(core, hooks) {
     spread.open({ key: `${m.slug}|${stack.key}`, member: m.name, ideaTitle: stack.top.ideaTitle, items: stack.items, origin }, el);
   }
   const stackLabel = (m, s) => (s.n === 1 ? s.top.label : `${s.top.ideaTitle}${s.top.type ? `, ${s.top.type.name}` : ""}: ${plural(s.n, "task")} of ${m.name}, ${s.phase}. A tap lays them out in a row`);
-  const deck = (m, s, extra = {}) => deckNode(s, { press: (stack) => press(m, stack, el.querySelector(`[data-key="${CSS.escape(s.key)}"]`)), label: stackLabel(m, s), drawn: s.drawn, ...extra });
+  const deck = (m, s, extra = {}) => deckNode(s, { press: (stack) => press(m, stack, el.querySelector(`[data-key="${CSS.escape(s.key)}"]`)), label: stackLabel(m, s), drawn: s.drawn && !s.dealt, ...extra });
 
   /** A row by phase: its word over its left edge and its stacks; `wrap`: two to a row, centred (a member's solo). */
   function phaseRow(phase, nodes, wrap) {
@@ -82,8 +82,8 @@ export function makeField(core, hooks) {
 
   // -- what appears and what leaves ---------------------------------------------------------------------------------------------------------------------------
   /** Called once for each draw of a party's field: marks the stacks whose tasks were not there a moment ago, keeps the ones that left standing for a moment, and says which members merged a
-   *  task. `rows`: each member's rows (after the filter); `quiet`: nothing moves (reduced motion, a hidden page). Returns {rewarded, cur}. */
-  function observe(model, members, rows, ui, quiet) {
+   *  task. `rows`: each member's rows (after the filter); `quiet`: nothing moves (reduced motion, a hidden page). Returns {rewarded, cur, from}: `from` is the box a waiting deal (shell-motion.js `deal`, spec 57) deals the new stacks of its goal from, in the stage shown. */
+  function observe(model, members, rows, ui, quiet, shown) {
     const goal = model.goal.slug, cur = new Map(), curTasks = new Set(), rewarded = new Set();
     for (const m of members) for (const r of rows.get(m.slug)) r.stacks.forEach((s, index) => { cur.set(`${m.slug}|${s.key}`, { member: m.slug, phase: r.phase, index, stack: s }); s.items.forEach((t) => curTasks.add(t.key)); });
     const still = !quiet && seenGoal === goal;                    // the first read of a goal is not a change
@@ -103,12 +103,19 @@ export function makeField(core, hooks) {
       }
       for (const m of members) if (mergedOf(model, m) > (merged.get(m.slug) ?? Infinity)) rewarded.add(m.slug);
     }
+    let from = null;
+    const waiting = deal.live();                                   // a plan started from the raised stop: its new stacks of the stage shown are dealt, not risen (spec 57 §1.3)
+    if (quiet) deal.drop();
+    else if (waiting && still && [...cur.values()].some((i) => i.stack.drawn && i.stack.idea === waiting.goal)) {
+      deal.drop();                                                 // played (or, with the tasks on another stage or in a column held, not at all) once: the next render rises as it does
+      for (const m of shown) for (const r of rows.get(m.slug) || []) for (const s of r.stacks) if (s.drawn && s.idea === waiting.goal) s.dealt = from = waiting.from;
+    }
     seen = cur;
     seenTasks = curTasks;
     seenGoal = goal;
     merged = new Map(members.map((m) => [m.slug, mergedOf(model, m)]));
     if (ghosts.size) setTimeout(clear, GHOST_MS + 20);
-    return { rewarded, cur };
+    return { rewarded, cur, from };
   }
 
   /** The stacks that left and have faded are taken out together and what they held up settles into the gap, unless the column is under a finger or the focus. */
@@ -163,7 +170,7 @@ export function makeField(core, hooks) {
       const shown = ui.band === "lead" ? [model.lead].filter(Boolean) : ui.band === "build" ? model.build : model.check;
       const members = [...model.build, ...model.check];
       const rows = new Map(members.map((m) => [m.slug, rowsFor(model, m, ui)]));
-      const { rewarded, cur } = observe(model, members, rows, ui, quiet);
+      const { rewarded, cur, from } = observe(model, members, rows, ui, quiet, shown);
       seenBase = base;
       const held = new Set();
       const cols = shown.map((m) => {
@@ -186,6 +193,8 @@ export function makeField(core, hooks) {
         if (!held.has(slug)) pulse(el.querySelector(`.stack[data-column="${slug}"] .stack__done`));
       }
       if (before) play(el, before);
+      if (from) dealTo(shown.flatMap((m) => (rows.get(m.slug) || []).flatMap((r) => r.stacks.filter((s) => s.dealt)
+        .map((s) => el.querySelector(`.stack[data-column="${CSS.escape(m.slug)}"] .deck[data-key="${CSS.escape(s.key)}"]`)))).filter(Boolean), from);       // the field's order: the left column first, its top first
     },
   };
 }

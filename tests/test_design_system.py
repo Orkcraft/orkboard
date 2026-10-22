@@ -62,7 +62,8 @@ def test_orkboards_own_sheets_carry_no_colour_no_font_and_no_corner_of_their_own
         assert all(f.startswith("var(--ork-font-") for f in re.findall(r"font-family:\s*([^;}]+)", css)), path.name
         assert "[data-look=\"camp\"]" not in css and "[data-theme" not in css, path.name
         legacy = set(re.findall(r"var\((--(?!ork-)[\w-]+)", css)) - {"--agents-h", "--sec", "--role", "--tabs",
-                                                                   "--rot", "--dy", "--z", "--ov", "--cols"}   # spec 49: a fan's turn, rise, order and overlap; the columns
+                                                                   "--rot", "--dy", "--z", "--ov", "--cols",
+                                                                       "--dx", "--s", "--delay"}   # spec 49: a fan's turn, rise, order and overlap; the columns; spec 57: a dealt stack's travel
         assert not legacy, (path.name, legacy)
 
 

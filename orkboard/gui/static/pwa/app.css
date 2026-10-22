@@ -700,6 +700,12 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .deck.is-leaving[data-sign="check"] .deck__flash { color: var(--ork-success); }
 .deck.is-leaving[data-sign="cross"] .deck__flash { color: var(--ork-danger); }
 .deck.is-drawn { animation: rise 0.36s steps(4) both; }
+/* the deal (spec 57): a plan started from the raised stop deals its stacks from that card's box; what travels is a copy over the page (the columns clip), the real stack lands when the copy does */
+.deck.is-dealt { visibility: hidden; animation: landed 0s linear calc(var(--delay) + 0.3s) forwards; }
+.deal-fly.phase { position: fixed; z-index: 60; display: block; margin: 0; padding: 0; pointer-events: none; animation: deal 0.3s steps(6) var(--delay) backwards; }
+.deal-fly .deck { width: 100%; pointer-events: none; }
+@keyframes deal { from { transform: translate(var(--dx), var(--dy)) scale(var(--s)); } to { transform: none; } }
+@keyframes landed { to { visibility: visible; } }
 @keyframes rise { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes leave { to { opacity: 0; } }
 @keyframes flash { 0% { opacity: 1; } 34% { opacity: 0; } 100% { opacity: 0; } }
@@ -746,12 +752,12 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .fab:focus-visible { outline: 0; }
 .fab:focus-visible .deckfab__back { box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .deckfab__back .ork-icon { width: 24px; height: 24px; }
-.hc { pointer-events: auto; appearance: none; position: relative; flex: none; display: flex; flex-direction: column; align-items: stretch; width: 104px; height: 150px; margin: 0 calc(-1 * var(--ov));
+.hc, .hcg { pointer-events: auto; appearance: none; position: relative; flex: none; display: flex; flex-direction: column; align-items: stretch; width: 104px; height: 150px; margin: 0 calc(-1 * var(--ov));
   padding: 5px; box-sizing: border-box; background: var(--ork-panel); border: var(--ork-double) double var(--ork-alert); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left;
   cursor: pointer; z-index: var(--z); transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; font: inherit; }
 /* the row's first and last card keep no outer overlap: shell-stops.js sets their margin inline, by their place in the row (the page keeps the urgency's order, the CSS order lays them out; spec 54 §2.3) */
-.hc.is-fail { border-color: var(--ork-danger); }
-.hc.is-look { border-color: var(--ork-edge); }
+.hc.is-fail, .hcg.is-fail { border-color: var(--ork-danger); }
+.hc.is-look, .hcg.is-look { border-color: var(--ork-edge); }
 .hc.is-up { visibility: hidden; }
 .hc:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .hc__top { display: flex; align-items: center; gap: var(--ork-2); }
@@ -760,6 +766,8 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .hc__party .ork-icon { width: 14px; height: 14px; }
 .raised__goal { display: flex; align-items: center; gap: var(--ork-2); margin: 0; padding: 0 var(--ork-5); color: var(--ork-ink-muted); }
 .raised__goal .ork-icon { width: 14px; height: 14px; flex: none; }
+.raised__words { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }       /* one line, cut with an ellipsis (spec 58 §3) */
+.hcg { animation: leave 0.3s steps(4) forwards; pointer-events: none; }     /* an answered stop's ghost (a card with no button) fades where it lay (spec 58 §4) */
 .raised__top .ork-elem { margin-left: var(--ork-2); }
 .hc__kind { font: 500 12px/14px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ork-alert); white-space: nowrap; overflow: hidden; }
 .hc__kind.no { color: var(--ork-danger); }
@@ -960,4 +968,6 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 
 @media (prefers-reduced-motion: reduce) {
   .deck.is-drawn, .raised.is-pop, .is-reward, .deck.is-leaving, .deck__flash { animation: none; }
+  .deck.is-dealt { visibility: visible; animation: none; }
+  .deal-fly, .hcg { display: none; }
 }
