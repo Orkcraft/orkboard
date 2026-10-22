@@ -5,6 +5,8 @@
 // (docs/specs/51-pick-one.md §6) holds its variants as small tiles, two by two (picks.js): a press on a strip picks one, *Take B* answers
 // with it, *Pick, with a note…* (*Add a note…* once one is picked) opens the drawer where the note is written. A plan that gives work to no one of the party
 // says so under its text (docs/specs/52-goal-types.md §4.4: *No one in the party does pixel art: Artist would.*) and offers *Add and start* when a seat is free.
+// A plan started from here deals its cards onto the field (docs/specs/57-deal-on-start.md: `startPlan` keeps the stop's box). While a stop is looked at, the cards it is about are ringed
+// (docs/specs/58-stop-and-its-task.md: `aboutOf`); an answered stop fades where it stands, in the frame its task changes (motion.js `useLeaving`).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Head, Icon, Sign } from "../orkui.js";
@@ -15,8 +17,8 @@ import { openDialog } from "../shell/modals.js";
 import { TodoWays, named } from "../shell/tododialog.js";
 import { run as runOp } from "../board/ops.js";
 import { track } from "../board/store.js";
-import { useHeld } from "./motion.js";
-import { leaveParty } from "./arenastate.js";
+import { useHeld, useLeaving } from "./motion.js";
+import { dealWaits, dropDeal, leaveParty, stopAbout, stopLook } from "./arenastate.js";
 import { closeSpread } from "./spread.js";
 import { askedOf, fanOf, laidOut } from "./arenawords.js";
 import { missingWords } from "./types.js";
@@ -24,6 +26,29 @@ import { Tiles, choiceOf } from "./picks.js";
 import { manyWords, variantOf } from "./pickwords.js";
 
 const SENT = "Sent: the Taskmaster answers in a moment.";
+
+/** A plan started by a press in the hand (spec 57): the deal waits with the stop's box as it was at the press (raised then), the call is made, and a refusal takes the deal away. `e`: the press;
+ *  `slug`: the plan's goal. The deal is kept before the call is answered, so that the render of the Board reread right after it finds it. */
+async function startPlan(e, slug, name, args) {
+  const box = e.currentTarget.closest(".arena-hc")?.getBoundingClientRect();
+  const mine = box ? { left: box.left, top: box.top, width: box.width, height: box.height } : null;
+  if (mine) dealWaits(slug, mine);
+  const got = await act(name, args);
+  if (!got) dropDeal();
+  return got;
+}
+
+/** What a stop is about on the field (spec 58 §1): {task: "<goal>/<task>"} for a failed task, a pick and a result, {idea: "<goal>"} for a plan, a question, a proposal and a to-do (the goal's cards,
+ *  its Planning card), null for a stop of another party, Operations', and a party's own (it has no card here). */
+export function aboutOf(s) {
+  if (s.other || s.party?.ops) return null;
+  const row = s.row;
+  if (s.kind === "failed" && s.node && s.task) return { task: `${s.node.slug}/${s.task.id}` };
+  if (s.kind === "pick" && row?.slug) return { task: `${row.slug}/${row.task}` };
+  if (s.kind === "result" && s.result) return { task: `${s.result.idea}/${s.result.task}` };
+  if (["plan", "asks", "proposal", "todo"].includes(s.kind) && row?.idea) return { idea: row.idea };
+  return null;
+}
 
 /** An answer and its refusal: the first button answers at once, the second opens one line (*Why not?*) that the third sends.
  *  `yes`, `ask`: the two buttons' [text, label]; `sure`: the sending button's label. */
@@ -70,14 +95,15 @@ function Answers({ s, g, see }) {
     const night = n?.start_at === "night", miss = row?.missing || [];
     if (miss.length && !night) {
       const m = miss[0];
-      const join = async () => { const got = await act("ideas.start", { slug, join: { add: m.agent }, via: "hand" }); if (got) toast(`${m.name} joined the party; the work started.`); };
+      const join = async (e) => { const got = await startPlan(e, slug, "ideas.start", { slug, join: { add: m.agent }, via: "hand" }); if (got) toast(`${m.name} joined the party; the work started.`); };
+      const without = (e) => startPlan(e, slug, "ideas.start", { slug, via: "hand" });
       return m.free ? html`<button type="button" class="ork-btn primary arena-hc__q" title=${`${m.name} joins the party, then the work starts`} onClick=${join}>Add and start</button>
-          <button type="button" class="ork-btn arena-hc__q" title="Passes the plan as it is; the Grunt does that work" onClick=${() => act("ideas.start", { slug, via: "hand" })}>Start without</button>`
-        : html`<button type="button" class="ork-btn primary arena-hc__q" title="Passes the plan as it is; the Grunt does that work" onClick=${() => act("ideas.start", { slug, via: "hand" })}>Start without</button>
+          <button type="button" class="ork-btn arena-hc__q" title="Passes the plan as it is; the Grunt does that work" onClick=${without}>Start without</button>`
+        : html`<button type="button" class="ork-btn primary arena-hc__q" title="Passes the plan as it is; the Grunt does that work" onClick=${without}>Start without</button>
           <button type="button" class="ork-btn arena-hc__q" title="Change a member of the party" onClick=${() => { see(); openDialog("goal", { slug: row.goal || g?.slug }); }}>Edit the party</button>`;
     }
-    return html`${night ? html`<button type="button" class="ork-btn primary arena-hc__q" title="Starts it now, not tonight" onClick=${() => act("ideas.start_now", { slug, via: "hand" })}>Start now</button>`
-      : html`<button type="button" class="ork-btn primary arena-hc__q" title="Passes the plan; the work starts" onClick=${() => act("ideas.start", { slug, via: "hand" })}>Start the work</button>`}
+    return html`${night ? html`<button type="button" class="ork-btn primary arena-hc__q" title="Starts it now, not tonight" onClick=${(e) => startPlan(e, slug, "ideas.start_now", { slug, via: "hand" })}>Start now</button>`
+      : html`<button type="button" class="ork-btn primary arena-hc__q" title="Passes the plan; the work starts" onClick=${(e) => startPlan(e, slug, "ideas.start", { slug, via: "hand" })}>Start the work</button>`}
       <button type="button" class="ork-btn arena-hc__q" title="The plan in the drawer" onClick=${() => { see(); showPlan(slug, "", { via: "hand" }); }}>Open the plan</button>`;
   }
   if (s.kind === "asks" || s.kind === "goal") {
@@ -147,9 +173,20 @@ function Stop({ s, g, place, of }) {
   const fan = fanOf(place, of), pick = s.kind === "pick", other = s.other, p = s.party;
   const see = () => toParty(s);
   const label = other ? `${s.label} in ${p.name}` : s.label;
-  return html`<div class=${cls("arena-hc ork-frame", { alert: s.tone === "alert", danger: s.tone === "danger", "is-compact": s.small, "is-other": other })} data-kind=${s.kind} data-key=${s.key}
-      data-party=${p.slug} style=${`--rot:${fan.rot}deg;--dy:${fan.dy}px;--z:${fan.z};order:${place}`}>
-    <button type="button" class="arena-hc__open" aria-label=${`${label}: ${s.full}`} title=${pick ? `${s.full} · ${s.text}` : undefined} onClick=${() => { see(); open(s); }}>
+  const about = aboutOf(s), ghost = !!s.ghost, said = `link-${s.key.replace(/[^\w-]/g, "_")}`;
+  const look = (el) => {                                           // looked at while raised: the pointer over it or the focus in it (spec 58 §2.1)
+    if (ghost) return;
+    if (el.matches(":hover, :focus-within")) { stopLook.value = s.key; stopAbout.value = about; }
+    else if (stopLook.value === s.key) { stopLook.value = ""; stopAbout.value = null; }
+  };
+  const gone = (e) => { const el = e.currentTarget; setTimeout(() => el.isConnected && look(el), 0); };       // after the pointer or the focus has moved on
+  const unlook = () => { if (stopLook.value === s.key) { stopLook.value = ""; stopAbout.value = null; } };
+  useEffect(() => { if (ghost) unlook(); }, [ghost]);               // answered or withdrawn: nothing stays ringed
+  useEffect(() => unlook, []);
+  return html`<div class=${cls("arena-hc ork-frame", { alert: s.tone === "alert", danger: s.tone === "danger", "is-compact": s.small, "is-other": other, "is-leaving": ghost, "is-raised": ghost && s.raised })}
+      data-kind=${s.kind} data-key=${s.key} data-party=${p.slug} style=${`--rot:${fan.rot}deg;--dy:${fan.dy}px;--z:${fan.z};order:${place}`} inert=${ghost || undefined} aria-hidden=${ghost ? "true" : undefined}
+      onpointerenter=${(e) => look(e.currentTarget)} onfocusin=${(e) => look(e.currentTarget)} onpointerleave=${gone} onfocusout=${gone}>
+    <button type="button" class="arena-hc__open" aria-label=${`${label}: ${s.full}`} aria-describedby=${about ? said : undefined} title=${pick ? `${s.full} · ${s.text}` : undefined} onClick=${() => { see(); open(s); }}>
       <span class="arena-hc__top"><span class=${cls("ork-gem", { danger: s.tone === "danger" })} title=${s.gemTip}>${typeof s.gem === "object" ? html`<${Sign} name=${s.gem.sign} />` : s.gem}</span>
         <span class=${cls("arena-hc__kind", { "is-no": s.tone === "danger" })}>${s.label}</span>
         ${s.small && s.head && html`<span class="arena-hc__who" title=${s.whoTip}><${Head} race=${s.head.race} tier=${s.head.tier} /></span>`}</span>
@@ -158,6 +195,7 @@ function Stop({ s, g, place, of }) {
       ${!pick && html`<span class="arena-banner">${other ? `${p.name} · ${s.title}` : s.title}</span><span class="arena-hc__text" title=${s.text}>${s.text}</span>`}
       ${s.kind === "plan" && (s.row?.missing || []).length > 0 && html`<span class="arena-hc__miss">${missingWords(s.row.missing)}</span>`}
     </button>
+    ${about && html`<span id=${said} hidden>${about.task ? ", its task is ringed on the field" : ", its goal is ringed on the field"}</span>`}
     ${pick && html`<${Tiles} row=${s.row} />`}
     <div class="arena-hc__quick" role="group" aria-label=${s.kind === "asks" || s.kind === "goal" ? "Answer in one click" : pick ? "Pick one" : "Quick moves"}><${Answers} s=${s} g=${g} see=${see} /></div>
   </div>`;
@@ -167,7 +205,7 @@ function Stop({ s, g, place, of }) {
  *  middle by their `order`; a stop does not shift while one is raised (motion.js `useHeld`). A long hand overlaps more, so that it fits. */
 export function Stops({ g = null, stops }) {
   const box = useRef();
-  const shown = useHeld(box, stops, (s) => s.key);
+  const shown = useLeaving(box, useHeld(box, stops, (s) => s.key), (s) => s.key);                // a stop that leaves fades where it stands (spec 58 §4)
   const focus = needsFocus.value, n = shown.length;
   useEffect(() => { if (focus) box.current?.querySelector(".arena-hc__open")?.focus(); }, [focus]);
   useLayoutEffect(() => {

@@ -868,7 +868,42 @@ truncates the name. So:
    still never a colour of its own (§65.4): it takes its goal's. No orkUI change; the interface never names an element.
 The owner's call on the cards as built, before the testers' numbers, as §62–§67. Spec 55.
 
-## 69. Parties of mixed crafts first; the leader sets the stages and their seats; the goal types come from the team, not the leader (22 October, the owner)
+## 69. Fantasy signs: each goal type its own sign, a thing of the realm, never a being; orkUI keeps a library (22 October, the owner)
+
+Why: the owner. A type's sign now stands on every card (§68), the most seen picture after the heads, and it is drawn
+as an office mark (a star, a display, bars) in a look whose world is orks and their camp. Creatures were weighed and
+turned down: at 7 × 7 a creature is a smudge, only the bug has a creature's metaphor, an element read as fire or ice
+would say *urgent* or *frozen* where it means only *which goal*, and a second kind of being beside the heads would blur
+*who works* and *what the work is*. So:
+1. **Every goal type its own sign** (reverses spec 52 §1's four shared signs): sixteen, five new names.
+2. **A thing of the realm, never a being**: a scroll, a potion, a war horn, a rune; on the same 7 × 7 grid, in its
+   goal's colour (§68); it takes no shape a sign already means (a flag, a cross, a clock, !, a moon, a coin).
+3. **Drawn many, picked by the owner**: candidates by a model, a sheet to look at, the owner's pick; what is picked
+   beyond the types stays in orkUI as a library (emblems) no face draws until it is made a sign.
+4. The elements, the state signs and the media tiles are unchanged.
+The owner's call on the look, before the testers' numbers, as §62–§68. Spec 56.
+
+## 70. The deal on Start: a plan started from the hand deals its tasks onto the field (22 October, the owner)
+
+Why: the owner. *Start the work* is the moment the party is set to work and money starts to be spent, and its only sign
+is a stop that goes and tasks that rise where the eye is not. §62.9 already says *you deal the work*. So:
+1. **A plan started by a press in the hand deals its new tasks from that stop's place to their columns** (≈ 0.3 s, in
+   steps, six at most); every other start keeps the rise.
+2. **It is the one motion that travels**, an exception to §62.8 kept to this press: it says what changed (how many
+   tasks, to whom); nothing else flies (§65.8 stands), none under reduced motion or a hidden page, none into a column
+   under the pointer; the phone deals only into the stage shown and never switches it.
+The owner's call, before the testers' numbers. Spec 57.
+
+## 71. A stop and its task: the link before the answer, one change after (22 October, the owner)
+
+Why: the owner asked how an answered card in the hand could be read as landing on its task, more simply than a flight
+(§65.8 turned the flight and the lighting down). The link is wanted before the answer, not after it. So:
+1. **While a stop is looked at, its task is shown**: the desktop rings its task's cards on the field (an ink outline, no
+   motion); the phone's raised card names its goal and task (and the member).
+2. **An answered stop leaves where it stands, in the frame its task changes**: a fade in place, no removal before the
+   Board is reread, so the eye reads one change; nothing flies, nothing is lit after (§65.8 stands).
+The owner's call, before the testers' numbers. Spec 58.
+## 72. Parties of mixed crafts first; the leader sets the stages and their seats; the goal types come from the team, not the leader (22 October, the owner)
 
 Why: the owner, going through the library's parties and their goal types: *the parties used most will be mixed ones, a
 game's (its leader a game designer) or a mobile app's (a product leader, and besides the code ASO and an Artist for the
@@ -896,4 +931,4 @@ whoever was in it; and every party had the same seats (one leader, three builder
 5. **Measured**: the share of new parties from each of the library's, mixed and of one craft; the types offered, picked and
    joined for, by party; whether a party with four builders swaps less than one with three.
 Steps of a type's own (a skeleton the plan must keep) wait for the numbers: first see where a typed goal's plans differ.
-The owner's call on the library before the testers' numbers, as §62–§68. Spec 56.
+The owner's call on the library before the testers' numbers, as §62–§71. Spec 59.

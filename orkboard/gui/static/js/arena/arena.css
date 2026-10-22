@@ -175,7 +175,7 @@
 .arena-cols { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; padding: 0 var(--ork-5); }
 .arena-cols__head { flex: none; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); align-items: center; height: 28px; }
 .arena-cols__grid { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); align-items: stretch; }
-.arena-stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-4); padding: var(--ork-2) var(--ork-4) var(--ork-3) var(--ork-1); overflow-y: auto; scrollbar-width: none; }
+.arena-stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-4); padding: var(--ork-2) var(--ork-4) var(--ork-3) var(--ork-2); overflow-y: auto; scrollbar-width: none; }
 .arena-stack::-webkit-scrollbar { display: none; }
 .arena-cols__none { padding: var(--ork-4); }
 .arena-stack__empty { flex: none; text-align: center; font: var(--ork-type-caption); color: var(--ork-ink-faint); }
@@ -191,7 +191,7 @@
   background: var(--ork-ink); color: var(--ork-on-ink); clip-path: var(--ork-notch); font: 600 11px/14px var(--ork-font-text); }
 .arena-solo-wrap { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; padding: 0 var(--ork-5); }
 .arena-solo__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); height: 28px; }
-.arena-solo { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-4); padding: var(--ork-3) var(--ork-4) 10px var(--ork-1); overflow-y: auto; scrollbar-width: none; }
+.arena-solo { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-4); padding: var(--ork-3) var(--ork-4) 10px var(--ork-2); overflow-y: auto; scrollbar-width: none; }
 .arena-solo::-webkit-scrollbar { display: none; }
 .arena-solo__empty { text-align: center; }
 
@@ -238,6 +238,12 @@
 @keyframes arena-leave { to { opacity: 0; } }
 @keyframes arena-flash { 0% { opacity: 1; } 34% { opacity: 0; } 100% { opacity: 0; } }
 @keyframes arena-rise { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* the deal (spec 57): a plan started from the hand deals its cards from the stop's box (--dx, --dy, --s set from it, --delay 35 ms apart) over the whole field; a card takes the pointer when it lands */
+.arena-stk .arena-task.is-dealt { position: relative; z-index: 60; animation: arena-deal 0.3s steps(6) var(--delay, 0s) backwards; }
+@keyframes arena-deal { from { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); opacity: 0.2; pointer-events: none; } to { transform: none; opacity: 1; pointer-events: auto; } }
+.arena-stack.is-dealing, .arena-solo.is-dealing { overflow: visible; }                 /* … and the column does not clip them for that moment */
+/* a stop looked at rings its task's cards (spec 58 §2): 2 px of ink, 2 px outside, on the stack's box (the card itself is clipped to its notch); drawn and taken away at once */
+.arena-stk.is-linked { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 
 /* -- a spread: the field dimmed, a stack's cards dealt in a row; the arrows over the field and under the drawer ------------------------------ */
 .arena-spread { position: absolute; inset: 0; z-index: 20; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: var(--ork-5); overflow: auto; background: var(--ork-scrim); }
@@ -336,6 +342,8 @@
 .arena-hc { pointer-events: auto; position: relative; flex: none; display: flex; flex-direction: column; width: 156px; height: 246px; margin: 0 calc(var(--ov, 14px) * -1); padding: var(--ork-3); box-sizing: border-box; z-index: var(--z);
   transform: translateY(var(--dy)) rotate(var(--rot)); transform-origin: 50% 100%; transition: transform 0.12s steps(3); }
 .arena-hc:hover, .arena-hc:focus-within { transform: translateY(-184px) rotate(0deg); z-index: 50; }
+.arena-hc.is-leaving { pointer-events: none; animation: arena-leave 0.3s steps(4) forwards; }              /* an answered stop fades where it stands (spec 58 §4), up there when it was raised */
+.arena-hc.is-leaving.is-raised { transform: translateY(-184px) rotate(0deg); z-index: 50; }
 .arena-hc.is-compact .arena-art { display: none; }
 .arena-hc__open { appearance: none; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; border: 0; background: none; text-align: left; color: var(--ork-ink); cursor: pointer; font: var(--ork-type-caption); }
 .arena-hc__open:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
@@ -451,5 +459,6 @@
 @media (prefers-reduced-motion: reduce) {
   .arena-task.is-drawn, .arena-result.is-drawn, .arena-task.is-leaving, .arena-result.is-leaving, .arena-task__flash { animation: none; }
   .arena-hc { transition: none; }
+  .arena-stk .arena-task.is-dealt, .arena-hc.is-leaving { animation: none; }
   .arena-new__card, .arena-type__front, .arena-type__face { transition: none; }
 }

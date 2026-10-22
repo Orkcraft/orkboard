@@ -25,7 +25,7 @@ from pathlib import Path
 from orkboard.realm import goal_team, idea_spend, ideas, library, roles
 
 LENSES = ("text", "code", "screen", "pain")      # realm/idea_lens.py ORDER
-SIGNS = ("feature", "bug", "tidy", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page", "text")  # orkUI's (spec 52 §1)
+SIGNS = ("feature", "bug", "tidy", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page", "restructure", "abtest", "landing", "post", "tagline", "text")  # orkUI's (spec 52 §1)
 ASK_CHARS = 300                                  # an answer to an ask, the most kept
 REFS = "refs"                                    # the id of Refs' links among a goal's asks
 GONE = ("merged", "dropped")                     # a task no longer to do
@@ -71,7 +71,7 @@ TYPES: dict[str, tuple[GoalType, ...]] = {
                  asks=(Ask("avoid", "Must use or avoid", "a library, a pattern, a module not to touch"),),
                  plan="Shape it first: the modules, the steps and what tests each, then the code."),
         GoalType("bug", "Fix a bug", "bug", "Something that goes wrong, made right", lens="code", asks=BUG_ASKS, plan=BUG_PLAN),
-        GoalType("restructure", "Restructure", "tidy", "Modules split or moved, one job each", lens="code",
+        GoalType("restructure", "Restructure", "restructure", "Modules split or moved, one job each", lens="code",
                  asks=(IN_THE_WAY, Ask("shape", "Your idea of the shape", "how you would split it")),
                  plan="Keep the behaviour; move in steps that each pass the tests; keep the imports one way."),
     ),
@@ -104,16 +104,16 @@ TYPES: dict[str, tuple[GoalType, ...]] = {
                  plan="Say how it is counted: the events, the window, what is left out; add the events that are not logged."),
         GoalType("report", "A report", "page", "Numbers that answer a question, from the tables", ("query",),
                  asks=(Ask("question", "The question"), Ask("reader", "Who reads it"))),
-        GoalType("abtest", "An A/B test", "flask", "Two versions shown, one decided by a number", ("experiment",),
+        GoalType("abtest", "An A/B test", "abtest", "Two versions shown, one decided by a number", ("experiment",),
                  asks=(MOVES,), plan="Write the question, the split and the number that decides before it starts; do not "
                  "stop early."),
     ),
     "growth": (
-        GoalType("landing", "A landing page", "page", "A page that says what the product does, and is found", ("text", "seo"),
+        GoalType("landing", "A landing page", "landing", "A page that says what the product does, and is found", ("text", "seo"),
                  asks=(Ask("for", "Who it is for"), Ask("from", "Where they come from")), refs=True),
-        GoalType("post", "A launch post", "horn", "A post for one channel, ready for your yes", ("text",),
+        GoalType("post", "A launch post", "post", "A post for one channel, ready for your yes", ("text",),
                  asks=(Ask("channel", "The channel"),), plan="Nothing is posted without the person's yes: write it ready for them."),
-        GoalType("tagline", "A tagline", "text", "One line that says the product, picked from a few", ("text",),
+        GoalType("tagline", "A tagline", "tagline", "One line that says the product, picked from a few", ("text",),
                  plan="A Copywriter writes three to pick from (a pick of 3 texts)."),
     ),
 }

@@ -1,13 +1,14 @@
 // The party's field (docs/specs/49-one-window.md §5.3–§5.4, §11, docs/specs/50-parties-and-goals.md §3.4–§3.5): a column per member of the party row;
 // under the member its open tasks lie in rows by phase, a stack per goal in a row (stacks.js). The goals the filter takes away leave (motion.js, without
 // a check), a member with none says *Nothing of these goals*. A member shown alone (solo) lays its rows across the field's whole width. A task the field
-// did not have a moment ago rises into its place, a merged one fades where it stands and the rest settles (motion.js).
+// did not have a moment ago rises into its place (dealt from the stop of a plan just started, spec 57), a merged one fades where it stands and the rest settles (motion.js).
+// The cards the stop that is looked at is about wear a ring (spec 58): stacks.js `linkedTo`, and a Planning card here.
 import { useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Elem, Sign } from "../orkui.js";
 import { showIdea, showPlan } from "../shell/store.js";
 import { useColumn, useLit } from "./motion.js";
-import { solo } from "./arenastate.js";
+import { solo, stopAbout, stopLook } from "./arenastate.js";
 import { columnOf, mergedBy, plural } from "./arenawords.js";
 import { elementOf, inFilter, leaveOf } from "./goalwords.js";
 import { Rows, goalWords, keyOf, typeSign } from "./stacks.js";
@@ -16,7 +17,7 @@ import { Rows, goalWords, keyOf, typeSign } from "./stacks.js";
 function Column({ m, nodes, col, shown }) {
   const ref = useRef(), done = useRef(), at = useRef({ nodes, shown });
   at.current = { nodes, shown };
-  const list = useColumn(ref, col, (x) => keyOf(x.n, x.t), (x) => leaveOf(at.current.nodes, at.current.shown, x.n.slug, x.t.id));
+  const list = useColumn(ref, col, (x) => keyOf(x.n, x.t), (x) => leaveOf(at.current.nodes, at.current.shown, x.n.slug, x.t.id), true);
   const merged = mergedBy(m, nodes);
   useLit(done, merged);
   return html`<div ref=${ref} class=${cls("arena-stack", { "is-col": solo.value === m.slug })} role="group" data-agent=${m.slug}
@@ -60,7 +61,8 @@ function SoloHead({ title, n }) {
 function PlanCard({ r }) {
   const open = () => (r.kind === "plan" ? showPlan(r.slug, "", { via: "map" }) : showIdea(r.slug, { via: "map" }));
   const el = elementOf(r.node), named = goalWords({ title: r.full, type: r.node?.type });
-  return html`<div class="arena-stk"><button type="button" class=${cls("arena-task", { "is-stop": r.stop, "is-run": r.busy && !r.stop, "is-wait": !r.stop && !r.busy })} data-slug=${r.slug}
+  const linked = !!stopLook.value && stopAbout.value?.idea === r.slug;                        // the stop looked at is about this goal (spec 58 §1)
+  return html`<div class=${cls("arena-stk", { "is-linked": linked })}><button type="button" class=${cls("arena-task", { "is-linked": linked, "is-stop": r.stop, "is-run": r.busy && !r.stop, "is-wait": !r.stop && !r.busy })} data-slug=${r.slug}
     title=${`${named} · ${r.words}`} aria-label=${`${named}: ${r.words}`} onClick=${open}>
     <span class="arena-task__top"><${Elem} name=${el.name} dim=${el.dim} />${typeSign(r.node)}</span>
     <span class="arena-task__goal">${r.node?.type?.name || "Planning"}</span><span class="arena-task__name">${r.title}</span><span class="arena-task__foot">${r.words}</span></button></div>`;
@@ -79,7 +81,7 @@ function SoloColumn({ m, nodes, shown }) {
   const ref = useRef(), done = useRef(), at = useRef({ nodes, shown });
   at.current = { nodes, shown };
   const col = columnOf(m, nodes).filter((x) => inFilter(shown, x.n.slug)), merged = mergedBy(m, nodes);
-  const list = useColumn(ref, col, (x) => keyOf(x.n, x.t), (x) => leaveOf(at.current.nodes, at.current.shown, x.n.slug, x.t.id));
+  const list = useColumn(ref, col, (x) => keyOf(x.n, x.t), (x) => leaveOf(at.current.nodes, at.current.shown, x.n.slug, x.t.id), true);
   useLit(done, merged);
   const title = `Only ${m.name}’s tasks`;
   return html`<div class="arena-solo-wrap"><${SoloHead} title=${title} n=${col.length} />

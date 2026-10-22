@@ -1,6 +1,6 @@
-# Spec 56 — Mixed parties: the library's Game, Mobile app and Website first; the leader sets the stages and their seats; the goal types come from the team
+# Spec 59 — Mixed parties: the library's Game, Mobile app and Website first; the leader sets the stages and their seats; the goal types come from the team
 
-The owner, 22 October (decisions §69): *"The parties used most will be mixed ones: a game's, its leader a game designer,
+The owner, 22 October (decisions §72): *"The parties used most will be mixed ones: a game's, its leader a game designer,
 or a mobile app's, a product leader for now, and besides the code ASO and an Artist for the pictures — more often than
 a party of pure engineering or pure design."* Spec 52 gave the goal types to the leader, so a party is offered its
 leader's set whoever is in it (a mobile app's party led by the Product manager deals *Solve a pain* and never a store
@@ -13,16 +13,18 @@ and those it misses one agent for. **Builds:** Claude · **Review:** full · P1.
 team. **Storage keeps its shape** (Orkline reads the same Board, CLAUDE.md): a party is its `leader`, `team` and
 `team_every` as today (a member's stage is its band, as today); a goal's `type` is one key, now the catalog's id; the
 person's own parties (`parties.json`) gain one optional key, `preset`. No new setting, no new command. **Not in it**: a
-type's own steps (a skeleton its plan must keep: decisions §69, after the numbers), a stage that is not one of the three
+type's own steps (a skeleton its plan must keep: decisions §72, after the numbers), a stage that is not one of the three
 bands, more than one stage of a band, a person's own goal types or stages.
 
-Four parts. **A0 and A first, at once** (A0 is orkUI's repository, A touches no file of the page); **B and C from both**
-once they are in (they touch no file of each other's). **This file is the contract**; the rest is the builder's choice
+Five parts. **G and A first, at once** (G touches no file of the product, A no file of the page); then **the owner's
+pick** of G's sheet; then **A0** (orkUI's repository); **B and C** once A is in (they touch no file of each other's; a
+new type's sign shows once A0's copy is in). **This file is the contract**; the rest is the builder's choice
 inside its files. **Change nothing outside a part's files** but those §9 names.
 
 | part | builds | files (and their tests) |
 |---|---|---|
-| **A0. orkUI** (repository orkWorks/orkUI) | §1 | `office/signs/` gains five signs (§1) and their `.ork-sign` classes, the gallery's *Signs* section, the signs' README, `CHANGELOG.md` (**0.3.4**), the versions; `tests/test_orkui.py`. Then, in orkBoard, the copy: `python -m orkboard.design.orkui <orkUI>` (only `design-system/orkui/`, and `pwa/sw.js`'s `SHELL` and `CACHE` with `tests/test_pwa.py`'s count and pin, as spec 52 §10's A0 note) |
+| **G. Candidates** | §1.2 | new `docs/specs/59-signs/`: `candidates.json`, `sheet.html`, written by spec 56's `docs/specs/56-signs/sheet.py` (run, not changed) or a copy of it beside them |
+| **A0. orkUI** (repository orkWorks/orkUI) | §1 | `office/signs/` gains seven signs (§1) and their `.ork-sign` classes, `office/emblems/` the two picked drawings and `emblems.json`'s `sign`s, the README's, the gallery's *Signs* and *Emblems*, `CHANGELOG.md` (**0.4.1**), the versions; `tests/test_orkui.py`. Then, in orkBoard, the copy: `python -m orkboard.design.orkui <orkUI>` (only `design-system/orkui/`), `pwa/sw.js`'s `SHELL` (the seven) and `CACHE` one up with `tests/test_pwa.py`'s count, names and pin, as spec 56's B |
 | **A. Backend** | §2–§5 | `realm/roles.py` (five kinds), `realm/library.py` (five agents, `STAGES`, `stages_of`, `seats_of`, `PRESETS`, `parties()`), `realm/goal_team.py` (`seats` by the leader's stages), `realm/goal_types.py` (the catalog, `offered`, `get` with the old keys, `missing` by the leader's seats), `realm/own_parties.py` (`preset`), `gui/ideas_roles.py` (`stages`, `presets`), `gui/ideas_map.py` (a party's `types` from `offered`; a party's `stages`), `gui/ideas_types.py` (`type` checked against `offered`, kept by its id), `gui/ideas_goals.py` (`goal_save`'s `preset`), `realm/event_log.py` (§5), `realm/lexicon.py` (`goal_type`'s line; `stage`'s line); `tests/test_goal_types.py`, `tests/test_library.py`, `tests/test_goal_team.py`, `tests/test_own_parties.py`, `tests/test_gui_ideas.py`, `tests/test_gui_roles.py`, `tests/test_event_log.py`, `tests/test_lexicon.py`, `tests/test_roles.py` |
 | **B. Desktop** | §6, §8 | `js/shell/goalwizard.js` and `js/shell/party.js` (the library's parties, mixed first; the seats by the leader; the bands' words), `js/arena/field.js`, `js/arena/arenawords.js`, `js/arena/members.js` (a stage's word and seats from the party), `js/arena/arena.css`, `js/shell/shell.css`; `tests/test_shell_browser.py`'s New party helpers, new `tests/test_mixed_parties_desktop_browser.py` |
 | **C. Phone** | §7, §8 | `pwa/shell-goal-new.js` (the library's parties, mixed first; the seats by the leader), `pwa/shell-party.js`, `pwa/shell-arena-words.js` (`BANDS`' words from the party), `pwa/shell-arena.js`, `pwa/shell-arena-field.js`, `pwa/shell-map-idea.js` (`STAGES`' words), `pwa/app.css`, `pwa/sw.js` (`CACHE` one up) with `tests/test_pwa.py`'s pin; new `tests/test_pwa_mixed_parties_browser.py` |
@@ -32,28 +34,40 @@ inside its files. **Change nothing outside a part's files** but those §9 names.
   (*Implementation*), the checkers' (*Checking*); **its leader words them** (a Game designer: *Concept*, *Build*,
   *Playtest*). Its line in `TERMS` says so.
 - **goal type** (`TERMS` `goal_type`): its line becomes *what kind of goal a party's team can take on: New logo, Fix a
-  bug; realm/goal_types.py, specs 52 and 56*.
+  bug; realm/goal_types.py, specs 52 and 59*.
 - New strings, in these words: the agents' names and lines (§2.2), the kinds' labels (§2.1), the parties' names and lines
   (§2.4), the stages' words (§3), the new types' names, lines and asks (§4.2), *Mixed*, *One craft*, *<stage> has <n>
   seats with <leader>: take one out first.*, *A party led by <leader> has at most <n> <builders | checkers>*.
 - spec 50 §0's rules hold: the interface says *party*, *goal*, *task*; no *preset*, *catalog*, *band*, *deck* in what a
   person reads (they are the code's words).
 
-## 1. orkUI: five signs (A0)
-As spec 52 §1 (`office/signs/<name>.svg`, 7 × 7, one `path`, `.ork-sign.<name>`, 14 × 14 and `.big` 28 × 28):
+## 1. Seven signs, things of the realm (G, the owner, A0)
+Decisions §69 holds: each goal type its own sign, a thing of the realm, never a being, by spec 56 §1's rules. Five of the
+new types take an emblem of orkUI's library (spec 56: no face draws it yet); two need a drawing the owner picks.
 
-| dice | maze | store | box | scales |
-|---|---|---|---|---|
-| `#######` | `#######` | `..###..` | `.#####.` | `...#...` |
-| `#.....#` | `#...#.#` | `.#...#.` | `#..#..#` | `#######` |
-| `#.#.#.#` | `#.#.#.#` | `#######` | `#######` | `#..#..#` |
-| `#.....#` | `#.#...#` | `#.....#` | `#..#..#` | `#..#..#` |
-| `#.#.#.#` | `#.#####` | `#.#.#.#` | `#..#..#` | `##.#.##` |
-| `#.....#` | `#.....#` | `#.....#` | `#..#..#` | `...#...` |
-| `#######` | `#######` | `#######` | `#######` | `.#####.` |
+### 1.1 The signs
+| sign (type) | its picture | from |
+|---|---|---|
+| `mechanic` (New mechanic) | a tome: the rules bound in a book | the emblem `tome` |
+| `level` (New level) | a hut: a place the player comes to | the emblem `hut` |
+| `balance` (Balance pass) | a cairn: stones counted into a pile | the emblem `cairn` |
+| `character` (New character) | a crown: who it is, by its rank | the emblem `crown` |
+| `release` (A release) | a chest: the version packed and sent | the emblem `chest` |
+| `store` (Store listing) | the owner's pick (§1.2) | a new emblem |
+| `tune` (New sound) | the owner's pick (§1.2) | a new emblem |
 
-*dice* a game's rule or mechanic, *maze* a level, *store* a store's page, *box* a release, *scales* a balance of numbers.
-The README's lines, the gallery, the CHANGELOG (**0.3.4**), the versions; tests as spec 52 §1.
+An emblem made a sign keeps its pixels; `emblems.json` gains its `sign`. The sign `sound` (a sound's tile) stays the
+media's: a type never shares it (spec 56 §1.6), so New sound's sign is `tune`.
+
+### 1.2 Candidates (G) and the owner's pick
+As spec 56 §2–§3: `docs/specs/59-signs/candidates.json`, **at least four for `store`** (a market stall, a shop's
+hanging sign, a merchant's scales, a wares' crate) **and four for `tune`** (a lute, a drum, a pan pipe, a harp), each
+by spec 56 §1's rules (8 cells from every sign and emblem); `sheet.html` shows them as spec 56's sheet does. **The owner
+picks one of each**, written in §10 as *the owner's pick*; A0 starts after it.
+
+### 1.3 orkUI (A0)
+The seven signs (`office/signs/<name>.svg`, `.ork-sign.<name>`), the two drawings in `office/emblems/` with their
+`meaning` and `tags`, the README's lines, the gallery, the CHANGELOG (**0.4.1**), the versions; tests as spec 56 §4.
 
 ## 2. The library (A)
 ### 2.1 Five kinds (`realm/roles.py`)
@@ -164,13 +178,13 @@ And the new ones (asks as *label* (hint)):
 
 | id | name | sign | line | needs | lens | asks | refs | plan |
 |---|---|---|---|---|---|---|---|---|
-| `mechanic` | New mechanic | dice | A rule the player plays by, tried before it is built in | `gamedesign` | text | *What the player does* (the verb, in one line) · *Why it is fun* (what they get from it) | no | Write the rule and its loop first (what the player does, sees and gets), then a playable prototype; its numbers in the balance file. |
-| `level` | New level | maze | A level laid out, built and played through | `level` | text | *What it teaches* (the one new idea) · *How long it plays* (in minutes) | yes | A Level designer lays it out first (the path, the beats, where it gets hard), then builds it; then it is played through. |
-| `character` | New character | picture | A character drawn, picked from a few, then put in the game | `art` | text | *Who it is* (in three words) | yes | An Artist draws four to pick from (a pick of 4 images); the picked one gets its frames and goes in the game. |
-| `balance` | Balance pass | scales | The game's numbers changed so it plays better | `gamedesign` | text | *What feels off* (where, and how) | no | Change numbers only, in the balance file; say each change and why; the tests stay green. |
-| `sound` | New sound | sound | A sound or a tune, picked by ear | `sound` | text | *Where it plays* (the moment, and how often) | yes | A Sound designer makes three to pick from (a pick of 3 sounds); the picked one is put in place. |
+| `mechanic` | New mechanic | mechanic | A rule the player plays by, tried before it is built in | `gamedesign` | text | *What the player does* (the verb, in one line) · *Why it is fun* (what they get from it) | no | Write the rule and its loop first (what the player does, sees and gets), then a playable prototype; its numbers in the balance file. |
+| `level` | New level | level | A level laid out, built and played through | `level` | text | *What it teaches* (the one new idea) · *How long it plays* (in minutes) | yes | A Level designer lays it out first (the path, the beats, where it gets hard), then builds it; then it is played through. |
+| `character` | New character | character | A character drawn, picked from a few, then put in the game | `art` | text | *Who it is* (in three words) | yes | An Artist draws four to pick from (a pick of 4 images); the picked one gets its frames and goes in the game. |
+| `balance` | Balance pass | balance | The game's numbers changed so it plays better | `gamedesign` | text | *What feels off* (where, and how) | no | Change numbers only, in the balance file; say each change and why; the tests stay green. |
+| `sound` | New sound | tune | A sound or a tune, picked by ear | `sound` | text | *Where it plays* (the moment, and how often) | yes | A Sound designer makes three to pick from (a pick of 3 sounds); the picked one is put in place. |
 | `store` | Store listing | store | The store's page: keywords, texts, screenshots' words | `aso` | text | *Who it is for* · *The stores* (App Store, Google Play) | yes | Keywords first (what people search for in the store), then the title, subtitle and description, then the screenshots' words; nothing is submitted without the person's yes. |
-| `release` | A release | box | A version out: what is new, the build, the stores' list | `aso`, `code` | text | *What is new* (in the person's words) | no | Bump the version, write what is new for the stores in the product's words, make the build, and write the stores' list the person goes through; nothing is submitted without the person's yes. |
+| `release` | A release | release | A version out: what is new, the build, the stores' list | `aso`, `code` | text | *What is new* (in the person's words) | no | Bump the version, write what is new for the stores in the product's words, make the build, and write the stores' list the person goes through; nothing is submitted without the person's yes. |
 
 ### 4.3 What a party offers (`offered`)
 **Fewer, and the leader's** (the owner: *better to show fewer goals than to distract the person; neighbouring goals are
@@ -279,29 +293,28 @@ in *As built* first.
 
 ## 10. As built (notes, no change of the contract)
 
-## 11. Running A0, A, B and C
-**A0 and A start together**, each a cloud session on orkWorks/orkBoard with the brief below, and each **merges into
-`main` itself** when its tests pass (CLAUDE.md, alpha): no pull request left waiting. **B and C start together once A0
-and A are in `main`.** They touch no file of each other's but this one: a conflict in §10 keeps both notes.
+## 11. Running G, A, A0, B and C
+Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass
+(CLAUDE.md, alpha), no pull request left waiting. **G and A start together. A0 starts after the owner's pick. B and C
+start together once A is in `main`.** A conflict in §10 keeps both notes.
 
-**A0, orkUI's five signs:**
+**G, the candidates:**
 
-    Build part A0 of docs/specs/56-mixed-parties.md (§1). Read CLAUDE.md and decisions §69 (docs/decisions.md) first;
-    spec 52 §1 and its §10 A0 note say how the last signs were added. Add the repository orkWorks/orkUI to the session
-    (push access), add the five signs there with their classes, gallery, README lines, CHANGELOG 0.3.4, versions and
-    tests/test_orkui.py, and push orkUI's main. Then in orkBoard copy it (`python -m orkboard.design.orkui <orkUI>`),
-    bump pwa/sw.js's CACHE and SHELL with tests/test_pwa.py's count and pin, run the critical tests (orkcraft.toml
-    `always`), tests/test_pwa.py and tests/test_design_system.py, write A0's note in §10, commit, merge into main
-    ("Merge spec 56 A0: …") and push main. If main moved meanwhile, merge it in, run the tests again, then push.
+    Build part G of docs/specs/59-mixed-parties.md (§1.2). Read decisions §69 and §72 (docs/decisions.md), spec 56 §1–§3
+    and CLAUDE.md first. Write docs/specs/59-signs/candidates.json (at least four for `store` and four for `tune`, each by
+    spec 56 §1's rules, checked against every sign and emblem in design-system/orkui/) and its sheet.html with spec 56's
+    sheet.py. Change no other file. Commit, merge into main ("Merge spec 59 G: …") and push main; if main moved, merge
+    it in first. Then stop: the owner picks.
 
 **A, the host:**
 
-    Build part A (the host) of docs/specs/56-mixed-parties.md: §2–§5 and A's lines of §8. That file is the contract;
-    read decisions §69 (docs/decisions.md), spec 52 §2 and CLAUDE.md first. Change only the files of A's row and those
-    §9 names for A. Until A0's copy is in design-system/orkui/signs/, take the five new signs by name in the tests (as
-    spec 52's A0_SIGNS). When the critical tests (orkcraft.toml `always`) and the tests of every file you changed pass:
-    write A's note in §10 (As built), commit, merge into main ("Merge spec 56 A: …") and push main. If main moved
-    meanwhile, merge it in, run the tests again, then push. No pull request.
+    Build part A (the host) of docs/specs/59-mixed-parties.md: §2–§5 and A's lines of §8. That file is the contract;
+    read decisions §72 (docs/decisions.md), spec 52 §2 and CLAUDE.md first. Change only the files of A's row and those
+    §9 names for A. The seven new signs (§1.1) are not in design-system/orkui/signs/ yet: give the types their names,
+    put them in `SIGNS`, and take them by name in the tests (as spec 52's A0_SIGNS) until A0's copy is in. When the
+    critical tests (orkcraft.toml `always`) and the tests of every file you changed pass: write A's note in §10 (As
+    built), commit, merge into main ("Merge spec 59 A: …") and push main. If main moved meanwhile, merge it in, run the
+    tests again, then push. No pull request.
 
-**B, the desktop** and **C, the phone**: spec 52 §11's briefs, with this file, its §6 / §7, its rows and §9; the browser
-tests need `uv sync --extra dev --extra browser`; C's CACHE is one up from what A0 left.
+**A0, B and C**: spec 56's A0 brief and spec 52 §11's B and C briefs, with this file, its §1.3 / §6 / §7, its rows and
+§9; the browser tests need `uv sync --extra dev --extra browser`; each CACHE one up from what main has.
