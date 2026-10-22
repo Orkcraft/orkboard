@@ -1,8 +1,7 @@
 """Spec 52 part C, the phone (docs/specs/52-goal-types.md §5, §6, §7 "C"): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py (a party, *Sign in with a passkey*, of a
 leader, two builders and two checkers), its map given the party's goal types. The top bar's project button and its Projects sheet (no party, no count); the goals bar that says the party; the stage
-switch that wears the party's faces (the overlap, the words whole at 390, the empty head, no number, ✗ over !, the labels); the party's deck at its end (the other parties' count, its sheet, a pick
-kept); a band with no one and *Add to the party*; the create button's strip of types (*needs:*, the snap, the blank last, *Put them back*, the turn, reduced motion); the form by a type (its head,
-the party fixed, the asks, Refs, the type's lens first, the join line's three shapes and what *Add the goal* sends); a plan's missing line and its answers; the signs without the alert edges; 44 px
+switch that wears the party's faces (side by side, the words whole at 390, the empty head, no number, the signs on the faces, the labels); the party's deck at the goals bar's left (the other parties' count, its sheet, a pick
+kept); a band with no one and *Add to the party*; the form by a type (its asks, Refs, the type's lens first, the join line's three shapes and what *Add the goal* sends); a plan's missing line and its answers; the signs without the alert edges; 44 px
 targets; the service worker's version."""
 from __future__ import annotations
 
@@ -62,21 +61,14 @@ def typed(monkeypatch):
     monkeypatch.setattr(Stub, "__init__", new_init)
 
 
-async def _strip(page):
-    """The create button tapped: its top card lifts and the party's types are dealt as a strip over the scrim."""
+async def _form(page, type_id=None):
+    """New goal: the create button tapped, the form slid up; the type `type_id` picked ("" is *No type*; None leaves the first)."""
     await page.locator(FAB).click()
-    deal = page.get_by_role("dialog", name="New goal for Passkey")
-    await deal.wait_for(timeout=WAIT_MS)
-    await page.wait_for_function("() => !document.getAnimations().some((a) => a.playState === 'running')", timeout=WAIT_MS)      # dealt: each card at its place
-    return deal
-
-
-async def _form(page, type_id):
-    """New goal by the type `type_id` ("" the blank card): the strip dealt, the card tapped, the form open."""
-    deal = await _strip(page)
-    await deal.locator(f'.typecard[data-type="{type_id}"]').click()
     form = page.get_by_role("dialog", name="New goal")
     await form.wait_for(timeout=WAIT_MS)
+    await page.wait_for_function("() => !document.getAnimations().some((a) => a.playState === 'running')", timeout=WAIT_MS)
+    if type_id is not None:
+        await form.locator(f'.newgoal__chip[data-type="{type_id}"]').click()
     return form
 
 
@@ -145,22 +137,22 @@ async def test_the_stage_switch_wears_the_partys_faces_over_its_words_with_one_s
         assert [await b.get_attribute("data-band") for b in await bands.all()] == ["lead", "build", "check"]
         assert [norm(await b.inner_text()) for b in await bands.all()] == ["Planning", "Implementation", "Checking"]                    # the words, no number
         assert not re.search(r"\d", await tabs.inner_text()) and await tabs.locator(".ork-count").count() == 0
-        assert [round((await b.bounding_box())["height"]) for b in await bands.all()] == [52, 52, 52]
-        assert all([abs((await b.bounding_box())["width"] - 112) <= 4 for b in await bands.all()])                                     # the width less the deck's, shared
+        assert [round((await b.bounding_box())["height"]) for b in await bands.all()] == [60, 60, 60]                                   # spec 53 §1.2
+        assert all([abs((await b.bounding_box())["width"] - 130) <= 2 for b in await bands.all()])                                     # the whole width, shared (the deck is at the goals bar's left)
         assert all([await b.locator(".band__name").evaluate("e => e.scrollWidth <= e.clientWidth && getComputedStyle(e).fontSize === '11px'") for b in await bands.all()])
         heads = lambda key: tabs.locator(f'.band[data-band="{key}"] img.ork-race__head')                                             # noqa: E731
         assert [await heads(k).count() for k in ("lead", "build", "check")] == [1, 2, 2]
         build = [await h.bounding_box() for h in await heads("build").all()]
-        assert round(build[0]["width"]) == 24 and round(build[0]["height"]) == 22 and round(build[1]["x"] - build[0]["x"]) == 14     # 24 × 22, each 14 px after the one before
+        assert round(build[0]["width"]) == 24 and round(build[0]["height"]) == 22 and round(build[1]["x"] - build[0]["x"]) == 28     # 24 × 22, side by side 4 px apart (spec 53 §1.2)
         assert await heads("lead").first.get_attribute("src") == "races/peon-elder.png"
         signs = {k: await tabs.locator(f'.band[data-band="{k}"] .band__sign .ork-sign').get_attribute("class") for k in ("lead", "build", "check")}
         assert signs == {"lead": "ork-sign alert", "build": "ork-sign cross", "check": "ork-sign alert"}                                 # a plan and a proposal; a failure; the Reviewer's question
-        sign = await tabs.locator('.band[data-band="build"] .band__sign').bounding_box()
-        assert round(build[-1]["x"] + build[-1]["width"] - sign["x"]) == 4                                                              # over the last head by 4 px
+        sign = await tabs.locator('.band[data-band="build"] [data-member="backend"] .band__sign').bounding_box()
+        assert (round(sign["width"]), round(sign["height"])) == (12, 12) and round(build[0]["x"] + build[0]["width"] - sign["x"]) == 7    # 12 × 12 on the face it comes from, over its corner by 5 px
         assert await tabs.locator('.band[data-band="build"] .band__sign').evaluate("e => getComputedStyle(e).color") != await tabs.locator('.band[data-band="lead"] .band__sign').evaluate("e => getComputedStyle(e).color")
         labels = [await b.get_attribute("aria-label") for b in await bands.all()]
         assert labels == ["Planning: the Taskmaster. 2 wait for you", "Implementation: Backend, Screens. 1 failed", "Checking: Reviewer, Words. 1 waits for you"]
-        assert await page.locator(".stagebar > .partydeck").count() == 1 and await tabs.locator(".partydeck").count() == 0              # the deck is outside the tablist, at its end
+        assert await page.locator(".gbar > .partydeck").count() == 1 and await page.locator(".stagebar .partydeck").count() == 0         # the deck stands at the goals bar's left (spec 53 §1.1)
         assert await page.locator('.band[data-band="build"]').get_attribute("aria-selected") == "true"                                  # the tab picked keeps its underline
         assert "inset" in await page.locator('.band[data-band="build"]').evaluate("e => getComputedStyle(e).boxShadow")
         assert await page.evaluate(NO_SCROLL)
@@ -168,7 +160,8 @@ async def test_the_stage_switch_wears_the_partys_faces_over_its_words_with_one_s
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         band = page.locator('.band[data-band="build"]')
         await band.wait_for(timeout=WAIT_MS)
-        assert await band.locator(".band__sign .ork-sign").get_attribute("class") == "ork-sign cross"
+        assert await band.locator('[data-member="backend"] .band__sign .ork-sign').get_attribute("class") == "ork-sign cross"          # ✗ on the member whose task failed …
+        assert await band.locator('[data-member="screens"] .band__sign .ork-sign').get_attribute("class") == "ork-sign alert"          # … ! on the one a pick waits on
         assert await band.get_attribute("aria-label") == "Implementation: Backend, Screens. 1 failed, 1 waits for you"
 
 
@@ -194,7 +187,7 @@ async def test_a_band_with_no_one_shows_an_empty_head_says_what_happens_and_adds
         assert (await add.bounding_box())["height"] >= 44
         await add.click()
         assert await _called(stub, "ideas.goal", {"slug": "passkey"})                                                                 # Edit the party, as About this party's
-        assert await page.locator(".token .add-member, .stagebar [data-act='add-member']").count() == 0                                # no other place adds a member on the field
+        assert await page.locator(".stagebar [data-act='add-member'], .colname [data-act='add-member']").count() == 0                                # no other place adds a member on the field
 
 
 @pytest.mark.asyncio
@@ -209,7 +202,7 @@ async def test_the_partys_deck_counts_the_other_parties_stops_and_its_sheet_pick
         deck = page.locator(".partydeck")
         await deck.wait_for(timeout=WAIT_MS)
         box = await deck.bounding_box()
-        assert (round(box["width"]), round(box["height"])) == (52, 52) and await deck.locator(".partydeck__edge").count() == 2
+        assert (round(box["width"]), round(box["height"])) == (44, 44) and await deck.locator(".partydeck__edge").count() == 2
         assert await deck.locator(".ork-count.warning").inner_text() == "2"                                                            # the one count of stops on the screen
         assert await deck.get_attribute("aria-label") == "Parties: Passkey shown, 2 stops wait in the other parties. A tap shows the parties"
         assert await page.locator(".ork-count.warning:visible").count() == 1
@@ -233,76 +226,19 @@ async def test_the_partys_deck_counts_the_other_parties_stops_and_its_sheet_pick
         assert await page.evaluate(NO_SCROLL)
 
 
-# -- New goal by its type (§5.5, §5.6) --------------------------------------------------------------------------------------------------------------------
-
-@pytest.mark.asyncio
-async def test_the_create_button_deals_the_partys_types_as_a_strip_the_blank_last(fake_repo, monkeypatch):
-    typed(monkeypatch)
-    async with _phone(fake_repo, monkeypatch, init="window.__anims = 0; const _a = Element.prototype.animate; Element.prototype.animate = function (...x) { window.__anims += 1; return _a.apply(this, x); };") as (stub, page):
-        fab = page.locator(FAB)
-        await fab.wait_for(timeout=WAIT_MS)
-        assert await fab.get_attribute("aria-label") == "New goal: pick its type, or a blank one"
-        deal = await _strip(page)
-        assert norm(await deal.locator(".typedeal__cap").inner_text()) == "New goal for Passkey"
-        cards = deal.locator(".typecard")
-        assert [await c.get_attribute("data-type") for c in await cards.all()] == ["bug", "logo", "screen", "experiment", ""]          # the most used first, the blank last
-        boxes = [await c.bounding_box() for c in await cards.all()]
-        assert [(round(b["width"]), round(b["height"])) for b in boxes] == [(132, 185)] * 5
-        assert boxes[1]["x"] + boxes[1]["width"] <= 390 and boxes[2]["x"] < 390 < boxes[2]["x"] + boxes[2]["width"]                   # two whole and a part of the third
-        assert boxes[0]["y"] + boxes[0]["height"] < (await fab.bounding_box())["y"]                                                    # above the create button
-        assert await deal.locator(".typedeal__row").evaluate("e => getComputedStyle(e).scrollSnapType") == "x mandatory"
-        logo = cards.nth(1)
-        assert await logo.locator(".typecard__sign .ork-sign.logo.big").count() == 1 and norm(await logo.locator(".typecard__name").inner_text()) == "New logo"
-        assert norm(await logo.locator(".typecard__needs").inner_text()) == "needs: Artist" and await logo.locator(".typecard__needs img.ork-race__head").count() == 1
-        assert await cards.first.locator(".typecard__needs").count() == 0
-        assert norm(await cards.last.inner_text()) == "A blank goal"
-        put = deal.get_by_role("button", name="Put them back")
-        assert (await put.bounding_box())["height"] >= 44
-        assert await page.evaluate("() => window.__anims") > 0                                                                         # dealt
-        await put.click()
-        await deal.wait_for(state="detached", timeout=WAIT_MS)
-        deal = await _strip(page)
-        await page.keyboard.press("Escape")
-        await deal.wait_for(state="detached", timeout=WAIT_MS)
-        deal = await _strip(page)
-        await page.mouse.click(195, 60)                                                                                                # the scrim gathers them
-        await deal.wait_for(state="detached", timeout=WAIT_MS)
-        form = await _form(page, "")                                                                                                   # the blank card: today's form
-        assert norm(await form.locator(".newgoal__kind").inner_text()) == "A blank goal" and await form.get_by_label("Party").is_visible()
-        assert await page.evaluate(NO_SCROLL)
-
-
-@pytest.mark.asyncio
-async def test_under_reduced_motion_the_strip_shows_at_once_and_the_form_opens_at_once(fake_repo, monkeypatch):
-    typed(monkeypatch)
-    async with _phone(fake_repo, monkeypatch, init="window.__anims = 0; const _a = Element.prototype.animate; Element.prototype.animate = function (...x) { window.__anims += 1; return _a.apply(this, x); };") as (stub, page):
-        await page.emulate_media(reduced_motion="reduce")
-        await page.locator(FAB).wait_for(timeout=WAIT_MS)
-        await _form(page, "logo")
-        assert await page.evaluate("() => window.__anims") == 0 and await page.locator(".drawlayer").count() == 0
-
-
-@pytest.mark.asyncio
-async def test_a_map_with_no_types_opens_the_blank_form_as_today(fake_repo, monkeypatch):
-    async with _phone(fake_repo, monkeypatch) as (stub, page):
-        await page.locator(FAB).click()
-        form = page.get_by_role("dialog", name="New goal")
-        await form.wait_for(timeout=WAIT_MS)
-        assert await page.locator(".typedeal").count() == 0 and norm(await form.locator(".newgoal__kind").inner_text()) == "A blank goal"
-
+# -- New goal by its type (§5.6; the form is spec 53 §2's: tests/test_pwa_new_goal53_browser.py) --------------------------------------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_new_goal_by_a_type_its_head_the_party_fixed_its_asks_sent(fake_repo, monkeypatch):
     typed(monkeypatch)
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         form = await _form(page, "bug")
-        assert norm(await form.locator(".newgoal__kind").inner_text()) == "Fix a bug" and await form.locator(".newgoal__kind .ork-sign.bug.big").count() == 1
-        assert "A blank goal" not in await form.inner_text() and norm(await form.locator(".newgoal__for").inner_text()) == "for Sign in with a passkey · the Taskmaster reads it next"
-        assert await form.get_by_role("combobox", name="Party").is_hidden() and await form.locator(".newgoal__party b").text_content() == "Sign in with a passkey"
+        assert await form.locator('.newgoal__chip[data-type="bug"]').get_attribute("aria-checked") == "true"                            # by its type: asks, no party row to change
+        assert norm(await form.locator(".newgoal__typeline").inner_text()) == "Something that goes wrong, made right"
         did = form.get_by_label("What you did")
         assert await did.get_attribute("placeholder") == "the steps, in order" and await form.get_by_label("What should have").get_attribute("placeholder") == "what you expected"
         assert await form.locator(".newgoal__refs").is_hidden() and await form.locator(".joins").is_hidden()
-        await form.get_by_label("Its title").fill("The sign-in button does nothing")
+        await form.get_by_label("The goal", exact=True).fill("The sign-in button does nothing")
         await did.fill("  Tapped   Sign in  ")
         await form.get_by_label("What happened").fill("Nothing")
         await form.get_by_role("button", name="Add the goal").click()
@@ -316,7 +252,8 @@ async def test_a_type_with_refs_and_a_free_seat_opens_its_lens_first_and_its_joi
     typed(monkeypatch)
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         form = await _form(page, "logo")
-        await form.locator('.lens-chip[data-lens="screen"][aria-checked="true"]').wait_for(timeout=WAIT_MS)                          # the type's lens first
+        await form.locator('.lens-pane[data-lens="screen"]').wait_for(timeout=WAIT_MS)                                                # the type's lens first, with no switch
+        assert await form.locator(".lens-bar").is_hidden()
         refs = form.locator(".newgoal__refs")
         assert await refs.is_visible() and "Pictures you like" in await refs.inner_text() and await form.get_by_role("button", name="Photo").is_visible()
         line = form.locator('.joinline[data-agent="artist"]')
@@ -328,7 +265,7 @@ async def test_a_type_with_refs_and_a_free_seat_opens_its_lens_first_and_its_joi
         await box.uncheck()
         assert norm(await line.locator(".joinline__without").inner_text()) == "Without Artist, its pixel art goes to the Grunt."
         await box.check()
-        await form.get_by_label("Its title").fill("A new mark")
+        await form.get_by_label("The goal", exact=True).fill("A new mark")
         await form.get_by_label("What it should say").fill("calm, fast, kind")
         await form.get_by_label("Links").fill("https://example.com/likes")
         await form.get_by_role("button", name="Add the goal").click()
@@ -350,7 +287,7 @@ async def test_a_swap_picks_who_leaves_a_full_band_says_why_and_put_it_back_neve
         assert (await who.bounding_box())["height"] >= 44 and await who.evaluate("e => e.tagName") == "SELECT"
         await who.select_option("reviewer")
         assert norm(await line.locator(".joinline__words").inner_text()) == "Swap: Reviewer leaves, Accessibility reviewer joins"
-        await form.get_by_label("Its title").fill("A settings screen")
+        await form.get_by_label("The goal", exact=True).fill("A settings screen")
         await form.get_by_role("button", name="Add the goal").click()
         assert await _called(stub, "ideas.add")
         assert [a for n, a in stub.calls if n == "ideas.add"][-1]["join"] == {"add": "accessibility-reviewer", "out": "reviewer"}
@@ -360,12 +297,12 @@ async def test_a_swap_picks_who_leaves_a_full_band_says_why_and_put_it_back_neve
         assert norm(await full.inner_text()) == ("The party’s builders all have work open: Experimenter can join from Edit the party when one is done. "
                                                   "Till then its experiments goes to the Grunt.")
         assert await form.locator(".joins").get_by_role("checkbox").count() == 0
-        await form.get_by_label("Its title").fill("Try a shorter sign-in")
+        await form.get_by_label("The goal", exact=True).fill("Try a shorter sign-in")
         await form.get_by_role("button", name="Add the goal").click()
         await page.get_by_role("dialog", name="New goal").wait_for(state="hidden", timeout=WAIT_MS)
         assert "join" not in [a for n, a in stub.calls if n == "ideas.add"][-1]
         form = await _form(page, "logo")
-        await form.get_by_label("Its title").fill("Kept for tonight")
+        await form.get_by_label("The goal", exact=True).fill("Kept for tonight")
         await form.get_by_role("button", name="Put it back").click()
         assert await _called(stub, "ideas.add", {"text": "Kept for tonight", "track": "passkey", "priority": "high", "night": True, "type": "logo"})      # no join
 
@@ -440,4 +377,4 @@ async def test_signs_keep_their_place_without_an_alert_edge_a_failure_keeps_its_
 
 def test_the_service_worker_is_one_up_and_keeps_the_types_module():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v59";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
+    assert 'const CACHE = "orkcraft-app-v61";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]

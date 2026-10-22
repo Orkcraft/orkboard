@@ -72,7 +72,7 @@ async def test_the_create_button_covers_no_task_at_the_end_of_a_queue_nor_of_a_s
         right = [await c.bounding_box() for c in await page.locator('.stack[data-column="screens"] .deck').all()]
         assert len(right) >= 10 and all(b["y"] + b["height"] <= fab["y"] + 1 or b["y"] >= fab["y"] + fab["height"] or b["x"] + b["width"] <= fab["x"] for b in right if b["y"] < 844)   # the right-most queue ends above it
         assert max(b["y"] + b["height"] for b in right) <= fab["y"] + 1
-        await page.locator('.token[data-member="screens"]').click()                                    # a solo: its body keeps the room too
+        await page.locator('button.band__face[data-member="screens"]').click()                         # a solo: its body keeps the room too
         await page.locator(".solo__body").evaluate("e => { e.scrollTop = e.scrollHeight; }")
         await page.wait_for_timeout(200)
         cards = [await c.bounding_box() for c in await page.locator(".solo .deck").all()]
@@ -157,17 +157,17 @@ async def test_the_create_button_is_a_face_down_deck_that_opens_new_goal_and_not
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         fab = page.locator(FAB)
         await fab.wait_for(timeout=WAIT_MS)
-        assert await fab.get_attribute("aria-label") == "New goal: pick its type, or a blank one"
+        assert await fab.get_attribute("aria-label") == "New goal"
         box = await fab.bounding_box()
         assert round(box["width"]) == 48 and round(box["height"]) == 64                               # a small deck: 48 × 64
         assert await fab.locator(".deckfab__edge").count() == 2 and await fab.locator(".deckfab__back .ork-icon").count() == 1     # two edges behind, a back with the plus mark
         assert await page.locator("dialog.dial-dlg, .dial, [role=menu]").count() == 0 and await page.locator(".fab").count() == 1   # the dial is gone
         green = await page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-action)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
         assert await fab.locator(".deckfab__back").evaluate("e => getComputedStyle(e).borderTopColor") == green                       # its edge in the action colour
-        await fab.click()                                                                              # one tap: New goal (the blank card turns, then the form)
+        await fab.click()                                                                              # one tap: New goal (the form slides up at once)
         sheet = page.get_by_role("dialog", name="New goal")
         await sheet.wait_for(timeout=WAIT_MS)
-        assert await sheet.get_by_label("Party").input_value() == "passkey"
+        assert await sheet.locator(".newgoal__party").get_attribute("data-goal") == "passkey"
         await page.keyboard.press("Escape")
         await _new_goal(page)                                                                          # New party: the where sheet's *+ New party*
         await page.get_by_role("dialog", name="New party").wait_for(timeout=WAIT_MS)
@@ -180,7 +180,7 @@ async def test_the_create_button_is_a_face_down_deck_that_opens_new_goal_and_not
         await page.keyboard.press("Escape")
         SCENE["map"]["goals"][0]["party"].append(member({"slug": "extra", "name": "Extra"}, "build", OWN))        # three builders: the seats are full
         stub.bump({})
-        await page.locator(".token").nth(2).wait_for(timeout=WAIT_MS * 2)
+        await page.locator(".colname").nth(2).wait_for(timeout=WAIT_MS * 2)
         about = await _about(page)
         assert await about.locator(".party-about__seats").inner_text() == "the party is full: change a member"
 
@@ -201,10 +201,10 @@ async def test_every_target_is_a_finger_wide(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".hc").first.wait_for(timeout=WAIT_MS)
         small = []
-        for selector in (".gbar__head", ".gbar__gate", ".band", ".token", ".deck", FAB, ".board-bar .bar-btn", ".board-name"):
+        for selector in (".gbar__head", ".gbar__gate", ".gbar .partydeck", ".band", ".band button.band__face", ".deck", FAB, ".board-bar .bar-btn", ".board-name"):
             for e in await page.locator(selector).all():
                 b = await e.bounding_box()
-                if b and b["height"] < 44 or (b and selector == FAB and b["width"] < 44):
+                if b and b["height"] < 44 or (b and selector in (FAB, ".gbar .partydeck", ".band button.band__face") and b["width"] < 44):
                     small.append((selector, b["width"], b["height"]))
         assert not small, small
         assert round((await page.locator(FAB).bounding_box())["width"]) >= 44 and round((await page.locator(".hc").first.bounding_box())["width"]) >= 100

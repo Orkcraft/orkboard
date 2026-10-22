@@ -588,31 +588,38 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .spacer { flex: 1 1 auto; }
 
 .boardwrap { position: relative; flex: 1 1 auto; min-height: 272px; display: flex; flex-direction: column; }
-/* the stage switch wears the party's faces (spec 52 §5.3): three tabs 52 px high, each its band's heads (24 x 22, each 14 px after the one before) over its word, one sign at the faces'
-   top right, no number; at its end, outside the tablist, the party's deck (52 x 52) */
+/* the stage switch wears the party's faces (spec 53 §1.2, §1.3): three tabs sharing the width, 60 px high, each its band's heads (24 x 22, side by side 4 px apart) over its word; the sign on the face
+   it comes from (12 x 12, at the head's top right, over it by 5 px), no number. The faces of the tab shown are buttons (a 44 x 44 target round the head: its box is that size, its margins give back the room). */
 .stagebar { flex: none; display: flex; align-items: stretch; border-bottom: var(--ork-line) solid var(--ork-frame); }
 .bands { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; }
-.band { appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--ork-1); min-width: 0; height: 52px; padding: 0 var(--ork-1); border: 0;
-  background: none; color: var(--ork-ink-muted); font: 600 11px/13px var(--ork-font-text); cursor: pointer; }
+.band { appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--ork-1); min-width: 0; height: 60px; padding: var(--ork-1) var(--ork-1) 0; box-sizing: border-box;
+  border: 0; background: none; color: var(--ork-ink-muted); font: 600 11px/13px var(--ork-font-text); cursor: pointer; }
+div.band { cursor: default; }
 .band__name { white-space: nowrap; }
-.band__faces { position: relative; display: inline-flex; align-items: flex-start; height: 22px; }
-.band__faces .ork-race__head { width: 24px; height: 22px; }
-.band__faces > * + .ork-race__head, .band__faces > * + .band__nohead { margin-left: -10px; }
+.band__faces { position: relative; display: inline-flex; align-items: flex-start; gap: var(--ork-2); height: 22px; }
+.band__face { all: unset; box-sizing: border-box; position: relative; flex: none; display: block; width: 24px; height: 22px; }
+button.band__face { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -11px -10px; cursor: pointer; }
+button.band__face:focus-visible { box-shadow: inset 0 0 0 2px var(--ork-ink); }
+button.band__face.is-on .ork-race__head { outline: 2px solid var(--ork-ink); outline-offset: 1px; }
+.band__face .ork-race__head { display: block; width: 24px; height: 22px; }
 .band__nohead { flex: none; width: 24px; height: 22px; box-sizing: border-box; border: 1px dashed var(--ork-edge); }
-.band__sign { flex: none; display: inline-flex; margin-left: -4px; margin-top: -4px; }
+.band__sign { position: absolute; right: -5px; top: -5px; width: 12px; height: 12px; display: flex; pointer-events: none; }
+button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10 px in and 11 px down in the button's 44 x 44 */
+.band__sign .ork-sign { width: 12px; height: 12px; vertical-align: top; }
 .band__sign.danger { color: var(--ork-danger); }
 .band__sign.alert { color: var(--ork-alert); }
-.partydeck { all: unset; box-sizing: border-box; cursor: pointer; position: relative; flex: none; width: 52px; height: 52px; }
+/* the party's deck (spec 53 §1.1): at the goals bar's left, a 44 x 44 target round a back of 16 x 22 with two edges behind it; its count of the stops in the other parties at the top right */
+.partydeck { all: unset; box-sizing: border-box; cursor: pointer; position: relative; flex: none; width: var(--ork-tap); height: var(--ork-tap); }
 .partydeck:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.partydeck__edge, .partydeck__back { position: absolute; width: 22px; height: 30px; box-sizing: border-box; clip-path: var(--ork-notch); }
+.partydeck__edge, .partydeck__back { position: absolute; width: 16px; height: 22px; box-sizing: border-box; clip-path: var(--ork-notch); }
 .partydeck__edge { background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-edge); }
-.partydeck__edge.e2 { left: 19px; top: 7px; }
-.partydeck__edge.e1 { left: 17px; top: 9px; }
-.partydeck__back { left: 15px; top: 11px; display: flex; align-items: center; justify-content: center; color: var(--ork-ink); border: var(--ork-line) solid var(--ork-ink);
+.partydeck__edge.e2 { left: 18px; top: 7px; }
+.partydeck__edge.e1 { left: 16px; top: 9px; }
+.partydeck__back { left: 14px; top: 11px; display: flex; align-items: center; justify-content: center; color: var(--ork-ink); border: var(--ork-line) solid var(--ork-ink);
   background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
 .partydeck__back .ork-chev { margin: 0; }
-.partydeck__n { position: absolute; right: 2px; top: 2px; }
-.pane-head .partydeck, .arena-empty .partydeck { width: var(--ork-tap); height: var(--ork-tap); }
+.partydeck__n { position: absolute; right: 0; top: 0; }
+.gbar > .partydeck + .gbar__head { padding-left: 0; }
 /* a band with no one (spec 52 §5.4): what happens to its work, and Add to the party */
 .band-none { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); padding: var(--ork-5); }
 .band-none .cap { margin: 0; }
@@ -626,8 +633,10 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .strip.is-few { width: auto; }
 .pair { position: relative; flex: none; width: 148px; min-height: 0; display: flex; flex-direction: column; scroll-snap-align: start; }
 .strip.is-few .pair { flex: 1 1 0; width: auto; min-width: 0; }
-.pair:not(:last-child)::after { content: ""; position: absolute; left: 100%; top: 74px; width: var(--ork-3); height: var(--ork-line); background: var(--ork-frame); }      /* the line under the members goes on across the gap */
-.pair > .token { flex: none; width: auto; height: 54px; margin: var(--ork-4) var(--ork-2) 12px; }
+.pair:not(:last-child)::after { content: ""; position: absolute; left: 100%; top: 28px; width: var(--ork-3); height: var(--ork-line); background: var(--ork-frame); }      /* the line under the names goes on across the gap */
+/* over each column its member's name only (spec 53 §1.4): 28 px, the pixel face 11 px, capitals, muted, centred; not a button */
+.colname { flex: none; height: 28px; padding: 0 var(--ork-2); box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-width: 0; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.04em; font: 500 11px/14px var(--ork-font-pixel); color: var(--ork-ink-muted); }
 .stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0 88px; overflow-y: auto; scrollbar-width: none;
   border-top: var(--ork-line) solid var(--ork-frame); }   /* 88 px of room at the far end: the create button's deck floats over it and covers no task */
 .stack::-webkit-scrollbar { display: none; }
@@ -649,6 +658,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .tcard__phase { margin-right: auto; padding-left: var(--ork-3); font: 400 11px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
 .tcard__mark { display: flex; align-items: center; margin-left: auto; }
 .tcard__idea { padding-top: var(--ork-1); border-top: var(--ork-line) solid var(--ork-frame); font: 400 11px/14px var(--ork-font-text); color: var(--ork-ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard__type { display: inline-flex; vertical-align: -2px; margin-right: var(--ork-1); color: var(--ork-ink-muted); }
 .tcard__name { flex: 1 1 0; min-height: 0; font: 400 14px/18px var(--ork-font-text); display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .tcard__foot { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tcard.is-run { border-color: var(--ork-edge); }
@@ -704,29 +714,7 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .spread__card:focus-visible .tcard { box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .spread__dep { display: block; font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink); }
 
-/* a member: a small framed row filling its column, its head wearing three signs (spec 49 §5.2): the level top-left, the tool bottom-left, its state top-right */
-.token { appearance: none; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; max-width: 100%; min-width: 0; margin: 0 auto;
-  padding: 6px 6px 6px 9px; box-sizing: border-box; background: none; border: 0; color: inherit; clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
-.token { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
-.token:hover { border-color: var(--ork-edge); }
-.token:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.token.is-on { background: var(--ork-raised); border-color: var(--ork-ink); box-shadow: inset 0 2px 0 var(--ork-ink); }
-.token.is-dim { opacity: 0.45; }
-.tport { position: relative; flex: none; width: 36px; height: 33px; }
-.tport > .ork-race__head { display: block; }
-.mark--h { position: absolute; left: -7px; bottom: -5px; }
-.mark--r { position: absolute; left: -7px; top: -7px; }
-.sign { position: absolute; right: -3px; top: -7px; min-width: 16px; height: 16px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 var(--ork-1);
-  background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: 600 11px/14px var(--ork-font-text); color: var(--ork-ink); }
-.sign.danger { background: var(--ork-danger); border-color: var(--ork-danger); color: var(--ork-on-ink); }
-.sign.alert { background: var(--ork-alert); border-color: var(--ork-alert); color: var(--ork-on-ink); }
-.sign .ork-sign { width: 14px; height: 14px; vertical-align: top; }
-.tbody { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; text-align: left; }
-.token__name { display: block; max-width: 100%; font: 600 11px/14px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tnum { font: 600 11px/13px var(--ork-font-text); color: var(--ork-ink); white-space: nowrap; }
-.tnum.muted { font-weight: 400; color: var(--ork-ink-muted); }
-
-.solo { position: absolute; left: 0; right: 0; top: calc(52px + var(--ork-line) + var(--ork-4) + 66px); bottom: 0; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
+.solo { position: absolute; left: 0; right: 0; top: calc(60px + var(--ork-line)); bottom: 0; z-index: 5; display: flex; flex-direction: column; background: var(--ork-canvas); }
 .solo__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); padding: var(--ork-2) var(--ork-2) var(--ork-2) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); }
 .solo__title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/18px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
 .solo__card { flex: none; display: flex; align-items: center; gap: var(--ork-5); padding: var(--ork-4) var(--ork-5); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); }
@@ -839,15 +827,38 @@ dialog.sheet.top { margin: 0 0 auto; border-top: 0; border-bottom: var(--ork-dou
 .party-about__acts { display: flex; align-items: center; gap: var(--ork-4); margin-top: var(--ork-5); flex-wrap: wrap; }
 .party-about__acts .party-save { flex: 1 1 auto; }
 
-/* New goal: the full-screen form, and the blank card that turns over to it (shell-ideas.js, shell-dial.js; spec 50 §6.7) */
+/* New goal: the full-screen form that slides up (shell-ideas.js; spec 53 §2) */
 dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0; }
 .sheet.full .sheet-in { min-height: 100%; }
-.sheet.full .sheet-foot { flex-direction: column-reverse; }
-.newgoal__head { display: flex; flex-direction: column; gap: var(--ork-1); }
-.newgoal__for { margin: 0; }
-.newgoal__el { display: flex; align-items: center; gap: var(--ork-4); }
-.newgoal__kind { display: inline-flex; align-items: center; gap: var(--ork-4); font: 500 16px/20px var(--ork-font-pixel); }
-.newgoal__party b { font-weight: 600; }
+.sheet.newgoal .sheet-in { gap: var(--ork-4); }
+.sheet.newgoal .sheet-foot { margin-top: auto; }
+.newgoal__party { appearance: none; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-4); width: 100%; min-height: 52px; padding: var(--ork-2) var(--ork-4); text-align: left;
+  background: var(--ork-raised); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
+.newgoal__party:focus-visible, .newgoal__opt:focus-visible, .newgoal__chip:focus-visible, .newgoal__newparty:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.newgoal__head { flex: none; display: inline-flex; width: 24px; height: 22px; }
+.newgoal__who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.newgoal__name { font: 600 13px/18px var(--ork-font-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newgoal__line { font: 400 11px/15px var(--ork-font-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.newgoal__party .ork-chev { margin: 0; flex: none; }
+.newgoal__menu { display: flex; flex-direction: column; margin-top: calc(-1 * var(--ork-3)); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-panel); }
+.newgoal__parties { display: flex; flex-direction: column; }
+.newgoal__opt, .newgoal__newparty { appearance: none; box-sizing: border-box; display: flex; align-items: center; gap: var(--ork-4); width: 100%; min-height: var(--ork-tap); padding: var(--ork-2) var(--ork-4);
+  text-align: left; background: none; color: var(--ork-ink); border: 0; border-top: var(--ork-line) solid var(--ork-frame); font: inherit; cursor: pointer; }
+.newgoal__parties .newgoal__opt:first-child { border-top: 0; }
+.newgoal__opt.is-on { background: var(--ork-raised); }
+.newgoal__newparty { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; }
+.newgoal__newparty b { font: 600 13px/18px var(--ork-font-text); }
+.newgoal__newparty span { font: 400 11px/15px var(--ork-font-text); }
+.newgoal__low { margin: 0; font: 400 11px/15px var(--ork-font-text); }
+.newgoal__types { display: flex; gap: var(--ork-3); margin: 0 calc(-1 * var(--ork-6)); padding: 0 var(--ork-6); overflow-x: auto; scrollbar-width: none; }
+.newgoal__types::-webkit-scrollbar { display: none; }
+.newgoal__chip { appearance: none; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--ork-3); min-height: var(--ork-tap); padding: 0 var(--ork-4);
+  background: none; color: var(--ork-ink-muted); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: 500 13px/16px var(--ork-font-pixel); cursor: pointer; }
+.newgoal__chip[aria-checked="true"] { color: var(--ork-ink); background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.newgoal__chip.is-blank { border-style: dashed; }
+.newgoal__typeline { margin: 0; font: 400 11px/15px var(--ork-font-text); }
+.newgoal__goallabel { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ork-4); }
+.newgoal__goallabel small { font: 400 11px/15px var(--ork-font-text); text-transform: none; letter-spacing: 0; }
 .newgoal__asks, .newgoal__refs { display: flex; flex-direction: column; gap: var(--ork-4); }
 .newgoal__asks[hidden], .newgoal__refs[hidden], .joins[hidden] { display: none; }
 /* the join line (spec 52 §4.3): who joins, or who swaps, and what happens without it */
@@ -857,30 +868,6 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 .joinline__tick input { width: 22px; height: 22px; margin: 0; accent-color: var(--ork-ink); }
 .joinline__who select { min-height: var(--ork-tap); }
 .joinline.is-full, .joinline__without { margin: 0; font: 400 13px/18px var(--ork-font-text); }
-/* the party's goal types dealt from the create button (spec 52 §5.5): a strip over the scrim, above the button, cards 132 x 185 snapped to a card */
-.typedeal { position: fixed; inset: 0; z-index: 60; background: var(--ork-scrim); }
-.typedeal__in { position: absolute; left: 0; right: 0; bottom: calc(var(--tabs) + 84px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: var(--ork-5); }
-.typedeal__cap { margin: 0; padding: var(--ork-2) var(--ork-5); background: var(--ork-canvas); font: 400 13px/18px var(--ork-font-text); color: var(--ork-ink-muted); }
-.typedeal__cap b { color: var(--ork-ink); font-weight: 600; }
-.typedeal__row { display: flex; gap: var(--ork-5); width: 100%; padding: 0 var(--ork-6); box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 var(--ork-6); scrollbar-width: none; }
-.typedeal__row::-webkit-scrollbar { display: none; }
-.typedeal .ork-btn { min-height: var(--ork-tap); background: var(--ork-canvas); }
-.typecard { all: unset; box-sizing: border-box; cursor: pointer; flex: none; width: 132px; height: 185px; scroll-snap-align: start; }
-.typecard:focus-visible .typecard__face { box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.typecard__face { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; gap: var(--ork-2); padding: var(--ork-4); background: var(--ork-panel);
-  border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); }
-.typecard__name { font: 500 14px/17px var(--ork-font-pixel); }
-.typecard__line { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.typecard__needs { margin-top: auto; display: flex; align-items: center; gap: var(--ork-2); font: 400 11px/14px var(--ork-font-text); color: var(--ork-ink-muted); }
-.typecard__face.is-blank { align-items: center; justify-content: center; border-style: dashed; background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
-.typecard__plus { color: var(--ork-action); }
-.typecard__plus .ork-icon { width: 28px; height: 28px; }
-.drawlayer { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: var(--ork-scrim); perspective: 600px; }
-.drawcard { position: relative; width: 150px; height: 210px; transform-style: preserve-3d; }
-.drawcard__back, .drawcard__face { position: absolute; inset: 0; box-sizing: border-box; display: flex; align-items: center; justify-content: center; backface-visibility: hidden; clip-path: var(--ork-notch); }
-.drawcard__back { border: 2px solid var(--ork-action); color: var(--ork-action); background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
-.drawcard__back .ork-icon { width: 40px; height: 40px; }
-.drawcard__face { border: var(--ork-double) double var(--ork-edge); background: var(--ork-panel); transform: rotateY(180deg); }
 
 /* Today and the tools, the two sheets of the top bar */
 .today-list { display: flex; flex-direction: column; gap: var(--ork-3); }

@@ -2,7 +2,8 @@
 // enough alone —, what to point at in the way of the goal's party. A row of lenses, the ones the party has: Text; Code (an
 // engineer's: the repository's parts, what each uses and what uses it, and a note of what to change); Screen (a designer's:
 // shell-lens-screen.js); Pain (a product manager's: whom it is for and what hurts them, the project's own kept a tap away).
-// The leader's lens is open first; a goal by its type opens the type's lens first when the party has it (spec 52 §5.6). What each lens holds goes with the idea; switching lenses loses nothing.
+// The leader's lens is open first; a goal by its type opens the type's lens first when the party has it (spec 52 §5.6) and shows no switch (spec 53 §2.6: the type says which lens; `text` shows
+// nothing). What each lens holds goes with the idea; switching lenses loses nothing.
 import { h } from "./util.js";
 import { makeScreenLens } from "./shell-lens-screen.js";
 
@@ -15,6 +16,8 @@ export function makeLens(core, ctx) {
   let on = "text";
   let of = "";
   let prefer = "";                     // the goal type's lens, open first when the party has it
+  let bare = false;                    // a typed goal: that lens alone, no switch
+  let dflt = "text";                   // the party's own first lens
   let segments = [];
   const bar = h("div", { class: "lens-bar", role: "radiogroup", "aria-label": "Lens", hidden: true });
 
@@ -73,6 +76,7 @@ export function makeLens(core, ctx) {
     on = id;
     for (const b of bar.children) b.setAttribute("aria-checked", String(b.dataset.lens === id));
     for (const [k, p] of Object.entries(panes)) p.hidden = k !== id;
+    el.hidden = bare && id === "text";
     if (id === "code" && !parts) {
       drawParts();
       const got = await core.call("ideas.lens_code", {});
@@ -81,7 +85,7 @@ export function makeLens(core, ctx) {
     }
   }
   function drawBar() {
-    bar.hidden = lenses.length < 2;
+    bar.hidden = bare || lenses.length < 2;
     head.hidden = bar.hidden;
     bar.replaceChildren(...lenses.map((l) => h("button", { class: "ork-btn lens-chip", type: "button", role: "radio", "data-lens": l.id,
       "aria-checked": String(l.id === on), "aria-label": l.by ? `${WORDS[l.id]} · ${l.by}` : WORDS[l.id], onclick: () => show(l.id) },
@@ -93,32 +97,37 @@ export function makeLens(core, ctx) {
   for (const [k, p] of Object.entries(panes)) p.hidden = k !== "text";
   return {
     el,
-    /** The goal's lenses: read once per goal while the sheet is open; its leader's lens is shown, or `first` (a goal type's) when the party has it. */
-    async track(slug, first = "") {
+    /** The goal's lenses: read once per goal while the sheet is open; its leader's lens is shown, or `first` (a goal type's) when the party has it, and with `alone` (a typed goal) no switch. */
+    async track(slug, first = "", alone = false) {
       prefer = first || "";
-      if (!slug || slug === of) return;
-      of = slug;
-      const got = await core.call("ideas.lens", { track: slug });
-      if (!got || of !== slug) return;
-      lenses = got.lenses;
-      segments = got.segments || [];
-      screen.load(got.screens);
+      bare = alone;
+      if (!slug) return;
+      if (slug !== of) {
+        of = slug;
+        const got = await core.call("ideas.lens", { track: slug });
+        if (!got || of !== slug) return;
+        lenses = got.lenses;
+        segments = got.segments || [];
+        dflt = got.default;
+        screen.load(got.screens);
+        drawPain();
+      }
       drawBar();
-      drawPain();
       const has = (id) => lenses.some((l) => l.id === id);
-      await show(prefer && has(prefer) ? prefer : has(on) && on !== "text" ? on : got.default);
+      await show(prefer && has(prefer) ? prefer : has(on) && on !== "text" ? on : dflt);
     },
     /** What `ideas.add` takes in `lens`: each lens's own, of the lenses the goal's party has. */
     value() {
       const has = new Set(lenses.map((l) => l.id));
       const out = [];
+      if (bare) has.forEach((id) => { if (id !== on) has.delete(id); });         // a typed goal: the lens it shows
       if (has.has("pain") && (segment.value.trim() || pain.value.trim())) out.push({ kind: "pain", segment: segment.value.trim(), pain: pain.value.trim() });
       if (has.has("code") && picked.length) out.push({ kind: "code", paths: picked, note: note.value.trim() });
       if (has.has("screen")) out.push(...screen.value());
       return out;
     },
     reset() {
-      of = ""; on = "text"; prefer = ""; picked = []; segment.value = ""; pain.value = ""; note.value = ""; filter.value = "";
+      of = ""; on = "text"; prefer = ""; bare = false; el.hidden = false; picked = []; segment.value = ""; pain.value = ""; note.value = ""; filter.value = "";
       screen.reset();
       for (const [k, p] of Object.entries(panes)) p.hidden = k !== "text";
     },

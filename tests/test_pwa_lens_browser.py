@@ -43,7 +43,7 @@ async def test_the_leader_s_lens_is_open_first_and_each_lens_points_its_way_and_
         assert await bar.get_by_role("radio", name="Pain").get_attribute("aria-checked") == "true"      # the leader's: a product manager
         assert [await r.get_attribute("aria-label") for r in await bar.get_by_role("radio").all()] == [
             "Text", "Code · Architect", "Screen · UI kit designer", "Pain · Product manager"]
-        await sheet.get_by_label("What it is for").fill("Orders are never lost")
+        await sheet.get_by_label("The goal", exact=True).fill("Orders are never lost")
         await sheet.get_by_role("group", name="Kept segments").get_by_role("button", name="Shop owners").click()     # the project's own
         await sheet.get_by_role("group", name="Their pains").get_by_role("button", name="Orders get lost").click()
         await _shot(page, "phone-lens-pain-390x844")
@@ -85,7 +85,7 @@ async def test_with_the_taskmaster_leading_text_is_open_first_and_the_text_alone
         bar = sheet.get_by_role("radiogroup", name="Lens")
         await bar.get_by_role("radio", name="Text", exact=True).wait_for(timeout=WAIT_MS)
         assert await bar.get_by_role("radio", name="Text", exact=True).get_attribute("aria-checked") == "true"
-        await sheet.get_by_label("What it is for").fill("A darker theme")
+        await sheet.get_by_label("The goal", exact=True).fill("A darker theme")
         await sheet.get_by_role("button", name="Add the goal", exact=True).click()
         assert await _called(stub, "ideas.add", {"text": "A darker theme", "track": "ship", "priority": "normal"})   # no lens: none sent
         stub.ideas["page"] = stub.idea("page", "The orders page", "ready", 3, track="ship",

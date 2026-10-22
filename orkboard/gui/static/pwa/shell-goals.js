@@ -1,4 +1,4 @@
-// The goals bar and the Goals sheet (docs/specs/50-parties-and-goals.md §3.5, §6.2, §6.4; spec 52 §5.2, §5.8). Under the top bar, one quiet line of 44 px that says the party: at its left
+// The goals bar and the Goals sheet (docs/specs/50-parties-and-goals.md §3.5, §6.2, §6.4; spec 52 §5.2, §5.8). Under the top bar, one quiet line of 44 px that says the party: at its far left the party's deck (spec 53 §1.1), then
 // *⌄ Tech · 3 of 12 goals done* (while the filter is on, the party, the picked goals' elements, *1 of 7 goals* and *Show all*), at its right the gate (shell-party.js). A tap on the left opens the Goals sheet from the bottom: *About Tech ›* (the party's sheet), a line that says
 // what a tap does, **At work**, **Planning**, **Waits for main · n** (✓) and **Flags · n** (⚑); a goal's row (52 px) is its pile (a back with its element and one to three edges behind for its open tasks),
 // its type's sign (muted) before its title, its title, its line, its mark (no alert edge, no alert words: the mark is the stop's one sign) and ✓ when picked, and › (44 px) that opens it. A tap picks or unpicks: only the picked goals' cards stay on the field, only their results and stops stay along the bottom (the filter, kept per party for the session in `st.picks`).
@@ -60,8 +60,8 @@ export function makeGoals(core, about) {
   }
 
   // -- the bar ------------------------------------------------------------------------------------------------------------------------------------------
-  /** The bar: *⌄ Tech · 3 of 12 goals done* (the filter on: the party, the picked goals' elements, *1 of 7 goals*, *Show all*) and at its right the gate (`gate`: a node or null). */
-  function bar(m, gate) {
+  /** The bar: at its left the party's deck (`deck`: a node or null), then *⌄ Tech · 3 of 12 goals done* (the filter on: the party, the picked goals' elements, *1 of 7 goals*, *Show all*) and at its right the gate (`gate`: a node or null). */
+  function bar(m, gate, deck) {
     const list = goalsOf(st, m);
     const on = picked(m);
     shown = { m, list };
@@ -72,7 +72,7 @@ export function makeGoals(core, about) {
       : h("button", { class: "gbar__head", type: "button", "aria-haspopup": "dialog", "data-act": "goals", title: "The goals: a tap on one shows only its tasks",
         onclick: () => open() },
         h("i", { class: "ork-chev", "aria-hidden": "true" }), h("span", { class: "gbar__lbl" }, barName(m.goal)), " ", h("span", { class: "gbar__quiet" }, `· ${barWords(m.goal)}`));
-    return h("div", { class: `gbar${on.length ? " is-on" : ""}` }, head, on.length ? h("button", { class: "ork-btn quiet gbar__all", type: "button", "data-act": "show-all", onclick: () => clear() }, "Show all") : null, gate || null);
+    return h("div", { class: `gbar${on.length ? " is-on" : ""}` }, deck || null, head, on.length ? h("button", { class: "ork-btn quiet gbar__all", type: "button", "data-act": "show-all", onclick: () => clear() }, "Show all") : null, gate || null);
   }
 
   function open() { sh.open(); drawSheet(); }                   // open first: what is lit once is lit as it opens
