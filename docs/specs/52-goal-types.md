@@ -414,6 +414,25 @@ it in the spec's *As built* first.
   made `tests/test_pwa.py` red, since the service worker keeps every mask the page draws by name: `pwa/sw.js` gains the
   eleven signs in `SHELL` and its `CACHE` goes to `orkcraft-app-v58`, and `tests/test_pwa.py` counts 29 masks (five
   elements, twenty-four signs), names the eleven and pins v58. C's own *one up* (§5.9) is then v59.
+- **C (the phone).** Built as §5 and §6, with these choices. (1) *Where it lives.* A stage's faces, its one sign and its label are
+  `pwa/shell-arena-words.js` `facesOf` (the model's `faces`): a plan, a proposal and the leader's questions wait in Planning, a
+  question asked by a builder or a checker in its band, a pick in its maker's. The project's button, its Projects sheet, the
+  parties' sheet and the deck's node are `pwa/shell-where.js` (`deck()`, `openParties()`, `deckWords`); the stage switch draws the
+  deck through `core.partyDeck()`. The types' strip and the join line are the new `pwa/shell-types.js` (`makeTypes`, `makeJoin`,
+  `joinWords`). (2) *Where there is no stage switch* the deck stands at Operations' head (beside *New…* and *Settings*) and beside
+  *No parties yet*'s *New party*, so the parties' sheet is always a tap away. (3) *The Projects sheet* lists *this one* first (a tap
+  puts the sheet away), then the other open projects and the line as before. (4) *The join line sends one `join`* (the host takes
+  one): the first entry ticked; a type that misses two kinds shows both, and the toast names who joined (the host's `joined`).
+  *Who leaves*' first is picked; a change rewrites the swap's words. (5) *Refs on the phone*: *Links* goes among the asks as
+  `refs`; *Pictures you like* is a line under it that points to Photo, whose pictures go as `photos`. (6) *The missing line*
+  with more than one kind: *No one in the party does pixel art: Artist would, and 1 more.* (7) *The turn* of a type's card starts
+  from that card's place with the type's sign on its back (the blank card's: the plus); the deck's top card lifts ≈ 0.12 s before
+  the deal. (8) *The solo* stands under the 52-px switch (app.css). (9) *Marked once*: a pick's card and its deck's edges, the
+  Goals sheet's alert edge and alert words lose the alert colour; their signs stay, a failure's danger edge stays. **Beyond C's
+  row** (§9): `pwa/shell-board.js` passes `openNew`'s type on (one line); in `tests/test_pwa_shell_browser.py`, besides `_where`
+  (now the deck) and `_pick_goal`'s wait, two tests that read the where button (`test_no_tab_bar_…`, `test_what_waits_for_you_…`)
+  read the project button, the goals bar and the deck; `tests/test_pwa_projects37_browser.py` (it tapped the where button for the
+  projects) taps the project button.
 
 ## 11. Running B and C
 A0 and A are in `main`. **B and C start together**, each a cloud session on orkWorks/orkBoard with the brief below,

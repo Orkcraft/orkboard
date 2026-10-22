@@ -1,6 +1,6 @@
 """Spec 37 part D3 on the phone (docs/specs/37-board-and-line.md §8, "Tests → D3"): Chromium at 390 × 844 against the stub of
-test_pwa_shell_browser.py with fake `projects.*` and `files.read` commands. The other projects as a block of the where sheet with the open ones and
-their counts, a tap shows another one (the where button's sheet, spec 50 §6.1; the menu no longer holds them); a spec a party links opens read-only, rendered, with no edit or git control; no
+test_pwa_shell_browser.py with fake `projects.*` and `files.read` commands. The projects in the project button's sheet, this one first, the open ones with
+their counts, a tap shows another one (spec 52 §5.1; the menu no longer holds them); a spec a party links opens read-only, rendered, with no edit or git control; no
 horizontal scroll of the page. Screenshots to docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
 
@@ -42,17 +42,18 @@ def _projects(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_the_other_projects_are_in_the_where_sheet_with_their_counts_and_a_tap_shows_another(fake_repo, monkeypatch):
+async def test_the_projects_are_in_the_project_buttons_sheet_with_their_counts_and_a_tap_shows_another(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         drawer = await _menu(page)
         assert await drawer.locator(".project-row").count() == 0                            # the menu no longer holds the projects
         await page.keyboard.press("Escape")
-        sheet = await _where(page)                                                          # the where button's sheet (spec 50 §6.1): the parties, then the other projects
+        await page.locator(".board-bar .projbtn").click()                                   # the project button's sheet (spec 52 §5.1): this one, then the others
+        sheet = page.get_by_role("dialog", name="Projects")
         await sheet.get_by_text("3 to review").wait_for(timeout=WAIT_MS)
         text = await sheet.inner_text()
-        assert "beta" in text and "old" not in text and "Open a folder" not in text and "alpha" not in text      # the shown project is the sheet's own; a recent one is not offered
+        assert "beta" in text and "old" not in text and "Open a folder" not in text           # a recent one is not offered
+        assert " ".join((await sheet.locator('.project-row[aria-current="true"]').inner_text()).split()) == "alpha this one"     # the shown project, marked
         assert "Open on your computer: a tap switches this phone to one." in text
-        assert (await sheet.locator(".projects-block h3").text_content()).lower() == "other projects"
         box = await sheet.bounding_box()
         assert box["x"] == 0 and box["y"] == 0 and box["width"] == 390                      # a sheet from the top
         assert await sheet.get_by_role("button", name="old").count() == 0                   # a recent one is not opened from the phone

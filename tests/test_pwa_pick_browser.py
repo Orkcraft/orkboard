@@ -577,7 +577,9 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
         await deck.wait_for(timeout=WAIT_MS)
         face = deck.locator(".tcard")
         assert await face.locator(".tcard__foot").inner_text() == "asks you to pick" and await face.locator(".tcard__mark .ork-sign.alert").count() == 1
-        assert "is-stop" in await face.get_attribute("class") and "asks you to pick" in await deck.get_attribute("aria-label")
+        assert "asks you to pick" in await deck.get_attribute("aria-label")
+        alert = await face.evaluate("e => { const i = document.createElement('i'); i.style.color = 'var(--ork-alert)'; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }")
+        assert await face.evaluate("e => getComputedStyle(e).borderTopColor") != alert                                  # its sign, no alert edge (spec 52 §5.8)
         member = page.locator('.token[data-member="screens"]')
         assert "asks you to pick" in await member.get_attribute("aria-label") and await member.locator(".sign.alert").count() == 1       # its member: the alert sign too
         await _shot_to(page, "pick-field")
@@ -585,7 +587,7 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
         goals = page.get_by_role("dialog", name="Goals")
         row = goals.locator('.dk[data-idea="logo"]')
         await row.wait_for(timeout=WAIT_MS)
-        assert "asks you to pick" in await row.locator(".dk__line").inner_text() and await row.locator(".dk__mark .ork-sign.alert").count() == 1 and "asks" in await row.get_attribute("class")
+        assert "asks you to pick" in await row.locator(".dk__line").inner_text() and await row.locator(".dk__mark .ork-sign.alert").count() == 1 and "asks" not in await row.get_attribute("class")
         await page.keyboard.press("Escape")
         await goals.wait_for(state="hidden", timeout=WAIT_MS)
         await deck.click()                                                                                              # a tap opens the pick on its own screen

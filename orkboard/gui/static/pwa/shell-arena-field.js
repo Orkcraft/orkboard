@@ -4,7 +4,7 @@
 // spreads it (shell-spread.js). A tap on a member shows only its work under the row, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
 // Motion says what changed (shell-motion.js): a stack that was not there rises into its column, one that left (merged ✓, dropped ✗, or put away by the filter, with no sign) fades where it stood and
 // its column settles, one that moved slides to its new place, a merge's numbers are lit once; none under reduced motion, on the first read of a goal, for what changed while the page was hidden, nor
-// under a finger or the focus.
+// under a finger or the focus. A band with no one (spec 52 §5.4) says what happens to its work and offers **Add to the party** (Edit the party): the only place on the field that adds a member.
 import { h } from "./util.js";
 import { midHead, mark } from "./shell-who.js";
 import { sign } from "./shell-marks.js";
@@ -17,6 +17,7 @@ const FEW = 2;                                       // members or fewer: the co
 const GHOSTS = 3;                                    // stacks that leave with the animation in one refresh; the rest simply go
 const GHOST_MS = 300;                                // a leaving stack fades where it stood this long
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
+const NO_ONE = { build: "No builder in this party: the Grunt does its tasks.", check: "No checker in this party: a goal is done when its own Done when lines are." };
 
 /** `core`: the board's frame (open, st, draw); `hooks`: {process()}. Returns {el, draw(model, ui, bands)}. */
 export function makeField(core, hooks) {
@@ -185,10 +186,12 @@ export function makeField(core, hooks) {
       const strip = h("div", { class: `strip${shown.length <= FEW ? " is-few" : ""}` }, ...shown.map((m, i) => h("div", { class: "pair" }, memberCard(m, ui), cols[i])));
       const wrap = h("div", { class: "arena-scroll" }, strip);
       const focus = shown.find((m) => m.slug === ui.focus);
+      const none = !shown.length && NO_ONE[ui.band] ? h("div", { class: "band-none", "data-band": ui.band }, h("p", { class: "cap" }, NO_ONE[ui.band]),
+        h("button", { class: "ork-btn", type: "button", "data-act": "add-member", onclick: () => core.editParty(model.goal.slug) }, "Add to the party")) : null;
       spread.still((key) => cur.has(key));                                   // a spread whose stack is gone closes itself
-      el.replaceChildren(...[bands, wrap, focus ? solo(model, focus, ui) : null, spread.node()].filter(Boolean));
+      el.replaceChildren(...[bands, none || wrap, focus ? solo(model, focus, ui) : null, spread.node()].filter(Boolean));
       for (const s of el.querySelectorAll(".stack")) { const top = scrolled.get(s.dataset.column || ""); if (top && !held.has(s.dataset.column)) s.scrollTop = top; }
-      el.querySelector(".arena-scroll").scrollLeft = left;
+      if (!none) el.querySelector(".arena-scroll").scrollLeft = left;
       for (const slug of rewarded) {                  // the quiet reward: the member's first number and its column's count, once
         pulse(el.querySelector(`.token[data-member="${slug}"] .tnum`));
         if (!held.has(slug)) pulse(el.querySelector(`.stack[data-column="${slug}"] .stack__done`));

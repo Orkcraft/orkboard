@@ -428,15 +428,15 @@ async def _called(stub, name, args=None, timeout=5.0):
 
 
 async def _pick_goal(page, slug):
-    """The party shown, picked in the *where* sheet of the top bar ("ops": Operations)."""
+    """The party shown, picked in the parties' sheet of the party's deck ("ops": Operations)."""
     sheet = await _where(page)
     await sheet.locator(f'.where-row[data-goal="{slug}"]').click()
-    await page.locator(f'.board-bar .where[data-goal="{slug}"]').wait_for(timeout=WAIT_MS)
+    await page.locator(f'.partydeck[data-goal="{slug}"]').wait_for(timeout=WAIT_MS)
     await sheet.wait_for(state="hidden", timeout=WAIT_MS)
 
 
 async def _goal_row(page, slug):
-    """What the party's row in the *where* sheet says of it (its label: the name, how many are done, the stops that wait, whether it is at work)."""
+    """What the party's row in the parties' sheet says of it (its label: the name, how many are done, the stops that wait, whether it is at work)."""
     sheet = await _where(page)
     row = sheet.locator(f'.where-row[data-goal="{slug}"]')
     await row.wait_for(timeout=WAIT_MS)
@@ -450,15 +450,15 @@ FAB = '.fab[data-act="new-goal"]'
 
 
 async def _where(page):
-    """The top bar's *where* button and the sheet it opens from the top (spec 50 §6.1): the project's parties, + New party, the other projects."""
-    await page.locator(".board-bar .where").click()
+    """The party's deck at the end of the stage switch (at Operations' head while it is shown) and the sheet it opens from the top (spec 52 §5.3): the project's parties, Operations, + New party."""
+    await page.locator(".partydeck").first.click()
     sheet = page.get_by_role("dialog", name="Parties")
     await sheet.wait_for(timeout=WAIT_MS)
     return sheet
 
 
 async def _new_goal(page):
-    """New party (the code's goal): the where sheet's *+ New party*."""
+    """New party (the code's goal): the parties' sheet's *+ New party*."""
     await (await _where(page)).get_by_role("button", name="+ New party").click()
 
 
@@ -601,8 +601,8 @@ async def test_no_tab_bar_the_top_bar_has_today_and_the_tools_and_nothing_is_cam
         assert await page.locator(".dock, .camp, .grid, .head").count() == 0
         top = page.locator(".board-bar")
         assert await top.get_by_role("button", name="Menu").is_visible() and "Stop all" not in await top.inner_text()   # one line: the drawer holds it
-        assert await top.locator(".where__project").inner_text() == "project"                           # the project's name
-        assert "General" in await top.locator(".where__party").inner_text()                             # the party shown: General holds the goals here
+        assert await top.locator(".projbtn").inner_text() == "project"                                  # the project's name (spec 52 §5.1)
+        assert "General" in await page.locator(".gbar__head").inner_text()                              # the party shown, said by the goals bar: General holds the goals here
         assert await top.locator(".needs-chip").count() == 0 and await top.locator(".today").count() == 0         # Today is the menu's
         chip = top.locator(".limit-chip")
         assert "15 %" in await chip.get_attribute("aria-label") and "15 %" in await chip.get_attribute("title") and "%" not in await chip.inner_text()      # the diamonds alone: the number is in its label
@@ -983,9 +983,10 @@ async def test_pair_a_phone_in_the_drawer_says_where_it_is_done_and_how_the_phon
 @pytest.mark.asyncio
 async def test_what_waits_for_you_is_the_signal_the_chip_counts_the_stops_and_the_fan_holds_everything_the_alert_ones_first(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        chip = page.locator(".board-bar .where")
+        chip = page.locator(".partydeck")
         hand = page.locator(".hc")
-        assert await chip.locator(".where__stops").inner_text() == "2" and "2 stops wait for you here" in await chip.get_attribute("aria-label")   # a plan and a to-do
+        await hand.first.wait_for(timeout=WAIT_MS)
+        assert await chip.locator(".ork-count").count() == 0 and "stop" not in await chip.get_attribute("aria-label")   # the party shown's stops are counted by the bottom row alone (spec 52 §5.8)
         assert await hand.count() == 4 and await page.locator('.hc[data-kind="look"]').count() == 2           # … and two results: all four lie along the bottom, stops first
         assert [await b.get_attribute("data-kind") for b in await hand.all()] == ["plan", "todo", "look", "look"]
         assert await page.locator(".handcount").count() == 0                                                  # the fan is the count: there is no number beside it
@@ -994,7 +995,7 @@ async def test_what_waits_for_you_is_the_signal_the_chip_counts_the_stops_and_th
         stub.todos[0]["done"] = True                                                                    # only the results to look at are left
         stub.bump({})
         await hand.nth(2).wait_for(state="detached", timeout=WAIT_MS)
-        assert await chip.locator(".where__stops").is_hidden() and await hand.count() == 2 and await page.locator('.hc:not([data-kind="look"])').count() == 0
+        assert await hand.count() == 2 and await page.locator('.hc:not([data-kind="look"])').count() == 0
         assert "stop" not in await chip.get_attribute("aria-label")                                     # results alone are not a signal
         for t in stub.plan["tasks"]:
             if t["state"] == "review":

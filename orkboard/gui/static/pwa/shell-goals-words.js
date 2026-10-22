@@ -30,13 +30,13 @@ export function flagsOf(nodes) {
 export const inMain = (gate, slug) => Boolean(gate && (gate.same || !(gate.ideas || []).some((i) => i.slug === slug)));
 
 /** What the goals bar and the Goals sheet list for one party: its goals at work, in Planning (the ones the leader has read and the new ones), the done ones that wait for main and its flags. A row:
- *  {slug, title, short, element, raw, line, care, mark, markTip, edges, open}; `model`: shell-arena-words.js `modelOf`. */
+ *  {slug, title, short, element, raw, type, line, care, mark, markTip, edges, open} (`type`: the goal's type, {id, name, sign}, or null); `model`: shell-arena-words.js `modelOf`. */
 export function goalsOf(st, model) {
   const nodes = model.nodes;
   const done = (n) => n.state === "done";
   const edges = (n) => Math.min(3, (n.tasks || []).filter((t) => t.state !== "merged" && t.state !== "dropped").length);
   const row = (n, rest) => ({ slug: n.slug, title: n.title, short: n.short || n.title, element: n.element || "", raw: n.state === "raw", edges: edges(n), open: { kind: "idea", slug: n.slug },
-    care: false, mark: "", markTip: "", ...rest });
+    type: n.type?.sign ? n.type : null, care: false, mark: "", markTip: "", ...rest });
   const atWork = nodes.filter((n) => !done(n) && ["implementation", "checking"].includes(stageOf(n))).map((n) => {
     const tasks = (n.tasks || []).filter((t) => t.state !== "dropped");
     const failed = tasks.some((t) => t.state === "failed"), live = tasks.some((t) => t.state === "running" || t.state === "testing"), picking = tasks.some((t) => t.state === "picking");
@@ -54,8 +54,13 @@ export function goalsOf(st, model) {
   return { atWork, planning, waits, flags, all, asking, n: all.length };
 }
 
-/** The goals bar's count, *3 of 12 done*: the party's done goals of all its goals (the stage switch's counts say what is at work and what asks you). */
-export const barWords = (g) => `${g.done ?? 0} of ${g.ideas ?? 0} done`;
+/** The goals bar's count, *3 of 12 goals done*: the party's done goals of all its goals (spec 52 §5.2). */
+export const barWords = (g) => `${g.done ?? 0} of ${plural(g.ideas ?? 0, "goal")} done`;
+
+const NAME_CUT = 14;                                                 // the goals bar's party name: cut here, with an ellipsis
+
+/** The party's short name as the goals bar says it, cut at 14 characters with an ellipsis. */
+export const barName = (g) => { const s = g.short || g.title || ""; return s.length > NAME_CUT ? `${s.slice(0, NAME_CUT - 1)}…` : s; };
 
 /** *k of n goals* (the filter on): the picked goals that are still among the party's, of all its goals that are not done. */
 export const filterWords = (picked, list) => `${picked.length} of ${plural(list.n, "goal")}`;

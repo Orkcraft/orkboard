@@ -1,8 +1,8 @@
 """Spec 38 part C on the phone (docs/specs/38-operations.md §10, "Tests → C"), through spec 49's window: Chromium at 390 × 844 against the stub of
-test_pwa_shell_browser.py with fake `ops.*` commands. Operations among the where sheet's rows (taking the field's place); New… as a sheet listing the usable
+test_pwa_shell_browser.py with fake `ops.*` commands. Operations among the parties' sheet's rows (taking the field's place); New… as a sheet listing the usable
 template and the one that is not connected, in words; the form adds one (*preparing*), then its check: found, a doubt, Priority
 changed in place, Epic changed turns the button into Prepare again; **Create in Jira** → done with its link; a template that goes
-by itself shows *by itself* and Not right; a rules proposal taken on its stop; the gear sets the Target and a server; what waits in Operations is counted by the where button in
+by itself shows *by itself* and Not right; a rules proposal taken on its stop; the gear sets the Target and a server; what waits in Operations is counted by the party's deck in
 every goal and lies along the bottom in its own; with no project open Operations is still there; no horizontal scroll of the page. Screenshots to
 docs/design/img/v1/ when ORKCRAFT_SHOTS is set."""
 from __future__ import annotations
@@ -185,11 +185,11 @@ async def test_operations_is_among_the_goals_new_lists_the_templates_and_the_for
         sheet = await _where(page)
         rows = sheet.locator(".where-row")
         await rows.last.wait_for(timeout=WAIT_MS)
-        assert (await rows.all_inner_texts())[-1:] == ["Operations"]                                    # the where sheet lists the parties and Operations
+        assert (await rows.all_inner_texts())[-1:] == ["Operations"]                                    # the parties' sheet lists the parties and Operations
         await page.keyboard.press("Escape")
         await _pick_goal(page, "ops")
         assert await page.get_by_role("heading", name="Needs you").count() == 0 and await page.locator(".target-chip").count() == 0
-        assert await page.locator(".gbar").count() == 0 and await page.locator(".board-bar .where__party").inner_text() == "Operations"          # Operations takes the field's place: no party's goals bar
+        assert await page.locator(".gbar").count() == 0 and await page.locator(".ops-view .partydeck").get_attribute("data-goal") == "ops"         # Operations takes the field's place: no party's goals bar, the deck at its head
         await page.get_by_role("button", name="Operations settings").wait_for(timeout=WAIT_MS)
         await page.get_by_role("button", name="New…").click()
         menu = page.get_by_role("dialog", name="New…")
@@ -313,7 +313,7 @@ async def test_a_template_that_goes_by_itself_says_so_not_right_and_check_again(
 
 
 @pytest.mark.asyncio
-async def test_what_waits_in_operations_is_counted_by_the_where_button_in_every_party_and_lies_along_the_bottom_in_its_own(fake_repo, monkeypatch, _ops):
+async def test_what_waits_in_operations_is_counted_by_the_partys_deck_in_every_party_and_lies_along_the_bottom_in_its_own(fake_repo, monkeypatch, _ops):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         stub.goals["ship"] = stub.goal("ship", "Ship v1", "high", "ready")
         ops = _ops["ops"]
@@ -321,10 +321,10 @@ async def test_what_waits_in_operations_is_counted_by_the_where_button_in_every_
         ops.add_run(state="failed", why="Jira said no", acted=False)
         ops.templates[0]["proposal"] = {"lines": ["Titles start with a verb.", "Name the epic."], "why": "", "op": "op1", "at": ""}
         ops.changed()
-        await _pick_goal(page, "ship")                                # another party: the where button counts Operations' stops all the same (after its ⌄)
-        where = page.locator(".board-bar .where")
-        await where.locator(".where__other").wait_for(state="visible", timeout=WAIT_MS)
-        assert await where.locator(".where__other").inner_text() == "5" and "5 stops wait for you in the other parties" in await where.get_attribute("aria-label")      # Operations' 3 and General's 2
+        await _pick_goal(page, "ship")                                # another party: the party's deck counts Operations' stops all the same
+        where = page.locator(".partydeck")
+        await where.locator(".ork-count").wait_for(state="visible", timeout=WAIT_MS)
+        assert await where.locator(".ork-count").inner_text() == "5" and "5 stops wait in the other parties" in await where.get_attribute("aria-label")      # Operations' 3 and General's 2
         sheet = await _where(page)
         assert await sheet.locator('.where-row[data-goal="ops"] .ork-count.warning').inner_text() == "3"           # and its row in the sheet
         await page.keyboard.press("Escape")
