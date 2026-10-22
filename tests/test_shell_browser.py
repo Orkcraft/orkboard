@@ -1048,9 +1048,10 @@ def test_a_high_goal_shows_a_sign_of_work_and_stop_leaves_it_stopped_a_low_one_w
 
 def test_what_waits_for_you_is_a_fan_of_the_goal_shown_the_questions_one_form_and_a_proposal_is_answered_in_its_item(shell):
     pg, host = shell
-    assert pg.locator(".arena-hc").count() == 3                                                          # three stops wait in it: the bottom row is their count
+    assert pg.locator(".arena-hc").count() == 5                                                          # every stop of the project lies in the one hand (spec 54 §2.1)
     kinds = pg.locator(".arena-hc").evaluate_all("els => els.map(e => e.dataset.kind)")
-    assert kinds == ["todo", "plan", "asks"]                                                              # the host's order, this goal's rows only
+    assert kinds == ["goal", "todo", "plan", "asks", "proposal"]                                         # urgency's order: what holds work back (the parties in the Board's order), then the proposal
+    assert pg.locator(".arena-hc.is-other").count() == 2                                                  # the two of Grow installs say their party
     todo = pg.locator(".arena-hc[data-kind=todo]")
     assert "Sync ideas between the phone and the town" in todo.inner_text() and "API_KEY" in todo.inner_text()
     ask = _stop(pg, "asks")
@@ -1066,8 +1067,9 @@ def test_what_waits_for_you_is_a_fan_of_the_goal_shown_the_questions_one_form_an
     pg.wait_for_function("() => document.querySelectorAll('[role=dialog]').length === 0", timeout=WAIT_MS)
     assert _sent(pg, host, ("ideas.answer", {"slug": "search", "answers": ["title and text", "yes"]}))
     pg.wait_for_function("() => document.querySelectorAll('.arena-hc[data-kind=asks]').length === 0", timeout=WAIT_MS)
-    _show_goal(pg, "grow")                                                                                # another goal, its own stops
-    assert pg.locator(".arena-hc").evaluate_all("els => els.map(e => e.dataset.kind)") == ["goal", "proposal"]
+    _show_goal(pg, "grow")                                                                                # another goal: its own stops, and Ship sync's now say their party
+    assert pg.locator(".arena-hc").evaluate_all("els => els.map(e => e.dataset.kind)") == ["goal", "todo", "plan", "proposal"]
+    assert pg.locator(".arena-hc.is-other").evaluate_all("els => els.map(e => e.dataset.kind)") == ["todo", "plan"]
     goal = _stop(pg, "goal")
     goal.get_by_role("button", name="Open…").click()                                                      # a goal that asks
     pg.get_by_role("dialog", name="Questions: Grow installs").get_by_label("Answer 1: Which channel first?").fill("npm")
@@ -1376,22 +1378,23 @@ def test_pair_a_phone_from_the_gear_shows_the_qr_the_time_left_how_it_reaches_an
     assert pg.get_by_role("button", name="Settings").evaluate("e => e === document.activeElement")    # the focus is back on the gear
 
 
-def test_the_stops_count_is_parties_s_of_the_other_parties_in_the_warning(shell):
+def test_the_stops_are_not_counted_a_party_with_one_wears_a_dot_in_the_parties_spread(shell):
     pg, host = shell
     deck = pg.locator(".arena-ptop__deck")
-    assert deck.get_attribute("aria-label").startswith("Parties: Ship sync shown")
-    others = deck.locator(".ork-count").inner_text()
-    assert pg.locator(".arena-hero .ork-count.warning, .arena-goals .ork-count.warning, .arena-field .ork-count.warning").count() == 0      # no count of the party shown's stops (spec 52 §4.5)
+    assert deck.get_attribute("aria-label").startswith("Parties: Ship sync shown, 2 stops wait in the other parties")        # for a screen reader only
+    assert deck.locator(".ork-count").count() == 0                                                                           # no count on Parties ⌄ (spec 54 §2.4)
+    assert pg.locator(".arena-hero .ork-count.warning, .arena-goals .ork-count.warning, .arena-field .ork-count.warning").count() == 0      # nor of the party shown's stops
     ship = _party_card(pg, "ship-sync")
-    assert ship.get_attribute("aria-label") == "Ship sync, 0 of 5 goals done, at work, shown" and ship.locator(".ork-count").count() == 0
-    assert pg.locator('.arena-deck__card[data-goal="grow"] .ork-count').inner_text() == others
-    _party_card(pg, "grow").click()
+    assert ship.get_attribute("aria-label") == "Ship sync, 0 of 5 goals done, at work, shown" and ship.locator(".ork-count, .arena-deck__dot").count() == 0
+    grow = pg.locator('.arena-deck__card[data-goal="grow"]')
+    assert grow.locator(".ork-count").count() == 0 and grow.locator(".arena-deck__dot").count() == 1                         # a dot where its count was
+    grow.click()
     pg.locator('.arena[data-goal="grow"]').wait_for(timeout=WAIT_MS)
-    count = pg.locator(".arena-ptop__deck .ork-count")
-    assert "warning" in count.get_attribute("class") and count.inner_text() == "3"                    # Ship sync's three stops wait: the warning colour
     assert pg.locator(".arena-ptop__deck").get_attribute("aria-label").endswith("shown, 3 stops wait in the other parties")
-    colour = count.evaluate("e => getComputedStyle(e).backgroundColor")
-    assert colour == pg.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-warning)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
+    dot = _party_card(pg, "ship-sync").locator(".arena-deck__dot")                                                           # Ship sync's stops wait: the alert colour
+    assert dot.count() == 1 and "is-danger" not in dot.get_attribute("class")
+    colour = dot.evaluate("e => getComputedStyle(e).backgroundColor")
+    assert colour == pg.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-alert)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
 
 
 def test_an_agent_is_one_line_with_its_head_its_name_how_many_and_what_a_task_costs(shell):

@@ -152,6 +152,25 @@ Only A's row was changed, plus `docs/specs/54-one-hand.md` for this note.
   and a goal's last button), `test_pwa_decks_browser`, `test_pwa_board53_browser`, `test_pwa_goal_types_browser` (no count, dots), `test_pwa_ops38_browser` (Operations' stops lie in every party's hand), `test_pwa_shell_browser` (*Nothing waits
   for you.*, the menu's order), and the `sw.js` pins in `test_pwa.py`, `test_pwa_goal_types_browser`, `test_pwa_board53_browser`.
 
+**C, the desktop** (22 October):
+- **One hand**: `arenawords.js` `handOf` gathers every party's `stopsOf` and Operations' `opStopsOf` (each stop gains `party` — slug, name, leader's head and
+  name — `g` and `other`), the filter applied per party (the party shown: its picks and the goal peeked; another party: its picks), and below 1 024 px the party
+  shown's results; `byUrgency` sorts them (red, holds work back, does not, results; the oldest first by the row's `at`, a failed task of a goal having none sorts last
+  of the red; the host's order — the parties in the Board's order, Operations last — breaks a tie). `Stops` keeps them in that order in the page (the keys',
+  a screen reader's) and lays them out from the middle with `laidOut` and CSS `order`; a long hand turns less (`fanOf`) and overlaps more (`--ov`, set from the row's
+  width, the one overlap variable the design-system test already allowed).
+- **A stop of another party** wears `.arena-hc__party` (its leader's small head; Operations': the `sliders` icon) at the card's top right, its banner reads
+  *<party> · <goal>* and its label *<kind> in <party>*; *Open…*, *Open the plan*, *Edit the party*, *Pick, with a note…* and a press on the card show that party first
+  (`track`, with `closeSpread` and `leaveParty`), the quick answers act in place. A project with Operations and no party still has the hand under *No parties yet*.
+- **No count**: Parties ⌄ and the spread's cards lose it; the label keeps *n stops wait in the other parties* (Operations' rules now count in it, and wear the dot,
+  as they lie in the hand). The dot (`.arena-deck__dot`, 8 × 8, `--ork-alert`, `--ork-danger` with a failure) is on every party but the one shown, and on Operations.
+- **Ways out**: *Let <name> decide* is on the raised question (the first asker's name, the leader's for a party's, *the Taskmaster* for Taskmaster). `TodoWays` and
+  `named` are in `shell/tododialog.js` (the dialog's, the stop's); the dialog's *Open…* passes the leader's name; a to-do's own `by.name`, if the host serves one,
+  names the agent of *Sent: the words go to …*, else the leader.
+- **Not done, outside C's files** (§8): the question's dialog (`shell/askdialog.js`) has no *Let … decide* yet — the raised stop has it; it is one more button there.
+- Tests changed to keep what they prove (the count of others became a dot, the host's order became urgency's, one party's row became the project's):
+  `test_arena_desktop_browser`, `test_goal_types_desktop_browser`, `test_ops_desktop_browser`, `test_pick_desktop_browser`, `test_shell_browser`.
+
 ## 11. Running A, B and C
 Each a cloud session on orkWorks/orkBoard on Sonnet with the brief below; each **merges into `main` itself** when its
 tests pass (CLAUDE.md, alpha): no pull request.

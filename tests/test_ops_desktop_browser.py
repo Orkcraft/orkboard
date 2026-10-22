@@ -433,7 +433,7 @@ def test_a_rules_proposal_is_taken_in_its_row_in_needs_you_and_the_rules_are_sav
         _operations(pg)                                                             # the proposal waits along the bottom of Operations
         row = _row(pg, "op_rules", "email-reply")
         assert "Keep a reply under five lines" in row.inner_text()
-        assert pg.locator(".arena-ptop .ork-count").count() == 0                    # a proposal is no count
+        assert pg.locator(".arena-ptop .ork-count").count() == 0                    # no count of stops (spec 54 §2.4)
         row.locator(".arena-hc__quick").get_by_role("button", name="Take").click()
         _sent(stub, ("ops.rules_answer", {"template": "email-reply", "take": True}))
         row.wait_for(state="detached", timeout=WAIT_MS)
@@ -492,12 +492,13 @@ def test_needs_you_shows_an_op_row_in_another_project_too(world):
     failed = stub.seed("jira-task", "failed", why="Jira refused it", acted=False)
 
     def body(pg, stub):
-        pg.locator(".arena-ptop__stops").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-ptop__stops").inner_text() == "2"                 # Parties ⌄ counts Operations' rows; they wait along its bottom
+        pg.locator(".arena-hc[data-kind=op]").wait_for(timeout=WAIT_MS)
+        assert pg.locator(".arena-ptop .ork-count").count() == 0                    # no count; Operations' rows lie in the one hand, marked as another party's
+        assert pg.locator(".arena-hc.is-other[data-kind=op]").count() == 1
         _operations(pg)
         row = pg.locator(".arena-hc[data-kind=op]")
         row.wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-ptop .ork-count").count() == 0                    # Operations shown: its rows are not counted
+        assert pg.locator(".arena-ptop .ork-count").count() == 0 and row.get_attribute("class").count("is-other") == 0       # Operations shown: its rows are its own
         assert "Checkout fails on a full cart" in row.inner_text()
         assert pg.locator(".arena-hc[data-kind=op_failed]").count() == 1
         pg.keyboard.press("Control+o")
