@@ -845,3 +845,25 @@ others' as a number on the party's deck. So:
 5. On the phone, **the Target is one switch**, and **Agents is reached from a member** (*Edit* on its card); the menu
    keeps Stop all, Today and Spend at its head.
 The owner's call on the window as built, before the testers' numbers, as §62–§66. Spec 54.
+
+## 68. The type top right: a card's top right holds its goal's type, in its goal's colour; the state's sign leaves the top (22 October, the owner)
+
+Why: the owner, on the screenshots of spec 54: *where did the task type signs go on the cards? I see only the element;
+maybe remove the exclamation mark or the error sign at the right of a card and put the type there, the type and the
+element in one colour?* The sign was not seen because a goal made before spec 52 (and every goal of the test scene) has no
+type, and where it is drawn (spec 53 §3) it is 14 × 14 in muted ink before the goal's short name, easily missed, and it
+truncates the name. So:
+1. **A card's top right holds its goal's type's sign**, 14 × 14, **in its goal's element's colour** (faint while the
+   element is drawn dim, muted for a goal with no element). The top row reads as the goal's mark: left *which goal*, right
+   *what kind of work*. Two goals of one type in a party still differ by colour. A goal with no type: the top right is
+   empty.
+2. **The state's sign leaves the card's top** (↻ at work, ✗ failed, the clock tonight, ! asks you / asks you to pick): the
+   foot's words (*working 28 h*, *failed*, *tonight*, *asks you to pick*) and the card's edge (danger for a failure,
+   alert for a stop, dashed for what waits) say it already. Edges, foot, label and tooltip stay.
+3. **The goal line is the goal's short name alone**, its full width back; a Planning goal's card keeps the type's name
+   (*Fix a bug*) or *Goal* (phone) / *Planning* (desktop), without a sign in the line.
+4. **Everywhere a type's sign is drawn it wears its goal's colour**, the goals' lists too (one rule); the stops along the
+   bottom (the element alone), the top bars, the stack's ghost flash and New goal's form are unchanged.
+5. Reverses spec 53 §3's place of the type (before the goal's name, muted) and spec 50 §3.4's mark top right. A type is
+   still never a colour of its own (§65.4): it takes its goal's. No orkUI change; the interface never names an element.
+The owner's call on the cards as built, before the testers' numbers, as §62–§67. Spec 55.

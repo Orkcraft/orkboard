@@ -84,6 +84,7 @@ Three parts, **all at once** (they share no file but `pwa/app.css` and `pwa/sw.j
 5. The form fits one screen at 390 × 844 for a type with three asks and no Refs (*Fix a bug*): no scroll.
 
 ## 3. A goal's two marks on every card (A: phone, C: desktop)
+*Spec 55 (decisions §68) moves the type's sign to the card's top right, in its goal's element's colour, and the state's sign leaves the top: read the place of the type below as spec 55's.*
 A goal has two marks and each has its place: its **element** (which goal: shape and colour) at a card's top left, as
 today; its **type's sign** (what kind: muted ink, 14 × 14) **before the goal's name wherever the name is written** — as
 the Goals sheet's row and the desktop's goal row do since spec 52 (reverses spec 52 §4.6's *no other place draws it*).
