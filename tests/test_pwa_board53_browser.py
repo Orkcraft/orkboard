@@ -124,7 +124,7 @@ async def test_no_members_strip_a_name_over_each_column_and_the_first_phase_row_
 
 
 @pytest.mark.asyncio
-async def test_a_tasks_card_wears_its_goals_type_before_its_name_a_planning_goal_says_its_type_none_for_no_type_none_on_a_stop(fake_repo, monkeypatch):
+async def test_a_tasks_card_wears_its_goals_type_top_right_a_planning_goal_says_its_type_none_for_no_type_none_on_a_stop(fake_repo, monkeypatch):
     _node("register")["type"] = BUG                                                                                                      # a goal at work, typed
     _node("recovery")["type"] = BUG                                                                                                      # a plan waiting, typed; Planning's card says it
     _node("pagewords")["type"] = None                                                                                                    # no type: the word as today
@@ -132,9 +132,9 @@ async def test_a_tasks_card_wears_its_goals_type_before_its_name_a_planning_goal
         await page.locator(".stack .deck").first.wait_for(timeout=WAIT_MS)
         typed = page.locator('.stack .deck[data-idea="register"]').first
         line = typed.locator(".tcard__idea")
-        assert await line.locator(".tcard__type .ork-sign.bug").count() == 1 and norm(await line.inner_text()) == "WebAuthn register"
-        assert await line.evaluate("e => e.firstElementChild.matches('.tcard__type') && e.firstElementChild.nextSibling.textContent === 'WebAuthn register'")      # the sign before the name
-        sign = await line.locator(".tcard__type .ork-sign").bounding_box()
+        assert await typed.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1 and norm(await line.inner_text()) == "WebAuthn register"
+        assert await line.locator(".ork-sign").count() == 0                                                                             # spec 55: top right, not before the name
+        sign = await typed.locator(".tcard__type .ork-sign").bounding_box()
         assert (round(sign["width"]), round(sign["height"])) == (14, 14)
         assert await typed.get_attribute("aria-label") == "Challenge store (WebAuthn register, Fix a bug): in Review, now" or "WebAuthn register, Fix a bug" in await typed.get_attribute("aria-label")
         plain = page.locator('.stack .deck[data-idea="cookie"]').first                                                                  # a goal with no type: the name alone
@@ -142,7 +142,7 @@ async def test_a_tasks_card_wears_its_goals_type_before_its_name_a_planning_goal
         await _band(page, "lead")
         goal = page.locator('.stack .deck[data-idea="recovery"]')
         await goal.wait_for(timeout=WAIT_MS)
-        assert norm(await goal.locator(".tcard__idea").inner_text()) == "Fix a bug" and await goal.locator(".tcard__idea .ork-sign.bug").count() == 1
+        assert norm(await goal.locator(".tcard__idea").inner_text()) == "Fix a bug" and await goal.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1
         assert "Fix a bug" in await goal.get_attribute("aria-label")
         other = page.locator('.stack .deck[data-idea="pagewords"] .tcard__idea')
         assert norm(await other.inner_text()) == "Goal" and await other.locator(".tcard__type").count() == 0
@@ -151,11 +151,11 @@ async def test_a_tasks_card_wears_its_goals_type_before_its_name_a_planning_goal
         await _band(page, "build")
         await typed.locator(".tcard__idea").wait_for(timeout=WAIT_MS)
         await typed.click()                                                                                                              # a stack of more spreads: its cards wear the sign too
-        spread = page.locator(".spread .tcard__idea .tcard__type")
+        spread = page.locator(".spread .tcard__top .tcard__type")
         if await page.locator(".spread").count():
             assert await spread.count() >= 1
 
 
 def test_the_service_worker_is_at_v61_with_b_merged_over_a_v60():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v62";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7); spec 54 B is v62
+    assert 'const CACHE = "orkcraft-app-v63";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7); spec 54 B is v62

@@ -282,7 +282,7 @@ async def test_a_card_is_132_by_185_wears_its_goals_element_and_a_raw_goal_is_da
         assert abs(box["width"] - 132) <= 1 and abs(box["height"] - 185) <= 1 and abs(box["height"] / box["width"] - 7 / 5) < 0.02          # 132 × 185, 5:7, two columns at 390
         cols = [await c.bounding_box() for c in await page.locator(".stack[data-column]").all()]
         assert len(cols) == 2 and abs(cols[0]["width"] - cols[1]["width"]) <= 1 and cols[1]["x"] > cols[0]["x"] + cols[0]["width"] - 1
-        assert await failed.locator(".tcard__top .ork-elem.dust").count() == 1 and await failed.locator(".tcard__mark .ork-sign.cross").count() == 1    # the element top left, the mark top right
+        assert await failed.locator(".tcard__top .ork-elem.dust").count() == 1 and await failed.locator(".tcard__mark").count() == 0    # the element top left; no state sign (the foot and the edge say it, spec 55 §2)
         assert await failed.locator(".tcard__idea").inner_text() == "Session cookie flags" and await failed.locator(".tcard__name").inner_text() == "Secure cookie flags"
         assert await failed.locator(".tcard__foot").inner_text() == "failed" and "is-fail" in await failed.get_attribute("class")
         assert await failed.locator(".tcard").evaluate("e => getComputedStyle(e).borderColor") == await page.evaluate(
@@ -301,7 +301,7 @@ async def test_a_card_is_132_by_185_wears_its_goals_element_and_a_raw_goal_is_da
         raw = page.locator('.deck[data-idea="magic"] .tcard')
         assert "is-raw" in await raw.get_attribute("class") and await raw.evaluate("e => getComputedStyle(e).borderStyle") == "dashed" and await raw.locator(".ork-elem.lava.dim").count() == 1
         stop = page.locator('.deck[data-idea="recovery"] .tcard')
-        assert await stop.locator(".ork-elem.void:not(.dim)").count() == 1 and await stop.locator(".tcard__mark .ork-sign.alert").count() == 1 and await stop.locator(".tcard__idea").inner_text() == "Goal"
+        assert await stop.locator(".ork-elem.void:not(.dim)").count() == 1 and await stop.locator(".tcard__mark").count() == 0 and await stop.locator(".tcard__idea").inner_text() == "Goal"
         assert await stop.locator(".tcard__foot").inner_text() == "plan ready · $1–2"                                                  # its words at the foot
         assert await page.evaluate(NO_SCROLL)
 
@@ -377,7 +377,7 @@ async def test_a_press_on_a_stack_of_more_spreads_its_cards_in_a_strip_with_thei
         assert await spread.evaluate("e => getComputedStyle(e).backgroundColor") != "rgba(0, 0, 0, 0)"                               # … which it dims
         first = cards.nth(0)
         assert await first.locator(".tcard__name").inner_text() == "Credential table and migration" and await first.locator(".tcard__phase").inner_text() == "now"
-        assert await first.locator(".tcard__top .ork-elem.meadow").count() == 1 and await first.locator(".tcard__mark .ork-sign.work").count() == 1
+        assert await first.locator(".tcard__top .ork-elem.meadow").count() == 1 and await first.locator(".tcard__mark").count() == 0 and await first.locator(".tcard__foot").inner_text() != ""
         assert norm(await first.locator(".spread__dep").inner_text()) == "1 waits for it" and await first.locator(".spread__dep .ork-sign.after").count() == 1      # no arrows on the phone: a line
         last = cards.nth(2)
         deps = [norm(await d.inner_text()) for d in await last.locator(".spread__dep").all()]

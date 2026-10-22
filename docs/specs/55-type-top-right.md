@@ -67,4 +67,12 @@ Each part also runs the critical tests (`orkcraft.toml` `always`), `tests/test_g
 `tests/test_design_system.py`, and the phone `tests/test_pwa.py` and the phone browser tests it changed.
 
 ## 7. As built
-(written when built)
+Built to §1–§6 as written, phone (`orkcraft-app-v63`) and desktop; what the spec left open:
+- **The colour is a class on the type's node**, not a custom property (`test_design_system` allows no new one): phone `shell-marks.js` `typeTone(element, dim)` gives `meadow`…`lava`, `dim` or `none`; `.tcard__type` and `.dk__type` wear it
+  (`pwa/app.css`: the five `--ork-elem-*`, `--ork-ink-faint` for `.dim`, `--ork-ink-muted` otherwise). Desktop: `stacks.js` `typeTone(n)` (from `elementOf`: a goal with no element is `none`, muted, though the desktop draws its element dim) and
+  `typeSign(n, kind)`, which `goals.js` calls too with `arena-goal__type`; `arena.css` the same six rules. The sign is a mask filled with `currentColor`, so its `background-color` is the element's.
+- **The state's sign is gone from the model too** on the phone: `taskItem` and the Planning goal's item (`shell-arena-words.js`) no longer carry `sign`/`signTip` (nothing else read them; the faces' signs and the stack ghost's flash have their own).
+  The desktop's `taskMark` (`arenawords.js`) stays exported, unused by a card; a Planning goal's `r.mark` is no longer drawn.
+- **`.tcard__type` / `.arena-task__type`** are `margin-left: auto` in the top row, so with no phase word they stand at the right, with one (a spread's cards) the order is element, phase word, type.
+- The old tests that read a state sign on a card (`.tcard__mark .ork-sign.cross/alert/work`, `.arena-task__mark`, `.ork-sign.work/cross/night` on a card) read the foot's words and the edge's class instead, or that there is no mark;
+  those that read the type before the name read it top right. Nothing else changed.

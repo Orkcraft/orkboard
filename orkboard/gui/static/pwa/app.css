@@ -573,6 +573,12 @@ dialog.sheet.drawer .sheet-foot { margin-top: auto; }
 .dk__title { font: 400 14px/18px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dk__line { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dk__type { display: inline-flex; vertical-align: -2px; margin-right: var(--ork-2); color: var(--ork-ink-muted); }
+.dk__type.meadow, .tcard__type.meadow { color: var(--ork-elem-meadow); }
+.dk__type.ice, .tcard__type.ice { color: var(--ork-elem-ice); }
+.dk__type.dust, .tcard__type.dust { color: var(--ork-elem-dust); }
+.dk__type.void, .tcard__type.void { color: var(--ork-elem-void); }
+.dk__type.lava, .tcard__type.lava { color: var(--ork-elem-lava); }
+.dk__type.dim, .tcard__type.dim { color: var(--ork-ink-faint); }
 .dk__mark { flex: none; width: 14px; display: inline-flex; justify-content: center; color: var(--ork-ink-muted); }
 .dk__mark .ork-sign.alert { color: var(--ork-alert); }
 .dk__mark .ork-sign.cross { color: var(--ork-danger); }
@@ -652,26 +658,22 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .newidea { appearance: none; flex: none; width: 100%; min-height: var(--ork-tap); border: var(--ork-line) dashed var(--ork-edge); clip-path: var(--ork-notch); background: none; color: var(--ork-ink-muted);
   font: var(--ork-type-button); cursor: pointer; }
 
-/* a card of the field, a goal of Planning, a card of a spread: 5:7, its goal's element top left and its mark top right (shell-decks.js, spec 50 §6.5) */
+/* a card of the field, a goal of Planning, a card of a spread: 5:7, its goal's element top left and its type top right, in the element's colour (shell-decks.js, spec 55) */
 .tcard { position: relative; flex: none; display: flex; flex-direction: column; gap: var(--ork-1); width: 100%; padding: 7px; box-sizing: border-box; text-align: left; background: var(--ork-panel);
   border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: var(--ork-ink); font: inherit; }
 .tcard__top { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-2); min-height: 20px; }
 .tcard__phase { margin-right: auto; padding-left: var(--ork-3); font: 400 11px/16px var(--ork-font-text); color: var(--ork-ink-faint); }
-.tcard__mark { display: flex; align-items: center; margin-left: auto; }
 .tcard__idea { padding-top: var(--ork-1); border-top: var(--ork-line) solid var(--ork-frame); font: 400 11px/14px var(--ork-font-text); color: var(--ork-ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tcard__type { display: inline-flex; vertical-align: -2px; margin-right: var(--ork-1); color: var(--ork-ink-muted); }
+.tcard__type { display: inline-flex; flex: none; margin-left: auto; color: var(--ork-ink-muted); }
 .tcard__name { flex: 1 1 0; min-height: 0; font: 400 14px/18px var(--ork-font-text); display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .tcard__foot { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tcard.is-run { border-color: var(--ork-edge); }
 .tcard.is-run .tcard__foot { color: var(--ork-ink); }
 .tcard.is-wait, .tcard.is-raw { border-style: dashed; background: var(--ork-canvas); }
 .tcard.is-fail { border-color: var(--ork-danger); }
-.tcard.is-fail .tcard__mark, .tcard.is-fail .tcard__foot { color: var(--ork-danger); }
+.tcard.is-fail .tcard__foot { color: var(--ork-danger); }
 .tcard.is-out { border-color: var(--ork-success); }
 .tcard.is-out .tcard__foot { color: var(--ork-success); font-weight: 600; }
-.tcard__mark .ork-sign.cross { color: var(--ork-danger); }
-.tcard__mark .ork-sign.alert { color: var(--ork-alert); }
-.tcard__mark .ork-sign.work, .tcard__mark .ork-sign.night { color: var(--ork-ink); }
 
 /* rows by phase: *now*, *next*, *later*, each its word over its left edge, a stack of cards a goal (shell-arena-field.js); the rows after *now* are muted */
 .phase { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--ork-4); padding-top: 14px; }

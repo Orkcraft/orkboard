@@ -103,7 +103,7 @@ async def test_a_drafting_goal_stops_and_is_stopped_a_low_one_waits_for_tonight_
         await _band(page, "lead")
         hi = _item(page, "Fast sync")
         await hi.wait_for(timeout=WAIT_MS)
-        assert "Taskmaster is reading" in await _said(page, "Fast sync") and await hi.locator(".tcard__mark .ork-sign.work").count() == 1      # the leader reads it: orkUI's work sign
+        assert "Taskmaster is reading" in await _said(page, "Fast sync") and await hi.locator(".tcard__mark").count() == 0      # the leader reads it: said by the label, no sign on the card (spec 55 §2)
         await _shot(page, "phone-ideas-390x844")
         screen = page.locator(".screen")
         await _open_idea(page, hi)                                                            # its screen holds what its row held
@@ -113,7 +113,7 @@ async def test_a_drafting_goal_stops_and_is_stopped_a_low_one_waits_for_tonight_
         stub.ideas["hi"].update(state="raw", queue="hold")
         stub.bump({})
         await _until(page, "document.querySelector('.stack .deck[data-idea=hi]')?.getAttribute('aria-label') || ''", lambda v: "reads it later" in v)
-        assert await hi.locator(".tcard__mark .ork-sign.work").count() == 0
+        assert await hi.locator(".tcard__mark").count() == 0
         await _open_idea(page, hi)
         for name in ("Process now", "Tonight"):
             await screen.get_by_role("button", name=name, exact=True).wait_for(timeout=WAIT_MS)

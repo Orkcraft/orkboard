@@ -14,6 +14,7 @@ import { reducedMotion } from "./motion.js";
 import { picks, peek, rawOpen, flagsOpen, flagsAll, togglePick, clearPicks } from "./arenastate.js";
 import { litFlags } from "./flags.js";
 import { powerOf } from "./arenawords.js";
+import { typeSign } from "./stacks.js";
 import { edgesOf, elementOf, flagRow, goalMark, goalsCount, listsOf, pickTip, waitsMain, workLine } from "./goalwords.js";
 import { Member } from "./members.js";
 import { PartyTop, deckEdges } from "./goaltabs.js";
@@ -38,7 +39,7 @@ function GoalRow({ g, n, plan = null, raw = false, party }) {
       onClick=${raw ? open : () => togglePick(party, n.slug)}>
       <span class="arena-goal__pile">${Array.from({ length: edges }, (_, i) => html`<i key=${i} class="arena-goal__edge" style=${`left:${(i + 1) * 2}px;top:${-(i + 1) * 2}px`}></i>`)}
         <span class="arena-goal__back"><${Elem} name=${el.name} dim=${el.dim} /></span></span>
-      <span class="arena-goal__body"><span class="arena-goal__title">${n.type?.sign && html`<span class="arena-goal__type" title=${n.type.name}><${Sign} name=${n.type.sign} /></span>`}${n.short || n.title}</span>
+      <span class="arena-goal__body"><span class="arena-goal__title">${typeSign(n, "arena-goal__type")}${n.short || n.title}</span>
         <span class="arena-goal__line">${words}</span></span>
       <span class=${cls("arena-goal__mark", TONES[mark.tone])} title=${mark.label || undefined}>${mark.sign && html`<${Sign} name=${mark.sign} />`}</span>
     </button>

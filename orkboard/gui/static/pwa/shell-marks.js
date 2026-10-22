@@ -10,6 +10,9 @@ export function elem(name, { dim = false, big = false } = {}) {
   return ELEMENTS.includes(name) ? h("span", { class: `ork-elem ${name}${big ? " big" : ""}${dim ? " dim" : ""}`, "aria-hidden": "true" }) : null;
 }
 
+/** The class of a type's sign, its goal's colour (spec 55 §1.2): the element's, `dim` (faint) while the element is drawn dim, `none` (muted) for a goal with no element. */
+export const typeTone = (element, dim = false) => (!ELEMENTS.includes(element) ? "none" : dim ? "dim" : element);
+
 /** A sign by its name, 14 px (`big`: 28 px), its words (when it has none beside it) in its title. */
 export function sign(name, title = "", { big = false } = {}) {
   return h("span", { class: `ork-sign ${name}${big ? " big" : ""}`, "aria-hidden": "true", title: title || null });
