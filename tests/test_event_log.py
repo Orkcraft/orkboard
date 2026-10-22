@@ -93,3 +93,9 @@ def test_a_goal_of_a_type_who_joins_and_a_plans_missing_are_in_the_events_spec_5
     from pathlib import Path
     source = Path(event_log.__file__).read_text(encoding="utf-8")
     assert "type (its goal type's key" in source and 'via ("type"' in source and "missing (how many kinds" in source     # the fields named where the events are
+
+
+def test_a_done_to_do_says_whether_it_was_gone_without_or_described(tmp_path):
+    event_log.record(tmp_path, event_log.TODO_DONE, idea="x", todo="t1", kind="file", skipped=False, words=True)
+    [row] = event_log.read(tmp_path)
+    assert row["skipped"] is False and row["words"] is True

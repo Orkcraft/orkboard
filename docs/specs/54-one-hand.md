@@ -123,6 +123,14 @@ A readable log of what an agent does (the owner's next ask); the desktop's Targe
 another party without opening it beyond its quick answers; a person's own order of the hand.
 
 ## 10. As built (notes, no change of the contract)
+**A (host).** `ideas.todo` in `gui/ideas.py` takes `skip: true` (any kind: done, `skipped: true`, no value; a secret's stored
+value stays) and `words` (a `file` to-do only: edge spaces cut, at most 2 000 characters, `WORDS_CHARS`; empty is refused
+with *Say what it should look like*; another kind's `words` is not read, so its own refusal speaks). A file sent later
+replaces the words; ticking a described to-do again with no file keeps them; unticking clears `skipped` and `words`.
+`core/idea_task.py` `_without` writes the prompt lines after the secrets' line, for the to-dos the task is `for` only.
+`todo_done` carries `skipped` and `words` (booleans, always set); the words themselves are never logged. A file a person
+sent before going without stays on disk and in the task's environment (the to-do's value is cleared, not the file).
+Only A's row was changed, plus `docs/specs/54-one-hand.md` for this note.
 
 ## 11. Running A, B and C
 Each a cloud session on orkWorks/orkBoard on Sonnet with the brief below; each **merges into `main` itself** when its

@@ -2,6 +2,7 @@
 (gui/board_host.py; Orkline ran them on its town's host too, spec 37 B)."""
 from __future__ import annotations
 
+import base64
 import json
 import sys
 import time
@@ -1029,3 +1030,69 @@ def test_the_map_gives_a_partys_types_the_most_used_first_with_what_each_misses_
     nodes = {n["title"]: n["type"] for n in got["nodes"]}
     assert nodes["A logo"] == {"id": "logo", "name": "New logo", "sign": "logo"} and nodes["A bug"] == {"id": "bug", "name": "Fix a bug", "sign": "bug"}
     assert [t["id"] for t in host.command("ideas.map", {"goal": "other"})["goals"][0]["types"]] == ["feature", "bug", "tidy"]     # its bug moved out: the set's order
+
+
+def _file_todo(tid="t1", **more):
+    return {"id": tid, "title": "Reference picture", "kind": "file", "why": "w", "choices": [], "steps": [],
+            "for": ["k1"], "done": False, "value": None, **more}
+
+
+def _todo_of(host, slug, tid="t1"):
+    plan = json.loads((host.ideas.state_dir / "ideas" / slug / "plan.json").read_text())
+    return next(t for t in plan["todos"] if t["id"] == tid), plan
+
+
+def test_a_to_do_of_each_kind_can_be_gone_without(host):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug, [
+        _file_todo(),
+        {"id": "t2", "title": "API_KEY", "kind": "secret", "why": "", "choices": [], "steps": [], "for": ["k1"], "done": False, "value": None},
+        {"id": "t3", "title": "Which", "kind": "choice", "why": "", "choices": ["a", "b"], "steps": [], "for": ["k1"], "done": False, "value": None},
+        {"id": "t4", "title": "Check it", "kind": "confirm", "why": "", "choices": [], "steps": [], "for": ["k1"], "done": False, "value": None}])
+    for tid in ("t1", "t2", "t3", "t4"):
+        host.command("ideas.todo", {"idea": slug, "id": tid, "done": True, "skip": True})
+        todo, plan = _todo_of(host, slug, tid)
+        assert todo["done"] is True and todo["skipped"] is True and todo["value"] is None
+    assert plan["tasks"][0]["state"] == "ready"
+    assert [e["skipped"] for e in _events(host, "todo_done")] == [True] * 4
+    host.command("ideas.todo", {"idea": slug, "id": "t3", "done": False})
+    todo, _ = _todo_of(host, slug, "t3")
+    assert todo["done"] is False and "skipped" not in todo
+
+
+def test_going_without_a_secret_keeps_its_stored_value(host):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug, [{"id": "t1", "title": "API_KEY", "kind": "secret", "why": "", "choices": [], "steps": [], "for": ["k1"], "done": False, "value": None}])
+    host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "value": "sk-1"})
+    host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "skip": True})
+    todo, _ = _todo_of(host, slug)
+    assert todo["skipped"] is True and todo["value"] == "stored"
+    assert idea_secrets.get(host.ideas.state_dir, slug, "t1") == "sk-1"
+
+
+def test_a_file_to_do_can_be_described_instead_and_a_file_replaces_the_words(host):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug, [_file_todo()])
+    for empty in ("", "   "):
+        with pytest.raises(CommandError, match="Say what it should look like"):
+            host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "words": empty})
+    host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "words": "  A grey ork at dusk.  "})
+    todo, plan = _todo_of(host, slug)
+    assert todo["done"] and todo["value"] == "A grey ork at dusk." and todo["words"] is True and "skipped" not in todo
+    assert plan["tasks"][0]["state"] == "ready"
+    (done,) = _events(host, "todo_done")
+    assert done["words"] is True and done["skipped"] is False and "dusk" not in json.dumps(done)
+    host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "words": "x" * 3000})
+    assert len(_todo_of(host, slug)[0]["value"]) == 2000
+    host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "file": {"name": "ork.png", "data": base64.b64encode(b"png").decode()}})
+    todo, _ = _todo_of(host, slug)
+    assert todo["value"] == "ork.png" and "words" not in todo
+    host.command("ideas.todo", {"idea": slug, "id": "t1", "done": False})
+    assert "skipped" not in _todo_of(host, slug)[0]
+
+
+def test_words_are_for_a_file_to_do_only(host):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug, [{"id": "t1", "title": "Which", "kind": "choice", "why": "", "choices": ["a", "b"], "steps": [], "for": ["k1"], "done": False, "value": None}])
+    with pytest.raises(CommandError, match="choices"):
+        host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "words": "whatever"})

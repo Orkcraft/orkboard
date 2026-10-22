@@ -179,12 +179,30 @@ class TaskMixin:
         if secrets:
             parts.append("The environment holds " + ", ".join(secrets) + ": use them from the environment, never "
                          "print them, write them to a file or commit them.")
+        parts += self._without(plan, task)
         parts += [f"The file is at ${name}; copy it into the repository only if the task says so." for name in files]
         if is_check(task):
             parts.append(FINDINGS_ASK)
         elif is_pick(task):
             parts.append(pick_ask(task))
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _without(plan: dict, task: dict) -> list[str]:
+        """The lines for the to-dos this task is `for` that the person went without or described (spec 54 §1.2)."""
+        out = []
+        for todo in plan.get("todos") or []:
+            if not isinstance(todo, dict) or task.get("id") not in (todo.get("for") or []) or not todo.get("done"):
+                continue
+            title = todo.get("title") or ""
+            if todo.get("skipped"):
+                out.append(f"The person left “{title}” to you: choose one of {', '.join(todo.get('choices') or [])}, and "
+                           "say which and why in your result." if todo.get("kind") == "choice" else
+                           f"The person went without “{title}”: do the task without it; if it cannot be done without it, "
+                           "say what it blocks and stop.")
+            elif todo.get("words") and todo.get("kind") == "file":
+                out.append(f"Instead of the file “{title}”, the person described it: {todo.get('value') or ''}")
+        return out
 
     def _again_prompt(self, slug: str, plan: dict, task: dict, again: dict, base: str) -> tuple[str, str]:
         """(what a task is told, the session it resumes) when it goes on: a send back, the gate's conflict, a pick of none of them

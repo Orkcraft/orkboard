@@ -50,6 +50,7 @@ from orkboard.gui.ideas_limits import LimitsMixin
 from orkboard.gui.ideas_roles import RolesMixin
 from orkboard.gui.ideas_types import TypesMixin
 
+WORDS_CHARS = 2000                # the most a file to-do described instead may say (spec 54 §1.1)
 RUNNER_TICK_S = 3.0               # how often the runner looks at its tasks
 SNAPSHOT_S = 10.0                 # the most a cached Needs you count is kept without a change
 PHONE_ZIP_MAX = 8 * 1024 * 1024   # a zip the phone is handed in a message: larger waits for the computer
@@ -457,9 +458,19 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         if todo is None:
             raise IdeasError("That to-do is gone")
         done, value = bool(args.get("done")), args.get("value")
+        skip, words, described = done and args.get("skip") is True, args.get("words"), False
+        sent = isinstance(args.get("file"), dict)
         kept: Any = todo.get("value")
-        if done and todo.get("kind") == "file":
-            kept = self._todo_file(args, slug, todo)
+        if skip:                                # gone without it (spec 54 §1.1): done, no value; a secret's stored value stays
+            kept = kept if todo.get("kind") == "secret" and kept == "stored" else None
+        elif done and todo.get("kind") == "file" and words is not None and not sent:   # described instead (§1.1)
+            kept = words.strip()[:WORDS_CHARS] if isinstance(words, str) else ""
+            if not kept:
+                raise IdeasError("Say what it should look like")
+            described = True
+        elif done and todo.get("kind") == "file":     # a file sent later replaces the words; ticked again, they stay
+            described = bool(todo.get("words")) and not sent
+            kept = todo["value"] if described else self._todo_file(args, slug, todo)
         elif done and todo.get("kind") == "secret":
             if not isinstance(value, str) or not value.strip():
                 if todo.get("value") != "stored":
@@ -478,12 +489,18 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             for t in p.get("todos") or []:
                 if t.get("id") == tid:
                     t["done"], t["value"] = done, kept
+                    for key, on in (("skipped", skip), ("words", described)):
+                        if on:
+                            t[key] = True
+                        else:
+                            t.pop(key, None)
             if not p.get("passed_at"):
                 idea_keeper.readiness(p)
 
         ideas.edit_plan(self.state_dir, slug, tick)
         if done:                                # a secret's value (or a file) is never logged: only that it was done
-            self._ev(event_log.TODO_DONE, args, idea=slug, todo=tid, kind=todo.get("kind"), seconds=self._since(plan.get("made_at")))
+            self._ev(event_log.TODO_DONE, args, idea=slug, todo=tid, kind=todo.get("kind"), seconds=self._since(plan.get("made_at")),
+                     skipped=skip, words=described)
         self.changed(slug)
         return {"ok": True}
 
