@@ -99,3 +99,14 @@ def test_a_goal_type_is_what_kind_of_goal_a_leader_deals_spec_52():
     rows = {key: (word, was) for key, word, was in lexicon.glossary()}
     assert rows["goal_type"] == ("goal type", "")
     assert lexicon.words("New goal: pick its type, or a blank one") == "New goal: pick its type, or a blank one"
+
+
+def test_the_lines_of_stage_and_goal_type_say_what_the_leader_and_the_team_decide_spec_59():
+    """Spec 59 §0: a stage is worded by its leader; a goal type is what a party's team can take on. (The glossary's lines are the comments of `TERMS`.)"""
+    from pathlib import Path
+    source = Path(lexicon.__file__).read_text(encoding="utf-8")
+    stage = next(l for l in source.splitlines() if l.lstrip().startswith('_t("stage"'))
+    goal_type = next(l for l in source.splitlines() if l.lstrip().startswith('_t("goal_type"'))
+    assert "its leader words them" in stage and "Concept, Build, Playtest" in stage and "Planning, Implementation, Checking" in stage
+    assert "a party's team can take on" in goal_type and "specs 52 and 59" in goal_type and "leader deals" not in goal_type
+    assert lexicon.term("stage") == "stage" and lexicon.term("goal_type") == "goal type"

@@ -1,7 +1,7 @@
 """New goal by its type (docs/specs/52-goal-types.md §2.3, §2.6), as `gui/ideas.py`'s `Ideas` has it: `ideas.add`'s `type`,
 `asks` and `join`, `ideas.start`'s `join`, and what spec 52 §2.7 adds to the events.
 
-A type is one of the party's leader's (realm/goal_types.py); its asks are written after the goal's text, a line each. Who
+A type is one the party is offered (realm/goal_types.py `offered`, spec 59 §4); its asks are written after the goal's text, a line each. Who
 joins changes the party the way *Edit the party* does (`ideas.goal_save`): the agent installed from the library, a member
 who leaves taken out, the seats checked, the team kept, `goal_saved` logged (with `joined`, `out`, `via`). A goal kept for
 tonight never changes the party; a member with work open never leaves this way. Split from ideas.py to keep it under ~600
@@ -25,15 +25,22 @@ class TypesMixin:
     # -- New goal by its type (§2.3) ------------------------------------------------------------------------
 
     def typed(self, args: dict, track: str, title: str) -> dict:
-        """The type, its asks and who joins as `ideas.add` is sent them: `{key, type, lines, answered, join}`. `type`: an id of
-        the party's leader's set; `asks`: `{ask id: text}` of that type's (`refs`: Refs' links, when it has them), each one
+        """The type, its asks and who joins as `ideas.add` is sent them: `{key, type, lines, answered, join, rows}`.
+        `type`: an id of the types the party is offered (`rows`: what that one misses; how many were offered, and how many of
+        them with someone missing, wait for `idea_added`: `type_fields`); `asks`: `{ask id: text}` of that type's (`refs`: Refs' links, when it has them), each one
         line of at most 300 characters, an empty one left out; `join`: `{add, out?}`, checked against the party when the goal
         is added (`join_goal`)."""
-        type_id, t, leader = _opt(args, "type"), None, goal_team.leader_of(self.root(), track)
+        type_id, t, rows = _opt(args, "type"), None, []
+        p = goal_types.Party(self.state_dir, self.root(), track)
+        got = goal_types.offered(self.state_dir, self.root(), track, read=p)
         if type_id:
-            t = next((x for x in goal_types.of(leader) if x.id == type_id), None)
+            known = goal_types.BY_ID.get(type_id)
+            if known is None:
+                raise IdeasError(f"No goal type “{type_id}”")
+            t, rows = next(((x, r) for x, r in got if x.id == type_id), (None, []))
             if t is None:
-                raise IdeasError(f"{title}'s leader has no goal type “{type_id}”")
+                raise IdeasError(f"{title} cannot take “{known.name}”: no one of it does "
+                                 f"{goal_types.words(goal_types.lacking(self.state_dir, p, known))}")
         asks = args.get("asks") if args.get("asks") is not None else {}
         if not isinstance(asks, dict):
             raise IdeasError("asks are the goal type's fields, by their ids")
@@ -53,8 +60,9 @@ class TypesMixin:
         if join is not None and (not isinstance(join, dict) or not isinstance(join.get("add"), str)
                                  or not isinstance(join.get("out") or "", str)):
             raise IdeasError("join names the agent who joins, and who leaves")
-        return {"key": goal_types.key(leader, t.id) if t else "", "type": t, "lines": lines,
-                "answered": sum(1 for a in (t.asks if t else ()) if a.id in said), "join": join}
+        self.__dict__.setdefault("_offers", {})[track] = (len(got), sum(1 for _t, r in got if r))
+        return {"key": t.id if t else "", "type": t, "lines": lines, "rows": rows, "join": join,
+                "answered": sum(1 for a in (t.asks if t else ()) if a.id in said)}
 
     @staticmethod
     def with_asks(text: str, typed: dict) -> str:
@@ -70,8 +78,7 @@ class TypesMixin:
         root = self.root()
         p = goal_types.Party(self.state_dir, root, track)
         add, out = join["add"].strip(), (join.get("out") or "").strip()
-        rows = goal_types.missing(self.state_dir, root, track, t.needs if t else (), read=p)
-        row = next((r for r in rows if r["agent"] == add), None)
+        row = next((r for r in typed["rows"] if r["agent"] == add), None)
         if row is None:
             raise IdeasError(f"{_name(add)} is not what this goal misses")
         if out and out not in p.band(row["band"]):
@@ -143,11 +150,17 @@ class TypesMixin:
     # -- the events (§2.7) ----------------------------------------------------------------------------------
 
     def type_fields(self, event: str, fields: dict) -> dict:
-        """What spec 52 §2.7 adds to events written elsewhere: Edit the party's `goal_saved` says no one joined (`via` ""),
-        and every `plan_passed` says who joined at its press and how many kinds the plan missed (its `missing` read against
+        """What specs 52 §2.7 and 59 §5 add to events written elsewhere: `idea_added` says how many types the party offered and how
+        many of them with someone missing (`typed`), Edit the party's `goal_saved` says no one joined (`via` ""), the seats of its
+        leader (`stages`) and the library's party it started from (`preset`), and every `plan_passed` says who joined at its press and how many kinds the plan missed (its `missing` read against
         the party then: before a join). `_passing`: what `ideas.start` read for its pass (`start_join`)."""
+        if event == event_log.IDEA_ADDED:
+            offered, near = self.__dict__.get("_offers", {}).pop(fields.get("track"), (0, 0))
+            return {"offered": offered, "near": near}
         if event == event_log.GOAL_SAVED:
-            return {"joined": fields.get("joined", ""), "out": fields.get("out", ""), "via": fields.get("via", "")}
+            seats = library.seats_of(fields.get("leader") or roles.TASKMASTER)
+            return {"joined": fields.get("joined", ""), "out": fields.get("out", ""), "via": fields.get("via", ""),
+                    "stages": f"{seats['build']}/{seats['check']}", "preset": fields.get("preset", "")}
         if event == event_log.PLAN_PASSED:
             slug = str(fields.get("idea") or "")
             got = self._passing.pop(slug, None)

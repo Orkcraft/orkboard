@@ -17,7 +17,7 @@ def test_the_library_says_the_crafts_a_check_usually_applies_to():
     fits = {a.id: a.check.fits for a in library.LIBRARY if a.check}
     assert fits == {"security-reviewer": ("engineering", "product", "data"), "reviewer": ("engineering", "product", "data"),
                     "accessibility-reviewer": ("design", "product", "engineering"), "data-reviewer": ("data", "engineering", "product"),
-                    "editor": ("marketing", "product", "design")}
+                    "editor": ("marketing", "product", "design"), "playtester": ("design", "engineering")}
 
 
 def hints(host, craft, leader, team, every=()):

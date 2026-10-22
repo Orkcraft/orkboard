@@ -82,17 +82,20 @@ def test_a_pick_asked_and_answered_are_events_with_what_the_measure_needs(tmp_pa
 def test_a_goal_of_a_type_who_joins_and_a_plans_missing_are_in_the_events_spec_52(tmp_path):
     """Spec 52 §2.7: `idea_added` with its type, asks answered, Refs' pictures, who joined and who left; `goal_saved` with
     joined, out and via; `plan_passed` with who joined and how many kinds the plan missed."""
-    assert event_log.record(tmp_path, event_log.IDEA_ADDED, idea="logo", track="brand", type="product-designer/logo", asks=1,
-                            refs=2, joined="artist", out="", device="desktop")
-    assert event_log.record(tmp_path, event_log.GOAL_SAVED, goal="brand", new=False, joined="artist", out="ui-kit", via="type")
+    assert event_log.record(tmp_path, event_log.IDEA_ADDED, idea="logo", track="brand", type="logo", asks=1,
+                            refs=2, joined="artist", out="", offered=9, near=2, device="desktop")
+    assert event_log.record(tmp_path, event_log.GOAL_SAVED, goal="brand", new=False, joined="artist", out="ui-kit", via="type", preset="game", stages="4/1")
     assert event_log.record(tmp_path, event_log.PLAN_PASSED, idea="logo", tasks=3, by="person", joined="", missing=1)
     added, saved, passed = event_log.read(tmp_path)
-    assert (added["type"], added["asks"], added["refs"], added["joined"], added["out"]) == ("product-designer/logo", 1, 2, "artist", "")
+    assert (added["type"], added["asks"], added["refs"], added["joined"], added["out"]) == ("logo", 1, 2, "artist", "")
+    assert (added["offered"], added["near"]) == (9, 2)
     assert (saved["joined"], saved["out"], saved["via"]) == ("artist", "ui-kit", "type")
+    assert (saved["preset"], saved["stages"]) == ("game", "4/1")                                   # spec 59 §5
     assert (passed["joined"], passed["missing"]) == ("", 1)
     from pathlib import Path
     source = Path(event_log.__file__).read_text(encoding="utf-8")
-    assert "type (its goal type's key" in source and 'via ("type"' in source and "missing (how many kinds" in source     # the fields named where the events are
+    assert "type (its goal type's id" in source and 'via ("type"' in source and "missing (how many kinds" in source     # the fields named where the events are
+    assert "offered (how many types" in source and "near (how many of them" in source and "preset (the library's party" in source and '"<builders>/<checkers>"' in source
 
 
 def test_a_done_to_do_says_whether_it_was_gone_without_or_described(tmp_path):

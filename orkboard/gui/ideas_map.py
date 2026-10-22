@@ -11,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 
 from orkboard.gui.ideas_args import IdeasError, _opt
-from orkboard.realm import board_map, goal_types, idea_element, ideas
+from orkboard.realm import board_map, goal_team, goal_types, idea_element, ideas, library
 
 
 class MapMixin:
@@ -42,15 +42,23 @@ class MapMixin:
                     used[n["goal"]].append(n["element"])
         for g in got["goals"]:
             g["types"] = self.types_of(root, g["slug"], [n["slug"] for n in got["nodes"] if n["goal"] == g["slug"]])
+            g["stages"] = self.stages_of(root, g["slug"])
         return got
 
+    @staticmethod
+    def stages_of(root: Path, party: str) -> dict:
+        """A party's stages (spec 59 §3): the words of its leader's three steps and the seats of its builders and checkers."""
+        s = library.stages_of(goal_team.leader_of(root, party))
+        return {"lead": {"word": s.lead}, "build": {"word": s.build, "seats": s.build_seats}, "check": {"word": s.check, "seats": s.check_seats}}
+
     def types_of(self, root: Path, party: str, goals: list[str]) -> list[dict]:
-        """A party's goal types (spec 52 §2.4): its leader's set, the most used first (`used`: how many of its goals, of any
-        state, have that type), ties in the set's order; each with what it misses of the party (realm/goal_types.py `missing`)."""
+        """A party's goal types (spec 59 §4.5): what it is offered (`goal_types.offered`), each with what it misses of the party, the
+        most used first (`used`: how many of its goals, of any state, have that type; an old key counts as its id), then those
+        with nothing missing before those with someone missing, then the catalog's order."""
         p = goal_types.Party(self.state_dir, root, party)
-        used = Counter(ideas.state(self.state_dir, slug).get("type") for slug in goals)
+        used = Counter(t.id for slug in goals if (t := goal_types.get(ideas.state(self.state_dir, slug).get("type"))) is not None)
         rows = [{"id": t.id, "name": t.name, "sign": t.sign, "line": t.line, "lens": t.lens,
                  "asks": [{"id": a.id, "label": a.label, "hint": a.hint} for a in t.asks], "refs": t.refs,
-                 "used": used[goal_types.key(p.leader, t.id)], "missing": goal_types.missing(self.state_dir, root, party, t.needs, read=p)}
-                for t in goal_types.of(p.leader)]
-        return sorted(rows, key=lambda r: -r["used"])
+                 "used": used[t.id], "missing": missing}
+                for t, missing in goal_types.offered(self.state_dir, root, party, read=p)]
+        return sorted(rows, key=lambda r: (-r["used"], bool(r["missing"])))
