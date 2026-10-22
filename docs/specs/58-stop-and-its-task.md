@@ -84,3 +84,13 @@ new `tests/test_stop_link_desktop_browser.py`. What the spec left open, and the 
   its place, fading with `arena-leave` (steps(4)), then the hand closes the gap. To make it the frame its task changes, `useHeld`'s apply is a layout effect now (it was an effect, a frame later). None under reduced
   motion or a hidden page. A stop that leaves for any reason (answered elsewhere, withdrawn, a filter) leaves the same way.
 - Not done: the spread's cards are not ringed; there is no ring for `goal` and `party` stops.
+
+**C. Phone** (`orkcraft-app-v64`, shared with spec 57 C). Built to §1, §3, §4 as written; what the spec left open:
+- **The line is drawn whenever the stop has a target (§1), also when the target is on a stage not shown**: on the phone the line is words, and it is most wanted exactly when the card is not in view. `shell-stops.js` `build` gives each stop of the
+  party shown a `link` (`about()`: the goal's short name, the task's short title and its member's name for `failed` (the Map's), `pick` and `look`; the goal's name for a plan, a question, a proposal, a to-do and a goal's own failure; a
+  `goal` stop of the party itself its name; none for `party` and Operations); another party's stop keeps `party · goal`. The line is `.raised__goal.is-link` with its words in `.raised__words` (one line, ellipsis); `link` is in the fan's and the raised card's signature.
+- **The fan's ghost** is a card with no button, `span.hcg` (own class, so a query of `.hc` or of `.is-leaving` — the field's ghosts — never meets it), `aria-hidden`, `data-ghost`, `animation: leave 0.3s steps(4)` (the field's `leave`). In the render that
+  rereads the Board, a stop of the last drawn fan that is no longer a stop is put back in the layout at the place it lay (`lay()`: the fan is laid out for the stops and the ghosts, so nothing moves under the fade); after 0.30 s a draw
+  closes the gap. At most three ghosts in one refresh, none under `motionOn()` false; a fan not drawn because a stop is raised draws its ghosts when it is laid back. No optimistic removal: the lowered press changes nothing before the render.
+- The ghost is faded "in the frame its task changes" as far as the phone draws the two in one JS task (the test reads the frame of the ghost and of the Planning card that stops being a stop: the same).
+- The tests: `tests/test_pwa_stop_link_browser.py`, 10 tests (the lines of each kind, the ellipsis and the place under the banner, a Pick one, another party's and Operations', no removal before the read, the ghost's place, steps and frame, a withdrawn stop, reduced motion, three at most).

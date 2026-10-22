@@ -6,6 +6,8 @@
 const SLIDE_MS = 250;                                 // a settle or a move, ease-out, no bounce
 const PULSE_MS = 600;                                 // the reward's highlight
 export const HOLD_MS = 10000;                         // a column is held under a touch or the focus for at most this long
+const DEAL_WAIT_MS = 6000;                            // a deal waits this long for the tasks of the plan it started (spec 57 §1.2)
+const DEAL_STEP_MS = 35, DEAL_LEN_MS = 300, DEAL_MAX = 6;       // the deal: each card steps(6) for 0.30 s, 35 ms after the one before, six at most (spec 57 §2)
 
 /** Whether the page may move now: not under reduced motion, not while it is hidden. */
 export const motionOn = () => !document.hidden && !(typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -129,4 +131,50 @@ export function pointerGuard(roots, redraw) {
       return true;
     },
   };
+}
+
+// -- the deal (docs/specs/57-deal-on-start.md §1, §2, §4) --------------------------------------------------------------------------------------------
+/** The deal waiting: a plan started by a press on its raised stop deals its tasks from that card's box onto the stage shown. One at a time; dropped when played, refused or after 6 s. */
+let waiting = null;
+export const deal = {
+  /** The press was answered ok: `goal` (the plan's goal slug) deals from `from` (the raised card's client rect at the press). */
+  wait(goal, from) { waiting = from && from.width > 0 ? { goal, from, at: Date.now() } : null; },
+  drop() { waiting = null; },
+  /** The deal waiting (null once it is 6 s old). */
+  live() {
+    if (waiting && Date.now() - waiting.at > DEAL_WAIT_MS) waiting = null;
+    return waiting;
+  },
+};
+
+/** Deals `nodes` (the new stacks of the plan's goal in the field's order, already in the page) from the box `from`: each travels from the stop's centre, at the stop's width, to its own box,
+ *  steps(6) 0.30 s, 35 ms after the one before, six at most. What travels is a copy over everything (the columns clip; the real stack lies hidden and lands when the copy does: it takes the
+ *  pointer only then); a stack that is out of its column's view, and the stacks after the sixth, rise as they do without a deal. Returns how many travel. */
+export function dealTo(nodes, from) {
+  let k = 0;
+  const cx = from.left + from.width / 2, cy = from.top + from.height / 2;
+  for (const node of nodes) {
+    const to = node.getBoundingClientRect(), clips = [node.closest(".arena-scroll"), node.closest(".stack")].filter(Boolean).map((c) => c.getBoundingClientRect());
+    const seen = to.width > 0 && clips.every((c) => to.bottom > c.top && to.top < c.bottom && to.right > c.left && to.left < c.right);
+    if (!seen) { node.classList.add("is-drawn"); continue; }
+    if (k >= DEAL_MAX) { node.classList.add("is-drawn"); node.style.animationDelay = `${DEAL_MAX * DEAL_STEP_MS}ms`; continue; }       // after the sixth starts
+    const vars = { "--dx": `${Math.round(cx - (to.left + to.width / 2))}px`, "--dy": `${Math.round(cy - (to.top + to.height / 2))}px`, "--s": String(Math.round((from.width / to.width) * 100) / 100),
+      "--delay": `${k * DEAL_STEP_MS}ms` };
+    for (const [name, value] of Object.entries(vars)) node.style.setProperty(name, value);
+    node.classList.add("is-dealt");
+    const fly = document.createElement("div");                           // the copy: the stack as it lies, in its phase's colours, over the page
+    fly.className = `deal-fly phase is-${node.closest(".phase")?.dataset.phase || "now"}`;
+    fly.setAttribute("aria-hidden", "true");
+    Object.assign(fly.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
+    for (const [name, value] of Object.entries(vars)) fly.style.setProperty(name, value);
+    const copy = node.cloneNode(true);
+    for (const a of ["data-key", "data-idea", "data-phase", "data-task", "data-state", "data-n", "title", "aria-label", "style"]) copy.removeAttribute(a);
+    copy.classList.remove("is-dealt", "is-drawn");
+    copy.tabIndex = -1;
+    fly.append(copy);
+    document.body.append(fly);
+    setTimeout(() => fly.remove(), k * DEAL_STEP_MS + DEAL_LEN_MS + 120);
+    k += 1;
+  }
+  return k;
 }

@@ -83,3 +83,13 @@ Two parts (they share no file):
   at about the middle of its travel, not after the last one lands.
 - **Beyond the row:** `field.js` (the two `useColumn` calls pass `true`), and `tests/test_design_system.py` (`--dx`, `--s`, `--delay` join the custom properties the sheets may use, as `--rot` and `--dy` do).
 - Not done: the cards of the spread (spread.js) and the review column are not dealt; a stack's hidden cards (behind the front) take no number.
+
+**C. Phone** (`orkcraft-app-v64`, shared with spec 58 C). Built to §1, §2, §4 as written; what the spec left open:
+- **The deal waiting is `deal` in `shell-motion.js`** (`wait(goal, from)`, `live()`, `drop()`; 6 s), set by `shell-stops.js` `go(…, dealt)` after the host answers `ok`, from the raised card's rect read before it is lowered; only the party
+  shown's plan deals (another party's tasks are not on this field), and not when `motionOn()` is false. `shell-arena-field.js` `observe` hands the stacks of that goal that are new in the stage shown (`s.dealt`) to `dealTo`; the
+  deal is dropped in the first render where any stack of its goal is new (so tasks that go to a stage not shown, or into a column held under a finger, are never dealt and never wait on), and in any render under reduced motion or a hidden page.
+- **What travels is a copy**, not the stack: the columns (`.stack`, `.arena-scroll`) clip, so a stack animated in place could not travel from the hand "over everything of the field". `dealTo` (`shell-motion.js`) measures each new stack in the page,
+  gives it `is-dealt` with `--dx --dy --s --delay` (the stack lies `visibility: hidden` and lands, by an animation of 0 s delayed by `--delay` + 0.30 s, when the copy does: it takes the pointer only then), and puts a `.deal-fly` copy
+  (`position: fixed`, `z-index: 60`, `pointer-events: none`, `deal 0.30s steps(6)`) on `body`, removed after it. A stack out of its column's view and every stack after the sixth get `is-drawn` instead (after the sixth: `animation-delay` 210 ms).
+  `shell-decks.js` is unchanged. `test_design_system.py` allows the three new custom properties (`--dx`, `--s`, `--delay`; `--dy` was allowed already).
+- The tests: `tests/test_pwa_deal_start_browser.py`, 11 tests (the four presses, the order and delays, from the raised card's centre at its width, the stage not switched, a stage not shown, six at most, reduced motion, refusal, after 6 s, another party's plan).

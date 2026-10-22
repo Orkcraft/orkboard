@@ -15,7 +15,7 @@ import { midHead, whoHead } from "./shell-who.js";
 import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice, byUrgency, fanPlaces } from "./shell-arena-words.js";
 import { resultActions, testsWords, changesWords, foundWords, foundOf } from "./shell-review.js";
 import { OPS_VIEW } from "./shell-ops.js";
-import { pointerGuard } from "./shell-motion.js";
+import { pointerGuard, motionOn, deal } from "./shell-motion.js";
 import { thumbs, stopAll, countWords, pickSig } from "./shell-picks.js";
 import { makePanel, forget } from "./shell-pick-answer.js";
 
@@ -23,6 +23,7 @@ const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(pre
 const KIND = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
   pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
 const gemOf = (g) => h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text);       // a price, a mark or a sign (a failure's cross)
+const GHOSTS = 3, GHOST_MS = 300;                       // stops that leave with the fade in one refresh (the rest simply go), and how long it lasts (spec 58 §4; spec 49 §11.2)
 const CARD = 104, WIDTH = 330;                           // a card's width in the fan, and the room it was drawn for (the row's width less 30 px at each side)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
@@ -51,15 +52,30 @@ export function makeStops(core, ctx, needs, ops) {
   dlg.addEventListener("close", () => { stopAll(); st.hand = ""; mark(); core.draw(); });          // what changed while it was up shows now: the fan does not shift under it; a sound does not play on under it
 
   let items = [], places = [], sigs = "", raisedSig = "", raisedParty = null;          // `places[i]`: where in the row the i-th most urgent lies; `raisedParty`: the party of the stop raised (null: the one shown)
+  let drawn = [], count = 0;                                  // the stops the fan's cards stand for, and how many places the fan lays out (the stops and the ghosts still fading)
+  const ghosts = new Map();                                   // key → {item, index, at}: stops that left and fade where they lay (spec 58 §4)
+  const sigOf = (it) => it.key + JSON.stringify([it.sig, it.link]);
+  /** The fan's layout: the stops with the ghosts put back at the places they left, each with its place in the row (`places[i]` for `items[i]`). */
+  function lay() {
+    const layout = items.slice();
+    for (const g of [...ghosts.values()].sort((a, b) => a.index - b.index)) layout.splice(Math.min(g.index, layout.length), 0, g.item);
+    const spots = fanPlaces(layout.length);
+    count = layout.length;
+    places = items.map((it) => spots[layout.indexOf(it)]);
+    return { layout, spots };
+  }
   const guard = pointerGuard([el, dlg], () => api.draw());      // no lost tap: a draw waits while a pointer is down on the fan or the raised one (spec 50 §6.9)
 
   // -- the stops of the goal, each with its quick answers ----------------------------------------------------------------------------------------------
   const btn = (label, run, { primary = false, tip = "", text = false, disabled = false, attrs = {} } = {}) => h("button", { class: `ork-btn${primary ? " primary" : ""}${text ? " answer" : ""}`,
     type: "button", title: tip || null, disabled, onclick: run, ...attrs }, label);
-  /** A command of the stops: laid back first (the toast shows), then read again. */
-  const go = (name, args, said) => async () => {
+  /** A command of the stops: laid back first (the toast shows), then read again. `dealt`: the goal of a plan this press starts: answered ok, its tasks are dealt from the raised card's box onto the
+   *  stage shown (spec 57); only the party shown's plan deals (another party's tasks are not on this field). */
+  const go = (name, args, said, dealt = "") => async () => {
+    const box = dealt && !raisedParty ? body.querySelector(".raised")?.getBoundingClientRect() : null;       // read at the press, before it is lowered
     const r = await core.call(name, typeof args === "function" ? args() : args);              // read when pressed: a line typed on the raised one counts
     if (!r) return;
+    if (box && motionOn()) deal.wait(dealt, box);
     lower();
     if (said) ctx.flash(said);
     core.refresh();
@@ -82,10 +98,19 @@ export function makeStops(core, ctx, needs, ops) {
       const nodes = Object.fromEntries(nodesOf(st, slug).map((n) => [n.slug, n]));
       const picks = pickedOf(st, slug), keep = (idea) => !picks.length || picks.includes(idea);       // the filter: only the picked goals' stops and results
       const party = slug === shown ? null : { slug, name: goal.short || goal.title, head: lead };
-      const tag = (it, node, at, goalName) => ({ ...it, element: node?.element || "", at: at || "", party, goalName: goalName || "" });
-      for (const n of needsOf(st, slug).filter((x) => keep(x.idea))) out.push(tag(needItem(n, nodes[n.idea], goal, lead), nodes[n.idea], n.at, n.idea ? nodes[n.idea]?.short || nodes[n.idea]?.title || n.title : ""));
-      for (const { node, task } of failedOf(st, slug).filter(({ node: x }) => keep(x.slug))) out.push(tag(failedItem(node, task), node, task.finished, node.short || node.title));
-      for (const r of looksOf(st, slug).filter((x) => keep(x.idea))) out.push(tag(lookItem(r, nodes[r.idea]), nodes[r.idea], r.finished, r.idea_title));
+      // What the stop is about (spec 58 §1), said on its raised card when it is the party shown's: the goal's short name, with the task's title and member after it for a task's stop. A stop of another
+      // party says *<party> · <goal>* instead; a party's proposal is about no card of the field.
+      const about = (node, task, fallback = "") => {
+        const goalName = node ? node.short || node.title : "", t = task ? (node?.tasks || []).find((x) => x.id === task) : null;
+        return [goalName, task ? (t ? t.short || t.title : fallback) : "", t?.by?.name || ""].filter(Boolean);
+      };
+      const tag = (it, node, at, goalName, link = []) => ({ ...it, element: node?.element || "", at: at || "", party, goalName: goalName || "", link: party || !link.length ? null : link });
+      for (const n of needsOf(st, slug).filter((x) => keep(x.idea))) {
+        const link = n.kind === "party" ? [] : n.kind === "goal" ? [goal.short || goal.title] : about(nodes[n.idea], n.kind === "pick" ? n.task : "", n.short || n.title);
+        out.push(tag(needItem(n, nodes[n.idea], goal, lead), nodes[n.idea], n.at, n.idea ? nodes[n.idea]?.short || nodes[n.idea]?.title || n.title : "", link));
+      }
+      for (const { node, task } of failedOf(st, slug).filter(({ node: x }) => keep(x.slug))) out.push(tag(failedItem(node, task), node, task.finished, node.short || node.title, about(node, task.id, task.title)));
+      for (const r of looksOf(st, slug).filter((x) => keep(x.idea))) out.push(tag(lookItem(r, nodes[r.idea]), nodes[r.idea], r.finished, r.idea_title, about(nodes[r.idea], r.task, r.title)));
     }
     const party = shown === OPS_VIEW ? null : { ops: true, name: "Operations" };
     for (const n of (st.board?.needs_you || []).filter((x) => x.kind.startsWith("op"))) out.push({ ...opItem(n), at: n.at || "", party, goalName: "" });
@@ -99,15 +124,15 @@ export function makeStops(core, ctx, needs, ops) {
       const tasks = node?.tasks || [], checks = tasks.filter((t) => t.band === "check").length, price = planPrice(node?.plan_estimate || node?.estimate);
       const night = node?.start_at === "night", missing = n.missing || [], first = missing[0];
       const openPlan = () => btn("Open the plan", away((via) => core.open({ kind: "plan", slug: n.idea }, via)), { attrs: { "data-act": "open-plan" } });
-      const without = () => btn("Start without", go("ideas.start", { slug: n.idea, via: "hand" }, "Started."), { primary: !first?.free, tip: "Passes the plan as it is; the work starts", attrs: { "data-act": "start" } });
+      const without = () => btn("Start without", go("ideas.start", { slug: n.idea, via: "hand" }, "Started.", n.idea), { primary: !first?.free, tip: "Passes the plan as it is; the work starts", attrs: { "data-act": "start" } });
       let quick;
-      if (night) quick = () => [btn("Start now", go("ideas.start_now", { slug: n.idea, via: "hand" }, "Started."), { primary: true, tip: "Starts the plan now, instead of tonight", attrs: { "data-act": "start-now" } }), openPlan()];
+      if (night) quick = () => [btn("Start now", go("ideas.start_now", { slug: n.idea, via: "hand" }, "Started.", n.idea), { primary: true, tip: "Starts the plan now, instead of tonight", attrs: { "data-act": "start-now" } }), openPlan()];
       else if (first?.free) {
-        quick = () => [btn("Add and start", go("ideas.start", { slug: n.idea, join: { add: first.agent }, via: "hand" }, `${first.name} joined the party; the work started.`),
+        quick = () => [btn("Add and start", go("ideas.start", { slug: n.idea, join: { add: first.agent }, via: "hand" }, `${first.name} joined the party; the work started.`, n.idea),
           { primary: true, tip: `${first.name} joins the party, then the work starts`, attrs: { "data-act": "add-start" } }), without()];
       } else if (first) quick = () => [without(), btn("Edit the party", away(() => core.editParty(n.goal)), { attrs: { "data-act": "edit-party" } })];
       else {
-        quick = () => [btn("Start the work", go("ideas.start", { slug: n.idea, via: "hand" }, "Started."), { primary: true, tip: "Passes the plan; the work starts", attrs: { "data-act": "start" } }), openPlan()];
+        quick = () => [btn("Start the work", go("ideas.start", { slug: n.idea, via: "hand" }, "Started.", n.idea), { primary: true, tip: "Passes the plan; the work starts", attrs: { "data-act": "start" } }), openPlan()];
       }
       return { ...base, gem: { text: price || "—", tip: "What the plan should cost, at API prices" }, big: lead,
         text: tasks.length ? `${plural(tasks.length - checks, "task")}${checks ? `, ${plural(checks, "check")}` : ""}` : n.text, miss: missingWords(missing),
@@ -193,16 +218,18 @@ export function makeStops(core, ctx, needs, ops) {
   const partyMark = (p) => (p.ops ? icon("sliders") : p.head ? whoHead(p.head, true) : null);
 
   /** The card of the i-th most urgent stop: it stays at the i-th place of the page (the keys' and a screen reader's order) and lies at its place of the fan (CSS order); the first and the last of the row keep no outer overlap. */
-  function card(it, i, n) {
-    const place = places[i], f = fan(place, n);
-    const b = h("button", { class: `hc ${it.cls || ""}${st.hand === it.key ? " is-up" : ""}`.trim(), type: "button", "data-stop": it.key, "data-kind": it.kind, "data-place": String(place),
-      "aria-label": labelOf(it), onclick: () => pop(it.key) },
+  function card(it, place, n, ghost = null) {
+    const f = fan(place, n);
+    // `ghost`: a stop that was answered or withdrawn, fading where it lay (spec 58 §4): no button, no stop in the page, only its picture
+    const own = ghost ? { "aria-hidden": "true", "data-ghost": it.key } : { type: "button", "data-stop": it.key, "aria-label": labelOf(it), onclick: () => pop(it.key) };
+    const b = h(ghost ? "span" : "button", { class: `${ghost ? "hcg" : "hc"} ${it.cls || ""}${!ghost && st.hand === it.key ? " is-up" : ""}`.trim(), "data-kind": it.kind, "data-place": String(place), ...own },
     h("span", { class: "hc__top" }, gemOf(it.gem),
       h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element)),
     it.party ? h("span", { class: "hc__party", "data-party": it.party.ops ? "ops" : it.party.slug, title: it.party.name }, partyMark(it.party)) : null,
     it.miss ? h("span", { class: "hc__miss" }, it.miss) : null, it.thumbs ? it.thumbs() : null);
     for (const [k, v] of [["--rot", `${f.rot}deg`], ["--dy", `${f.dy}px`], ["--z", String(f.z)], ["--ov", `${f.ov}px`]]) b.style.setProperty(k, v);
     b.style.order = String(place);
+    if (ghost) b.style.animationDelay = `${-Math.min(GHOST_MS, Date.now() - ghost.at)}ms`;       // a draw in the middle of the fade goes on from where it was
     if (place === 0) b.style.marginLeft = "0px";                             // the fan never spills onto the margins
     if (place === n - 1) b.style.marginRight = "0px";
     return b;
@@ -220,7 +247,8 @@ export function makeStops(core, ctx, needs, ops) {
         h("button", { class: "ork-btn quiet", type: "button", "aria-label": "Put it back", onclick: lower }, icon("close"))),
       it.big ? h("span", { class: "art" }, midHead(it.big)) : null,
       h("span", { class: "banner" }, it.title),
-      it.party ? h("p", { class: "cap raised__goal", "data-party": it.party.ops ? "ops" : it.party.slug }, partyMark(it.party), " ", [it.party.name, it.goalName].filter(Boolean).join(" · ")) : null,   // *<party> · <goal>*
+      it.party ? h("p", { class: "cap raised__goal", "data-party": it.party.ops ? "ops" : it.party.slug }, partyMark(it.party), " ", h("span", { class: "raised__words" }, [it.party.name, it.goalName].filter(Boolean).join(" · ")))   // *<party> · <goal>*
+        : it.link ? h("p", { class: "cap raised__goal is-link", "data-link": "" }, h("span", { class: "raised__words" }, it.link.join(" · "))) : null,       // *<goal> · <task> · <member>* (spec 58 §3)
       h("div", { class: "raised__text" }, it.text),
       it.miss ? h("p", { class: "muted raised__miss" }, it.miss) : null,
       it.more ? it.more() : null,
@@ -250,12 +278,12 @@ export function makeStops(core, ctx, needs, ops) {
   function showRaised(at, leaps = false) {
     const it = items[at];
     raisedParty = it.party;
-    const node = raise(it, at, items.length);
+    const node = raise(it, at, count);
     node.classList.toggle("is-pop", leaps && !reducedMotion());
     stopAll();                                              // new tiles replace the old: what played there does not play on unseen
     body.replaceChildren(node);
     dlg.setAttribute("aria-label", labelOf(it));
-    raisedSig = it.key + JSON.stringify(it.sig);
+    raisedSig = sigOf(it);
   }
 
   const api = {
@@ -271,16 +299,24 @@ export function makeStops(core, ctx, needs, ops) {
       if (guard.waits()) return;
       forget((st.board?.needs_you || []).filter((n) => n.kind === "pick"));        // a draft of a pick that is answered is let go
       items = byUrgency(build());
-      places = fanPlaces(items.length);
-      const sig = JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig, i.party, i.goalName])) + st.hand;
-      if (sig !== sigs && !dlg.open) {
-        sigs = sig;
-        hand.replaceChildren(...items.map((it, i) => card(it, i, items.length)));
+      const keys = new Set(items.map((i) => i.key));
+      for (const [key, g] of ghosts) if (keys.has(key) || Date.now() - g.at >= GHOST_MS) ghosts.delete(key);       // faded, or back
+      const sigNow = () => JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig, i.link, i.party, i.goalName])) + st.hand + ghosts.size;
+      let layout = lay();
+      if (sigNow() !== sigs && !dlg.open) {
+        if (motionOn()) {                                          // a stop that is gone leaves where it lay, in the render that rereads the Board (spec 58 §4); none under reduced motion or a hidden page
+          let k = 0;
+          drawn.forEach((it, index) => { if (!keys.has(it.key) && !ghosts.has(it.key) && ++k <= GHOSTS) ghosts.set(it.key, { item: it, index, at: Date.now() }); });
+          if (ghosts.size) { layout = lay(); setTimeout(() => api.draw(), GHOST_MS + 20); }
+        }
+        sigs = sigNow();
+        drawn = items;
+        hand.replaceChildren(...layout.layout.map((it, j) => card(it, layout.spots[j], count, ghosts.get(it.key)?.item === it ? ghosts.get(it.key) : null)));
         empty.hidden = items.length > 0;
       }
       if (st.hand) {
         const at = items.findIndex((i) => i.key === st.hand);
-        if (at < 0) { if (dlg.open) lower(); st.hand = ""; mark(); } else if (dlg.open && raisedSig !== items[at].key + JSON.stringify(items[at].sig)) showRaised(at);
+        if (at < 0) { if (dlg.open) lower(); st.hand = ""; mark(); } else if (dlg.open && raisedSig !== sigOf(items[at])) showRaised(at);
       }
     },
   };
