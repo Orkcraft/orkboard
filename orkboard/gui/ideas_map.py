@@ -1,13 +1,17 @@
 """The Map (docs/specs/39-map.md §2) as `gui/ideas.py`'s `Ideas` has it: `ideas.map`, a view of what the Board holds
 (realm/board_map.py). It changes nothing, but for one thing: a goal of before has no element (spec 50 §2.3), and the first
-time the Map reads it one is given and stored (once, ever; `ideas_rev` does not move). Split from ideas.py to keep it under ~600 lines.
+time the Map reads it one is given and stored (once, ever; `ideas_rev` does not move). A party carries its goal types (spec 52
+§2.4: its leader's set, the most used first, with what each misses of the party), read here with the map: the pure
+`board_map.build` reads no runs. Split from ideas.py to keep it under ~600 lines.
 """
 from __future__ import annotations
 
 import time
+from collections import Counter
+from pathlib import Path
 
 from orkboard.gui.ideas_args import IdeasError, _opt
-from orkboard.realm import board_map, idea_element, ideas
+from orkboard.realm import board_map, goal_types, idea_element, ideas
 
 
 class MapMixin:
@@ -36,4 +40,17 @@ class MapMixin:
                     continue                                             # a disk that refuses: the faces draw it dim, the next read tries again
                 if n["state"] != "done":
                     used[n["goal"]].append(n["element"])
+        for g in got["goals"]:
+            g["types"] = self.types_of(root, g["slug"], [n["slug"] for n in got["nodes"] if n["goal"] == g["slug"]])
         return got
+
+    def types_of(self, root: Path, party: str, goals: list[str]) -> list[dict]:
+        """A party's goal types (spec 52 §2.4): its leader's set, the most used first (`used`: how many of its goals, of any
+        state, have that type), ties in the set's order; each with what it misses of the party (realm/goal_types.py `missing`)."""
+        p = goal_types.Party(self.state_dir, root, party)
+        used = Counter(ideas.state(self.state_dir, slug).get("type") for slug in goals)
+        rows = [{"id": t.id, "name": t.name, "sign": t.sign, "line": t.line, "lens": t.lens,
+                 "asks": [{"id": a.id, "label": a.label, "hint": a.hint} for a in t.asks], "refs": t.refs,
+                 "used": used[goal_types.key(p.leader, t.id)], "missing": goal_types.missing(self.state_dir, root, party, t.needs, read=p)}
+                for t in goal_types.of(p.leader)]
+        return sorted(rows, key=lambda r: -r["used"])

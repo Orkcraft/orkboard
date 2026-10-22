@@ -77,3 +77,19 @@ def test_a_pick_asked_and_answered_are_events_with_what_the_measure_needs(tmp_pa
     assert (asked["event"], asked["n"], asked["media"], asked["round"]) == ("pick_asked", 4, "image", 1)
     assert (answered["key"], answered["note_chars"], answered["via"], answered["seconds"], answered["device"]) == ("B", 0, "hand", 12.5, "phone")
     assert event_log.counts(tmp_path)["pick_asked"] == 1 and event_log.counts(tmp_path)["pick_answered"] == 1
+
+
+def test_a_goal_of_a_type_who_joins_and_a_plans_missing_are_in_the_events_spec_52(tmp_path):
+    """Spec 52 §2.7: `idea_added` with its type, asks answered, Refs' pictures, who joined and who left; `goal_saved` with
+    joined, out and via; `plan_passed` with who joined and how many kinds the plan missed."""
+    assert event_log.record(tmp_path, event_log.IDEA_ADDED, idea="logo", track="brand", type="product-designer/logo", asks=1,
+                            refs=2, joined="artist", out="", device="desktop")
+    assert event_log.record(tmp_path, event_log.GOAL_SAVED, goal="brand", new=False, joined="artist", out="ui-kit", via="type")
+    assert event_log.record(tmp_path, event_log.PLAN_PASSED, idea="logo", tasks=3, by="person", joined="", missing=1)
+    added, saved, passed = event_log.read(tmp_path)
+    assert (added["type"], added["asks"], added["refs"], added["joined"], added["out"]) == ("product-designer/logo", 1, 2, "artist", "")
+    assert (saved["joined"], saved["out"], saved["via"]) == ("artist", "ui-kit", "type")
+    assert (passed["joined"], passed["missing"]) == ("", 1)
+    from pathlib import Path
+    source = Path(event_log.__file__).read_text(encoding="utf-8")
+    assert "type (its goal type's key" in source and 'via ("type"' in source and "missing (how many kinds" in source     # the fields named where the events are

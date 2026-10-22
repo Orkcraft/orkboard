@@ -48,6 +48,7 @@ from orkboard.gui.ideas_review import ReviewMixin
 from orkboard.gui.ideas_lens import LensMixin
 from orkboard.gui.ideas_limits import LimitsMixin
 from orkboard.gui.ideas_roles import RolesMixin
+from orkboard.gui.ideas_types import TypesMixin
 
 RUNNER_TICK_S = 3.0               # how often the runner looks at its tasks
 SNAPSHOT_S = 10.0                 # the most a cached Needs you count is kept without a change
@@ -83,7 +84,8 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, RecapMixin, RolesMixin, ReviewMixin, BoardMixin):
+class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, RecapMixin, RolesMixin, ReviewMixin, TypesMixin,
+            BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
         host makes one from its town, Orkboard its own."""
@@ -100,6 +102,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         self._seen: dict[str, tuple[str, float]] = {}     # slug → (state, when it began): keeper_state
         self._what: dict[str, str] = {}                   # slug → what its next Board commit says (spec 35 §13)
         self._limits_logged = float("-inf")
+        self._passing: dict[str, dict] = {}               # slug → what its plan_passed says of a join (gui/ideas_types.py)
         self.keeper = idea_keeper.IdeaKeeper(
             self.host.repo_root, self.state_dir, self.keeper_root, self.settings_now, self._publish,
             demo=bool(self.host.demo), budget_ok=lambda: self.host.budget_ok(), limits=lambda: list(self.host.limits() or []),
@@ -163,10 +166,12 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
     # -- the event log (spec 33 §9): every action of the shell, for the day's analysis ------------------------
 
     def _ev(self, event: str, args: dict | None = None, **fields: Any) -> None:
-        """One line of `.orkcraft/usage/events.jsonl`; none in the demo. `device`: "phone" (put there by the listener) or "desktop"."""
+        """One line of `.orkcraft/usage/events.jsonl`; none in the demo. `device`: "phone" (put there by the listener) or "desktop";
+        `goal_saved` and `plan_passed` with spec 52 §2.7's fields (gui/ideas_types.py `type_fields`)."""
         if not self.host.demo:
             if args is not None:
                 fields["device"] = _device(args)
+            fields.update(self.type_fields(event, fields))
             event_log.record(Path(self.host.repo_root), event, **fields)
 
     def _state_event(self, slug: str) -> None:
@@ -298,7 +303,8 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                 "state": st["state"], "size": page.get("size") if page.get("size") in ideas.SIZES else "",
                 "sections": [{"name": n, "thesis": ideas.thesis(page.section(n)), "text": page.section(n)}
                              for n in names],
-                "talk": ideas.talk(self.state_dir, slug), "plan": self._with_heads(plan),
+                "talk": ideas.talk(self.state_dir, slug),
+                "plan": {**self._with_heads(plan), "missing": self.plan_missing(slug, plan)} if plan else plan,     # read now (spec 52 §2.6)
                 "busy": bool(self.keeper.busy(slug)) or st["state"] in ("reading", "planning"),
                 "state_error": st.get("error", ""), "proposed_track": page.get("proposed_track"),
                 "lens": idea_lens.read(self.state_dir, slug)}
@@ -309,7 +315,8 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         """An idea: a text, its goal (never General: that is the system's) and a priority (default the goal's). High
         and Normal are drafted at once, Low and a closed dialog's (`night`) wait for the night (spec 35 §3). `photos`
         (the phone's, base64) are kept beside it for the Taskmaster to read (realm/idea_photos.py), and `lens`, what the
-        person pointed at with the lens of the goal's party (realm/idea_lens.py)."""
+        person pointed at with the lens of the goal's party (realm/idea_lens.py). Spec 52 §2.3: `type` (one of the party's
+        leader's), its `asks` (written after the text) and `join` (who joins the party first: gui/ideas_types.py)."""
         text = _text(args, "text", ideas.SECTION_CHARS)
         track = _opt(args, "track")
         goals = {t["slug"]: t for t in ideas.tracks(self.root(), make=False)}
@@ -325,17 +332,27 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         except ValueError as e:
             raise IdeasError(str(e)) from None
         pointed = self._lens_args(args)
-        queue = "night" if priority == "low" or args.get("night") is True else "now"
-        slug = ideas.add_idea(self.root(), text, track, self.state_dir, priority, queue,
-                              night_by="person" if args.get("night") is True else "board")      # a Low idea the Board puts off itself; the person's own night is theirs (spec 44 §2)
+        typed = self.typed(args, track, goals[track]["title"])
+        night = args.get("night") is True
+        queue = "night" if priority == "low" or night else "now"
+        with ideas.LOCK:                        # the party changes before the goal, under the same lock; never for tonight's (spec 52 §2.3)
+            joined = self.join_goal(track, typed, args) if not night else None
+            slug = ideas.add_idea(self.root(), self.with_asks(text, typed), track, self.state_dir, priority, queue,
+                                  night_by="person" if night else "board")      # a Low idea the Board puts off itself; the person's own night is theirs (spec 44 §2)
+            if typed["key"]:
+                ideas.save_state(self.state_dir, slug, type=typed["key"])
+        if joined:
+            self.changed(f"goal:{track}")
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
         idea_lens.save(self.state_dir, slug, pointed)
         element = idea_element.give(self.root(), self.state_dir, slug)    # the mark of every card of it (spec 50 §2.3)
-        ideas.add_turn(self.state_dir, slug, "you", text, "Gist")     # the person's own words, kept
+        ideas.add_turn(self.state_dir, slug, "you", self.with_asks(text, typed), "Gist")     # the person's own words, kept
         self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
-                 priority=priority, queue=queue, photos=len(photos), lens=[a["kind"] for a in pointed])
-        out = {"slug": slug, "queue": queue, "element": element}
+                 priority=priority, queue=queue, photos=len(photos), lens=[a["kind"] for a in pointed], type=typed["key"],
+                 asks=typed["answered"], refs=len(photos) if typed["type"] and typed["type"].refs else 0,
+                 joined=(joined or {}).get("add", ""), out=(joined or {}).get("out", ""))
+        out = {"slug": slug, "queue": queue, "element": element, "type": typed["key"], "joined": joined}
         if queue == "now":                      # drafted at once, in the background (held in a spent window)
             try:
                 self.keeper.draft(slug)
@@ -364,14 +381,20 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         return {"ok": True}
 
     def start(self, args: dict) -> dict:
-        """The person passes the plan (`passed_by: "person"`): it is the runner's from now on, and it starts."""
+        """The person passes the plan (`passed_by: "person"`): it is the runner's from now on, and it starts. `join: {add}`
+        (Add and start, spec 52 §2.6): the agent the plan misses joins the party first (gui/ideas_types.py)."""
         slug = _text(args, "slug", 100)
         if ideas.plan(self.state_dir, slug) is None:
             raise IdeasError("This goal has no plan yet: Take it to work first")
         st = self._state(slug)["state"]
         if st not in ("plan", "failed", "working"):
             raise IdeasError("Its plan is not ready")
-        self.pass_plan(slug, "person", args=args)
+        self.runner(need=True)                  # a build with no runner changes no party
+        self._passing[slug] = self.start_join(slug, args)
+        try:
+            self.pass_plan(slug, "person", args=args)
+        finally:
+            self._passing.pop(slug, None)
         self.changed(slug)
         return {"ok": True}
 

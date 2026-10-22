@@ -433,3 +433,31 @@ def test_a_partys_brief_is_its_descriptions_first_paragraph_else_its_summarys_fi
     assert briefs[both] == "The first paragraph runs over two lines."
     assert briefs[long] == "w" * 139 + "…" and len(briefs[long]) == 140
     assert briefs[titled] == "Summary line one" and briefs[bare] == ""
+
+
+def test_a_plan_rows_missing_is_read_against_the_party_now_and_a_node_says_its_type_spec_52(host):
+    """Spec 52 §2.2, §2.6: Needs you's plan row says what no one of the party does, read now (a member added since drops out;
+    a plan made before has none); a node carries its type `{id, name, sign}`, None with none or an unknown key."""
+    root, state = _board(host)
+    g = _goal(root, "Brand")
+    _roles(state, "grunt", "product-designer")
+    goal_team.set_team(root, g, ["grunt"], leader="product-designer")
+    slug = _idea(root, state, g, "A logo", state="plan", type="product-designer/logo")
+    blank = _idea(root, state, g, "Blank", state="ready")
+    odd = _idea(root, state, g, "Odd", state="ready", type="nobody/logo")
+    _plan(state, slug, [_t("k1", "ready")], passed_at=None, missing=[{"kind": "art", "agent": "artist"}])
+    i = next(x for x in ideas.ideas(root) if x["slug"] == slug)
+
+    def row():
+        (got,) = [n for n in board_map.idea_needs(root, state, i, ideas.state(state, slug), ideas.plan(state, slug), []) if n["kind"] == "plan"]
+        return got["missing"]
+    assert row() == [{"kind": "art", "words": "pixel art", "agent": "artist", "name": "Artist", "band": "build", "free": True}]
+    _roles(state, "artist")
+    goal_team.set_team(root, g, ["grunt", "artist"])
+    assert row() == []                                                                          # the Artist joined since
+    goal_team.set_team(root, g, ["grunt"])
+    ideas.edit_plan(state, slug, lambda p: p.pop("missing"))
+    assert row() == []                                                                          # a plan made before has none
+    nodes = {n["slug"]: n for n in board_map.build(root, state, goal=g)["nodes"]}
+    assert nodes[slug]["type"] == {"id": "logo", "name": "New logo", "sign": "logo"}
+    assert nodes[blank]["type"] is None and nodes[odd]["type"] is None

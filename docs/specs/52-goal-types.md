@@ -371,3 +371,41 @@ keeps what it proves. C: the phone browser tests that tap the *where* button or 
 `test_pwa_map39_browser`, `test_pwa_board35_browser`, `test_pwa_party_proposals_browser`, `test_pwa_races_browser`,
 `test_pwa_ops38_browser`, `test_pwa_pick_browser`, `test_pwa_goal*`). A part that needs any other file: stop and write
 it in the spec's *As built* first.
+
+## 10. As built (notes, no change of the contract)
+- **A (the host).** Built as §2, with these choices. (1) *Where it lives.* The types, `taker`, `met`, `missing` and two more
+  readers are `realm/goal_types.py`: `of_plan` (a plan's `missing` after its roles are given, which `core/idea_keeper.py`
+  calls), `still_missing` (a plan's `missing` read against the party now, which `realm/board_map.py` `idea_needs` calls),
+  `prompt_line` (the line of both prompts) and `Party` (a party read once: its leader, team and craft, who has work open
+  and the week's runs, read when first asked, so the map reads each party once for all its types). The host's half is
+  `gui/ideas_types.py` (`TypesMixin`: the type and its asks read, who joins checked and the party changed, `ideas.start`'s
+  join, the events' fields), since `gui/ideas.py` would have passed ~600 lines (it is 560). (2) *The asks' ids* are
+  `did`, `happened`, `expected` (Fix a bug), `in-the-way`, `avoid`, `shape`, `who`, `where`, `says`, `moves`, `question`,
+  `reader`, `for`, `from`, `channel`; `refs` is Refs' links and no ask's id. An answer is one line: its spaces run together
+  and cut at both ends, then cut at 300 characters. The lines stand after the text and a blank line, and the person's turn
+  in the talk holds the same words. (3) *Refusals the contract had no words for*: an ask the type has not, *<type name>
+  has no field “<id>”*; asks with no type, *A goal with no type has no fields of its own*; an `out` that is not of the
+  taker's band, *<name> is not one of the party's builders* (checkers); a malformed `asks` or `join`, a line saying what
+  they are. (4) *`join` with `night: true`* is left out, not refused: the goal is kept with its type and asks, the party is
+  unchanged and `joined` is null, so a closed form's words are never lost. A Low goal from *Add the goal* may bring
+  someone. (5) *A swap* puts the agent in the seat of the one who leaves (a free seat: last); the leaver leaves `every`;
+  the saved party's id is cleared as any change of a party clears it (`goal_team.set_team`), and a proposal about a checker
+  who left goes (`party_proposals.drop_left`), as `ideas.goal_save` does. (6) *§2.7's fields on events written in other
+  files* (*Edit the party*'s `goal_saved` in `gui/ideas_goals.py`, `plan_passed` in `gui/ideas_board.py`, the person's
+  pass and autostart's) are put by `Ideas._ev`, the one writer of the Board's events (`TypesMixin.type_fields`), so those
+  files are unchanged. `plan_passed`'s `missing` is the plan's `missing` read against the party at the press, before a
+  join: *Add and start* says `joined: "artist", missing: 1`, *Start without* `joined: "", missing: 1`, autostart's pass
+  reads it then. `idea_added`'s `chars` stays the person's text alone; its `asks` counts the type's asks answered (Refs'
+  links are not one); its `refs` counts the goal's photos when its type has Refs (the form's pictures are Refs'). (7)
+  *"`ideas.plan` answers the same"* is read as `ideas.page`'s `plan` (the drawer's plan screen): its `missing` is the
+  row's, read now; `ideas.plan` itself only starts a re-plan. (8) *A task open* is one not merged, not `dropped`, not
+  failed as *dropped by you* (core/idea_review.py's drop) and of a goal not done (a failure waits: its member stays);
+  whose it is: `roles.task_slug` (its role, else its kind's). (9) *`ideas.start` with `join`* checks the runner before the
+  party changes; the tasks given their role again are those `waiting`, `ready` or `held`, by the team then the leader as
+  `plan_one` gives them; the plan's own `missing` is kept as it was made (the row reads it now). (10) *The prompt line*
+  with no `plan` is `Its type: <name>.`, right after the photos' and the lens' lines. A goal type's key is the leader's at
+  the time (`<leader>/<id>`); `get` reads a library leader with no set of its own in the general set, any other unknown
+  key as none. The map's `types` follow `goal_team.leader_of`, as `ideas.add` checks them. (11) *Tests*: the signs' test
+  takes A0's eleven by name until orkUI 0.3.3's copy is in `design-system/orkui/signs/` (`tests/test_goal_types.py`
+  `A0_SIGNS`). **Beyond A's row** (§9): `tests/test_idea_element.py`'s set of `ideas.add`'s answer gains `type` and
+  `joined`.

@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_flags, goal_verdict, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
+from orkboard.realm import goal_flags, goal_types, goal_verdict, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
 from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
@@ -51,9 +51,10 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
         asked = [idea_questions.parse(q) for q in asks[:5]]
         out.append({**base, "kind": "asks", "text": asked[0]["ask"] if asked else "The keeper asks you", "questions": asks[:5],
                     "asked": asked})
-    if state == "plan" and plan and not plan.get("passed_at"):
+    if state == "plan" and plan and not plan.get("passed_at"):            # its `missing`: what no one of the party does, read now (spec 52 §2.6)
         out.append({**base, "kind": "plan", "text": "Plan ready" + (f" · {len(tasks)} tasks" if tasks else ""),
-                    "at": str(plan.get("made_at") or base["at"])})
+                    "at": str(plan.get("made_at") or base["at"]),
+                    "missing": goal_types.still_missing(state_dir, root, i["track"], plan.get("missing"))})
     if state == "proposed":
         out.append({**base, "kind": "proposal", "text": ideas.thesis(
             (ideas.idea_page(root, slug) or ideas.Page()).section("Gist")) or "The keeper proposes this"})
@@ -75,6 +76,12 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
                         "at": str(plan.get("made_at") or base["at"]),
                         "todo": {k: td.get(k) for k in ("id", "title", "kind", "why", "choices", "steps", "accept", "done")}})
     return out
+
+
+def type_of(st: dict) -> dict | None:
+    """A goal's type as a node carries it (spec 52 §2.2): `{id, name, sign}`; None with none or an unknown key."""
+    t = goal_types.get(st.get("type"))
+    return {"id": t.id, "name": t.name, "sign": t.sign} if t is not None else None
 
 
 def task_short(t: dict) -> str:
@@ -290,7 +297,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             est = (plan or {}).get("estimate")
             waves = map_stage.waves_of(tasks)
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
-                    "element": st.get("element") or "", "flag": idea_flag.flag_of(state_dir, slug),
+                    "element": st.get("element") or "", "flag": idea_flag.flag_of(state_dir, slug), "type": type_of(st),
                     "held_until": r["held_until"], "start_at": r["start_at"], "night_by": r["night_by"], "by_pace": bool((plan or {}).get("by_pace")),
                     "priority": r["priority"], "size": r["size"],
                     "risk": r["risk"], "tier": tier[slug], "depends_on": r["depends_on"], "waits_on": r["waits_on"],

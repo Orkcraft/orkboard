@@ -219,3 +219,30 @@ def test_an_unpriced_call_writes_null_a_goals_goes_to_the_goal_and_the_nights_to
     keeper.ask("propose", "propose", tools=False)
     (night,) = idea_spend.read(keeper.state / "ideas" / "spend-board.jsonl")
     assert night["step"] == "propose" and night["role"] == "taskmaster"
+
+
+def test_a_plan_says_the_kinds_no_one_of_its_party_does_and_its_prompt_says_the_goals_type_spec_52(keeper):
+    """Spec 52 §2.5, §2.6: after the roles are given, `missing` (kinds the party does not meet, with who would, once each in the
+    plan's order); a goal with no team has none; the plan prompt's type line."""
+    from orkboard.realm import goal_team, goal_types, library
+    party = ideas.add_track(keeper.root, "Brand")
+    library.install(keeper.state, ["grunt", "product-designer"])
+    goal_team.set_team(keeper.root, party, ["grunt"], leader="product-designer")
+    slug = ideas.add_idea(keeper.root, "a logo for the app", party, state_dir=keeper.state)
+    ideas.save_state(keeper.state, slug, type="product-designer/logo")
+    keeper.call = Model({"tasks": [{"id": "a", "title": "Draw", "brief": "Draw it", "kind": "art"},
+                                   {"id": "b", "title": "Wire", "brief": "Use it", "kind": "code"},
+                                   {"id": "c", "title": "Kit", "brief": "Add it", "kind": "uikit"},
+                                   {"id": "d", "title": "Again", "brief": "Draw more", "kind": "art"},
+                                   {"id": "e", "title": "Flows", "brief": "Write them", "kind": "design"}]})
+    keeper.plan(slug)
+    _wait(keeper, slug)
+    plan = ideas.plan(keeper.state, slug)
+    assert [t["role"] for t in plan["tasks"]] == ["grunt", "grunt", "grunt", "grunt", "product-designer"]
+    assert plan["missing"] == [{"kind": "art", "agent": "artist"}, {"kind": "uikit", "agent": "ui-kit"}]
+    assert f"Its type: New logo. {goal_types.get('product-designer/logo').plan}\n" in keeper.call.asked[0]["prompt"]
+    bare = ideas.add_idea(keeper.root, "export csv", state_dir=keeper.state)
+    keeper.call = Model({"tasks": [{"id": "a", "title": "Draw", "brief": "Draw it", "kind": "art"}]})
+    keeper.plan(bare)
+    _wait(keeper, bare)
+    assert ideas.plan(keeper.state, bare)["missing"] == [] and "Its type:" not in keeper.call.asked[0]["prompt"]
