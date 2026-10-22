@@ -867,3 +867,29 @@ truncates the name. So:
 5. Reverses spec 53 §3's place of the type (before the goal's name, muted) and spec 50 §3.4's mark top right. A type is
    still never a colour of its own (§65.4): it takes its goal's. No orkUI change; the interface never names an element.
 The owner's call on the cards as built, before the testers' numbers, as §62–§67. Spec 55.
+
+## 69. Parties of mixed crafts first; the leader sets the stages and their seats; the goal types come from the team, not the leader (22 October, the owner)
+
+Why: the owner, going through the library's parties and their goal types: *the parties used most will be mixed ones, a
+game's (its leader a game designer) or a mobile app's (a product leader, and besides the code ASO and an Artist for the
+pictures), more often than a party of one craft.* Spec 52 gave the goal types to the leader (§65.4), so a mobile app's
+party led by the Product manager dealt *Solve a pain*, *Try an experiment*, *Write the launch* and never a store listing,
+whoever was in it; and every party had the same seats (one leader, three builders, two checkers), so a game's party
+(code, art, levels, sound) did not fit. So:
+1. **The library gives parties of mixed crafts, first**: *Game*, *Mobile app*, *Website*, then the parties of one craft
+   as today. New agents for them: a Game designer (an elf, a leader), a Level designer and a Sound designer (elves), a
+   Playtester (an elf, a checker), ASO (a gnome).
+2. **The leader sets the stages**: their words and how many seats each has, one leader and five more at most (the party
+   stays six). A Game designer's: *Concept* (it), *Build* (four), *Playtest* (one). A stage is still one of the three
+   bands (plans, builds, checks), so who plans, who takes a task by its kind and whose check joins a goal stay as they are.
+   The leaders of today keep *Planning*, *Implementation*, *Checking* and three and two seats.
+3. **The goal types come from the team** (reverses §65.4's dealer): one catalog of types, each with the kinds of work it
+   needs; a party offers every type its members (the leader with them) can do, and those it misses **one** agent for, with
+   §65.5's *needs:* and its join or swap. A type that stands in for a general one (a designer's *New feature*, a flow and
+   its screens, for the general *New feature*) hides it when the party can do it. A type is still told by its sign (§65.4).
+4. A goal keeps its type by the catalog's id; a type kept before by its leader (`architect/feature`) is read as the one
+   the catalog gives it.
+5. **Measured**: the share of new parties from each of the library's, mixed and of one craft; the types offered, picked and
+   joined for, by party; whether a party with four builders swaps less than one with three.
+Steps of a type's own (a skeleton the plan must keep) wait for the numbers: first see where a typed goal's plans differ.
+The owner's call on the library before the testers' numbers, as §62–§68. Spec 56.
