@@ -218,6 +218,9 @@ async def test_let_the_asker_decide_sends_decide_for_a_question_a_partys_questio
     SCENE["needs"][1]["asked"][0].pop("by", None)                                                                                                            # a question of no one's: the leader's, the Taskmaster
     SCENE["map"]["nodes"][[n["slug"] for n in SCENE["map"]["nodes"]].index("second")]["asked"][0].pop("by", None)
     goal = {"ask": "Which colours?", "choices": ["Dusk", "Dawn"], "pick": 1, "why": "", "by": {**QUILL, "head": ELF}}
+    two = [{"ask": "Which colours?", "choices": ["Dusk"], "pick": 0, "why": "", "by": {**QUILL, "head": ELF}}, {"ask": "And the layout?", "choices": ["Wide"], "pick": 0, "why": "", "by": {**QUILL, "head": ELF}}]
+    SCENE["map"]["nodes"].append(node("multi", "Two questions", "asks", "planning", needs_you="asks", asked=two))
+    SCENE["needs"].append({"kind": "asks", "idea": "multi", "goal": "passkey", "title": "Two questions", "text": "Which colours?", "priority": "normal", "blocks": False, "at": STAMP, "asked": two})
     SCENE["needs"].append({"kind": "goal", "goal": "tech", "title": "Tech’s colours", "text": "Which colours?", "priority": "normal", "blocks": False, "at": "2026-10-20T09:00:00", "asked": [goal]})
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".hc").first.wait_for(timeout=WAIT_MS)
@@ -240,15 +243,13 @@ async def test_let_the_asker_decide_sends_decide_for_a_question_a_partys_questio
         await party.get_by_role("button", name="Let Quill decide").click()
         assert await _called(stub, "ideas.answer", {"slug": "tech", "decide": True, "goal": True})
         await party.wait_for(state="hidden", timeout=WAIT_MS)
-        SCENE["needs"][1]["asked"].append({"ask": "And the layout?", "choices": ["Wide"], "pick": 0, "why": "", "by": {**QUILL, "head": ELF}})            # two questions: the form
-        stub.bump({})
-        await page.wait_for_timeout(700)
-        two = await _pop(page, "Asks you: Passkey on a second device")
-        await two.get_by_role("button", name="Open…").click()
+        several = await _pop(page, "Asks you: Two questions")                                                                                               # two questions: the form
+        assert [await b.inner_text() for b in await several.locator(".raised__quick button").all()] == ["Send the picks", "Open…", "Let Quill decide"]
+        await several.get_by_role("button", name="Open…").click()
         form = page.get_by_role("dialog", name="Questions")
         await form.wait_for(timeout=WAIT_MS)
-        await form.get_by_role("button", name="Let the Taskmaster decide").click()                                                                           # the first question's asker (none: the leader)
-        assert await _called(stub, "ideas.answer", {"slug": "second", "decide": True})
+        await form.get_by_role("button", name="Let Quill decide").click()                                                                                    # the first question's asker
+        assert await _called(stub, "ideas.answer", {"slug": "multi", "decide": True})
         await form.wait_for(state="hidden", timeout=WAIT_MS)
 
 
