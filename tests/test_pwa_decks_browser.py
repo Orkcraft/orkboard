@@ -1,7 +1,7 @@
 """Spec 50 part C, the phone (docs/specs/50-parties-and-goals.md §6, §7 "C"): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py (a party, *Sign in with a
 passkey*, of a leader, two builders and two checkers; goals in each stage, a goal's tasks in one phase after another, goals done and flagged). No lost tap (a redraw waits while a
 pointer is down; the holds redraw only what they held back); the party's deck and its sheet, the project's button and its sheet, the menu without the projects, Today in the menu; no chips row; the goals bar with the gate and About this
-party; the goals sheet with the filter; the rows by phase and the stacks of cards; a spread's strip; the members' strip; the create button's deck and New goal's turn; the flag line; 44 px targets;
+party; the goals sheet with the filter; the rows by phase and the stacks of cards; a spread's strip; the members' strip; the create button's deck and New goal's slide; the flag line; 44 px targets;
 the service worker."""
 from __future__ import annotations
 
@@ -551,53 +551,31 @@ async def test_a_swipe_on_the_strip_is_a_scroll_not_a_tap_and_it_never_holds_a_r
 # -- the create button, a face-down deck, and New goal's card (spec 50 §6.7, §4.2) ------------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_new_goal_turns_a_blank_card_over_from_the_button_to_the_middle_then_the_full_screen_form_opens(fake_repo, monkeypatch):
+async def test_new_goal_slides_the_full_screen_form_up_at_once_with_no_card_lifted_dealt_or_turned(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch, init=RECORD_DEAL) as (stub, page):
         fab = page.locator(FAB)
         await fab.wait_for(timeout=WAIT_MS)
-        fb = await fab.bounding_box()
-        await fab.click()                                                                                                             # one tap: the top card lifts, turns over and grows
-        layer = page.locator(".drawlayer")
-        await layer.wait_for(timeout=WAIT_MS)                                                                                         # the blank card turns …
-        assert await page.locator("dialog.full[open]").count() == 0                                                                   # … and the form is not open yet
-        turn = [d for d in await page.evaluate("() => window.__deal") if d["el"] == "drawcard"]
-        assert len(turn) == 1 and turn[0]["ms"] == 500 and turn[0]["easing"] == "steps(8)" and "rotateY(0deg)" in turn[0]["from"] and "rotateY(180deg)" in turn[0]["to"]     # ≈ 0.5 s, in steps, turned over
-        assert turn[0]["n"] == 3                                                                                                      # lifted off the deck first, then turned and grown
-        m = re.search(r"translate\((-?\d+)px, (-?\d+)px\)", turn[0]["from"])
-        assert abs(fb["x"] + fb["width"] / 2 - 195 - int(m.group(1))) <= 2 and abs(fb["y"] + fb["height"] / 2 - 422 - int(m.group(2))) <= 2                       # it starts at the button, ends in the middle
-        assert await layer.locator(".drawcard__back .ork-icon").count() == 1                                                          # a back with orkUI's plus
+        await fab.click()                                                                                                             # one tap: the form, at once
         form = page.get_by_role("dialog", name="New goal")
-        await form.wait_for(timeout=WAIT_MS)                                                                                          # then the form
-        await layer.wait_for(state="detached", timeout=WAIT_MS)
+        await form.wait_for(timeout=WAIT_MS)
+        assert await page.locator(".drawlayer, .typedeal").count() == 0 and [d for d in await page.evaluate("() => window.__deal") if d["el"] == "drawcard"] == []     # no lift, no deal, no turn
+        await page.wait_for_function("() => !document.getAnimations().some((a) => a.playState === 'running')", timeout=WAIT_MS)
         box = await form.bounding_box()
         assert box["x"] == 0 and box["y"] == 0 and box["width"] == 390 and box["height"] == 844                                      # full-screen
-        assert norm(await form.locator(".newgoal__head").inner_text()) == "A blank goal for Sign in with a passkey · the Taskmaster reads it next"
-        assert await form.locator(".newgoal__el .ork-elem.big.lava").count() == 1 and "Its element marks every task of it." in await form.inner_text()      # the element it will get, shown, never named
-        assert not re.search(r"lava|meadow|dust|void|ice\b", await form.inner_text())
+        text = await form.inner_text()
+        assert not re.search(r"lava|meadow|dust|void|ice\b", text) and "Its element marks every task of it." not in text             # the element is the host's: the form says none
         add = form.get_by_role("button", name="Add the goal")
         assert await add.is_disabled() and await form.get_by_role("button", name="Put it back").is_visible()
-        assert await form.get_by_label("Its title").is_visible() and await form.get_by_label("What it is for").is_visible() and await form.get_by_label("Party").input_value() == "passkey"
-        await form.get_by_label("Its title").fill("Let people sign in on a phone")
-        await form.get_by_label("What it is for").fill("No password: the phone's own unlock.")
+        assert await form.get_by_label("The goal", exact=True).is_visible() and await form.locator(".newgoal__party").get_attribute("data-goal") == "passkey"
+        await form.get_by_label("The goal", exact=True).fill("Let people sign in on a phone\n\nNo password: the phone's own unlock.")
         await add.click()
         assert await _called(stub, "ideas.add", {"text": "Let people sign in on a phone\n\nNo password: the phone's own unlock.", "track": "passkey", "priority": "high"})
         await form.wait_for(state="hidden", timeout=WAIT_MS)
         await fab.click()                                                                                                             # Put it back with words in it keeps the goal for tonight
         await form.wait_for(timeout=WAIT_MS)
-        await form.get_by_label("Its title").fill("Only a title")
+        await form.get_by_label("The goal", exact=True).fill("Only a title")
         await form.get_by_role("button", name="Put it back").click()
         assert await _called(stub, "ideas.add", {"text": "Only a title", "track": "passkey", "priority": "high", "night": True})
-
-
-@pytest.mark.asyncio
-async def test_under_reduced_motion_the_form_opens_at_once_with_no_card_turned(fake_repo, monkeypatch):
-    async with _phone(fake_repo, monkeypatch, init=RECORD_DEAL + "(() => { window.__layers = 0; document.addEventListener('DOMContentLoaded', () => new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains('drawlayer')) window.__layers += 1; }).observe(document.body, { childList: true })); })();") as (stub, page):
-        await page.emulate_media(reduced_motion="reduce")
-        fab = page.locator(FAB)
-        await fab.wait_for(timeout=WAIT_MS)
-        await fab.click()
-        await page.get_by_role("dialog", name="New goal").wait_for(timeout=WAIT_MS)
-        assert await page.evaluate("() => window.__layers") == 0 and await page.evaluate("() => window.__deal") == [] and await page.locator(".drawlayer").count() == 0
 
 
 @pytest.mark.asyncio

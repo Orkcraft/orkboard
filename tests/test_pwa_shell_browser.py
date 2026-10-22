@@ -463,7 +463,7 @@ async def _new_goal(page):
 
 
 async def _new_idea(page):
-    """New goal (the code's idea): the create button, a face-down deck, for the party shown; its blank card turns, then the full-screen form opens."""
+    """New goal (the code's idea): the create button, a face-down deck, for the party shown; the full-screen form slides up at once."""
     await page.locator(FAB).click()
 
 
@@ -763,8 +763,8 @@ async def test_a_secret_todo_is_entered_over_the_paired_link_on_the_board(fake_r
         await goal.get_by_role("button", name="Save party").click()
         idea = page.get_by_role("dialog", name="New goal")                                              # … then New goal, with that party
         await idea.wait_for(timeout=WAIT_MS)
-        assert await idea.get_by_label("Party").input_value() == "offline-first"
-        await idea.get_by_label("Its title").fill("Offline mode")
+        assert await idea.locator(".newgoal__party").get_attribute("data-goal") == "offline-first"
+        await idea.get_by_label("The goal", exact=True).fill("Offline mode")
         await idea.get_by_role("button", name="Add the goal").click()
         assert await _called(stub, "ideas.add", {"text": "Offline mode", "track": "offline-first", "priority": "normal"})
 
@@ -821,6 +821,7 @@ async def test_every_sheet_is_dimmed_closes_on_esc_and_keeps_its_buttons_at_its_
             await opener()
             sheet = page.locator("dialog.drawer") if name == "Menu" else page.get_by_role("dialog", name=name)
             await sheet.wait_for(timeout=WAIT_MS)
+            await page.wait_for_function("() => !document.getAnimations().some((a) => a.playState === 'running')", timeout=WAIT_MS)     # New goal slides up (180 ms)
             shade = await sheet.evaluate("e => getComputedStyle(e, '::backdrop').backgroundColor")
             assert shade.startswith("rgba(") and 0.2 < float(shade.split(",")[3].strip(" )")) < 0.9, (name, shade)          # dimmed
             assert await sheet.evaluate("e => getComputedStyle(e).backgroundColor") not in ("rgba(0, 0, 0, 0)", "transparent")  # opaque panel
@@ -898,13 +899,14 @@ async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_clo
         await _goal_row(page, "docs")
         await _new_idea(page)
         sheet = page.get_by_role("dialog", name="New goal")
-        assert await sheet.get_by_label("Party").input_value() == "ship"                                # the first by priority; General is not listed
-        assert "General" not in await sheet.get_by_label("Party").inner_text()
+        assert await sheet.locator(".newgoal__party").get_attribute("data-goal") == "ship"              # the first by priority; General is not listed
+        await sheet.locator(".newgoal__party").click()
+        assert await sheet.get_by_role("listbox", name="Parties").locator("[role=option]").evaluate_all("els => els.map((e) => e.dataset.goal)") == ["ship", "docs"]
         assert await sheet.get_by_role("radio", name="High").is_checked()                               # the party's priority
         assert await sheet.get_by_role("button", name="Add the goal").is_visible() and await sheet.get_by_role("button", name="Later").count() == 0
-        await sheet.get_by_label("Party").select_option("docs")
-        assert await sheet.get_by_role("radio", name="Low").is_checked()
-        await sheet.get_by_label("Its title").fill("Dark mode please")
+        await sheet.locator('.newgoal__opt[data-goal="docs"]').click()
+        assert await sheet.get_by_role("radio", name="Low").is_checked() and await sheet.get_by_role("button", name="Keep for tonight").is_visible()
+        await sheet.get_by_label("The goal", exact=True).fill("Dark mode please")
         await sheet.get_by_role("radio", name="High").click()
         await _shot(page, "phone-new-idea-390x844")
         await sheet.get_by_role("button", name="Add the goal").click()
@@ -913,19 +915,20 @@ async def test_new_idea_sheet_a_goal_a_priority_one_add_closed_with_text_and_clo
         await card.wait_for(timeout=WAIT_MS)
         assert _adds(stub) == [{"text": "Dark mode please", "track": "docs", "priority": "high"}]
         await _new_idea(page)                                                                           # Low → the night
-        await page.get_by_role("dialog", name="New goal").get_by_label("Party").select_option("docs")
-        await page.get_by_label("Its title").fill("Low idea")
-        await page.get_by_role("dialog", name="New goal").get_by_role("button", name="Add the goal").click()
+        await page.locator(".newgoal__party").click()
+        await page.locator('.newgoal__opt[data-goal="docs"]').click()
+        await page.get_by_label("The goal", exact=True).fill("Low idea")
+        await page.get_by_role("dialog", name="New goal").get_by_role("button", name="Keep for tonight").click()
         low = _item(page, "Low idea")
         await low.wait_for(timeout=WAIT_MS)
         assert _adds(stub)[-1] == {"text": "Low idea", "track": "docs", "priority": "low"}
         assert "tonight" in await _said(page, "Low idea")
         await _new_idea(page)                                                                           # closed with text: kept for tonight
-        await page.get_by_label("Its title").fill("Closed with text")
+        await page.get_by_label("The goal", exact=True).fill("Closed with text")
         await page.get_by_role("dialog", name="New goal").get_by_role("button", name="Close").click()
         assert await _called(stub, "ideas.add", {"text": "Closed with text", "track": "docs", "priority": "low", "night": True})
         await _new_idea(page)                                                                           # Esc with text: tonight too
-        await page.get_by_label("Its title").fill("Saved by Esc")
+        await page.get_by_label("The goal", exact=True).fill("Saved by Esc")
         await page.keyboard.press("Escape")
         assert await _called(stub, "ideas.add", {"text": "Saved by Esc", "track": "docs", "priority": "low", "night": True})
         before = len(_adds(stub))                                                                       # closed empty: nothing

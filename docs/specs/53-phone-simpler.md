@@ -143,6 +143,23 @@ A part that needs any other file: stop and write it in *As built* first.
 
 ## 9. As built (notes, no change of the contract)
 
+**B, the phone's New goal** (`pwa/shell-fab.js`, `shell-types.js`, `shell-ideas.js`, `shell-lens.js`, `board.js`, `app.css`, `sw.js` v61):
+- The create button's label is *New goal*; its tap calls `core.newIdea()` and nothing else. `shell-types.js` lost the strip (`makeTypes`, `typeCard`) and keeps
+  the agents' heads and prices and the join line; the strip's and the turn's CSS (`.typedeal`, `.typecard`, `.drawlayer`, `.drawcard`) went.
+- The form slides up as a `transform` on the dialog itself (one `animate`, 180 ms, ease-out) and slides down for *Put it back*, *Close*, Esc, the backdrop and after
+  *Add the goal*; the close buttons are caught on the way down (capture) so they slide first and `close()` runs when the slide ends. Words in it are still kept for tonight
+  when it closes. None under `prefers-reduced-motion` or a hidden page (`motionOn()`).
+- The party is a button (`.newgoal__party`, `data-goal` the party's slug) and a `listbox` of the Board's parties (the Board's order: priority, then order; no Operations);
+  Esc puts the list away before the form. *+ New party* opens New party (`goalSheet.open`) and, once it is saved and the Board read, picks that party.
+  A party's name is its title; *<leader> leads · k of n goals done* reads the map's `leader.name` and the goals bar's `barWords`.
+- The type row reads the map's `types` of the party picked; the first is picked when the form opens and on a party change; a map with no `types` (or an empty list) draws no row
+  and sends no `type`. The priority follows the party until the person picks (as before); *Low* shows its line and *Keep for tonight* sends what *Add the goal* sent (`priority: "low"`).
+- `shell-lens.js`: `track(slug, first, alone)` — a typed goal passes `alone`, so its lens shows with no switch (`text` hides the lens), and `value()` sends only that lens; a second
+  call for the same party redraws for the type picked instead of returning at once. *No type* passes nothing: today's switch.
+- The words the speaker's hint says (*Speak it with the keyboard’s microphone.*) are shown only where the browser has no speech to text.
+- Tests: new `tests/test_pwa_new_goal53_browser.py`; the spec 52 strip tests in `test_pwa_goal_types_browser.py` went (their form tests stay, opening the form with `_form`);
+  the other phone tests that opened New goal read *The goal*, the party button's `data-goal` and *Keep for tonight*; `test_pwa_shell_browser` waits for the slide before it measures.
+
 ## 10. Running A, B and C
 Each a cloud session on orkWorks/orkBoard with the brief below; each **merges into `main` itself** when its tests pass
 (CLAUDE.md, alpha): no pull request. A and B on Sonnet, C on Haiku.

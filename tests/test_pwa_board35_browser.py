@@ -349,7 +349,7 @@ async def test_the_create_button_floats_over_the_field_s_bottom_right_and_limits
         await fab.click()
         goal = page.get_by_role("dialog", name="New goal")
         await goal.wait_for(timeout=WAIT_MS)
-        assert await goal.get_by_label("Party").input_value() == "ship"
+        assert await goal.locator(".newgoal__party").get_attribute("data-goal") == "ship"
         await page.keyboard.press("Escape")
         await _new_goal(page)
         sheet = page.get_by_role("dialog", name="New party")

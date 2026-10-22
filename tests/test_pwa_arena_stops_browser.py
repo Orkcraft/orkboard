@@ -157,17 +157,17 @@ async def test_the_create_button_is_a_face_down_deck_that_opens_new_goal_and_not
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         fab = page.locator(FAB)
         await fab.wait_for(timeout=WAIT_MS)
-        assert await fab.get_attribute("aria-label") == "New goal: pick its type, or a blank one"
+        assert await fab.get_attribute("aria-label") == "New goal"
         box = await fab.bounding_box()
         assert round(box["width"]) == 48 and round(box["height"]) == 64                               # a small deck: 48 × 64
         assert await fab.locator(".deckfab__edge").count() == 2 and await fab.locator(".deckfab__back .ork-icon").count() == 1     # two edges behind, a back with the plus mark
         assert await page.locator("dialog.dial-dlg, .dial, [role=menu]").count() == 0 and await page.locator(".fab").count() == 1   # the dial is gone
         green = await page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-action)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
         assert await fab.locator(".deckfab__back").evaluate("e => getComputedStyle(e).borderTopColor") == green                       # its edge in the action colour
-        await fab.click()                                                                              # one tap: New goal (the blank card turns, then the form)
+        await fab.click()                                                                              # one tap: New goal (the form slides up at once)
         sheet = page.get_by_role("dialog", name="New goal")
         await sheet.wait_for(timeout=WAIT_MS)
-        assert await sheet.get_by_label("Party").input_value() == "passkey"
+        assert await sheet.locator(".newgoal__party").get_attribute("data-goal") == "passkey"
         await page.keyboard.press("Escape")
         await _new_goal(page)                                                                          # New party: the where sheet's *+ New party*
         await page.get_by_role("dialog", name="New party").wait_for(timeout=WAIT_MS)
