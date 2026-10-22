@@ -10,7 +10,7 @@ import pytest
 from orkboard.realm import goal_team, goal_types, ideas, library, roles
 
 ROOT = Path(__file__).resolve().parent.parent
-A0_SIGNS = {"feature", "bug", "tidy", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page"}   # spec 52 §1, orkUI 0.3.3
+A0_SIGNS = {"feature", "bug", "tidy", "restructure", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page", "abtest", "landing", "post", "tagline"}   # spec 56 §6, orkUI 0.4.0: the sixteen
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ def test_ids_are_unique_in_a_set_and_the_words_fit_their_places():
     assert goal_types.get("architect/bug").asks == bug.asks and goal_types.get("architect/bug").plan == bug.plan     # as the Taskmaster's
     logo = goal_types.get("product-designer/logo")
     assert (logo.sign, logo.needs, logo.lens, logo.refs) == ("logo", ("art",), "text", True)
-    assert goal_types.get("growth/landing").needs == ("text", "seo") and goal_types.get("growth/tagline").sign == "text"
+    assert goal_types.get("growth/landing").needs == ("text", "seo") and goal_types.get("growth/tagline").sign == "tagline"
 
 
 def test_a_type_is_read_by_its_key_and_an_unknown_key_reads_none():
@@ -72,9 +72,18 @@ def test_a_type_is_read_by_its_key_and_an_unknown_key_reads_none():
 
 def test_every_sign_is_one_of_orkuis():
     have = {p.stem for p in (ROOT / "design-system" / "orkui" / "signs").glob("*.svg")}
-    assert "text" in have                                                                 # spec 51's, for the tagline
+    assert A0_SIGNS <= have and len(A0_SIGNS) == 16                                       # the sixteen come with orkUI 0.4.0 (spec 56)
+    assert set(goal_types.SIGNS) == A0_SIGNS | {"text"} and set(goal_types.SIGNS) <= have  # `text` stays spec 51's media tile
     for t in _all():
-        assert t.sign in have | A0_SIGNS and t.sign in goal_types.SIGNS, t                 # the eleven come with orkUI 0.3.3 (A0)
+        assert t.sign in have | A0_SIGNS and t.sign in goal_types.SIGNS, t
+
+
+def test_no_two_types_share_a_sign_and_the_sixteen_use_the_sixteen():
+    by_id: dict[str, str] = {}
+    for t in _all():
+        assert by_id.setdefault(t.id, t.sign) == t.sign, t                                # one type id, one sign, in every leader's set
+    assert len(set(by_id.values())) == len(by_id) == 16                                   # and no sign for two ids (spec 56 §1.6)
+    assert set(by_id.values()) == A0_SIGNS and "text" not in by_id.values()
 
 
 def test_every_need_is_a_known_kind_with_a_taker():

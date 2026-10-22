@@ -178,3 +178,15 @@ Each emblem's meaning is its line in `docs/specs/56-signs/candidates.json`.
 - A second, larger grid (12 × 12) for the emblems: when a face needs one.
 
 ## 9. As built
+
+**A0 and B** (22 October). Built to §4, §5 and §6 as written.
+- **A0**: orkUI **0.4.0**, commit `b6bc7a5` (orkWorks/orkUI `main`; its own short spec `docs/specs/0.4.0-fantasy-signs.md`). The eleven type signs are redrawn to §6
+  (names, files, classes kept), `restructure`, `abtest`, `landing`, `post`, `tagline` are new (29 signs); `office/emblems/` holds the 28 drawings, `emblems.json`
+  (`sign` is the sign's name for the sixteen, `""` for the twelve; `meaning` is the line of `candidates.json`, `tags` the words of its first clause and the type id) and a
+  README; the gallery's *Signs* shows the five and a new *Emblems* section draws every emblem at 14 and 28 px in ink and muted by a mask of the gallery's own
+  (`.emb`, not a class of `components.css`). orkUI's 207 tests pass.
+- **B**: the copy (`python -m orkboard.design.orkui`; `ORKUI.json` stamps 0.4.0 and `b6bc7a5`; only `design-system/orkui/` changed, with `emblems/` in it).
+  `realm/goal_types.py`: `SIGNS` gains the five and Architect's `restructure`, Analyst's `abtest`, Growth's `landing`, `post`, `tagline` sign their own names.
+  `pwa/sw.js`: `SHELL` gains the five, `CACHE` **`orkcraft-app-v65`** (main had v64, from specs 57 C and 58 C), pinned in `tests/test_pwa.py` and the four browser
+  tests that pinned v64. `tests/test_pwa.py`: 34 masks, the five named. `tests/test_goal_types.py`: `A0_SIGNS` holds the sixteen; a new test says one type id has one sign and
+  no two ids share one. Neither face serves `emblems/`; nothing on a face changed.
