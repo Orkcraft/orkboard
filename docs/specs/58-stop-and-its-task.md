@@ -20,11 +20,13 @@ Two parts (they share no file):
 
 ## 1. What a stop is about (its targets)
 - `failed`, `pick`, `result`: **its task** (`<goal>/<task>`).
-- `plan`, `asks`, `proposal`, `todo`, `goal`: **its goal's cards on the field** (every card of that goal; in Planning or
+- `plan`, `asks`, `proposal`, `todo`: **its goal's cards on the field** (every card of that goal; in Planning or
   Solo, the goal's Planning card).
-- A stop of **another party**, Operations' stops, `party`: none (they are not on this field).
+- A stop of **another party**, Operations' stops, `party`, and **`goal`** (the code's word for a party: its leader asks
+  about the party as a whole, so no card is its own; the owner, 22 October): none.
 - A target not drawn now (scrolled out of its column, another stage on the phone, inside a stack not spread): the stack
-  that holds it when that is drawn, else none.
+  that holds it when that is drawn, else none. The phone's goal line (§3) is words, so it names the task even when its
+  card is on another stage.
 
 ## 2. The desktop: the ring while a stop is looked at (B)
 1. A stop is **looked at** while it is raised: the pointer over its `.arena-hc`, or the focus in it (the same moments
