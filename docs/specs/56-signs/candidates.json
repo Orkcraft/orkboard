@@ -420,48 +420,6 @@
   ]
  },
  {
-  "name": "anvil-hammer",
-  "for": "restructure",
-  "meaning": "an anvil with a hammer above: the work reshaped",
-  "grid": [
-   "###....",
-   "###....",
-   "..#....",
-   "...#...",
-   "#######",
-   ".#####.",
-   "#######"
-  ]
- },
- {
-  "name": "brick-wall",
-  "for": "restructure",
-  "meaning": "a brick wall of three rows: the parts moved and set",
-  "grid": [
-   "###.###",
-   "###.###",
-   ".......",
-   "#.###.#",
-   "#.###.#",
-   ".......",
-   "###.###"
-  ]
- },
- {
-  "name": "saw",
-  "for": "restructure",
-  "meaning": "a saw: a module cut in two",
-  "grid": [
-   "###....",
-   "####...",
-   ".###...",
-   "..###..",
-   "...##..",
-   "....#.#",
-   "....###"
-  ]
- },
- {
   "name": "crystal-ball",
   "for": "screen",
   "meaning": "a crystal ball: a screen that shows what comes",
@@ -602,48 +560,6 @@
   ]
  },
  {
-  "name": "abacus",
-  "for": "metric",
-  "meaning": "an abacus: beads counted, one by one",
-  "grid": [
-   "#.....#",
-   "#.##..#",
-   "#######",
-   "#...##.",
-   "#######",
-   "#.#...#",
-   "#.....#"
-  ]
- },
- {
-  "name": "tally",
-  "for": "metric",
-  "meaning": "a tally: marks counted on a stone",
-  "grid": [
-   "#.#.#.#",
-   "#.#.###",
-   "#.#.#.#",
-   "#.###.#",
-   "#.#.#.#",
-   "###.#.#",
-   "#......"
-  ]
- },
- {
-  "name": "measuring-rod",
-  "for": "metric",
-  "meaning": "a measuring rod: the marks read off",
-  "grid": [
-   ".#####.",
-   ".##....",
-   ".####..",
-   ".##....",
-   ".#####.",
-   ".##....",
-   ".####.."
-  ]
- },
- {
   "name": "scales",
   "for": "abtest",
   "meaning": "balance scales: two versions weighed by a number",
@@ -742,20 +658,6 @@
   ]
  },
  {
-  "name": "anvil",
-  "for": "",
-  "meaning": "an anvil with a horn: where a thing is made",
-  "grid": [
-   "#######",
-   "#######",
-   "###....",
-   "..###..",
-   "..###..",
-   "#######",
-   "......."
-  ]
- },
- {
   "name": "barrel",
   "for": "",
   "meaning": "a barrel: stores kept in a cask",
@@ -837,6 +739,104 @@
    ".#...#.",
    "..###..",
    "......."
+  ]
+ },
+ {
+  "name": "anvil",
+  "for": "restructure",
+  "meaning": "an anvil: the work beaten into a new shape",
+  "grid": [
+   ".......",
+   "#######",
+   ".######",
+   "...###.",
+   "...###.",
+   "..#####",
+   "......."
+  ]
+ },
+ {
+  "name": "hammer",
+  "for": "restructure",
+  "meaning": "a hammer: parts knocked into new places",
+  "grid": [
+   ".##....",
+   "####...",
+   ".####..",
+   "....#..",
+   ".....#.",
+   "......#",
+   "......."
+  ]
+ },
+ {
+  "name": "split-stone",
+  "for": "restructure",
+  "meaning": "a stone split in two along its crack",
+  "grid": [
+   "###.###",
+   "###.###",
+   "####.##",
+   "###.###",
+   "##.####",
+   "###.###",
+   "###.###"
+  ]
+ },
+ {
+  "name": "abacus",
+  "for": "metric",
+  "meaning": "an abacus: a number counted bead by bead",
+  "grid": [
+   "#######",
+   "##..#.#",
+   "#.....#",
+   "#.##..#",
+   "#.....#",
+   "#...#.#",
+   "#######"
+  ]
+ },
+ {
+  "name": "menhirs",
+  "for": "metric",
+  "meaning": "standing stones, each taller: a number that grows",
+  "grid": [
+   ".....##",
+   ".....##",
+   "...#.##",
+   "...#.##",
+   ".#.#.##",
+   ".#.#.##",
+   "#######"
+  ]
+ },
+ {
+  "name": "cairn",
+  "for": "metric",
+  "meaning": "a cairn: stones counted into a pile",
+  "grid": [
+   "...#...",
+   "..###..",
+   "..#.#..",
+   ".#####.",
+   ".#.#.#.",
+   "#######",
+   "#.#.#.#"
+  ]
+ },
+ {
+  "name": "boot",
+  "for": "",
+  "meaning": "a boot: a way to go, a journey",
+  "grid": [
+   "..###..",
+   "..###..",
+   "..###..",
+   "..###..",
+   "..#####",
+   ".######",
+   ".######"
   ]
  }
 ]
