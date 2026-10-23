@@ -159,10 +159,11 @@ def test_the_party_is_usable_while_the_heads_travel(shell):
     dlg = _fill(pg)
     pg.evaluate(RECORD)
     dlg.get_by_role("button", name="Save party").click()
-    pg.locator(".arena-gather").first.wait_for(timeout=WAIT_MS)
+    pg.wait_for_function("() => Object.keys(window.__g.copies).length > 0", timeout=WAIT_MS)            # the heads have started (read from the record: they may be gone by now)
     assert pg.locator(f'.arena[data-goal="{SLUG}"]').count() == 1 and pg.locator(".arena-ptop__deck").is_enabled()      # nothing waits for the heads
-    assert pg.locator(".arena-gather").first.evaluate("e => getComputedStyle(e).pointerEvents") == "none"
-    assert _gathered(pg)["lit"]                                                                         # and they land
+    got = _gathered(pg)
+    assert {c["events"] for c in got["copies"].values()} == {"none"}                                    # they take no press
+    assert got["lit"]                                                                                   # and they land
 
 
 def test_a_head_whose_seat_is_scrolled_out_of_the_dialog_starts_from_save_partys_box(shell):
