@@ -245,3 +245,29 @@ of `test_gui_ideas.py`, `test_board_map.py`, `test_event_log.py`, `test_lexicon.
 `board_map.NEEDS` (after `plan`) and in `map_party._LEAD_NEEDS`; *A plan change waits for you* in `gui/phone_push.py`
 `KIND_WORDS` and `js/board/today.js` `KIND_WORDS` (`tests/test_phone_push.py` keeps the two equal). Tests:
 `tests/test_board_map.py` (the node's `needs_you`, the leader's state), `tests/test_gui_ideas.py` (`revising`).
+
+### Part C (the phone), 23 October (`orkcraft-app-v69`)
+
+**Where.** `pwa/shell-preview.js` (the leader's name, the changed line, the plan screen's *The change* and its two presses), `pwa/shell-stops.js` (the stop `change`, its answers, the toast from the host's answer),
+`pwa/shell-arena-words.js` (`needsOf` and `URGENCY` take `change`; `changePrice`, `changeWords`), `pwa/shell-goals-words.js` (`STOPS` takes `change`: one word, §8), `pwa/app.css`, `pwa/sw.js` v69 with the pin
+in `tests/test_pwa.py` and in the five phone browser tests that pin the cache (`test_pwa_deal_start`, `_one_hand`, `_board53`, `_goal_types`, `_mixed_parties`); new `tests/test_pwa_plan_change_browser.py`
+(21 tests: the talk's words for a Game party and a Taskmaster party, the changed line in its four states and for a done goal, the stop and its answers, the deal, the plan screen, v69).
+
+**What the spec left open, and what was chosen.**
+1. *The leader* is `leadOf(p)` in the preview: the Map's goal whose slug is the page's `track`, `leaderName` of `shell-goal.js`; `the()` / `The()` (local to `shell-preview.js`) give *the Taskmaster* inside a sentence,
+   *The Taskmaster* at its start, any other leader by its name. It names the speaker of the talk, the box's placeholder and label, the toast *Sent: <leader> answers in a moment.* and the other lines of the spec's screen that
+   named the Taskmaster (*… drafts it now.*, *… is planning.*). The phone's ask box had no *is answering…* line: it has one now, shown while the keeper is busy and not re-planning and the goal is not reading or planning
+   (those say their own).
+2. *The changed line* sits under the sections, before the plan. Its press is off while the keeper is busy (a talk too) and while the leader re-plans; its toasts are *<leader> is planning.* (*Re-plan*) and *<leader> re-plans what
+   is left.* The waiting words are *<leader> proposed a plan change: it waits for you.* **without "below"**: on the phone the spec's screen covers the hand, so nothing is below it (the desktop's line says it).
+3. *The stop.* The gem is `changePrice` (two decimals, the real minus sign for a saving, none when both ends are 0: a change of nothing); the `why` is a muted line under the text (`.raised__why`); `gemOf` and the card take no
+   gem. `go()` takes a toast that is a function of the host's answer: *The plan changed: 2 added, 1 dropped.* is read from the answer (`added`, `changed`, `dropped`), not from the stop, so a task that started meanwhile is not
+   promised. Nothing applied: *The plan stays as it was.*; `left` adds *2 left as they were: they started.* (**singular: *1 left as it was: it started.***, the spec's plural is ungrammatical for one). *Keep the plan* says *The
+   plan stays as it was.* A press elsewhere on the stop is the raised card's *Open it on its own screen* (the plan screen); its way out is the card's *Put it back*, as every stop's.
+4. *The deal* is `deal.wait` as *Start the work*'s, set only when the stop's `added` is above 0 (a change that adds nothing leaves no deal waiting to take a task that comes by itself), from the raised card's box, the party
+   shown's stop only, the stage shown only, never switched, none under reduced motion (all spec 57's). The plan's screen deals nothing.
+5. *The plan screen's presses* are the screen's bar (pinned, 44 px, *Take the new plan* primary, *Keep the plan*), not in the block, so they stay in reach under a long plan; they send no `via`. The block shows the why, the rows
+   (*+* added, *~* changed, *−* dropped muted and struck, each mark with its word for a screen reader), the price as the gem has it (*At API prices, not your bill*) and, for a change of nothing, *The plan stays as it is.*
+6. *Not done, outside C's row.* `shell-goals-words.js` `asking` (what `STOPS` feeds) is read by nothing on the phone, so a goal at work with a plan change waiting has no mark on its row of the Goals sheet; the leader's member
+   state `needs`/`change` reads *needs you* (`shell-map-idea.js` `memberWords` has no word for it) and the stage tab's faces count Planning's stops only (`shell-arena-words.js` `modelOf`), so the Planning tab shows no sign for a
+   change; `shell-board.js`'s `STATE_WORDS` still says *the Taskmaster is planning* for a goal whose leader is another.
