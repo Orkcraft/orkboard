@@ -104,3 +104,12 @@ A swipe through the hand; the hand's zone growing with the number of stops; the 
 cleanup drawn on the same canvas is its own spec); the field as a table of dots.
 
 ## 7. As built (notes, no change of the contract)
+
+- **A word longer than the token** (§2.3) is clipped at the token's edge, not ended with *…*: a line clamp cannot end a single unbroken word with an ellipsis. Its full words are in its label.
+- **A card of a spread is not a token** (§2): it keeps its goal's line and its state in words (*after Challenge store, Credential table*, §3 applies), at 172 × 240.
+- **The hand's zone has a 1 px line over it** (`--ork-frame`), as the approved mockup draws it; spec 49 §10.6's *no line over them* is reversed.
+- **The fan's overlap** (§4.3) is computed so that the row fits (`ov` in `shell-stops.js` `fan()`, 8 px at the least, the two ends keeping no outer overlap): with more stops the cards lie further over each other, each still showing its top. With an even count the cards right of the front turn further out than the left ones, so the fan's extent is centred within 6 px, not 2.
+- **The front card** (§4.2): a stop whose raised card holds more than its buttons (a plan that misses a kind of work) shows its *missing* line under a two-line text; a Pick one stop shows *More…* only (its tiles are on the raised card); a result shows its *Merge into dev* (or *Fix them*) and *More…*. The buttons are drawn 36 px and hit 44 px (a pseudo-element), 8 px apart.
+- **A tap's front stays** until the stop is answered or a new stop arrives (a stop answered elsewhere leaves the front as it is). While the answered front card fades where it stood, the next one waits fanned beside it, then takes the front.
+- **A column's head** (§1.3): when the name does not fit beside its marks they go to a second line (`.colname.is-two`, set by `fitNames` in `shell-arena-field.js`), and every head of the strip is then 42 px high so the columns' tops stay level.
+- **Motion**: the field's slide (`shell-motion.js` `play`) moves a token only vertically; a token that wraps up into the row of one that left does not slide sideways. The module is unchanged here (spec 63/64's).

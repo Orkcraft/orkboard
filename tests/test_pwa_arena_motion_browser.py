@@ -83,9 +83,10 @@ async def test_a_stack_that_appears_rises_into_its_place_from_below_once(fake_re
 
 @pytest.mark.asyncio
 async def test_a_stack_that_leaves_fades_where_it_stands_with_its_sign_then_what_lies_behind_it_steps_up_toward_the_member(fake_repo, monkeypatch):
+    SCENE["map"]["nodes"].append(node("x1", "An extra goal", "working", "implementation", tasks=[task("x1t", "An extra task", "ready", BACKEND, 1)]))      # a third stack of the first row: with two tokens to a row (spec 65 §1.2) it lies in a row of its own, behind
     async with _phone(fake_repo, monkeypatch, init=RECORD) as (stub, page):
         await _ready(page)
-        assert await _keys(page) == ["register|now", "cookie|now", "register|next"]
+        assert await _keys(page) == ["register|now", "cookie|now", "x1|now", "register|next"]
         tasks_of(SCENE["map"]["nodes"][8])["q1"]["state"] = "merged"                                     # the failed one, alone in its stack, merges
         stub.bump({})
         await page.wait_for_function("() => window.__seen.some((s) => s.kind === 'leave')", timeout=WAIT_MS * 2)
@@ -93,11 +94,11 @@ async def test_a_stack_that_leaves_fades_where_it_stands_with_its_sign_then_what
         assert {(s["key"], s["sign"], s["index"]) for s in leave} == {("cookie|now", "check", 1)}        # where it stood: second in its row, the one-frame ✓ (orkUI's sign, not a typed one)
         await page.wait_for_function("() => window.__anims.length > 0", timeout=WAIT_MS)                # then the gap closes
         anims = await page.evaluate("() => window.__anims")
-        assert sorted(a["key"] for a in anims if "|" in a["key"]) == ["register|next"]                  # what was behind it …
+        assert sorted(a["key"] for a in anims if "|" in a["key"]) == ["register|next", "x1|now"]        # what was behind it (the stack that wraps into its row, the rows after it) …
         assert any(a["key"].startswith("stack__done") for a in anims)                                    # … and the count at the column's far end
         assert all(a["from"].startswith("translateY(") and float(a["from"][11:-3]) > 0 and a["ms"] == 250 for a in anims)       # … starts lower and steps up (≈ 0.25 s), no bounce
         await page.wait_for_function("() => document.querySelectorAll('.deck.is-leaving').length === 0", timeout=WAIT_MS)
-        assert await _keys(page) == ["register|now", "register|next"]
+        assert await _keys(page) == ["register|now", "x1|now", "register|next"]
         await page.wait_for_timeout(1000)
         assert {s["key"] for s in await page.evaluate(SEEN) if s["kind"] == "leave"} == {"cookie|now"}      # once: no other stack fades, and it does not fade again
 
@@ -220,8 +221,8 @@ async def test_a_column_under_a_finger_or_the_focus_waits_and_settles_when_it_is
 async def test_the_bottom_row_does_not_shift_while_a_stop_is_popped(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".hc").first.wait_for(timeout=WAIT_MS)
+        raised = await _pop(page, "Plan ready: Recovery codes")                                         # it came to the front first (spec 65 §4.4)
         before = await page.evaluate("() => [...document.querySelectorAll('.hand .hc')].map((b) => b.dataset.stop)")
-        raised = await _pop(page, "Plan ready: Recovery codes")
         SCENE["needs"] = [n for n in SCENE["needs"] if n["kind"] != "proposal"]                        # a stop is answered elsewhere meanwhile
         stub.bump({})
         await page.wait_for_timeout(2600)

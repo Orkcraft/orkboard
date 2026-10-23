@@ -541,9 +541,7 @@ async def test_the_stop_in_the_fan_wears_its_count_its_kind_and_small_tiles_and_
         card = page.locator('.hc[data-kind="pick"]')
         await card.wait_for(timeout=WAIT_MS)
         assert await card.get_attribute("aria-label") == "Pick one: Draw the logo" and await card.locator(".ork-gem").inner_text() == "4"      # gem: the count
-        assert (await card.locator(".hc__kind").text_content()) == "Pick one" and await card.locator(".hc__kind").evaluate("e => getComputedStyle(e).textTransform") == "uppercase"
-        assert await card.locator(".hc__thumb").count() == 4 and await card.locator(".hc__thumb img").count() == 4                         # small tiles
-        assert await card.locator(".hc__thumb img.is-pixel").count() == 1
+        assert await card.locator(".hc__kind").count() == 0 and await card.locator(".hc__thumb").count() == 0                              # a fanned card draws gem, element and banner only (spec 65 §4.3): its kind is in its label, its tiles on the raised one
         raised = await _raise(page)
         assert await raised.get_attribute("data-kind") == "pick" and await raised.locator(".raised__kind").text_content() == "Pick one"
         assert await raised.locator(".raised__top .ork-gem").inner_text() == "4" and await raised.locator(".raised__top img.ork-race__head").get_attribute("src") == "races/elf-warrior.png"
@@ -577,7 +575,7 @@ async def test_a_task_that_waits_for_a_pick_says_so_on_the_field_with_the_alert_
         deck = page.locator('.deck[data-state="picking"]')
         await deck.wait_for(timeout=WAIT_MS)
         face = deck.locator(".tcard")
-        assert await face.locator(".tcard__foot").inner_text() == "asks you to pick" and await face.locator(".tcard__mark").count() == 0
+        assert await face.locator(".tcard__foot").count() == 0 and await face.locator(".tcard__mark").count() == 0        # spec 65 §2.4: a token asking to pick has no value at its foot; its edge, its fill and its label say it
         assert "asks you to pick" in await deck.get_attribute("aria-label")
         alert = await face.evaluate("e => { const i = document.createElement('i'); i.style.color = 'var(--ork-alert)'; e.append(i); const c = getComputedStyle(i).color; i.remove(); return c; }")
         assert await face.evaluate("e => getComputedStyle(e).borderTopColor") != alert                                  # its sign, no alert edge (spec 52 §5.8)

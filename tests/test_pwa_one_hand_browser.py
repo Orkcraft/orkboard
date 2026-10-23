@@ -133,12 +133,14 @@ async def test_the_order_is_the_urgencys_the_most_urgent_in_the_middle_the_next_
         assert min(range(6), key=lambda i: middle[i]) in (2, 3)
         for slot, edge in ((0, "marginLeft"), (5, "marginRight")):                                                                                          # the row's own ends keep no outer overlap
             assert await page.locator(f'.hc[data-place="{slot}"]').evaluate(f"e => getComputedStyle(e).{edge}") == "0px"
-        await page.locator(".hc").first.focus()
-        seen = [await page.evaluate("document.activeElement.dataset.kind")]
-        for _ in range(5):
+        await page.locator(".hc.is-front .hc__body").focus()                                                                                              # the front card (spec 65 §4.6): its body, then its buttons, then the next stop
+        seen = []
+        for _ in range(9):
+            at = await page.evaluate("(() => { const c = document.activeElement.closest('.hc'); return c ? [c.dataset.stop, c.dataset.kind] : null; })()")
+            if at and (not seen or seen[-1][0] != at[0]):
+                seen.append(at)
             await page.keyboard.press("Tab")
-            seen.append(await page.evaluate("document.activeElement.dataset.kind"))
-        assert seen == ["failed", "plan", "asks", "proposal", "look", "look"]                                                                                 # Tab goes in the urgency's order
+        assert [k for _, k in seen][:6] == ["failed", "plan", "asks", "proposal", "look", "look"]                                                                          # Tab goes in the urgency's order, the front first
         assert await page.locator(".hc").first.evaluate("e => getComputedStyle(e).transitionDuration") == "0s"                                              # a new order is laid at once: nothing shuffles
 
 
@@ -427,4 +429,4 @@ async def test_every_target_of_a_raised_stop_is_44_px_and_the_page_does_not_scro
 
 def test_the_service_worker_is_at_v62():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v71";' in sw
+    assert 'const CACHE = "orkcraft-app-v72";' in sw

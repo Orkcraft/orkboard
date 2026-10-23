@@ -1,3 +1,5 @@
+// The hand first (docs/specs/65-hand-first.md §4): while a stop waits the zone is 250 px; the most urgent stop (or the one a tap brought forward) stands upright in front, 150 × 236, with its banner, its text and its quick answers (two at most, else the recommended
+// one and *More…*) answered where it stands (`via: "front"`); the rest fan around it, 104 × 150, a card right of the front drawn mirrored; a tap on a fanned card brings it to the front, a tap on the front's body raises it. What follows is the hand as it was (spec 54):
 // What waits for you, along the bottom (docs/specs/49-one-window.md §6, §10.6, §11; spec 54 §2–§4, decisions §67): **every stop of the project** (every party's plan, question, proposal, to-do, Pick one and
 // failure, and Operations') and every party's results to look at, fanned across the whole width and centred, only their tops showing (56 px, no line over them; no count: the fan is
 // the count). In the order of their urgency (shell-arena-words.js `byUrgency`: red, what holds work back, what does not, the results; the oldest first) laid out with the most urgent in the middle, the next to its
@@ -24,7 +26,7 @@ const KIND = { plan: "Plan ready", change: "Plan change", asks: "Asks you", goal
   pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
 const gemOf = (g) => (g ? h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text) : null);       // a price, a mark or a sign (a failure's cross); none for a plan change of nothing
 const GHOSTS = 3, GHOST_MS = 300;                       // stops that leave with the fade in one refresh (the rest simply go), and how long it lasts (spec 58 §4; spec 49 §11.2)
-const CARD = 104, WIDTH = 330;                           // a card's width in the fan, and the room it was drawn for (the row's width less 30 px at each side)
+const CARD = 104, FRONT_OVERLAP = 12, WIDTH = 290;       // a fanned card's width, how far the front card lies over its neighbours, and the room the fan is drawn in (the row's width less 50 px at each side: the cards turn up to 4° a place outward); the zone's height is CSS (`:root.has-stops`)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 
@@ -54,10 +56,12 @@ export function makeStops(core, ctx, needs, ops) {
   let items = [], places = [], sigs = "", raisedSig = "", raisedParty = null;          // `places[i]`: where in the row the i-th most urgent lies; `raisedParty`: the party of the stop raised (null: the one shown)
   let drawn = [], count = 0;                                  // the stops the fan's cards stand for, and how many places the fan lays out (the stops and the ghosts still fading)
   const ghosts = new Map();                                   // key → {item, index, at}: stops that left and fade where they lay (spec 58 §4)
+  let frontKey = "", known = new Set(), drawnFront = "";      // the stop a tap brought to the front ("" the most urgent); the stops' keys at the last draw; the key of the front card drawn (a ghost of it is drawn as the front)
   const sigOf = (it) => it.key + JSON.stringify([it.sig, it.link]);
+  const frontOf = () => items.find((i) => i.key === frontKey) || items[0] || null;
   /** The fan's layout: the stops with the ghosts put back at the places they left, each with its place in the row (`places[i]` for `items[i]`). */
   function lay() {
-    const layout = items.slice();
+    const front = frontOf(), layout = front ? [front, ...items.filter((i) => i !== front)] : [];       // the front first (spec 65 §4.6), then the urgency's order
     for (const g of [...ghosts.values()].sort((a, b) => a.index - b.index)) layout.splice(Math.min(g.index, layout.length), 0, g.item);
     const spots = fanPlaces(layout.length);
     count = layout.length;
@@ -72,8 +76,10 @@ export function makeStops(core, ctx, needs, ops) {
   /** A command of the stops: laid back first (the toast shows), then read again. `said`: the toast, or a function of the host's answer. `dealt`: the goal of a plan this press starts, or of a plan change that
    *  adds tasks: answered ok, its tasks are dealt from the raised card's box onto the stage shown (spec 57, spec 62 §7.3); only the party shown's plan deals (another party's tasks are not on this field). */
   const go = (name, args, said, dealt = "") => async () => {
-    const box = dealt && !raisedParty ? body.querySelector(".raised")?.getBoundingClientRect() : null;       // read at the press, before it is lowered
-    const r = await core.call(name, typeof args === "function" ? args() : args);              // read when pressed: a line typed on the raised one counts
+    const raised = dlg.open, front = hand.querySelector(".hc.is-front");
+    const box = dealt && !raisedParty ? (raised ? body.querySelector(".raised") : front)?.getBoundingClientRect() : null;       // read at the press, before it is lowered: the plan started from the front card deals from its place (spec 65 §4.5)
+    const given = typeof args === "function" ? args() : args;
+    const r = await core.call(name, !raised && given?.via === "hand" ? { ...given, via: "front" } : given);              // read when pressed: a line typed on the raised one counts
     if (!r) return;
     if (box && motionOn()) deal.wait(dealt, box);
     lower();
@@ -84,6 +90,7 @@ export function makeStops(core, ctx, needs, ops) {
   /** A press that opens something else: the stop is laid back, the party it belongs to is shown first when it is not the one shown (a pick of it in the parties' list, Operations too), then it opens (spec 54 §2.2). */
   const away = (open, via = "hand") => () => {
     const party = raisedParty;
+    if (!dlg.open && via === "hand") via = "front";                  // pressed on the front card, not on the raised one (spec 65 §4.5)
     lower();
     if (party) { if (party.ops) core.pickOps(); else core.pick(party.slug); }
     open(via);
@@ -212,28 +219,49 @@ export function makeStops(core, ctx, needs, ops) {
   }
 
   // -- the fan ----------------------------------------------------------------------------------------------------------------------------------------
-  /** Turn, rise, order and overlap of the card at place `i` of `n` in the row: each turned 3° a step from the middle and 3 px lower a step², the middle ones higher, overlapping so that they all fit
-   *  the width the row has and each shows its top. */
-  function fan(i, n) {
-    const off = i - (n - 1) / 2;
-    const ov = n > 1 ? Math.max(8, Math.ceil((n * CARD - WIDTH) / (n - 1) / 2)) : 0;
-    return { rot: off * 3, dy: Math.round(off * off * 3), z: 10 + i, ov };
+  /** Place `place` of `n` in the row, `d` places from the front (the middle): a fanned card is turned 4° a place outward and lowered `3·d² + 8` px; the front card stands upright, 4 px up, over its
+   *  neighbours (spec 65 §4.2, §4.3). */
+  function fan(place, n, front = false) {
+    const d = place - Math.floor((n - 1) / 2);
+    if (front) return { d, rot: 0, dy: -4, z: 60, ov: n > 1 ? FRONT_OVERLAP : 0 };
+    const ov = n > 2 ? Math.min(50, Math.max(8, Math.ceil(((n - 1) * CARD + (150 - 2 * FRONT_OVERLAP) - WIDTH) / (2 * (n - 2))))) : 8;       // each fanned card lies over its neighbours so that the row (its two ends keep no outer overlap) fits the width and each shows its top
+    return { d, rot: d * 4, dy: 3 * d * d + 8, z: 50 - Math.abs(d), ov };
   }
 
   const labelOf = (it) => `${KIND[it.kind]}: ${it.title}${it.party ? ` (${it.party.name})` : ""}`;          // a stop of another party names it
   /** The party's mark: its leader's small head, Operations' its sliders. */
   const partyMark = (p) => (p.ops ? icon("sliders") : p.head ? whoHead(p.head, true) : null);
 
-  /** The card of the i-th most urgent stop: it stays at the i-th place of the page (the keys' and a screen reader's order) and lies at its place of the fan (CSS order); the first and the last of the row keep no outer overlap. */
-  function card(it, place, n, ghost = null) {
-    const f = fan(place, n);
-    // `ghost`: a stop that was answered or withdrawn, fading where it lay (spec 58 §4): no button, no stop in the page, only its picture
-    const own = ghost ? { "aria-hidden": "true", "data-ghost": it.key } : { type: "button", "data-stop": it.key, "aria-label": labelOf(it), onclick: () => pop(it.key) };
-    const b = h(ghost ? "span" : "button", { class: `${ghost ? "hcg" : "hc"} ${it.cls || ""}${!ghost && st.hand === it.key ? " is-up" : ""}`.trim(), "data-kind": it.kind, "data-place": String(place), ...own },
-    h("span", { class: "hc__top" }, gemOf(it.gem),
-      h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]), elem(it.element)),
-    it.party ? h("span", { class: "hc__party", "data-party": it.party.ops ? "ops" : it.party.slug, title: it.party.name }, partyMark(it.party)) : null,
-    it.miss ? h("span", { class: "hc__miss" }, it.miss) : null, it.thumbs ? it.thumbs() : null);
+  /** The front card's quick answers (spec 65 §4.2): the same buttons its raised card has, two at most; a stop with more (a question's choices, a result's other ways) shows its recommended one and *More…*,
+   *  which raises it; a pick, whose tiles are on the raised card, only *More…*. */
+  function quickOf(it) {
+    const more = btn("More…", () => pop(it.key), { attrs: { "data-act": "front-more" } });
+    if (it.kind === "pick") return [more];
+    const raw = it.quick(), buttons = raw.flatMap((e) => (e.matches("button") ? [e] : e.classList.contains("result-actions") ? [...e.querySelectorAll("button.primary.big")] : []));
+    const lost = buttons.length !== raw.length;
+    if (!lost && buttons.length > 0 && buttons.length <= 2) return buttons;
+    const best = buttons.find((b) => b.classList.contains("primary"));
+    return best ? [best, more] : [more];
+  }
+
+  /** The card of the stop at place `place` of the row (`n` places): the front card (`front`: an upright card of 150 × 236 with its text and its quick answers), a fanned one (gem, element and banner; a card
+   *  right of the front draws its corner mirrored) or the picture of one that left (`ghost`, spec 58 §4: no button, no stop in the page). A tap on a fanned card brings it to the front, a tap on the
+   *  front card's body raises it, its buttons answer at once. The cards stay in the page in the front-first urgency order (the keys and a screen reader); their place in the row is the CSS order. */
+  function card(it, place, n, ghost = null, front = false) {
+    const f = fan(place, n, front), right = !front && f.d > 0;
+    const cls = `${ghost ? "hcg" : "hc"} ${it.cls || ""}${front ? " is-front" : ""}${front && it.miss ? " has-miss" : ""}${right ? " is-right" : ""}${!ghost && st.hand === it.key ? " is-up" : ""}`.trim();
+    const face = [h("span", { class: "hc__top" }, gemOf(it.gem), front ? h("span", { class: `hc__kind${it.tone === "danger" ? " no" : it.tone === "look" ? " muted" : ""}` }, KIND[it.kind]) : null, elem(it.element)),
+      it.party ? h("span", { class: "hc__party", "data-party": it.party.ops ? "ops" : it.party.slug, title: it.party.name }, partyMark(it.party)) : null,
+      h("span", { class: "hc__banner" }, it.title), front ? h("span", { class: "hc__text" }, it.plain ?? it.text) : null, front && it.miss ? h("span", { class: "hc__miss" }, it.miss) : null];      // a plan that gives work to no one says so on the front card (spec 52 §5.7)
+    const own = { "data-kind": it.kind, "data-place": String(place) };
+    let b;
+    if (ghost) b = h("span", { class: cls, "aria-hidden": "true", "data-ghost": it.key, ...own }, ...face);
+    else if (front) {
+      const quick = h("div", { class: "hc__quick", role: "group", "aria-label": it.quickLabel }, ...quickOf(it));
+      quick.addEventListener("click", () => { raisedParty = it.party; }, true);                 // a press on a button of the front card: the party it belongs to, as the raised one's (`go`, `away`)
+      b = h("div", { class: cls, role: "group", "aria-label": labelOf(it), "data-stop": it.key, ...own },
+        h("button", { class: "hc__body", type: "button", "aria-label": labelOf(it), onclick: () => pop(it.key) }, ...face), quick);
+    } else b = h("button", { class: cls, type: "button", "data-stop": it.key, "aria-label": labelOf(it), onclick: () => pull(it.key), ...own }, ...face);
     for (const [k, v] of [["--rot", `${f.rot}deg`], ["--dy", `${f.dy}px`], ["--z", String(f.z)], ["--ov", `${f.ov}px`]]) b.style.setProperty(k, v);
     b.style.order = String(place);
     if (ghost) b.style.animationDelay = `${-Math.min(GHOST_MS, Date.now() - ghost.at)}ms`;       // a draw in the middle of the fade goes on from where it was
@@ -242,10 +270,26 @@ export function makeStops(core, ctx, needs, ops) {
     return b;
   }
 
+  /** A tap on a fanned card brings it to the front (spec 65 §4.4): only its new place moves, in steps (none under reduced motion). */
+  function pull(key) {
+    if (dlg.open) return;
+    const was = new Map([...hand.querySelectorAll("[data-stop]")].map((c) => [c.dataset.stop, c.getBoundingClientRect()]));
+    frontKey = key;
+    sigs = "";
+    api.draw();
+    if (!motionOn() || reducedMotion()) return;
+    for (const c of hand.querySelectorAll("[data-stop]")) {
+      const from = was.get(c.dataset.stop), to = c.getBoundingClientRect();
+      if (from && c.animate && (Math.abs(from.left - to.left) > 1 || Math.abs(from.top - to.top) > 1)) {
+        c.animate([{ translate: `${from.left - to.left}px ${from.top - to.top}px` }, { translate: "0 0" }], { duration: 120, easing: "steps(3)" });
+      }
+    }
+  }
+
   // -- the raised one --------------------------------------------------------------------------------------------------------------------------------
   function raise(it, i, n) {
     const frame = it.tone === "danger" ? " danger" : it.tone === "look" ? "" : " alert";
-    const f = fan(places[i], n);
+    const f = fan(places[i], n, items[i] === frontOf());
     const quick = h("div", { class: "raised__quick", role: "group", "aria-label": it.quickLabel }, ...it.quick());
     const raised = h("div", { class: `raised ork-frame${frame}${it.kind === "pick" ? " is-pick" : ""}`, role: "document", "data-stop": it.key, "data-kind": it.kind },
       h("div", { class: "raised__top" }, gemOf(it.gem),
@@ -309,18 +353,23 @@ export function makeStops(core, ctx, needs, ops) {
       items = byUrgency(build());
       const keys = new Set(items.map((i) => i.key));
       for (const [key, g] of ghosts) if (keys.has(key) || Date.now() - g.at >= GHOST_MS) ghosts.delete(key);       // faded, or back
-      const sigNow = () => JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig, i.link, i.party, i.goalName])) + st.hand + ghosts.size;
+      const sigNow = () => JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig, i.link, i.party, i.goalName])) + st.hand + ghosts.size + frontKey;
+      if (items.some((i) => !known.has(i.key)) || !items.some((i) => i.key === frontKey)) frontKey = "";       // a stop that is new, or the front one answered: the most urgent stands in front again (spec 65 §4.4); another one gone leaves the front as it is
+      known = new Set(items.map((i) => i.key));       // the hand changed: the most urgent stands in front again (spec 65 §4.4)
       let layout = lay();
       if (sigNow() !== sigs && !dlg.open) {
         if (motionOn()) {                                          // a stop that is gone leaves where it lay, in the render that rereads the Board (spec 58 §4); none under reduced motion or a hidden page
           let k = 0;
-          drawn.forEach((it, index) => { if (!keys.has(it.key) && !ghosts.has(it.key) && ++k <= GHOSTS) ghosts.set(it.key, { item: it, index, at: Date.now() }); });
+          drawn.forEach((it, index) => { if (!keys.has(it.key) && !ghosts.has(it.key) && ++k <= GHOSTS) ghosts.set(it.key, { item: it, index, at: Date.now(), front: it.key === drawnFront }); });
           if (ghosts.size) { layout = lay(); setTimeout(() => api.draw(), GHOST_MS + 20); }
         }
         sigs = sigNow();
-        drawn = items;
-        hand.replaceChildren(...layout.layout.map((it, j) => card(it, layout.spots[j], count, ghosts.get(it.key)?.item === it ? ghosts.get(it.key) : null)));
+        drawn = layout.layout.filter((it) => keys.has(it.key));                   // the stops as they lay (the front first): a ghost is put back at its place in this order
+        drawnFront = frontOf()?.key || "";
+        const front = frontOf(), fading = [...ghosts.values()].some((g) => g.front);       // while the answered front card fades where it stood, the next one waits fanned beside it: the row keeps its width
+        hand.replaceChildren(...layout.layout.map((it, j) => { const g = ghosts.get(it.key)?.item === it ? ghosts.get(it.key) : null; return card(it, layout.spots[j], count, g, g ? g.front : it === front && !fading); }));
         empty.hidden = items.length > 0;
+        document.documentElement.classList.toggle("has-stops", count > 0);          // the zone is 250 px while a stop waits, 56 px with none (spec 65 §4.1)
       }
       if (st.hand) {
         const at = items.findIndex((i) => i.key === st.hand);

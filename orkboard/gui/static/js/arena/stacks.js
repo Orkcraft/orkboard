@@ -11,7 +11,7 @@ import { Elem, Sign } from "../orkui.js";
 import { showPick, showResult, showTask } from "../shell/store.js";
 import { rises } from "./motion.js";
 import { taskHover, taskHoverBy, spread, stopAbout, stopLook } from "./arenastate.js";
-import { rowsOf, taskFoot, waitersOf, waitsForOf } from "./arenawords.js";
+import { afterWords, followsBuild, rowsOf, taskFoot, waitersOf, waitsForOf } from "./arenawords.js";
 import { elementOf } from "./goalwords.js";
 
 export const keyOf = (n, t) => `${n.slug}/${t.id}`;
@@ -48,6 +48,8 @@ export function footParts(n, t, rel) {
   if (rel.src && mine) return [{ sign: "after", text: `${mine} ${mine === 1 ? "waits" : "wait"} for it` }];
   if (rel.after) return [{ sign: "before", text: `waits for ${rel.hovered.short || rel.hovered.title}` }];
   if (rel.before && mine) return [{ sign: "after", text: `${mine} ${mine === 1 ? "waits" : "wait"} for it` }];
+  const on = t.state === "waiting" && !followsBuild(t, n) ? waitsForOf(n, t) : [];          // a waiting task's foot says what it waits for (spec 65 §3.2); the names are in its tooltip and its label
+  if (on.length) return [{ sign: "before", text: `waits for ${on.length === 1 ? on[0].short || on[0].title : on.length}` }];
   return [rest];
 }
 export const Foot = ({ parts }) => parts.map((p, i) => html`<span key=${i} class="arena-task__line">${p.sign && html`<${Sign} name=${p.sign} /> `}${p.text}</span>`);
@@ -55,7 +57,7 @@ export const Foot = ({ parts }) => parts.map((p, i) => html`<span key=${i} class
 /** The tooltip of a card: its title and what it says of its state. */
 export function cardTip(n, t) {
   const foot = taskFoot(t, n), head = `${t.title} (${goalWords(n)})`;
-  return t.state === "failed" ? `${head} · ${t.error || "failed"}` : t.state === "held" ? `${head} · ${foot}` : `${head} · wave ${t.wave}${t.after?.length ? ` · after ${t.after.join(", ")}` : ""}`;
+  return t.state === "failed" ? `${head} · ${t.error || "failed"}` : t.state === "held" ? `${head} · ${foot}` : `${head} · wave ${t.wave}${afterWords(t, n) ? ` · ${afterWords(t, n)}` : ""}`;
 }
 
 /** What a press on a card opens: its result at Review, its pick while it asks, else the task. */
