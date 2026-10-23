@@ -136,6 +136,18 @@
 .board-plan__line { flex-basis: 100%; color: var(--ork-ink); font-weight: 600; }
 .board-task__title { text-align: left; }
 
+/* spec 62 §6: the line under a spec's sections that says which of them changed since the plan, and The change over the plan while the leader's plan change waits */
+.board-changed { padding: var(--ork-3) var(--ork-4); border-left: 2px solid var(--ork-edge); background: var(--ork-panel); }
+.board-changed > p { flex: 1 1 240px; margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.shell-change { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); width: 100%; box-sizing: border-box; }
+.shell-change > p { margin: 0; overflow-wrap: anywhere; }
+.shell-change__why { color: var(--ork-ink); }
+.shell-change__rows li { flex-wrap: nowrap; align-items: baseline; gap: var(--ork-3); }
+.shell-change__op { flex: none; min-width: 1ch; font-weight: 600; text-align: center; }
+.shell-change__title { min-width: 0; overflow-wrap: anywhere; }
+.shell-change__rows li[data-op="drop"] .shell-change__op, .shell-change__rows li[data-op="drop"] .shell-change__title { color: var(--ork-ink-muted); }
+.shell-change__rows li[data-op="drop"] .shell-change__title { text-decoration: line-through; }
+
 /* spec 34 §5: every dialog and menu on a dimmed backdrop, in an opaque panel (orkUI's dialog: a double frame, notched); on a
    narrow screen a sheet from the bottom */
 .shell-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--ork-6);

@@ -1,14 +1,16 @@
 // An opened idea (29a §7), as the v1 shell's preview shows it (docs/specs/33-v1-shell.md §6): its sections as blocks (each
 // its own colour role and icon, the thesis bold, the text folded), the question box, the talk, and the actions by state —
-// Take it to work · Start · task states with Stop · Start again. `PlanView` is the same idea's plan, scrolled to a to-do.
+// Take it to work · Start · task states with Stop · Start again. `PlanView` is the same idea's plan, scrolled to a to-do. The talk names the party's leader, and a spec whose plan-making
+// sections changed since the plan says so (docs/specs/62-spec-after-start.md §5, §6): `ChangedLine` under the sections, **The change** over the plan while the leader's plan change waits.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Who, Icon } from "../orkui.js";
-import { say } from "../link.js";
+import { toast } from "../link.js";
 import { stateWords, board, PRIORITY_WORDS, holdWords } from "./store.js";
 import { Stages } from "./stages.js";
-import { act as run, showTask, showIdea, closePreview, roles } from "../shell/store.js";
+import { act as run, showTask, showIdea, closePreview, roles, mapData } from "../shell/store.js";
 import { missingWords } from "../arena/types.js";
+import { changeGem, changeToast } from "../arena/arenawords.js";
 import { ErrorLine } from "../shell/errors.js";
 import { PointedAt } from "../shell/lens.js";
 
@@ -33,6 +35,16 @@ const camp = () => document.documentElement.dataset.look === "camp";    // the k
 const usd = (n) => (n < 10 ? n.toFixed(2).replace(/0$/, "") : String(Math.round(n)));
 export const price = (e) => (e ? `~$${usd(e.usd_low)}–${usd(e.usd_high)}` : "");
 
+/** The leader of the party a goal belongs to (`track`: its slug in the Map), by name; "" when the Taskmaster leads or the Map does not know it (yet). `say()` does not swap a name. */
+const leaderOf = (track) => {
+  const lead = (mapData.value?.goals || []).find((g) => g.slug === track)?.leader;
+  return lead?.name && lead.slug !== "taskmaster" ? lead.name : "";
+};
+const inText = (lead) => lead || "the Taskmaster";                    // in a sentence …
+const atStart = (lead) => lead || "The Taskmaster";                  // … and at a sentence's start
+/** *Gist, Done when and Out*. */
+const andList = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+
 function Block({ s, onAsk, asked, slug, plan }) {
   const [role, d, icon] = SECTIONS[s.name] || ["muted", "M3 8h10", "gist"];
   const [editing, setEditing] = useState(null);
@@ -53,7 +65,7 @@ function Block({ s, onAsk, asked, slug, plan }) {
   </details>`;
 }
 
-function Say({ p, section, setSection }) {
+function Say({ p, section, setSection, lead }) {
   const [text, setText] = useState("");
   const send = async () => {
     const t = text.trim();
@@ -64,18 +76,18 @@ function Say({ p, section, setSection }) {
   return html`<div class="board-say">
     ${section && html`<span class="board-chip">About ${section} <button class="board-link" aria-label="Ask about the whole goal"
       onClick=${() => setSection("")}>×</button></span>`}
-    <textarea class="ork-field" rows="2" value=${text} aria-label=${say("Ask or answer the Taskmaster")}
-      placeholder=${section ? `About ${section}…` : say("Ask or answer the Taskmaster…")} onInput=${(e) => setText(e.target.value)}
+    <textarea class="ork-field" rows="2" value=${text} aria-label=${`Ask or answer ${inText(lead)}`}
+      placeholder=${section ? `About ${section}…` : `Ask or answer ${inText(lead)}…`} onInput=${(e) => setText(e.target.value)}
       onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}></textarea>
     <div class="board-row"><button class="ork-btn" disabled=${!text.trim() || p.busy} onClick=${send}>Ask</button>
-      ${p.busy && html`<span class="ok-tone-wait">${say("The Taskmaster is answering…")}</span>`}</div>
+      ${p.busy && html`<span class="ok-tone-wait">${atStart(lead)} is answering…</span>`}</div>
   </div>`;
 }
 
-function Talk({ turns }) {
+function Talk({ turns, lead }) {
   if (!turns.length) return "";
   return html`<ol class="board-talk" aria-label="The talk">${turns.slice(-8).map((t, n) => html`<li key=${n} data-who=${t.who}>
-    <span class="board-talk__who">${t.who === "you" ? "You" : say("The Taskmaster")}${t.section ? ` · ${t.section}` : ""}</span>
+    <span class="board-talk__who">${t.who === "you" ? "You" : atStart(lead)}${t.section ? ` · ${t.section}` : ""}</span>
     <span>${t.text}</span></li>`)}</ol>`;
 }
 
@@ -139,12 +151,12 @@ function Plan({ plan, todo = "" }) {
   </div>`;
 }
 
-function Actions({ p }) {
+function Actions({ p, lead }) {
   const s = p.state, plan = p.plan, slug = p.slug;
   const e = plan?.estimate;
-  if (s === "reading" || s === "planning") return html`<div class="board-row"><p class="ok-tone-wait" role="status">${say(`The Taskmaster is ${s === "reading" ? "drafting" : "planning"}…`)}</p>
+  if (s === "reading" || s === "planning") return html`<div class="board-row"><p class="ok-tone-wait" role="status">${atStart(lead)} is ${s === "reading" ? "drafting" : "planning"}…</p>
     <button class="ork-btn danger" onClick=${() => run("ideas.read_stop", { slug })}>Stop</button></div>`;
-  if (s === "raw") return html`<div class="board-row">${!p.state_error && html`<p class="ok-tone-muted">${say("New: the Taskmaster drafts it tonight, or when you press Process now.")}</p>`}
+  if (s === "raw") return html`<div class="board-row">${!p.state_error && html`<p class="ok-tone-muted">New: ${inText(lead)} drafts it tonight, or when you press Process now.</p>`}
     <button class="ork-btn" onClick=${() => run("ideas.queue", { slug, queue: "now" })}>${p.state_error ? "Try again" : "Process now"}</button></div>`;
   return html`<div class="board-actions">
     ${(s === "ready" || s === "asks") && html`<button class="ork-btn primary" onClick=${() => run("ideas.plan", { slug })}>Take it to work</button>`}
@@ -156,12 +168,50 @@ function Actions({ p }) {
   </div>`;
 }
 
+/** The plan-making sections written since the plan (spec 62 §6.1), under the sections, with the press that makes the plan again: **Re-plan** before the start, **Re-plan what is left** after it (the
+ *  leader then proposes a plan change, which waits in the hand; the press says *again* while one waits). A model call each press, so never by itself. Nothing for a goal that is done. */
+function ChangedLine({ p, lead }) {
+  const names = p.changed || [];
+  if (!names.length || p.state === "done") return null;
+  const after = !!p.passed, working = after && !!p.revising, waits = after && !!p.change, list = andList(names);
+  const words = !after ? `${list} changed since the plan.` : working ? `${atStart(lead)} re-plans what is left…`
+    : waits ? `${atStart(lead)} proposed a plan change: it waits for you below.` : `${list} changed since the work started: the tasks not started may change.`;
+  return html`<div class="board-row board-changed" data-passed=${String(after)}>
+    <p class=${working ? "ok-tone-wait" : "ok-tone-muted"} role="status">${words}</p>
+    <button class="ork-btn" disabled=${!!p.busy || working} onClick=${() => run(after ? "ideas.revise" : "ideas.plan", { slug: p.slug })}>${!after ? "Re-plan" : waits ? "Re-plan what is left again" : "Re-plan what is left"}</button>
+  </div>`;
+}
+
+const CHANGE_ROWS = { add: ["+", "added"], change: ["~", "changed"], drop: ["−", "dropped"] };
+
+/** **The change** (spec 62 §6.4), over the plan while the leader's plan change waits: why, its price, the tasks it adds, changes and drops (a dropped one muted and struck) and the two presses. */
+function Change({ p }) {
+  const c = p.change, [busy, setBusy] = useState(false);
+  if (!c) return null;
+  const answer = async (take) => {
+    setBusy(true);
+    const got = await run("ideas.revise_answer", { slug: p.slug, take });
+    setBusy(false);
+    if (got) toast(changeToast(got));
+  };
+  const gem = changeGem(c);
+  return html`<div class="board-plan shell-change kit-well" role="group" aria-label="The change">
+    <h3 class="board-sub kit-legend">The change ${gem && html`<span class="ok-tone-muted" title="At API prices, not your bill">${gem}</span>`}</h3>
+    ${c.why && html`<p class="shell-change__why">${c.why}</p>`}
+    ${c.rows.length > 0 && html`<ul class="board-tasks shell-change__rows">${c.rows.map((r, i) => html`<li key=${i} data-op=${r.op}>
+      <span class="shell-change__op" role="img" aria-label=${CHANGE_ROWS[r.op][1]}>${CHANGE_ROWS[r.op][0]}</span><span class="shell-change__title">${r.title}</span></li>`)}</ul>`}
+    <div class="board-row"><button class="ork-btn primary" disabled=${busy} onClick=${() => answer(true)}>Take the new plan</button>
+      <button class="ork-btn" disabled=${busy} onClick=${() => answer(false)}>Keep the plan</button></div>
+  </div>`;
+}
+
 /** The goal's plan with the to-do it was opened from highlighted and said what it unblocks; Start stays here. A plan that gives work to no one of the party says
- *  so under it (docs/specs/52-goal-types.md §4.4). */
+ *  so under it (docs/specs/52-goal-types.md §4.4). A plan change that waits is over it. */
 export function PlanView({ p, todo }) {
   const plan = p.plan, e = plan?.estimate;
   if (!plan) return html`<p class="ok-tone-muted">This goal has no plan yet.</p>`;
   return html`<div class="board-actions">
+    <${Change} p=${p} />
     <${Plan} plan=${plan} todo=${todo} />
     ${(plan.missing || []).length > 0 && html`<p class="ok-font-status ok-tone-muted board-missing">${missingWords(plan.missing)}</p>`}
     ${p.state === "plan" && e && html`<button class="ork-btn primary" onClick=${() => run("ideas.start", { slug: p.slug })}>Start · ${e.tasks} tasks · ${price(e)}</button>`}
@@ -172,7 +222,7 @@ export function PlanView({ p, todo }) {
 export function IdeaView({ p }) {
   const [section, setSection] = useState("");
   const [sure, setSure] = useState(false);
-  const row = board.value?.ideas.find((i) => i.slug === p.slug);
+  const row = board.value?.ideas.find((i) => i.slug === p.slug), lead = leaderOf(p.track);
   const drop = async () => { await run("ideas.drop", { slug: p.slug }); closePreview(); };
   return html`<div class="board-ideaview">
     <div class="board-bar">
@@ -186,10 +236,11 @@ export function IdeaView({ p }) {
     ${p.state_error && !["reading", "planning", "failed"].includes(p.state) && html`<${ErrorLine} text=${p.state_error} />`}
     <${PointedAt} lens=${p.lens} />
     <${Checks} checks=${p.checks} slug=${p.slug} planned=${!!p.plan} />
-    <${Actions} p=${p} />
+    <${Actions} p=${p} lead=${lead} />
     <div class="board-secs">${p.sections.map((s) => html`<${Block} key=${s.name} s=${s} slug=${p.slug} plan=${p.plan} asked=${section === s.name} onAsk=${setSection} />`)}</div>
-    <${Say} p=${p} section=${section} setSection=${setSection} />
-    <${Talk} turns=${p.talk || []} />
+    <${ChangedLine} p=${p} lead=${lead} />
+    <${Say} p=${p} section=${section} setSection=${setSection} lead=${lead} />
+    <${Talk} turns=${p.talk || []} lead=${lead} />
     <div class="board-row">${sure ? html`<span>Drop this goal and its page?</span>
         <button class="ork-btn danger" onClick=${drop}>Delete it</button><button class="ork-btn" onClick=${() => setSure(false)}>Keep it</button>`
       : html`<button class="ork-btn danger" onClick=${() => setSure(true)}>Delete goal</button>`}</div>
