@@ -8,7 +8,7 @@ import { PRIORITY_WORDS } from "./shell-words.js";
 import { CRAFT_WORDS, RACE_WORDS, goalHead, whoHead } from "./shell-who.js";
 import { limitsNote } from "./shell-limits.js";
 import { flagWords } from "./shell-map.js";
-import { makeNewGoal, makeParty } from "./shell-goal-new.js";
+import { makeNewGoal, makeParty, IDEATION_WHOLE } from "./shell-goal-new.js";
 
 const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"], ["product", "lich"]];   // realm/roles.py RACES
 
@@ -88,8 +88,9 @@ export function makeGoalSheet(core) {
       party.set({ leader: g.leader?.slug || "taskmaster", team: g.team || [], every: g.every || [], party: g.party || "" }, () => g.craft || "");
       teamSheet.open();
     },
-    open(which = "", after = null) {
-      if (!which) { wizard.open(after); return; }
+    /** `preset`: New party with that party of the library picked (a pitch sent to a party the project lacks, spec 65 §5). */
+    open(which = "", after = null, preset = "") {
+      if (!which) { wizard.open(after, preset); return; }
       slug = which;
       then = after;
       const g = which ? (core.st.board?.tracks || []).find((t) => t.slug === which) : null;
@@ -225,8 +226,10 @@ function teamSec(g, core, sec) {
     const r = roles.find((x) => x.slug === id), a = lib.find((x) => x.id === id);
     return { name: r?.name || a?.name || id, head: r?.head || (a ? { craft: a.craft, race: { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" }[a.craft] || "peon", tier: a.tier } : null) };
   };
+  const ideation = lib.find((a) => a.id === mine[0])?.pitch === true;        // Ideation keeps its four views and its skeptic: no seat changes (spec 65 §1)
   return sec("The party", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),
-    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the party",
-      onclick: () => core.editTeam(g) }, "Change")),
+    ideation ? h("p", { class: "cap", "data-sec": "ideation" }, IDEATION_WHOLE)
+      : h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-change": "team", "aria-label": "Change the party",
+        onclick: () => core.editTeam(g) }, "Change")),
     savePartyEl(g, core));
 }

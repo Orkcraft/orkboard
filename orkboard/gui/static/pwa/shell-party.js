@@ -7,6 +7,7 @@ import { h, icon, sheet } from "./util.js";
 import { elem, sign } from "./shell-marks.js";
 import { modelOf } from "./shell-arena-words.js";
 import { savePartyEl } from "./shell-goal.js";
+import { IDEATION_WHOLE } from "./shell-goal-new.js";
 import { gatePress } from "./shell-gate.js";
 import { inView, motionOn, raise, raiseTo } from "./shell-motion.js";
 import { flagWords as oldFlagWords } from "./shell-map.js";
@@ -85,19 +86,20 @@ export function makeParty(core, ctx) {
     const before = g.verdict?.met ? line(`Before: ${oldFlagWords(g.verdict)}`) : null;
     const edit = h("button", { class: "ork-btn", type: "button", "data-act": "edit-party", onclick: () => { sh.close(); core.editGoal(g.slug); } }, "Edit the party");
     const add = h("button", { class: "ork-btn", type: "button", "data-act": "add-member", title: seatWords(m.freeBuild + m.freeCheck), onclick: () => { sh.close(); core.editParty(g.slug); } }, "Add to the party");
+    const pitches = Boolean(g.ideation);                      // Ideation (spec 65): its seats stay, its goals are pitches, it raises no flag
     body.replaceChildren(...[
       h("button", { class: "party-about__who", type: "button", "data-act": "party-screen", "aria-label": `Open the party ${g.title}`, onclick: () => { sh.close(); core.open({ kind: "goal", slug: g.slug }, "party"); } },
         h("span", {}, h("b", {}, g.title), ` · led by ${g.leader?.name || "Taskmaster"}`), h("i", { class: "ork-chev right", "aria-hidden": "true" })),
       sec("What it is for", ...(forWords.length ? forWords.map((t) => line(t)) : [line("Not written yet.")])),
       sec("The party", ...members),
       sec("Checks on every goal", ...(checkers.length ? checkers : [line("No checker in the party.")])),
-      sec("What it costs", ...(spent.length ? [line(spent.join(" · "))] : []), range ? line(`about ${range} a goal with this party`) : null),
-      sec("Its flags", ...(listed.length ? listed.map((f) => h("p", { class: "cap party-about__flag", "data-idea": f.slug }, sign("flag"), ` ${f.short} · ${flagTally(f)}`))
+      sec("What it costs", ...(spent.length ? [line(spent.join(" · "))] : []), range ? line(`about ${range} a ${pitches ? "pitch" : "goal"} with this party`) : null),
+      pitches ? null : sec("Its flags", ...(listed.length ? listed.map((f) => h("p", { class: "cap party-about__flag", "data-idea": f.slug }, sign("flag"), ` ${f.short} · ${flagTally(f)}`))
         : [line("None yet: a goal raises its flag when the gate takes it into main.")]),
       flags.length > FLAGS_SHOWN && !allFlags ? h("button", { class: "ork-btn quiet", type: "button", "data-act": "all-flags", onclick: () => { allFlags = true; draw(); } }, `All ${flags.length}`) : null),
       before,
-      h("div", { class: "party-about__acts" }, edit, add, savePartyEl(g, core)),
-      h("p", { class: "cap party-about__seats" }, seatWords(m.freeBuild + m.freeCheck))].filter(Boolean));
+      h("div", { class: "party-about__acts" }, edit, pitches ? null : add, savePartyEl(g, core)),
+      h("p", { class: "cap party-about__seats" }, pitches ? IDEATION_WHOLE : seatWords(m.freeBuild + m.freeCheck))].filter(Boolean));
   }
 
   /** Opens the sheet on a party; `at`: a block to scroll to (*Its flags*). */
