@@ -3,7 +3,8 @@
 // with what the party costs a goal (spec 43 §3) —, the checks on every goal and its priority (*goes first when the window is short*). No metrics, no deadline,
 // no links: a party has no end. It sends `ideas.goal_save` with `title`, `about`, `team`, `every`, `leader`, `party` (a party of the person's that was picked), `preset` (the library's party the seats still are) and
 // `priority`. A task goes to the one of the party who does its kind of work; a checker's check adds its line to a goal's Done when and its task to the plan
-// (realm/idea_checks.py). The code's goal is a party.
+// (realm/idea_checks.py). The code's goal is a party. At the press of *Save party* the boxes of the seats' heads are kept: once the party is saved and shown, the heads gather into its deck
+// (docs/specs/63-party-gathered.md §3, arena/goaltabs.js).
 import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, toast } from "../link.js";
@@ -11,9 +12,23 @@ import { track } from "../board/store.js";
 import { act, roles, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { PRIORITIES } from "./goaldialog.js";
-import { TASKMASTER, PartyBands, PriceLine, ChecksBlock, OwnParties, LibraryTiles, agentOf, partyWords, overfull, usePartyPrice, useOwnParties } from "./party.js";
+import { gatherWaits } from "../arena/arenastate.js";
+import { reducedMotion } from "../arena/motion.js";
+import { TASKMASTER, RACE, PartyBands, PriceLine, CanTake, ChecksBlock, OwnParties, LibraryTiles, agentOf, inBand, partyWords, overfull, usePartyPrice, useOwnParties } from "./party.js";
 
 export const FOR_HINT = "goes first when the window is short";
+
+const boxOf = (r) => ({ left: r.left, top: r.top, width: r.width, height: r.height });
+/** The heads of the seats as the dialog draws them now (spec 63 §3.1): [{race, tier, box}], the leader's first, then the builders', then the checkers' (six at most). A head whose seat is not on
+ *  screen (scrolled out of the dialog) starts from *Save party*'s box: its own size, at that box's centre. */
+function seatHeads(leader, team) {
+  const heads = [leader, ...inBand("build", leader, team), ...inBand("check", leader, team)].map(agentOf).filter(Boolean).slice(0, 6);
+  const seats = [...document.querySelectorAll("#goal-form .shell-team-seat .ork-race__head")].map((x) => x.getBoundingClientRect());
+  const view = document.querySelector(".shell-modal__body")?.getBoundingClientRect(), save = document.querySelector(".shell-modal__foot button[type=submit]")?.getBoundingClientRect();
+  const seen = (r) => !view || (r.bottom > Math.max(view.top, 0) && r.top < Math.min(view.bottom, innerHeight) && r.right > view.left && r.left < view.right);
+  const atSave = (r) => (save ? { left: save.left + (save.width - r.width) / 2, top: save.top + (save.height - r.height) / 2, width: r.width, height: r.height } : r);
+  return heads.map((a, i) => seats[i] && { race: RACE[a.craft], tier: a.tier, box: boxOf(seen(seats[i]) ? seats[i] : atSave(seats[i])) }).filter(Boolean);
+}
 
 export function GoalWizard({ then = "" }) {
   const start = roles.value?.parties?.engineering || { lead: TASKMASTER, build: [], check: [] };
@@ -46,12 +61,14 @@ export function GoalWizard({ then = "" }) {
   const save = async (e) => {
     e?.preventDefault();
     if (!ready) return;
+    const heads = then === "idea" || reducedMotion() || document.hidden ? [] : seatHeads(leader, team);       // the heads' boxes at the press: the dialog is gone when they travel
     setSaving(true);
     const got = await act("ideas.goal_save", { ...(title.trim() ? { title: title.trim() } : {}), about: about.trim(), leader, team, every: every.filter((id) => team.includes(id)), priority,
       ...(partyId ? { party: partyId } : {}), ...(preset && !partyId ? { preset } : {}) });
     setSaving(false);
     if (!got?.slug) return;
     for (const note of got.notes || []) toast(note);       // an agent of the project's own that the party carries stays as it was
+    if (heads.length) gatherWaits(got.slug, heads);        // the heads gather into the party's deck once it is shown (arena/goaltabs.js)
     closeDialog();
     track.value = got.slug;
     if (then === "idea") openDialog("idea", { goal: got.slug });
@@ -71,6 +88,7 @@ export function GoalWizard({ then = "" }) {
         <${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
         <${PartyBands} craft=${craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
         <${PriceLine} price=${price} />
+        <${CanTake} price=${price} />
         <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p></div>
       <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />
       <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span><small class="ok-tone-muted">${FOR_HINT}</small>

@@ -101,6 +101,9 @@
 .shell-party-save { margin-top: var(--ork-3); }
 .shell-price { margin: var(--ork-4) 0 var(--ork-2); }
 .shell-hint { margin: 0 0 var(--ork-2); }
+.shell-cantake { flex: none; margin: 0 0 var(--ork-2); max-height: 2lh; overflow: hidden; }          /* spec 63 §2: two lines at most, the rest ends with *and k more* (party.js) */
+.shell-cantake__one { white-space: nowrap; }
+.shell-cantake__one .ork-sign { color: var(--ork-ink-muted); }
 .shell-party > summary { cursor: pointer; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
 .shell-party__lines { margin: var(--ork-2) 0 0; padding-left: var(--ork-5); }
 .shell-party__lines li { overflow-wrap: anywhere; }

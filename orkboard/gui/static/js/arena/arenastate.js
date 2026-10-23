@@ -16,6 +16,7 @@ export const narrow = signal(false);       // below 1 024 px (spec 49 §3)
 export const stopLook = signal("");        // the key of the stop in the hand that is looked at (raised: pointer over it, focus in it), "" with none (spec 58 §2.1)
 export const stopAbout = signal(null);     // what that stop is about: {task: "<goal>/<task>"} or {idea: "<goal>"}, null for one that is about nothing on this field (spec 58 §1)
 export const deal = signal(null);          // the deal waiting (spec 57 §1.2): {goal, from: the stop's box at the press, at: when}, one at a time, null with none
+export const gather = signal(null);        // the gather waiting (spec 63 §3.1): {party, from: [{race, tier, box}] the heads of a new party's seats at the press, at: when}, null with none
 
 export const DEAL_KEEP_MS = 6000;
 let dealTimer = 0;
@@ -33,6 +34,22 @@ export function dropDeal(mine) {
   deal.value = null;
 }
 
+const GATHER_KEEP_MS = 6000;
+let gatherTimer = 0;
+/** A new party is saved: its seats' heads (`from`, the leader's first) gather into its deck (goaltabs.js `PartyTop`), in the first render that shows it once the dialog has closed. Dropped after 6 s. */
+export function gatherWaits(party, from) {
+  clearTimeout(gatherTimer);
+  const mine = { party, from, at: Date.now() };
+  gather.value = mine;
+  gatherTimer = setTimeout(() => dropGather(mine), GATHER_KEEP_MS);
+}
+/** The gather is played, refused or late: nothing waits. With `mine`, only that one is dropped. */
+export function dropGather(mine) {
+  if (mine && gather.value !== mine) return;
+  clearTimeout(gatherTimer);
+  gather.value = null;
+}
+
 /** The goals of a party the board shows: the one peeked, else the ones picked; [] shows all (§3.5). */
 export const shownGoals = (party) => (peek.value ? [peek.value] : picks.value[party] || []);
 /** A press on a goal's row: picked, or taken out when it was. */
@@ -47,5 +64,5 @@ export function clearPicks(party) {
 
 /** Another party is shown: what was hovered, spread or opened on the last one goes (the picks stay with their party). */
 export function leaveParty() {
-  solo.value = ""; peek.value = ""; taskHover.value = ""; stopLook.value = ""; stopAbout.value = null; dropDeal(); spread.value = null; rawOpen.value = false; flagsOpen.value = false; flagsAll.value = false;
+  solo.value = ""; peek.value = ""; taskHover.value = ""; stopLook.value = ""; stopAbout.value = null; dropDeal(); dropGather(); spread.value = null; rawOpen.value = false; flagsOpen.value = false; flagsAll.value = false;
 }

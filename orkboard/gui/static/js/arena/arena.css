@@ -242,6 +242,9 @@
 .arena-stk .arena-task.is-dealt { position: relative; z-index: 60; animation: arena-deal 0.3s steps(6) var(--delay, 0s) backwards; }
 @keyframes arena-deal { from { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); opacity: 0.2; pointer-events: none; } to { transform: none; opacity: 1; pointer-events: auto; } }
 .arena-stack.is-dealing, .arena-solo.is-dealing { overflow: visible; }                 /* … and the column does not clip them for that moment */
+/* the gather (spec 63): a new party's heads, copies fixed over the page (goaltabs.js sets their box, --dx --dy to the deck's centre, --s, --delay 35 ms apart), travel in the deal's steps and are gone on landing */
+.arena-gather { position: fixed; z-index: 130; margin: 0; pointer-events: none; animation: arena-gather 0.3s steps(6) var(--delay, 0s) both; }
+@keyframes arena-gather { from { transform: none; } to { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 0.4)); } }
 /* a stop looked at rings its task's cards (spec 58 §2): 2 px of ink, 2 px outside, on the stack's box (the card itself is clipped to its notch); drawn and taken away at once */
 .arena-stk.is-linked { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 
