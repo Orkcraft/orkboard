@@ -245,6 +245,16 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .about { all: unset; box-sizing: border-box; align-self: flex-start; cursor: pointer; min-height: var(--ork-tap); padding: 0 var(--ork-5); display: inline-flex;
   align-items: center; border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); color: var(--ork-ink); font: var(--ork-type-caption); }
 .ask textarea.ork-field { resize: none; min-height: var(--ork-tap); max-height: 8rem; }
+/* the spec after the start (spec 62): the changed line under a goal's sections with its press (44 px), and the plan change over its plan (rows: + added, ~ changed, − dropped muted and struck) */
+.changed-line { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); padding: var(--ork-4) var(--ork-5); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); }
+.changed-line p { margin: 0; }
+.changed-line .ork-btn { min-height: var(--ork-tap); }
+.plan-change .change-why { margin: 0 0 var(--ork-3); }
+.change-rows { list-style: none; margin: 0 0 var(--ork-3); padding: 0; display: flex; flex-direction: column; gap: var(--ork-3); }
+.change-row { display: flex; align-items: baseline; gap: var(--ork-3); }
+.change-mark { flex: none; width: 1rem; text-align: center; }
+.change-row.is-drop { color: var(--ork-ink-muted); text-decoration: line-through; }
+.plan-change .change-cost { margin: 0; }
 .brief { white-space: pre-wrap; margin: 0; }
 .md { min-width: 0; }
 .md h1, .md h2, .md h3 { margin: var(--ork-5) 0 var(--ork-3); color: var(--ork-ink); font: var(--ork-type-body); font-weight: 600; text-transform: none;
@@ -782,7 +792,7 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .hc__kind.no { color: var(--ork-danger); }
 .hc__kind.muted { color: var(--ork-ink-muted); }
 .hc__miss { margin-top: var(--ork-2); font: 400 11px/14px var(--ork-font-text); color: var(--ork-ink-muted); }
-.raised__miss { margin: 0; padding: 0 var(--ork-5); font: 400 13px/18px var(--ork-font-text); }
+.raised__miss, .raised__why { margin: 0; padding: 0 var(--ork-5); font: 400 13px/18px var(--ork-font-text); }     /* a plan change's why (spec 62) stands under its text as a plan's missing line does */
 
 /* the raised one: a modal over the scrim, leaping from its place in the fan in steps (none under reduced motion) */
 dialog.raised-dlg { margin: auto auto calc(var(--tabs) + var(--ork-6)); padding: 0; border: 0; background: transparent; color: var(--ork-ink); width: calc(100% - 24px); max-width: 330px;

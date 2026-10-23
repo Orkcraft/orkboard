@@ -8,7 +8,8 @@ import { steady } from "./shell-util.js";
 import { stateWords } from "./shell-board.js";
 import { resultActions, factsOf, foundOf, mergeReason } from "./shell-review.js";
 import { gruntWords } from "./shell-agents.js";
-import { goalBody } from "./shell-goal.js";
+import { goalBody, leaderName } from "./shell-goal.js";
+import { changePrice, changeWords } from "./shell-arena-words.js";
 import { heldWords } from "./shell-words.js";
 import { limitsNote } from "./shell-limits.js";
 import { who, whoHead, headWords, TIER_WORDS } from "./shell-who.js";
@@ -26,6 +27,12 @@ const SECTIONS = { Gist: ["action", "✦"], Why: ["gold", "❖"], In: ["success"
   "Open questions": ["warning", "❓"], Estimate: ["gold", "≈"], Stages: ["action", "☰"], Decisions: ["muted", "✎"] };
 const TASK_WORDS = { waiting: "waiting", ready: "queued", running: "working", testing: "testing", picking: "asks you to pick", review: "at Review", merged: "merged",
   failed: "needs you", held: "held" };
+
+// The party's leader as the preview's talk and plan say it (spec 62 §5): *the Taskmaster* inside a sentence, *The Taskmaster* at its start, any other leader by its name.
+const the = (name) => (name === "Taskmaster" ? "the Taskmaster" : name);
+const The = (name) => (name === "Taskmaster" ? "The Taskmaster" : name);
+/** *Gist, Done when and Out*. */
+const joined = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 
 const usd = (x) => `$${Number(x) < 10 ? Number(x).toFixed(1) : Math.round(Number(x))}`;
 export const price = (e) => (e ? `~${usd(e.usd_low)}–${Number(e.usd_high) < 10 ? Number(e.usd_high).toFixed(1) : Math.round(Number(e.usd_high))}` : "");
@@ -68,6 +75,8 @@ export function makePreview(core, ctx, screens = {}) {
   const guard = pointerGuard([el], () => draw(false));            // no lost tap, no lost drag: a pick's screen is not drawn again while a pointer is down on it (a bar being dragged, a tile being pressed)
 
   const failed = (r) => !r.ok || r.result?.error;
+  /** The leader of the party a goal belongs to (the Map's goal whose slug is the page's `track`), by name. */
+  const leadOf = (p) => leaderName((st.map?.goals || []).find((g) => g.slug === p.track));
   async function read(p) {
     if (p.kind === "agents") return;                    // its pane draws itself (shell-agents.js)
     if (p.kind === "pick") {                            // read with the Board (Needs you): nothing to ask
@@ -122,8 +131,9 @@ export function makePreview(core, ctx, screens = {}) {
   }
 
   function askBox(p) {
-    const field = h("textarea", { class: "ork-field", id: "ask-field", rows: "2", maxlength: "20000", "aria-label": "Ask or answer the Taskmaster",
-      placeholder: section ? `About ${section}…` : "Ask or answer the Taskmaster…" });
+    const lead = leadOf(p);
+    const field = h("textarea", { class: "ork-field", id: "ask-field", rows: "2", maxlength: "20000", "aria-label": `Ask or answer ${the(lead)}`,
+      placeholder: section ? `About ${section}…` : `Ask or answer ${the(lead)}…` });
     field.value = asked;
     field.addEventListener("input", () => { asked = field.value; });
     const send = h("button", { class: "ork-btn", type: "button" }, "Send");
@@ -133,12 +143,30 @@ export function makePreview(core, ctx, screens = {}) {
       send.disabled = true;
       const args = { slug: p.slug, text };
       if (section) args.section = section;
-      const r = await act("ideas.say", args, "Sent: the Taskmaster answers in a moment.");
+      const r = await act("ideas.say", args, `Sent: ${the(lead)} answers in a moment.`);
       send.disabled = false;
       if (r) { asked = ""; field.value = ""; read(st.preview); }
     });
     return h("div", { class: "ask" }, section ? h("button", { class: "about", type: "button", "aria-label": "Ask about the whole goal instead",
-      onclick: () => { section = ""; draw(); } }, `${section} ✕`) : null, h("div", { class: "row" }, field, send));
+      onclick: () => { section = ""; draw(); } }, `${section} ✕`) : null, h("div", { class: "row" }, field, send),
+    p.busy && !p.revising && !["reading", "planning"].includes(p.state) ? h("p", { class: "muted", role: "status" }, `${The(lead)} is answering…`) : null);      // a talk is being answered (a draft or a plan says its own)
+  }
+
+  /** The changed line (spec 62 §6.1, §7.1), under the sections: the plan-making sections written since the plan, and the press that asks the party's leader to look again. Before the start it is
+   *  *Re-plan* (`ideas.plan`); after it *Re-plan what is left* (`ideas.revise`): the leader proposes a plan change for the tasks not started, which waits in the hand. A done goal says nothing. */
+  function changedLine(p, cur) {
+    if (!(p.changed || []).length || p.state === "done") return null;
+    const lead = leadOf(p), revising = Boolean(p.revising), waits = p.change != null;
+    const words = !p.passed ? `${joined(p.changed)} changed since the plan.` : revising ? `${The(lead)} re-plans what is left…`
+      : waits ? `${The(lead)} proposed a plan change: it waits for you.` : `${joined(p.changed)} changed since the work started: the tasks not started may change.`;
+    const press = h("button", { class: "ork-btn", type: "button", "data-act": p.passed ? "revise" : "replan", disabled: Boolean(p.busy) || revising },
+      !p.passed ? "Re-plan" : waits ? "Re-plan what is left again" : "Re-plan what is left");
+    press.addEventListener("click", async () => {
+      press.disabled = true;
+      const r = await act(p.passed ? "ideas.revise" : "ideas.plan", { slug: p.slug }, p.passed ? `${The(lead)} re-plans what is left.` : `${The(lead)} is planning.`);
+      if (r) read(cur); else press.disabled = false;
+    });
+    return h("div", { class: "changed-line", "data-state": !p.passed ? "before" : revising ? "revising" : waits ? "waits" : "after" }, h("p", { role: "status" }, words), press);
   }
 
   function planList(plan, p, todo = "") {
@@ -181,17 +209,18 @@ export function makePreview(core, ctx, screens = {}) {
 
   function ideaScreen(p, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Spec "), p.title);
-    const talk = (p.talk || []).slice(-TALK_SHOWN);
+    const talk = (p.talk || []).slice(-TALK_SHOWN), lead = leadOf(p);
     body.replaceChildren(...[
       h("p", { class: "muted" }, [p.size ? `Size ${p.size} · ` : "", stateWords({ state: p.state, progress: { done: (p.plan?.tasks || []).filter((t) => t.state === "merged").length, total: (p.plan?.tasks || []).length } })].join("")),
       stateError(p) ? h("p", { class: "warn", role: "alert" }, stateError(p)) : null,
       pointedAt(p.lens),
       checksLine(p, cur),
       ...(p.sections || []).map(sectionBlock),
+      changedLine(p, cur),
       p.plan && ["plan", "working", "failed", "done"].includes(p.state) ? planList(p.plan, p) : null,
       talk.length ? h("h3", {}, "The talk") : null,
       talk.length ? h("div", { class: "talk" }, ...talk.map((t) => h("div", { class: `turn ${t.who}` },
-        h("span", { class: "who" }, t.who === "you" ? "You" : "The Taskmaster", t.section ? ` · ${t.section}` : ""), h("p", {}, t.text)))) : null,
+        h("span", { class: "who" }, t.who === "you" ? "You" : The(lead), t.section ? ` · ${t.section}` : ""), h("p", {}, t.text)))) : null,
       askBox(p),
       h("p", { class: "muted" }, h("button", { class: "linkish", type: "button", onclick: () => dropIdea(p) }, "Delete this goal…"))].filter(Boolean));
     const n = p.plan?.estimate?.tasks ?? (p.plan?.tasks || []).length;
@@ -202,12 +231,12 @@ export function makePreview(core, ctx, screens = {}) {
     switch (p.state) {
       case "raw": {                                     // the Board's list had these; the Board is the Map now (shell-map.js)
         if (row.held_until) return [left];
-        const now = btn("Process now", () => act("ideas.queue", { slug, queue: "now" }, "The Taskmaster drafts it now.").then(() => read(cur)));
+        const now = btn("Process now", () => act("ideas.queue", { slug, queue: "now" }, `${The(lead)} drafts it now.`).then(() => read(cur)));
         return (row.queue || "night") === "hold" ? [left, now, btn("Tonight", () => act("ideas.queue", { slug, queue: "night" }, "Kept for tonight.").then(() => read(cur)), "")]
           : row.queue === "now" ? [] : [left, now];
       }
       case "reading": case "planning": return [btn("Stop", () => act("ideas.read_stop", { slug }, "Stopped.").then(() => read(cur)), "danger")];
-      case "ready": case "asks": return [left, btn("Take it to work", () => act("ideas.plan", { slug }, "The Taskmaster is planning.").then(() => read(cur)))];
+      case "ready": case "asks": return [left, btn("Take it to work", () => act("ideas.plan", { slug }, `${The(lead)} is planning.`).then(() => read(cur)))];
       case "plan": if (p.plan?.start_at === "night" || row.start_at === "night") return [left, btn("Start now", () => act("ideas.start_now", { slug }, "Started.").then(() => read(cur)))];
         return [left, btn(`Start · ${n} tasks · ${price(p.plan?.estimate)}`, () => act("ideas.start", { slug }, "Started.").then(() => read(cur)))];
       case "working": return [btn("Stop", () => act("ideas.stop", { slug }, "Stopped.").then(() => read(cur)), "danger")];
@@ -225,14 +254,39 @@ export function makePreview(core, ctx, screens = {}) {
   }
 
   // -- a plan, scrolled to a to-do ------------------------------------------------------------------------------
+  /** The plan change that waits (spec 62 §6.4, §7.4), over the plan: its why, its rows (*+* added, *~* changed, *−* dropped, muted and struck) and what it costs. */
+  function changeBlock(c) {
+    const MARK = { add: "+", change: "~", drop: "−" }, WORD = { add: "added", change: "changed", drop: "dropped" };
+    const cost = changePrice(c);
+    return h("div", { class: "plan-change card", "data-change": "" }, h("h3", {}, "The change"), c.why ? h("p", { class: "change-why" }, c.why) : null,
+      (c.rows || []).length ? h("ul", { class: "change-rows" }, ...c.rows.map((r) => h("li", { class: `change-row is-${r.op}`, "data-op": r.op },
+        h("span", { class: "change-mark", role: "img", "aria-label": WORD[r.op] }, MARK[r.op]), h("span", { class: "change-title" }, r.title))))
+        : h("p", { class: "muted" }, "The plan stays as it is."),
+      cost ? h("p", { class: "muted change-cost", title: "At API prices, not your bill" }, cost) : null);
+  }
+
+  /** *Take the new plan* and *Keep the plan* on the plan's screen (the screen's bar): the answer, its toast, the screen read again. Nothing is dealt here: only a press in the hand deals (spec 57). */
+  function changeBar(p, cur) {
+    const both = [];
+    const answer = (take) => async () => {
+      both.forEach((b) => { b.disabled = true; });
+      const r = await act("ideas.revise_answer", { slug: p.slug, take });
+      if (r) ctx.flash(take ? changeWords(r) : "The plan stays as it was.");
+      read(cur);
+    };
+    both.push(h("button", { class: "ork-btn primary big", type: "button", "data-act": "take-change", onclick: answer(true) }, "Take the new plan"),
+      h("button", { class: "ork-btn big", type: "button", "data-act": "keep-change", onclick: answer(false) }, "Keep the plan"));
+    return both;
+  }
+
   function planScreen(p, cur) {
     title.replaceChildren(h("span", { class: "muted" }, "Plan "), p.title);
     if (!p.plan) { body.replaceChildren(h("p", { class: "muted" }, "This goal has no plan yet.")); return []; }
-    body.replaceChildren(planList(p.plan, p, cur.todo));
+    body.replaceChildren(...[p.change ? changeBlock(p.change) : null, planList(p.plan, p, cur.todo)].filter(Boolean));
     requestAnimationFrame(() => body.querySelector(".plan-todo.is-target")?.scrollIntoView({ block: "center" }));
     const n = p.plan.estimate?.tasks ?? (p.plan.tasks || []).length;
-    return p.state === "plan" ? [limitsNote(core.st.snap), h("button", { class: "ork-btn primary big", type: "button",
-      onclick: () => act("ideas.start", { slug: p.slug }, "Started.").then(() => read(cur)) }, `Start · ${n} tasks · ${price(p.plan.estimate)}`)] : [];
+    return [...(p.change ? changeBar(p, cur) : []), ...(p.state === "plan" ? [limitsNote(core.st.snap), h("button", { class: "ork-btn primary big", type: "button",
+      onclick: () => act("ideas.start", { slug: p.slug }, "Started.").then(() => read(cur)) }, `Start · ${n} tasks · ${price(p.plan.estimate)}`)] : [])];
   }
 
   // -- a party, and a document it links ------------------------------------------------------------------------
