@@ -49,3 +49,29 @@ added when it is not known). The leader's and the Grunt's too.
 The price for a run over each column (it is on the card); the marks on the stage switch; the desktop.
 
 ## 6. As built (notes, no change of the contract)
+
+**C (the phone), 23 October.** §1–§3 built as written, with the two findings below. What the builder chose or found:
+- `pwa/shell-arena-field.js` `colName(m)` draws, from `m.marks` (`marksOf`, unchanged: it is not in C's row), `mark("harness-<id>", tip)`, the name in `span.colname__name` and
+  `mark("rank-<n>", tip)`; a mark that is `null` is not drawn. `.colname` (`pwa/app.css`) gains `gap: var(--ork-2)` and loses its `text-overflow` (the ellipsis moves to the name);
+  the name span takes `min-width: 0; overflow: hidden; text-overflow: ellipsis` and the marks stay `flex: none` (orkUI's `.ork-mark`, 16 × 16). Padding, the 28 px row and the
+  centring are as they were. The leader's column and the checkers' columns wear theirs through the same function.
+- `aria-label` is `<name> · runs on <tool> · <level>`: the tool is `role.harness.name`, the level the tier's word from `shell-who.js` `TIER_WORDS` (*Seasoned*, *Veteran*, *Novice*); a
+  part not known is left out, and a member with neither has the label of its name. The marks' titles are `marksOf`'s own (*Runs on Claude*, *Seasoned: its level*), their `alt` empty.
+  The label stands on a role-less `span` as the spec words it (no `role` added), so only some screen readers say it.
+- **The tool's name is the host's:** `ideas_roles._harness` sends the first word of the tool's title, so the words are *Claude* and *Codex*, not *Claude Code*: the card reads
+  *Seasoned elf · Design · Claude* and the title *Runs on Claude* (the spec's examples are the long form). Not changed: the host and `marksOf` are not in C's row.
+- The card's kit line (§2) is `[m.kit, role.harness.name]` joined with ` · `, the tool left out when the host sends none; the leader's and the Grunt's card use the same line.
+- **Finding, §1's last bullet (three columns):** the field's `FEW` is 2 (spec 50 §6.5), so `.strip.is-few` is one or two columns (about 180 px each with two) and **three columns are
+  148 px, scrolled**, the third peeking: there is no three-column `.is-few` of about 120 px. Built and tested on what the code draws: with three columns a long name
+  (*Design system designer*) is cut with an ellipsis and both marks keep 16 × 16 inside the column; with two, *Level designer* is whole.
+- **Finding, §1's last sentence (148 px):** *today's library's names are not cut* does not hold. At 148 px the name has 100 px (4 + 16 + 4 + name + 4 + 16 + 4), measured in Chromium at
+  11 px: *Design system designer* 141 px, *Accessibility reviewer* 142, *Security reviewer* 111, *Product designer* 105 and *Product manager* 102 are cut; the other six fit
+  (*Sound designer* 91, *Level designer* 91, *Data engineer* 83, *Taskmaster* 70, *Architect* 60, *Grunt* 34). Without marks (140 px) the first two would already be 1–2 px over.
+  Left as specified (marks never shrink, only the name is cut); if the owner wants these whole, the room is the column's side padding (+8 px takes the two nearest) or its width.
+- Tests: new `tests/test_pwa_member_marks_browser.py` (eight tests: the three marks in order with titles, labels, 16 × 16, the gap and the centring; the leader's and the checkers'
+  columns; no mark for a tool orkUI draws none for, no level for a head with no tier, neither for a role with no tool; the cut with three columns and the whole name with two; the card's
+  line; the stage switch with no `.ork-mark`; the cache). The tests that read `.colname` (`test_pwa_board53_browser`, `test_pwa_arena_browser`, `test_pwa_map39_browser` and the others)
+  needed no change: the text is the name alone.
+- `sw.js` `CACHE` is **`orkcraft-app-v68`** (main had v67), one bump for this part and spec 61 C: the second to merge keeps v68. Pinned in `tests/test_pwa.py` and in the five browser
+  tests that pin the version (`test_pwa_board53_browser`, `test_pwa_deal_start_browser`, `test_pwa_goal_types_browser`, `test_pwa_mixed_parties_browser`, `test_pwa_one_hand_browser`),
+  which would be red on v67 otherwise.

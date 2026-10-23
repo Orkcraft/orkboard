@@ -158,4 +158,4 @@ async def test_a_tasks_card_wears_its_goals_type_top_right_a_planning_goal_says_
 
 def test_the_service_worker_is_at_v61_with_b_merged_over_a_v60():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v67";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7); spec 54 B is v62
+    assert 'const CACHE = "orkcraft-app-v68";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7); spec 54 B is v62

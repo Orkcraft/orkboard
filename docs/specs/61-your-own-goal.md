@@ -53,3 +53,17 @@ Two parts; they share no file.
 A type suggested from the person's words; a person's own goal types (spec 59: not in it).
 
 ## 5. As built (notes, no change of the contract)
+
+**C (the phone), 23 October.** §0 and §2 built as written. What the builder chose or found:
+- `pwa/shell-ideas.js`: `drawTypes()` deals the dashed chip first (`class` `is-blank`, `data-type=""`, its name *Your own goal*), then the party's types in the map's order, and
+  `setParty()` ends with `pickType(null)` in place of `pickType(types[0] || null)`; `BLANK_LINE` is *In your words: the leader plans it like any other.* The code's names stay
+  (`is-blank`, `typed = null`). `pwa/app.css` needed no change: the dashed edge belongs to `.newgoal__chip.is-blank`, wherever it stands in the row.
+- `setParty()` runs when the form opens and when another party is picked in its list, so a party picked in the form deals that party's types with *Your own goal* picked again (spec 53
+  §2.2 picked the first type at both moments; §2.2 here says only when the form opens, and the same moment is the one that fits).
+- A party with no types: the row stays hidden (`typeBlock.hidden`) and the goal is one's own, as before. *Add the goal* with one's own sends no `type` (`ideas.add`'s `typed ? { type } : {}`,
+  unchanged); a type tapped and then *Your own goal* tapped again sends none and leaves the type's asks out.
+- The old default was leaned on by tests, which now tap the type they need: in `tests/test_pwa_new_goal53_browser.py` the types' row test is rewritten (the order with one's own first and
+  checked, its line and placeholder at open, a type's line and the line back, no *No type* or *A blank goal* in the form), a new test checks what *Add the goal* sends for one's own, a
+  type and one's own again, and the party's, priority (*Keep for tonight* now sends no `type`), one-field, lens-switch and *Fix a bug* one-screen tests open with `_form(page, "bug")` or tap
+  the type. `tests/test_pwa_goal_types_browser.py`: only `_form`'s docstring (every test there names its type).
+- `sw.js` `CACHE` is **`orkcraft-app-v68`**: one bump shared with spec 60 C (the second to merge keeps v68); the pins are listed in spec 60's note.
