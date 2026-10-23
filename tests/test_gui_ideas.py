@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import sys
+import threading
 import time
 import types
 from pathlib import Path
@@ -21,7 +22,8 @@ BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.
                   "ideas.review_list", "ideas.diff", "ideas.merge", "ideas.back", "ideas.drop_task",
                   "ideas.stop_task", "ideas.agents", "ideas.task", "ideas.into", "ideas.log", "ideas.logs", "ideas.goal_save",
                   "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_add", "ideas.role_drop",
-                  "ideas.kind_set", "ideas.gate", "ideas.gate_merge", "ideas.today", "ideas.pick"}          # … and spec 49's three, spec 51's one
+                  "ideas.kind_set", "ideas.gate", "ideas.gate_merge", "ideas.today", "ideas.pick",
+                  "ideas.revise", "ideas.revise_answer"}          # … and spec 49's three, spec 51's one, spec 62's two
 
 
 @pytest.fixture
@@ -1154,3 +1156,200 @@ def test_words_are_for_a_file_to_do_only(host):
     _plan(host, slug, [{"id": "t1", "title": "Which", "kind": "choice", "why": "", "choices": ["a", "b"], "steps": [], "for": ["k1"], "done": False, "value": None}])
     with pytest.raises(CommandError, match="choices"):
         host.command("ideas.todo", {"idea": slug, "id": "t1", "done": True, "words": "whatever"})
+
+
+# -- spec 62 A: the spec after the start ---------------------------------------------------------------------
+
+def _started(host, slug, rows=(("k1", "merged", []), ("k2", "ready", ["k1"]), ("k3", "waiting", ["k2"]))):
+    """The goal's plan (made by `_plan`) passed and its goal working: `rows` (id, state, after); the runner is made first, so that it does not
+    take the goal up, and starts nothing."""
+    runner = host.ideas.runner(need=True)
+    runner.launched = []
+    runner._launch = lambda s, t: runner.launched.append(t["id"])
+    tasks = []
+    for tid, state, after in rows:
+        t = idea_keeper._task(tid, f"Task {tid}", f"Do {tid}", "code", "warrior", list(after))
+        t.update(state=state, role="", **({"started": "2026-10-23T10:00:00"} if state not in ("waiting", "ready", "held") else {}))
+        tasks.append(t)
+    ideas.edit_plan(host.ideas.state_dir, slug, lambda p: p.update(tasks=tasks, passed_at="2026-10-23T09:30:00", passed_by="person"))
+    ideas.save_state(host.ideas.state_dir, slug, state="working")
+    return runner
+
+
+def _leader(monkeypatch, answer):
+    """The model answers a plan change with `answer`; the prompts it was asked are returned."""
+    prompts = []
+
+    def run_read(harness, prompt, workdir, cancel, model="", env=None, resume="", timeout_s=0, **kw):
+        prompts.append(prompt)
+        return json.dumps(answer), 0.1, 10, "s"
+    monkeypatch.setattr(jobs, "run_read", run_read)
+    return prompts
+
+
+CHANGE = {"why": "The export is csv only.", "drop": ["k3"],
+          "change": [{"id": "k2", "title": "Write csv", "brief": "Write the rows as csv.", "tier": "laborer"}],
+          "add": [{"key": "n1", "title": "Stream rows", "brief": "Stream big files.", "tier": "warrior", "after": ["k1"]}]}
+
+
+def test_the_page_says_what_changed_since_the_plan_whether_it_is_passed_and_the_change_that_waits(host, monkeypatch):
+    slug = _add(host, "x")["slug"]
+    page = host.command("ideas.page", {"slug": slug})
+    assert (page["changed"], page["passed"], page["change"]) == ([], False, None)
+    host.command("ideas.edit", {"slug": slug, "section": "Out", "text": "no images"})              # no plan: nothing is kept
+    assert host.command("ideas.page", {"slug": slug})["changed"] == []
+    _plan(host, slug)
+    for section, text in (("Out", "no images"), ("Why", "people ask"), ("Open questions", "- which?"), ("Out", "no images or pdf"), ("Gist", "Export csv")):
+        host.command("ideas.edit", {"slug": slug, "section": section, "text": text, "device": "phone"})
+    page = host.command("ideas.page", {"slug": slug})
+    json.dumps(page)
+    assert (page["changed"], page["passed"], page["change"]) == (["Gist", "Out"], False, None)     # the same text, Why and Open questions did not count
+    edited = _events(host, "idea_edited")
+    assert [(e["section"], e["chars"], e["passed"], e["device"]) for e in edited] == [
+        ("Out", 9, False, "desktop"), ("Out", 9, False, "phone"), ("Why", 10, False, "phone"), ("Open questions", 8, False, "phone"),
+        ("Out", 16, False, "phone"), ("Gist", 10, False, "phone")] and all(e["idea"] == slug for e in edited)
+    _started(host, slug)
+    prompts = _leader(monkeypatch, CHANGE)
+    assert host.command("ideas.revise", {"slug": slug}) == {"ok": True}
+    _wait(host, slug)
+    assert "These sections changed since the plan: Gist, Out." in prompts[0]
+    page = host.command("ideas.page", {"slug": slug})
+    json.dumps(page)
+    assert page["passed"] is True and page["state"] == "working" and page["changed"] == ["Gist", "Out"]
+    change = page["change"]
+    assert set(change) == {"made_at", "why", "added", "changed", "dropped", "usd_low", "usd_high", "rows"}
+    assert (change["why"], change["added"], change["changed"], change["dropped"]) == ("The export is csv only.", 1, 1, 1)
+    assert change["rows"] == [{"op": "add", "id": "", "title": "Stream rows"}, {"op": "change", "id": "k2", "title": "Write csv"},
+                              {"op": "drop", "id": "k3", "title": "Task k3"}]
+    assert isinstance(change["usd_low"], float) and isinstance(change["usd_high"], float)
+    (revised,) = _events(host, "plan_revised")
+    assert revised["changed"] == ["Gist", "Out"] and (revised["added"], revised["changed_n"], revised["dropped"]) == (1, 1, 1)
+    assert revised["step"] == "plan" and revised["usd_low"] == change["usd_low"]
+    stop = next(n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "change")
+    assert stop == {"idea": slug, "goal": "first-goal", "title": "x", "priority": "normal", "blocks": False, "at": change["made_at"], "kind": "change",
+                    "text": "The plan changes · +1 · 1 changed · −1", "why": "The export is csv only.", "added": 1, "changed": 1, "dropped": 1,
+                    "usd_low": change["usd_low"], "usd_high": change["usd_high"]}
+    assert host.snapshot()["needs_you"] == 1
+
+
+def test_re_plan_what_is_left_refuses_in_words_through_the_command(host, monkeypatch):
+    slug = _add(host, "x")["slug"]
+    prompts = _leader(monkeypatch, CHANGE)
+    with pytest.raises(CommandError, match="This goal has no plan yet"):
+        host.command("ideas.revise", {"slug": slug})
+    _plan(host, slug)
+    with pytest.raises(CommandError, match="Its plan is not started: Re-plan it"):
+        host.command("ideas.revise", {"slug": slug})
+    _started(host, slug)
+    ideas.save_state(host.ideas.state_dir, slug, state="done")
+    with pytest.raises(CommandError, match="This goal is done"):
+        host.command("ideas.revise", {"slug": slug})
+    with pytest.raises(CommandError, match="slug is missing"):
+        host.command("ideas.revise", {})
+    assert prompts == [] and host.command("ideas.page", {"slug": slug})["change"] is None
+
+
+def test_take_the_new_plan_applies_it_through_the_runner_and_keeps_the_rest(host, monkeypatch):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug)
+    runner = _started(host, slug)
+    runner._active.append(slug)                                            # the runner works on it
+    host.command("ideas.edit", {"slug": slug, "section": "Out", "text": "no images"})
+    _leader(monkeypatch, CHANGE)
+    with pytest.raises(CommandError, match="No plan change waits for this goal"):
+        host.command("ideas.revise_answer", {"slug": slug, "take": True})
+    host.command("ideas.revise", {"slug": slug})
+    _wait(host, slug)
+    from orkboard.core.idea_runner import Run
+    runner._runs[(slug, "k2")] = Run(threading.current_thread(), threading.Event())
+    ideas.edit_plan(host.ideas.state_dir, slug, lambda p: p["tasks"][1].update(state="running", started="2026-10-23T12:00:00"))      # k2 starts meanwhile
+    with pytest.raises(CommandError, match="take is true or false"):
+        host.command("ideas.revise_answer", {"slug": slug})
+    got = host.command("ideas.revise_answer", {"slug": slug, "take": True, "via": "hand", "device": "phone"})
+    assert got == {"ok": True, "added": 1, "changed": 0, "dropped": 1, "left": ["Task k2"]}
+    plan = ideas.plan(host.ideas.state_dir, slug)
+    assert [(t["id"], t["state"]) for t in plan["tasks"]] == [("k1", "merged"), ("k2", "running"), ("k4", "ready")] and plan["passed_at"]
+    assert plan["tasks"][2]["title"] == "Stream rows" and plan["tasks"][2]["after"] == ["k1"]
+    page = host.command("ideas.page", {"slug": slug})
+    assert (page["changed"], page["change"], page["state"]) == ([], None, "working")
+    assert ideas.idea_page(host.ideas.root(), slug).section("Stages").startswith("1. k1 Task k1")      # the Stages again
+    assert "k4 Stream rows" in ideas.idea_page(host.ideas.root(), slug).section("Stages")
+    (answered,) = _events(host, "plan_change_answered")
+    assert (answered["idea"], answered["take"], answered["added"], answered["changed_n"], answered["dropped"], answered["left"], answered["via"],
+            answered["device"]) == (slug, True, 1, 0, 1, 1, "hand", "phone")
+    assert runner.launched == []                                           # `ready` on the runner's tick (_advance); the one slot is k2's
+    with pytest.raises(CommandError, match="No plan change waits for this goal"):
+        host.command("ideas.revise_answer", {"slug": slug, "take": False})
+
+
+def test_keep_the_plan_leaves_it_as_it_was_and_clears_what_changed(host, monkeypatch):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug)
+    runner = _started(host, slug)
+    host.command("ideas.edit", {"slug": slug, "section": "Done when", "text": "- it exports"})
+    _leader(monkeypatch, CHANGE)
+    host.command("ideas.revise", {"slug": slug})
+    _wait(host, slug)
+    before = (host.ideas.state_dir / "ideas" / slug / "plan.json").read_text()
+    assert host.command("ideas.revise_answer", {"slug": slug, "take": False}) == {"ok": True, "added": 0, "changed": 0, "dropped": 0, "left": []}
+    assert (host.ideas.state_dir / "ideas" / slug / "plan.json").read_text() == before
+    page = host.command("ideas.page", {"slug": slug})
+    assert (page["changed"], page["change"]) == ([], None) and not (host.ideas.state_dir / "ideas" / slug / "plan_change.json").exists()
+    (answered,) = _events(host, "plan_change_answered")
+    assert (answered["take"], answered["added"], answered["changed_n"], answered["dropped"], answered["left"], answered["via"]) == (False, 1, 1, 1, 0, "idea")
+    assert runner.launched == [] and [n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "change"] == []
+
+
+def test_the_talk_and_the_edit_while_a_change_waits_keep_what_changed_and_the_stop_stays(host, monkeypatch):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug)
+    _started(host, slug)
+    host.command("ideas.edit", {"slug": slug, "section": "Out", "text": "no images"})
+    _leader(monkeypatch, CHANGE)
+    host.command("ideas.revise", {"slug": slug})
+    _wait(host, slug)
+    host.command("ideas.edit", {"slug": slug, "section": "Risks", "text": "big files"})
+    page = host.command("ideas.page", {"slug": slug})
+    assert page["changed"] == ["Out", "Risks"] and page["change"] is not None
+    host.command("ideas.revise", {"slug": slug})                          # again: a newer one replaces it
+    _wait(host, slug)
+    assert [n["kind"] for n in host.command("ideas.board")["needs_you"]] == ["change"]
+    assert len(_events(host, "plan_revised")) == 2 and _events(host, "idea_edited")[-1]["passed"] is True
+
+
+def test_a_plan_change_goes_by_itself_when_the_goal_is_done_and_is_shown_nowhere_meanwhile(host, monkeypatch):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug)
+    _started(host, slug)
+    _leader(monkeypatch, CHANGE)
+    host.command("ideas.revise", {"slug": slug})
+    _wait(host, slug)
+    path = host.ideas.state_dir / "ideas" / slug / "plan_change.json"
+    assert path.exists()
+    ideas.save_state(host.ideas.state_dir, slug, state="done")
+    assert host.command("ideas.page", {"slug": slug})["change"] is None      # read: shown nowhere …
+    assert [n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "change"] == [] and path.exists()
+    host.ideas.changed(slug)                                                 # … and the next change of the goal drops it
+    assert not path.exists()
+    with pytest.raises(CommandError, match="No plan change waits for this goal"):
+        host.command("ideas.revise_answer", {"slug": slug, "take": True})
+
+
+def test_a_press_while_the_leader_works_or_a_runner_that_cannot_apply_it_leaves_the_change_waiting(host, monkeypatch):
+    slug = _add(host, "x")["slug"]
+    _plan(host, slug)
+    runner = _started(host, slug)
+    _leader(monkeypatch, CHANGE)
+    host.command("ideas.revise", {"slug": slug})
+    _wait(host, slug)
+    host.ideas.keeper._busy[slug] = "planning"
+    with pytest.raises(CommandError, match="The keeper is busy with this goal: a moment"):
+        host.command("ideas.revise_answer", {"slug": slug, "take": True})
+    host.ideas.keeper._busy.pop(slug)
+
+    def refuse(s, change):
+        raise type("RunnerError", (Exception,), {})("This goal has no plan yet")
+    monkeypatch.setattr(runner, "revise_tasks", refuse)
+    with pytest.raises(CommandError, match="no plan yet"):
+        host.command("ideas.revise_answer", {"slug": slug, "take": True})
+    assert host.command("ideas.page", {"slug": slug})["change"] is not None        # it waits as it did

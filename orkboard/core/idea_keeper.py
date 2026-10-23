@@ -7,6 +7,7 @@ idea straight into its spec, talks a spec through with the person, turns a spec 
     keeper.answer(slug, ["…", "…"])   # the person answers the spec's questions at once: the rest is written, then the plan
     keeper.say(slug, "Why not a toggle?", "Risks")    # an edit of one section, in the background
     keeper.plan(slug)                 # Re-plan: the page → plan.json, with its estimate
+    keeper.revise(slug)               # Re-plan what is left, after the start: a plan change for the tasks not started (core/idea_revise.py)
     keeper.read_stop(slug)            # this idea's run stops (its own cancel); its queue is `hold`
     keeper.tick()                     # the host's clock: what the limits held runs again, and the night (core/idea_night.py)
 
@@ -42,8 +43,9 @@ from orkboard.core.idea_draft import DraftMixin
 from orkboard.core.idea_goals import GoalMixin
 from orkboard.core.idea_night import NightMixin
 from orkboard.core.idea_lead import LeadMixin
+from orkboard.core.idea_revise import ReviseMixin
 from orkboard.core.idea_plan import _task, _why, estimate, readiness  # noqa: F401  (the plan's small helpers: the callers and tests use them from here)
-from orkboard.realm import event_log, goal_team, goal_types, idea_checks, idea_lens, idea_pick, idea_spend, idea_target, ideas, roles, status
+from orkboard.realm import event_log, goal_team, goal_types, idea_change, idea_checks, idea_lens, idea_pick, idea_spend, idea_target, ideas, roles, status
 from orkboard.realm.idea_words import short_said
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
@@ -94,7 +96,7 @@ def _iso(at: float) -> str:
     return dt.datetime.fromtimestamp(at).isoformat(timespec="seconds")
 
 
-class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin):
+class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin, ReviseMixin):
     def __init__(self, repo_root: Path, state_dir: Path, wiki_root: Callable[[], Path],
                  settings: Callable[[], dict], publish: Callable[[str], None] = lambda slug: None,
                  demo: bool = False, budget_ok: Callable[[], bool] = lambda: True,
@@ -408,7 +410,7 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
                        if n in allowed and n not in ("Decisions", "Stages") and isinstance(v, str)}
             decisions = _strings(answer.get("decisions"), 10)
             if written or decisions:
-                ideas.update(root, slug, written, decisions)
+                idea_change.update(root, self.state_dir, slug, written, decisions)      # and the plan-making sections it changed are kept (spec 62 §1.2)
             reply = "\n".join((_words(answer.get("reply"), REPLY_CHARS) or "(the keeper wrote the page and said nothing)").splitlines()[:3])
             ideas.add_turn(self.state_dir, slug, "keeper", reply, section)
             changes: dict[str, Any] = {"error": "", "measure": self.measure()}
@@ -519,6 +521,8 @@ Answer with one JSON object and nothing else:
             ideas.save_state(self.state_dir, slug, state=back, error="" if stopped else f"No plan: {_why(e)}",
                              **({"queue": "hold"} if stopped else {}))
             return
+        idea_change.clear(self.state_dir, slug)          # nothing changed since this plan, and a plan change waiting was for the one before (spec 62 §1.4, §3.3)
+        idea_change.drop(self.state_dir, slug)
         self.write_stages(slug, data)
         self.assess(slug)
         ideas.save_state(self.state_dir, slug, state="plan", error="", held_until="", measure=self.measure())

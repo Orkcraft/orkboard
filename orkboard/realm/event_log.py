@@ -130,6 +130,12 @@ WEEK_RESET = "week_reset"         # left (the share left, read just before it ca
 PARTY_SAVED = "party_saved"       # party (its id), members, own (agents of the person's own it carries), replaced, device
 PARTY_DROPPED = "party_dropped"   # party, device
 
+# Spec 62 §4.4: the spec after the start: a section written by hand, the plan change the leader proposes, and the answer.
+IDEA_EDITED = "idea_edited"       # idea, section, chars, passed (its plan was passed), device: a section written by hand
+PLAN_REVISED = "plan_revised"     # idea, changed (the sections it was made for), added, changed_n, dropped, usd_low, usd_high (what it adds; negative when it saves),
+#                                    and the call's measure (step, prompt_chars, tokens, cost): the leader's plan change was saved
+PLAN_CHANGE_ANSWERED = "plan_change_answered"   # idea, take, added, changed_n, dropped (taken: what was applied; kept: what was proposed), left (how many of its tasks had started meanwhile), via (gui/ideas_args.py VIA, else "idea"), device
+
 # Spec 42 §3: notifications to a paired phone (counts and tags, never a word of the push).
 PUSH_SET = "push_set"             # on, device
 PUSH_SENT = "push_sent"           # tag, devices, gone
@@ -140,7 +146,7 @@ EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LE
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET)
+          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET, IDEA_EDITED, PLAN_REVISED, PLAN_CHANGE_ANSWERED)
 
 _LOCK = threading.Lock()
 
