@@ -179,6 +179,23 @@
 .shell-seg__one { padding: var(--ork-2) var(--ork-5); cursor: pointer; color: var(--ork-ink-muted); font: var(--ork-type-button); }
 .shell-seg__one.is-on { background: var(--ork-raised); color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
 .shell-seg__one:focus-within { box-shadow: inset 0 0 0 2px var(--ork-ink); }
+
+/* a brief (docs/specs/66-team-briefs.md §7): what a template about people reads, Prepare before…, the page, Last time, standing briefs */
+.shell-reads { display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame);
+  clip-path: var(--ork-notch); overflow-wrap: anywhere; }
+.shell-days { flex-wrap: wrap; }
+.shell-days .shell-seg__one { padding: var(--ork-2) var(--ork-4); }
+.shell-when { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-5); }
+.shell-when__one { display: inline-flex; align-items: center; gap: var(--ork-3); white-space: nowrap; }
+.shell-when__one input[type="time"] { width: auto; }
+.shell-brief { white-space: pre-wrap; overflow-wrap: anywhere; padding: var(--ork-4); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame);
+  font: var(--ork-type-body); }
+.shell-lasttime { border: var(--ork-line) solid var(--ork-frame); padding: var(--ork-3) var(--ork-4); }
+.shell-lasttime > summary { cursor: pointer; font: var(--ork-type-label); }
+.shell-lasttime[open] > summary { margin-bottom: var(--ork-3); }
+.board-op__standings { list-style: none; margin: 0; padding: 0 0 0 var(--ork-5); display: flex; flex-direction: column; gap: var(--ork-2);
+  border-left: var(--ork-line) solid var(--ork-frame); }
+.board-op__standing { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ork-3); }
 .shell-menu__list { display: flex; flex-direction: column; }
 .shell-pair { display: flex; flex-direction: column; gap: var(--ork-6); }
 .shell-pair__code { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-4); }
