@@ -641,9 +641,10 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .pair { position: relative; flex: none; width: 148px; min-height: 0; display: flex; flex-direction: column; scroll-snap-align: start; }
 .strip.is-few .pair { flex: 1 1 0; width: auto; min-width: 0; }
 .pair:not(:last-child)::after { content: ""; position: absolute; left: 100%; top: 28px; width: var(--ork-3); height: var(--ork-line); background: var(--ork-frame); }      /* the line under the names goes on across the gap */
-/* over each column its member's name only (spec 53 §1.4): 28 px, the pixel face 11 px, capitals, muted, centred; not a button */
-.colname { flex: none; height: 28px; padding: 0 var(--ork-2); box-sizing: border-box; display: flex; align-items: center; justify-content: center; min-width: 0; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.04em; font: 500 11px/14px var(--ork-font-pixel); color: var(--ork-ink-muted); }
+/* over each column its member's tool mark, name and level's chevrons (spec 53 §1.4, spec 60 §1): 28 px, the pixel face 11 px, capitals, muted, centred; not a button. The name alone is cut, the marks never shrink */
+.colname { flex: none; height: 28px; padding: 0 var(--ork-2); box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: var(--ork-2); min-width: 0; white-space: nowrap; overflow: hidden;
+  text-transform: uppercase; letter-spacing: 0.04em; font: 500 11px/14px var(--ork-font-pixel); color: var(--ork-ink-muted); }
+.colname__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .stack { min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--ork-3); padding: var(--ork-3) 0 88px; overflow-y: auto; scrollbar-width: none;
   border-top: var(--ork-line) solid var(--ork-frame); }   /* 88 px of room at the far end: the create button's deck floats over it and covers no task */
 .stack::-webkit-scrollbar { display: none; }

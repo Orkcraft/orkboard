@@ -1,6 +1,6 @@
 // New goal on the phone (docs/specs/35-goals-window.md §3, spec 50 §6.7, spec 52 §5.6, spec 53 §2): the full-screen form the create button opens at once — it slides up (180 ms; none under reduced
 // motion). From the top: **the party** (its leader's head, its name, *<leader> leads · k of n goals done*; a tap lists the project's parties and *+ New party*), the priority (*Low* says it waits for the
-// night, and *Add the goal* says *Keep for tonight*), **the goal type** (the party's types, then *No type*, one picked; its line under the row), **the goal** — one field, three lines, Photo and the
+// night, and *Add the goal* says *Keep for tonight*), **the goal type** (*Your own goal* first and picked, then the party's types; its line under the row), **the goal** — one field, three lines, Photo and the
 // mic mark at its corner (shell-idea-field.js); its first line is its title —, the type's asks (one line each), **Refs** when the type has them (*Links*; the pictures are Photo's), the lens of the
 // party (shell-lens.js: a typed goal shows its type's lens and no switch), the join line (shell-types.js) and, pinned at the foot, *Put it back* · *Add the goal*. A goal is `ideas.add`'s `text`.
 // A goal's state in words (`rowState`) is said the same in the leader's column and on its screen.
@@ -40,7 +40,7 @@ export function rowState(idea, titleOf = (slug) => slug) {
 const ASK_CHARS = 300;                                // goal_types.ASK_CHARS: an ask is one line of at most this
 const REFS = "refs";                                 // goal_types.REFS: Refs' links, sent among the asks
 const SLIDE_MS = 180;                                // the form slides up and down, ease-out (spec 53 §2.1)
-const BLANK_LINE = "A blank goal: only your words.";
+const BLANK_LINE = "In your words: the leader plans it like any other.";
 
 /** `core`: the board's frame; `ctx`: {deliver, flash}. Returns {sheets, openNew(partySlug)}. */
 export function makeIdeas(core, ctx, goalSheet) {
@@ -105,8 +105,8 @@ export function makeIdeas(core, ctx, goalSheet) {
   }
   priority.el.addEventListener("change", () => { touched = true; lowOrNot(); });
 
-  // The goal type: the party's types, then *No type*; one picked.
-  let typed = null;                                  // the goal type picked (the map's `types` entry), null for a blank goal
+  // The goal type: *Your own goal* first (picked when the form opens: spec 61 §2), then the party's types; one picked.
+  let typed = null;                                  // the goal type picked (the map's `types` entry), null for the person's own goal
   let types = [];
   const typesRow = h("div", { class: "newgoal__types", role: "radiogroup", "aria-label": "Goal type" });
   const typeLine = h("p", { class: "muted newgoal__typeline" });
@@ -132,9 +132,10 @@ export function makeIdeas(core, ctx, goalSheet) {
   }
   function drawTypes() {
     typeBlock.hidden = !types.length;
-    typesRow.replaceChildren(...types.map((t) => h("button", { class: "newgoal__chip", type: "button", role: "radio", "data-type": t.id, "aria-checked": "false", onclick: () => pickType(t) },
-      sign(t.sign), h("span", {}, t.name))),
-    h("button", { class: "newgoal__chip is-blank", type: "button", role: "radio", "data-type": "", "aria-checked": "false", onclick: () => pickType(null) }, h("span", {}, "No type")));
+    typesRow.replaceChildren(
+      h("button", { class: "newgoal__chip is-blank", type: "button", role: "radio", "data-type": "", "aria-checked": "false", onclick: () => pickType(null) }, h("span", {}, "Your own goal")),
+      ...types.map((t) => h("button", { class: "newgoal__chip", type: "button", role: "radio", "data-type": t.id, "aria-checked": "false", onclick: () => pickType(t) },
+        sign(t.sign), h("span", {}, t.name))));
   }
 
   const box = h("div", { class: "field newgoal__goal" }, h("span", { class: "field-label newgoal__goallabel" }, "The goal", h("small", { class: "faint" }, "its first line is its title")),
@@ -165,7 +166,7 @@ export function makeIdeas(core, ctx, goalSheet) {
   addSheet.el.addEventListener("click", (e) => { if (e.target === addSheet.el) { e.stopPropagation(); leave(); } }, true);
   addSheet.el.addEventListener("cancel", (e) => { e.preventDefault(); leave(); });
 
-  /** The party picked: its leader's head and count on the button, its types dealt (the first picked), its words and lenses read. */
+  /** The party picked: its leader's head and count on the button, its types dealt (*Your own goal* picked), its words and lenses read. */
   function setParty(slug) {
     partyNow = slug;
     partyBtn.dataset.goal = slug;
@@ -179,7 +180,7 @@ export function makeIdeas(core, ctx, goalSheet) {
     types = Array.isArray(g?.types) ? g.types : [];
     more.track(slug);
     drawTypes();
-    pickType(types[0] || null);
+    pickType(null);
   }
   newParty.addEventListener("click", () => {
     closeParties();
