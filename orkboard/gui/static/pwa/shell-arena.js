@@ -2,7 +2,7 @@
 // (*⌄ Tech · 3 of 12 goals done*, the Goals sheet and the filter: shell-goals.js; at its right the gate, quiet: shell-party.js), the flag line after a gate's merge, the stage switch and the field of that
 // stage (shell-arena-field.js). The stage switch wears the party's faces side by side: each tab its band's heads over its word, no number, one sign (✗ a failure, else ! a stop) on the face it comes
 // from; the faces of the tab shown are the members (a tap shows only its tasks: spec 53 §1). The party's deck stands at the goals bar's left (shell-where.js), whose sheet picks the party or Operations. What waits for you lies along the bottom (shell-stops.js). Operations takes the
-// field's place when the parties' sheet picks it (the deck then stands at its head). The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`, `st.band`, `st.focus`, `st.picks`).
+// field's place when the parties' sheet picks it (the deck then stands at its head). An Ideation party's pitches take the stage switch's and the columns' place (shell-pitch.js, spec 65 §8). The words and the lists are shell-arena-words.js's; this module draws them and keeps what the person picked (`st.track`, `st.view`, `st.band`, `st.focus`, `st.picks`).
 import { h, head as raceHead } from "./util.js";
 import { sign } from "./shell-marks.js";
 import { steady } from "./shell-util.js";
@@ -13,6 +13,7 @@ import { makeParty } from "./shell-party.js";
 import { makeGoals } from "./shell-goals.js";
 import { makeField } from "./shell-arena-field.js";
 import { keepFocus, pointerGuard, struck } from "./shell-motion.js";
+import { isIdeation, makePitchField } from "./shell-pitch.js";
 
 /** `core`: the board's frame; `ctx`: {flash}; `parts`: {goalSheet, ops, ideas, cards}. Returns {el, sheets, draw()}. */
 export function makeArena(core, ctx, parts) {
@@ -48,6 +49,7 @@ export function makeArena(core, ctx, parts) {
   const field = makeField(core, {
     process: () => current && process(current),
   });
+  const pitches = makePitchField(core);                       // an Ideation party's field: its pitches (shell-pitch.js)
 
   // -- the stage switch: three tabs, the band's faces side by side over its word (no number); the faces of the tab shown are the members ---------------------------------------
   const faceHead = (x) => (x.head ? raceHead(x.head.race, x.head.tier) : h("span", { class: "band__nohead" }));
@@ -109,6 +111,10 @@ export function makeArena(core, ctx, parts) {
     todayOf(slug, m);
     if (st.view === OPS_VIEW) { el.replaceChildren(...lead, opsView()); return; }
     if (!m) { el.replaceChildren(...lead, needsGoal()); return; }
+    if (isIdeation(m.goal)) {                                // Ideation: its pitches by its three stages take the columns' place (spec 65 §8)
+      el.replaceChildren(...[...lead, goals.bar(m, party.gate(), core.partyDeck()), party.line(slug), pitches.draw(m)].filter(Boolean));
+      return;
+    }
     const band = st.band || m.first;
     const shown = band === "lead" ? [m.lead] : band === "build" ? m.build : m.check;
     if (st.focus && !shown.some((x) => x?.slug === st.focus)) st.focus = "";           // the member shown is not in this stage

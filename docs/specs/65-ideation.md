@@ -321,3 +321,30 @@ orders of the library, the presets and the board's commands brought up to date i
     C's (`library[].pitch` says which). `gui/phone_push.py` `KIND_WORDS` (kept equal to `js/board/today.js`) does not name `pitch`, so a
     push never leads with a pitch; the snapshot's count leaves it out anyway. Saving an Ideation party is read by the keeper as any party
     is (the Investor's voice, the `goal` step). `realm/ideas.py` was over 600 lines before and grows by two; not split here.
+
+**C (phone)** (`orkcraft-app-v73`). Built to §8 on the phone as sheets, in new `pwa/shell-pitch.js` (`makePitchField`: Ideation's field; `makePitch`: a pitch's sheet; `isIdeation`, `pitchNode`),
+`pwa/shell-goals-words.js` (`pitchLine`, `pitchStage`, `whereWords`, `pitchCount`, `answeredOf`; `goalsOf`, `barWords` and `doneWords` for Ideation), `pwa/shell-goal-new.js` (`IDEATION_WHOLE`; the
+seats' folds offer no pitch agent; Ideation has no Change for its seats or its checks, its price is *a pitch*'s and it draws no *It can take*; `makeNewGoal.open(after, preset)`), `pwa/shell-ideas.js` (New goal in
+Ideation), `pwa/shell-party.js` (About this party: no *Add to the party*, no *Its flags*, *about $… a pitch*), `pwa/shell-goal.js` (the party's screen: no Change in Ideation; `open(which, after, preset)`),
+`pwa/app.css` (`.pitchfield`, `.pitchsec`, `.pitchrow`, `.pitch-passed`, `.pitch`, `.pitchview`, `.pitch__answer`, `.pitch__acts`, `.newgoal.is-pitch`), `pwa/sw.js` (`CACHE` v72 → v73, `shell-pitch.js` in
+`SHELL`, with the pins of `tests/test_pwa.py` and the eight phone browser tests that pin it). Besides §0's row, for want of another place: `pwa/shell-arena.js` (Ideation's field takes the columns' place),
+`pwa/shell-stops.js` and `pwa/shell-arena-words.js` (the `pitch` stop: `needsOf`, `URGENCY`), `pwa/board.js` (the pitch's sheet; `core.openPitch`, `core.newParty`; an `idea` opened that is a pitch opens its
+sheet) and `pwa/shell-board.js` (`newParty`); `board-app.js` is untouched (`board.js` loads the new module). New `tests/test_pwa_ideation_browser.py`, 11 tests (390 × 844, over
+`test_pwa_arena_browser.py`'s scene with an Ideation party beside). No host shape was missing. What the spec left open:
+- **The field.** No stage switch and no columns (a pitch has no task): under the goals bar (*Ideation · 8 pitches · 1 passed*) three sections, one per stage, each headed by its band's heads, its word and its count:
+  *Pitch* (raw: *queued*, *tonight*, *held: Judge now to have it read*, *waits for limits*; failed with its `state_error`), *Views* (a judging pitch whose views answer: its four small heads, unlit at 0.3, each lit as it
+  answers and lit once when it turns, none under reduced motion), *Decision* (by the Map's `stage`: the case against or the Investor under way, then the judged with the answer's word at the row's end and where
+  it would go or its first kill reason, then the sent naming their party and goal) and *Passed (n)* folded at its end (`<details>`, closed). The judged first in each. A row opens the pitch's sheet; the Goals
+  sheet's filter holds. The Goals sheet lists the pitches but the passed under Planning, the judged first.
+- **The sheet** is titled by the pitch (the text face: a person's words): its state and line; *The pitch* (its Gist); *Views · k of 4*, four cards one under another (head, name, *Size M* for the Engineering view,
+  *For*, *Against*, *It asks:*; *Reading the pitch…* or *Not read yet.* before it answers); *The case against* (the Skeptic's head and name, the case, *Kill reasons*); *Decision* (the Investor's head and the answer
+  in 28 px, why, *Kill reasons*, *Where:*, *First step:*, *Cheapest test:*, *It repeats:*, *Before: Reshape · …*); *Sent* or *Passed* when so. It reads `ideas.page` when opened and when the Board changes, and
+  draws the Map's node's `pitch` in between; a box being typed in is not drawn over. Refusals are said in the sheet.
+- **Its buttons.** Judged: the party select (the project's parties but General and Ideation, then the decision's party of the library when the project lacks it, *Website (a new party)*; *· as decided* on the
+  decision's own) and **Send to <party>** pinned at its foot (`ideas.pitch_send {slug, party}`, no `type`: the host's default); **Change and judge again** (a box with the pitch's words, **Judge again**,
+  `ideas.pitch_again {slug, text}`), **Pass** (an optional line, `ideas.pitch_pass {slug, why?}`) and **Drop** (asked once: *Its page goes and nothing keeps its why: Pass keeps it.*, `ideas.drop`) end the sheet.
+  Failed: **Try again** (`ideas.judge`), Change and judge again, Drop. Passed: **Judge again** (`ideas.pitch_again {slug}`), Drop. Raw: **Judge now** (`ideas.judge`), Drop. Sent: **Open the goal**. Judging: none.
+  A party of the library the project lacks is not sent: *Make the <name> party first* is said, the sheet closes and New party opens with that preset picked; once saved, the pitch's sheet opens again on it.
+- **New goal** in Ideation (`ideas.add {text, track, hold?|night?, photos?, lens?}`, no priority, type or asks; the text cut to 2 000): the box is labelled *What is the idea?*, the party's lens and Photo stay,
+  and the foot is **Hold** · **Tonight** · **Judge now**. Closing it with words keeps it for tonight, as any goal.
+- **Needs you's `pitch`** is a stop of the fan (*Judged*, after the questions with the proposals; its text *Judged: Invest*, the Investor's head), whose one quick move is **Open the pitch**.

@@ -16,6 +16,7 @@ import { makeNeeds } from "./shell-needs.js";
 import { makeStops } from "./shell-stops.js";
 import { makeFab } from "./shell-fab.js";
 import { firstStopGoal, partiesOf } from "./shell-arena-words.js";
+import { makePitch, pitchNode } from "./shell-pitch.js";
 
 const POLL_MS = 10000;
 const LIVE = new Set(["running", "testing"]);
@@ -66,6 +67,10 @@ export function makeBoard(ctx) {
     editAgent(slug) { agentSheet.open(slug); },
     /** New goal, the party shown first (spec 53 §2); the form picks its goal type. */
     newIdea() { boardTab.openNew(st.track); },
+    /** New party with a party of the library picked (`preset`: its id); `after(slug)` once it is made (a pitch sent to a party the project lacks, spec 65 §5). */
+    newParty(preset, after) { boardTab.newParty(preset, after); },
+    /** A pitch's sheet (spec 65 §8). */
+    openPitch(slug, via = "") { logOpened("idea", `pitch:${slug}`, via); pitch.open(slug); },
     /** Edit the party of a goal: the goal as `ideas.goal` sends it, in the team's sheet. */
     async editParty(slug) { const got = await core.call("ideas.goal", { slug }); if (got) core.editTeam(got); },
     openInto() { review.openInto(); },
@@ -84,6 +89,7 @@ export function makeBoard(ctx) {
   const fab = makeFab(core);
   const stops = makeStops(core, ctx, needs, boardTab.ops);
   const preview = makePreview(core, ctx, { agents: agents.el });
+  const pitch = makePitch(core, ctx);                      // a pitch of Ideation opens in its sheet, wherever it is opened from
   const el = h("div", { class: "board v1" }, top.el, boardTab.el, stops.el, fab.el, preview.el);
 
   /** What the person opened, for the day's analysis (docs/specs/33-v1-shell.md §9): the host's one loggable event. The listener
@@ -160,11 +166,13 @@ export function makeBoard(ctx) {
     stops.draw();
     fab.show(Boolean(st.board) && !st.view);                 // a party's: not Operations'
     preview.redraw();
+    pitch.sync();
     if (wantStop && st.board && st.map) { wantStop = false; showStop(); }
   }
 
   // -- the preview on its own screen: opened over the tab, Back (or the system gesture) to it -----------------------
   function open(p, via = "") {
+    if (p.kind === "idea" && pitchNode(st, p.slug)) { core.openPitch(p.slug, via); return; }      // a pitch has no spec, plan or tasks: its sheet says what it has
     if (p.kind === "agents") logOpened("tab", "agents");
     else if (p.kind !== "doc") logOpened(p.kind === "goal" ? "idea" : p.kind === "plan" && p.todo ? "todo" : p.kind,
       p.kind === "goal" ? `goal:${p.slug}` : p.task ? `${p.slug}/${p.task}` : p.todo ? `${p.slug}/${p.todo}` : p.slug || "", via);
@@ -234,7 +242,7 @@ export function makeBoard(ctx) {
 
   return {
     el,
-    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets, agentSheet.el, ...stops.sheets],
+    sheets: [...top.sheets, ...boardTab.sheets, ...needs.sheets, ...review.sheets, ...agents.sheets, agentSheet.el, ...stops.sheets, ...pitch.sheets],
     // What is acted on only while the town answers: not the bar's Stop all, nor New idea (kept with no signal).
     content: () => [boardTab.el, ...stops.content(), preview.el],
     /** A push's arrival (board-app.js `arrive`): the goal of the first stop is shown and the stop popped out, as soon as the Board has been read. */
