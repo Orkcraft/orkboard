@@ -68,3 +68,24 @@ Two parts; they share no file.
 A motion for a goal done in dev; a task's merge (the quiet reward stays); a sound.
 
 ## 7. As built (notes, no change of the contract)
+
+**C. Phone** (`orkcraft-app-v68`). Built to §1, §2, §4 as written, in `shell-party.js` (`flagNode`, `playRaise`), `shell-gate.js` (`gatePress`), `shell-motion.js` (`raise`, `inView`, `raiseTo`), `shell-goals-words.js`
+(`FLAG_ROW`), `app.css`; new `tests/test_pwa_flags_raised_browser.py`, 7 tests. What the spec left open:
+- **The raise waiting is `raise` in `shell-motion.js`** (`wait()`, `live()`, `drop()`; 10 s), set by `watch()` when it makes the line stand and only when `motionOn()`: under reduced motion or on a hidden page nothing waits, and the
+  row is drawn still. `shell-gate.js` `gatePress` keeps the merge's box (`press(el)` reads it at the press, before the button is disabled; dropped when the merge is refused; 10 s).
+- **The line is waited for.** The phone's gate screen does not close after the merge (it says *main has every goal of dev*, Back is the person's), so the line stands under it and nobody sees it. The raise therefore plays at the first moment
+  the line itself is in view (`inView`: its box is on screen and the element at its centre is inside it, so a screen, a sheet or the drawer over it makes it not; checked in the frame after the node is drawn, before its first
+  paint, then every 150 ms). Only then is the source chosen: the press's box when it is still kept, else `.gbar__gate` when it is in view, else nothing travels and the flag is raised at once. A line that is first in view 10 s after it
+  stood (the same 10 s as the box) stands still with its row drawn; so does one the person closed (×) meanwhile.
+- **What travels is a copy** (`.flag-fly`, `position: fixed`, `z-index: 60`, `pointer-events: none`) of each of the row's elements, on `body`, removed after it; the row's own element lies hidden (`.is-dealt`, the deal's `landed`) and shows
+  when its copy lands. The copies use the deal's `@keyframes deal` and its variables (`--dx --dy --s --delay`, steps(6) 0.30 s, 35 ms apart), `--s` the source's height over the element's own: no new custom property. A line drawn again
+  while the copies fly (the Board changes) is drawn still; the copies finish over it.
+- **The row** is `.flagline__row` between the flag and the words: the elements of the first six flags in the line's order (`FLAG_ROW`; a goal with no element draws none). The words are today's (*A, B and k more*, which names two: eight flags
+  say *and 6 more*) and are cut earlier at 390 px (ellipsis; the button's label says all of them).
+- **The raise and the light** are `.is-raised` on the line, with `--delay` set to the ms until the last copy lands (0 when none travels): the flag's `raise` (6 px, steps(3), 0.18 s; its fill holds it lower until then) and the line's `lit`
+  (0.6 s, steps(4, end), ink to its own ground: `reward` ends on `transparent`, and the line's ground is `--ork-raised`; the words' colour follows the same steps, as they would be ink on ink). Reduced motion also turns both off in the sheet.
+- **Beyond the row:** `sw.js` `CACHE` is `orkcraft-app-v68`, and the pins of five more phone test files (`test_pwa_board53_browser.py`, `test_pwa_deal_start_browser.py`, `test_pwa_goal_types_browser.py`,
+  `test_pwa_mixed_parties_browser.py`, `test_pwa_one_hand_browser.py`) follow `tests/test_pwa.py`'s.
+- The tests: a merge from the gate's screen with two flags (waits under the screen, then two copies from the press's box at its height, the deal's timing, the flag raised and the line lit at 335 ms, the row after the flag, no second time at a later
+  draw, none after a reload), eight flags (six in the row, the words), flags raised elsewhere (from the gate's button), no gate on screen (the flag still raised, no copy), a refused merge keeps no box and a sheet over the line is waited for,
+  a line first in view after 10 s stands still, reduced motion.

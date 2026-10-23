@@ -178,3 +178,48 @@ export function dealTo(nodes, from) {
   }
   return k;
 }
+
+// -- the flags raised (docs/specs/64-flags-raised.md §1, §2, §4) ----------------------------------------------------------------------------------------
+const RAISE_WAIT_MS = 10000;                          // a raise waits this long for its line to be in view (the gate's screen lies over it right after a merge); the merge's box lives as long
+
+/** The raise waiting: the flag line stands for the first time, so its goals' elements travel to it once, from the gate. One at a time; dropped when played, or after 10 s. */
+let lifting = null;
+export const raise = {
+  /** The flag line stands for the first time (nothing waits under reduced motion or on a hidden page: it stands still). */
+  wait() { lifting = motionOn() ? { at: Date.now() } : null; },
+  drop() { lifting = null; },
+  /** The raise waiting (null once it is 10 s old). */
+  live() {
+    if (lifting && Date.now() - lifting.at > RAISE_WAIT_MS) lifting = null;
+    return lifting;
+  },
+};
+
+/** Whether `el` is in view: it has a box inside the screen and the element at the box's centre is it or one of its own (the drawer, a sheet or a full screen over it make it not). */
+export function inView(el) {
+  const r = el?.isConnected ? el.getBoundingClientRect() : null;
+  if (!r || r.width <= 0 || r.height <= 0) return false;
+  const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return Boolean(top && el.contains(top));
+}
+
+/** Flies a copy of each of `slots` (the elements of the flag line's row, already in the page, in the line's order) from the box `from` to its place: from the box's centre, scaled from the box's
+ *  height to its own, steps(6) 0.30 s, 35 ms after the one before (the deal's, as `dealTo`). The copy lies over everything and takes nothing; the slot lies hidden and shows when its copy lands.
+ *  Returns the ms until the last has landed. */
+export function raiseTo(slots, from) {
+  const cx = from.left + from.width / 2, cy = from.top + from.height / 2;
+  slots.forEach((slot, k) => {
+    const to = slot.getBoundingClientRect();
+    const vars = { "--dx": `${Math.round(cx - (to.left + to.width / 2))}px`, "--dy": `${Math.round(cy - (to.top + to.height / 2))}px`, "--s": String(Math.round((from.height / to.height) * 100) / 100),
+      "--delay": `${k * DEAL_STEP_MS}ms` };
+    const fly = slot.cloneNode(true);                                    // the copy: the element as it lies in the row, over the page
+    fly.classList.add("flag-fly");
+    fly.setAttribute("aria-hidden", "true");
+    Object.assign(fly.style, { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px` });
+    for (const [name, value] of Object.entries(vars)) { slot.style.setProperty(name, value); fly.style.setProperty(name, value); }
+    slot.classList.add("is-dealt");
+    document.body.append(fly);
+    setTimeout(() => fly.remove(), k * DEAL_STEP_MS + DEAL_LEN_MS + 120);
+  });
+  return slots.length ? (slots.length - 1) * DEAL_STEP_MS + DEAL_LEN_MS : 0;
+}
