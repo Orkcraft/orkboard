@@ -93,3 +93,68 @@ A type is said by its name and drawn with its sign, as New goal's spread draws i
 Picking a goal type from New party; a gather on Edit the party; a sound; the library's tiles moving.
 
 ## 7. As built (notes, no change of the contract)
+
+**A (the host), 23 October.** §1 built as written. What the builder chose or found:
+- `goal_types.Party.of(state_dir, root, leader, team)` is the party not saved: slug `""`, the leader (the Taskmaster for `""`) and
+  the team as given (copied), the leader's craft, and `_busy` and `_week` set empty so `busy()` is empty and `runs()` is 0 without
+  a read (`ideas.ideas(root, "")` is never asked). `offered(state_dir, root, "", read=Party.of(...))` answers from it; so does
+  `missing(..., read=...)`, whose `out` then lists every member of the band, none holding, none with runs.
+- **What the spec did not say, and the answer needed: a library agent the project does not have yet.** `met` reads the project's
+  role files, and a library agent becomes a role only when the party is saved (`ideas_goals.py` installs it). Read as `met` has it,
+  the Game preset in a project that has none of its agents answered *New feature, Fix a bug, Clean up* only. So `Party` gains
+  **`fresh`** (the members that are the library's and not yet the project's, set by `Party.of`; `()` for a saved party) and
+  **`meets(kind)`** (`met`, or a `fresh` member's library `takes`), as `party_price._who` reads a library agent not installed yet.
+  `missing`, `offered`, `lacking` and `still_missing` ask `p.meets(kind)`; for a saved party `fresh` is empty, so they answer as
+  before. Nothing is installed or saved by the call (`tests/test_party_price.py` checks it).
+- `ideas.party_price` builds the `Party` and asks `offered` after the refusals, so a refused party never reaches `types`.
+  `types` is `[{id, name, sign, missing}]` in `offered`'s order (the catalog's: *New screen* of a Mobile app sits after *Clean up*,
+  not last); `missing` is the `name` of the first (the only) row of the type's `missing`, `""` with none. A type whose name two
+  catalog entries share (*New feature*) is told by its `id`.
+- A leader of the person's own is refused as today (`library.get` does not know it); a member of the team of the person's own is
+  read through its role file (its `takes`), as a saved party's.
+- Tests: `tests/test_party_price.py` (§1.4: the Game preset, the Taskmaster alone, a Mobile app, an agent added; also nothing saved
+  or installed, and a refused party never asks `Party.of` or `offered`; the answer's keys now include `types`) and
+  `tests/test_goal_types.py` (`Party.of`; a party not saved offers what the same party saved does, in a project that has its agents
+  and in one that has none).
+
+**C (the phone), 23 October (`orkcraft-app-v68`).** §2 and §4 built as written. What the builder chose or found:
+- **The line is `makeParty`'s**, so New party's sheet and *The party*'s (a party's team changed from its own screen) draw it from the one place, under `priceLine()`: `takesLine()` in
+  `shell-goal-new.js`. The types with nothing missing each as `.take` (`.ork-sign.<sign>` at 12 × 12 in the muted ink, then the name), joined by *·*; then `, with one more:` and those that miss
+  someone as *<name> (needs <agent>)*; none at all, *nothing of its own yet: add a builder.* (with only missing types: *…add a builder, with one more: …*); an older host (no `types`): no line.
+  The missing types also have their sign. **Three lines** are measured, not counted: `fitTakes()` runs once the line is in the page (its sheet open) and takes types off its end until the line
+  is three lines high, the rest said *and k more* (its title lists all, with their *(needs …)*). So a long list falls from the end: at 390 px the Mobile app's *with one more: New screen (needs Design
+  system designer)* is behind *and 5 more*, and the Data party's *A new metric · A report, with one more: An A/B test (needs Experimenter)* fits whole.
+- **Lit once** is `pulse()` (the quiet reward, `.is-reward`), on the `.take` nodes whose ids the answer has and the answer before did not. *Nothing lit at the first answer* needed care: the
+  sheet asks twice as it opens (`set()` for the Taskmaster alone, then `preset(craft)` 300 ms later), so `askPrice(now, lights)` takes **`lights`**: both are `false` (`preset(craft, false)` from
+  `open()`), their answers are the baseline; a seat, a craft tile, a party picked, *Every goal* ask with `lights` true. The light is drawn once (it is used up by the draw that shows it: a fold
+  opened or a redraw does not light it again); none when `motionOn()` is false.
+- **The folded party line has no heads** (spec §4.1 says *the folded party line's heads*; it is text: *Leads: … · Builds: …*). What the sheet shows of the party's heads at the press is: the
+  **open fold's taken seats** (`.team-seat`), else the **tile of the library party picked** (`.preset-tile` heads, 24 × 22) or the **chip of your own party picked** (`.own-chip` heads, 12 × 11).
+  Those heads carry `data-agent` (`tag()`), and `gatherFrom()` looks each member up by it, in that order, taking the first whose box lies inside the sheet's view above the pinned foot; any other
+  head — a member whose fold is shut and whose tile is not on screen, the row of crafts (an older host: it draws one head a craft, not the party's) — starts from the middle of *Save party*'s box, at
+  24 × 22. The party is `makeParty.heads()`: the leader first, then the team in its order, six at most, each `{race, tier}` as the seats draw it.
+- **The gather is `gather` in `shell-motion.js`** beside `deal` (`wait(party, from)`, `live()`, `drop()`; 6 s) and **`gatherTo(waiting)`**, played by `shell-where.js` `deck()`: in the first draw that
+  builds a deck whose `data-goal` is the waiting party, the gather is dropped and (not under reduced motion or a hidden page) played on the next animation frame, when the deck is in the page. A
+  copy is an `img.gather-fly` (`races/<race>-<tier>@2x.png`, `position: fixed`, `z-index: 60`, `pointer-events: none`, `animation: gather 0.30s steps(6) var(--delay)`) at its head's box with
+  `--dx --dy` to the deck's centre and `--s: 0.4`; it is removed at `animationend` (and by a timeout); the deck is `pulse`d when the last has landed (found again by its `data-goal`: a draw in
+  between replaces the node). `test_design_system.py` needed nothing new (`--dx --dy --s --delay` are allowed already).
+- **Kept waiting only for a party the person is shown**: not when New party was opened by New goal (`then`, as §3.1's `then: "idea"`: the form is what the person looks at), not at a refusal
+  (`gather.drop()`), not when the press had motion off (no boxes read).
+- **Found: the party's own screen covers the deck.** After *Save party* the phone opens the party's screen (`core.open`, `.screen`, fixed, over the whole Board) at once, so the deck is under it:
+  the heads fly over that screen (`z-index: 60`) to where the deck is and are gone there, and the deck's light is lit under it, not seen until *Back*. Built as the spec says; showing the deck
+  would take one of: opening the party's screen only after the gather (about 0.5 s), or not opening it after a save from the parties' sheet. Not done: the spec did not ask for either.
+- **`sw.js` `CACHE`** is `orkcraft-app-v68`; its pin is also in the five browser tests that pinned v67 (`test_pwa_mixed_parties_browser`, `test_pwa_deal_start_browser`,
+  `test_pwa_goal_types_browser`, `test_pwa_one_hand_browser`, `test_pwa_board53_browser`), beyond `test_pwa.py`.
+- Tests: `tests/test_pwa_party_browser.py` (8 more: the line under the price for the Game preset, three lines and *and k more* with the title, signs; *with one more* and *(needs …)*; the
+  Taskmaster alone; no type; an older host; a seat taken out and in lights the one type once (`window.__lit`), nothing lit by the opening, nothing under reduced motion; the party's own
+  sheet) and new `tests/test_pwa_party_gather_browser.py` (the Game's six heads from the tile's boxes, the order, delays, `steps(6)`, 0.30 s, `fixed`, over the screen, to the deck's centre at 0.4,
+  gone, the deck lit once after the last; heads out of sight from *Save party*; an open fold's seats and the shut folds' members from the button; the row of crafts; your own party's chip;
+  reduced motion; a refusal; a gather of 1 s that plays and one of 6.4 s that does not; New goal taking the party; a team changed from the party's own screen; the service worker's version).
+  The fake host answers `types` as `gui/ideas_party.py` does, from the realm (`goal_types.Party.of` and `offered`): `typed()` in the party test file.
+
+**Review of C (the session that wrote this spec), 23 October.** After *Save party* the phone opens the party's own screen, which covers the
+whole Board and so the deck: the heads flew over it and the deck was lit under it, unseen. The screen now opens once the gather has played
+(`gather.ms(n)` in `shell-motion.js`: the last head's landing and the deck's 0.6 s light; at once when nothing gathers), so the deck is seen to
+take the party; the field under it is usable all along. `tests/test_pwa_party_gather_browser.py` checks the screen shows after the light. The
+merge made the cache **`orkcraft-app-v70`** (specs 64 C and 60 C had taken v68 and v69), and `shell-motion.js`' header names the three moments
+that travel.

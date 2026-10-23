@@ -14,10 +14,10 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_flags, goal_types, goal_verdict, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
+from orkboard.realm import goal_flags, goal_types, goal_verdict, idea_change, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
 from orkboard.realm.idea_words import short_of
 
-NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
+NEEDS = ("asks", "plan", "change", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them (a plan change: spec 62)
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
 _AFTER = re.compile(r"after (\d{1,2}:\d{2})")
 
@@ -41,7 +41,8 @@ def list_of(text: object) -> list[str]:
 
 
 def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, asks: list[str]) -> list[dict]:
-    """What of one idea needs the person (spec 35 §10): its questions, its plan waiting, its to-dos, a failure, a proposal."""
+    """What of one idea needs the person (spec 35 §10): its questions, its plan waiting, the leader's plan change waiting (spec 62), its to-dos,
+    a failure, a proposal."""
     slug, state = i["slug"], st["state"]
     base = {"idea": slug, "goal": i["track"], "title": i["title"], "priority": i["priority"], "blocks": False,
             "at": ideas.touched_at(root, state_dir, slug)}
@@ -55,6 +56,10 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
         out.append({**base, "kind": "plan", "text": "Plan ready" + (f" · {len(tasks)} tasks" if tasks else ""),
                     "at": str(plan.get("made_at") or base["at"]),
                     "missing": goal_types.still_missing(state_dir, root, i["track"], plan.get("missing"))})
+    if plan and (change := idea_change.live(state_dir, slug, plan, state)) is not None:        # the leader's plan change waits (spec 62 §4.1)
+        said = idea_change.summary(change, plan)
+        out.append({**base, "kind": "change", "text": idea_change.text_of(said), "at": said["made_at"] or base["at"], "why": said["why"],
+                    **{k: said[k] for k in ("added", "changed", "dropped", "usd_low", "usd_high")}})
     if state == "proposed":
         out.append({**base, "kind": "proposal", "text": ideas.thesis(
             (ideas.idea_page(root, slug) or ideas.Page()).section("Gist")) or "The keeper proposes this"})

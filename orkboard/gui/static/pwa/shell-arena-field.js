@@ -1,4 +1,4 @@
-// The field of the party's window (docs/specs/49-one-window.md §5, §10.5, §11; spec 50 §3.4, §3.5, §6.5, §6.6): under the stage switch (its faces are the members: spec 53 §1) the columns, each under its member's name: its open tasks in **rows by phase** — *now* (a task at its goal's current wave), *next*, *later* — and in each row one
+// The field of the party's window (docs/specs/49-one-window.md §5, §10.5, §11; spec 50 §3.4, §3.5, §6.5, §6.6): under the stage switch (its faces are the members: spec 53 §1) the columns, each under its member's tool mark, name and level (spec 60): its open tasks in **rows by phase** — *now* (a task at its goal's current wave), *next*, *later* — and in each row one
 // **stack** per goal: the front card (132 × 185, its goal's element top left), one or two edges behind it and *×n*; at the far end *✓ k in dev*. A press on a stack of one opens it, on a stack of more
 // spreads it (shell-spread.js). A tap on a face shows only that member's work over the columns, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
 // Motion says what changed (shell-motion.js): a stack that was not there rises into its column, one that left (merged ✓, dropped ✗, or put away by the filter, with no sign) fades where it stood and
@@ -6,6 +6,7 @@
 // under a finger or the focus; the tasks of a plan started from the raised stop are dealt from its box instead (spec 57). A member's card in its solo has **Edit**: the agent's dialog, the leader's and the Grunt's too (spec 54 §6.2). A band with no one (spec 52 §5.4) says what happens to its work and offers **Add to the party** (Edit the party): the only place on the field that adds a member.
 import { h } from "./util.js";
 import { sign } from "./shell-marks.js";
+import { mark, TIER_WORDS } from "./shell-who.js";
 import { PHASES, rowsOf } from "./shell-phases.js";
 import { deckNode } from "./shell-decks.js";
 import { makeSpread } from "./shell-spread.js";
@@ -42,8 +43,13 @@ export function makeField(core, hooks) {
     return h("div", { class: `phase is-${phase}${wrap ? " is-wrap" : ""}`, "data-phase": phase }, h("span", { class: "phase__lbl" }, phase), ...nodes);
   }
 
-  // -- a column's head: its member's name over it (spec 53 §1.4); the member's face is on the stage switch (shell-arena.js) -----------------------------------------------------
-  const colName = (m) => h("span", { class: "colname", "data-member": m.slug }, m.name);
+  // -- a column's head: its member's tool mark, name and level's chevrons over it (spec 53 §1.4, spec 60 §1); the member's face is on the stage switch (shell-arena.js) ----------------
+  // A mark `marksOf` does not know (a tool orkUI draws none for, a head with no tier) is not drawn; the label says the parts known, once, and the text stays the name alone.
+  function colName(m) {
+    const { harness, rank } = m.marks || {}, tool = m.role?.harness?.name, level = TIER_WORDS[m.head?.tier];
+    return h("span", { class: "colname", "data-member": m.slug, "aria-label": [m.name, tool && `runs on ${tool}`, level].filter(Boolean).join(" · ") },
+      harness ? mark(`harness-${harness.id}`, harness.tip) : null, h("span", { class: "colname__name" }, m.name), rank ? mark(`rank-${rank.n}`, rank.tip) : null);
+  }
 
   // -- what a member shows: its open tasks of the picked goals, in rows by phase ----------------------------------------------------------------------------
   const keep = (ui, idea) => !ui.picks.length || ui.picks.includes(idea);
@@ -148,7 +154,7 @@ export function makeField(core, hooks) {
       h("div", { class: "solo__head" }, h("h2", { class: "solo__title" }, title), h("span", { class: "ork-count" }, String(n)), h("span", { class: "spacer" }),
         h("button", { class: "ork-btn quiet", type: "button", "data-act": "everyone", onclick: () => { st.focus = ""; core.draw(); } }, "Everyone")),
       h("div", { class: "solo__card" }, h("span", { class: "ork-gem", title: m.priceTip }, `${m.price} a run`),
-        h("div", { class: "solo__info" }, h("span", {}, h("b", {}, m.name), h("span", { class: "muted" }, ` · ${m.kit}`)),
+        h("div", { class: "solo__info" }, h("span", {}, h("b", {}, m.name), h("span", { class: "muted" }, ` · ${[m.kit, m.role?.harness?.name].filter(Boolean).join(" · ")}`)),
           h("span", { class: "cap" }, h("b", {}, m.kw), ` ${m.rule}`), h("span", { class: "cap" }, `${m.runs} ${m.runsWord}`)),
         h("button", { class: "ork-btn quiet", type: "button", "data-act": "edit-agent", "aria-label": `Edit ${m.name}`, title: `Edit ${m.name}: its model, how many at once, its instruction and what it takes`,
           onclick: () => core.editAgent(m.slug) }, "Edit")),     // the agent's dialog of Agents, for the leader and the Grunt too (spec 54 §6.2)

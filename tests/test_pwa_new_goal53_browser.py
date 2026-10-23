@@ -1,7 +1,7 @@
 """Spec 53 part B, the phone's New goal (docs/specs/53-phone-simpler.md §2, §4, §5 "B"): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py (a party, *Sign in
 with a passkey*) and a second one, *Product*, each with its leader's goal types. The create button opens the form at once, sliding up in 180 ms (none of the lift, the deal or the turn; none
 under reduced motion); the party first (the leader's head, *<leader> leads · k of n goals done*, the list of the parties with ✓ and *+ New party*, no Operations, a pick that deals that
-party's types); the priority (*Low*'s line and *Keep for tonight*); the types' row (the most used first, *No type* last, one picked, its line); one field, *The goal*; the asks, Refs and the join
+party's types); the priority (*Low*'s line and *Keep for tonight*); the types' row (*Your own goal* first and picked when the form opens, then the most used first, its line; spec 61 C); one field, *The goal*; the asks, Refs and the join
 line; a typed goal with no lens switch; what *Add the goal* sends; and *Fix a bug* in one screen."""
 from __future__ import annotations
 
@@ -124,7 +124,8 @@ async def test_the_party_comes_first_with_its_leaders_head_its_list_and_a_pick_t
         await opts.nth(1).click()                                                                                                           # a pick closes the list and deals that party's types
         await listbox.wait_for(state="hidden", timeout=WAIT_MS)
         assert norm(await btn.locator(".newgoal__name").inner_text()) == "Product" and await btn.get_attribute("data-goal") == "product"
-        assert await form.locator(".newgoal__chip").evaluate_all("els => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')])") == [["logo", "true"], ["", "false"]]
+        assert await form.locator(".newgoal__chip").evaluate_all("els => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')])") == [["", "true"], ["logo", "false"]]     # one's own first, picked
+        await form.locator('.newgoal__chip[data-type="logo"]').click()
         await form.get_by_label("The goal", exact=True).fill("A mark for Product")
         await form.get_by_role("button", name="Add the goal").click()
         assert await _called(stub, "ideas.add")
@@ -163,39 +164,64 @@ async def test_the_priority_is_the_partys_and_low_says_it_waits_for_the_night_an
         keep = form.get_by_role("button", name="Keep for tonight")
         await form.get_by_label("The goal", exact=True).fill("Someday")
         await keep.click()
-        assert await _called(stub, "ideas.add", {"text": "Someday", "track": "passkey", "priority": "low", "type": "bug"})
+        assert await _called(stub, "ideas.add", {"text": "Someday", "track": "passkey", "priority": "low"})                                 # one's own goal: no type
         await form.wait_for(state="hidden", timeout=WAIT_MS)
 
 
 @pytest.mark.asyncio
-async def test_the_types_row_deals_the_types_in_order_no_type_last_one_picked_and_its_line_under_it(fake_repo, monkeypatch):
+async def test_the_types_row_deals_your_own_goal_first_and_picked_then_the_types_in_order_and_the_line_under_it(fake_repo, monkeypatch):
     typed(monkeypatch)
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         form = await _form(page)
         row = form.get_by_role("radiogroup", name="Goal type")
         chips = row.get_by_role("radio")
-        assert await chips.evaluate_all("els => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')])") == [["bug", "true"], ["logo", "false"], ["screen", "false"], ["experiment", "false"], ["", "false"]]
-        assert [norm(t) for t in await chips.all_inner_texts()] == ["Fix a bug", "New logo", "New screen", "Try an experiment", "No type"]
+        assert await chips.evaluate_all("els => els.map((e) => [e.dataset.type, e.getAttribute('aria-checked')])") == [["", "true"], ["bug", "false"], ["logo", "false"], ["screen", "false"], ["experiment", "false"]]
+        assert [norm(t) for t in await chips.all_inner_texts()] == ["Your own goal", "Fix a bug", "New logo", "New screen", "Try an experiment"]       # one's own first, the types after it in their order
         assert all([(await c.bounding_box())["height"] >= 44 for c in await chips.all()])
-        assert await chips.first.locator(".ork-sign.bug").count() == 1 and (await chips.first.locator(".ork-sign").bounding_box())["width"] == 14
-        assert await chips.last.evaluate("e => getComputedStyle(e).borderStyle") == "dashed" and await chips.last.locator(".ork-sign").count() == 0
+        assert await chips.first.evaluate("e => getComputedStyle(e).borderStyle") == "dashed" and await chips.first.locator(".ork-sign").count() == 0 and await chips.first.get_attribute("class") == "newgoal__chip is-blank"
+        assert await chips.nth(1).locator(".ork-sign.bug").count() == 1 and (await chips.nth(1).locator(".ork-sign").bounding_box())["width"] == 14
         assert await row.evaluate("e => getComputedStyle(e).overflowX") == "auto"                                                           # scrolls sideways when wider
-        line = form.locator(".newgoal__typeline")
-        assert norm(await line.inner_text()) == "Something that goes wrong, made right" and await line.evaluate("e => getComputedStyle(e).fontSize") == "11px"
+        line, field = form.locator(".newgoal__typeline"), form.get_by_label("The goal", exact=True)
+        assert norm(await line.inner_text()) == "In your words: the leader plans it like any other." and await line.evaluate("e => getComputedStyle(e).fontSize") == "11px"       # picked when the form opens
+        assert await field.get_attribute("placeholder") == "What should become possible" and await form.locator(".newgoal__asks").is_hidden()
         await chips.nth(1).click()
-        assert norm(await line.inner_text()) == "A mark for the product, picked from a few" and await chips.nth(1).get_attribute("aria-checked") == "true" and await chips.first.get_attribute("aria-checked") == "false"
-        await chips.last.click()
-        assert norm(await line.inner_text()) == "A blank goal: only your words."
-        assert await form.get_by_label("The goal", exact=True).get_attribute("placeholder") == "What should become possible"
+        assert norm(await line.inner_text()) == "Something that goes wrong, made right" and await chips.nth(1).get_attribute("aria-checked") == "true" and await chips.first.get_attribute("aria-checked") == "false"
+        assert await field.get_attribute("placeholder") == "In a line or a few"
+        await chips.nth(2).click()
+        assert norm(await line.inner_text()) == "A mark for the product, picked from a few" and await chips.nth(2).get_attribute("aria-checked") == "true" and await chips.nth(1).get_attribute("aria-checked") == "false"
         await chips.first.click()
-        assert await form.get_by_label("The goal", exact=True).get_attribute("placeholder") == "In a line or a few"
+        assert norm(await line.inner_text()) == "In your words: the leader plans it like any other." and await chips.first.get_attribute("aria-checked") == "true"
+        assert await field.get_attribute("placeholder") == "What should become possible"
+        for gone in ("No type", "A blank goal"):
+            assert gone not in await form.inner_text()
+
+
+@pytest.mark.asyncio
+async def test_add_the_goal_with_your_own_goal_sends_no_type_and_a_tapped_type_is_sent(fake_repo, monkeypatch):
+    typed(monkeypatch)
+    async with _phone(fake_repo, monkeypatch) as (stub, page):
+        form = await _form(page)
+        await form.get_by_label("The goal", exact=True).fill("Make sign-in kinder")
+        await form.get_by_role("button", name="Add the goal").click()
+        assert await _called(stub, "ideas.add", {"text": "Make sign-in kinder", "track": "passkey", "priority": "high"})                     # picked at open: no `type`
+        await form.wait_for(state="hidden", timeout=WAIT_MS)
+        form = await _form(page, "experiment")
+        await form.get_by_label("The goal", exact=True).fill("Try a shorter sign-in")
+        await form.get_by_role("button", name="Add the goal").click()
+        assert await _called(stub, "ideas.add", {"text": "Try a shorter sign-in", "track": "passkey", "priority": "high", "type": "experiment"})
+        await form.wait_for(state="hidden", timeout=WAIT_MS)
+        form = await _form(page, "bug")
+        await form.locator('.newgoal__chip[data-type=""]').click()                                                                          # back to one's own: the type's ask is not sent
+        await form.get_by_label("The goal", exact=True).fill("Again in my words")
+        await form.get_by_role("button", name="Add the goal").click()
+        assert await _called(stub, "ideas.add", {"text": "Again in my words", "track": "passkey", "priority": "high"})
 
 
 @pytest.mark.asyncio
 async def test_the_goal_is_one_field_and_the_old_lines_are_gone(fake_repo, monkeypatch):
     typed(monkeypatch)
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        form = await _form(page)
+        form = await _form(page, "bug")
         field = form.get_by_label("The goal", exact=True)
         assert await field.evaluate("e => e.tagName") == "TEXTAREA" and await field.get_attribute("rows") == "3"
         label = form.locator(".newgoal__goallabel")
@@ -214,18 +240,21 @@ async def test_the_goal_is_one_field_and_the_old_lines_are_gone(fake_repo, monke
 
 
 @pytest.mark.asyncio
-async def test_a_typed_goal_has_no_lens_switch_its_types_lens_is_open_and_no_type_keeps_the_switch(fake_repo, monkeypatch):
+async def test_a_typed_goal_has_no_lens_switch_its_types_lens_is_open_and_your_own_goal_keeps_the_switch(fake_repo, monkeypatch):
     typed(monkeypatch)
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         form = await _form(page)
         bar = form.get_by_role("radiogroup", name="Lens")
+        await bar.get_by_role("radio", name="Text", exact=True).wait_for(timeout=WAIT_MS)                                                   # one's own goal, picked at open, keeps today's switch
+        assert await bar.is_visible() and len(await bar.get_by_role("radio").all()) == 2
+        await form.locator('.newgoal__chip[data-type="bug"]').click()
         await page.wait_for_timeout(300)
         assert await form.locator(".lens").is_hidden()                                                                                      # *Fix a bug*: a text lens shows nothing
         await form.locator('.newgoal__chip[data-type="logo"]').click()
         await form.get_by_role("group", name="The project's screens").wait_for(timeout=WAIT_MS)                                            # a screen lens: its own fields …
         assert await bar.is_hidden() and await form.locator(".lens .field-label", has_text="Lens").is_hidden()                              # … and no switch
         await form.locator('.newgoal__chip[data-type=""]').click()
-        await bar.get_by_role("radio", name="Text", exact=True).wait_for(timeout=WAIT_MS)                                                   # *No type* keeps today's switch
+        await bar.get_by_role("radio", name="Text", exact=True).wait_for(timeout=WAIT_MS)                                                   # one's own goal again: the switch
         assert await bar.is_visible() and len(await bar.get_by_role("radio").all()) == 2
 
 
@@ -246,7 +275,7 @@ async def test_put_it_back_with_words_keeps_the_goal_for_tonight_and_never_sends
 async def test_fix_a_bug_fits_one_screen(fake_repo, monkeypatch):
     typed(monkeypatch)
     async with _phone(fake_repo, monkeypatch) as (stub, page):
-        form = await _form(page)
+        form = await _form(page, "bug")
         assert await form.evaluate("e => e.scrollHeight <= e.clientHeight") and await page.evaluate(NO_SCROLL)                              # three asks, no Refs: no scroll
         foot = await form.locator(".sheet-foot").bounding_box()
         assert foot["y"] + foot["height"] >= 844 - 2 and await form.get_by_label("What should have").is_visible()

@@ -62,7 +62,7 @@ def typed(monkeypatch):
 
 
 async def _form(page, type_id=None):
-    """New goal: the create button tapped, the form slid up; the type `type_id` picked ("" is *No type*; None leaves the first)."""
+    """New goal: the create button tapped, the form slid up; the type `type_id` picked ("" is *Your own goal*; None leaves the one picked at open, *Your own goal*)."""
     await page.locator(FAB).click()
     form = page.get_by_role("dialog", name="New goal")
     await form.wait_for(timeout=WAIT_MS)
@@ -377,4 +377,4 @@ async def test_signs_keep_their_place_without_an_alert_edge_a_failure_keeps_its_
 
 def test_the_service_worker_is_one_up_and_keeps_the_types_module():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v67";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
+    assert 'const CACHE = "orkcraft-app-v70";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]

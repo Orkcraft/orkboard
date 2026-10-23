@@ -24,7 +24,7 @@ from orkboard.realm.idea_words import short_of
 TICK_S = 30.0
 PUSH_GAP_S = 900.0
 MORNING_H = 3                                   # the morning is the first tick within this many hours after the quiet hours end
-KIND_WORDS = {"goal": "A party asks", "asks": "A spec asks", "plan": "A plan waits for you", "todo": "A to-do", "failed": "Failed",
+KIND_WORDS = {"goal": "A party asks", "asks": "A spec asks", "plan": "A plan waits for you", "change": "A plan change waits for you", "todo": "A to-do", "failed": "Failed",
               "op": "At your check", "op_failed": "Failed"}      # js/board/today.js KIND_WORDS, the kinds that wait for an answer
 
 

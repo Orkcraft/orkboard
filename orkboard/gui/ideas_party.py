@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import event_log, goal_team, ideas, library, own_parties, party_hints, party_price, party_proposals, party_work, roles
+from orkboard.realm import event_log, goal_team, goal_types, ideas, library, own_parties, party_hints, party_price, party_proposals, party_work, roles
 
 
 class PartyMixin:
@@ -17,8 +17,10 @@ class PartyMixin:
         return party_work.work(self.root(False), self.state_dir, goal, self._target())
 
     def party_price(self, args: dict) -> dict:
-        """`{"leader", "team", "every", "craft"?}`: about what an idea costs with this party, before it starts (spec 43 §3.1), and `hints`, at
-        most two quiet lines about it (§5; `craft` is the goal's, left out for a Mixed goal). Nothing is saved."""
+        """`{"leader", "team", "every", "craft"?}`: about what an idea costs with this party, before it starts (spec 43 §3.1), `hints`, at
+        most two quiet lines about it (§5; `craft` is the goal's, left out for a Mixed goal), and `types`, the goal types it would be offered
+        (spec 63 §1: `[{id, name, sign, missing}]` in the catalog's order, `missing` the name of the agent a type needs, "" with none).
+        Nothing is saved."""
         leader = _opt(args, "leader") or roles.TASKMASTER
         if leader != roles.TASKMASTER and library.get(leader) is None:
             raise IdeasError(f"No agent {leader!r}")
@@ -31,8 +33,11 @@ class PartyMixin:
             raise IdeasError(why)
         every = [s for s in every if s in team]
         craft = _opt(args, "craft")
+        party = goal_types.Party.of(self.state_dir, self.root(False), leader, team)
+        types = [{"id": t.id, "name": t.name, "sign": t.sign, "missing": rows[0]["name"] if rows else ""}
+                 for t, rows in goal_types.offered(self.state_dir, self.root(False), "", read=party)]
         return {**party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, every),
-                "hints": party_hints.hints(self.root(False), self.state_dir, craft, leader, team, every)}
+                "hints": party_hints.hints(self.root(False), self.state_dir, craft, leader, team, every), "types": types}
 
     def party_answer(self, args: dict) -> dict:
         """`{"goal", "take", "reason"?}`: take the checker the night proposed out of the goal's party (the goal is not read again), or keep it

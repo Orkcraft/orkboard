@@ -3,11 +3,13 @@
 // (shell-projects.js). The party is not in the top bar: it is the **deck** at the goals bar's left (spec 53 §1.1: a 44 × 44 target round a back of 16 × 22 with two edges behind it and the chevron down; no count: spec 54 §2.4, decisions §67.3 —
 // what waits lies in the hand, and the sheet says where by a dot). A tap on the deck opens the parties' sheet from the top: the parties as rows (52 px at least: the leader's head, the name,
 // *k/n done*, a dot where a stop waits (8 × 8, danger when one of them failed, else alert), the work sign; the one shown marked), Operations' row when the project has any, **+ New party**. A pick is kept per project (`orkcraft.goal`) and puts the sheet away.
+// A party just saved on New party gathers its heads into the deck, in the first draw that shows it (spec 63 §4: shell-motion.js `gather`).
 import { h, sheet } from "./util.js";
 import { sign } from "./shell-marks.js";
 import { whoHead } from "./shell-who.js";
 import { makeProjects } from "./shell-projects.js";
 import { OPS_VIEW } from "./shell-ops.js";
+import { gather, gatherTo, motionOn } from "./shell-motion.js";
 
 const GOAL_KEPT = "orkcraft.goal";                    // {project: party slug}: the party this phone showed last
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -65,9 +67,15 @@ export function makeWhere(core, ctx) {
     /** The party's deck at the goals bar's left: 44 × 44, with no count (the stops lie in the hand; the label tells a screen reader how many wait in the other parties). */
     deck() {
       const p = core.parties();
-      return h("button", { class: "partydeck", type: "button", "aria-haspopup": "dialog", "data-act": "parties", "data-goal": p.shown, "aria-label": deckWords(p), onclick: openParties },
+      const node = h("button", { class: "partydeck", type: "button", "aria-haspopup": "dialog", "data-act": "parties", "data-goal": p.shown, "aria-label": deckWords(p), onclick: openParties },
         h("i", { class: "partydeck__edge e2", "aria-hidden": "true" }), h("i", { class: "partydeck__edge e1", "aria-hidden": "true" }),
         h("span", { class: "partydeck__back", "aria-hidden": "true" }, h("i", { class: "ork-chev" })));
+      const waiting = gather.live();
+      if (waiting && waiting.party === p.shown) {         // the first draw that shows the party New party saved: its heads gather into this deck once it is in the page (spec 63 §4.2)
+        gather.drop();
+        if (motionOn()) requestAnimationFrame(() => gatherTo(waiting));
+      }
+      return node;
     },
     render(s, rev) {
       projects.render(s, rev);

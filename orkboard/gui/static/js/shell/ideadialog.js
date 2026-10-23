@@ -2,7 +2,8 @@
 // host's rule over the party's open goals, so it is what `ideas.add` answers), the text, the party (required: the one chosen on the board, else the first by priority;
 // General is not listed), the lens of the party (lens.js: what the goal points at, beside its text) and the priority (default the party's). *Add the goal* adds it;
 // *Put it back* closes the dialog — closed with text in it, the goal goes to tonight's queue (never lost); closed empty it adds nothing. The code's idea is a goal.
-// **By its type** (docs/specs/52-goal-types.md §4.2, §4.3): the type's sign and name in place of *A blank goal*, the party fixed (a type is its leader's), *Its
+// Its head is *Your own goal* (docs/specs/61-your-own-goal.md: the goal in the person's words, `BlankGoal`).
+// **By its type** (docs/specs/52-goal-types.md §4.2, §4.3): the type's sign and name in place of *Your own goal*, the party fixed (a type is its leader's), *Its
 // title*, *What it is for*, the type's asks (one line each, none required), **Refs** when the type has them (*Links*; *Pictures you like*: a file, a paste or a drop,
 // sent as `photos`), the lens (the type's first), **the join line** (arena/types.js: who joins, or a swap) and the priority. *Add the goal* sends `type`, `asks`
 // and, when the join line is ticked, `join`; a goal kept for tonight never brings anyone.
@@ -56,7 +57,7 @@ function BlankGoal({ goal: first = "" }) {
       <button type="button" class="ork-btn primary" disabled=${!text.trim() || !party || busy} onClick=${send}
         title=${say("Add it: the Taskmaster drafts it at once, or tonight when its priority is Low")}>Add the goal</button>`}>
     <div class="shell-form">
-      <div class="shell-blank" data-element=${element}><${Elem} name=${element} big=${true} /><b>A blank goal</b></div>
+      <div class="shell-blank" data-element=${element}><${Elem} name=${element} big=${true} /><b>Your own goal</b></div>
       <label class="shell-field"><span class="ok-font-label">Your goal</span>
         <textarea class="ork-field" rows="4" autofocus value=${text} aria-label="Your goal" placeholder="Your goal, in a few words or a few lines"
           onInput=${(e) => setText(e.target.value)}

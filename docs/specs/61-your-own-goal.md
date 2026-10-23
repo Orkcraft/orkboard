@@ -53,3 +53,33 @@ Two parts; they share no file.
 A type suggested from the person's words; a person's own goal types (spec 59: not in it).
 
 ## 5. As built (notes, no change of the contract)
+
+### B. The desktop (23 October)
+- **Built:** `js/arena/types.js` deals the blank card first (`<TypeCard t=${null} …/>` before the types' map), so it is the first card dealt (delay 0, the
+  types after it each 35 ms later, as `dealCards` does for any spread); its name is *Your own goal*, its aria-label *Your own goal: in your words*. The pile's
+  `aria-label` and `title` (`js/arena/goals.js`) are *New goal: your own, or pick its type*; the pile's two-line caption (*New goal* · *pick its type*) is
+  unchanged, §0 names only the label and the title. `BlankGoal`'s head (`js/shell/ideadialog.js`) is *Your own goal*. No CSS change: the dashed card needs no
+  rule of position. Code keeps `is-blank`, `BlankGoal`, `data-type=""`, `typed = null`.
+- **Chosen:** the spread's focus starts, as for every deal (`Dealt`, `start = 0`), on its first card, which is now *Your own goal* (was the first type), so
+  Enter on a fresh deal opens the person's own goal; ← and → still walk the cards, the focus going round from the first to the last type (the test names
+  it). A press on *Your own goal* sends `ideas.add` with no `type`, as before (the test checks it).
+- **Tests:** `tests/test_goal_types_desktop_browser.py` has the new test of §3 B (the first card, its words and dashed back, the types after it in the map's
+  order, the focus, a press opening the form headed *Your own goal* and adding a goal with no `type`) beside the old one reordered, and the older host with no
+  `types`; the pile's label is read in it, in `tests/test_lens_desktop_browser.py` and in `tests/test_lexicon.py`; `tests/test_arena_decks_desktop_browser.py`
+  reads the new head. Spec 52 §4.1 and §4.2 still say *A blank goal* and *last*; this spec replaces them for the desktop.
+- **Beside it:** `tests/test_lens_desktop_browser.py`'s `TypedHost` called `goal_types.of("architect")`, which spec 59 removed (the test failed on `main`); it
+  now deals the catalog's `shaped-feature` and `restructure` (what `WAS` reads `architect/feature` and `architect/restructure` as).
+
+**C (the phone), 23 October.** §0 and §2 built as written. What the builder chose or found:
+- `pwa/shell-ideas.js`: `drawTypes()` deals the dashed chip first (`class` `is-blank`, `data-type=""`, its name *Your own goal*), then the party's types in the map's order, and
+  `setParty()` ends with `pickType(null)` in place of `pickType(types[0] || null)`; `BLANK_LINE` is *In your words: the leader plans it like any other.* The code's names stay
+  (`is-blank`, `typed = null`). `pwa/app.css` needed no change: the dashed edge belongs to `.newgoal__chip.is-blank`, wherever it stands in the row.
+- `setParty()` runs when the form opens and when another party is picked in its list, so a party picked in the form deals that party's types with *Your own goal* picked again (spec 53
+  §2.2 picked the first type at both moments; §2.2 here says only when the form opens, and the same moment is the one that fits).
+- A party with no types: the row stays hidden (`typeBlock.hidden`) and the goal is one's own, as before. *Add the goal* with one's own sends no `type` (`ideas.add`'s `typed ? { type } : {}`,
+  unchanged); a type tapped and then *Your own goal* tapped again sends none and leaves the type's asks out.
+- The old default was leaned on by tests, which now tap the type they need: in `tests/test_pwa_new_goal53_browser.py` the types' row test is rewritten (the order with one's own first and
+  checked, its line and placeholder at open, a type's line and the line back, no *No type* or *A blank goal* in the form), a new test checks what *Add the goal* sends for one's own, a
+  type and one's own again, and the party's, priority (*Keep for tonight* now sends no `type`), one-field, lens-switch and *Fix a bug* one-screen tests open with `_form(page, "bug")` or tap
+  the type. `tests/test_pwa_goal_types_browser.py`: only `_form`'s docstring (every test there names its type).
+- `sw.js` `CACHE` is **`orkcraft-app-v68`**: one bump shared with spec 60 C (the second to merge keeps v68); the pins are listed in spec 60's note.

@@ -36,7 +36,7 @@ from typing import Any, Callable
 from orkboard import settings
 from orkboard.core import idea_keeper
 from orkboard.realm import event_log, idea_checks, idea_element, idea_lens, idea_photos, idea_secrets, idea_target, ideas, wiki
-from orkboard.gui.ideas_args import VIA, IdeasError, _device, _opt, _str, _text
+from orkboard.gui.ideas_args import VIA, IdeasError, _device, _opt, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_gate import GateMixin
 from orkboard.gui.ideas_goals import GoalsMixin
@@ -45,6 +45,7 @@ from orkboard.gui.ideas_party import PartyMixin
 from orkboard.gui.ideas_pick import PickMixin
 from orkboard.gui.ideas_recap import RecapMixin
 from orkboard.gui.ideas_review import ReviewMixin
+from orkboard.gui.ideas_revise import ReviseMixin
 from orkboard.gui.ideas_lens import LensMixin
 from orkboard.gui.ideas_limits import LimitsMixin
 from orkboard.gui.ideas_roles import RolesMixin
@@ -85,7 +86,7 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, RecapMixin, RolesMixin, ReviewMixin, TypesMixin,
+class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, RecapMixin, RolesMixin, ReviewMixin, ReviseMixin, TypesMixin,
             BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
@@ -160,6 +161,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                     self.goal_event(slug[5:])
                 else:
                     self._state_event(slug)
+                    self.settle_change(slug)    # a plan change that cannot be taken any more goes (spec 62 §3.3)
             except Exception:                   # a log never stops the board
                 pass
         self.tree_note(slug)
@@ -308,7 +310,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                 "plan": {**self._with_heads(plan), "missing": self.plan_missing(slug, plan)} if plan else plan,     # read now (spec 52 §2.6)
                 "busy": bool(self.keeper.busy(slug)) or st["state"] in ("reading", "planning"),
                 "state_error": st.get("error", ""), "proposed_track": page.get("proposed_track"),
-                "lens": idea_lens.read(self.state_dir, slug)}
+                "lens": idea_lens.read(self.state_dir, slug), **self.after_start(slug, plan, st)}      # spec 62 §1.5
 
     # -- writing -------------------------------------------------------------------------------------------
 
@@ -429,7 +431,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             return {"ok": True}
         if self.keeper.busy(slug):
             raise IdeasError("The keeper is writing this goal: a moment")
-        ideas.set_section(self.root(), slug, _text(args, "section", 60), _str(args, "text", ideas.SECTION_CHARS))
+        self.edited(args, slug)                 # the text set, `changed` kept, `idea_edited` (gui/ideas_revise.py)
         self.changed(slug)
         return {"ok": True}
 
@@ -557,7 +559,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             return run
 
         table = {"ideas.board": lambda a: self.board(), "ideas.map": self.map, "ideas.recap": self.recap, "ideas.flags": self.flags, "ideas.week_work": self.week_work, "ideas.week": self.week, "ideas.party": self.party, "ideas.party_price": self.party_price, "ideas.party_answer": self.party_answer, "ideas.parties": self.parties, "ideas.party_save": self.party_save, "ideas.party_drop": self.party_drop, "ideas.page": lambda a: self.page(_text(a, "slug", 100)),
-                 "ideas.add": self.add, "ideas.say": self.say, "ideas.plan": self.plan, "ideas.start": self.start,
+                 "ideas.add": self.add, "ideas.say": self.say, "ideas.plan": self.plan, "ideas.revise": self.revise, "ideas.revise_answer": self.revise_answer, "ideas.start": self.start,
                  "ideas.move": self.move, "ideas.edit": self.edit, "ideas.track_add": self.track_add,
                  "ideas.track_set": self.track_set, "ideas.todo": self.todo, "ideas.drop": self.drop,
                  "ideas.stop": self.stop, "ideas.review_list": self.review_list, "ideas.diff": self.diff,

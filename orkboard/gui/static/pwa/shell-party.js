@@ -2,12 +2,15 @@
 // Checks on every goal, What it costs (what it did so far and its price a goal), Its flags, and for a party with a verdict of before, *Before: …*; *Edit the party*, *Add to the party* and *Save it to your
 // parties*. The gate, quiet (no green) at the right of the goals bar: *dev → main* with its count, or *main ✓* (disabled) when main is up to date. After a gate's merge that raised flags, **the flag line**
 // stands under the goals bar, once per device (`localStorage` `orkcraft.flags.goals`): *⚑ 3 flags raised · <a>, <b> and 1 more are in main*, its × 44 px; a press on it opens About this party at *Its flags*.
+// Between its flag and its words a row holds the elements of its first six goals; the first time it stands, they travel from the gate to the row, then the flag is raised and the line lit once (spec 64 §4).
 import { h, icon, sheet } from "./util.js";
-import { sign } from "./shell-marks.js";
+import { elem, sign } from "./shell-marks.js";
 import { modelOf } from "./shell-arena-words.js";
 import { savePartyEl } from "./shell-goal.js";
+import { gatePress } from "./shell-gate.js";
+import { inView, motionOn, raise, raiseTo } from "./shell-motion.js";
 import { flagWords as oldFlagWords } from "./shell-map.js";
-import { FLAGS_SHOWN, flagLine, flagTally, flagsOf, freshFlags, priceRange } from "./shell-goals-words.js";
+import { FLAGS_SHOWN, FLAG_ROW, flagLine, flagTally, flagsOf, freshFlags, priceRange } from "./shell-goals-words.js";
 
 const SEEN = "orkcraft.flags.goals";                  // {project: the newest flag's time this phone has seen, in ms}: the flag line is said once
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -121,16 +124,38 @@ export function makeParty(core, ctx) {
     keepSeen(project, newest);
     st.flagLine = { flags: fresh };
     st.lit = new Set(fresh.map((f) => f.slug));
+    raise.wait();                                              // the line stands for the first time: its flags travel once (a later draw, a reload: never)
   }
+
+  let standing = null, raiseTimer = 0;                           // the flag line drawn last, the timer that waits for it to be in view (spec 64)
 
   /** The flag line (a node, or null): under the party's line, never over the work. */
   function flagNode(slug) {
     if (!st.flagLine) return null;
     const words = flagLine(st.flagLine.flags);
-    return h("div", { class: "flagline", role: "status", "data-act": "flag-line" },
+    const row = h("span", { class: "flagline__row", "aria-hidden": "true" }, ...st.flagLine.flags.slice(0, FLAG_ROW).map((f) => elem(f.element)));       // the seventh and the rest are in the words
+    const line = h("div", { class: "flagline", role: "status", "data-act": "flag-line" },
       h("button", { class: "flagline__body", type: "button", "aria-label": `${words.head} · ${words.tail}. Its flags`, onclick: () => open(slug, "Its flags") },
-        sign("flag"), h("span", { class: "flagline__words" }, h("b", {}, words.head), ` · ${words.tail}`)),
+        sign("flag"), row, h("span", { class: "flagline__words" }, h("b", {}, words.head), ` · ${words.tail}`)),
       h("button", { class: "ork-btn quiet flagline__close", type: "button", "aria-label": "Close", onclick: () => { st.flagLine = null; core.draw(); } }, icon("close")));
+    if (raise.live()) { standing = line; requestAnimationFrame(playRaise); }       // before the node's first frame: the elements never show in their places first
+    return line;
+  }
+
+  // -- the flags raised (spec 64): the first time the line stands --------------------------------------------------------------------------------------
+  /** Plays the raise waiting once the flag line is in view (right after a merge the gate's screen lies over it: waited for, 10 s at most): its goals' elements travel from the box of the merge's press
+   *  (kept 10 s), else from the gate's button when that is in view, to their places in the row (none travels when there is no gate to see); when the last has landed the flag is raised and the line lit. */
+  function playRaise() {
+    clearTimeout(raiseTimer);
+    if (!raise.live()) return;
+    if (!st.flagLine || !motionOn()) { raise.drop(); return; }       // closed, or the page hidden: it stands still
+    if (!inView(standing)) { raiseTimer = setTimeout(playRaise, 150); return; }
+    raise.drop();
+    const gate = standing.parentElement?.querySelector(".gbar__gate");
+    const from = gatePress.box() || (inView(gate) ? gate.getBoundingClientRect() : null);
+    const landed = from ? raiseTo([...standing.querySelectorAll(".flagline__row .ork-elem")], from) : 0;
+    standing.style.setProperty("--delay", `${landed}ms`);          // the flag is raised and the line lit when the last has landed
+    standing.classList.add("is-raised");
   }
 
   return { sheets: [sh.el], gate: gateBox, line: flagNode, watch, open, sheet: sh };

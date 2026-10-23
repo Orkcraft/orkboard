@@ -2,12 +2,14 @@
 // line *results go into dev* (spec 50 §3.1);
 // *main is up to date* (off) when nothing waits; not drawn when dev and main are one branch. A press opens the gate's screen in the
 // drawer: the goals listed under *In dev, not in main* with their goals, the commits and files counts, and the one press that merges.
+// The press that merges keeps its box for 10 s (flags.js): the flags it raises travel from there to the flag line (docs/specs/64-flags-raised.md).
 import { html } from "../html.js";
 import { Chev, Sign } from "../orkui.js";
 import { toast } from "../link.js";
 import { act, showGate, gateData, mapData, review } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { gateOf, plural } from "./arenawords.js";
+import { mergePressed, mergeRefused } from "./flags.js";
 
 /** *results go into dev ⌄*: the branch the results merge into (spec 50 §3.1); a press opens the same dialog as the results' own *Merge into*. */
 function IntoLine() {
@@ -30,8 +32,10 @@ export function GateView() {
   const gate = gateData.value, shape = gateOf(gate);
   if (!gate || !shape) return html`<p class="ok-tone-muted">${gate ? "Results merge into main itself: there is no gate." : "Reading the gate…"}</p>`;
   const goals = Object.fromEntries((mapData.value?.goals || []).map((g) => [g.slug, g.title]));
-  const merge = async () => {
+  const merge = async (e) => {
+    mergePressed(e.currentTarget.getBoundingClientRect());                  // where the flags it raises travel from (spec 64), kept before the call is answered
     const got = await act("ideas.gate_merge", {});
+    if (!got) mergeRefused();
     if (got?.note) toast(got.note, "warning");
   };
   return html`<div class="arena-gateview">

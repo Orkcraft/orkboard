@@ -545,7 +545,7 @@ def test_the_new_goal_pile_turns_its_top_card_over_then_opens_new_goal_with_the_
     assert pg.get_by_role("dialog").count() == 0                                                               # before the form opens
     dialog = pg.get_by_role("dialog", name="New goal")
     dialog.wait_for(timeout=WAIT_MS)
-    assert dialog.locator(".shell-blank .ork-elem.big").count() == 1 and "A blank goal" in dialog.text_content()
+    assert dialog.locator(".shell-blank .ork-elem.big").count() == 1 and "Your own goal" in dialog.text_content()
     shown = dialog.locator(".shell-blank").get_attribute("data-element")
     assert dialog.locator(".ork-elem.big").bounding_box()["width"] == 28 and shown == "lava"                    # the party's least used element: one lava among two of the others
     dialog.get_by_label("Your goal").fill("Sign in with a hardware key")
