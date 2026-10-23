@@ -17,7 +17,7 @@ from typing import Any, Callable
 from orkboard.realm import goal_flags, goal_types, goal_verdict, idea_change, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
 from orkboard.realm.idea_words import short_of
 
-NEEDS = ("asks", "plan", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them
+NEEDS = ("asks", "plan", "change", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them (a plan change: spec 62)
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
 _AFTER = re.compile(r"after (\d{1,2}:\d{2})")
 

@@ -54,9 +54,11 @@ class ReviseMixin:
 
     def after_start(self, slug: str, plan: dict | None, st: dict) -> dict:
         """What the page adds for the spec after the start: `changed` (the plan-making sections written since the plan, `[]` when none),
-        `passed` (the plan is passed) and `change` (the plan change that waits, as its summary, else `null`)."""
-        return {"changed": idea_change.changed_of(st), "passed": bool((plan or {}).get("passed_at")),
-                "change": idea_change.shown(self.state_dir, slug, plan, st["state"])}
+        `passed` (the plan is passed), `change` (the plan change that waits, as its summary, else `null`) and `revising` (the leader re-plans
+        what is left now: the keeper plans a passed plan, which only `ideas.revise` does; `busy` alone is a talk too)."""
+        passed = bool((plan or {}).get("passed_at"))
+        return {"changed": idea_change.changed_of(st), "passed": passed, "change": idea_change.shown(self.state_dir, slug, plan, st["state"]),
+                "revising": passed and self.keeper.busy(slug) == "planning"}
 
     def edited(self, args: dict, slug: str) -> None:
         """A section written by hand (`ideas.edit`): its text set, `changed` kept when it makes a plan and its text differs, and `idea_edited`."""

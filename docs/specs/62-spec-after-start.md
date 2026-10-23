@@ -45,8 +45,9 @@ contract**; the rest is the builder's choice inside its files. Change nothing ou
    text differs from what it was. Other sections (*Why*, *Open questions*, *Decisions*, *Stages*) never count.
 3. Kept only for a goal with a plan: no plan, nothing is kept (the draft and the answer write the spec before any plan).
 4. Cleared when a plan is made (`plan_one` saves one), and when a plan change is answered (taken or kept, §3).
-5. The page (`ideas.page`) gains `changed` (the list, `[]` when none), `passed` (true when the plan is passed) and
-   `change` (§2.4's summary while one waits, else `null`).
+5. The page (`ideas.page`) gains `changed` (the list, `[]` when none), `passed` (true when the plan is passed),
+   `change` (§2.4's summary while one waits, else `null`) and `revising` (true while the leader re-plans what is left:
+   `busy` alone is a talk too).
 
 ## 2. Re-plan what is left (A)
 1. **`ideas.revise {slug}`**: refused, in words, when the goal has no plan (*This goal has no plan yet*), its plan is not
@@ -105,7 +106,10 @@ contract**; the rest is the builder's choice inside its files. Change nothing ou
    priority, blocks: false, at: made_at, kind: "change", text, why, added, changed, dropped, usd_low, usd_high}`; `text`
    says it: *The plan changes · +2 · 1 changed · −1* (only the parts that are not zero; *The plan stays as it is* for a
    change of nothing).
-2. Its place in the hand: as a plan's (`sort_needs`), the party's. A goal has at most one.
+2. Its place in the hand: as a plan's (`sort_needs`), the party's. A goal has at most one. The Map's node names it
+   (`needs_you` `change`, `board_map.NEEDS`), so its goal's row is marked as one that waits for the person, and the
+   leader stops on it (`map_party` `_LEAD_NEEDS`); a push names it *A plan change waits for you* (`phone_push.KIND_WORDS`,
+   with the desktop's `js/board/today.js` `KIND_WORDS`).
 3. `gui/mobile.py` lets the phone call `ideas.revise` and `ideas.revise_answer`.
 4. **Events** (`realm/event_log.py`, the same log): `plan_revised {idea, changed, added, changed_n, dropped, usd_low,
    usd_high}` and the keeper's measure (`step`, `prompt_chars`, `tokens`, `cost`) as `plan_made` has; `plan_change_answered
@@ -235,3 +239,9 @@ of `test_gui_ideas.py`, `test_board_map.py`, `test_event_log.py`, `test_lexicon.
 14. *Not done here (files outside A's row).* `gui/phone_push.py` words only the kinds in its `KIND_WORDS`, so a `change` stop counts in *N wait for your answer* but is
     not named in a push's first line; the Map's `needs_you` (`board_map.NEEDS`, `map_party._LEAD_NEEDS`) is as it was, so a node whose only stop is a plan change
     says nothing of it.
+
+**Review of A (the session that wrote this spec), 23 October.** Added on top of A, as §1.5 and §4.2 now say: the page's
+`revising` (`gui/ideas_revise.py` `after_start`: the plan is passed and the keeper is busy *planning*); `change` in
+`board_map.NEEDS` (after `plan`) and in `map_party._LEAD_NEEDS`; *A plan change waits for you* in `gui/phone_push.py`
+`KIND_WORDS` and `js/board/today.js` `KIND_WORDS` (`tests/test_phone_push.py` keeps the two equal). Tests:
+`tests/test_board_map.py` (the node's `needs_you`, the leader's state), `tests/test_gui_ideas.py` (`revising`).

@@ -15,7 +15,7 @@ import { RulesProposal } from "./ops.js";
 import { act as run, showIdea, showPlan, showPick } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 
-const KIND_WORDS = { goal: "A party asks", asks: "A spec asks", plan: "A plan waits for you", todo: "A to-do", failed: "Failed", pick: "Pick one", proposal: "A proposal", party: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
+const KIND_WORDS = { goal: "A party asks", asks: "A spec asks", plan: "A plan waits for you", change: "A plan change waits for you", todo: "A to-do", failed: "Failed", pick: "Pick one", proposal: "A proposal", party: "A proposal", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
 
 function Proposal({ n }) {
   const g = board.value.tracks.find((t) => t.slug === n.goal);

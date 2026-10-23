@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import board_map, event_log, goal_team, idea_change, idea_spend, ideas, library
+from orkboard.realm import board_map, event_log, goal_team, idea_change, idea_spend, ideas, library, map_party
 
 
 @pytest.fixture
@@ -485,7 +485,10 @@ def test_a_plan_change_waiting_is_one_stop_of_kind_change_beside_the_plans_spec_
     kinds = [(n["idea"], n["kind"]) for n in host.command("ideas.board")["needs_you"]]
     assert kinds == [(planning, "plan"), (slug, "change")]                                         # as a plan: by priority, then the oldest
     nodes = {n["slug"]: n for n in host.command("ideas.map", {})["nodes"]}
-    assert nodes[slug]["needs_you"] == "" and nodes[planning]["needs_you"] == "plan"              # the Map's node is as it was
+    assert nodes[slug]["needs_you"] == "change" and nodes[planning]["needs_you"] == "plan"        # the Map's node names it: its goal's row is marked
+    party = next(m for x in host.command("ideas.map", {})["goals"] if x["slug"] == g for m in x["party"] if m.get("band") == "lead")
+    assert (party["state"], party["why"]) == ("needs", "plan")                                   # the leader stops on its plan first, then on its change
+    assert map_party.leader_state("working", [{"state": "working", "needs_you": "change"}]) == ("needs", "change")
     assert (state / "ideas" / slug / "plan_change.json").stat().st_mtime_ns == before            # a read writes nothing
     # what cannot be taken any more is shown nowhere; a change of nothing says so
     ideas.edit_plan(state, slug, lambda p: [p["tasks"][1].update(state="running", started="x"), p["tasks"][2].update(state="running", started="x")])

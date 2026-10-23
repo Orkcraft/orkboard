@@ -1215,7 +1215,11 @@ def test_the_page_says_what_changed_since_the_plan_whether_it_is_passed_and_the_
     assert "These sections changed since the plan: Gist, Out." in prompts[0]
     page = host.command("ideas.page", {"slug": slug})
     json.dumps(page)
-    assert page["passed"] is True and page["state"] == "working" and page["changed"] == ["Gist", "Out"]
+    assert page["passed"] is True and page["state"] == "working" and page["changed"] == ["Gist", "Out"] and page["revising"] is False
+    for busy, revising in (("planning", True), ("talking", False)):                                  # the leader re-plans what is left, not a talk
+        host.ideas.keeper._busy[slug] = busy
+        assert host.command("ideas.page", {"slug": slug})["revising"] is revising
+    host.ideas.keeper._busy.pop(slug)
     change = page["change"]
     assert set(change) == {"made_at", "why", "added", "changed", "dropped", "usd_low", "usd_high", "rows"}
     assert (change["why"], change["added"], change["changed"], change["dropped"]) == ("The export is csv only.", 1, 1, 1)
