@@ -14,7 +14,7 @@ import { Modal, closeDialog, openDialog } from "./modals.js";
 import { PRIORITIES } from "./goaldialog.js";
 import { gatherWaits } from "../arena/arenastate.js";
 import { reducedMotion } from "../arena/motion.js";
-import { TASKMASTER, RACE, PartyBands, PriceLine, CanTake, ChecksBlock, OwnParties, LibraryTiles, agentOf, inBand, partyWords, overfull, usePartyPrice, useOwnParties } from "./party.js";
+import { TASKMASTER, RACE, PartyBands, PriceLine, CanTake, ChecksBlock, OwnParties, LibraryTiles, agentOf, inBand, partyWords, overfull, pitchParty, presetsOf, usePartyPrice, useOwnParties } from "./party.js";
 
 export const FOR_HINT = "goes first when the window is short";
 
@@ -30,14 +30,15 @@ function seatHeads(leader, team) {
   return heads.map((a, i) => seats[i] && { race: RACE[a.craft], tier: a.tier, box: boxOf(seen(seats[i]) ? seats[i] : atSave(seats[i])) }).filter(Boolean);
 }
 
-export function GoalWizard({ then = "" }) {
-  const start = roles.value?.parties?.engineering || { lead: TASKMASTER, build: [], check: [] };
-  const [title, setTitle] = useState("");
+export function GoalWizard({ then = "", preset: first = "" }) {
+  const from = first ? presetsOf().find((p) => p.id === first) : null;    // opened with a party of the library (a pitch sent to one the project lacks, spec 65 §5)
+  const start = from ? { lead: from.lead, build: from.build, check: from.check } : roles.value?.parties?.engineering || { lead: TASKMASTER, build: [], check: [] };
+  const [title, setTitle] = useState(from?.name || "");
   const [about, setAbout] = useState("");
   const [priority, setPriority] = useState("normal");
-  const [craft, setCraft] = useState("engineering");     // the library's party's craft the seats started from: its agents are listed first in each band
-  const [preset, setPreset] = useState("");                   // the library's party picked (its id), sent with the party until a seat changes; none for the party it opens with
-  const [lit, setLit] = useState("engineering");               // the tile pressed: the party it opens with, then the one picked
+  const [craft, setCraft] = useState(from ? (from.craft === "mixed" ? "" : from.craft) : "engineering");     // the library's party's craft the seats started from: its agents are listed first in each band
+  const [preset, setPreset] = useState(from?.id || "");       // the library's party picked (its id), sent with the party until a seat changes; none for the party it opens with
+  const [lit, setLit] = useState(from?.id || "engineering");   // the tile pressed: the party it opens with, then the one picked
   const [leader, setLeader] = useState(start.lead || TASKMASTER);
   const [team, setTeam] = useState([...(start.build || []), ...(start.check || [])]);
   const [every, setEvery] = useState([]);
@@ -90,7 +91,7 @@ export function GoalWizard({ then = "" }) {
         <${PriceLine} price=${price} />
         <${CanTake} price=${price} />
         <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p></div>
-      <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />
+      ${!pitchParty(leader) && html`<${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />`}
       <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span><small class="ok-tone-muted">${FOR_HINT}</small>
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
           <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>

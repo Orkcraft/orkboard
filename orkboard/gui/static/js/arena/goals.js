@@ -5,6 +5,7 @@
 // the row picks the goal into the filter (a second press takes it out); hovering it peeks (the board shows only that goal's cards while the pointer is on
 // the row). A goal of a type shows its sign before its title; a stop is marked once, by its sign (no alert edge, no alert words). A press on the pile deals the
 // party's goal types (types.js); with none (an older host) it turns its top card over and opens New goal (≈ 0.42 s, in steps; at once under reduced motion).
+// Ideation (docs/specs/65-ideation.md §8) lists its pitches by state instead (pitches.js), with *Judge now* in place of *Process now*.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Chev, Elem, Icon, Sign } from "../orkui.js";
@@ -19,6 +20,8 @@ import { edgesOf, elementOf, flagRow, goalMark, goalsCount, listsOf, pickTip, wa
 import { Member } from "./members.js";
 import { PartyTop, deckEdges } from "./goaltabs.js";
 import { TypesSpread } from "./types.js";
+import { PitchGoals } from "./pitches.js";
+import { judgePower, pitchLists } from "./pitchwords.js";
 
 const TURN_MS = 420;
 const SHOWN_FLAGS = 10;
@@ -80,7 +83,7 @@ function FlagRow({ n }) {
 /** The pile at the foot: a press deals the party's goal types (types.js); with none, it turns its top card over, then New goal opens; the card is put back when
  *  the dialog closes. */
 function NewGoal({ g }) {
-  const party = g.slug;
+  const party = g.slug, label = g.ideation ? "New goal: a pitch to judge" : "New goal: your own, or pick its type";
   const [drawing, setDrawing] = useState(false);
   const [dealt, setDealt] = useState(null);
   const timer = useRef(0), pile = useRef();
@@ -95,33 +98,37 @@ function NewGoal({ g }) {
     else timer.current = setTimeout(() => openDialog("idea", { goal: party }), TURN_MS);
   };
   return html`<div class="arena-new">
-    <button type="button" ref=${pile} class=${cls("arena-new__pile", { "is-drawing": drawing })} aria-label="New goal: your own, or pick its type" title="New goal: your own, or pick its type"
+    <button type="button" ref=${pile} class=${cls("arena-new__pile", { "is-drawing": drawing })} aria-label=${label} title=${label}
       aria-haspopup=${(g.types || []).length ? "dialog" : undefined} onClick=${press}>
       ${[3, 2, 1].map((i) => html`<i key=${i} class="arena-new__edge" style=${`left:${i * 2}px;top:${i * 2}px`}></i>`)}
       <span class="arena-new__card"><span class="arena-new__back"><${Icon} name="plus" /></span><span class="arena-new__face"></span></span>
     </button>
-    <span class="arena-new__words"><b>New goal</b><span class="arena-cap">pick its type</span></span>
+    <span class="arena-new__words"><b>New goal</b><span class="arena-cap">${g.ideation ? "a pitch to judge" : "pick its type"}</span></span>
     ${dealt && html`<${TypesSpread} g=${g} from=${dealt} back=${pile.current} done=${() => setDealt(null)} />`}
   </div>`;
 }
 
 /** The leader with Process now, and under it the party's goals. */
 export function Left({ g, nodes, planning, lead }) {
-  const party = g.slug, lists = listsOf(g, nodes, lead?.name || "Taskmaster");
-  const power = powerOf(planning.raw, lead?.name || "Taskmaster"), n = goalsCount(lists), picked = (picks.value[party] || []).length > 0;
+  const party = g.slug, lists = listsOf(g, nodes, lead?.name || "Taskmaster"), pitch = !!g.ideation;
+  const pl = pitch ? pitchLists(nodes) : null;          // Ideation: its pitches by state, *Judge now* in place of *Process now* (spec 65 §8)
+  const power = pitch ? judgePower(pl.raw, lead?.name || "Investor") : powerOf(planning.raw, lead?.name || "Taskmaster");
+  const n = pitch ? pl.judging.length + pl.judged.length : goalsCount(lists), picked = !pitch && (picks.value[party] || []).length > 0;
   const edges = deckEdges(party);
   return html`<div class="arena-left">
     <${PartyTop} g=${g} nodes=${nodes} />
     <section class="arena-hero" aria-label="Leader" data-edges=${edges}>
       ${lead && html`<div class="arena-hero__deck">${Array.from({ length: edges }, (_, i) => html`<i key=${i} class="arena-hero__edge"
           style=${`inset:${-(i + 1) * 3}px ${-(i + 1) * 3}px ${(i + 1) * 3}px ${(i + 1) * 3}px`}></i>`).reverse()}<${Member} m=${lead} nodes=${nodes} planning=${planning} lead=${true} /></div>`}
-      <button type="button" class="ork-btn arena-power" disabled=${power.off} title=${power.tip}
-        onClick=${() => act("ideas.queue", { slug: power.slug, queue: "now", via: "party" })}>Process now · ${power.words}</button>
+      ${pitch ? html`<button type="button" class="ork-btn arena-power" disabled=${power.off} title=${power.tip}
+          onClick=${() => act("ideas.judge", { slug: power.slug, via: "party" })}>Judge now · ${power.words}</button>`
+        : html`<button type="button" class="ork-btn arena-power" disabled=${power.off} title=${power.tip}
+          onClick=${() => act("ideas.queue", { slug: power.slug, queue: "now", via: "party" })}>Process now · ${power.words}</button>`}
     </section>
-    <section class="arena-goals" aria-label="Goals">
-      <div class="arena-left__head"><h2 class="arena-lbl">Goals</h2><span class="ork-count">${n}</span><span class="arena-spacer"></span>
+    <section class="arena-goals" aria-label=${pitch ? "Pitches" : "Goals"}>
+      <div class="arena-left__head"><h2 class="arena-lbl">${pitch ? "Pitches" : "Goals"}</h2><span class="ork-count">${n}</span><span class="arena-spacer"></span>
         ${picked && html`<button type="button" class="ork-btn quiet" title="Every goal of the party again" onClick=${() => clearPicks(party)}>Show all</button>`}</div>
-      <div class="arena-deck">
+      ${pitch ? html`<${PitchGoals} nodes=${nodes} />` : html`<div class="arena-deck">
         ${lists.work.length > 0 && html`<h3 class="arena-sec">At work</h3>`}
         ${lists.work.map((x) => html`<${GoalRow} key=${x.slug} g=${g} n=${x} party=${party} />`)}
         <h3 class="arena-sec">Planning</h3>
@@ -130,7 +137,7 @@ export function Left({ g, nodes, planning, lead }) {
         ${lists.raw.length > 0 && html`<button type="button" class="ork-btn quiet arena-fold arena-raw" aria-expanded=${rawOpen.value} onClick=${() => { rawOpen.value = !rawOpen.value; }}>New (${lists.raw.length})</button>`}
         ${rawOpen.value && lists.raw.map((r) => html`<${GoalRow} key=${r.slug} g=${g} n=${r.node} plan=${r} raw=${true} party=${party} />`)}
         <${FlagsFold} lists=${lists} g=${g} nodes=${nodes} />
-      </div>
+      </div>`}
       <${NewGoal} g=${g} />
     </section>
   </div>`;

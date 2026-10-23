@@ -152,6 +152,10 @@ function Answers({ s, g, see }) {
       <button type="button" class="ork-btn arena-hc__q" title="Its log; Drop is there, with a confirmation"
         onClick=${() => { see(); if (s.task) showTask(n.slug, s.task.id, { via: "hand" }); else showIdea(row.idea, { via: "hand" }); }}>Open…</button>`;
   }
+  if (s.kind === "pitch") {                       // a pitch judged (spec 65 §5): its screen, where it is sent, changed, passed or dropped
+    return html`<button type="button" class="ork-btn primary arena-hc__q" title="Its views, the case against and the decision; Send, Pass or Change are there"
+      onClick=${() => { see(); showIdea(row.idea, { via: "hand" }); }}>Open the pitch</button>`;
+  }
   if (s.kind === "op_rules") {
     const template = row.template;
     return html`<${Decline} s=${s} yes=${["Take", "Take the rules"]} ask=${["No", "No rules"]} sure="Decline the rules" take=${() => runOp("ops.rules_answer", { template, take: true })}
@@ -170,6 +174,7 @@ function open(s) {
   else if (s.kind === "todo") showPlan(row.idea, row.todo?.id || "", via);
   else if (s.kind === "failed") (s.task ? showTask(n.slug, s.task.id, via) : showIdea(row.idea, via));
   else if (s.kind === "pick") showPick(row.slug, row.task, via);
+  else if (s.kind === "pitch") showIdea(row.idea, via);
   else openDialog("opcheck", { op: row.op });
 }
 

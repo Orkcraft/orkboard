@@ -16,12 +16,17 @@ export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["d
 export const RACE = Object.fromEntries(CRAFTS);
 const BANDS = [["lead", "Leads", "plans the party's goals"], ["build", "Builds", "do the work"],
   ["check", "Checks", "hold each goal to their check"]];
+const PITCH_BANDS = { lead: "decides on each pitch", build: "each reads every pitch, alone", check: "makes the case against" };     // what Ideation's bands do (spec 65 §1)
 export const TASKMASTER = "taskmaster";
 
 const library = () => roles.value?.library || [];
 /** A line of the library the host sends in the code's words (a check's *applies when the idea changes code*): said in today's (a goal), after `say()`. */
 export const libraryWords = (text) => say(String(text || "")).replace(/\bideas\b/g, "goals").replace(/\bidea\b/g, "goal");
 export const agentOf = (id) => library().find((a) => a.id === id);
+/** Ideation (docs/specs/65-ideation.md §1): a party the Investor leads is always its four views and the Skeptic — no seat changes there, and the six pitch agents
+ *  (the library's `pitch`) are never offered to another party. */
+export const pitchParty = (leader) => leader === "investor" || !!agentOf(leader)?.pitch;
+export const IDEATION_STAYS = "Ideation reads every pitch from all four sides: its views and the Skeptic stay.";
 const STAGE_WORDS = { lead: "Planning", build: "Implementation", check: "Checking" };
 /** A leader's stages (ideas.roles `stages`, spec 59 §2.3); the default's for a leader not in it, and for an older host that sends none. */
 const stagesOf = (leader) => roles.value?.stages?.[leader] || roles.value?.stages?.default || null;
@@ -150,7 +155,7 @@ export function SaveParty({ goal, craft }) {
 
 /** The three bands. `craft`: the party's, its agents listed first in each band. */
 export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
-  const seats = seatsFor(leader), over = overfull(leader, team);
+  const seats = seatsFor(leader), over = overfull(leader, team), fixed = pitchParty(leader);
   const on = (a) => (a.band === "lead" ? leader === a.id : team.includes(a.id));
   const toggle = (a) => {
     if (a.band === "lead") { setLeader(leader === a.id ? TASKMASTER : a.id); return; }
@@ -163,19 +168,20 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
     <${Head} race=${RACE[a.craft]} tier=${a.tier} /><b>${a.name}${a.check && html`<span class="shell-check-badge">checks</span>`}</b>
     <small class="ok-tone-muted">${TIER_WORDS[a.tier]} ${RACE_WORDS[RACE[a.craft]]} · ${a.line}</small>
     <span class="shell-team-mark" aria-hidden="true"><${Icon} name=${on(a) ? "check" : "plus"} /></span></button>`;
-  return BANDS.map(([id, words, what]) => {
+  const bands = BANDS.map(([id, words, what]) => {
     const taken = inBand(id, leader, team);
-    const list = library().filter((a) => a.band === id).sort((x, y) => (x.craft === craft ? 0 : 1) - (y.craft === craft ? 0 : 1));
+    const list = fixed ? [] : library().filter((a) => a.band === id && !a.pitch).sort((x, y) => (x.craft === craft ? 0 : 1) - (y.craft === craft ? 0 : 1));
     const full = over.find((x) => x.band === id);
     return html`<section key=${id} class=${`shell-party-band band-${id}`} aria-label=${words}>
-      <div class="shell-band-head"><h3>${stageWord(leader, id)}</h3><small class="ok-tone-muted">${words} · ${taken.length} of ${seats[id]} seats · ${what}</small></div>
+      <div class="shell-band-head"><h3>${stageWord(leader, id)}</h3><small class="ok-tone-muted">${words} · ${taken.length} of ${seats[id]} seats · ${fixed ? PITCH_BANDS[id] : what}</small></div>
       <div class="shell-team-seats">${Array.from({ length: Math.max(seats[id], taken.length) }, (_, i) => {
         const a = agentOf(taken[i]), past = i >= seats[id];
         return html`<span key=${i} class=${`shell-team-seat${a ? "" : " is-empty"}${id === "lead" ? " is-lead" : ""}${past ? " is-over" : ""}`} title=${a?.name || "A free seat"}>${a && html`<${Head} race=${RACE[a.craft]} tier=${a.tier} />`}</span>`;
       })}</div>
       ${full && html`<p class="shell-band-over" role="alert">${full.text}</p>`}
-      <div class="shell-team-list">${list.map(row)}</div></section>`;
+      ${list.length > 0 && html`<div class="shell-team-list">${list.map(row)}</div>`}</section>`;
   });
+  return fixed ? [...bands, html`<p key="fixed" class="ok-tone-muted shell-band-fixed">${IDEATION_STAYS}</p>`] : bands;
 }
 
 const PRICE_MS = 300;
@@ -210,8 +216,8 @@ export function rangeWords(price) {
  *  they never block Save and have no button. */
 export function PriceLine({ price }) {
   if (!price) return null;
-  return html`<p class="shell-price" role="status">This party: ${rangeWords(price)} a goal
-    <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} goals` : "a first guess: it learns from this project's goals"}</small></p>
+  return html`<p class="shell-price" role="status">This party: ${rangeWords(price)} ${price.pitch ? "a pitch" : "a goal"}
+    <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} ${price.pitch ? "pitches" : "goals"}` : `a first guess: it learns from this project's ${price.pitch ? "pitches" : "goals"}`}</small></p>
     ${(price.hints || []).map((h, n) => html`<p key=${n} class="shell-hint ok-font-status ok-tone-muted">${h}</p>`)}`;
 }
 
@@ -235,7 +241,7 @@ export function CanTake({ price }) {
     if (reducedMotion() || document.hidden) return;
     opened.forEach((id) => root.current?.querySelector(`[data-type="${CSS.escape(id)}"]`)?.animate?.([{ background: "var(--ork-ink)", color: "var(--ork-on-ink)" }, { background: "transparent" }], { duration: 600, easing: "steps(4, end)" }));
   }, [types]);
-  if (!types) return null;
+  if (!types || price.pitch) return null;                 // Ideation takes pitches: no goal type (spec 65 §1)
   const said = (t) => `${t.name}${t.missing ? ` (needs ${t.missing})` : ""}`;
   const item = (t, i) => html`<span key=${t.id} class="shell-cantake__item">${i ? " · " : ""}<span class="shell-cantake__one" data-type=${t.id}><${Sign} name=${t.sign} /> ${said(t)}</span></span>`;
   const shown = all.slice(0, all.length - cut), shownReady = shown.slice(0, ready.length), shownMore = shown.slice(ready.length);

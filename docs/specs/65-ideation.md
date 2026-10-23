@@ -321,3 +321,32 @@ orders of the library, the presets and the board's commands brought up to date i
     C's (`library[].pitch` says which). `gui/phone_push.py` `KIND_WORDS` (kept equal to `js/board/today.js`) does not name `pitch`, so a
     push never leads with a pitch; the snapshot's count leaves it out anyway. Saving an Ideation party is read by the keeper as any party
     is (the Investor's voice, the `goal` step). `realm/ideas.py` was over 600 lines before and grows by two; not split here.
+
+**B (desktop).** Built in new `js/arena/pitchwords.js` (pure: `isIdeation`, a pitch's line by state `pitchWords`, `pitchMark`, `pitchLists`,
+`pitchPlanning`, `judgePower`, `whereWords`, `sendTargets`), new `js/arena/pitches.js` (the left column's `PitchGoals`, the field's `PitchField`), new
+`js/shell/pitchview.js` (a pitch's screen), `js/arena/arena.js` and `goals.js` (an Ideation party draws them in place of the tasks' columns, the goals'
+lists and *Process now*), `js/shell/ideadialog.js` (`PitchGoal`), `js/shell/party.js`, `goalwizard.js`, `goaldialog.js` (the pickers), `js/arena/stops.js`
+and `arenawords.js` (the `pitch` stop), `arena.css`, `shell.css`; new `tests/test_ideation_desktop_browser.py`, 11 tests. Outside §0's row, each a line or
+two: `js/shell/preview.js` (a page with `pitch` opens `PitchView`), `js/arena/arenastate.js` (`sentOpen`), `partyline.js` and `goalwords.js` (*judging*
+for *reading*, *a pitch* for *a goal* in the price), `js/board/maplayout.js` (`NEEDS_WORDS.pitch`, the leader's peek). What the spec left open:
+- **The line on the field is the party row's columns.** Under the four views and the Skeptic, a framed row per pitch: its title and line, then under each
+  view its head (dim until it answers, then lit, with `useLit`'s one flash as it comes), under the Skeptic what is next (*the case against*,
+  *deciding*) and then the answer's word in the heading face. Sections *Judging*, *Judged*, *New*, *Sent*; the passed are only in the left column.
+  A press opens the pitch's screen; a member's press (solo) dims the other columns' cells, nothing more.
+- **The left column** says *Pitches (n)* (judging and judged), sections *Judging* (with the failed: ✗ and their error) and *Judged* (the alert sign,
+  *judged: Invest*), then folds *New (n)*, *Sent (n)* and *Passed (n)* (`rawOpen`, `sentOpen`, `flagsOpen`, so leaving the party closes them). A row
+  opens the screen: a pitch has no task to pick into the filter. **Judge now · n new pitches** sends `ideas.judge` for the first new one.
+- **New goal** in Ideation is `BlankGoal`'s own text, party and lens drawn as `PitchGoal` (picking Ideation in its party select switches, and back):
+  *What is the pitch?* (the template never says *idea*, tests/test_gui_wording.py), Hold · Tonight · Judge now; Judge now sends the party's priority
+  but never `low` (a Low would put it to the night); closed with words in it, Tonight, as any goal. No priority field.
+- **Send to <party>.** The select lists the project's parties but General and Ideation's, the decision's party first; a preset the decision names that
+  the project lacks is listed last, *(make it first)*, and its Send opens New party with that preset (`openDialog("goal", {preset})`, `GoalWizard`'s
+  new `preset`, its name filled in) without calling the host. `type` is never sent: the host's default (the decision's type when sent where it said).
+- **The pickers.** `party.js` `pitchParty(leader)`: in Ideation `PartyBands` draws the seats and no list (the bands say what each does for a pitch, and
+  *Ideation reads every pitch from all four sides: its views and the Skeptic stay*); elsewhere the lists leave out every `pitch` agent, the Investor
+  too. New party leaves Ideation by another tile; Edit the party of Ideation has no *Change the party*. `PriceLine` says *a pitch*; `CanTake` and the
+  checks block are not drawn (`types: []`, the Skeptic is no checker).
+- **Needs you's `pitch`** is a stop of urgency 2 (*Pitch judged*, its text the host's *Judged: Invest*, no gem); its press and *Open the pitch* open
+  the screen. It rings nothing on the field (`aboutOf` is unchanged).
+- **Not done:** the drawer's tab still says *Goal* before a pitch's title (the tab strip reads no page); the views' heads are the library's, the
+  Investor a lich (§1).

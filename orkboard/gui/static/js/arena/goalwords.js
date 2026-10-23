@@ -92,13 +92,13 @@ export function inMainWords(shorts) {
 
 // -- the party line ---------------------------------------------------------------------------------------------------------------------------
 
-/** *≈$2–4 a goal*: the party's price a goal (`ideas.party_price`'s low and high); below $1 in cents; "" before it is read. */
+/** *≈$2–4 a goal*: the party's price a goal (`ideas.party_price`'s low and high; Ideation's, `pitch`: *a pitch*, spec 65 §3); below $1 in cents; "" before it is read. */
 export function priceWords(price) {
   if (!price || typeof price.low !== "number") return "";
-  const { low, high } = price;
-  if (low < 1) return `≈$${low.toFixed(2)}–${high.toFixed(2)} a goal`;
+  const { low, high } = price, each = price.pitch ? "a pitch" : "a goal";
+  if (low < 1) return `≈$${low.toFixed(2)}–${high.toFixed(2)} ${each}`;
   const a = Math.round(low), b = Math.round(high);
-  return a === b ? `≈$${a} a goal` : `≈$${a}–${b} a goal`;
+  return a === b ? `≈$${a} ${each}` : `≈$${a}–${b} ${each}`;
 }
 
 /** *3 goals at work*, *1 goal at work*: for a tooltip. */

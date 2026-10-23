@@ -1,7 +1,7 @@
 // The drawer's body (docs/specs/33-v1-shell.md §6, spec 39 §3, spec 49 §9): tabs, one per thing opened: an idea's spec (29a's
 // sections view), an idea's plan (scrolled to a to-do, said what it unblocks), a task (its brief, state and log), a result's code
 // (commits, then the files changed, each patch folded), a goal, a pick (its variants large, a note: shell/pickview.js), a document, a file, a diff,
-// the gate's screen, Agents, Files. A result's actions stay pinned at its foot.
+// the gate's screen, Agents, Files. A result's actions stay pinned at its foot. A goal of Ideation is a pitch: its page's `pitch` shows its own screen (pitchview.js).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Sign, Who } from "../orkui.js";
@@ -20,6 +20,7 @@ import { AgentsPane } from "./agents.js";
 import { GateView } from "../arena/gate.js";
 import { rowOf } from "../arena/pickwords.js";
 import { PickView } from "./pickview.js";
+import { PitchView } from "./pitchview.js";
 
 /** A failed task's way on: run its idea's tasks again, or drop it (asked first). */
 function FailedActions({ t }) {
@@ -131,7 +132,7 @@ export function Preview() {
     <div class=${cls("shell-preview__body", { "is-pane": p?.kind === "agents" })}>
       ${!p ? ""
         : gone ? html`<div class="shell-empty"><p>${gone}</p><p><button class="ork-btn" onClick=${() => closePreview()}>Close</button></p></div>`
-        : p.kind === "idea" ? (pg ? html`<${IdeaView} p=${pg} />` : html`<p class="ok-tone-muted">Opening…</p>`)
+        : p.kind === "idea" ? (pg ? (pg.pitch ? html`<${PitchView} pg=${pg} />` : html`<${IdeaView} p=${pg} />`) : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "plan" ? (pg ? html`<${PlanView} p=${pg} todo=${p.todo} />` : html`<p class="ok-tone-muted">Opening…</p>`)
         : p.kind === "goal" ? html`<${GoalView} />`
         : p.kind === "pick" ? html`<${PickView} p=${p} />`
