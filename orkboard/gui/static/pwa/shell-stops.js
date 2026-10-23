@@ -6,13 +6,13 @@
 // out that needs nothing from the person (shell-needs.js): a question *Let <asker> decide*, a to-do *Describe it instead*, *Go without it* or *Let <leader> choose*. The create button floats over the field, not here (shell-fab.js). A tap pops one out: it leaps from its place in the
 // fan to a raised sheet above the scrim (in steps, none under reduced motion; its place in the fan stays empty while it is up) with its gem, its kind, its head, its
 // title and text, its quick answers as 44 px buttons and *Open it on its own screen*. A tap on the scrim lays it back. The answers are the commands Needs you had:
-// a plan starts, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped. Each wears its goal's element
+// a plan starts, a plan change (the leader's new plan for the tasks not started, spec 62) is taken or kept, a question is answered by one of its choices, a proposal is taken or left, a failure starts again; a result is merged, sent back or dropped. Each wears its goal's element
 // (spec 50 §6.8) and draws its marks with orkUI's signs. A plan that gives work to no one of the party says so on its card and its raised one (spec 52 §5.7): *No one in the party does pixel art:
 // Artist would.*, with *Add and start* (the agent joins, then the work starts) when its seat is free, else *Edit the party*; *Start without* keeps today's way.
 import { h, icon } from "./util.js";
 import { elem, sign } from "./shell-marks.js";
 import { midHead, whoHead } from "./shell-who.js";
-import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice, byUrgency, fanPlaces } from "./shell-arena-words.js";
+import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice, changePrice, changeWords, byUrgency, fanPlaces } from "./shell-arena-words.js";
 import { resultActions, testsWords, changesWords, foundWords, foundOf } from "./shell-review.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { pointerGuard, motionOn, deal } from "./shell-motion.js";
@@ -20,9 +20,9 @@ import { thumbs, stopAll, countWords, pickSig } from "./shell-picks.js";
 import { makePanel, forget } from "./shell-pick-answer.js";
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-const KIND = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
+const KIND = { plan: "Plan ready", change: "Plan change", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
   pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
-const gemOf = (g) => h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text);       // a price, a mark or a sign (a failure's cross)
+const gemOf = (g) => (g ? h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text) : null);       // a price, a mark or a sign (a failure's cross); none for a plan change of nothing
 const GHOSTS = 3, GHOST_MS = 300;                       // stops that leave with the fade in one refresh (the rest simply go), and how long it lasts (spec 58 §4; spec 49 §11.2)
 const CARD = 104, WIDTH = 330;                           // a card's width in the fan, and the room it was drawn for (the row's width less 30 px at each side)
 const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
@@ -69,15 +69,16 @@ export function makeStops(core, ctx, needs, ops) {
   // -- the stops of the goal, each with its quick answers ----------------------------------------------------------------------------------------------
   const btn = (label, run, { primary = false, tip = "", text = false, disabled = false, attrs = {} } = {}) => h("button", { class: `ork-btn${primary ? " primary" : ""}${text ? " answer" : ""}`,
     type: "button", title: tip || null, disabled, onclick: run, ...attrs }, label);
-  /** A command of the stops: laid back first (the toast shows), then read again. `dealt`: the goal of a plan this press starts: answered ok, its tasks are dealt from the raised card's box onto the
-   *  stage shown (spec 57); only the party shown's plan deals (another party's tasks are not on this field). */
+  /** A command of the stops: laid back first (the toast shows), then read again. `said`: the toast, or a function of the host's answer. `dealt`: the goal of a plan this press starts, or of a plan change that
+   *  adds tasks: answered ok, its tasks are dealt from the raised card's box onto the stage shown (spec 57, spec 62 §7.3); only the party shown's plan deals (another party's tasks are not on this field). */
   const go = (name, args, said, dealt = "") => async () => {
     const box = dealt && !raisedParty ? body.querySelector(".raised")?.getBoundingClientRect() : null;       // read at the press, before it is lowered
     const r = await core.call(name, typeof args === "function" ? args() : args);              // read when pressed: a line typed on the raised one counts
     if (!r) return;
     if (box && motionOn()) deal.wait(dealt, box);
     lower();
-    if (said) ctx.flash(said);
+    const text = typeof said === "function" ? said(r) : said;                                 // a plan change says what the host applied
+    if (text) ctx.flash(text);
     core.refresh();
   };
   /** A press that opens something else: the stop is laid back, the party it belongs to is shown first when it is not the one shown (a pick of it in the parties' list, Operations too), then it opens (spec 54 §2.2). */
@@ -137,6 +138,12 @@ export function makeStops(core, ctx, needs, ops) {
       return { ...base, gem: { text: price || "—", tip: "What the plan should cost, at API prices" }, big: lead,
         text: tasks.length ? `${plural(tasks.length - checks, "task")}${checks ? `, ${plural(checks, "check")}` : ""}` : n.text, miss: missingWords(missing),
         open: { kind: "plan", slug: n.idea }, quickLabel: "Quick moves", quick };
+    }
+    if (n.kind === "change") {                              // the leader's plan change for the tasks not started (spec 62): taken, its added tasks are dealt as a start's are (only into the stage shown); kept, the plan stays
+      const price = changePrice(n), answer = (take, said, dealt = "") => go("ideas.revise_answer", { slug: n.idea, take, via: "hand" }, said, dealt);
+      return { ...base, gem: price ? { text: price, tip: "What the change adds or saves, at API prices" } : null, text: n.text || "", why: n.why || "", open: { kind: "plan", slug: n.idea }, quickLabel: "Quick moves",
+        quick: () => [btn("Take the new plan", answer(true, changeWords, n.added > 0 ? n.idea : ""), { primary: true, tip: "Changes the tasks not started; the tasks at work and the merged ones stay", attrs: { "data-act": "take-change" } }),
+          btn("Keep the plan", answer(false, "The plan stays as it was."), { tip: "Leaves the plan as it is", attrs: { "data-act": "keep-change" } })] };
     }
     if (asking) {
       const isGoal = n.kind === "goal", slug = isGoal ? n.goal : n.idea, asked = needs.askedOf(n);
@@ -250,6 +257,7 @@ export function makeStops(core, ctx, needs, ops) {
       it.party ? h("p", { class: "cap raised__goal", "data-party": it.party.ops ? "ops" : it.party.slug }, partyMark(it.party), " ", h("span", { class: "raised__words" }, [it.party.name, it.goalName].filter(Boolean).join(" · ")))   // *<party> · <goal>*
         : it.link ? h("p", { class: "cap raised__goal is-link", "data-link": "" }, h("span", { class: "raised__words" }, it.link.join(" · "))) : null,       // *<goal> · <task> · <member>* (spec 58 §3)
       h("div", { class: "raised__text" }, it.text),
+      it.why ? h("p", { class: "muted raised__why" }, it.why) : null,                   // a plan change's why, under its text
       it.miss ? h("p", { class: "muted raised__miss" }, it.miss) : null,
       it.more ? it.more() : null,
       quick,

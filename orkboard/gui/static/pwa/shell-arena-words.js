@@ -35,6 +35,22 @@ export function planPrice(e) {
   return `$${f(e.usd_low)}–${f(e.usd_high)}`;
 }
 
+/** What a plan change adds or saves (spec 62 §6.2): *+$0.40–1.20*, *−$0.13–0.38* (a real minus sign; the host sends a saving negative); "" for a change that costs and saves nothing. */
+export function changePrice(c) {
+  const lo = Number(c?.usd_low), hi = Number(c?.usd_high);
+  if (c?.usd_low == null || c?.usd_high == null || !Number.isFinite(lo) || !Number.isFinite(hi) || (lo === 0 && hi === 0)) return "";
+  const sign = (x) => (x < 0 ? "−" : "+"), f = (x) => (Math.abs(x) < 10 ? Math.abs(x).toFixed(2) : String(Math.round(Math.abs(x))));
+  return sign(lo) === sign(hi) || lo === 0 || hi === 0 ? `${sign(lo || hi)}$${f(lo)}–${f(hi)}` : `${sign(lo)}$${f(lo)}–${sign(hi)}$${f(hi)}`;
+}
+
+/** What an answered plan change says, from the host's `{added, changed, dropped, left}` (spec 62 §6.2): *The plan changed: 2 added, 1 dropped.* (the parts that are not zero), *The plan stays as it was.*
+ *  when nothing was applied; with tasks it named that had started meanwhile, *1 left as it was: it started.* after it. */
+export function changeWords(r) {
+  const parts = [[r?.added, "added"], [r?.changed, "changed"], [r?.dropped, "dropped"]].filter(([k]) => k > 0).map(([k, w]) => `${k} ${w}`);
+  const left = Array.isArray(r?.left) ? r.left.length : Number(r?.left) || 0;
+  return `${parts.length ? `The plan changed: ${parts.join(", ")}.` : "The plan stays as it was."}${left ? ` ${left} left as ${left === 1 ? "it was: it" : "they were: they"} started.` : ""}`;
+}
+
 // -- the goals ---------------------------------------------------------------------------------------------------------------
 
 export const nodesOf = (st, slug) => (st.map?.nodes || []).filter((n) => n.goal === slug);
@@ -42,7 +58,7 @@ export const nodesOf = (st, slug) => (st.map?.nodes || []).filter((n) => n.goal 
 /** What of the goal's Needs you rows is a stop on the bottom row, in the host's order: a task that failed is the Map's (`failedOf`), its
  *  row here would be the same stop twice; a task that left variants to pick from is a stop of kind `pick` (spec 51 §2.4). */
 export const needsOf = (st, slug) => (st.board?.needs_you || []).filter((n) => n.goal === slug
-  && (["asks", "plan", "proposal", "todo", "goal", "party", "pick"].includes(n.kind) || (n.kind === "failed" && !n.blocks)));
+  && (["asks", "plan", "change", "proposal", "todo", "goal", "party", "pick"].includes(n.kind) || (n.kind === "failed" && !n.blocks)));
 
 /** The goal's tasks that failed, with their idea. */
 export const failedOf = (st, slug) => nodesOf(st, slug).filter((n) => n.state !== "done")
@@ -60,9 +76,9 @@ export const stopCount = (st, slug) => needsOf(st, slug).length + failedOf(st, s
 export const stopFailed = (st, slug) => failedOf(st, slug).length > 0 || needsOf(st, slug).some((n) => n.kind === "failed");
 
 // -- the hand: every stop of the project, by urgency (spec 54 §2.3) ----------------------------------------------------------
-const URGENCY = { failed: 0, op_failed: 0, plan: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, look: 3 };   // red, what holds work back, what does not, results
+const URGENCY = { failed: 0, op_failed: 0, plan: 1, change: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, look: 3 };   // red, what holds work back, what does not, results
 
-/** The stops in the order of their urgency: a failure first, then what holds work back (a plan, a question, a to-do, a Pick one, an operation at your check), then what does not
+/** The stops in the order of their urgency: a failure first, then what holds work back (a plan, a plan change, a question, a to-do, a Pick one, an operation at your check), then what does not
  *  (a proposal, a party's proposal, a template's rules), then the results to look at; in a group the oldest first (`at`, an ISO time; one without comes last). */
 export function byUrgency(items) {
   const rank = (it) => URGENCY[it.kind] ?? 1;

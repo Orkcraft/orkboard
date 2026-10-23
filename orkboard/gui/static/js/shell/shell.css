@@ -101,6 +101,9 @@
 .shell-party-save { margin-top: var(--ork-3); }
 .shell-price { margin: var(--ork-4) 0 var(--ork-2); }
 .shell-hint { margin: 0 0 var(--ork-2); }
+.shell-cantake { flex: none; margin: 0 0 var(--ork-2); max-height: 2lh; overflow: hidden; }          /* spec 63 §2: two lines at most, the rest ends with *and k more* (party.js) */
+.shell-cantake__one { white-space: nowrap; }
+.shell-cantake__one .ork-sign { color: var(--ork-ink-muted); }
 .shell-party > summary { cursor: pointer; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
 .shell-party__lines { margin: var(--ork-2) 0 0; padding-left: var(--ork-5); }
 .shell-party__lines li { overflow-wrap: anywhere; }
@@ -135,6 +138,18 @@
 .board-plan__todo.is-target { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); padding: var(--ork-1) var(--ork-3); }
 .board-plan__line { flex-basis: 100%; color: var(--ork-ink); font-weight: 600; }
 .board-task__title { text-align: left; }
+
+/* spec 62 §6: the line under a spec's sections that says which of them changed since the plan, and The change over the plan while the leader's plan change waits */
+.board-changed { padding: var(--ork-3) var(--ork-4); border-left: 2px solid var(--ork-edge); background: var(--ork-panel); }
+.board-changed > p { flex: 1 1 240px; margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.shell-change { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-3); width: 100%; box-sizing: border-box; }
+.shell-change > p { margin: 0; overflow-wrap: anywhere; }
+.shell-change__why { color: var(--ork-ink); }
+.shell-change__rows li { flex-wrap: nowrap; align-items: baseline; gap: var(--ork-3); }
+.shell-change__op { flex: none; min-width: 1ch; font-weight: 600; text-align: center; }
+.shell-change__title { min-width: 0; overflow-wrap: anywhere; }
+.shell-change__rows li[data-op="drop"] .shell-change__op, .shell-change__rows li[data-op="drop"] .shell-change__title { color: var(--ork-ink-muted); }
+.shell-change__rows li[data-op="drop"] .shell-change__title { text-decoration: line-through; }
 
 /* spec 34 §5: every dialog and menu on a dimmed backdrop, in an opaque panel (orkUI's dialog: a double frame, notched); on a
    narrow screen a sheet from the bottom */

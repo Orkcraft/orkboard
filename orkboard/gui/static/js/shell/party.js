@@ -1,13 +1,14 @@
 // A party's members on the desktop (decisions §53; realm/goal_team.py), as New party (goalwizard.js) and Edit the party (goaldialog.js)
 // pick them: three bands of seats from the library (ideas.roles `library`, `seats`) — Leads (one: the party's steps run as it; the Taskmaster
 // when none), Builds (three at most), Checks (two at most) —; a click takes an agent in or out of its band, a full band says so. Under them what
-// the party costs (`ideas.party_price`: about what a goal costs, asked when the picker opens and 300 ms after a seat or *Every goal* changes),
-// then the checkers' checks: where each applies or on every goal, and what each adds to a goal.
-import { useEffect, useRef, useState } from "preact/hooks";
+// the party costs (`ideas.party_price`: about what a goal costs, asked when the picker opens and 300 ms after a seat or *Every goal* changes) and what it
+// can take (the goal types it would be offered, docs/specs/63-party-gathered.md), then the checkers' checks: where each applies or on every goal, and what each adds to a goal.
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { command, say, toast } from "../link.js";
 import { roles } from "./store.js";
-import { Head, Icon, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
+import { reducedMotion } from "../arena/motion.js";
+import { Head, Icon, Sign, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
 
 export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["design", "elf", "Screens, flows and words on them"],
   ["data", "goblin", "Numbers, queries and reports"], ["marketing", "gnome", "Pages, posts and search"],
@@ -212,6 +213,36 @@ export function PriceLine({ price }) {
   return html`<p class="shell-price" role="status">This party: ${rangeWords(price)} a goal
     <small class="ok-tone-muted"> ${price.learned ? `from this project's last ${price.ideas} goals` : "a first guess: it learns from this project's goals"}</small></p>
     ${(price.hints || []).map((h, n) => html`<p key=${n} class="shell-hint ok-font-status ok-tone-muted">${h}</p>`)}`;
+}
+
+/** Under the price: **It can take:** the goal types a party of these seats would be offered (`price.types`: {id, name, sign, missing}, spec 63 §2) — each its sign and name, joined by *·* —, then
+ *  **with one more:** the ones that miss someone, *New screen (needs Design system designer)*; none: *nothing of its own yet: add a builder.* Two lines at most: what does not fit ends with *and k more*
+ *  (the title lists them all). A type the last answer opened is lit once, as the quiet reward (not at the first answer, none under reduced motion). An older host sends no `types`: no line. */
+export function CanTake({ price }) {
+  const types = price?.types, root = useRef(), was = useRef(null);
+  const ready = (types || []).filter((t) => !t.missing), more = (types || []).filter((t) => t.missing), all = [...ready, ...more];
+  const key = all.map((t) => `${t.id}:${t.missing}`).join("|");
+  const [fit, setFit] = useState({ key: "", cut: 0 });          // how many types, from the last, the line has had to leave out for its two lines
+  const cut = fit.key === key ? fit.cut : 0;
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (el && el.scrollHeight > el.clientHeight + 1 && cut < all.length - 1) setFit({ key, cut: cut + 1 });
+  }, [key, cut]);
+  useEffect(() => {
+    if (!types) return;
+    const open = ready.map((t) => t.id), opened = was.current ? open.filter((id) => !was.current.includes(id)) : [];
+    was.current = open;
+    if (reducedMotion() || document.hidden) return;
+    opened.forEach((id) => root.current?.querySelector(`[data-type="${CSS.escape(id)}"]`)?.animate?.([{ background: "var(--ork-ink)", color: "var(--ork-on-ink)" }, { background: "transparent" }], { duration: 600, easing: "steps(4, end)" }));
+  }, [types]);
+  if (!types) return null;
+  const said = (t) => `${t.name}${t.missing ? ` (needs ${t.missing})` : ""}`;
+  const item = (t, i) => html`<span key=${t.id} class="shell-cantake__item">${i ? " · " : ""}<span class="shell-cantake__one" data-type=${t.id}><${Sign} name=${t.sign} /> ${said(t)}</span></span>`;
+  const shown = all.slice(0, all.length - cut), shownReady = shown.slice(0, ready.length), shownMore = shown.slice(ready.length);
+  const first = ready.length ? shownReady.map(item) : html`<span class="ok-tone-muted">nothing of its own yet: add a builder${more.length ? "" : "."}</span>`;
+  const next = shownMore.length > 0 && html` <span class="ok-tone-muted">with one more:</span> ${shownMore.map(item)}`;
+  const rest = cut > 0 && html` <span class="ok-tone-muted">and ${cut} more</span>`;
+  return html`<p ref=${root} class="shell-cantake ok-font-status" title=${cut ? all.map(said).join(", ") : undefined}><span class="ok-tone-muted">It can take:</span> ${first}${next}${rest}</p>`;
 }
 
 /** *adds about $0.35 to a goal it checks · about half of them* (*· every goal* when it checks every goal). */

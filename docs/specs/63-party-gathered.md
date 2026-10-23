@@ -117,6 +117,40 @@ Picking a goal type from New party; a gather on Edit the party; a sound; the lib
   `tests/test_goal_types.py` (`Party.of`; a party not saved offers what the same party saved does, in a project that has its agents
   and in one that has none).
 
+**B (the desktop), 23 October.** §2 and §3 built as written. What the builder chose or found:
+- **The line** is `CanTake` in `party.js`, next to `PriceLine` and drawn after it (so under the hints too) in New party and in Edit the party's *Change the
+  party*. The types are told by `id`; the line has the answer's order inside each group: the types that miss no one, then *with one more:* the ones that do
+  (a sign before each of both). A party that has no type with nothing missing reads *nothing of its own yet: add a builder* (its full stop only when no type
+  misses someone either, else *with one more:* follows). No `types` in the answer: the component draws nothing.
+- **Lit once** is the quiet reward's keyframes (ink → transparent, 600 ms, `steps(4, end)`, as `FlagRow`) on the type's own item. A type is *opened* when it
+  misses no one now and did not in the answer before: so *New screen*, which was under *with one more*, is lit when the Design system designer is taken in; a
+  type that went, or that now misses someone, is not lit; the first answer lights nothing; none under reduced motion or on a hidden page.
+- **Two lines** by `max-height: 2lh`, and a layout effect that leaves out one type more, from the end of the line (so the ones that miss someone go before the
+  others), until nothing is cut off; the line then ends with *and k more* and its `title` lists all of them in the line's order. **A finding:** the Mobile
+  app's own list (nine types, three that miss someone) does not fit New party's 640 px in two lines: it reads *… Store listing · A release and 3 more*, so
+  *with one more: New screen (needs Design system designer)*, the type that says why a seat is worth it, is the first thing cut. The spec's order is kept;
+  putting the missing ones first when something has to go is a one-line change for the owner to call.
+- **The gather waits** in `arenastate.js` (`gather`, `gatherWaits`, `dropGather`, 6 s), and `leaveParty` drops it too (another party shown). `goalwizard.js`
+  reads the heads at the press (`seatHeads`: the leader's, the builders' and the checkers' agents from `inBand`, in the order `PartyBands` draws their seats,
+  zipped with the seats' `.ork-race__head` boxes; six at most) and sets the gather only when `ideas.goal_save` answers a slug, just before `closeDialog()`
+  (a refusal never sets one); none for `then: "idea"`, under reduced motion or on a hidden page.
+- **A head not on screen:** one whose seat lies outside the dialog's body as the window shows it starts at *Save party*'s box, at its own size and the box's
+  centre (a head drawn at the button's 89 × 24 would be stretched). **A finding:** at 1 440 × 900 New party's body is about 2 500 px high in a 760 px view, so at
+  a press with no scrolling most seats are out of view (of the Game's six, the leader's only), and most heads start at *Save party*.
+- **It plays** in an effect of `PartyTop` (`goaltabs.js`: `want === gather.party` and `dialog.value` empty, run again when either changes), which takes the
+  gather before it plays. The copies are `img.ork-race__head.arena-gather` of `races/<race>-<tier>@2x.png`, appended to the body: `position: fixed`,
+  `z-index: 130` (over the dialogs and the toasts), `pointer-events: none`, `arena-gather` in `arena.css` (`--dx --dy` to the deck's centre, `--s` 0.4,
+  `--delay` 35 ms apart: the deal's variables, `steps(6)`, 0.30 s, filled both ways). Each copy removes itself on `animationend`, the last lights the deck once
+  (0.6 s, `steps(4, end)`); a timer at 0.3 s + 35 ms a head + 0.5 s removes what a page that never played them left and lights the deck. `steps(6)` shows
+  the head at five sixths of its way and then it is gone: the landing is the end of the last step.
+- `motion.js`'s header: the deal's line says *one of the three moments that travel (decisions §76.3)*, and a line (two with its end) is added for the gather.
+- Tests: `tests/test_party_price_desktop_browser.py` (its host now answers `types`: the Game's ten types with their signs under the price line, the Taskmaster
+  alone, *nothing of its own yet*, an older host with no line, *with one more* and a seat that opens *New screen* lit once, one that goes not lit, *and k more*
+  with its title, Edit the party's line, reduced motion) and the new `tests/test_party_gather_desktop_browser.py` (six copies from their seats' boxes to the
+  deck's centre with the timing, the leader first, none under a scrim, the deck lit once after the last, the copies gone; four heads for a party of four; the
+  party usable while they travel; a head not on screen; none after Edit the party's save, for a goal made through its party first, after a refused save
+  or under reduced motion). The tests read the copies by a recorder of every frame, never right after a press.
+
 **C (the phone), 23 October (`orkcraft-app-v68`).** §2 and §4 built as written. What the builder chose or found:
 - **The line is `makeParty`'s**, so New party's sheet and *The party*'s (a party's team changed from its own screen) draw it from the one place, under `priceLine()`: `takesLine()` in
   `shell-goal-new.js`. The types with nothing missing each as `.take` (`.ork-sign.<sign>` at 12 × 12 in the muted ink, then the name), joined by *·*; then `, with one more:` and those that miss

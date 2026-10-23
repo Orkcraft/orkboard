@@ -8,7 +8,7 @@ import { board, track } from "../board/store.js";
 import { act, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { GoalWizard, FOR_HINT } from "./goalwizard.js";
-import { PartyBands, PriceLine, ChecksBlock, OwnParties, TASKMASTER, partyWords, usePartyPrice, useOwnParties } from "./party.js";
+import { PartyBands, PriceLine, CanTake, ChecksBlock, OwnParties, TASKMASTER, partyWords, usePartyPrice, useOwnParties } from "./party.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
 
@@ -62,6 +62,7 @@ function GoalEdit({ slug, then = "" }) {
         ${changing ? html`<${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
           <${PartyBands} craft=${g.craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
           <${PriceLine} price=${price} />
+          <${CanTake} price=${price} />
           <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />`
           : html`<button type="button" class="ork-btn" onClick=${() => setChanging(true)}>Change the party</button>`}</div>`}
       <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span><small class="ok-tone-muted">${FOR_HINT}</small>

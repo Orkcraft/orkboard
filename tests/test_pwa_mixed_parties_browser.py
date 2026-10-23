@@ -149,4 +149,4 @@ async def test_an_older_host_says_today_s_words_and_keeps_the_row_of_crafts(fake
 
 def test_the_service_worker_is_one_version_up():
     sw = (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v70";' in sw
+    assert 'const CACHE = "orkcraft-app-v71";' in sw

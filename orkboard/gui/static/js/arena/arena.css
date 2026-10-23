@@ -256,6 +256,9 @@
 .arena-stk .arena-task.is-dealt { position: relative; z-index: 60; animation: arena-deal 0.3s steps(6) var(--delay, 0s) backwards; }
 @keyframes arena-deal { from { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); opacity: 0.2; pointer-events: none; } to { transform: none; opacity: 1; pointer-events: auto; } }
 .arena-stack.is-dealing, .arena-solo.is-dealing { overflow: visible; }                 /* … and the column does not clip them for that moment */
+/* the gather (spec 63): a new party's heads, copies fixed over the page (goaltabs.js sets their box, --dx --dy to the deck's centre, --s, --delay 35 ms apart), travel in the deal's steps and are gone on landing */
+.arena-gather { position: fixed; z-index: 130; margin: 0; pointer-events: none; animation: arena-gather 0.3s steps(6) var(--delay, 0s) both; }
+@keyframes arena-gather { from { transform: none; } to { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 0.4)); } }
 /* a stop looked at rings its task's cards (spec 58 §2): 2 px of ink, 2 px outside, on the stack's box (the card itself is clipped to its notch); drawn and taken away at once */
 .arena-stk.is-linked { outline: 2px solid var(--ork-ink); outline-offset: 2px; }
 
@@ -374,6 +377,9 @@
 .arena-hc__text { flex: 1; min-height: 0; margin-top: var(--ork-2); padding: var(--ork-2) var(--ork-3); border-top: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas); color: var(--ork-ink-muted); display: -webkit-box;
   -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .arena-hc__miss { display: block; margin: var(--ork-1) var(--ork-3) 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); }    /* a plan's missing line (spec 52 §4.4): muted, not a stop */
+.arena-hc[data-kind="change"] .arena-hc__top { flex-wrap: wrap; row-gap: var(--ork-1); }                 /* its price is long: the kind's word goes under it, whole */
+.arena-hc__note { display: -webkit-box; flex: none; margin: var(--ork-1) var(--ork-3) 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere; }                                     /* a plan change's why (spec 62 §6.2): muted, under its text */
 .arena-hc[data-kind="failed"].is-compact .arena-hc__text { -webkit-line-clamp: 6; line-clamp: 6; }
 .arena-hc__quick { flex: none; display: flex; flex-direction: column; gap: var(--ork-2); margin-top: var(--ork-3); }
 .arena-hc__q { width: 100%; height: auto; min-height: 24px; padding: 3px var(--ork-3); white-space: normal; text-align: center; }

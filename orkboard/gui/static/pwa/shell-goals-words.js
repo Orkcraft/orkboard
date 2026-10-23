@@ -2,7 +2,7 @@
 // goals picked to show only their tasks (the filter: kept per party for the session, in `st.picks`), the party bar's words and the flag line's. Pure: no node is made here.
 import { STAGE_WORDS, stageOf } from "./shell-map-idea.js";
 
-const STOPS = ["asks", "plan", "proposal", "todo"];                  // what a goal that asks you waits for (a failure is its own mark)
+const STOPS = ["asks", "plan", "change", "proposal", "todo"];        // what a goal that asks you waits for (a failure is its own mark; `change`: a plan change, spec 62)
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const FLAGS_SHOWN = 10;                                       // the newest of a party's flags, then *All n*
 export const FLAG_ROW = 6;                                           // the flag line's row holds the elements of this many of its goals (spec 64 §1.2)

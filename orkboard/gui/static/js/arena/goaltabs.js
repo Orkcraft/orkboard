@@ -2,17 +2,18 @@
 // the leader's row — the party's short name, *k/n* (its done goals of all its goals, muted: a party has no end) and the work sign while it is at work —, at its
 // right **Parties ⌄** (a small deck, the word, the chevron; no count of stops, spec 54 §2.4: its label alone says, for a screen reader, how many wait in the other
 // parties). A press deals the parties as a spread (spread.js `Dealt`): a card per party in the Board's order, Operations when the
-// project has them, then *+ New party*. The party picked is the party shown, kept per device.
+// project has them, then *+ New party*. The party picked is the party shown, kept per device. A new party saved gathers its seats' heads into the deck (spec 63 §3).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { Chev, Head, Icon, Sign } from "../orkui.js";
+import { Chev, Head, Icon, ORKUI, Sign } from "../orkui.js";
 import { town } from "../link.js";
 import { board, track, OPS, goalList } from "../board/store.js";
 import { keepGoal, keptGoal } from "../board/tracks.js";
 import { mapData } from "../shell/store.js";
-import { openDialog } from "../shell/modals.js";
+import { dialog, openDialog } from "../shell/modals.js";
 import { currentProject } from "../shell/projects.js";
-import { leaveParty } from "./arenastate.js";
+import { dropGather, gather, leaveParty } from "./arenastate.js";
+import { APART_MS, LIT_MS, reducedMotion } from "./motion.js";
 import { closeSpread, Dealt } from "./spread.js";
 import { countOf, countTip, countWords, goalsOf, nodesOf, opStopsOf, plural, stopsOf } from "./arenawords.js";
 import { tabWords } from "./goalwords.js";
@@ -92,6 +93,37 @@ function PartiesSpread({ want, from, back, done }) {
         <span class="arena-deck__plus"><${Icon} name="plus" /></span><span class="arena-deck__name">New party</span><span class="arena-cap">one of yours, or from the library</span></button>`} />`;
 }
 
+const GATHER_MS = 300, GATHER_SCALE = 0.4;     // a gathered head's travel (the deal's steps, arena.css `arena-gather`), and how large it is when it lands
+
+/** A new party's heads gather into its deck (spec 63 §3.2): a copy of each head (`from`: [{race, tier, box}], the leader's first) travels over the page from its seat's box to the deck's centre at 0.4 of its
+ *  size, 35 ms after the one before, and is gone on landing; when the last has landed the deck is lit once, as the quiet reward. The copies take no press and remove themselves. */
+function gatherInto(deck, from) {
+  const d = deck.getBoundingClientRect(), cx = d.left + d.width / 2, cy = d.top + d.height / 2;
+  if (!from.length || !d.width || typeof deck.animate !== "function") return;
+  let left = from.length, lit = false;
+  const light = () => {
+    if (lit) return;
+    lit = true;
+    copies.forEach((c) => c.remove());
+    if (deck.isConnected) deck.animate([{ background: "var(--ork-ink)", color: "var(--ork-on-ink)" }, { background: "transparent" }], { duration: LIT_MS, easing: "steps(4, end)" });
+  };
+  const copies = from.map(({ race, tier, box }, i) => {
+    const img = document.createElement("img");
+    img.className = "ork-race__head arena-gather";
+    img.src = `${ORKUI}/races/${race}-${tier}@2x.png`;
+    img.alt = "";
+    Object.assign(img.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+    img.style.setProperty("--dx", `${cx - (box.left + box.width / 2)}px`);
+    img.style.setProperty("--dy", `${cy - (box.top + box.height / 2)}px`);
+    img.style.setProperty("--s", String(GATHER_SCALE));
+    img.style.setProperty("--delay", `${i * APART_MS}ms`);
+    img.addEventListener("animationend", () => { img.remove(); if (--left === 0) light(); }, { once: true });
+    document.body.append(img);
+    return img;
+  });
+  setTimeout(light, GATHER_MS + APART_MS * from.length + 500);        // a page that never played them (a tab sent away) leaves nothing behind
+}
+
 /** The left column's top line over the leader (§3.2): the party shown (`g`; null for Operations), and Parties ⌄. It keeps the party shown for this device. */
 export function PartyTop({ g = null, nodes = [] }) {
   const m = mapData.value;
@@ -102,6 +134,12 @@ export function PartyTop({ g = null, nodes = [] }) {
   useEffect(() => { if (m && want && want !== OPS && want === track.value) keepGoal(want); }, [m, want, track.value]);
   const [dealt, setDealt] = useState(null);
   const btn = useRef();
+  const waiting = gather.value, modal = dialog.value;
+  useEffect(() => {                         // a new party was saved: its heads gather into the deck, in the first render that shows it once the dialog has closed (spec 63 §3.2)
+    if (!waiting || waiting.party !== want || modal) return;
+    dropGather(waiting);
+    if (!reducedMotion() && !document.hidden && btn.current) gatherInto(btn.current, waiting.from);
+  }, [want, waiting, modal]);
   const name = g ? g.short || g.title : want === OPS ? "Operations" : "No party yet", n = othersStops(want);
   const working = g && atWork(g);
   return html`<div class="arena-ptop">

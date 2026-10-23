@@ -5,7 +5,8 @@
 // (docs/specs/51-pick-one.md §6) holds its variants as small tiles, two by two (picks.js): a press on a strip picks one, *Take B* answers
 // with it, *Pick, with a note…* (*Add a note…* once one is picked) opens the drawer where the note is written. A plan that gives work to no one of the party
 // says so under its text (docs/specs/52-goal-types.md §4.4: *No one in the party does pixel art: Artist would.*) and offers *Add and start* when a seat is free.
-// A plan started from here deals its cards onto the field (docs/specs/57-deal-on-start.md: `startPlan` keeps the stop's box). While a stop is looked at, the cards it is about are ringed
+// A plan started from here deals its cards onto the field (docs/specs/57-deal-on-start.md: `startPlan` keeps the stop's box), and so does a plan change taken (docs/specs/62-spec-after-start.md
+// §6.2: *Take the new plan* or *Keep the plan*, the leader's price as the gem). While a stop is looked at, the cards it is about are ringed
 // (docs/specs/58-stop-and-its-task.md: `aboutOf`); an answered stop fades where it stands, in the frame its task changes (motion.js `useLeaving`).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -20,15 +21,15 @@ import { track } from "../board/store.js";
 import { useHeld, useLeaving } from "./motion.js";
 import { dealWaits, dropDeal, leaveParty, stopAbout, stopLook } from "./arenastate.js";
 import { closeSpread } from "./spread.js";
-import { askedOf, fanOf, laidOut } from "./arenawords.js";
+import { askedOf, changeToast, fanOf, laidOut } from "./arenawords.js";
 import { missingWords } from "./types.js";
 import { Tiles, choiceOf } from "./picks.js";
 import { manyWords, variantOf } from "./pickwords.js";
 
 const SENT = "Sent: the Taskmaster answers in a moment.";
 
-/** A plan started by a press in the hand (spec 57): the deal waits with the stop's box as it was at the press (raised then), the call is made, and a refusal takes the deal away. `e`: the press;
- *  `slug`: the plan's goal. The deal is kept before the call is answered, so that the render of the Board reread right after it finds it. */
+/** A plan started by a press in the hand (spec 57), or a plan change taken there (spec 62): the deal waits with the stop's box as it was at the press (raised then), the call is made, and a
+ *  refusal takes the deal away. `e`: the press; `slug`: the plan's goal. The deal is kept before the call is answered, so that the render of the Board reread right after it finds it. */
 async function startPlan(e, slug, name, args) {
   const box = e.currentTarget.closest(".arena-hc")?.getBoundingClientRect();
   const mine = box ? { left: box.left, top: box.top, width: box.width, height: box.height } : null;
@@ -38,7 +39,7 @@ async function startPlan(e, slug, name, args) {
   return got;
 }
 
-/** What a stop is about on the field (spec 58 §1): {task: "<goal>/<task>"} for a failed task, a pick and a result, {idea: "<goal>"} for a plan, a question, a proposal and a to-do (the goal's cards,
+/** What a stop is about on the field (spec 58 §1): {task: "<goal>/<task>"} for a failed task, a pick and a result, {idea: "<goal>"} for a plan, a plan change, a question, a proposal and a to-do (the goal's cards,
  *  its Planning card), null for a stop of another party, Operations', and a party's own (it has no card here). */
 export function aboutOf(s) {
   if (s.other || s.party?.ops) return null;
@@ -46,7 +47,7 @@ export function aboutOf(s) {
   if (s.kind === "failed" && s.node && s.task) return { task: `${s.node.slug}/${s.task.id}` };
   if (s.kind === "pick" && row?.slug) return { task: `${row.slug}/${row.task}` };
   if (s.kind === "result" && s.result) return { task: `${s.result.idea}/${s.result.task}` };
-  if (["plan", "asks", "proposal", "todo"].includes(s.kind) && row?.idea) return { idea: row.idea };
+  if (["plan", "change", "asks", "proposal", "todo"].includes(s.kind) && row?.idea) return { idea: row.idea };
   return null;
 }
 
@@ -106,6 +107,17 @@ function Answers({ s, g, see }) {
       : html`<button type="button" class="ork-btn primary arena-hc__q" title="Passes the plan; the work starts" onClick=${(e) => startPlan(e, slug, "ideas.start", { slug, via: "hand" })}>Start the work</button>`}
       <button type="button" class="ork-btn arena-hc__q" title="The plan in the drawer" onClick=${() => { see(); showPlan(slug, "", { via: "hand" }); }}>Open the plan</button>`;
   }
+  if (s.kind === "change") {
+    const take = async (e) => {
+      const got = await startPlan(e, slug, "ideas.revise_answer", { slug, take: true, via: "hand" });
+      if (!got) return;
+      if (!got.added) dropDeal();                                                   // nothing new to deal: it would wait 6 s for a card that does not come
+      toast(changeToast(got));
+    };
+    const keep = async () => { if (await act("ideas.revise_answer", { slug, take: false, via: "hand" })) toast(changeToast({})); };
+    return html`<button type="button" class="ork-btn primary arena-hc__q" title="The tasks not started take the change; the ones that started stay as they are" onClick=${take}>Take the new plan</button>
+      <button type="button" class="ork-btn arena-hc__q" title="The plan stays as it is" onClick=${keep}>Keep the plan</button>`;
+  }
   if (s.kind === "asks" || s.kind === "goal") {
     const isGoal = s.kind === "goal", target = isGoal ? row.goal : slug, asked = askedOf(row, n);
     const send = async (answers) => { const got = await act("ideas.answer", { slug: target, answers, ...(isGoal ? { goal: true } : {}) }); if (got) toast(say(SENT)); };
@@ -152,7 +164,7 @@ function Answers({ s, g, see }) {
 function open(s) {
   const row = s.row, n = s.node, via = { via: "hand" };
   if (s.kind === "result") showResult(s.result.idea, s.result.task, via);
-  else if (s.kind === "plan") showPlan(row.idea, "", via);
+  else if (s.kind === "plan" || s.kind === "change") showPlan(row.idea, "", via);
   else if (s.kind === "asks" || s.kind === "proposal") showIdea(row.idea, via);
   else if (s.kind === "goal" || s.kind === "party") showGoal(row.goal, via);
   else if (s.kind === "todo") showPlan(row.idea, row.todo?.id || "", via);
@@ -187,12 +199,13 @@ function Stop({ s, g, place, of }) {
       data-kind=${s.kind} data-key=${s.key} data-party=${p.slug} style=${`--rot:${fan.rot}deg;--dy:${fan.dy}px;--z:${fan.z};order:${place}`} inert=${ghost || undefined} aria-hidden=${ghost ? "true" : undefined}
       onpointerenter=${(e) => look(e.currentTarget)} onfocusin=${(e) => look(e.currentTarget)} onpointerleave=${gone} onfocusout=${gone}>
     <button type="button" class="arena-hc__open" aria-label=${`${label}: ${s.full}`} aria-describedby=${about ? said : undefined} title=${pick ? `${s.full} · ${s.text}` : undefined} onClick=${() => { see(); open(s); }}>
-      <span class="arena-hc__top"><span class=${cls("ork-gem", { danger: s.tone === "danger" })} title=${s.gemTip}>${typeof s.gem === "object" ? html`<${Sign} name=${s.gem.sign} />` : s.gem}</span>
+      <span class="arena-hc__top">${s.gem !== "" && html`<span class=${cls("ork-gem", { danger: s.tone === "danger" })} title=${s.gemTip}>${typeof s.gem === "object" ? html`<${Sign} name=${s.gem.sign} />` : s.gem}</span>`}
         <span class=${cls("arena-hc__kind", { "is-no": s.tone === "danger" })}>${s.label}</span>
         ${s.small && s.head && html`<span class="arena-hc__who" title=${s.whoTip}><${Head} race=${s.head.race} tier=${s.head.tier} /></span>`}</span>
       ${other && html`<span class="arena-hc__party" title=${p.ops ? p.name : `${p.name} · led by ${p.lead}`}>${p.ops ? html`<${Icon} name="sliders" />` : p.head && html`<${Head} race=${p.head.race} tier=${p.head.tier} />`}</span>`}
       ${!s.small && html`<span class="arena-art">${s.head && html`<${Head} race=${s.head.race} tier=${s.head.tier} size="mid" />`}</span>`}
       ${!pick && html`<span class="arena-banner">${other ? `${p.name} · ${s.title}` : s.title}</span><span class="arena-hc__text" title=${s.text}>${s.text}</span>`}
+      ${s.why && html`<span class="arena-hc__note" title=${s.why}>${s.why}</span>`}
       ${s.kind === "plan" && (s.row?.missing || []).length > 0 && html`<span class="arena-hc__miss">${missingWords(s.row.missing)}</span>`}
     </button>
     ${about && html`<span id=${said} hidden>${about.task ? ", its task is ringed on the field" : ", its goal is ringed on the field"}</span>`}

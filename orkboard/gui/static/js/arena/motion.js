@@ -3,10 +3,12 @@
 // never move.
 //   a task appears      the field did not have it a moment ago: it rises into its place from below, the side of the person (`.is-drawn`, ≤ 0.36 s)
 //   the deal           a plan started by a press in the hand (spec 57): its new cards travel from the stop's box to their places instead of rising (`.is-dealt`,
-//                       0.30 s in steps, 35 ms apart, six at most; the rest rise); the one motion that travels
+//                       0.30 s in steps, 35 ms apart, six at most; the rest rise); one of the three moments that travel (decisions §76.3)
+//   the gather         a new party saved (spec 63): its seats' heads travel as copies from their seats' boxes to the party's deck (`.arena-gather`, goaltabs.js, six at most,
+//                       the deal's steps), the deck lit once after; none after Edit the party's save; one of the three
 //   the flags raised    the first time the flag line stands for a gate's merge (spec 64, flags.js, partyline.js): its goals' elements (six at most) travel from the merge's press, else the gate's
 //                       button, to its row (`.arena-flagfly`, the deal's steps: 0.30 s, 35 ms apart); then its flag steps up 6 px (0.18 s) and the line is lit once (0.6 s);
-//                       one of the three moments that travel (decisions §76.3)
+//                       one of the three
 //   a task leaves       merged or dropped: its item fades where it stands with a one-frame ✓ (✗ for a drop), ≈ 0.3 s (`.is-leaving`); then its
 //                       column settles: the queue behind it steps up toward the member into the gap (≈ 0.25 s, ease-out). The first three animate, the rest go.
 //   a task moves        its state changed its place: it and the items it passes slide to their new places (FLIP: each item's old box measured
