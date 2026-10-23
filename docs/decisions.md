@@ -1046,3 +1046,31 @@ says so. A question is not a blow (*a question costs nothing*), so the two are t
    focus; at most three heads in one refresh, the rest wear the sign without it. Nothing travels: §76.3's three moments
    stay three. No sound, no colour but the office's.
 The owner's call, before the testers' numbers. Spec 49 §11.7.
+
+## 81. A party is a team, a goal has a route: a goal keeps itself across parties; a Release party gathers the flags (23 October, the owner)
+
+Why: the owner asked what if parties changed often: *ideation → a new mobile feature → ideation → a new feature →
+testing → release*, not one party for the mobile app. Read as parties, that chain is one thing's way, not a change of
+team: the features are the Mobile app party's goals, testing is its checkers and the gate, and switching party for each
+step would scatter a feature's story over four parties, with no place that says where it is. What the chain does show
+is two gaps: a goal sent from Ideation becomes a new goal that forgets where it came from, and a flag in main is not a
+version out in the stores (a phone app has a build, a store's review, its notes and screenshots between them). So:
+1. **A party is a team, and stays few** (§63.11 stays): a step of a goal's way is not a party. Testing is a party's
+   checkers and the gate; a party of its own only for a team of its own.
+2. **A goal has a route**: where it came from (a pitch's decision), the party it was moved from, its flag in main, the
+   release it went into, and when that release was out. One line on the goal's screen; each step a press that opens
+   that party with the goal picked. A goal moved or sent keeps its element where it is free.
+3. **A goal moves to another party only before its work starts**: once a task of it has run, its party is where its
+   work is; a new goal there is the way.
+4. **A sent pitch follows its goal**: Ideation shows the goal's state (at work, in main, out), so the person sees
+   whether the Investor was worth it without switching.
+5. **Release is a party of the library**: its leader the **Release manager** (product's craft; a **skeleton**, the
+   undead's, its own head drawn in orkUI first, a lich until then), its builders on the cheaper models (a Release
+   engineer, Release notes, ASO: laborers), its Release checker a warrior. Its goal is *A release*: **what goes in** is
+   the flags raised since the last release in the parties it releases from (every party but Ideation, by default),
+   ticked by the person; its version, its notes and the stores' list are prepared and taken into main through the gate.
+6. **Out is the person's press**: Orkboard submits nothing to a store; *Mark it out* says the version is out, and each
+   goal that went in says *Out in 1.4*. In a project with a Release party, the other parties are not offered *A release*;
+   without one, a party releases its own flags as today.
+7. **Measured first**: the party switches a day, by face and pair, so §63.11's *seldom* is read, not assumed.
+Spec 67.
