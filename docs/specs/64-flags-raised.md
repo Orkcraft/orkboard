@@ -58,7 +58,7 @@ Two parts; they share no file.
 - **B** (browser, 1 440 × 900): a merge from the gate's screen that raises two flags: two copies of the elements travel
   (their first box near the merge's press, their last in the line), the flag sign raised and the line lit (animations on
   them), then the copies gone and the line's row has the two elements; a reload: the line does not stand again (as
-  today); eight flags: six in the row and *and 2 more* in the words; no gate on screen: no copy, the flag still raised;
+  today); eight flags: six in the row and *and 6 more* in the words (today's words name two goals); no gate on screen: no copy, the flag still raised;
   reduced motion: no copy, no animation, the row drawn.
 - **C** (browser, 390 × 844): the same from the phone's gate.
 - Each part: the critical tests (`orkcraft.toml` `always`), its files' tests, `tests/test_gui_wording.py`,
@@ -68,6 +68,24 @@ Two parts; they share no file.
 A motion for a goal done in dev; a task's merge (the quiet reward stays); a sound.
 
 ## 7. As built (notes, no change of the contract)
+
+**B (desktop).** Built in `js/arena/flags.js` (`raise`, `mergePressed`, `mergeRefused`, `gateButton`, `dropRaise`), `partyline.js` (`FlagLine`, `raiseFlags`), `gate.js` (the press), `arena.css` (`arena-flagfly`,
+`.is-coming`, `.is-raising`), `motion.js` (the header's line only); new `tests/test_flags_raised_desktop_browser.py`, 11 tests. What the spec left open:
+- **The row is the line's own.** `flagLine` gains `row: [{slug, element}]`, the line's first six goals in its order (a second merge while the line stands puts its goals first and keeps the others);
+  the element is the one `ideas.flags`' goals carry (the host sends it), else the map node's. Each place is a `.arena-flagline__el[data-slug]` after the flag sign; the words are `inMainWords`, unchanged.
+- **The raise waiting holds the merge's press box, not the gate's button.** `from` is the box `gate.js` kept at the press (10 s, taken once, forgotten when the call is refused). The gate's button is read
+  when `FlagLine` takes the raise (`gateButton()`, on screen and the element at its centre is it), not when `flags.js` makes the line stand: the line is 36 px high and pushes the field, the button with it, down.
+- **Taken before the paint, dropped at the take.** `FlagLine`'s layout effect takes the raise in the render that draws the line, so no frame shows the row before it flies; the raise is dropped then (a redraw, a
+  remount or a close during the travel never plays it twice) or after 6 s if no line was drawn. Closing the line while they travel takes the copies away. None when `reducedMotion()` or `document.hidden`
+  (`plays()` is kept in `partyline.js`, so that `motion.js` changes in its header only): the row is drawn still, the raise dropped.
+- **The copies and the places.** A copy is a clone of the place's `.ork-elem` on `body` (`.arena-flagfly`: fixed, `z-index: 60`, `pointer-events: none`, `arena-fly` 0.30 s steps(6), `--dx --dy --s --delay` as the deal's;
+  `--s` the source box's height over its own 14 px). The place under it stays `visibility: hidden` until its copy lands (`.is-coming`: a 0 s animation delayed to the landing). The deal's keyframes are not reused
+  as they are: they switch `pointer-events` at their half.
+- **The raise and the light are CSS, timed by one variable.** `.is-raising` on the line with `--delay` the last landing (0 with nowhere to travel from): the flag stands 6 px lower until then and steps up
+  (`arena-raise`, 0.18 s steps(3)); the line is lit once (`arena-lit`, 0.6 s steps(4), ink → its background). The line's words and its close carry their own colours, so they are lit too (`arena-lit-ink`:
+  `--ork-on-ink` to their own), else they would be ink on ink in the first step. The class is taken off after the last animation (a timer), so a remount never replays it.
+- **More than six.** The words are today's, so eight flags say *… and 6 more are in main* (k = n − 2); §5's *and 2 more* counts the goals left out of the row, not the words. The test pins the words' own k.
+- **Not covered by a test:** the raise dropped after 6 s because no line was drawn (the Operations field shows no line).
 
 **C. Phone** (`orkcraft-app-v68`). Built to §1, §2, §4 as written, in `shell-party.js` (`flagNode`, `playRaise`), `shell-gate.js` (`gatePress`), `shell-motion.js` (`raise`, `inView`, `raiseTo`), `shell-goals-words.js`
 (`FLAG_ROW`), `app.css`; new `tests/test_pwa_flags_raised_browser.py`, 7 tests. What the spec left open:
