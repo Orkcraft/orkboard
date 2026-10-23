@@ -431,3 +431,27 @@
 .shell-pickone__ask { margin: 0; font: 400 14px/20px var(--ork-font-text); overflow-wrap: anywhere; }
 .shell-pickone__refused { margin: 0; }
 .shell-pickone__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); }
+
+/* -- a pitch's screen (docs/specs/65-ideation.md §8): the four views side by side, the case against, the decision with its answer large; the views' and the
+   Investor's words in the text face, the pixel face for the headings and the buttons only -- */
+.shell-pitch__views { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--ork-4); }
+.shell-pitch__view { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; padding: var(--ork-4); background: var(--ork-panel); }
+.shell-pitch__view.is-off { opacity: 0.5; }
+.shell-pitch__who { display: flex; align-items: center; gap: var(--ork-3); margin: 0 0 var(--ork-2); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.shell-pitch__who .board-size { margin-left: auto; }
+.shell-pitch__list { margin: 0; padding-left: var(--ork-6); display: flex; flex-direction: column; gap: var(--ork-1); font: var(--ork-type-body); overflow-wrap: anywhere; }
+.shell-pitch__q { margin: var(--ork-2) 0 0; font: var(--ork-type-body); overflow-wrap: anywhere; }
+.shell-pitch__words { margin: 0; font: var(--ork-type-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.shell-pitch__kills { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-1); font: var(--ork-type-body); }
+.shell-pitch__kills .ork-sign { color: var(--ork-danger); }
+.shell-pitch__case, .shell-pitch__decision { display: flex; flex-direction: column; gap: var(--ork-2); }
+.shell-pitch__answer { margin: 0; font: var(--ork-type-title); text-transform: var(--ork-type-title-case); letter-spacing: var(--ork-type-title-track); color: var(--ork-ink); }
+.shell-pitch__answer[data-answer="pass"] { color: var(--ork-ink-muted); }
+.shell-pitch__facts { margin-top: var(--ork-2); }
+.shell-pitch__after { margin: 0; }
+.shell-pitch__after .ork-sign { color: var(--ork-success); }
+.shell-pitch__acts, .shell-pitch__send { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-3); }
+.shell-pitch__send select { width: auto; min-width: 160px; }
+.shell-pitch__edit { display: flex; flex-direction: column; gap: var(--ork-3); }
+.shell-pitch__pass input { flex: 1; min-width: 200px; }
+.shell-band-fixed { margin: var(--ork-2) 0 0; }

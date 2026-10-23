@@ -7,6 +7,7 @@
 // title*, *What it is for*, the type's asks (one line each, none required), **Refs** when the type has them (*Links*; *Pictures you like*: a file, a paste or a drop,
 // sent as `photos`), the lens (the type's first), **the join line** (arena/types.js: who joins, or a swap) and the priority. *Add the goal* sends `type`, `asks`
 // and, when the join line is ticked, `join`; a goal kept for tonight never brings anyone.
+// **In Ideation** (docs/specs/65-ideation.md §8) a goal is a pitch: one box, the lens, **Judge now** · **Tonight** · **Hold** (`PitchGoal`).
 import { useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, toast } from "../link.js";
@@ -17,6 +18,7 @@ import { Lens, lensFirst, lensValue, noLens, useLenses } from "./lens.js";
 import { Elem, Sign } from "../orkui.js";
 import { nextElement } from "../arena/goalwords.js";
 import { JoinLine, joinSet, joinStart, joinValue } from "../arena/types.js";
+import { isIdeation } from "../arena/pitchwords.js";
 
 const MAX_PICTURES = 4;                     // realm/idea_photos.py MAX_PHOTOS
 const MAX_PX = 1600;                        // as the phone's (pwa/shell-idea-field.js): a JPEG of at most this, for the leader to read
@@ -52,6 +54,9 @@ function BlankGoal({ goal: first = "" }) {
     const pointed = lensValue(info, lens);
     if (t && party) await act("ideas.add", { text: t, track: party, priority, night: true, ...(pointed.length ? { lens: pointed } : {}) });
   };
+  if (isIdeation(mapData.value, party)) {
+    return html`<${PitchGoal} parties=${parties} party=${party} setParty=${(p) => { setParty(p); setMine(""); }} text=${text} setText=${setText} info=${info} lens=${lens} setLens=${setLens} />`;
+  }
   return html`<${Modal} title="New goal" onClose=${close} wide=${(info?.lenses || []).length > 1}
     foot=${html`<button type="button" class="ork-btn" onClick=${close}>Put it back</button>
       <button type="button" class="ork-btn primary" disabled=${!text.trim() || !party || busy} onClick=${send}
@@ -70,6 +75,50 @@ function BlankGoal({ goal: first = "" }) {
         <select class="ork-field" aria-label="Priority" value=${priority} onChange=${(e) => setMine(e.target.value)}>
           ${Object.entries(PRIORITY_WORDS).map(([id, name]) => html`<option key=${id} value=${id}>${name}</option>`)}</select></label>
       <p class="ok-font-status ok-tone-muted">${say("High and Normal: the Taskmaster drafts it at once. Low: tonight. Closing this with text in it adds it to tonight's queue.")}</p>
+    </div>
+  <//>`;
+}
+
+const PITCH_CHARS = 2000;                   // realm/pitches.py PITCH_CHARS: a pitch's words
+
+/** New goal in Ideation (docs/specs/65-ideation.md §8): a pitch, one box (*What is the pitch?*), the lens a tap away, then **Judge now** (`ideas.add` at once: the
+ *  four views read it now), **Tonight** (`night`) or **Hold** (`hold`: kept till the person judges it). No type, no asks, no priority. Closed with words in it, it is
+ *  kept for tonight, as any goal. The text, the party and the lens are BlankGoal's, so a party picked in its select moves the words over. */
+function PitchGoal({ parties, party, setParty, text, setText, info, lens, setLens }) {
+  const [busy, setBusy] = useState(false);
+  const g = parties.find((x) => x.slug === party);
+  const lead = "the Investor";                         // Ideation's leader, always (realm/goal_team.py)
+  const args = (more) => {
+    const pointed = lensValue(info, lens);
+    return { text: text.trim(), track: party, priority: g?.priority === "high" ? "high" : "normal", ...(pointed.length ? { lens: pointed } : {}), ...more };
+  };
+  const send = async (more) => {
+    if (!text.trim() || busy) return;
+    setBusy(true);
+    const got = await act("ideas.add", args(more));
+    setBusy(false);
+    if (got?.slug) closeDialog();
+  };
+  const close = async () => {                 // closed with words in it: tonight's, never lost
+    closeDialog();
+    if (text.trim()) await act("ideas.add", args({ night: true }));
+  };
+  const off = !text.trim() || busy;
+  return html`<${Modal} title="New goal" onClose=${close} wide=${(info?.lenses || []).length > 1}
+    foot=${html`<button type="button" class="ork-btn" disabled=${off} title="Kept as it is: it is judged when you say" onClick=${() => send({ hold: true })}>Hold</button>
+      <button type="button" class="ork-btn" disabled=${off} title="The night judges it, before any other work" onClick=${() => send({ night: true })}>Tonight</button>
+      <button type="button" class="ork-btn primary" disabled=${off} title=${`The four views read it now, then the Skeptic and ${lead}`} onClick=${() => send({})}>Judge now</button>`}>
+    <div class="shell-form arena-pitchform" data-party=${party}>
+      <div class="shell-blank"><${Sign} name="target" big=${true} /><b>A pitch</b></div>
+      <label class="shell-field"><span class="ok-font-label">What is the pitch?</span>
+        <textarea class="ork-field" rows="5" autofocus value=${text} maxlength=${PITCH_CHARS} aria-label="What is the pitch?"
+          placeholder="In a few words or a few lines: what, and for whom" onInput=${(e) => setText(e.target.value)}
+          onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send({}); } }}></textarea></label>
+      <label class="shell-field"><span class="ok-font-label">Belongs to party</span>
+        <select class="ork-field" aria-label="Party" value=${party} onChange=${(e) => setParty(e.target.value)}>
+          ${parties.map((x) => html`<option key=${x.slug} value=${x.slug}>${x.title}</option>`)}</select></label>
+      <${Lens} info=${info} s=${lens} set=${setLens} />
+      <p class="ok-font-status ok-tone-muted">Four views read it, each alone: product, market, engineering and design; the Skeptic makes the case against it, then ${lead} invests in it, reshapes it or passes, and says why. Nothing is built.</p>
     </div>
   <//>`;
 }

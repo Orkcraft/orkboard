@@ -469,6 +469,29 @@
 .arena-limit:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .arena-limits__note { line-height: 14px; color: var(--ork-ink-faint); }
 
+/* -- Ideation's line (spec 65 §8): a pitch per row across the party's columns, a head under each view lit as it answers, the decision under the Skeptic ---- */
+.arena-pitches__list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: var(--ork-3); padding: var(--ork-2) 0 var(--ork-4); }
+.arena-pitches__list::-webkit-scrollbar { display: none; }
+.arena-pitches__sec { display: flex; flex-direction: column; gap: var(--ork-3); }
+.arena-pitches__sec > .arena-sec { margin: var(--ork-2) 0 0; }
+.arena-pitches__none { padding: var(--ork-5) 0; }
+.arena-pitch { appearance: none; display: flex; flex-direction: column; gap: var(--ork-2); width: 100%; box-sizing: border-box; padding: var(--ork-2) 0 var(--ork-3); text-align: left; cursor: pointer;
+  background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); color: var(--ork-ink); font: var(--ork-type-body); }
+.arena-pitch:hover { border-color: var(--ork-edge); }
+.arena-pitch:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.arena-pitch.is-run { border-color: var(--ork-edge); }
+.arena-pitch__top { display: flex; align-items: center; gap: var(--ork-3); min-width: 0; padding: 0 var(--ork-4); }
+.arena-pitch__title { flex: none; max-width: 50%; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arena-pitch__top .arena-cap { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arena-pitch__line { display: grid; grid-template-columns: var(--cols); gap: var(--ork-4); align-items: center; min-height: 28px; }
+.arena-pitch__view { position: relative; justify-self: center; display: inline-flex; align-items: center; gap: var(--ork-1); padding: 2px var(--ork-2); color: var(--ork-ink-muted); opacity: 0.35; }
+.arena-pitch__view.is-on { opacity: 1; color: var(--ork-ink); }
+.arena-pitch__view.is-dim, .arena-pitch__decision.is-dim { opacity: 0.2; }
+.arena-pitch__dot { width: 6px; height: 6px; background: currentColor; }
+.arena-pitch__decision { justify-self: center; display: inline-flex; flex-direction: column; align-items: center; min-width: 0; color: var(--ork-ink-muted); text-align: center; }
+.arena-pitch__answer { font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); color: var(--ork-ink); }
+.arena-pitch__decision[data-answer="pass"] .arena-pitch__answer { color: var(--ork-ink-muted); }
+
 /* -- Operations as the field --------------------------------------------------------------------------------------------------------- */
 .arena.arena-ops { flex-direction: column; }
 .arena-ops__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ork-5) var(--ork-6); }
