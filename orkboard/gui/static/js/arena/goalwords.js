@@ -36,7 +36,7 @@ export const edgesOf = (n) => Math.min(3, openTasks(n).length);
 export function goalMark(n) {
   const tasks = n.tasks || [];
   if (tasks.some((t) => t.state === "failed") && atWork(n)) return { sign: "cross", tone: "danger", label: "a task failed" };
-  if (n.needs_you === "asks" || n.needs_you === "plan" || n.needs_you === "proposal" || n.waits?.kind === "you" || tasks.some((t) => t.state === "picking")) return { sign: "alert", tone: "alert", label: "waits for you" };
+  if (n.needs_you === "asks" || n.needs_you === "plan" || n.needs_you === "change" || n.needs_you === "proposal" || n.waits?.kind === "you" || tasks.some((t) => t.state === "picking")) return { sign: "alert", tone: "alert", label: "waits for you" };
   if (n.state === "reading" || n.state === "planning" || tasks.some((t) => t.state === "running" || t.state === "testing")) return { sign: "work", tone: "", label: "at work" };
   if (n.waits?.kind === "night" || tasks.some((t) => t.state === "held") && n.waits?.kind === "night") return { sign: "night", tone: "", label: "tonight" };
   return { sign: "", tone: "", label: "" };

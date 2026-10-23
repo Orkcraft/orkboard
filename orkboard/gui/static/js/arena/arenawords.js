@@ -334,10 +334,29 @@ export function limitLine(l, reserve, resetOf) {
 
 // -- the stops: the bottom row (§6) -------------------------------------------------------------------------------------------------
 
-export const KIND_WORD = { plan: "Plan ready", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", pick: "Pick one",
-  op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
+export const KIND_WORD = { plan: "Plan ready", change: "Plan change", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed",
+  pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
 export const isOp = (n) => n.kind === "op" || n.kind === "op_failed" || n.kind === "op_rules";
-const GEM = { plan: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: { sign: "cross" }, pick: "", op: "·", op_failed: { sign: "cross" }, op_rules: "—" };
+const GEM = { plan: "", change: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: { sign: "cross" }, pick: "", op: "·", op_failed: { sign: "cross" }, op_rules: "—" };
+
+/** What a plan change adds to the price, for the stop's gem (spec 62 §6.2): *+$0.40–1.20*, *−$0.13–0.38* when it saves (the real minus sign), said as a goal's price is (cents under $1,
+ *  else whole dollars); "" for a change of nothing. One that may add or save says both ends: *−$0.10 to +$0.30*. */
+export function changeGem(c) {
+  const low = Number(c?.usd_low), high = Number(c?.usd_high);
+  if (!Number.isFinite(low) || !Number.isFinite(high) || (!low && !high)) return "";
+  const num = (n, cents) => (cents ? n.toFixed(2) : String(Math.round(n)));
+  if (low < 0 && high > 0) return `−$${num(-low, -low < 1)} to +$${num(high, high < 1)}`;
+  const [a, b] = [Math.abs(low), Math.abs(high)].sort((x, y) => x - y), cents = a < 1, from = num(a, cents), to = num(b, cents);
+  return `${low < 0 || high < 0 ? "−" : "+"}$${from === to ? from : `${from}–${to}`}`;
+}
+
+/** A plan change answered, as a toast says it (spec 62 §6.2): *The plan changed: 2 added, 1 dropped.* (only the parts that are not zero), then *1 left as it was: it started.* for the
+ *  tasks that started meanwhile; *The plan stays as it was.* when nothing changed (kept, or a change of nothing taken). `got`: `ideas.revise_answer`'s answer. */
+export function changeToast(got) {
+  const parts = [[got?.added, "added"], [got?.changed, "changed"], [got?.dropped, "dropped"]].filter(([n]) => n > 0).map(([n, w]) => `${n} ${w}`);
+  const k = (got?.left || []).length;
+  return [parts.length ? `The plan changed: ${parts.join(", ")}.` : "The plan stays as it was.", k ? `${k} left as ${k === 1 ? "it was: it started" : "they were: they started"}.` : ""].filter(Boolean).join(" ");
+}
 
 /** The question a row asks first: its `asked` (with the choices and the pick), else its plain text. */
 export const firstAsk = (row, node) => (row.asked?.[0] || node?.asked?.[0] || { ask: row.text, choices: [], pick: null, why: "" });
@@ -367,6 +386,11 @@ export function stopsOf(needs, g, nodes) {
       base.gem = rangeWords(n?.plan_estimate || n?.estimate) || "—";
       base.gemTip = "What the plan should cost, at API prices";
       if (tasks.length) base.text = `${plural(builds, "task", "tasks")}${checks ? `, ${plural(checks, "check", "checks")}` : ""}`;
+    } else if (row.kind === "change") {             // the leader's plan change (spec 62): its price is the gem, its why a muted line under the text
+      base.gem = changeGem(row);
+      base.gemTip = base.gem ? `What the change should ${row.usd_high < 0 ? "save" : row.usd_low < 0 ? "cost or save" : "cost"}, at API prices` : "";
+      base.why = row.why || "";
+      base.small = true; base.whoTip = `proposed by ${g?.leader?.name || "Taskmaster"}`;        // the leader's small head on the top row: the card has no room for its art
     } else if (row.kind === "asks" || row.kind === "goal") {
       const q = firstAsk(row, n);
       base.text = `“${q.ask}”`; base.gemTip = "A question costs nothing";
@@ -394,7 +418,7 @@ export function opStopsOf(needs) {
 // -- one hand (spec 54 §2) ---------------------------------------------------------------------------------------------------------
 
 /** How urgent a kind of stop is (§2.3): 0 red (a failure), 1 what holds work back, 2 what does not, 3 the results to look at. */
-const URGENCY = { failed: 0, op_failed: 0, plan: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, result: 3 };
+const URGENCY = { failed: 0, op_failed: 0, plan: 1, change: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, result: 3 };
 export const urgencyOf = (s) => URGENCY[s.kind] ?? 1;
 const ageOf = (s) => String(s.row?.at || s.task?.finished || s.task?.started || s.result?.finished || "9999");
 

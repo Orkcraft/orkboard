@@ -377,6 +377,9 @@
 .arena-hc__text { flex: 1; min-height: 0; margin-top: var(--ork-2); padding: var(--ork-2) var(--ork-3); border-top: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas); color: var(--ork-ink-muted); display: -webkit-box;
   -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .arena-hc__miss { display: block; margin: var(--ork-1) var(--ork-3) 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); }    /* a plan's missing line (spec 52 §4.4): muted, not a stop */
+.arena-hc[data-kind="change"] .arena-hc__top { flex-wrap: wrap; row-gap: var(--ork-1); }                 /* its price is long: the kind's word goes under it, whole */
+.arena-hc__note { display: -webkit-box; flex: none; margin: var(--ork-1) var(--ork-3) 0; font: var(--ork-type-caption); color: var(--ork-ink-muted); -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere; }                                     /* a plan change's why (spec 62 §6.2): muted, under its text */
 .arena-hc[data-kind="failed"].is-compact .arena-hc__text { -webkit-line-clamp: 6; line-clamp: 6; }
 .arena-hc__quick { flex: none; display: flex; flex-direction: column; gap: var(--ork-2); margin-top: var(--ork-3); }
 .arena-hc__q { width: 100%; height: auto; min-height: 24px; padding: 3px var(--ork-3); white-space: normal; text-align: center; }
