@@ -212,3 +212,28 @@ The shapes B and C read (spec 38 §11's table, continued):
   brief's `why` is the words above. It gains `standing`: `[{"id", "template", "fields", "days", "at", "before", "last", "skipped", "title", "words"}]`, `words` the row (*Before the daily: weekdays 09:30*;
   *every day*, *weekends*, else *Mon, Wed*). `settings` gains `follow_days`.
 - A brief at its check is an `op` row of Needs you, as an operation's; the phone may send the five new commands (`ops.*`).
+
+**B (desktop).** Built in `js/shell/opdialog.js` (the form's `ReadsLine` and `Schedule`, `OpFormDialog` with `standing` for Change, new `OpForgetDialog`, the gear's `follow_days`; `Field` takes `rows`), `js/shell/opcheck.js`
+(a brief's check, `KeptDialog`, `Page`, `briefText`), `js/board/ops.js` (`ReadsLine`, `StandingRow`, `aboutOf`, `dayWords`; the done row's **Open**, the template row's *does*, Reads, **Forget…** and standing briefs),
+`js/shell/shell.css` (`shell-reads`, `shell-days`, `shell-when`, `shell-brief`, `shell-lasttime`, `board-op__standing(s)`), and `js/shell/dialogs.js` (one line: `opforget` registered, and a dialog's key holds
+`standing`, so Change of one standing brief never reuses another's form); new `tests/test_ops_briefs_desktop_browser.py`, 6 tests (its stub is spec 38's `StubOps`, taught the five new commands). No Python
+changed: every shape B reads was in A's table. What the spec left open:
+- **The Reads line** is a note (`role="note"`, *What it reads*) with *Reads* in the label face, the template's `reads` as written, and *Tell your team what it reads.* under it as a plain line, not a button: it
+  asks the manager to do something only they can. Shown when `people` and `reads` are both set, on the form above the fields and in the template's row.
+- **Prepare before…** is a brief's second button beside **Add**. Pressed, the schedule opens in the form (seven day toggles, Monday to Friday on; *The meeting at*, a time, empty until set; *minutes
+  before*, 30), the foot becomes **Add** (once, now) and **Prepare before each meeting** (`ops.standing_add`, the form's filled fields as `ops.add` sends them), and *No schedule* closes it again. The
+  button stays off until a day, a time and 0–240 are given; the host's refusals still come back as toasts. **Change** opens the same form, filled from the standing brief's `fields`, `days`, `at`, `before`,
+  with **Save the changes** (`ops.standing_change`, all four sent); a standing brief's form is not kept in the browser's storage as a new one is. **Stop** sends `ops.standing_stop` at once, with no
+  question: nothing kept goes. A standing row shows `words` and, when set, `skipped`.
+- **A brief's check** shows the doubts, What was found, *Last time* (folded: the run its `follows` names, read-only, *Last time · kept 16 October*, when that run is still listed), the draft parts as a
+  page (16 rows), and the form behind *Changing one of these prepares it again*. Its foot is **Drop**, **Prepare again** (always there: `ops.prepare` with what changed) and the `act_label`
+  (**Keep for the 1:1**: `ops.keep {id, draft}`, the parts changed only, as `ops.act`'s); a changed field turns Keep off with *The form changed: Prepare again first*. Its title, its row in At your check
+  and its done row carry the follow field's value (*Before a 1:1 · Alex*): it is the person's own screen.
+- **A kept brief** opens from its done row's **Open** (`opcheck` with the run's id; a done brief draws `KeptDialog`): *Kept 23 October 09:40*, *by itself* when so, *For you alone: Orkboard never posts,
+  sends or shows it to anyone*, each draft part as written in a pre-wrapped block in the body face (Markdown shown, not rendered: the desktop has no renderer of its own, and the text is what Copy
+  gives). **Copy** puts one part as written, or each part under `## <label>`, on the clipboard (`link.js` `copyText`) and toasts *Copied as Markdown*. A cut brief says its text is no longer kept.
+- **Forget…** (a danger button, only with `forget`) opens *Forget: <title>*: a field labelled as the follow field (its values from the listed runs offered), **Forget…** asks, in the same dialog, *Forget
+  everything kept about <value> in <title>? This cannot be undone.* with **Keep it** and **Forget everything** (`ops.forget`, the value trimmed); then a toast, *Forgot <value>: n removed from <title>*,
+  or *Nothing was kept about <value>* at 0.
+- **The gear** shows *Keep the last 1:1 brief for N days* (14–365) when a template has `follow`, saved on change as its other numbers are.
+- A brief's template going by itself says *goes by itself: prepared and kept without asking you*; its row adds `does`.
