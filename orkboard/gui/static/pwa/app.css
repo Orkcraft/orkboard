@@ -375,6 +375,19 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .ops-proposal { display: flex; flex-direction: column; gap: var(--ork-4); }
 .ops-proposal .row .ork-field { min-width: 0; flex: 1 1 100%; order: -1; }
 .ops-proposal .row .ork-btn { flex: 1 1 0; }
+/* a brief (spec 66 §7): what a template about people reads, Prepare before…, the standing briefs under their template, a kept brief read in its sheet */
+.ops-reads { margin: 0; display: flex; flex-direction: column; gap: var(--ork-1); overflow-wrap: anywhere; }
+.ops-reads small { font: var(--ork-type-caption); }
+.ops-before-wrap, .ops-before { display: flex; flex-direction: column; gap: var(--ork-4); }
+.pills.days { gap: var(--ork-2); }
+.pills.days .pill { min-width: 0; }
+.ops-standing { display: flex; flex-direction: column; gap: var(--ork-2); padding-left: var(--ork-4); border-left: var(--ork-line) solid var(--ork-edge); }
+.ops-standing .row { margin-top: 0; flex-wrap: wrap; }
+.ops-template .need-text small, .ops-done .need-text b { overflow-wrap: anywhere; }
+.ops-kept h3 { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.ops-page { margin: 0; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: var(--ork-type-body); user-select: text; }
+.ops-check textarea.ork-field { overflow-wrap: anywhere; }
+.ops-copy-box { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
 
 .plan .tasks .task-title { display: inline-flex; align-items: center; gap: var(--ork-3); }
 .facts .ork-race { vertical-align: middle; }

@@ -212,3 +212,22 @@ The shapes B and C read (spec 38 §11's table, continued):
   brief's `why` is the words above. It gains `standing`: `[{"id", "template", "fields", "days", "at", "before", "last", "skipped", "title", "words"}]`, `words` the row (*Before the daily: weekdays 09:30*;
   *every day*, *weekends*, else *Mon, Wed*). `settings` gains `follow_days`.
 - A brief at its check is an `op` row of Needs you, as an operation's; the phone may send the five new commands (`ops.*`).
+
+**C (phone)** (`orkcraft-app-v72`). Built to §7 on the phone as sheets, in `pwa/shell-ops.js` (`openForm(t, stand)`, `openKept`, `openForget`, `standingRow`, `readsLine`, `markdown`, `copyText`), `pwa/shell-forms.js`
+(`daysSwitch`, `DAYS`), `pwa/app.css` (`.ops-reads`, `.ops-before`, `.pills.days`, `.ops-standing`, `.ops-kept`, `.ops-page`), `pwa/sw.js` (`CACHE` v71 → v72, with the pins of `tests/test_pwa.py` and the eight phone browser
+tests that pin it); new `tests/test_pwa_ops_briefs_browser.py`, 4 tests (its state extends `test_pwa_ops38_browser.py`'s). No host shape was missing. What the spec left open:
+- **The form.** A `people` template's `reads` stands under the form's heading as *Reads: …*, with *Tell your team what it reads* as a line under it (words, not a button); the template's row in Templates says the same, under `does`.
+  A brief's form has **Prepare before…** above its foot: it opens the days (seven toggles, Mon–Fri on at first), *The meeting's time* (09:30 at first) and *Minutes before* (30), and their own button, **Prepare before each
+  meeting** (`ops.standing_add` with the form's fields); **Add** stays in the foot. A refusal is said in the form, as `ops.add`'s.
+- **A standing brief** is listed in its template's card with its `words` and its `skipped` line; **Change** opens the same form titled *Change: <title>*, its fields, days, time and minutes as saved, with **Save the change**
+  (`ops.standing_change` with every field and the schedule) in place of Add; **Stop** stops it at once (`ops.standing_stop`; nothing to undo: it can be set again). A held run with no `held_until` says its `why` (a standing
+  brief's *waits for limits: prepared when the window allows*), else *waits for limits*.
+- **The check** of a brief: its title and the follow field's value (*Before a 1:1 · Anna*), a line *A page for you alone: Keep saves it, nothing is sent or done outside*, **Last time: kept 16 October** when `follows`
+  names a kept brief still in the list (it opens that brief read-only over the check), found, doubts, the draft parts as 14-row boxes, the fields behind *Change what was asked*; the button is the `act_label` and sends
+  `ops.keep {id, fields, draft}` with only what changed (as `ops.act` does), **Prepare again** when a field changed, **Drop**.
+- **Done.** A kept brief's row says *<title> · <value>*, *kept <date>*, *by itself* when so, and **Open** (`Open the kept brief: …`) while its draft holds text (a brief cut to its row has none). Its sheet is read-only:
+  *Kept <date> · <value> · by itself*, each part's text (its label as a heading when there are several), pre-wrapped and broken anywhere, the sheet scrolling down and never sideways, **Copy** pinned at its foot. Copy gives
+  the one part as written, or `## <label>` and the text of each; the Clipboard API, else a hidden box and `execCommand("copy")` (the phone may be served without it).
+- **Forget…** (only on a template with `forget`) opens *Forget: <title>*: a field labelled as the follow field, **Forget…** (empty: *Say whose: <label>*), then the spec's one question with **Forget it all** and **Cancel**;
+  typing again takes the question back. The toast says *Forgotten: n briefs about <value>* or *Nothing was kept about <value>*.
+- **The gear** shows *Keep the last 1:1 brief for N days* (14–365) when `settings` has `follow_days`.
