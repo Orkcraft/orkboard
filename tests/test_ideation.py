@@ -115,7 +115,7 @@ def test_the_six_agents_of_ideation_follow_the_marketing_ones_with_their_craft_t
     assert ids[ids.index("community") + 1:] == ["investor", "product-view", "market-view", "tech-view", "design-view", "skeptic"]
     rows = {a.id: (a.name, a.craft, a.tier, a.band, a.takes, a.line) for a in library.LIBRARY if a.pitch}
     assert rows == {
-        "investor": ("Investor", "product", "elder", "lead", ("pitch",), "Decides whether to invest in an idea: where to take it, or why not"),
+        "investor": ("Investor", "product", "elder", "lead", ("pitch",), "Decides whether to invest in a pitch: where to take it, or why not"),
         "product-view": ("Product view", "product", "warrior", "build", ("pitch-product",), "Who it is for, what it moves, what it leaves out"),
         "market-view": ("Market view", "marketing", "warrior", "build", ("pitch-market",), "Who would want it, how they would hear of it, what it is like"),
         "tech-view": ("Engineering view", "engineering", "warrior", "build", ("pitch-tech",), "What it touches, how big it is, what it risks"),
@@ -139,7 +139,7 @@ def test_the_ideation_preset_follows_website_and_the_investors_stages_are_pitch_
     got = library.presets()
     i = [p["id"] for p in got].index("ideation")
     assert got[i - 1]["id"] == "website" and got[i] == {
-        "id": "ideation", "name": "Ideation", "line": "Small ideas: invest, reshape or pass, and why", "craft": "product", "race": "lich",
+        "id": "ideation", "name": "Ideation", "line": "Small pitches: invest, reshape or pass, and why", "craft": "product", "race": "lich",
         "mixed": True, "lead": "investor", "build": ["product-view", "market-view", "tech-view", "design-view"], "check": ["skeptic"]}
     assert library.stages()["investor"] == {"lead": "Pitch", "build": "Views", "check": "Decision", "seats": {"lead": 1, "build": 4, "check": 1}}
     assert not goal_team.seats(TEAM, "investor")

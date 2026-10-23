@@ -227,7 +227,7 @@ orders of the library, the presets and the board's commands brought up to date i
 `test_pwa_mixed_parties_browser.py`.
 
 **The shapes** (for B and C).
-- **The library.** `ideas.roles`' `presets` holds `{"id": "ideation", "name": "Ideation", "line": "Small ideas: invest, reshape or pass, and
+- **The library.** `ideas.roles`' `presets` holds `{"id": "ideation", "name": "Ideation", "line": "Small pitches: invest, reshape or pass, and
   why", "craft": "product", "race": "lich", "mixed": true, "lead": "investor", "build": ["product-view", "market-view", "tech-view",
   "design-view"], "check": ["skeptic"]}` after `website`; `stages.investor` is `{"lead": "Pitch", "build": "Views", "check": "Decision",
   "seats": {"lead": 1, "build": 4, "check": 1}}`; each `library` row has `pitch` (true for the six). A party is made as any with the
@@ -313,7 +313,11 @@ orders of the library, the presets and the board's commands brought up to date i
     balance), learned from three judged pitches with priced lines. The three steps' lines count in the ledger's *spec* stage, under the
     role that spoke.
 12. *The gate* needs nothing: a pitch has no plan, so it has no task in dev and is never among the gate's goals.
-13. *Not done here.* The faces' pickers that must not offer the pitch agents to other parties, nor a seat change in Ideation, are B's and
+13. *The words the page shows* say *pitch*, never *idea* (CLAUDE.md; `tests/test_arena_decks_desktop_browser.py` reads the New party
+    dialog for the word): the preset's line is *Small pitches: invest, reshape or pass, and why* and the Investor's line *Decides
+    whether to invest in a pitch: where to take it, or why not* (§1's table and preset said *idea*). The instructions, which go to the
+    model, keep §1's words.
+14. *Not done here.* The faces' pickers that must not offer the pitch agents to other parties, nor a seat change in Ideation, are B's and
     C's (`library[].pitch` says which). `gui/phone_push.py` `KIND_WORDS` (kept equal to `js/board/today.js`) does not name `pitch`, so a
     push never leads with a pitch; the snapshot's count leaves it out anyway. Saving an Ideation party is read by the keeper as any party
     is (the Investor's voice, the `goal` step). `realm/ideas.py` was over 600 lines before and grows by two; not split here.

@@ -214,7 +214,7 @@ LIBRARY: tuple[Agent, ...] = (
           "ask for and what confuses them, with how often, and bring it back as ideas for the Board."),
     # -- ideation: the Investor and each side's view; a party of their own (spec 65 §1) -----------------------------
     Agent("investor", "Investor", "product", "elder", ("pitch",),
-          "Decides whether to invest in an idea: where to take it, or why not",
+          "Decides whether to invest in a pitch: where to take it, or why not",
           "You decide whether to invest the team's time in an idea. Invest only when someone it is for is named, it moves a "
           "metric the project has, and its cost is in proportion; else reshape it (say what would make it worth it) or pass "
           "(say why, plainly). Weigh the case against as seriously as the views for it. Name the cheapest way to know before "
@@ -258,7 +258,7 @@ PRESETS = (("game", "Game", "Rules, levels, art and sound, played through", "des
             ("grunt", "artist", "aso"), ("reviewer", "accessibility-reviewer")),
            ("website", "Website", "Pages that say what it does, and are found", "marketing", "growth",
             ("grunt", "copywriter", "seo"), ("reviewer", "editor")),
-           ("ideation", "Ideation", "Small ideas: invest, reshape or pass, and why", "product", "investor",
+           ("ideation", "Ideation", "Small pitches: invest, reshape or pass, and why", "product", "investor",
             ("product-view", "market-view", "tech-view", "design-view"), ("skeptic",)))
 INVESTOR, SKEPTIC = "investor", "skeptic"
 VIEWS = ("product-view", "market-view", "tech-view", "design-view")   # Ideation's four views, in the order a pitch's screen shows them (spec 65 §1)
