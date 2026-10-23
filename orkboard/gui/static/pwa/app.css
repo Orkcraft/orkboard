@@ -315,6 +315,11 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .party-save-form { gap: var(--ork-3); }
 .party-price { margin: var(--ork-3) 0 var(--ork-2); }
 .party-hint { margin: 0 0 var(--ork-2); font: var(--ork-type-caption); }
+/* what the party can take (spec 63 §2): under the price, the goal types its seats would be offered, each its sign (small, muted) and name; the ones that miss someone after *with one more:* */
+.party-takes { margin: 0 0 var(--ork-2); font: var(--ork-type-caption); overflow-wrap: anywhere; }
+.party-takes b { font-weight: 600; }
+.party-takes .ork-sign { width: 12px; height: 12px; margin-right: var(--ork-1); vertical-align: -2px; color: var(--ork-ink-muted); }
+.party-takes .take-with, .party-takes .is-missing, .party-takes .take-more { color: var(--ork-ink-muted); }
 .party-work > summary { cursor: pointer; color: var(--ork-ink-muted); }
 .party-lines { margin: var(--ork-2) 0 0; padding-left: var(--ork-5); }
 .party-lines li { overflow-wrap: anywhere; }
@@ -705,6 +710,9 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .deal-fly.phase { position: fixed; z-index: 60; display: block; margin: 0; padding: 0; pointer-events: none; animation: deal 0.3s steps(6) var(--delay) backwards; }
 .deal-fly .deck { width: 100%; pointer-events: none; }
 @keyframes deal { from { transform: translate(var(--dx), var(--dy)) scale(var(--s)); } to { transform: none; } }
+/* the gather (spec 63 §4): a new party's heads travel from where New party showed them to the party's deck, copies over the page, gone on landing */
+.gather-fly { position: fixed; z-index: 60; margin: 0; pointer-events: none; image-rendering: pixelated; animation: gather 0.3s steps(6) var(--delay) forwards; }
+@keyframes gather { to { transform: translate(var(--dx), var(--dy)) scale(var(--s)); } }
 @keyframes landed { to { visibility: visible; } }
 @keyframes rise { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes leave { to { opacity: 0; } }
@@ -969,7 +977,7 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 @media (prefers-reduced-motion: reduce) {
   .deck.is-drawn, .raised.is-pop, .is-reward, .deck.is-leaving, .deck__flash { animation: none; }
   .deck.is-dealt { visibility: visible; animation: none; }
-  .deal-fly, .hcg { display: none; }
+  .deal-fly, .hcg, .gather-fly { display: none; }
 }
 
 /* -- mixed parties (spec 59 §7): the library's parties in one column, a leader's stages, a party that does not fit ------------------------------------------ */

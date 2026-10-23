@@ -2,7 +2,8 @@
 // first read of a goal, none for what changed while the page was hidden. Ticking words (*working 4 min*) and counts never move. The pieces the field (shell-arena-field.js)
 // uses: a task that moves in its column or settles into a gap left by one that left slides from where it stood (FLIP: each item's old box measured before the redraw, its new
 // one after, the difference played back); nothing moves under the finger or the focus (a column's redraw waits, at most 10 s); a number that a merge changed shows its new value
-// with a one-time highlight.
+// with a one-time highlight. Two moments travel, of the three decisions §76.3 allows: the deal (a plan started from the hand deals its tasks onto the field, spec 57) and the gather (a new party's
+// heads gather into its deck, spec 63 §4); both over the page, in steps, 0.30 s and 35 ms apart, six at most, kept waiting for 6 s.
 const SLIDE_MS = 250;                                 // a settle or a move, ease-out, no bounce
 const PULSE_MS = 600;                                 // the reward's highlight
 export const HOLD_MS = 10000;                         // a column is held under a touch or the focus for at most this long
@@ -177,4 +178,46 @@ export function dealTo(nodes, from) {
     k += 1;
   }
   return k;
+}
+
+// -- the gather (docs/specs/63-party-gathered.md §4, decisions §76.2) -------------------------------------------------------------------------------------
+const GATHER_SCALE = 0.4;                             // a head ends at the deck's centre at this part of its size
+/** The gather waiting: a party saved on New party's sheet gathers its heads (`from`: [{race, tier, box}], the leader first, six at most, each box where the sheet showed that head at the press)
+ *  into the party's deck, once the sheet has closed and the deck shows that party. One at a time; dropped when played, refused or after 6 s. */
+let gathering = null;
+export const gather = {
+  /** The save was answered with `party`'s slug. */
+  wait(party, from) { gathering = party && from?.length ? { party, from: from.slice(0, DEAL_MAX), at: Date.now() } : null; },
+  drop() { gathering = null; },
+  /** The gather waiting (null once it is 6 s old). */
+  live() {
+    if (gathering && Date.now() - gathering.at > DEAL_WAIT_MS) gathering = null;
+    return gathering;
+  },
+};
+
+/** Gathers the heads of `waiting` into its party's deck (`.partydeck`): each a copy over the page (nothing dims, nothing takes the pointer) from where the sheet showed it to the deck's centre at 0.4 of
+ *  its size, steps(6) 0.30 s, 35 ms after the one before, gone on landing; when the last has landed the deck is lit once. Returns how many travel (none when the deck is not in the page). */
+export function gatherTo(waiting) {
+  const deckOf = () => document.querySelector(`.partydeck[data-goal="${CSS.escape(waiting.party)}"]`);
+  const to = deckOf()?.getBoundingClientRect();
+  if (!to || !(to.width > 0)) return 0;
+  const cx = to.left + to.width / 2, cy = to.top + to.height / 2;
+  const heads = waiting.from.slice(0, DEAL_MAX);
+  heads.forEach(({ race, tier, box }, k) => {
+    const copy = document.createElement("img");                          // a head at its @2x, as `head` (util.js) draws it
+    copy.className = "gather-fly";
+    copy.src = `races/${race}-${tier}@2x.png`;
+    copy.alt = "";
+    copy.draggable = false;
+    copy.setAttribute("aria-hidden", "true");
+    Object.assign(copy.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+    const vars = { "--dx": `${Math.round(cx - (box.left + box.width / 2))}px`, "--dy": `${Math.round(cy - (box.top + box.height / 2))}px`, "--s": String(GATHER_SCALE), "--delay": `${k * DEAL_STEP_MS}ms` };
+    for (const [name, value] of Object.entries(vars)) copy.style.setProperty(name, value);
+    copy.addEventListener("animationend", () => copy.remove());
+    document.body.append(copy);
+    setTimeout(() => copy.remove(), k * DEAL_STEP_MS + DEAL_LEN_MS + 120);        // (should the animation not end: the page was hidden)
+  });
+  setTimeout(() => pulse(deckOf()), (heads.length - 1) * DEAL_STEP_MS + DEAL_LEN_MS);        // the deck lit once, when the last head has landed
+  return heads.length;
 }
