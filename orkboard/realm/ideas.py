@@ -37,7 +37,8 @@ CRAFTS = ("engineering", "design", "data", "marketing", "product")   # a goal's 
 GOAL_STATES = ("raw", "reading", "asks", "ready")
 MAX_METRICS, MAX_LINKS = 12, 12
 KEEPER_METRICS, KEEPER_LINKS = 3, 8   # what the keeper writes of a goal (spec 35 §2)
-STATES = ("raw", "reading", "asks", "ready", "planning", "plan", "working", "done", "failed", "proposed")
+STATES = ("raw", "reading", "asks", "ready", "planning", "plan", "working", "done", "failed", "proposed",
+          "judging", "judged", "sent", "passed")      # the last four a pitch's (spec 65 §2: realm/pitches.py), never a plan's
 TASK_STATES = ("waiting", "ready", "held", "running", "testing", "picking", "review", "merged", "failed")   # a task of a plan (core/idea_runner.py); `picking`: it left variants of one kind for the person to pick from, and waits, spending nothing (spec 51)
 QUEUES = ("now", "night", "hold")    # a raw idea: drafted at once, tonight, or stopped by the person (spec 35 §3)
 TITLE_KEEPER = 60                    # a goal's title as the keeper writes it
@@ -486,7 +487,8 @@ STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, 
                  "queue": "", "held_until": "", "measure": None, "night_by": "",
                  "element": "",                       # a goal's element (realm/idea_element.py, spec 50 §2.3): given once, never changes
                  "type": "",                          # its type's key "<leader>/<id>" (realm/goal_types.py, spec 52 §2.2): given once by ideas.add
-                 "changed": []}                       # the plan-making sections written since its plan (realm/idea_change.py, spec 62 §1): never changed in place
+                 "changed": [],                       # the plan-making sections written since its plan (realm/idea_change.py, spec 62 §1): never changed in place
+                 "from_pitch": ""}                    # the pitch it was sent from (spec 65 §5): its views and decision go to its draft
 
 
 def night_by_of(st: dict) -> str:

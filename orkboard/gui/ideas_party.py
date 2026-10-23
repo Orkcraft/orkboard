@@ -20,7 +20,7 @@ class PartyMixin:
         """`{"leader", "team", "every", "craft"?}`: about what an idea costs with this party, before it starts (spec 43 §3.1), `hints`, at
         most two quiet lines about it (§5; `craft` is the goal's, left out for a Mixed goal), and `types`, the goal types it would be offered
         (spec 63 §1: `[{id, name, sign, missing}]` in the catalog's order, `missing` the name of the agent a type needs, "" with none).
-        Nothing is saved."""
+        Nothing is saved. Led by the Investor (Ideation): a pitch's price (`pitch: true`), no hints, no types (spec 65 §1, §3)."""
         leader = _opt(args, "leader") or roles.TASKMASTER
         if leader != roles.TASKMASTER and library.get(leader) is None:
             raise IdeasError(f"No agent {leader!r}")
@@ -36,8 +36,9 @@ class PartyMixin:
         party = goal_types.Party.of(self.state_dir, self.root(False), leader, team)
         types = [{"id": t.id, "name": t.name, "sign": t.sign, "missing": rows[0]["name"] if rows else ""}
                  for t, rows in goal_types.offered(self.state_dir, self.root(False), "", read=party)]
+        ideation = leader == library.INVESTOR                # a pitch's price, no hint about code or checks (spec 65 §3)
         return {**party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, every),
-                "hints": party_hints.hints(self.root(False), self.state_dir, craft, leader, team, every), "types": types}
+                "hints": [] if ideation else party_hints.hints(self.root(False), self.state_dir, craft, leader, team, every), "types": types}
 
     def party_answer(self, args: dict) -> dict:
         """`{"goal", "take", "reason"?}`: take the checker the night proposed out of the goal's party (the goal is not read again), or keep it

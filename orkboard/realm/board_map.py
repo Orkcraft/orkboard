@@ -14,10 +14,11 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from orkboard.realm import goal_flags, goal_types, goal_verdict, idea_change, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend, idea_target, ideas, map_party, map_stage, roles
+from orkboard.realm import (goal_flags, goal_types, goal_verdict, idea_change, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend,
+                            idea_target, ideas, library, map_party, map_stage, pitches, roles)
 from orkboard.realm.idea_words import short_of
 
-NEEDS = ("asks", "plan", "change", "todo", "failed", "proposal")        # the Needs you kinds that sit on an idea, as a node names them (a plan change: spec 62)
+NEEDS = ("asks", "plan", "change", "todo", "failed", "proposal", "pitch")        # the Needs you kinds that sit on an idea, as a node names them (a plan change: spec 62; a judged pitch: spec 65)
 _HELD_FILES = re.compile(r"^files(?: beside)? · (.+)$")
 _AFTER = re.compile(r"after (\d{1,2}:\d{2})")
 
@@ -42,7 +43,7 @@ def list_of(text: object) -> list[str]:
 
 def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None, asks: list[str]) -> list[dict]:
     """What of one idea needs the person (spec 35 §10): its questions, its plan waiting, the leader's plan change waiting (spec 62), its to-dos,
-    a failure, a proposal."""
+    a failure, a proposal; a judged pitch (spec 65 §5: low, blocking nothing, its answer)."""
     slug, state = i["slug"], st["state"]
     base = {"idea": slug, "goal": i["track"], "title": i["title"], "priority": i["priority"], "blocks": False,
             "at": ideas.touched_at(root, state_dir, slug)}
@@ -63,6 +64,8 @@ def idea_needs(root: Path, state_dir: Path, i: dict, st: dict, plan: dict | None
     if state == "proposed":
         out.append({**base, "kind": "proposal", "text": ideas.thesis(
             (ideas.idea_page(root, slug) or ideas.Page()).section("Gist")) or "The keeper proposes this"})
+    if state == "judged":
+        out.append({**base, **pitches.need_of(state_dir, slug)})
     if state == "failed":
         out.append({**base, "kind": "failed", "text": st.get("error") or "Something failed"})
     merged = {t.get("id") for t in tasks if t.get("state") == "merged"}
@@ -267,8 +270,10 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
     week = _week_of(settings, limits, now)
     target, read = idea_target.target_of(settings), roles.known(state_dir)         # a task's head: who does it, at what tier
     today = dt.date.fromtimestamp(now).isoformat() if now else dt.date.today().isoformat()
+    offered = pitches.offers(root, state_dir) if any((t.get("leader") or "") == library.INVESTOR for t in shown) else {}
     for g in shown:
         mine = [i for i in found if i["track"] == g["slug"]]
+        ideation = (g.get("leader") or "") == library.INVESTOR       # Ideation: its goals are pitches (spec 65)
         order = [i["slug"] for i in mine]
         inside = set(order)
         tier = _tiers(order, {s: [d for d in depends[s] if d in inside] for s in order})
@@ -289,7 +294,8 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                       if verdict else None,
                       "brief": brief_of(g), "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
-                      "usd": None if spent is None else round(spent, 2)})
+                      "usd": None if spent is None else round(spent, 2), "ideation": ideation,
+                      "passed": sum(1 for s in order if states[s]["state"] == "passed") if ideation else 0})
         mine_nodes, today_tasks = [], []
         for i in sorted(mine, key=lambda i: (tier[i["slug"]], place[i["slug"]])):
             slug, st, page = i["slug"], states[i["slug"]], pages[i["slug"]]
@@ -301,6 +307,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             started = any(t.get("state") not in (None, "waiting", "ready", "held") for t in tasks)
             est = (plan or {}).get("estimate")
             waves = map_stage.waves_of(tasks)
+            pitch = pitches.face(root, state_dir, slug, r["state"], target, offered) if ideation else None
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
                     "element": st.get("element") or "", "flag": idea_flag.flag_of(state_dir, slug), "type": type_of(st),
                     "held_until": r["held_until"], "start_at": r["start_at"], "night_by": r["night_by"], "by_pace": bool((plan or {}).get("by_pace")),
@@ -309,7 +316,8 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                     "waits": None, "needs_you": next((k for k in NEEDS if any(n["kind"] == k for n in needs)), "")
                     if r["state"] != "done" else "",
                     "progress": r["progress"],
-                    "stage": map_stage.stage_of(r["state"], tasks, bool((plan or {}).get("passed_at"))), "round": map_stage.round_of(tasks),
+                    "stage": pitches.stage_of(r["state"], sum(v["answered"] for v in pitch["views"])) if pitch
+                    else map_stage.stage_of(r["state"], tasks, bool((plan or {}).get("passed_at"))), "round": map_stage.round_of(tasks),
                     "usd": idea_spend.of_idea(state_dir, slug)["usd"] if tasks else None,
                     "plan_estimate": {"usd_low": est.get("usd_low"), "usd_high": est.get("usd_high")} if isinstance(est, dict) and plan else None,
                     "asked": _asked(st, asks, by_slug, lead, target) if r["state"] == "asks" else [],
@@ -324,7 +332,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                     "estimate": {"usd_low": est.get("usd_low"), "usd_high": est.get("usd_high")}
                     if isinstance(est, dict) and plan and not started else None,
                     "by_itself": bool(plan) and plan.get("passed_by") == "auto",
-                    "folded": slug not in kept, "updated": r["updated"]}
+                    "folded": slug not in kept or r["state"] == "passed", "updated": r["updated"], "pitch": pitch}
             if r["state"] != "done":
                 node["waits"] = _waits(node, tasks, titles, r["waits_on"], week)
             nodes.append(node)

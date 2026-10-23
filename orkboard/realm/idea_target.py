@@ -23,7 +23,8 @@ from orkboard.realm import plans
 TARGETS = ("thrift", "balance", "quality")
 DEFAULT = "balance"
 EFFORTS = ("low", "medium", "high", "xhigh", "max")      # the Claude CLI's `--effort` levels
-STEPS = ("goal", "draft", "answer", "talk", "plan", "refresh", "propose", "task")
+STEPS = ("goal", "draft", "answer", "talk", "plan", "refresh", "propose", "task", "pitch_view", "pitch_case", "pitch_decide")
+PITCH_STEPS = ("pitch_view", "pitch_case", "pitch_decide")   # a pitch's three calls (spec 65 §3, core/idea_judge.py)
 PROPOSALS = {"thrift": 0, "balance": 2, "quality": 3}  # the night's proposals by the Target (§8)
 MAX_WAITING = 3                                          # never more proposals than this waiting in all
 TIER_ROLE = "elder"                                      # the Taskmaster's default: its model is not the person's pick
@@ -41,6 +42,10 @@ MATRIX: dict[str, dict[str, tuple[Any, str] | None]] = {
     # a party's leader accepts it against its metrics when the person asks, for a party with metrics of before (core/idea_lead.py; spec 50 §2.2)
     "accept": {"thrift": ("elder", "low"), "balance": ("elder", "medium"), "quality": ("elder", "high")},
     "task": {"thrift": (-1, "low"), "balance": (0, "medium"), "quality": (1, "high")},
+    # a pitch's views, the case against and the Investor's decision (spec 65 §3): no effort on the laborer tier
+    "pitch_view": {"thrift": ("laborer", ""), "balance": ("warrior", "low"), "quality": ("warrior", "medium")},
+    "pitch_case": {"thrift": ("laborer", ""), "balance": ("warrior", "low"), "quality": ("warrior", "medium")},
+    "pitch_decide": {"thrift": ("warrior", "medium"), "balance": ("elder", "low"), "quality": ("elder", "medium")},
     # Operations' calls (docs/specs/38-operations.md §4), under Operations' own Target: no effort on the laborer tier
     "op_prepare": {"thrift": ("warrior", "low"), "balance": ("warrior", "medium"), "quality": ("elder", "medium")},
     "op_act": {"thrift": ("laborer", ""), "balance": ("laborer", ""), "quality": ("warrior", "low")},
@@ -53,10 +58,12 @@ OP_STEPS = ("op_prepare", "op_act", "op_learn")
 # call's own instructions not counted); how many files it may read; its budget in USD (`--max-budget-usd`) in balance,
 # half in thrift, double in quality.
 CONTEXT = {"goal": 12_000, "draft": 8_000, "answer": 8_000, "talk": 6_000, "plan": 10_000, "refresh": 12_000, "accept": 10_000,
-           "propose": 10_000, "op_prepare": 12_000, "op_act": 6_000, "op_learn": 6_000}
-READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0, "accept": 4}
+           "propose": 10_000, "op_prepare": 12_000, "op_act": 6_000, "op_learn": 6_000,
+           "pitch_view": 6_000, "pitch_case": 6_000, "pitch_decide": 8_000}
+READS = {"goal": 8, "draft": 6, "plan": 6, "refresh": 6, "talk": 2, "answer": 2, "propose": 0, "accept": 4,
+         "pitch_view": 4, "pitch_case": 0, "pitch_decide": 0}      # a view's reads: the Engineering view's only (the others get no tools)
 CAPS = {"goal": 1.00, "draft": 0.60, "answer": 0.40, "talk": 0.20, "plan": 0.60, "refresh": 0.50, "propose": 0.30, "accept": 0.60,
-        "op_prepare": 0.30, "op_act": 0.10, "op_learn": 0.10}
+        "op_prepare": 0.30, "op_act": 0.10, "op_learn": 0.10, "pitch_view": 0.08, "pitch_case": 0.06, "pitch_decide": 0.20}
 BUDGET_SHARE = {"thrift": 0.5, "balance": 1.0, "quality": 2.0}
 
 

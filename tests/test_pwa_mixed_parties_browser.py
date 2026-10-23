@@ -49,7 +49,7 @@ async def test_the_library_gives_the_mixed_parties_first_in_one_column(fake_repo
         sheet = await _sheet(page)
         tiles = sheet.locator(".preset-tile")
         await tiles.first.wait_for(timeout=WAIT_MS)
-        assert [await t.get_attribute("data-preset") for t in await tiles.all()] == ["game", "mobile-app", "website", "engineering", "design", "data", "marketing", "product", "mixed"]
+        assert [await t.get_attribute("data-preset") for t in await tiles.all()] == ["game", "mobile-app", "website", "ideation", "engineering", "design", "data", "marketing", "product", "mixed"]
         assert [await g.get_attribute("aria-label") for g in await sheet.locator(".preset-group").all()] == ["Mixed", "One craft", "Taskmaster alone"]
         xs = {round((await t.bounding_box())["x"]) for t in await tiles.all()}
         assert len(xs) == 1                                                                     # one column

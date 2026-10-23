@@ -14,6 +14,7 @@ or the seats its leader sets (a Game designer's four and one; spec 59 §2.3).
 
     leader_of(root, "ship")                                     # "product-manager"; "taskmaster" when none was picked
     seats(team, leader)                                         # the error of a party that has too many in a band, else ""
+                                                                # (Ideation: exactly its four views and the skeptic; a view nowhere else)
 
 A goal with no team works as before: each task type goes to the project's role for it (Grunt when none).
 
@@ -28,6 +29,8 @@ from pathlib import Path
 from orkboard.realm import ideas
 
 SEATS = 5
+IDEATION_WHOLE = "Ideation reads every pitch from all four sides: its views and the skeptic stay"
+PITCH_ONLY = "The views judge pitches: they are in Ideation only"
 
 
 def clean(team: object) -> list[str]:
@@ -53,6 +56,12 @@ def seats(team: list[str], leader: str = "") -> str:
     from orkboard.realm import library
     if leader and band_of(leader) != "lead":
         return f"{leader} does not lead: pick a leader of the library"
+    if leader == library.INVESTOR:               # Ideation is always its four views and the skeptic (spec 65 §1)
+        if sorted(team) != sorted([*library.VIEWS, library.SKEPTIC]):
+            return IDEATION_WHOLE
+        return ""
+    if any((a := library.get(s)) is not None and a.pitch for s in team):
+        return PITCH_ONLY
     have = library.seats_of(leader or "taskmaster")
     name = library.get(leader).name if leader and library.get(leader) is not None else "Taskmaster"
     for band, words in (("build", "builders"), ("check", "checkers")):

@@ -28,7 +28,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 STAGES = ("goal", "spec", "plan", "work", "rework", "dropped")
-STEP_STAGE = {"goal": "goal", "refresh": "goal", "draft": "spec", "answer": "spec", "talk": "spec", "plan": "plan"}
+STEP_STAGE = {"goal": "goal", "refresh": "goal", "draft": "spec", "answer": "spec", "talk": "spec", "plan": "plan",
+              "pitch_view": "spec", "pitch_case": "spec", "pitch_decide": "spec"}     # a pitch's judging is its spec's stage (spec 65 §3)
 TOKEN_KEYS = ("in", "out", "cache_read", "cache_write")
 FILE = "spend.jsonl"
 BOARD, GONE = "spend-board.jsonl", "spend-gone.jsonl"
