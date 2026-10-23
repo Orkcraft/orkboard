@@ -427,4 +427,4 @@ async def test_every_target_of_a_raised_stop_is_44_px_and_the_page_does_not_scro
 
 def test_the_service_worker_is_at_v62():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v66";' in sw
+    assert 'const CACHE = "orkcraft-app-v67";' in sw

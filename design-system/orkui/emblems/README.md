@@ -1,7 +1,7 @@
 # orkUI / office / emblems
 
-The library of **emblems** (orkBoard's spec 56, decisions §69): twenty-eight 7 x 7 drawings of things of the realm (a wand, a beetle, a scroll, an anvil, a key,
-a chest, a torch ...), never a being. Sixteen of them are the goal types' pictures, which a face draws as signs (`../signs/`); twelve are kept for what comes next.
+The library of **emblems** (orkBoard's spec 56, decisions §69): thirty 7 x 7 drawings of things of the realm (a wand, a beetle, a scroll, an anvil, a key,
+a chest, a torch ...), never a being. Twenty-three of them are the goal types' pictures, which a face draws as signs (`../signs/`); seven are kept for what comes next.
 
 **An emblem is not a mask of `components.css`, and no face draws it.** There is no `.ork-emblem` class. A face that needs one asks orkUI to make it a sign
 (a `signs/<name>.svg`, a `.ork-sign.<name>` class, a row in the gallery and the tests): then it is a sign, and a face draws that.
@@ -16,4 +16,5 @@ in muted ink, by a mask of its own.
 
     with a sign   wand (feature)  beetle (bug)  broom (tidy)  anvil (restructure)  mirror (screen)  gem (picture)  seal (logo)  arrow (target)
                   beaker (flask)  bell (horn)  menhirs (chart)  scroll (page)  fork (abtest)  signpost (landing)  letter (post)  quill (tagline)
-    the library   chalice  hut  tome  ring  scarab  hammer  key  chest  shield  torch  crown  cairn
+                  tome (mechanic)  hut (level)  cairn (balance)  crown (character)  chest (release)  stall (store)  drum (tune)
+    the library   chalice  ring  scarab  hammer  key  shield  torch

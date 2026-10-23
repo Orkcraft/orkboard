@@ -330,6 +330,19 @@ silhouettes at 14 px, each 16 cells from every sign and emblem. Passed over: `ha
 signpost), `lute` and `harp` (too thin at 14 px), `scales`, `crate`, `pan-pipe`. Another pick changes A0's two drawings
 only.
 
+**A0 (orkUI and the copy), 23 October.** §1.3 built as written, on the provisional pick above.
+- **orkUI 0.4.1**, commit `7ff01ba` (orkWorks/orkUI `main`). `office/signs/` holds 36 signs: `mechanic`, `level`, `balance`, `character`, `release` are the exact pixels of the
+  emblems `tome`, `hut`, `cairn`, `crown`, `chest`; `store` and `tune` are the candidates `stall` and `drum` of `docs/specs/59-signs/candidates.json`, which join `office/emblems/`
+  (30 in all) with that file's `meaning` and tags (the emblem's name and the type id). `emblems.json` sets `sign` on all seven (23 emblems have a sign; `chalice`, `ring`, `scarab`,
+  `hammer`, `key`, `shield`, `torch` have none). `.ork-sign.<name>` gains seven classes; the READMEs (the root's, `office/`, `signs/`, `emblems/`), the gallery's *Signs* (a row for
+  each, a line with the type's name) and *Emblems* (the two), the CHANGELOG (**0.4.1**) and the versions (`pyproject.toml`, `tokens.json`, `tokens.css`'s header) follow 0.4.0's pattern.
+  `tests/test_orkui.py`: the seven's pixels, 36 distinct signs, 30 emblems, the new class list; orkUI's 223 tests pass.
+- **The copy**: `python -m orkboard.design.orkui` (`ORKUI.json` stamps 0.4.1 and `7ff01ba`; only `design-system/orkui/` changed). `pwa/sw.js`: `SHELL` gains the seven, `CACHE` is
+  **`orkcraft-app-v67`** (main had v66), pinned in `tests/test_pwa.py` (41 masks: five elements, 36 signs; the seven named) and in the five browser tests that pinned v66
+  (`test_pwa_board53_browser`, `test_pwa_deal_start_browser`, `test_pwa_goal_types_browser`, `test_pwa_mixed_parties_browser`, `test_pwa_one_hand_browser`). `tests/test_goal_types.py`:
+  `NEW_SIGNS` is dropped; `A0_SIGNS` holds the twenty-three and every one is a file of the copy. Nothing on a face changed: `goal_types.SIGNS` already named the seven.
+- Another pick for `store` or `tune` (the pick above is provisional) changes `office/signs/<name>.svg`, the emblem and the test table in orkUI, a new orkUI version and this copy.
+
 **C (the phone), 22 October.** §7 built as written. What the builder chose or found:
 - New party reads `roles.presets`: one column of `.craft-tile.preset-tile` buttons in *Mixed*, *One craft*, *Taskmaster alone* groups (`data-preset` on each, `data-craft`
   on the crafts and the Taskmaster alone only, so the old selectors still find them; a mixed party's craft is its goal's `craft`). A host with no `presets` keeps the

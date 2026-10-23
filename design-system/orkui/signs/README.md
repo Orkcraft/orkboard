@@ -1,6 +1,6 @@
 # orkUI / office / signs
 
-The twenty-nine signs: **every symbol a face draws is orkUI's** (orkBoard's spec 50 §1.6, spec 51 §1 and spec 52 §1 and spec 56 §6, decisions §63.10 and §69). A sign stands beside the
+The thirty-six signs: **every symbol a face draws is orkUI's** (orkBoard's spec 50 §1.6, spec 51 §1 and spec 52 §1 and spec 56 §6 and spec 59 §1, decisions §63.10, §69 and §72). A sign stands beside the
 words it explains (a state, a stop, an order), in the colour of that text; it is never the only thing that says it, so the words
 (or a `title`) stay and the sign is `aria-hidden`.
 
@@ -31,8 +31,15 @@ never a being; the thing drawn in brackets):
     landing      a page that says the product (a signpost)
     post         a post for one channel (a letter)
     tagline      one line that says the product (a quill)
+    mechanic     a rule of the game (a tome)
+    level        a place the player comes to (a hut)
+    balance      numbers weighed against each other (a cairn)
+    character    who someone is, by rank (a crown)
+    release      a version packed and sent (a chest)
+    store        where the product is sold (a stall)
+    tune         a sound for the game (a drum)
 
-The sixteen pictures are also in `../emblems/` (the library), with twelve more that no face draws.
+The twenty-three pictures are also in `../emblems/` (the library), with seven more that no face draws.
 
 *night* is a clock: a crescent is the *void* element (`../elements/`), so a moon would say two things. The close (×), the plus (+)
 and the chevrons (›, ⌄) are not here: they are orkUI's icons already (`../icons/icons.svg`).

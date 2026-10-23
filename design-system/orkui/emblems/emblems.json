@@ -167,7 +167,7 @@
    "hut",
    "landing"
   ],
-  "sign": ""
+  "sign": "level"
  },
  {
   "name": "tome",
@@ -176,7 +176,7 @@
    "tome",
    "report"
   ],
-  "sign": ""
+  "sign": "mechanic"
  },
  {
   "name": "ring",
@@ -220,7 +220,7 @@
   "tags": [
    "chest"
   ],
-  "sign": ""
+  "sign": "release"
  },
  {
   "name": "shield",
@@ -244,7 +244,7 @@
   "tags": [
    "crown"
   ],
-  "sign": ""
+  "sign": "character"
  },
  {
   "name": "cairn",
@@ -253,6 +253,24 @@
    "cairn",
    "metric"
   ],
-  "sign": ""
+  "sign": "balance"
+ },
+ {
+  "name": "stall",
+  "meaning": "a market stall under a striped awning: where the wares are sold",
+  "tags": [
+   "stall",
+   "store"
+  ],
+  "sign": "store"
+ },
+ {
+  "name": "drum",
+  "meaning": "a drum laced at its skin: a beat the whole party hears",
+  "tags": [
+   "drum",
+   "tune"
+  ],
+  "sign": "tune"
  }
 ]

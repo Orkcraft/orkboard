@@ -161,7 +161,7 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
 .ork-elem.lava { background: var(--ork-elem-lava); -webkit-mask-image: url(elements/lava.svg); mask-image: url(elements/lava.svg); }
 .ork-elem.dim { background: var(--ork-ink-faint); }
 
-/* --- Signs: every symbol a face draws (signs/, twenty-nine 7 x 7 pixel shapes), drawn as a mask in the colour of the text it stands in
+/* --- Signs: every symbol a face draws (signs/, thirty-six 7 x 7 pixel shapes), drawn as a mask in the colour of the text it stands in
    (`currentColor`). 14 x 14 or 28 x 28, never a size between. -3px sets the 14 px box on the baseline of a 16 px line ---------- */
 .ork-sign { display: inline-block; flex: none; width: 14px; height: 14px; vertical-align: -3px; background: currentColor;
   -webkit-mask-size: 100%; mask-size: 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
@@ -195,6 +195,13 @@ button.ork-row, button.ork-card, a.ork-row, a.ork-card { cursor: pointer; font: 
 .ork-sign.landing { -webkit-mask-image: url(signs/landing.svg); mask-image: url(signs/landing.svg); }
 .ork-sign.post { -webkit-mask-image: url(signs/post.svg); mask-image: url(signs/post.svg); }
 .ork-sign.tagline { -webkit-mask-image: url(signs/tagline.svg); mask-image: url(signs/tagline.svg); }
+.ork-sign.mechanic { -webkit-mask-image: url(signs/mechanic.svg); mask-image: url(signs/mechanic.svg); }
+.ork-sign.level { -webkit-mask-image: url(signs/level.svg); mask-image: url(signs/level.svg); }
+.ork-sign.balance { -webkit-mask-image: url(signs/balance.svg); mask-image: url(signs/balance.svg); }
+.ork-sign.character { -webkit-mask-image: url(signs/character.svg); mask-image: url(signs/character.svg); }
+.ork-sign.release { -webkit-mask-image: url(signs/release.svg); mask-image: url(signs/release.svg); }
+.ork-sign.store { -webkit-mask-image: url(signs/store.svg); mask-image: url(signs/store.svg); }
+.ork-sign.tune { -webkit-mask-image: url(signs/tune.svg); mask-image: url(signs/tune.svg); }
 
 /* --- Dialog, menu, toast ------------------------------------------------------------------------------------------------------- */
 .ork-scrim { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--ork-6); background: var(--ork-scrim); }

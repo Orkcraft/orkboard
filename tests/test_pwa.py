@@ -67,14 +67,15 @@ def test_the_app_is_its_own_files_and_nothing_else():
     assert _split(pwa.serve("GET", "/app/marks/README.md"))[0].startswith("HTTP/1.1 404")
     assert "image/svg+xml" in _split(pwa.serve("GET", "/app/icons/icons.svg"))[0]              # orkUI's pixel icons
     for folder, names in (("elements", ("meadow", "ice", "dust", "void", "lava")), ("signs", ("check", "cross", "work", "night", "alert", "flag", "before", "after", "play", "pause", "sound", "film", "text",
-                                                                         "feature", "bug", "tidy", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page", "restructure", "abtest", "landing", "post", "tagline"))):
+                                                                         "feature", "bug", "tidy", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page", "restructure", "abtest", "landing", "post", "tagline",
+                                                                         "mechanic", "level", "balance", "character", "release", "store", "tune"))):
         for name in names:                                                                       # orkUI's elements and signs (spec 50 §1, §1.6): masks need the page's own origin
             head, body = _split(pwa.serve("GET", f"/app/{folder}/{name}.svg"))
             assert head.startswith("HTTP/1.1 200") and "Content-Type: image/svg+xml" in head and b"<svg" in body and b'viewBox="0 0 7 7"' in body, f"{folder}/{name}"
         assert _split(pwa.serve("GET", f"/app/{folder}/README.md"))[0].startswith("HTTP/1.1 404")
     css = _split(pwa.serve("GET", "/app/components.css"))[1].decode()                          # every mask of components.css resolves beside it
     masks = set(re.findall(r"url\(((?:elements|signs)/[a-z]+\.svg)\)", css))
-    assert len(masks) == 34 and masks <= set(pwa.files())                                # five elements, twenty-nine signs (orkUI 0.4.0)
+    assert len(masks) == 41 and masks <= set(pwa.files())                                # five elements, thirty-six signs (orkUI 0.4.1)
     head, body = _split(pwa.serve("HEAD", "/app/app.css"))
     assert head.startswith("HTTP/1.1 200") and body == b""
 
@@ -380,7 +381,7 @@ def test_the_workers_install_fills_its_cache_past_the_http_cache():
 
 def test_service_worker_names_cache_version_and_cache_first_prefixes():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert "orkcraft-app-v66" in sw
+    assert "orkcraft-app-v67" in sw
     prefixes = sw[sw.index("CACHE_PREFIXES = ["):sw.index("];", sw.index("CACHE_PREFIXES = ["))]
     assert set(re.findall(r'"([^"]+)"', prefixes)) == set(pwa.CACHE_PREFIXES) == {"fonts/"}
 

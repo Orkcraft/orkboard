@@ -10,8 +10,8 @@ import pytest
 from orkboard.realm import goal_team, goal_types, ideas, library, roles
 
 ROOT = Path(__file__).resolve().parent.parent
-NEW_SIGNS = {"mechanic", "level", "balance", "character", "release", "store", "tune"}   # spec 59 §1.1, orkUI 0.4.1: not in the copy until A0's
-A0_SIGNS = {"feature", "bug", "tidy", "restructure", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page", "abtest", "landing", "post", "tagline"}   # spec 56 §6, orkUI 0.4.0: the sixteen
+A0_SIGNS = {"feature", "bug", "tidy", "restructure", "screen", "picture", "logo", "target", "flask", "horn", "chart", "page", "abtest", "landing", "post", "tagline",
+            "mechanic", "level", "balance", "character", "release", "store", "tune"}   # spec 56 §6 and spec 59 §1.1, orkUI 0.4.1: the twenty-three
 
 
 @pytest.fixture
@@ -98,17 +98,16 @@ def test_a_type_is_read_by_its_id_and_an_old_key_by_the_one_it_was_and_anything_
 
 def test_every_sign_is_one_of_orkuis_and_a_type_shares_its_sign_only_with_the_same_thing():
     have = {p.stem for p in (ROOT / "design-system" / "orkui" / "signs").glob("*.svg")}
-    assert A0_SIGNS <= have and len(A0_SIGNS) == 16                                       # the sixteen come with orkUI 0.4.0 (spec 56)
-    assert len(NEW_SIGNS) == 7 and not NEW_SIGNS & A0_SIGNS
-    assert set(goal_types.SIGNS) == A0_SIGNS | NEW_SIGNS | {"text"}                       # `text` stays spec 51's media tile
-    assert set(goal_types.SIGNS) - NEW_SIGNS <= have                                      # the seven are A0's: taken by name until its copy is in
+    assert A0_SIGNS <= have and len(A0_SIGNS) == 23                                       # the twenty-three come with orkUI 0.4.1 (specs 56, 59)
+    assert set(goal_types.SIGNS) == A0_SIGNS | {"text"}                                   # `text` stays spec 51's media tile
+    assert set(goal_types.SIGNS) <= have
     for t in _all():
         assert t.sign in goal_types.SIGNS and t.sign != "text", t
     by_sign: dict[str, list[str]] = {}
     for t in _all():
         by_sign.setdefault(t.sign, []).append(t.id)
     assert {s: ids for s, ids in by_sign.items() if len(ids) > 1} == {"feature": ["feature", "shaped-feature", "flow-feature"]}
-    assert set(by_sign) == A0_SIGNS | NEW_SIGNS                                           # every sign drawn by a type (spec 56 §1.6)
+    assert set(by_sign) == A0_SIGNS                                           # every sign drawn by a type (spec 56 §1.6)
 
 
 def test_every_need_is_a_known_kind_and_the_ones_with_a_taker_have_one():
