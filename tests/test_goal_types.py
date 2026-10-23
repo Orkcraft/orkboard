@@ -280,6 +280,45 @@ def test_out_leaves_the_members_with_open_work_out_and_puts_the_fewest_runs_firs
     assert "ui-kit" not in [o["slug"] for o in goal_types.missing(state, root, failed, ("art",))[0]["out"]]
 
 
+# -- a party not saved ----------------------------------------------------------------------------------------------
+
+def test_a_party_not_saved_is_read_from_its_leader_and_team_with_no_open_work_and_no_runs(board, monkeypatch):
+    root, state = board
+    monkeypatch.setattr(goal_types.idea_spend, "by_role", lambda state_dir, days=7: {"grunt": {"finished": 3}, "tester": {"finished": 1}})
+    team = ["grunt", "tester", "ui-kit"]
+    saved = _party(root, state, team, leader="product-designer")
+    _goal(root, state, saved, [{"id": "k1", "title": "t", "kind": "uikit", "role": "ui-kit", "state": "running"}])
+    p = goal_types.Party.of(state, root, "product-designer", team)
+    assert (p.slug, p.leader, p.team, p.craft, p.members) == ("", "product-designer", team, "design", [*team, "product-designer"])
+    assert p.team is not team and p.busy() == set() and p.runs("grunt") == 0 and p.runs("tester") == 0
+    (art,) = goal_types.missing(state, root, "", ("art",), read=p)
+    assert art["free"] is False and [(o["slug"], o["runs"]) for o in art["out"]] == [("ui-kit", 0), ("tester", 0), ("grunt", 0)]   # none holds, none ran: the later first
+    (own,) = goal_types.missing(state, root, saved, ("art",))
+    assert [(o["slug"], o["runs"]) for o in own["out"]] == [("tester", 1), ("grunt", 3)]               # the saved party's: ui-kit holds, the week's runs
+    alone = goal_types.Party.of(state, root, "", [])
+    assert (alone.leader, alone.team, alone.craft) == (roles.TASKMASTER, [], roles.DEFAULT_CRAFT) and alone.fresh == ()
+    assert [t.id for t, _r in goal_types.offered(state, root, "", read=alone)] == ["feature", "bug", "tidy"]
+
+
+def test_a_party_not_saved_offers_what_the_same_party_saved_does_and_a_library_agent_not_yet_the_projects_is_read_as_the_library_has_it(board, tmp_path_factory):
+    root, state = board
+    base = tmp_path_factory.mktemp("fresh")
+    fresh_root, fresh_state = base / "wiki", base / ".orkcraft"
+    ask = lambda st, rt, slug, read=None: [(t.id, [m["agent"] for m in rows]) for t, rows in goal_types.offered(st, rt, slug, read=read)]
+    parties = [(c, lead, [*build, *check]) for c, (lead, build, check) in library.PARTIES.items()] + [(p[0], p[4], [*p[5], *p[6]]) for p in library.PRESETS]
+    for name, lead, team in parties:
+        saved = _party(root, state, team, leader=lead, title=name)
+        got = ask(fresh_state, fresh_root, "", goal_types.Party.of(fresh_state, fresh_root, lead, team))
+        assert got == ask(state, root, saved), name
+        assert got == ask(state, root, "", goal_types.Party.of(state, root, lead, team)), name           # the same once they are the project's
+    game = goal_types.Party.of(fresh_state, fresh_root, "game-designer", ["grunt", "level-designer"])
+    assert game.fresh == ("level-designer", "game-designer")                                           # the Grunt is the project's already
+    assert roles.role(fresh_state, "level-designer") is None and ideas.tracks(fresh_root, make=False) == []        # nothing is installed, nothing saved
+    scribe = roles.save(state, "Coder", "", 1, "Write code.", None, ["code"])
+    own = goal_types.Party.of(state, root, "product-manager", [scribe])
+    assert own.fresh == () and "bug" in [t.id for t, _r in goal_types.offered(state, root, "", read=own)]    # an agent of the person's own, as the saved party
+
+
 # -- a plan's missing ------------------------------------------------------------------------------------------
 
 def test_a_plans_missing_is_the_kinds_no_one_of_the_party_does_once_each_in_its_order(board):

@@ -9,7 +9,7 @@ import json
 import pytest
 
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import idea_spend, ideas, party_price, plans
+from orkboard.realm import goal_types, idea_spend, ideas, library, party_price, plans, roles
 
 
 @pytest.fixture
@@ -107,10 +107,81 @@ def test_ideas_party_price_is_the_hosts_and_a_phones_and_checks_the_party(host):
     assert BoardPhone.allowed(host, "ideas.party_price", {})
     got = host.command("ideas.party_price", {"leader": "architect", "team": ["grunt", "tester", "reviewer"], "every": ["reviewer", "not-in-the-team"]})
     json.dumps(got)
-    assert got["checks"][0]["every"] is True and got["checks"][0]["share"] == 1.0 and set(got) == {"low", "high", "learned", "ideas", "checks", "hints"}
+    assert got["checks"][0]["every"] is True and got["checks"][0]["share"] == 1.0 and set(got) == {"low", "high", "learned", "ideas", "checks", "hints", "types"}
     assert host.command("ideas.party_price", {})["checks"] == []                                      # the Taskmaster alone
     for bad, why in (({"leader": "nobody"}, "No agent"), ({"team": "grunt"}, "list of agents"),
                      ({"leader": "architect", "team": ["grunt", "tester", "ui-kit", "artist"]}, "at most 3 builders"),
                      ({"leader": "grunt"}, "does not lead")):
         with pytest.raises(CommandError, match=why):
             host.command("ideas.party_price", bad)
+
+
+# -- the goal types the party would be offered (spec 63 §1) --------------------------------------------------------------
+
+def types(host, leader="", team=()):
+    """`ideas.party_price`'s `types` as `[(name, missing)]`."""
+    got = host.command("ideas.party_price", {"leader": leader, "team": list(team)})["types"]
+    return [(t["name"], t["missing"]) for t in got]
+
+
+def preset(i):
+    p = next(p for p in library.PRESETS if p[0] == i)
+    return p[4], [*p[5], *p[6]]
+
+
+def test_the_game_party_is_offered_spec_59s_game_list_each_with_its_sign_and_nothing_missing(host):
+    leader, team = preset("game")
+    got = host.command("ideas.party_price", {"leader": leader, "team": team})["types"]
+    json.dumps(got)
+    assert [t["name"] for t in got] == ["New feature", "Fix a bug", "Clean up", "New icon", "New logo", "New mechanic", "New level", "New character", "Balance pass", "New sound"]
+    assert all(set(t) == {"id", "name", "sign", "missing"} and t["missing"] == "" for t in got)
+    assert got[5] == {"id": "mechanic", "name": "New mechanic", "sign": "mechanic", "missing": ""}
+    assert got[-1] == {"id": "sound", "name": "New sound", "sign": "tune", "missing": ""}                  # a sign is the type's, not its id
+    assert [t["id"] for t in got] == [t.id for t in goal_types.CATALOG if t.id in {g["id"] for g in got}]    # in the catalog's order
+
+
+def test_the_taskmaster_alone_is_offered_new_feature_fix_a_bug_and_clean_up(host):
+    assert types(host) == types(host, "taskmaster") == types(host, "taskmaster", []) == [("New feature", ""), ("Fix a bug", ""), ("Clean up", "")]
+    assert host.command("ideas.party_price", {})["types"][0] == {"id": "feature", "name": "New feature", "sign": "feature", "missing": ""}
+
+
+def test_a_mobile_app_team_without_the_design_system_designer_is_offered_new_screen_with_the_agent_it_needs(host):
+    got = types(host, *preset("mobile-app"))
+    assert [n for n, m in got if not m] == ["New feature", "Fix a bug", "Clean up", "New icon", "New logo", "Solve a pain", "New character", "Store listing", "A release"]
+    assert [(n, m) for n, m in got if m] == [("New screen", "Design system designer"), ("Try an experiment", "Experimenter"), ("Write the launch", "Copywriter")]
+    assert [n for n, _m in got].index("New screen") == 3                                                    # where the catalog puts it, not at the end
+
+
+def test_an_agent_added_to_the_team_that_opens_a_type_adds_it_and_one_that_was_missing_stops_missing(host):
+    base = types(host, "game-designer", ["grunt"])
+    assert base == [("New feature", ""), ("Fix a bug", ""), ("Clean up", ""), ("New mechanic", ""), ("Balance pass", "")]
+    assert types(host, "game-designer", ["grunt", "level-designer"]) == [*base[:4], ("New level", ""), base[4]]       # in the catalog's order
+    lone = types(host, "product-manager", ["grunt"])
+    assert ("New screen", "Design system designer") in lone and ("Try an experiment", "Experimenter") in lone
+    kit = types(host, "product-manager", ["grunt", "ui-kit"])
+    assert ("New screen", "") in kit and ("New screen", "Design system designer") not in kit and ("Try an experiment", "Experimenter") in kit
+    lab = types(host, "product-manager", ["grunt", "ui-kit", "experimenter"])
+    assert ("Try an experiment", "") in lab and ("Try an experiment", "Experimenter") not in lab and ("Write the launch", "Copywriter") in lab
+
+
+def test_the_types_are_read_from_the_call_s_seats_and_nothing_is_saved_or_installed(host):
+    root, state = host.ideas.root(), host.ideas.state_dir
+    before = (ideas.tracks(root, make=False), roles.role(state, "level-designer"), roles.role(state, "game-designer"))
+    assert [n for n, _m in types(host, *preset("game"))][5:8] == ["New mechanic", "New level", "New character"]
+    assert (ideas.tracks(root, make=False), roles.role(state, "level-designer"), roles.role(state, "game-designer")) == before and before[1:] == (None, None)
+    library.install(state, ["level-designer", "game-designer", "grunt", "artist", "sound-designer", "playtester"])
+    assert [n for n, _m in types(host, *preset("game"))][5:8] == ["New mechanic", "New level", "New character"]       # the same once they are the project's
+
+
+def test_a_refused_party_is_refused_as_before_and_its_types_are_not_asked(host, monkeypatch):
+    def asked(*a, **k):
+        raise AssertionError("the types of a refused party were asked")
+    monkeypatch.setattr(goal_types.Party, "of", asked)
+    monkeypatch.setattr(goal_types, "offered", asked)
+    for bad, why in (({"leader": "nobody"}, "No agent"), ({"team": "grunt"}, "list of agents"),
+                     ({"leader": "architect", "team": ["grunt", "tester", "ui-kit", "artist"]}, "at most 3 builders"),
+                     ({"leader": "grunt"}, "does not lead"), ({"leader": "architect", "team": ["grunt", "product-manager"]}, "A leader leads")):
+        with pytest.raises(CommandError, match=why):
+            host.command("ideas.party_price", bad)
+
+
