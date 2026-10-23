@@ -95,7 +95,7 @@ function NewGoal({ g }) {
     else timer.current = setTimeout(() => openDialog("idea", { goal: party }), TURN_MS);
   };
   return html`<div class="arena-new">
-    <button type="button" ref=${pile} class=${cls("arena-new__pile", { "is-drawing": drawing })} aria-label="New goal: pick its type, or a blank one" title="New goal: pick its type, or a blank one"
+    <button type="button" ref=${pile} class=${cls("arena-new__pile", { "is-drawing": drawing })} aria-label="New goal: your own, or pick its type" title="New goal: your own, or pick its type"
       aria-haspopup=${(g.types || []).length ? "dialog" : undefined} onClick=${press}>
       ${[3, 2, 1].map((i) => html`<i key=${i} class="arena-new__edge" style=${`left:${i * 2}px;top:${i * 2}px`}></i>`)}
       <span class="arena-new__card"><span class="arena-new__back"><${Icon} name="plus" /></span><span class="arena-new__face"></span></span>

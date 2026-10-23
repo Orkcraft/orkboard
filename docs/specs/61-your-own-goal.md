@@ -53,3 +53,19 @@ Two parts; they share no file.
 A type suggested from the person's words; a person's own goal types (spec 59: not in it).
 
 ## 5. As built (notes, no change of the contract)
+
+### B. The desktop (23 October)
+- **Built:** `js/arena/types.js` deals the blank card first (`<TypeCard t=${null} …/>` before the types' map), so it is the first card dealt (delay 0, the
+  types after it each 35 ms later, as `dealCards` does for any spread); its name is *Your own goal*, its aria-label *Your own goal: in your words*. The pile's
+  `aria-label` and `title` (`js/arena/goals.js`) are *New goal: your own, or pick its type*; the pile's two-line caption (*New goal* · *pick its type*) is
+  unchanged, §0 names only the label and the title. `BlankGoal`'s head (`js/shell/ideadialog.js`) is *Your own goal*. No CSS change: the dashed card needs no
+  rule of position. Code keeps `is-blank`, `BlankGoal`, `data-type=""`, `typed = null`.
+- **Chosen:** the spread's focus starts, as for every deal (`Dealt`, `start = 0`), on its first card, which is now *Your own goal* (was the first type), so
+  Enter on a fresh deal opens the person's own goal; ← and → still walk the cards, the focus going round from the first to the last type (the test names
+  it). A press on *Your own goal* sends `ideas.add` with no `type`, as before (the test checks it).
+- **Tests:** `tests/test_goal_types_desktop_browser.py` has the new test of §3 B (the first card, its words and dashed back, the types after it in the map's
+  order, the focus, a press opening the form headed *Your own goal* and adding a goal with no `type`) beside the old one reordered, and the older host with no
+  `types`; the pile's label is read in it, in `tests/test_lens_desktop_browser.py` and in `tests/test_lexicon.py`; `tests/test_arena_decks_desktop_browser.py`
+  reads the new head. Spec 52 §4.1 and §4.2 still say *A blank goal* and *last*; this spec replaces them for the desktop.
+- **Beside it:** `tests/test_lens_desktop_browser.py`'s `TypedHost` called `goal_types.of("architect")`, which spec 59 removed (the test failed on `main`); it
+  now deals the catalog's `shaped-feature` and `restructure` (what `WAS` reads `architect/feature` and `architect/restructure` as).

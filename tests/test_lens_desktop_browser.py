@@ -86,7 +86,7 @@ def test_with_no_lens_in_the_party_the_dialog_is_the_text_alone(gui):
 
 
 class TypedHost(StubHost):
-    """The ship-sync party deals the architect's goal types (docs/specs/52-goal-types.md §2.4): New feature opens the Code lens first."""
+    """The ship-sync party deals two goal types of the architect's craft (docs/specs/52-goal-types.md §2.4, spec 59's one catalog): New feature (shaped) opens the Code lens first."""
 
     def map_doc(self):
         from orkboard.realm import goal_types
@@ -94,12 +94,12 @@ class TypedHost(StubHost):
         for g in doc["goals"]:
             if g["slug"] == "ship-sync":
                 g["types"] = [{"id": t.id, "name": t.name, "sign": t.sign, "line": t.line, "lens": t.lens, "refs": t.refs, "used": 0, "missing": [],
-                               "asks": [{"id": a.id, "label": a.label, "hint": a.hint} for a in t.asks]} for t in goal_types.of("architect")]
+                               "asks": [{"id": a.id, "label": a.label, "hint": a.hint} for a in t.asks]} for t in goal_types.CATALOG if t.id in ("shaped-feature", "restructure")]
         return doc
 
 
 def _typed_form(pg, name):
-    pg.get_by_role("button", name="New goal: pick its type, or a blank one").click()
+    pg.get_by_role("button", name="New goal: your own, or pick its type").click()
     pg.locator(".arena-type", has_text=name).click()
     dlg = pg.get_by_role("dialog", name="New goal", exact=True)
     dlg.wait_for(timeout=WAIT_MS)
@@ -118,7 +118,7 @@ def test_a_goal_type_s_lens_is_open_first_when_the_party_offers_it_else_the_lead
         assert bar.get_by_role("radio", name="Code").get_attribute("aria-checked") == "true"             # the type's, not the leader's (Pain)
         dlg.get_by_label("Its title").fill("Sync in the background")
         dlg.get_by_role("button", name="Add the goal").click()
-        assert _calls(pg, host, "ideas.add")[-1]["type"] == "feature"
+        assert _calls(pg, host, "ideas.add")[-1]["type"] == "shaped-feature"
         host.lens = {**PARTY, "lenses": [x for x in PARTY["lenses"] if x["id"] != "code"]}               # a party with no Code lens: the leader's first
         host.bump({})
         dlg = _typed_form(pg, "Restructure")

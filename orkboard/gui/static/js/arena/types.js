@@ -1,7 +1,8 @@
 // New goal by its type on the desktop (docs/specs/52-goal-types.md §4.1, §4.3, decisions §65.4–§65.6): the party's goal types dealt from the New goal pile
-// (`types` of ideas.map, the most used first) as a spread over *New goal for <party>* — a card each: its sign, its name, its line and, when the party misses
-// someone for it, *needs: <name>* with that agent's small head (muted ink: it is not a stop) —, then the blank card. A press turns the card over (the pile's
-// turn, ≈ 0.42 s, in steps; at once under reduced motion) and New goal opens with it (shell/ideadialog.js). The join line's words, and a plan's missing line's
+// (`types` of ideas.map, the most used first) as a spread over *New goal for <party>*: *Your own goal* first (docs/specs/61-your-own-goal.md §1, the blank card:
+// the pile's back with its +, the first card dealt), then a card each type: its sign, its name, its line and, when the party misses someone for it, *needs: <name>*
+// with that agent's small head (muted ink: it is not a stop). A press turns the card over (the pile's turn, ≈ 0.42 s, in steps; at once under reduced motion)
+// and New goal opens with it (shell/ideadialog.js). The join line's words, and a plan's missing line's
 // (stops.js, board/idea.js), are said here. A type is told by its sign, never a colour.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -87,20 +88,20 @@ export function joinValue(missing, state) {
   return m.free ? { add: m.agent } : { add: m.agent, out: state[i].out || m.out[0].slug };
 }
 
-/** A type's card: its sign, its name, its line and what it needs; the blank card (`t` null): the pile's back with its +. */
+/** A type's card: its sign, its name, its line and what it needs; *Your own goal* (`t` null, the blank card): the pile's back with its +. */
 function TypeCard({ t, turning, press }) {
   const needs = t?.missing || [];
   return html`<button type="button" class=${cls("arena-spread__card arena-type", { "is-blank": !t, "is-turning": turning })} data-type=${t?.id || ""}
-      aria-label=${t ? `${t.name}: ${t.line}${needs.length ? `, ${needsWords(needs)}` : ""}` : "A blank goal"} onClick=${press}>
+      aria-label=${t ? `${t.name}: ${t.line}${needs.length ? `, ${needsWords(needs)}` : ""}` : "Your own goal: in your words"} onClick=${press}>
     <span class="arena-type__front">${t ? html`<${Sign} name=${t.sign} big=${true} /><span class="arena-type__name">${t.name}</span>
         <span class="arena-type__line">${t.line}</span>
         ${needs.length > 0 && html`<span class="arena-type__needs">${needs.map((m) => html`<${AgentHead} key=${m.agent} id=${m.agent} />`)}<span>${needsWords(needs)}</span></span>`}`
-      : html`<span class="arena-type__back"><${Icon} name="plus" /></span><span class="arena-type__name">A blank goal</span>`}</span>
+      : html`<span class="arena-type__back"><${Icon} name="plus" /></span><span class="arena-type__name">Your own goal</span>`}</span>
     <span class="arena-type__face"></span>
   </button>`;
 }
 
-/** The party's types dealt from the pile (§4.1). `g`: the party; `from`: the pile's place; `back`: the pile (the focus goes back to it); `done`: gone. */
+/** *Your own goal*, then the party's types, dealt from the pile (spec 52 §4.1, spec 61 §1). `g`: the party; `from`: the pile's place; `back`: the pile (the focus goes back to it); `done`: gone. */
 export function TypesSpread({ g, from, back, done }) {
   const [turning, setTurning] = useState("");
   const timer = useRef(0);
@@ -115,6 +116,6 @@ export function TypesSpread({ g, from, back, done }) {
   };
   return html`<${Dealt} name=${`New goal for ${g.short || g.title}`} cap=${html`<b>New goal for ${g.short || g.title}</b>`} from=${from} back=${back} done=${done}
     cls="arena-types" cards=${() => html`
-      ${types.map((t) => html`<${TypeCard} key=${t.id} t=${t} turning=${turning === t.id} press=${() => pick(t)} />`)}
-      <${TypeCard} t=${null} turning=${turning === "blank"} press=${() => pick(null)} />`} />`;
+      <${TypeCard} t=${null} turning=${turning === "blank"} press=${() => pick(null)} />
+      ${types.map((t) => html`<${TypeCard} key=${t.id} t=${t} turning=${turning === t.id} press=${() => pick(t)} />`)}`} />`;
 }
