@@ -158,3 +158,57 @@ Strengths and weaknesses of people, a review of performance, a person's activity
 shared with anyone: a brief is the manager's own, seen by them alone (the owner's call), never posted, sent or shown to the
 teammate. Reading a calendar to find the meeting's time (needs the Calendar's server); a team's templates in a project's
 `.claude/skills/` (spec 38 §12); other trackers (Linear, GitHub Issues) than Jira.
+
+## 10. As built (notes, no change of the contract)
+
+**A (backend).** Built in `realm/op_templates.py` (`[brief]`, `people`, `reads`, `follow`, `[[prepare.bound]]`, `bound`, `slack`, `same_value`), `realm/op_runs.py` (the run's `brief`, `standing`,
+`follows`; `kept_briefs`, `last_kept`, `cut`, `remove`, `cut_calls`, `forget_value`; `forget_old` spares follow briefs; `new_rules(…, banned)`), new `realm/op_standing.py`, new `core/op_briefs.py` (`BriefsMixin`:
+Keep, Forget, standing briefs, the bound check, `PEOPLE_RULE`, `PEOPLE_WORDS`; `core/op_runner.py` would have passed 600 lines, and re-exports them), `core/op_runner.py` (a brief's prepare, its prompt, the bound check, the
+tick), `core/op_commands.py` (`add` takes `standing`; `act` refuses a brief), `realm/jobs.py` (`call_events` and `run_call` take `result_chars`, 2 000 as before), `gui/ops.py`, `settings.py`, `realm/event_log.py`,
+`realm/lexicon.py`, the four `ops_templates/*/` (`pyproject.toml` already ships `ops_templates/**/*`; the wheel test now names all six); new `tests/test_ops_briefs.py`, 36 tests; `tests/test_op_templates.py` and
+`tests/test_gui_ops.py` follow the six built-ins and the new commands. What the spec left open:
+- **The manifest.** `[brief] label` (≤ 60) is the template's `act_label` too, so a face that shows `act_label` shows *Keep for the 1:1*. A brief's fields and draft parts with an `at` are refused (*a brief has no action*).
+  A `people` template must say `reads` (≤ 200; refused without), and its `risk = "low"` is read as `medium` (raised, not refused). `follow` names one of a brief's fields. `[[prepare.bound]]`: `tool` and an optional
+  `lookup`, each one of its `[prepare] tools`; `arg`; `field`, one of its fields; at most 6. **A Slack tool** is one whose `{key}` is `slack` or whose server is *for* Slack (`servers = { … = "Slack" }`): in a `people`
+  template each must be a bound's `tool` or a bound's `lookup`, else *a brief about people reads only the channels named*.
+- **The bound check.** A field's values are split on commas, semicolons and spaces, `#` and `@` left off, case ignored. A bound tool's argument passes when it is one of them, or an id the `lookup`'s answer pairs with
+  one of them (each object with `id` and `name` in its JSON; read by pattern when the answer was cut). A call without the argument, or a list holding one value not named, fails it. It is read before the answer,
+  also on a call that ended in an error. On a breach: every call of the operation keeps its line with `raw: ""`, `forgotten: true` and its file removed; draft, found, doubts and args emptied; `failed`,
+  `acted: false` (Try again is offered: nothing was done outside). A prepare with bounds reads tool results up to 200 000 characters (`op_briefs.LOOKUP_CHARS`), as a channel list is long.
+- **Keep** makes no call and is not refused at the cap. A kept brief: `state: "done"`, `acted: false`, `link: ""`, `done_at`; events `op_checked` then `op_kept`. By itself: `preparing` → `done`, `alone: true`,
+  `op_kept` with `device: "alone"`; **Not right** works on it as on an action. `ops.act` on a brief: *A brief does nothing outside: Keep for the 1:1*.
+- **The prompts.** A brief's prepare starts with `op_runner.BRIEF_LINE` and answers `BRIEF_SHAPE` (no `args`; an `args` it gives is not kept). Order: the skill, its rules, *About people* (`PEOPLE_RULE`), *Last time*,
+  the fields, the draft parts, the tools, today, the shape. The learn call of a `people` template has `PEOPLE_RULE` after its rules; a proposed rule matching `PEOPLE_WORDS` (a word's start, case ignored:
+  *weak*, *strength*, *rating*, *score*, *rank*, *performance*, *productive*, *lazy*, *mood*, *attitude*, …) is dropped.
+- **Follow.** *Last time* is `Kept <date>.` and each draft part as `label:` + text, ≤ 3 000; *(none kept yet)* when there is none or the last is older than `ops.follow_days`. The run keeps `follows`: the id it
+  started from. When a follow brief is kept (by the person or by itself), the older kept ones of the same value are cut at once to spec 38's kept row (one per value); `forget_old` spares the last kept one of
+  each value until `follow_days`, every other brief following `keep_days`.
+- **Forget** is offered for a template with `follow` (the row's `forget`): `daily-brief` follows no field, so it has none, and its texts go after `keep_days`. It removes the operations' files (kept or not) and
+  their calls' files, the standing briefs of that value, the value remembered for the form, and a waiting learn call or rules proposal that came from one of them. Refused while one of them is queued or
+  running (*A brief of theirs is being prepared: stop it, then Forget*). A brief already cut (replaced) holds no value and is not counted. Event `op_forgot` (template, runs, standing): never the value.
+- **Standing briefs.** `days`: Monday 0 … Sunday 6; `at`: `HH:MM`, local; `before`: 0–240 minutes, 30 when not given; at most 12. Set or changed after today's meeting, `last` is today (no skip said).
+  `runner.standing()` runs on each tick (20 s), before the window's check, with `runner.clock` (local now). Added with `device: "standing"` and the run's `standing` = its id; not refused at the cap
+  (held instead); held while `idea_target.reserve_held` holds (the machine's `ideas` reserves), with `why` *waits for limits: prepared when the window allows*. A meeting passed: `skipped` = *skipped: the
+  machine was off*, once; a template that cannot be used then: *skipped: <why>*. `skipped` is "" again at the next add. Events `op_standing` (standing, template, what: set · changed · stopped · added ·
+  skipped, device).
+- **The MCP tools** are named as their servers document them, and must be checked against `claude mcp list` and one prepare's `init` on the owner's machine (spec 38 §5); the manifests are the one place
+  they are written. Jira: the Atlassian Rovo server (`getAccessibleAtlassianResources`, `getVisibleJiraProjects`, `searchJiraIssuesUsingJql`, `getJiraIssue`, `lookupJiraAccountId`). GitHub: GitHub's
+  server, github/github-mcp-server (`list_pull_requests`, `search_pull_requests`, `pull_request_read`, `search_users`). Slack: the reference server, @modelcontextprotocol/server-slack
+  (`slack_list_channels` as the lookup, `slack_get_channel_history` and `slack_get_thread_replies` bound by `channel_id`). With Slack's own newer server, the Slack names and the bound's `arg` change.
+
+The shapes B and C read (spec 38 §11's table, continued):
+
+| command | args | returns |
+|---|---|---|
+| `ops.keep` | `{"id", "fields"?, "draft"}` | `{"ok": true}`; a changed field: *<label> changed: Prepare again first* |
+| `ops.forget` | `{"template", "value"}` | `{"removed": n}`; *<title> follows no one: nothing is kept by name* · *Say whose: <label>* |
+| `ops.standing_add` | `{"template", "fields", "days": [0–6], "at": "HH:MM", "before"?: 0–240}` | `{"id"}` (`st-…`); *Pick the days of the week it is prepared on* · *The meeting's time is HH:MM* · *Minutes before is 0 to 240* · *At most 12 standing briefs: stop one first* · the form's own refusals |
+| `ops.standing_change` | `{"id", "fields"?, "days"?, "at"?, "before"?}` | `{"ok": true}` |
+| `ops.standing_stop` | `{"id"}` | `{"ok": true}` |
+| `ops.set` | gains `"follow_days"` (14–365) | the `ops` settings; *Keep the last 1:1 brief for 14 to 365 days* |
+
+- `ops.list`'s templates gain `brief`, `people`, `reads` ("" when none), `follow` (a field's name or ""), `does` (a brief only: *prepares a page, does nothing outside*), `forget` (only with `follow`:
+  `{"field", "label"}`); `act_label` is the Keep label. Its runs gain `brief`, `standing` (the standing brief's id, or "") and `follows` (the id of the kept brief it started from, or ""); a held standing
+  brief's `why` is the words above. It gains `standing`: `[{"id", "template", "fields", "days", "at", "before", "last", "skipped", "title", "words"}]`, `words` the row (*Before the daily: weekdays 09:30*;
+  *every day*, *weekends*, else *Mon, Wed*). `settings` gains `follow_days`.
+- A brief at its check is an `op` row of Needs you, as an operation's; the phone may send the five new commands (`ops.*`).

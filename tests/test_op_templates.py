@@ -64,7 +64,7 @@ def test_the_built_in_two_and_the_persons_are_found_the_persons_winning(tmp_path
     skill(home / "skills" / "mine")
     skill(home / "skills" / "plain-skill", manifest=None)      # a skill without orkboard.toml is no template
     found = op_templates.find(home)
-    assert set(found) == {"jira-task", "email-reply", "mine"}
+    assert set(found) == {"jira-task", "email-reply", "daily-brief", "retro-brief", "refinement-brief", "one-on-one", "mine"}
     assert found["jira-task"].title == "Ship a thing" and not found["jira-task"].builtin
     assert found["email-reply"].builtin and found["mine"].problem == ""
 
@@ -174,6 +174,6 @@ def test_a_built_wheel_ships_the_templates(tmp_path):
     assert out.returncode == 0, out.stderr[-2000:]
     wheel = next(tmp_path.glob("orkboard-*.whl"))
     names = zipfile.ZipFile(wheel).namelist()
-    for name in ("jira-task", "email-reply"):
+    for name in ("jira-task", "email-reply", "daily-brief", "retro-brief", "refinement-brief", "one-on-one"):
         assert f"orkboard/ops_templates/{name}/orkboard.toml" in names
         assert f"orkboard/ops_templates/{name}/SKILL.md" in names

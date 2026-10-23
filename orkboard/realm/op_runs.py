@@ -12,6 +12,8 @@
     op_runs.ledger(root)                  # ops/ledger.jsonl: its calls' telemetry lines, never a project's
     op_runs.save_learn(root, name, given) # templates/<name>/learn.json: a learn call waiting for the window (§7)
     op_runs.forget_old(root, keep_days)   # a finished operation's texts and calls go after `keep_days`
+    op_runs.last_kept(root, "one-on-one", "who", "Ana")   # the last kept brief of that value (spec 66 §4)
+    op_runs.cut(root, ids) · op_runs.remove(root, ids)    # texts and calls gone · the operations themselves gone
 
 Every file under `ops/` is mode 600 and its folders 700: a mail's words and an issue's live here only. No face.
 """
@@ -27,10 +29,12 @@ from typing import Any
 
 from orkboard import settings
 from orkboard.realm import call_log, event_log, ideas
+from orkboard.realm.op_templates import same_value
 
 RUN_KEYS = ("id", "template", "version", "state", "fields", "found", "draft", "args", "doubts", "edited", "alone",
             "device", "link", "done_id", "why", "acted", "at", "done_at", "cost", "held_until", "held", "step",
-            "again", "keep", "changes")       # Prepare again's: it was asked for, the parts kept, before → after
+            "again", "keep", "changes",       # Prepare again's: it was asked for, the parts kept, before → after
+            "brief", "standing", "follows")   # spec 66: a brief; the standing brief that added it; the brief it followed
 KEPT_KEYS = ("id", "template", "state", "link", "alone", "cost", "at", "done_at")      # after keep_days (§9)
 STATES = ("preparing", "check", "acting", "done", "held", "failed", "dropped")
 FINISHED = ("done", "failed", "dropped")
@@ -128,11 +132,12 @@ def run_path(base: Path, op_id: str) -> Path:
     return base / "runs" / f"{_safe(op_id)}.json"
 
 
-def blank(op_id: str, template: str, version: str, fields: dict, device: str = "desktop") -> dict:
+def blank(op_id: str, template: str, version: str, fields: dict, device: str = "desktop", brief: bool = False,
+          standing: str = "") -> dict:
     return {"id": op_id, "template": template, "version": version, "state": "preparing", "fields": dict(fields),
             "found": [], "draft": {}, "args": {}, "doubts": [], "edited": [], "alone": False, "device": device,
             "link": "", "done_id": "", "why": "", "acted": False, "at": now_iso(), "done_at": "", "cost": None,
-            "held_until": "", "held": "", "step": ""}
+            "held_until": "", "held": "", "step": "", "brief": brief, "standing": standing, "follows": ""}
 
 
 def save(base: Path, run: dict) -> None:
@@ -310,9 +315,9 @@ def _norm(line: str) -> str:
     return " ".join(line.casefold().split()).rstrip(".")
 
 
-def new_rules(proposed: object, have: str, turned_down: list[dict]) -> list[str]:
+def new_rules(proposed: object, have: str, turned_down: list[dict], banned: Any = None) -> list[str]:
     """The learn call's lines as kept: at most MAX_RULES, each at most RULE_CHARS, none that repeats one in the rules
-    or one declined, none twice."""
+    or one declined, none twice, none `banned` (a template about people: a rule that judges a person, spec 66 §2)."""
     seen = {_norm(x) for x in rule_lines(have)}
     seen |= {_norm(x) for row in turned_down for x in row.get("lines") or [] if isinstance(x, str)}
     out: list[str] = []
@@ -320,6 +325,8 @@ def new_rules(proposed: object, have: str, turned_down: list[dict]) -> list[str]
         if not isinstance(line, str):
             continue
         line = " ".join(line.split()).lstrip("-* ").strip()[:RULE_CHARS]
+        if banned is not None and banned(line):
+            continue
         if line and _norm(line) not in seen:
             seen.add(_norm(line))
             out.append(line)
@@ -356,6 +363,14 @@ def last_values(base: Path, name: str) -> dict:
 def remember(base: Path, name: str, values: dict) -> None:
     if values:
         write(_folder(base, name) / "last.json", json.dumps({**last_values(base, name), **values}, ensure_ascii=False))
+
+
+def forget_value(base: Path, name: str, field: str, value: str) -> None:
+    """Forget (spec 66 §2): the field's remembered value, when it is that one, no longer prefilled."""
+    last = last_values(base, name)
+    if same_value(last.get(field), value):
+        last.pop(field)
+        write(_folder(base, name) / "last.json", json.dumps(last, ensure_ascii=False))
 
 
 # -- events and the ledger (§8, §11) ----------------------------------------------------------------------------
@@ -414,29 +429,84 @@ def pending_learns(base: Path) -> dict[str, dict]:
 
 # -- what stays private (§9) ------------------------------------------------------------------------------------
 
-def forget_old(base: Path, keep_days: int, now: dt.datetime | None = None) -> int:
+def kept_briefs(all_runs: list[dict], template: str, field: str) -> list[dict]:
+    """The kept briefs of a template that follows `field` (done, its texts still there), newest first."""
+    out = [r for r in all_runs if r.get("template") == template and r.get("state") == "done" and r.get("brief")
+           and isinstance(r.get("fields"), dict) and r.get("draft")]
+    return sorted(out, key=lambda r: str(r.get("done_at") or r.get("at") or ""), reverse=True)
+
+
+def last_kept(base: Path, template: str, field: str, value: object, but: str = "") -> dict | None:
+    """The last kept brief of this template with the same value of its follow field (spec 66 §4), but `but`."""
+    return next((r for r in kept_briefs(runs(base), template, field)
+                 if r["id"] != but and same_value(r["fields"].get(field), value)), None)
+
+
+def forget_old(base: Path, keep_days: int, now: dt.datetime | None = None, follow: dict[str, str] | None = None,
+               follow_days: int = 90) -> int:
     """A finished operation older than `keep_days` keeps only KEPT_KEYS; its calls' prompts and outputs are removed
-    from `ops/calls/` (their lines stay, with no text). How many were cut."""
+    from `ops/calls/` (their lines stay, with no text). The last kept brief of each value of a template that follows a
+    field (`follow`: template → field) is kept until `follow_days` (spec 66 §2). How many were cut."""
     now = now or dt.datetime.now()
     cutoff = (now - dt.timedelta(days=max(1, int(keep_days)))).isoformat(timespec="seconds")
-    cut: set[str] = set()
-    for run in runs(base):
-        if run.get("state") not in FINISHED or set(run) <= set(KEPT_KEYS):
+    longest = (now - dt.timedelta(days=max(1, int(follow_days)))).isoformat(timespec="seconds")
+    every = runs(base)
+    spared: set[str] = set()
+    for template, field in (follow or {}).items():
+        seen: list[str] = []
+        for r in kept_briefs(every, template, field):
+            value = r["fields"].get(field)
+            if str(value or "").strip() and not any(same_value(value, v) for v in seen):
+                seen.append(str(value or ""))
+                if str(r.get("done_at") or r.get("at") or "") >= longest:
+                    spared.add(r["id"])
+    old = [run["id"] for run in every if run.get("state") in FINISHED and not set(run) <= set(KEPT_KEYS)
+           and run["id"] not in spared and str(run.get("done_at") or run.get("at") or "") < cutoff]
+    return cut(base, old)
+
+
+def cut(base: Path, ids: Any) -> int:
+    """These operations keep only KEPT_KEYS, and their calls' prompts and outputs go. How many were cut."""
+    done: set[str] = set()
+    for op_id in ids:
+        run = load(base, op_id)
+        if run is not None:
+            write(run_path(base, op_id), json.dumps({k: run.get(k) for k in KEPT_KEYS}, ensure_ascii=False, indent=1))
+            done.add(op_id)
+    cut_calls(base, done)
+    return len(done)
+
+
+def remove(base: Path, ids: Any) -> int:
+    """These operations gone (Forget, spec 66 §2): their files and their calls' prompts and outputs. How many."""
+    gone: set[str] = set()
+    for op_id in ids:
+        try:
+            path = run_path(base, op_id)
+        except KeyError:
             continue
-        if str(run.get("done_at") or run.get("at") or "") >= cutoff:
-            continue
-        write(run_path(base, run["id"]), json.dumps({k: run.get(k) for k in KEPT_KEYS}, ensure_ascii=False, indent=1))
-        cut.add(run["id"])
+        if path.exists():
+            path.unlink(missing_ok=True)
+            gone.add(op_id)
+    cut_calls(base, gone)
+    return len(gone)
+
+
+def cut_calls(base: Path, ids: set[str]) -> int:
+    """The prompts and outputs of these operations' calls removed from `ops/calls/`; their lines stay, with no text
+    (a line removed would let a later call take its file's name). How many calls."""
     calls = base / "calls"
-    rows = call_log.read(calls)
-    if cut and rows:
-        for row in rows:
-            if row.get("task") in cut and row.get("raw"):
-                try:
-                    (calls / str(row["raw"])).unlink(missing_ok=True)
-                except OSError:
-                    pass
-                row["raw"], row["forgotten"] = "", True
+    rows = call_log.read(calls) if ids else []
+    n = 0
+    for row in rows:
+        if row.get("task") in ids and row.get("raw"):
+            try:
+                (calls / str(row["raw"])).unlink(missing_ok=True)
+            except OSError:
+                pass
+            row["raw"], row["forgotten"] = "", True
+            n += 1
+    if n:
         with call_log._LOCK:
             write(calls / call_log.LINES, "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
-    return len(cut)
+    return n

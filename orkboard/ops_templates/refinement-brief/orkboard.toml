@@ -1,0 +1,40 @@
+# Orkboard's manifest for this skill (docs/specs/66-team-briefs.md §1, §5). The skill (SKILL.md) stays the person's
+# and works in Claude Code as before; this file says what Orkboard asks, what it may read with, and that it only briefs.
+# The tools are named as the Atlassian Rovo MCP server documents them: this file is the one place they are written.
+title = "Before the refinement"
+risk = "low"                            # it reads the tickets, and does nothing outside
+reads = "Jira: the next sprint's or the backlog's first issues of the project you name"
+servers = { jira = "Jira" }
+
+[[fields]]
+name = "team"
+label = "Team"
+type = "text"
+remember = true
+hint = "The Jira project's key or its board"
+
+[[fields]]
+name = "which"
+label = "Which tickets"
+type = "choice"
+options = ["the next sprint", "the top of the backlog"]
+default = "the next sprint"
+
+[[fields]]
+name = "count"
+label = "How many"
+type = "choice"
+options = ["5", "10", "20"]
+default = "10"
+
+[[draft]]
+name = "brief"
+label = "Brief"
+type = "long"
+
+[prepare]
+tools = ["mcp__{jira}__getAccessibleAtlassianResources", "mcp__{jira}__getVisibleJiraProjects",
+         "mcp__{jira}__searchJiraIssuesUsingJql", "mcp__{jira}__getJiraIssue"]
+
+[brief]
+label = "Keep for the refinement"

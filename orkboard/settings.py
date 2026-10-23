@@ -92,8 +92,9 @@ FOCUSES = ("", "board")
 RECENT_FOLDERS = 8                       # the recent folders a Wiki's picker offers               # the GUI's two looks; camp the default
 # Operations (docs/specs/38-operations.md §1): the tier and effort of its calls, the clean checks in a row before a
 # template goes by itself, the most it does by itself a day, how long a finished operation keeps its texts, and each
-# template's server key → the MCP server's name on this machine.
-OPS = {"target": "balance", "trust_after": 1, "daily_alone": 20, "keep_days": 14, "servers": {}}
+# template's server key → the MCP server's name on this machine; how long the last kept brief of a person or a team is
+# kept for the next one to start from (docs/specs/66-team-briefs.md §2, §4).
+OPS = {"target": "balance", "trust_after": 1, "daily_alone": 20, "keep_days": 14, "servers": {}, "follow_days": 90}
 PROJECTS_RECENT = 10                     # the projects the switcher's Recent remembers (spec 37 §8)
 PROJECTS_OPEN = 20                       # the most projects open at once
 # The Board's settings that are the project's (spec 37 §8): read from `<repo>/.orkcraft/board.json`, the machine's
@@ -277,7 +278,7 @@ def clean_ops(raw: object) -> dict:
     out = {**OPS, "servers": {}}
     if raw.get("target") in IDEA_TARGETS:
         out["target"] = raw["target"]
-    for k, lo, hi in (("trust_after", 1, 5), ("daily_alone", 1, 100), ("keep_days", 1, 365)):
+    for k, lo, hi in (("trust_after", 1, 5), ("daily_alone", 1, 100), ("keep_days", 1, 365), ("follow_days", 14, 365)):
         v = raw.get(k)
         if isinstance(v, int) and not isinstance(v, bool) and lo <= v <= hi:
             out[k] = v

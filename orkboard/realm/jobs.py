@@ -208,9 +208,13 @@ class CallFailed(RuntimeError):
         self.events = events
 
 
-def call_events(stdout: str) -> tuple[list[dict], dict | None]:
+RESULT_CHARS = 2000                        # a tool_result's text as kept in the events
+
+
+def call_events(stdout: str, result_chars: int = RESULT_CHARS) -> tuple[list[dict], dict | None]:
     """What a call's stream-json says (spec 38 §4): the `init` event's tools, each `tool_use` (name, input) and each
-    `tool_result` (is_error, its text), in order; and its `result` event (None when it gave none)."""
+    `tool_result` (is_error, its text, at most `result_chars`), in order; and its `result` event (None when it gave
+    none). A brief's bound reads (spec 66 §2) read a lookup's whole answer, so they ask for more."""
     out: list[dict] = []
     result = None
     for event in harnesses.json_lines(stdout):
@@ -230,7 +234,7 @@ def call_events(stdout: str) -> tuple[list[dict], dict | None]:
                     if isinstance(content, list):
                         content = "\n".join(str(c.get("text") or "") for c in content if isinstance(c, dict))
                     out.append({"type": "tool_result", "id": str(part.get("tool_use_id") or ""),
-                                "is_error": part.get("is_error") is True, "text": str(content or "")[:2000]})
+                                "is_error": part.get("is_error") is True, "text": str(content or "")[:result_chars]})
         elif kind == "result":
             result = event
     return out, result
@@ -238,7 +242,7 @@ def call_events(stdout: str) -> tuple[list[dict], dict | None]:
 
 def run_call(harness: str, prompt: str, workdir: Path, cancel: threading.Event, allow: list[str], model: str = "",
              env: dict | None = None, effort: str = "", budget: float | None = None,
-             timeout_s: int = CALL_TIMEOUT_S) -> tuple[str, float | None, int | None, list[dict]]:
+             timeout_s: int = CALL_TIMEOUT_S, result_chars: int = RESULT_CHARS) -> tuple[str, float | None, int | None, list[dict]]:
     """(text, cost, tokens, events) of one call allowed only the MCP tools in `allow` (spec 38 §4): one shot, in
     `workdir`, no built-in tool, `effort` and `budget` where the tool takes them. `events`: `call_events`. Raises
     `CallFailed` (with its events) when it ended in an error, InterruptedError when it was stopped."""
@@ -252,7 +256,7 @@ def run_call(harness: str, prompt: str, workdir: Path, cancel: threading.Event, 
     code, out, err = call_log.answer("call", prompt) or tool_run.run_proc(
         cmd, workdir, run_env, tool_run.harness_stdin(harness, prompt),
         lambda proc: _wait(proc, cancel, timeout_s, run_env.get("ORKCRAFT_ORC") or harness, True), harness)
-    events, result = call_events(out)
+    events, result = call_events(out, result_chars)
     LAST.usage = None
     cost = tokens = None
     text = ""

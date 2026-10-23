@@ -118,6 +118,11 @@ OP_NOT_RIGHT = "op_not_right"     # op, has_reason
 OP_LEARNED = "op_learned"         # template, lines (how many), step, tokens, cost
 OP_RULES_ANSWERED = "op_rules_answered"   # template, take, has_reason
 OP_TRUST = "op_trust"             # template, alone, why (clean · edit · rules · not_right · version · reset)
+# Spec 66 §1–§3: briefs, the person's alone. A template about people's events carry no field's value: never who, never a
+# channel's name.
+OP_KEPT = "op_kept"               # op, alone, edited (how many parts corrected), device (desktop · phone · alone)
+OP_FORGOT = "op_forgot"           # template, runs (how many removed), standing (how many stopped): never the value
+OP_STANDING = "op_standing"       # standing (its id), template, what (set · changed · stopped · added · skipped), device
 
 # Spec 43 §4: the night's proposal to take a checker out of a goal's party, and the person's answer.
 PARTY_PROPOSED = "party_proposed"   # goal, by (the checker's slug), runs
@@ -146,7 +151,7 @@ EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LE
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET, IDEA_EDITED, PLAN_REVISED, PLAN_CHANGE_ANSWERED)
+          OP_RULES_ANSWERED, OP_TRUST, OP_KEPT, OP_FORGOT, OP_STANDING, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET, IDEA_EDITED, PLAN_REVISED, PLAN_CHANGE_ANSWERED)
 
 _LOCK = threading.Lock()
 
