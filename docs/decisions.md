@@ -1000,3 +1000,34 @@ and lights its member's number (§62.8); a goal's end, its flag raised in main (
    nothing travels and the flag is still raised.
 3. The third of §76.3's three moments; no sound, no confetti, no colour but the office's.
 The owner's call, before the testers' numbers. Spec 64.
+
+## 78. Ideation: small ideas read from four sides, and the Investor invests or passes (23 October, the owner)
+
+Why: the owner wants to drop small ideas and concepts and have them judged from the product's, marketing's, engineering's
+and design's side: where to take an idea, or why not to do it. A goal goes one way today, to code at Review and the gate;
+a small idea has nothing to merge yet, and a dropped goal loses why it was not worth doing. So:
+1. **A party of the library, Ideation**: its leader the **Investor** (a new leader, product's craft: it decides whether to
+   invest the team's time), four views (Product, Market, Engineering, Design) and a Skeptic. **Always all four views**: a
+   pitch is never decided on fewer.
+2. **A pitch's own way**: the views each alone, then the case against, then the Investor's decision — invest (in which
+   party, as what type), reshape, or pass, with why. No plan, no tasks, no Review, no gate. Code's kill reasons turn an
+   invest without someone it is for, a metric it moves, or that repeats a goal, into a reshape.
+3. **A passed pitch is kept with its why**, and every later pitch is read against the passed ones.
+4. **Nothing moves by itself**: the person sends a pitch to a party (a new goal there, the views in its draft), passes,
+   or changes it and has it judged again.
+5. The Investor wears the lich's head for now; a mummy or a ghost of its own is drawn in orkUI first.
+Spec 65.
+
+## 79. Team briefs: Operations prepare the daily, the retro, the refinement and a 1:1, never a judgement of a person (23 October, the owner)
+
+Why: the owner wants help with people management: the team's work in Jira, GitHub and Slack, ready for the daily, the
+retro, the refinement and 1:1s. It belongs to no project and repeats every week: Operations' (§51). So:
+1. **A template may be a brief**: it reads and writes a page for the person, and does nothing outside. A brief may
+   **stand**, prepared before its meeting; a brief may **follow** a person or a team, starting from the last one.
+2. **About the work and the meeting, never about a person**: no strengths and weaknesses, no score, no ranking, no
+   reading of tone, no counts of commits or messages as a measure of anyone; held by code (a fixed rule in the prompt, rules
+   with such words dropped, Slack read only in the channels named, checked against the calls), not by the skill alone. The
+   law, the team's trust and what the data can say all point the same way.
+3. **A brief is the manager's alone**: never posted, sent or shown to the teammate, a 1:1's agenda too (the owner's call).
+   What it reads is said on its form; **Forget** removes all that is kept about one person.
+Spec 66.

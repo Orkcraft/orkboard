@@ -1,6 +1,6 @@
 # Spec 66 — Team briefs: Operations prepare the daily, the retro, the refinement and a 1:1, from the team's work
 
-**Draft, 23 October** (the owner's ask; written into decisions as §79 on the owner's yes): *people management: following
+The owner, 23 October (decisions §79): *people management: following
 Slack, git and Jira, finding team members' weak and strong sides, preparing 1:1s, dailies, retros and refinements.* It is
 no project's goal: no code, no repository of its own, the same work whatever project is open, again every week. That is
 Operations' (spec 38): the person's list, a template, a check, the person's folder. Two things Operations lacks: a
@@ -51,8 +51,8 @@ label = "Keep for the 1:1"     # the check's button: what happens (≤ 60)
   the check is **Prepare again**, as today.
 - **Keep** (`ops.keep {id, draft}`) saves the draft as corrected; a correction teaches as spec 38 §6–§7 (a clean keep
   counts, a corrected one asks the learn call), so a brief learns the person's way (*put the stuck items first*).
-- A kept brief opens read-only, with **Copy** (Markdown) — the person pastes it where their team keeps its notes. Posting
-  it anywhere is not in this spec.
+- A kept brief opens read-only, with **Copy** (Markdown). It is the person's alone: Orkboard never posts, sends or shows
+  it to anyone (§9).
 - `risk` stays: a brief does nothing outside, so its least is `low`; a `people` template (§2) is at least `medium`.
 
 ## 2. Templates about people (`people = true`)
@@ -154,13 +154,7 @@ Gains `follow_days` (90; 14–365). `ops.set` takes it. The gear shows it as *Ke
   `tests/test_gui_wording.py`; C also `tests/test_pwa.py`.
 
 ## 9. Not in this spec
-Strengths and weaknesses of people, a review of performance, a person's activity in numbers — never, by §2. Posting a brief
-(to Slack, Confluence, a calendar's event); reading a calendar to find the meeting's time; a brief shared with the
-teammate before a 1:1 (a good next step: the agenda both see); a team's templates in a project's `.claude/skills/`
-(spec 38 §12); other trackers (Linear, GitHub Issues) than Jira.
-
-## 10. Open for the owner
-1. **Before a 1:1 shared with the teammate** — the agenda they can see and add to before the meeting. It makes the brief
-   honest by design; drafted as the next spec, not this one.
-2. Slack for the daily and the retro: channels only, as drafted, or none in v1 (Jira and GitHub alone)?
-3. Standing briefs from a calendar instead of days and a time: needs the Calendar's server; left out to keep v1 small.
+Strengths and weaknesses of people, a review of performance, a person's activity in numbers — never, by §2. A brief
+shared with anyone: a brief is the manager's own, seen by them alone (the owner's call), never posted, sent or shown to the
+teammate. Reading a calendar to find the meeting's time (needs the Calendar's server); a team's templates in a project's
+`.claude/skills/` (spec 38 §12); other trackers (Linear, GitHub Issues) than Jira.
