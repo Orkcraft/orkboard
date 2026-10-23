@@ -7,6 +7,7 @@ of it (the agent of the library who does is offered: a free seat joins, a full b
     CATALOG                                         # every type, in order
     get("logo")                                     # a type by the id a goal keeps; an old key ("product-designer/logo") too
     offered(state_dir, root, "ship")                # [(type, missing)]: what the party can take on, and who each misses
+    offered(state_dir, root, "", read=Party.of(state_dir, root, leader, team))      # the same for a leader and a team not saved
     taker("art", "design")                          # "artist": the agent of the library who does that kind of work
     met(state_dir, "art", ["artist", "product-designer"])      # someone of the party does it (not the Grunt filling in)
     missing(state_dir, root, "ship", ("art",))      # what the party misses for those kinds: who would join, who could leave
@@ -178,15 +179,28 @@ def met(state_dir: Path, kind: str, party: list[str]) -> bool:
 
 class Party:
     """What the types read of a party, once: its leader, its team and the leader's craft; who of it has work open and the
-    week's runs, read when first asked."""
+    week's runs, read when first asked. `Party.of` reads a leader and a team not saved."""
 
     def __init__(self, state_dir: Path, root: Path, slug: str) -> None:
         self.state_dir, self.root, self.slug = Path(state_dir), Path(root), slug
         self.leader = goal_team.leader_of(self.root, slug)
         self.team = goal_team.team_of(self.root, slug)
         self.craft = craft_of(self.leader)
+        self.fresh: tuple[str, ...] = ()
         self._busy: set[str] | None = None
         self._week: dict | None = None
+
+    @classmethod
+    def of(cls, state_dir: Path, root: Path, leader: str, team: list[str]) -> Party:
+        """A party not saved (the form's seats before the party is kept): the leader (the Taskmaster for "") and the team as given,
+        with no slug, no goals and so no open work and no runs. A library agent the project does not have yet (saving the party
+        makes it a role of the project) is read as the library has it: `fresh`."""
+        p = cls(state_dir, root, "")             # no party has the empty slug: the reads of a saved party come back empty
+        p.leader, p.team = leader or roles.TASKMASTER, list(team)
+        p.craft = craft_of(p.leader)
+        p.fresh = tuple(s for s in p.members if library.get(s) is not None and roles.role(p.state_dir, s) is None)
+        p._busy, p._week = set(), {}
+        return p
 
     @property
     def members(self) -> list[str]:
@@ -194,6 +208,10 @@ class Party:
 
     def band(self, band: str) -> list[str]:
         return [s for s in self.team if goal_team.band_of(s) == band]
+
+    def meets(self, kind: str) -> bool:
+        """Whether someone of the party does `kind` (`met`); a member of the library not yet the project's, as the library takes it."""
+        return met(self.state_dir, kind, self.members) or any(kind in library.get(s).takes for s in self.fresh)
 
     def busy(self) -> set[str]:
         """The members with an open task: one of the party's goals' tasks that is not merged, dropped or done."""
@@ -233,7 +251,7 @@ def missing(state_dir: Path, root: Path, party_slug: str, kinds, *, read: Party 
     p = read or Party(state_dir, root, party_slug)
     out = []
     for kind in dict.fromkeys(kinds):
-        if kind not in roles.TASK_KINDS or met(state_dir, kind, p.members) or not (agent := taker(kind, p.craft)):
+        if kind not in roles.TASK_KINDS or p.meets(kind) or not (agent := taker(kind, p.craft)):
             continue
         row = _row(p, kind, agent)
         band = p.band(row["band"])
@@ -263,7 +281,7 @@ def offered(state_dir: Path, root: Path, party_slug: str, *, read: Party | None 
     for t in CATALOG:
         if any(k in CODE and not any(k in got for got in taken.values()) for k in t.needs):
             continue
-        unmet = [k for k in t.needs if k not in CODE and not met(state_dir, k, p.members)]
+        unmet = [k for k in t.needs if k not in CODE and not p.meets(k)]
         if not unmet:
             found.append((t, []))
         elif len(unmet) == 1 and lead & (set(t.needs) - set(unmet)):
@@ -277,7 +295,7 @@ def offered(state_dir: Path, root: Path, party_slug: str, *, read: Party | None 
 def lacking(state_dir: Path, p: Party, t: GoalType) -> str:
     """The first kind of a type's needs no one of the party does (code and tests: no member takes it itself), else its first."""
     taken = {m: _takes(state_dir, m) for m in p.members}
-    return next((k for k in t.needs if not any(k in got for got in taken.values()) and (k in CODE or not met(state_dir, k, p.members))),
+    return next((k for k in t.needs if not any(k in got for got in taken.values()) and (k in CODE or not p.meets(k))),
                 t.needs[0])
 
 
@@ -309,7 +327,7 @@ def still_missing(state_dir: Path, root: Path, party_slug: str, missed: object, 
         kind, agent = (m.get("kind"), m.get("agent")) if isinstance(m, dict) else ("", "")
         if kind in roles.TASK_KINDS and kind not in seen and library.get(str(agent)) is not None:
             seen.add(kind)
-            if not met(state_dir, kind, p.members):
+            if not p.meets(kind):
                 out.append(_row(p, kind, str(agent)))
     return out
 

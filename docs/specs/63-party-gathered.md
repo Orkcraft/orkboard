@@ -93,3 +93,26 @@ A type is said by its name and drawn with its sign, as New goal's spread draws i
 Picking a goal type from New party; a gather on Edit the party; a sound; the library's tiles moving.
 
 ## 7. As built (notes, no change of the contract)
+
+**A (the host), 23 October.** §1 built as written. What the builder chose or found:
+- `goal_types.Party.of(state_dir, root, leader, team)` is the party not saved: slug `""`, the leader (the Taskmaster for `""`) and
+  the team as given (copied), the leader's craft, and `_busy` and `_week` set empty so `busy()` is empty and `runs()` is 0 without
+  a read (`ideas.ideas(root, "")` is never asked). `offered(state_dir, root, "", read=Party.of(...))` answers from it; so does
+  `missing(..., read=...)`, whose `out` then lists every member of the band, none holding, none with runs.
+- **What the spec did not say, and the answer needed: a library agent the project does not have yet.** `met` reads the project's
+  role files, and a library agent becomes a role only when the party is saved (`ideas_goals.py` installs it). Read as `met` has it,
+  the Game preset in a project that has none of its agents answered *New feature, Fix a bug, Clean up* only. So `Party` gains
+  **`fresh`** (the members that are the library's and not yet the project's, set by `Party.of`; `()` for a saved party) and
+  **`meets(kind)`** (`met`, or a `fresh` member's library `takes`), as `party_price._who` reads a library agent not installed yet.
+  `missing`, `offered`, `lacking` and `still_missing` ask `p.meets(kind)`; for a saved party `fresh` is empty, so they answer as
+  before. Nothing is installed or saved by the call (`tests/test_party_price.py` checks it).
+- `ideas.party_price` builds the `Party` and asks `offered` after the refusals, so a refused party never reaches `types`.
+  `types` is `[{id, name, sign, missing}]` in `offered`'s order (the catalog's: *New screen* of a Mobile app sits after *Clean up*,
+  not last); `missing` is the `name` of the first (the only) row of the type's `missing`, `""` with none. A type whose name two
+  catalog entries share (*New feature*) is told by its `id`.
+- A leader of the person's own is refused as today (`library.get` does not know it); a member of the team of the person's own is
+  read through its role file (its `takes`), as a saved party's.
+- Tests: `tests/test_party_price.py` (§1.4: the Game preset, the Taskmaster alone, a Mobile app, an agent added; also nothing saved
+  or installed, and a refused party never asks `Party.of` or `offered`; the answer's keys now include `types`) and
+  `tests/test_goal_types.py` (`Party.of`; a party not saved offers what the same party saved does, in a project that has its agents
+  and in one that has none).
