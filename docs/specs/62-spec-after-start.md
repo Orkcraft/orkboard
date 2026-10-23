@@ -171,3 +171,67 @@ talk words or the hand's kinds. A part that needs any other file: stop and write
   `tests/test_design_system.py`, `tests/test_architecture.py`; C also `tests/test_pwa.py`.
 
 ## 10. As built (notes, no change of the contract)
+
+### Part A (the host), 23 October
+
+**Where.** New `realm/idea_change.py` (`PLAN_SECTIONS`; `changed` kept by `update` and `set_section`, which wrap `ideas.update` and `ideas.set_section`
+under `ideas.LOCK` and keep a plan-making section whose text differs; `plan_change.json`: `read`, `write`, `drop`; `live`, `stale`, `settle`; `summary`,
+`text_of`; `safe_after`, `in_order`), `core/idea_revise.py` (the keeper's mixin: `revise`, `revise_prompt`, `clean_change`, `change_price`, `revise_one`),
+`gui/ideas_revise.py` (`ideas.revise`, `ideas.revise_answer`, the page's three keys, `edited`, `settle_change`). `core/idea_review.py` gains
+`revise_tasks` (and `_highest_id`) beside `skip_task`; `core/idea_keeper.py` mixes the keeper's side in, `talk_one` writes through `idea_change.update`, `plan_one`
+clears `changed` and drops a waiting change once its plan is saved; `gui/ideas.py` has the mixin, the two commands, the page's keys, `edit` through
+`edited`, and calls `settle_change` on every change of a goal; `realm/board_map.py` makes the stop; `realm/ideas.py` `STATE_DEFAULT` has `changed`;
+`realm/event_log.py` the three events; `realm/lexicon.py` `plan_change`. `core/idea_runner.py` is untouched. Tests: `tests/test_idea_revise.py` and the A rows
+of `test_gui_ideas.py`, `test_board_map.py`, `test_event_log.py`, `test_lexicon.py`.
+
+**The shapes** (for B and C).
+- The page: `changed` (`["Gist", "Out"]`, `[]` when none), `passed` (bool), `change` (`null`, or the summary):
+  `{"made_at": "2026-10-23T11:00:00", "why": "The export is csv only.", "added": 1, "changed": 1, "dropped": 1, "usd_low": -0.13, "usd_high": -0.38,
+  "rows": [{"op": "add", "id": "", "title": "Stream rows"}, {"op": "change", "id": "k2", "title": "Write csv"}, {"op": "drop", "id": "k3", "title": "Task k3"}]}`.
+  The rows run added, changed, dropped. A *changed* row's title is the new one, a *dropped* row's the plan's. `usd_low`/`usd_high` are what it adds, negative
+  when it saves (then `usd_low` is the smaller saving: −0.13 against −0.38).
+- The stop, in `ideas.board`'s `needs_you` (and so the snapshot and the phone's): `{"idea": "cache-the-table", "goal": "speed", "title": "Cache the table",
+  "priority": "normal", "blocks": false, "at": "2026-10-23T11:00:00", "kind": "change", "text": "The plan changes · +1 · 1 changed · −1", "why": "The export
+  is csv only.", "added": 1, "changed": 1, "dropped": 1, "usd_low": -0.13, "usd_high": -0.38}`; the text is *The plan stays as it is* for a change of nothing.
+- `ideas.revise {slug}` answers `{ok: true}`. `ideas.revise_answer {slug, take, via?}` answers `{ok: true, added: 1, changed: 0, dropped: 1, left: ["Task k2"]}`
+  (counts of what was applied; `left` the titles of the tasks it named that had started meanwhile). Kept (`take: false`) it answers the same keys, all zero and
+  `left: []`. A refusal is a `CommandError` with the sentence of §2.1 or §3.1; also *take is true or false*, and *The keeper is busy with this goal: a moment*
+  for an answer while the leader works on a newer change.
+- The change file: `{made_at, why, changed, change: [{id, title, short, brief, kind, tier, after, role}], drop: [id], add: [{key, title, short, brief, kind,
+  tier, after, role}], estimate: {usd_low, usd_high}}`.
+
+**What the spec left open, and what was chosen.**
+1. *The phone's allowlist.* Orkboard has no `gui/mobile.py` (it is Orkline's). The phone's commands are `BoardPhone.allowed` in `gui/board_host.py`, which lets
+   through every `ideas.*` command the host has: nothing to change, and `tests/test_gui_ideas.py` `BOARD_COMMANDS` now names the two.
+2. *Not started* is waiting, ready or held **and never run** (`started` empty). A task stopped on its own (waits as `ready`, *stopped by you*) or a failed one that
+   was started again (`waiting`) has run and keeps its branch: the leader is not shown it as changeable and the runner leaves it (`left`). `idea_change.open_task`.
+3. *Check tasks* (kind a checker's tag) are shown to the leader marked `"check": true` and stay: `change` and `drop` of one are left out, no task may wait for one
+   (it waits for all), and a check not started gains the added tasks in its `after` (a check that has started does not). The kinds offered to the leader leave out
+   the checks' tags, and an added or changed task gets no such tag.
+4. *`after`.* A model's `after` is cleaned against a graph that holds the plan's tasks (the dropped ones out), the added tasks by key and the check tasks' implied
+   waiting for the added ones; the changes are taken in the answer's order, then the adds, and a dependency that would close a cycle is left out (the rest kept).
+   The runner does the same at the take, so two tasks that wait for each other cannot come out of the file.
+5. *Ids.* The next id is one past the highest `k<n>` among the plan's tasks, the to-dos' `for` and the `k<n>.log` files beside the plan. A gap is never filled. A
+   skipped (or dropped) task that was the highest, and left none of those, can give its id again: nothing of it ever ran. plan.json keeps its shape.
+6. *The summary counts what taking it now would do.* A task the change names that has started since (or is gone) is not in the counts or the rows; `left` at the
+   take is then for a task that started between the last look and the press. A change whose named tasks have all started and that adds nothing is dropped by itself;
+   a change of nothing (the leader named none) is not.
+7. *Dropped by itself* is done on the bus (`Ideas._changed` → `settle_change`, on every change of a goal), and every read (`ideas.page`, the stop, the take) ignores
+   a stale file meanwhile, so `build` and `board` still write nothing. `changed` stays when it goes by itself (the sections did change since the plan); it is cleared
+   when a plan is made or the change answered.
+8. *`estimate`* is the difference of two `idea_plan.estimate` results (the added and changed tasks as they will be, less the dropped and the changed as they were),
+   so each end is rounded before the subtraction (a cent from the difference of the bases). Priced with the Target, the roles' models and the board's learned costs as
+   `plan_one` does.
+9. *Roles* are given as `plan_one` gives them (the goal's team and its leader; none: `""`); the plan's `missing` is not made again. A changed task keeps its state,
+   except that a `ready` one that now waits for a task not merged waits.
+10. *Limits.* At most 8 tasks added by one change; no cap on the plan's total. The prompt's spec takes at most half of the `plan` context, the tasks' part the
+    rest (each brief of the tasks not started cut to 4 000 characters shared among them, at least 300; a task at work 300); a *Failed* part names the tasks that failed.
+11. *The answer.* A press on *Take* or *Keep* claims the change under `ideas.LOCK` (a second press finds none), puts it back if the runner refuses, and is refused
+    while the keeper works on a newer one. *Stages* are written again from the tasks put in order (`idea_change.in_order`: the added tasks come last in the plan).
+12. *Events.* `plan_change_answered`'s `left` is a count; for *Keep* its counts are those of the change proposed (so *what they add* can be read from kept ones too);
+    `idea_edited` is logged for every section by hand, not only the plan's. `plan_revised` is written by the keeper (no `device`).
+13. *`error`.* A failed call sets the goal's `error` to *No plan change: …* (it replaces a failed goal's reason until the runner writes one again); a later success
+    clears it only when it is that one.
+14. *Not done here (files outside A's row).* `gui/phone_push.py` words only the kinds in its `KIND_WORDS`, so a `change` stop counts in *N wait for your answer* but is
+    not named in a push's first line; the Map's `needs_you` (`board_map.NEEDS`, `map_party._LEAD_NEEDS`) is as it was, so a node whose only stop is a plan change
+    says nothing of it.
