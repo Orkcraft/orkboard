@@ -130,9 +130,10 @@ product whether a result failed on quality or cost too much. Prioritised hard: t
    its own: one dial moves the money, so the waybill can say what made a step dear, and the Target never says *Thrift*
    while an ork thinks at full effort. The raw model names leave the list (they repeat the tiers); a role file that
    names one still runs it.
-3. **One currency: ≈$ at API prices**, said plainly (*not your bill*; `sources/pricing.py`), never $0 for what is
-   unpriced. What is left of a window stays in the top bar. Harnesses are compared once a second one runs roles; the
-   tool and model of every run are recorded from now on, so the data is there by then.
+3. **One currency: ≈$ at API prices** (on a subscription, a share of the five-hour window: §81), said plainly (*not
+   your bill*; `sources/pricing.py`), never $0 for what is unpriced. What is left of a window stays in the top bar.
+   Harnesses are compared once a second one runs roles; the tool and model of every run are recorded from now on, so the
+   data is there by then.
 4. **What is measured, goal → idea → task → stage → ork.** The stages: the goal's read (and its night refresh), the
    spec (draft, answers, talk), the plan, the work (round 1), the rework (the rounds after a send back), and what was
    dropped. Two numbers decide: **$ a merged result** and **merged the first time** (round 1, never in Needs you). The
@@ -1046,3 +1047,22 @@ says so. A question is not a blow (*a question costs nothing*), so the two are t
    focus; at most three heads in one refresh, the rest wear the sign without it. Nothing travels: §76.3's three moments
    stay three. No sound, no colour but the office's.
 The owner's call, before the testers' numbers. Spec 49 §11.7.
+
+## 81. On a subscription a spend is a share of Claude's five-hour window, not ≈$ (23 October, the owner)
+
+Why: the owner: *money says nothing to me now: I don't know what the API costs.* §48.3 made ≈$ at API prices the one
+currency, said *not your bill*; on a subscription nobody pays it, and what runs out is the window the top bar already
+shows in percents. So, while Claude is on a subscription:
+1. **A spend is said as a share of the five-hour window**: *≈18 % of 5h a task*, *plan ≈3–8 % of 5h*, *<1 % of 5h* under
+   a percent; the five hours, not the week, so a task costs whole percents. Its hint says it is an estimate.
+2. **An estimate, never a read**: Claude says its windows in whole percents and every session on the machine, the
+   person's own too, spends the same window, so a task's share can't be read off it. It is its ≈$ at API prices over a
+   rate: what 1 % of the window has cost on this machine, the API-equivalent $ of every Claude Code session since the
+   window began over the percent it shows used, one sample a window (at least 5 % used), the median of the last 12
+   (`sources/window_rate.py`, `~/.config/orkcraft/window-rate.json`). Use outside Claude Code (claude.ai) leaves no
+   transcript: the share then reads high, never low.
+3. **The $ stays underneath**: the ledgers, the estimates, Review's *Cost too much* and every event keep $ and tokens;
+   only the page converts, through the snapshot's `rate`. With no rate learnt yet, or on an API key, the page says ≈$ as
+   before. A tool of its own price (pi, Hermes) beside Claude on a subscription is said in Claude's window too: rare,
+   known.
+The owner's call, before the testers' numbers. Amends §48.3.

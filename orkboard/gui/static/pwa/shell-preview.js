@@ -3,6 +3,7 @@
 // patch folded and scrolling sideways inside its own box — the page never does) or a *Pick one* (its tiles one to a screen, swiped; the note and the two answers under them:
 // shell-pick-answer.js). Back (and the system back gesture) returns to the tab it came from; its actions sit in a bar pinned at the bottom.
 import { h, icon } from "./util.js";
+import { pctOf, pctRange, pctShort } from "./shell-spend.js";
 import { pointedAt } from "./shell-lens.js";
 import { steady } from "./shell-util.js";
 import { stateWords } from "./shell-board.js";
@@ -35,7 +36,7 @@ const The = (name) => (name === "Taskmaster" ? "The Taskmaster" : name);
 const joined = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 
 const usd = (x) => `$${Number(x) < 10 ? Number(x).toFixed(1) : Math.round(Number(x))}`;
-export const price = (e) => (e ? `~${usd(e.usd_low)}–${Number(e.usd_high) < 10 ? Number(e.usd_high).toFixed(1) : Math.round(Number(e.usd_high))}` : "");
+export const price = (e) => (e ? `~${pctRange(e.usd_low, e.usd_high) || `${usd(e.usd_low)}–${Number(e.usd_high) < 10 ? Number(e.usd_high).toFixed(1) : Math.round(Number(e.usd_high))}`}` : "");
 
 const STAGES = ["goal", "spec", "plan", "work", "rework", "dropped"];
 
@@ -44,8 +45,8 @@ export function spendLine(s) {
   if (!s) return "";
   const cents = (n) => Number(n).toFixed(2);
   if (s.usd == null) return "This goal so far: —";
-  const parts = STAGES.filter((k) => s.stages?.[k]?.usd).map((k) => `${k === "goal" ? "party" : k} ${cents(s.stages[k].usd)}`);      // the leader reading the party
-  return `This goal so far: ≈$${cents(s.usd)}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
+  const parts = STAGES.filter((k) => s.stages?.[k]?.usd).map((k) => `${k === "goal" ? "party" : k} ${pctShort(s.stages[k].usd) || cents(s.stages[k].usd)}`);      // the leader reading the party
+  return `This goal so far: ≈${pctOf(s.usd) || `$${cents(s.usd)}`}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
 }
 
 /** "tasks k2 and k3 wait for it": the tasks a to-do holds back. */
@@ -194,7 +195,7 @@ export function makePreview(core, ctx, screens = {}) {
     const found = (c) => (c.found === 0 ? "clean" : `found ${c.found}: ${[c.fixed && `${c.fixed} fixed`, c.left && `${c.left} left`].filter(Boolean).join(", ")}`);
     const words = (c) => (c.skipped ? "skipped by you" : !c.applies ? `not needed: ${c.why}` : c.found != null ? found(c) : c.state === "passed" ? "passed" : c.state ? TASK_WORDS[c.state] || c.state : "in the plan to come");
     const skippable = (c) => c.applies && !c.skipped && (!c.state || ["waiting", "ready", "held"].includes(c.state));
-    const spares = (c) => { const usd = Number(core.st.roles?.tier_costs?.[c.tier]); return usd > 0 ? ` · spares ≈ $${usd.toFixed(2)}` : ""; };
+    const spares = (c) => { const usd = Number(core.st.roles?.tier_costs?.[c.tier]); return usd > 0 ? ` · spares ≈ ${pctOf(usd) || `$${usd.toFixed(2)}`}` : ""; };
     const skip = (c, on) => act("ideas.check_skip", { slug: p.slug, by: c.by, ...(on ? {} : { skip: false }) },
       on ? `Skipped: ${c.name}.` : `${c.name} checks it again.`).then(() => read(cur));
     return h("div", { class: "checks-line", role: "list", "aria-label": "Checks" }, h("span", { class: "field-label" }, "Checks"),
@@ -336,7 +337,7 @@ export function makePreview(core, ctx, screens = {}) {
         h("dt", {}, "State"), h("dd", { "data-state": t.state }, TASK_WORDS[t.state] || t.state, t.note ? h("small", { class: "muted" }, ` ${t.state === "held" ? heldWords(t.note, t.waits_title) : t.note}`) : null),
         h("dt", {}, "Goal"), h("dd", {}, h("button", { class: "linkish", type: "button", onclick: () => core.open({ kind: "idea", slug: t.idea }) }, t.idea_title)),
         h("dt", {}, "Tier"), h("dd", {}, t.head ? who(t.head, true) : t.tier), h("dt", {}, "Branch"), h("dd", {}, h("code", {}, t.branch || "—")),
-        h("dt", {}, "Round"), h("dd", {}, String(t.round || 1)), h("dt", {}, "Spend"), h("dd", {}, t.cost != null ? `$${Number(t.cost).toFixed(2)}` : "—")),
+        h("dt", {}, "Round"), h("dd", {}, String(t.round || 1)), h("dt", {}, "Spend"), h("dd", {}, t.cost != null ? (pctOf(t.cost) ? `≈${pctOf(t.cost)}` : `$${Number(t.cost).toFixed(2)}`) : "—")),
       t.error ? h("p", { class: "warn", role: "alert" }, t.error) : null,
       h("h3", {}, "Brief"), h("p", { class: "brief" }, t.brief), h("h3", {}, "Log"), log].filter(Boolean));
     requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });

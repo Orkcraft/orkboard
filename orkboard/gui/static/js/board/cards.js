@@ -9,6 +9,7 @@ import { cards, closeCard } from "../shell/look.js";
 import { showIdea, showGoal, showNeeds, logOpened } from "../shell/store.js";
 import { Modal, closeDialog, openDialog } from "../shell/modals.js";
 import { ask, goalList, track } from "./store.js";
+import { pctOf } from "../spend.js";
 
 const SHOWN = 5;                                     // ideas named under the results, then *and 3 more*
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -37,7 +38,7 @@ export function waitsWords(w) {
 }
 
 /** *≈$4.20 of work at API prices, not your bill.* */
-export const usdWords = (usd) => `≈$${usd.toFixed(2)} of work at API prices, not your bill.`;
+export const usdWords = (usd) => (pctOf(usd) ? `≈${pctOf(usd)} of work, an estimate.` : `≈$${usd.toFixed(2)} of work at API prices, not your bill.`);
 
 /** A list of links with commas between them. */
 const joined = (items, sep = ", ") => items.map((x, i) => html`${i ? sep : ""}${x}`);
@@ -76,7 +77,7 @@ export function durationWords(minutes) {
   return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} days`;
 }
 
-const dollars = (usd) => `≈$${usd < 10 ? usd.toFixed(2).replace(/\.00$/, "") : Math.round(usd)}`;
+const dollars = (usd) => `≈${pctOf(usd) || `$${usd < 10 ? usd.toFixed(2).replace(/\.00$/, "") : Math.round(usd)}`}`;
 
 function Week({ w }) {
   const into = w.into || "dev", pct = (a, b) => `${Math.round((a.first_time / a.merged) * 100)} %`;
@@ -128,6 +129,8 @@ export function weekMoney(w) {
   const dollars = (usd) => `≈$${usd < 1 ? usd.toFixed(2) : Math.round(usd)}`;
   const mine = w.usd > 0 ? w.usd : 0, ops = w.ops_usd > 0 ? w.ops_usd : 0;
   if (!mine && !ops) return "";
+  if (pctOf(mine || ops)) return mine && ops ? `≈${pctOf(mine)} of work in this project, ≈${pctOf(ops)} in Operations: an estimate`
+    : `≈${pctOf(mine || ops)} of work in ${mine ? "this project" : "Operations"}: an estimate`;
   if (mine && ops) return `${dollars(mine)} of work at API prices in this project, ${dollars(ops)} in Operations: not your bill`;
   return `${dollars(mine || ops)} of work at API prices in ${mine ? "this project" : "Operations"}: not your bill`;
 }
@@ -135,7 +138,7 @@ export function weekMoney(w) {
 /** *12 results in dev, 10 the first time · ≈$3.84 a result*. */
 export function weekResults(w) {
   if (!w.merged) return `No results in ${w.into || "dev"} in the last 7 days`;
-  return `${resultsWords({ tasks: w.merged, first_time: w.first_time }, w.into || "dev")}${w.usd_per_merged != null ? ` · ≈$${w.usd_per_merged.toFixed(2)} a result` : ""}`;
+  return `${resultsWords({ tasks: w.merged, first_time: w.first_time }, w.into || "dev")}${w.usd_per_merged != null ? ` · ≈${pctOf(w.usd_per_merged) || `$${w.usd_per_merged.toFixed(2)}`} a result` : ""}`;
 }
 
 /** *The last 7 nights: 4 with work done, 2 with none, 1 Orkline was not running*: parts at 0 left out. */

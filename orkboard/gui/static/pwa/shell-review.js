@@ -2,10 +2,11 @@
 // on the raised stop along the bottom (shell-stops.js) and pinned at the foot of the result's screen: Merge (only when the tests are green and nothing
 // conflicts), Send back / Fix (one line, required), Drop (quiet, apart, asks first). The results themselves lie along the bottom with what waits for an answer.
 import { h, sheet } from "./util.js";
+import { pctOf } from "./shell-spend.js";
 import { foot } from "./shell-forms.js";
 import { sign } from "./shell-marks.js";
 
-const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
+const usd = (n) => (n == null ? "" : pctOf(n) || `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
 export const isRed = (r) => r.tests.failed > 0 || r.tests.green === false;
 
 /** The tests, in the person's words: "20 / 20 passed" with the check sign, "10 / 20 failed" with the cross and the first failing names, or no tests ran; a command that is not pytest: passed (exit 0) / failed

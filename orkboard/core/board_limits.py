@@ -6,7 +6,8 @@ thread, on the Town Hall's clock (every LIMITS_REFRESH_S), the rows kept for the
     limits()                                 # the last rows read ([] until the first read is in)
 
 A read that shows the Claude week's reset moved later than the one read before (the week came back) writes `week_reset` to the log of
-the project shown (spec 44 §4): how much of the week was left unused.
+the project shown (spec 44 §4): how much of the week was left unused. Each read also teaches the rate of Claude's
+five-hour window (`sources/window_rate.py`, decisions §81), on the reader's thread: it reads the machine's transcripts.
 """
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 from orkboard.realm import event_log, idea_target
+from orkboard.sources import window_rate
 from orkboard.sources.limits import Limit, fetch_limits
 
 LIMITS_REFRESH_S = 10 * 60      # as the Town Hall's worker (core/workers/town_hall.py)
@@ -48,6 +50,10 @@ class BoardLimits:
                 found = self.fetch(self.repo_root)
             except Exception as e:              # a quota never stops the Board
                 found = [Limit("limits", "—", "—", None, None, str(e))]
+            try:
+                window_rate.learn(found)
+            except Exception:                   # nor does its rate
+                pass
             self.call(self._read, found)
 
         threading.Thread(target=work, daemon=True, name="board-limits").start()

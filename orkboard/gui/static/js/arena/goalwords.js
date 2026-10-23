@@ -1,6 +1,7 @@
 // The party's goals, their flags and their filter in words (docs/specs/50-parties-and-goals.md §3.3, §3.5, §3.8): pure functions over `ideas.map`'s
 // nodes (a goal is the code's idea) and `ideas.flags`. No signal and no template here; goals.js and its neighbours draw what these say.
 import { planningOf, atWork, openTasks, money, plural, countOf } from "./arenawords.js";
+import { pctRange } from "../spend.js";
 
 /** The party's goals by where they lie in the left column (§3.3): at work (in the Board's order), Planning (the stops first, those that have been read),
  *  New (raw), those done that wait for main, and the flags (the newest first). `lead`: the leader's name. */
@@ -96,6 +97,7 @@ export function inMainWords(shorts) {
 export function priceWords(price) {
   if (!price || typeof price.low !== "number") return "";
   const { low, high } = price;
+  if (pctRange(low, high)) return `≈${pctRange(low, high)} a goal`;
   if (low < 1) return `≈$${low.toFixed(2)}–${high.toFixed(2)} a goal`;
   const a = Math.round(low), b = Math.round(high);
   return a === b ? `≈$${a} a goal` : `≈$${a}–${b} a goal`;

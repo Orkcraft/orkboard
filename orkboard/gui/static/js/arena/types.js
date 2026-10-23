@@ -11,6 +11,7 @@ import { roles } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { reducedMotion } from "./motion.js";
 import { Dealt } from "./spread.js";
+import { pctOf } from "../spend.js";
 
 const TURN_MS = 420;
 const BANDS = { build: "builders", check: "checkers" };
@@ -27,7 +28,7 @@ export function AgentHead({ id }) {
 /** *≈$0.40 a run*: the agent's tier's price (ideas.roles `tier_costs`), "" when there is none yet. */
 export function runPrice(id) {
   const usd = Number(roles.value?.tier_costs?.[agentOf(id)?.tier]);
-  return usd > 0 ? `≈$${usd.toFixed(2)} a run` : "";
+  return usd > 0 ? `≈${pctOf(usd) || `$${usd.toFixed(2)}`} a run` : "";
 }
 
 /** *needs: Artist* (and *, Copywriter* for a second). */

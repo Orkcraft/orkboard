@@ -7,6 +7,7 @@
 // goal starts with the Taskmaster alone, its craft its party's most. `makeParty` is the team and the checks alone: a goal's own screen
 // changes its team with the same two (§7). Under the price, *It can take:* the goal types the seats would be offered (spec 63 §2); a party saved here gathers its heads into the party's deck (§4).
 import { h, sheet, head, icon } from "./util.js";
+import { pctOf, pctRange } from "./shell-spend.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "./shell-who.js";
 import { limitsNote } from "./shell-limits.js";
@@ -115,7 +116,7 @@ export function makeParty(core, opts = {}) {
   function priceLine() {
     if (!price) return null;
     const { low, high } = price, a = Math.round(low), b = Math.round(high);
-    const range = low < 1 ? `$${low.toFixed(2)}–${high.toFixed(2)}` : a === b ? `$${a}` : `$${a}–${b}`;
+    const range = pctRange(low, high) || (low < 1 ? `$${low.toFixed(2)}–${high.toFixed(2)}` : a === b ? `$${a}` : `$${a}–${b}`);
     return h("div", { class: "party-price-box" },
       h("p", { class: "party-price", role: "status" }, `This party: about ${range} a goal`,
         h("small", { class: "muted" }, ` ${price.learned ? `from this project's last ${price.ideas} goals` : "a first guess: it learns from this project's goals"}`)),
@@ -162,7 +163,7 @@ export function makeParty(core, opts = {}) {
     const c = (price?.checks || []).find((x) => x.by === id);
     if (!c) return "";
     const share = c.every ? "every goal" : Math.abs(c.share - 0.5) < 0.03 ? "about half of them" : `about ${Math.round(c.share * 100)} % of them`;
-    return ` · adds about $${c.usd.toFixed(2)} to a goal it checks · ${share}`;
+    return ` · adds about ${pctOf(c.usd) || `$${c.usd.toFixed(2)}`} to a goal it checks · ${share}`;
   }
 
   /** An agent's row in its fold: a tap takes it in or out (a leader takes the one seat; out, the Taskmaster leads). */

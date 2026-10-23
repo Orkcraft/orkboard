@@ -20,6 +20,7 @@ import { AgentsPane } from "./agents.js";
 import { GateView } from "../arena/gate.js";
 import { rowOf } from "../arena/pickwords.js";
 import { PickView } from "./pickview.js";
+import { pctOf, pctShort } from "../spend.js";
 
 /** A failed task's way on: run its idea's tasks again, or drop it (asked first). */
 function FailedActions({ t }) {
@@ -50,7 +51,7 @@ function Task({ d }) {
       <dt>Tier</dt><dd>${t.head ? html`<${Who} head=${t.head} small />` : t.tier}</dd>
       <dt>Branch</dt><dd><code>${t.branch || "—"}</code></dd>
       <dt>Round</dt><dd>${t.round || 1}</dd>
-      <dt>Spend</dt><dd>${t.cost != null ? `$${t.cost.toFixed(2)}` : "—"}</dd>
+      <dt>Spend</dt><dd>${t.cost != null ? (pctOf(t.cost) ? `≈${pctOf(t.cost)}` : `$${t.cost.toFixed(2)}`) : "—"}</dd>
     </dl>
     ${t.error && html`<${ErrorLine} text=${t.error} />`}
     ${t.state === "failed" && html`<${FailedActions} t=${t} />`}
@@ -68,8 +69,8 @@ const STAGE_WORDS = [["goal", "party"], ["spec", "spec"], ["plan", "plan"], ["wo
 export function spendWords(s) {
   if (!s || !s.stages) return "";
   if (s.usd == null) return "This goal so far: —";
-  const parts = STAGE_WORDS.map(([k, w]) => [w, s.stages[k]?.usd]).filter(([, v]) => v).map(([w, v]) => `${w} ${v.toFixed(2)}`);
-  const total = `≈$${s.usd < 10 ? s.usd.toFixed(2) : Math.round(s.usd)}`;
+  const parts = STAGE_WORDS.map(([k, w]) => [w, s.stages[k]?.usd]).filter(([, v]) => v).map(([w, v]) => `${w} ${pctShort(v) || v.toFixed(2)}`);
+  const total = `≈${pctOf(s.usd) || `$${s.usd < 10 ? s.usd.toFixed(2) : Math.round(s.usd)}`}`;
   return `This goal so far: ${total}${parts.length ? ` — ${parts.join(" · ")}` : ""}`;
 }
 

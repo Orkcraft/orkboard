@@ -16,6 +16,7 @@ import { makeNeeds } from "./shell-needs.js";
 import { makeStops } from "./shell-stops.js";
 import { makeFab } from "./shell-fab.js";
 import { firstStopGoal, partiesOf } from "./shell-arena-words.js";
+import { setRate } from "./shell-spend.js";
 
 const POLL_MS = 10000;
 const LIVE = new Set(["running", "testing"]);
@@ -241,6 +242,7 @@ export function makeBoard(ctx) {
     showNeeds: () => go("needs"),
     render(s) {
       st.snap = s;
+      setRate(s.rate);
       if (s.project !== lookProject) { lookProject = s.project; st.cards = []; away(); }       // another project is shown, or the page starts
       top.render(s, s.rev !== seenSnap ? s.rev : undefined);
       boardTab.ops.sync(s.ops_rev ?? 0);
