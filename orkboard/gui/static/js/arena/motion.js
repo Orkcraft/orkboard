@@ -17,12 +17,15 @@
 //                       (the gap stays empty) until the pointer leaves or the focus goes, at most 10 s
 //   a stop leaves      answered or withdrawn, the stop in the hand fades where it stands (`useLeaving`, spec 58 §4), in the render its task changes; then the hand closes the gap
 //   the quiet reward    a merge lights its member's first number and its column's ✓ k in dev once (≈ 0.6 s); nothing flies to them
+//   a member struck     its head's sign turned ✗: the head is lit once and jolts 2 px sideways three times (`.is-struck`, ≈ 0.3 s, steps); turned !: the sign drops into its corner and the head hops 2 px
+//                       (`.is-calling`, ≈ 0.25 s, steps). Not on the first read, not under the pointer or the focus, three heads at most in a refresh (decisions §80); nothing travels
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { DEAL_KEEP_MS, deal, dropDeal } from "./arenastate.js";
 
 export const FADE_MS = 300, SETTLE_MS = 250, DRAWN_MS = 450, LIT_MS = 600, HOLD_MS = 10000, LEAVING = 3;
 export const APART_MS = 35, DEALT = 6, DEALT_MS = 620;      // the gap between two dealt cards, how many travel, when the last one (or the rise after the sixth) has ended
 export const GHOST_MS = 300;                                 // a stop's fade in the hand
+export const STRUCK_MS = 300, STRUCK_MAX = 3;                // a head struck or calling plays this long at most, and this many heads in one refresh
 const SHARE_MS = 400;                                        // how long a taken deal is still read by the other columns of the same render (effects run after the paint) before it is dropped
 export const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 /** Motion plays only while the page is seen and the person has not asked for none. */
@@ -219,4 +222,22 @@ export function useLit(ref, value) {
     }
     was.current = value;
   }, [value]);
+}
+
+let struck = STRUCK_MAX;                                     // the heads that may still play in this refresh (the effects of one render run in one task)
+/** A member's head (`ref`) struck or calling: its sign (`mark`) changed after the first read to ✗ (`cross`) or ! (`alert`) — it plays `is-struck` or `is-calling` once. None for a head under the
+ *  pointer or the focus (its member's button), past the third in a refresh, or when motion does not play; the sign then simply stands. */
+export function useStruck(ref, mark) {
+  const was = useRef(mark);
+  useEffect(() => {
+    const el = ref.current, before = was.current;
+    was.current = mark;
+    if (before === mark || (mark !== "cross" && mark !== "alert") || !el || !plays() || held(el.closest("button")) || struck <= 0) return;
+    if (struck-- === STRUCK_MAX) setTimeout(() => { struck = STRUCK_MAX; }, 0);
+    const name = mark === "cross" ? "is-struck" : "is-calling";
+    el.classList.remove("is-struck", "is-calling");
+    void el.offsetWidth;                                     // a second change within the first one's moment starts again
+    el.classList.add(name);
+    setTimeout(() => el.classList.remove(name), STRUCK_MS + 50);
+  }, [mark]);
 }

@@ -631,6 +631,14 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .band__sign .ork-sign { width: 12px; height: 12px; vertical-align: top; }
 .band__sign.danger { color: var(--ork-danger); }
 .band__sign.alert { color: var(--ork-alert); }
+.band__face.is-struck { animation: jolt 0.3s steps(1, end); }                                     /* a failure: the face lit once, jolting 2 px three times (decisions §80) */
+.band__face.is-struck .ork-race__head { animation: struck 0.3s steps(1, end); }
+.band__face.is-calling { animation: hop 0.25s steps(1, end); }                                    /* a question: the sign drops into its corner, the face hops 2 px */
+.band__face.is-calling .band__sign { animation: call 0.25s steps(3, end); }
+@keyframes jolt { 0% { transform: translateX(2px); } 17% { transform: translateX(-2px); } 33% { transform: translateX(2px); } 50% { transform: translateX(-2px); } 67% { transform: translateX(2px); } 83% { transform: translateX(-2px); } 100% { transform: none; } }
+@keyframes struck { 0% { background: var(--ork-ink); } 34% { background: transparent; } }
+@keyframes hop { 0% { transform: translateY(-2px); } 50% { transform: none; } }
+@keyframes call { from { transform: translateY(-6px); } to { transform: none; } }
 /* the party's deck (spec 53 §1.1): at the goals bar's left, a 44 x 44 target round a back of 16 x 22 with two edges behind it; its count of the stops in the other parties at the top right */
 .partydeck { all: unset; box-sizing: border-box; cursor: pointer; position: relative; flex: none; width: var(--ork-tap); height: var(--ork-tap); }
 .partydeck:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
@@ -999,6 +1007,7 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 
 @media (prefers-reduced-motion: reduce) {
   .deck.is-drawn, .raised.is-pop, .is-reward, .deck.is-leaving, .deck__flash { animation: none; }
+  .band__face.is-struck, .band__face.is-struck .ork-race__head, .band__face.is-calling, .band__face.is-calling .band__sign { animation: none; }
   .deck.is-dealt, .flagline__row .ork-elem.is-dealt { visibility: visible; animation: none; }
   .deal-fly, .flag-fly, .gather-fly, .hcg { display: none; }
   .flagline.is-raised, .flagline.is-raised .ork-sign.flag, .flagline.is-raised .flagline__words, .flagline.is-raised .flagline__words b { animation: none; }

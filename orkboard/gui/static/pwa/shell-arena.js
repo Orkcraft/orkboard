@@ -12,7 +12,7 @@ import { modelOf, shownGoal, doneWords } from "./shell-arena-words.js";
 import { makeParty } from "./shell-party.js";
 import { makeGoals } from "./shell-goals.js";
 import { makeField } from "./shell-arena-field.js";
-import { keepFocus, pointerGuard } from "./shell-motion.js";
+import { keepFocus, pointerGuard, struck } from "./shell-motion.js";
 
 /** `core`: the board's frame; `ctx`: {flash}; `parts`: {goalSheet, ops, ideas, cards}. Returns {el, sheets, draw()}. */
 export function makeArena(core, ctx, parts) {
@@ -52,14 +52,15 @@ export function makeArena(core, ctx, parts) {
   // -- the stage switch: three tabs, the band's faces side by side over its word (no number); the faces of the tab shown are the members ---------------------------------------
   const faceHead = (x) => (x.head ? raceHead(x.head.race, x.head.tier) : h("span", { class: "band__nohead" }));
   const faceSign = (x) => (x.sign ? h("span", { class: `band__sign ${x.sign === "cross" ? "danger" : "alert"}`, "data-sign": x.sign }, sign(x.sign)) : null);
+  const moment = (x) => struck(`${st.track}|${x.slug}`, x.sign, el.querySelector(`.band__face[data-member="${CSS.escape(x.slug)}"]`));      // the class of a face whose sign just turned (decisions §80)
   /** A face of the tab shown: a button (a tap shows only that member's tasks, again everyone). */
   function face(x) {
     const on = st.focus === x.slug, words = `Only ${x.name}${x.lead ? "’s work" : "’s tasks"}`;
-    return h("button", { class: `band__face${on ? " is-on" : ""}`, type: "button", "aria-pressed": String(on), "data-member": x.slug, "aria-label": words, title: words,
+    return h("button", { class: `band__face${on ? " is-on" : ""}${moment(x)}`, type: "button", "aria-pressed": String(on), "data-member": x.slug, "aria-label": words, title: words,
       onclick: () => { st.focus = on ? "" : x.slug; core.draw(); } }, faceHead(x), faceSign(x));
   }
   function faces(f, pressable) {
-    const heads = f.heads.length ? f.heads.map((x) => (pressable ? face(x) : h("span", { class: "band__face", "data-member": x.slug }, faceHead(x), faceSign(x))))
+    const heads = f.heads.length ? f.heads.map((x) => (pressable ? face(x) : h("span", { class: `band__face${moment(x)}`, "data-member": x.slug }, faceHead(x), faceSign(x))))
       : [h("span", { class: "band__nohead is-empty" })];
     return h("span", { class: `band__faces${f.heads.length > 3 ? " is-four" : ""}`, ...(pressable ? {} : { "aria-hidden": "true" }) }, ...heads);
   }

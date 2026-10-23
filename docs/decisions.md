@@ -1031,3 +1031,18 @@ retro, the refinement and 1:1s. It belongs to no project and repeats every week:
 3. **A brief is the manager's alone**: never posted, sent or shown to the teammate, a 1:1's agenda too (the owner's call).
    What it reads is said on its form; **Forget** removes all that is kept about one person.
 Spec 66.
+
+## 80. A member struck by a failure, a member calling with a question (23 October, the owner)
+
+Why: the owner: *a short animation, as if it were hit, when an agent goes into a question or an error, as when a Pokémon
+takes a blow: short, but it catches the eye.* A member that stopped waits for the person, and today only its head's sign
+says so. A question is not a blow (*a question costs nothing*), so the two are told apart:
+1. **A failure strikes the member**: when its head's sign turns ✗, the head is lit once (one inverted frame, as the quiet
+   reward's light) and jolts sideways 2 px three times, in steps, about 0.3 s; the ✗ in the danger colour, the jolt in ink.
+2. **A question, or any other stop, calls**: when its head's sign turns !, the sign pops up over the head and steps
+   down into its corner, the head hops 2 px once, in steps, about 0.25 s.
+3. **Once, on the change, for what the person sees**: never on the first read of a party, never for what changed while
+   the page was hidden (the sign simply stands), never under reduced motion, never on a head under the pointer or the
+   focus; at most three heads in one refresh, the rest wear the sign without it. Nothing travels: §76.3's three moments
+   stay three. No sound, no colour but the office's.
+The owner's call, before the testers' numbers. Spec 49 §11.7.
