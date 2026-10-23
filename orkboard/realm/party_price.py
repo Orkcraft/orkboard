@@ -62,8 +62,25 @@ def _round(usd: float) -> float:
     return round(usd, 2)
 
 
+def pitch_price(root: Path, state_dir: Path, settings: dict) -> dict[str, Any]:
+    """What a pitch costs (spec 65 §3), Ideation's price: half to all of its six calls' caps under the Target (four views, the case,
+    the decision; about $0.58 at balance); learned, from `TOO_FEW` pitches judged with priced lines, what they cost, spread as a
+    plan's. `pitch: true`."""
+    target = idea_target.target_of(settings)
+    cap = sum(idea_target.budget(s, target) or 0.0 for s in ("pitch_view",) * 4 + ("pitch_case", "pitch_decide"))
+    judged = [i["slug"] for i in ideas.ideas(root) if ideas.state(state_dir, i["slug"])["state"] in ("judged", "sent", "passed")]
+    spent = [u for s in judged if (u := idea_spend.of_idea(state_dir, s)["usd"]) is not None]
+    learned = len(spent) >= idea_spend.TOO_FEW
+    base = sum(spent) / len(spent) if learned else cap
+    return {"low": _round(base * SPREAD[0]), "high": _round(base * SPREAD[1] if learned else cap),
+            "learned": learned, "ideas": len(judged), "checks": [], "pitch": True}
+
+
 def price(root: Path, state_dir: Path, settings: dict, leader: str, team: list[str], every: list[str]) -> dict[str, Any]:
-    """§3.1's object: {low, high, learned, ideas, checks: [{by, name, usd, share, every}]}."""
+    """§3.1's object: {low, high, learned, ideas, checks: [{by, name, usd, share, every}]}; a party the Investor leads, a pitch's
+    (`pitch_price`)."""
+    if leader == library.INVESTOR:
+        return pitch_price(root, state_dir, settings)
     target = idea_target.target_of(settings)
     rows = basis(root, state_dir)
     spend = {s: idea_spend.of_idea(state_dir, s) for s, _p in rows}

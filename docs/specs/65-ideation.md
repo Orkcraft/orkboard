@@ -203,3 +203,121 @@ A web search for the Market view (the market as it is: a later spec, with its co
 message: Operations' sources, spec 38 §12); pitches ranked against each other; an Investor that sends by itself; a
 prototype built to test a pitch (its `test` is words; building it is a goal of a party); the Investor's own head (a mummy
 or a ghost, drawn in orkUI first).
+
+## 11. As built (notes, no change of the contract)
+
+**A (host), 23 October.** Built in `realm/library.py` (`Agent.pitch`; the six agents after the marketing ones, `PITCH_RULE` the views' and
+the skeptic's shared sentence; `INVESTOR`, `SKEPTIC`, `VIEWS`; the `ideation` preset after Website; `STAGES["investor"]`; `listed()`'s
+`pitch`), `realm/goal_team.py` (`seats`: `IDEATION_WHOLE`, `PITCH_ONLY`), `realm/ideas.py` (`STATES` + `judging judged sent passed`;
+`STATE_DEFAULT["from_pitch"]`), new `realm/pitches.py` (pure: the kill reasons, the answers cut and cleaned, `offers`, `judge.json`, the
+Decision section, the passed pitches, what the faces read, `sent_lines`, `tally`, `stage_of`, `need_of`), new `core/idea_judge.py`
+(`JudgeMixin`: `judge`, `judge_one`, `role_as`, `pick_as`, `speak_as`, the three prompts), `core/idea_keeper.py` (`ask(..., as_role=)`,
+the mixin, `plan` refuses a pitch, `PITCH_NOT_BUILT`, the ledger's line names the role spoken as), `core/idea_draft.py` (`draft` and
+`draft_one` judge a pitch instead; `answer` refuses one; the draft prompt carries `pitches.sent_lines`), `core/idea_night.py` (a pitch
+first in the night's queue), `realm/idea_target.py` (`pitch_view`, `pitch_case`, `pitch_decide` in `STEPS`, `MATRIX`, `CONTEXT`, `READS`,
+`CAPS`; `PITCH_STEPS`), `realm/idea_spend.py` (the three steps count in the *spec* stage), `realm/goal_types.py` (`offered` answers none for
+a party the Investor leads), `realm/party_price.py` (`pitch_price`), `realm/party_work.py` (`pitches` for Ideation),
+`realm/board_map.py` and `realm/map_party.py` (the `pitch` row and the node's `pitch`), `realm/event_log.py` (four events),
+`realm/lexicon.py` (five words), new `gui/ideas_pitch.py` (`PitchMixin`: the four commands, `refuse_pitch`, `pitch_of`), `gui/ideas.py`
+(the mixin and the table, `add`'s `hold` and `pitch`, `_state`, `page`'s `pitch`, the snapshot's count), `gui/ideas_board.py`
+(`sort_needs`), `gui/ideas_party.py` (`party_price` of Ideation), `gui/ideas_types.py` (a type for a pitch refused). `gui/board_host.py`
+is untouched: `BoardPhone.allowed` lets every `ideas.*` the host has through. Tests: new `tests/test_ideation.py` (22); the counts and
+orders of the library, the presets and the board's commands brought up to date in `test_goal_team.py`, `test_library.py`,
+`test_gui_roles.py`, `test_gui_ideas.py`, and the presets' order in `test_mixed_parties_desktop_browser.py` and
+`test_pwa_mixed_parties_browser.py`.
+
+**The shapes** (for B and C).
+- **The library.** `ideas.roles`' `presets` holds `{"id": "ideation", "name": "Ideation", "line": "Small pitches: invest, reshape or pass, and
+  why", "craft": "product", "race": "lich", "mixed": true, "lead": "investor", "build": ["product-view", "market-view", "tech-view",
+  "design-view"], "check": ["skeptic"]}` after `website`; `stages.investor` is `{"lead": "Pitch", "build": "Views", "check": "Decision",
+  "seats": {"lead": 1, "build": 4, "check": 1}}`; each `library` row has `pitch` (true for the six). A party is made as any with the
+  preset: `ideas.goal_save {about, craft: "product", leader: "investor", team: [the four views, "skeptic"], preset: "ideation"}`. Any other
+  team is refused with *Ideation reads every pitch from all four sides: its views and the skeptic stay*; a pitch agent in another party
+  with *The views judge pitches: they are in Ideation only*. `ideas.party_price {leader: "investor", team}` answers `{"low": 0.29, "high":
+  0.58, "learned": false, "ideas": 0, "checks": [], "pitch": true, "hints": [], "types": []}` at balance (learned: the mean of the
+  project's judged pitches, ±50 %).
+- **A pitch is added** with `ideas.add {text, track: <the Ideation party>, night?, hold?, lens?, photos?}` (its text cut to 2 000; a
+  `type` is refused, *A pitch has no goal type: its decision names the one it will have*). `hold: true` is new for any goal: `queue: "hold"`,
+  nothing drafts or judges it till the person does. It answers as today (`{slug, queue, element, type: "", joined: null}`).
+- **The commands.** `ideas.judge {slug}` → `{ok: true}` (Judge now from Hold or Tonight, Try again after `failed`; refused in a spent
+  window). `ideas.pitch_send {slug, party, type?}` → `{"slug": <the new goal>, "party", "type", "queue": "now"}` (`type` left out: the
+  decision's when it named this party, else none; `"type": ""` sends none; a party of the library not in the project is refused with
+  *Make the <name> party first*, an Ideation party or one that is gone with *That party is gone*). `ideas.pitch_again {slug, text?}` →
+  `{ok: true}` (from `judged`, `failed` or `passed`; without `text` its words stay: *Judged again*). `ideas.pitch_pass {slug, why?}` →
+  `{"ok": true, "dropped": [slugs of the oldest passed beyond 200]}`. While it is judging each answer is *The keeper is judging this pitch:
+  a moment*; a sent one *This pitch is sent: its goal is in its party now*; a passed one asked to be sent or passed *This pitch is passed:
+  judge it again first*. `ideas.plan`, `start`, `start_now`, `stop`, `revise`, `revise_answer`, `answer`, `say`, `todo`, `pick`,
+  `check_skip` refuse a pitch with *A pitch is judged, not built: send it to a party first*.
+- **States** (`ideas.board`'s `ideas[].state`, the snapshot's `idea_states`, the node's `state`): `raw` (with `queue` `now` · `night` ·
+  `hold` and `held_until` as any goal) → `judging` → `judged` → `sent` | `passed`; `failed` with `state_error` (*stopped*, *Market view
+  did not answer: try again*, *the answer was not the JSON it was asked for*). A `judging` whose run the host lost reads `failed`,
+  *stopped*.
+- **`pitch`** on `ideas.page` and on each Map node of an Ideation party (`null` for any other goal):
+  `{"state": "judged", "views": [{"slug": "tech-view", "name": "Engineering view", "head": {"craft": "engineering", "race": "peon",
+  "tier": "warrior"}, "answered": true, "for": ["…"], "against": ["…"], "question": "…", "size": "M"}, …four, in VIEWS' order],
+  "skeptic": {"slug", "name", "head"}, "investor": {"slug", "name", "head"}, "case": {"case": "…", "kills": [{"id": "costly", "words":
+  "It costs more than it is likely to bring"}]} | null, "decision": {"answer": "invest", "word": "Invest", "why": ["…"], "where":
+  {"party": "ship", "name": "Ship", "preset": false, "type": "bug", "type_name": "Fix a bug"}, "first": "…", "test": "…", "kills": [{"id",
+  "words"}], "like": {"slug", "title"} | null, "reshaped": false} | null, "sent": {"party", "type", "goal", "as_decided", "at", "name",
+  "title"} | null, "passed": {"why", "at", "as_decided"} | null, "before": [decision + "at", newest first, at most two]}`. While judging,
+  `answered` turns true view by view (each is kept and published as it answers), then `case`, then `decision`. `where.party` is ""
+  when the Investor named none or none it may; `preset: true` names a party of the library the project lacks. `reshaped`: code made the
+  invest a reshape (its kill reasons say why). A view's `size` is the Engineering view's only.
+- **The Map.** An Ideation goal has `ideation: true` and `passed` (how many of its pitches are passed); others `false`, `0`. Its
+  `types` is `[]`; its `stages` *Pitch*, *Views* (4), *Decision* (1). A pitch's node: `stage` `planning` (raw, failed), `implementation`
+  (judging, views answering), `checking` (from the case on, and judged, sent, passed); a passed one is `folded: true`;
+  `needs_you: "pitch"` when judged (`waits.kind: "you"`). The leader's party state is *needs* (`why: "pitch"`) while a pitch waits.
+- **Needs you** (`ideas.board`'s `needs_you`, the phone's too): `{"idea", "goal", "title", "priority": "low", "blocks": false, "at",
+  "kind": "pitch", "text": "Judged: Invest", "answer": "invest"}`, after the goals' own rows and before the proposals; the snapshot's
+  `needs_you` count leaves it out.
+- **The party's work.** `ideas.party {goal}` of an Ideation party adds `"pitches": {"judged", "sent", "passed", "as_decided": 0.5 | null,
+  "flags"}` (`as_decided`: of the pitches sent or passed, the share where the person did what the Investor said; `flags`: the goals sent
+  that raised their flag).
+- **Events** (no pitch's words): `pitch_judged {goal, answer, kills, tokens, cost, seconds}`, `pitch_sent {goal, to, type, as_decided,
+  device}`, `pitch_passed {goal, as_decided, has_reason, device}`, `pitch_again {goal, changed, device}`. `idea_added` is logged for a
+  pitch as for any goal (its characters, never its text).
+- **Files.** `<state_dir>/ideas/<slug>/judge.json`: `{views: {id: {for, against, question, size}}, case, decision, before, judged_at,
+  passed, sent}`. The page keeps the pitch in its **Gist** (the section every goal's words are in; the faces call it the pitch) and
+  gains **Decision**, e.g. `**Invest: the Ship party, as Fix a bug**`, the why as a list, *First step:*, *Cheapest test:*, *Kill
+  reasons:*, *It repeats:*.
+
+**What the spec left open, and what was chosen.**
+1. *A role's own model.* A library agent is installed with its tier as its model, so "a role with its own model keeps it" is read as
+   a model that is not its library tier (or a model by name): that one wins, else the Target's tier for the step (so thrift's *laborer*
+   holds for the views). The effort is always the Target's.
+2. *Tools.* The Engineering view alone has the draft's read-only tools (`READS["pitch_view"] = 4`); the case and the decision read no
+   file, like the other views.
+3. *Tried again.* The case against is tried once more as a view is; a second failure fails the pitch (*Skeptic did not answer: try
+   again*). The decision is not tried again (a call whose answer is no JSON, or not one of the three answers, fails the pitch).
+4. *At most two at once* is a thread pool of two; the run's own cancel is carried to its threads, so Stop all and the person's stop
+   reach every view. A stop fails the pitch with *stopped* and puts it on Hold, as a stopped draft is.
+5. *Where it may go* (`pitches.offers`): the project's parties but General and any Ideation party, with the types `goal_types.offered`
+   gives each; then each party of the library (`library.presets()`, the crafts' and *Taskmaster alone* too, Ideation never) whose leader
+   and team no party of the project has, with the types such a party would be offered. A party's slug wins over a preset's id.
+6. *What every call reads.* The parties are listed by slug, title, the Description's first lines (≤ 300) and the metrics' names; the
+   goals done and in work are the other parties' goals (any state but `proposed`), ≤ 40, `done` or `in work`; the passed pitches by slug,
+   title, the decision's why and the person's line. The Investor reads the goals and the passed pitches too (for `like`), after the
+   views, the case and where it may go.
+7. *The night* judges a pitch put off before any draft, held only by the spent window (`hold`, the `NEARLY` floor), never by the reserve
+   or the week's pace; it counts in `drafted`. The keeper's clock and Process now judge a pitch where they would draft a goal
+   (`DraftMixin.draft` and `draft_one` hand it to `judge`/`judge_one`).
+8. *Sent.* The new goal's words are the decision's first step (else the pitch) and a line `From Ideation: <pitch title> (<slug>)`; its
+   queue is Now whatever its party's priority; its lens is the pitch's; its state keeps `from_pitch`, and its draft's prompt gets
+   `pitches.sent_lines` (the views and the decision, ≤ 2 000). `as_decided` is the Investor's invest to the very party it was sent to.
+   The pitch is claimed `sent` under the lock before the goal is added (a second press is refused), and back to `judged` if the add fails.
+9. *Passed.* Kept by its `passed.at`; the 201st oldest is dropped with `ideas.drop` (page and state), never one being judged. A passed
+   pitch's `as_decided` is the Investor's pass.
+10. *Change and judge again* rewrites the Gist, and the title and short name from its first line; refused in a spent window, its words go
+    back. The decision there was goes to `before` when the next judging starts (so a Try again after a failure keeps it too).
+11. *Its price* (`party_price.pitch_price`): the six caps under the Target as the high end, half of them the low (about $0.29–$0.58 at
+    balance), learned from three judged pitches with priced lines. The three steps' lines count in the ledger's *spec* stage, under the
+    role that spoke.
+12. *The gate* needs nothing: a pitch has no plan, so it has no task in dev and is never among the gate's goals.
+13. *The words the page shows* say *pitch*, never *idea* (CLAUDE.md; `tests/test_arena_decks_desktop_browser.py` reads the New party
+    dialog for the word): the preset's line is *Small pitches: invest, reshape or pass, and why* and the Investor's line *Decides
+    whether to invest in a pitch: where to take it, or why not* (§1's table and preset said *idea*). The instructions, which go to the
+    model, keep §1's words.
+14. *Not done here.* The faces' pickers that must not offer the pitch agents to other parties, nor a seat change in Ideation, are B's and
+    C's (`library[].pitch` says which). `gui/phone_push.py` `KIND_WORDS` (kept equal to `js/board/today.js`) does not name `pitch`, so a
+    push never leads with a pitch; the snapshot's count leaves it out anyway. Saving an Ideation party is read by the keeper as any party
+    is (the Investor's voice, the `goal` step). `realm/ideas.py` was over 600 lines before and grows by two; not split here.

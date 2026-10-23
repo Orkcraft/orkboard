@@ -21,6 +21,9 @@ and the Board's own commands are in gui/ideas_board.py; a file to-do's file is k
 Spec 49: the gate, dev → main (`ideas.gate`, `ideas.gate_merge`: gui/ideas_gate.py), today's events (`ideas.today`:
 gui/ideas_recap.py) and the reserve in the snapshot.
 
+Spec 65: a goal of an Ideation party is a pitch, judged and never built (`ideas.judge`, `ideas.pitch_send`, `ideas.pitch_again`,
+`ideas.pitch_pass`: gui/ideas_pitch.py); the plan's commands refuse it.
+
 Spec 37 §8: the Board's settings are the project's (`BoardHost.board_settings`: `<repo>/.orkcraft/board.json` over the
 machine's `ideas`), read through `settings_now()` and written with `save_settings()`.
 """
@@ -35,7 +38,7 @@ from typing import Any, Callable
 
 from orkboard import settings
 from orkboard.core import idea_keeper
-from orkboard.realm import event_log, idea_checks, idea_element, idea_lens, idea_photos, idea_secrets, idea_target, ideas, wiki
+from orkboard.realm import event_log, idea_checks, idea_element, idea_lens, idea_photos, idea_secrets, idea_target, ideas, pitches, wiki
 from orkboard.gui.ideas_args import VIA, IdeasError, _device, _opt, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_gate import GateMixin
@@ -43,6 +46,7 @@ from orkboard.gui.ideas_goals import GoalsMixin
 from orkboard.gui.ideas_map import MapMixin
 from orkboard.gui.ideas_party import PartyMixin
 from orkboard.gui.ideas_pick import PickMixin
+from orkboard.gui.ideas_pitch import PitchMixin
 from orkboard.gui.ideas_recap import RecapMixin
 from orkboard.gui.ideas_review import ReviewMixin
 from orkboard.gui.ideas_revise import ReviseMixin
@@ -86,8 +90,8 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, RecapMixin, RolesMixin, ReviewMixin, ReviseMixin, TypesMixin,
-            BoardMixin):
+class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, PitchMixin, RecapMixin, RolesMixin, ReviewMixin, ReviseMixin,
+            TypesMixin, BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
         host makes one from its town, Orkboard its own."""
@@ -266,7 +270,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             try:
                 b = self.board(make=False)       # reads only: no tree is made for a snapshot
                 waiting = self.results()
-                data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] not in ("proposal", "party")),
+                data = {"needs_you": sum(1 for n in b["needs_you"] if n["kind"] not in ("proposal", "party", "pitch")),     # a judged pitch holds nothing (spec 65 §5)
                         "idea_states": [{"slug": i["slug"], "title": i["title"], "state": i["state"]} for i in b["ideas"]],
                         "review_count": len(waiting),
                         "review_results": [{k: r[k] for k in ("idea", "task", "title")} for r in waiting]}
@@ -290,6 +294,8 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         st = ideas.state(self.state_dir, slug)
         if st["state"] in ("reading", "planning") and not self.keeper.busy(slug):
             st["state"] = "raw" if st["state"] == "reading" else "ready"     # a run the host lost (it closed)
+        elif st["state"] == "judging" and not self.keeper.busy(slug):
+            st.update(state="failed", error=st["error"] or "stopped")          # a pitch's run the host lost: Try again (spec 65 §2)
         return st
 
     def page(self, slug: str) -> dict[str, Any]:
@@ -310,16 +316,18 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                 "plan": {**self._with_heads(plan), "missing": self.plan_missing(slug, plan)} if plan else plan,     # read now (spec 52 §2.6)
                 "busy": bool(self.keeper.busy(slug)) or st["state"] in ("reading", "planning"),
                 "state_error": st.get("error", ""), "proposed_track": page.get("proposed_track"),
-                "lens": idea_lens.read(self.state_dir, slug), **self.after_start(slug, plan, st)}      # spec 62 §1.5
+                "lens": idea_lens.read(self.state_dir, slug), **self.after_start(slug, plan, st),      # spec 62 §1.5
+                "pitch": self.pitch_of(root, slug, st["state"])}                                        # a pitch's views, case and decision (spec 65)
 
     # -- writing -------------------------------------------------------------------------------------------
 
-    def add(self, args: dict) -> dict:
+    def add(self, args: dict, pitch: str = "") -> dict:
         """An idea: a text, its goal (never General: that is the system's) and a priority (default the goal's). High
         and Normal are drafted at once, Low and a closed dialog's (`night`) wait for the night (spec 35 §3). `photos`
         (the phone's, base64) are kept beside it for the Taskmaster to read (realm/idea_photos.py), and `lens`, what the
         person pointed at with the lens of the goal's party (realm/idea_lens.py). Spec 52 §2.3: `type` (one of the party's
-        leader's), its `asks` (written after the text) and `join` (who joins the party first: gui/ideas_types.py)."""
+        leader's), its `asks` (written after the text) and `join` (who joins the party first: gui/ideas_types.py). `hold`: kept, nothing
+        drafts it till the person does. Spec 65: in Ideation it is a pitch (at most 2 000 characters), judged; `pitch`: the one it is sent from."""
         text = _text(args, "text", ideas.SECTION_CHARS)
         track = _opt(args, "track")
         goals = {t["slug"]: t for t in ideas.tracks(self.root(), make=False)}
@@ -336,19 +344,20 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             raise IdeasError(str(e)) from None
         pointed = self._lens_args(args)
         typed = self.typed(args, track, goals[track]["title"])
-        night = args.get("night") is True
-        queue = "night" if priority == "low" or night else "now"
+        night, hold = args.get("night") is True, args.get("hold") is True
+        queue = "hold" if hold else "now" if pitch else "night" if priority == "low" or night else "now"     # a goal sent from a pitch: Now (spec 65 §5)
+        text = text[:pitches.PITCH_CHARS] if pitches.is_ideation(self.root(), track) else text
         with ideas.LOCK:                        # the party changes before the goal, under the same lock; never for tonight's (spec 52 §2.3)
-            joined = self.join_goal(track, typed, args) if not night else None
+            joined = self.join_goal(track, typed, args) if not night and not hold else None
             slug = ideas.add_idea(self.root(), self.with_asks(text, typed), track, self.state_dir, priority, queue,
                                   night_by="person" if night else "board")      # a Low idea the Board puts off itself; the person's own night is theirs (spec 44 §2)
-            if typed["key"]:
-                ideas.save_state(self.state_dir, slug, type=typed["key"])
+            if typed["key"] or pitch:
+                ideas.save_state(self.state_dir, slug, type=typed["key"], from_pitch=pitch)
         if joined:
             self.changed(f"goal:{track}")
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
-        idea_lens.save(self.state_dir, slug, pointed)
+        idea_lens.save(self.state_dir, slug, pointed or (idea_lens.read(self.state_dir, pitch) if pitch else []))
         element = idea_element.give(self.root(), self.state_dir, slug)    # the mark of every card of it (spec 50 §2.3)
         ideas.add_turn(self.state_dir, slug, "you", self.with_asks(text, typed), "Gist")     # the person's own words, kept
         self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
@@ -546,9 +555,10 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         return {"name": name, "data": base64.b64encode(data).decode("ascii")}
 
     def commands(self) -> dict[str, Callable[[dict], Any]]:
-        def guarded(fn):
+        def guarded(name, fn):
             def run(args: dict) -> Any:
                 try:
+                    self.refuse_pitch(name, args)       # the plan's commands refuse a pitch (spec 65 §2)
                     return fn(args)
                 except (ValueError, idea_keeper.KeeperError) as e:
                     raise IdeasError(str(e)) from None
@@ -575,5 +585,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                  "ideas.spend": self.spend, "ideas.lens": self.lens, "ideas.lens_code": self.lens_code,
                  "ideas.lens_screen": self.lens_screen, "ideas.check_skip": self.check_skip,
                  "ideas.gate": self.gate, "ideas.gate_merge": self.gate_merge, "ideas.today": self.today, "ideas.pick": self.pick}
-        return {name: guarded(fn) for name, fn in table.items()}
+        table.update({"ideas.judge": self.judge, "ideas.pitch_send": self.pitch_send, "ideas.pitch_again": self.pitch_again,
+                      "ideas.pitch_pass": self.pitch_pass})
+        return {name: guarded(name, fn) for name, fn in table.items()}
 

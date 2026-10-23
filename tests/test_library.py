@@ -54,7 +54,7 @@ def test_the_product_manager_takes_screens_too_in_a_sentence_that_fits():
 def test_the_stages_of_a_leader_sum_to_five_more_and_the_default_is_for_any_other():
     for leader, s in {**library.STAGES, "default": library.DEFAULT_STAGES}.items():
         assert s.build_seats + s.check_seats == goal_team.SEATS and 2 <= s.build_seats <= 4 and 1 <= s.check_seats <= 3, leader
-    assert library.STAGES.keys() == {"game-designer"}
+    assert library.STAGES.keys() == {"game-designer", "investor"}                           # the Investor's: spec 65 §1
     game = library.stages_of("game-designer")
     assert (game.lead, game.build, game.check, game.build_seats, game.check_seats) == ("Concept", "Build", "Playtest", 4, 1)
     for other in ("architect", "taskmaster", "product-manager", "a-persons-own", ""):
@@ -65,13 +65,13 @@ def test_the_stages_of_a_leader_sum_to_five_more_and_the_default_is_for_any_othe
 
 
 def test_the_librarys_parties_have_known_members_that_fit_their_leaders_seats_and_bands():
-    assert [p[0] for p in library.PRESETS] == ["game", "mobile-app", "website"]
+    assert [p[0] for p in library.PRESETS] == ["game", "mobile-app", "website", "ideation"]    # Ideation after Website (spec 65 §1)
     for pid, name, line, craft, lead, build, check in library.PRESETS:
         assert library.get(lead).band == "lead" and craft in roles.CRAFTS and name and line, pid
         assert all(library.get(s).band == "build" for s in build) and all(library.get(s).band == "check" for s in check), pid
         assert not goal_team.seats([*build, *check], lead), pid
         assert len(build) <= library.seats_of(lead)["build"] and len(check) <= library.seats_of(lead)["check"], pid
-    game, app, site = library.PRESETS
+    game, app, site, _ideation = library.PRESETS
     assert (game[4], game[5], game[6]) == ("game-designer", ("grunt", "artist", "level-designer", "sound-designer"), ("playtester",))
     assert (app[4], app[5], app[6]) == ("product-manager", ("grunt", "artist", "aso"), ("reviewer", "accessibility-reviewer"))
     assert (site[4], site[5], site[6]) == ("growth", ("grunt", "copywriter", "seo"), ("reviewer", "editor"))
@@ -79,21 +79,21 @@ def test_the_librarys_parties_have_known_members_that_fit_their_leaders_seats_an
 
 def test_presets_answer_the_mixed_first_then_each_craft_then_the_taskmaster_alone():
     got = library.presets()
-    assert [p["id"] for p in got] == ["game", "mobile-app", "website", "engineering", "design", "data", "marketing", "product", "mixed"]
-    assert [p["mixed"] for p in got] == [True] * 3 + [False] * 6
-    game, eng, alone = got[0], got[3], got[-1]
+    assert [p["id"] for p in got] == ["game", "mobile-app", "website", "ideation", "engineering", "design", "data", "marketing", "product", "mixed"]
+    assert [p["mixed"] for p in got] == [True] * 4 + [False] * 6
+    game, eng, alone = got[0], got[4], got[-1]
     assert game == {"id": "game", "name": "Game", "line": "Rules, levels, art and sound, played through", "craft": "design", "race": "elf",
                     "mixed": True, "lead": "game-designer", "build": ["grunt", "artist", "level-designer", "sound-designer"], "check": ["playtester"]}
     assert (eng["name"], eng["line"], eng["lead"], eng["race"]) == ("Engineering", "Code, tests and the build", "architect", "peon")
     assert (alone["name"], alone["lead"], alone["build"], alone["check"]) == ("Taskmaster alone", "taskmaster", [], [])
-    assert [p["name"] for p in got[3:8]] == [roles.CRAFT_LABELS[c] for c in ("engineering", "design", "data", "marketing", "product")]
+    assert [p["name"] for p in got[4:9]] == [roles.CRAFT_LABELS[c] for c in ("engineering", "design", "data", "marketing", "product")]
 
 
 def test_parties_keeps_every_craft_and_adds_the_three_mixed_ones_by_their_ids():
     got = library.parties()
     for craft, (lead, build, check) in library.PARTIES.items():
         assert got[craft] == {"lead": lead, "build": list(build), "check": list(check)}      # a face that reads parties[<craft>] is unchanged
-    assert {"game", "mobile-app", "website"} <= got.keys() and len(got) == len(library.PARTIES) + 3
+    assert {"game", "mobile-app", "website", "ideation"} <= got.keys() and len(got) == len(library.PARTIES) + 4
     assert got["game"] == {"lead": "game-designer", "build": ["grunt", "artist", "level-designer", "sound-designer"], "check": ["playtester"]}
 
 

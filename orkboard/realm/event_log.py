@@ -141,6 +141,12 @@ PLAN_REVISED = "plan_revised"     # idea, changed (the sections it was made for)
 #                                    and the call's measure (step, prompt_chars, tokens, cost): the leader's plan change was saved
 PLAN_CHANGE_ANSWERED = "plan_change_answered"   # idea, take, added, changed_n, dropped (taken: what was applied; kept: what was proposed), left (how many of its tasks had started meanwhile), via (gui/ideas_args.py VIA, else "idea"), device
 
+# Spec 65 §6: Ideation's pitches judged, sent, passed and judged again (never a pitch's words).
+PITCH_JUDGED = "pitch_judged"     # goal (the pitch), answer (invest · reshape · pass), kills (their ids), tokens, cost, seconds
+PITCH_SENT = "pitch_sent"         # goal, to (the party), type (its goal type, else ""), as_decided (the party the Investor named), device
+PITCH_PASSED = "pitch_passed"     # goal, as_decided (the Investor said pass), has_reason, device
+PITCH_AGAIN = "pitch_again"       # goal, changed (its words were changed), device
+
 # Spec 42 §3: notifications to a paired phone (counts and tags, never a word of the push).
 PUSH_SET = "push_set"             # on, device
 PUSH_SENT = "push_sent"           # tag, devices, gone
@@ -151,7 +157,8 @@ EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LE
           ROLE_DROPPED, KIND_SET, BOARD_SET, IDEA_DRAFTED, KEEPER_STOPPED, NIGHT_RUN, PROPOSAL_MADE, PROPOSAL_ANSWERED,
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
-          OP_RULES_ANSWERED, OP_TRUST, OP_KEPT, OP_FORGOT, OP_STANDING, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET, IDEA_EDITED, PLAN_REVISED, PLAN_CHANGE_ANSWERED)
+          OP_RULES_ANSWERED, OP_TRUST, OP_KEPT, OP_FORGOT, OP_STANDING, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET, IDEA_EDITED, PLAN_REVISED, PLAN_CHANGE_ANSWERED,
+          PITCH_JUDGED, PITCH_SENT, PITCH_PASSED, PITCH_AGAIN)
 
 _LOCK = threading.Lock()
 

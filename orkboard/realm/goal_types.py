@@ -273,8 +273,12 @@ def offered(state_dir: Path, root: Path, party_slug: str, *, read: Party | None 
     `code` or `tests` is offered only when a member takes it itself. A type with every need met is offered with nothing missing;
     one with exactly one need not met, that need having a taker, is offered with that one missing only when the leader itself
     takes another of its needs (work beside the leader's is another party's). One name once: a type with nothing missing hides
-    the type it stands in for (`over`), and one with someone missing is not offered when that one is offered with nothing missing."""
+    the type it stands in for (`over`), and one with someone missing is not offered when that one is offered with nothing missing.
+    Ideation (a party the Investor leads) is offered none: a pitch has no type, its decision names the type of the goal it becomes
+    in the party it is sent to (spec 65 §1)."""
     p = read or Party(state_dir, root, party_slug)
+    if p.leader == library.INVESTOR:
+        return []
     taken = {m: _takes(state_dir, m) for m in p.members}
     lead = taken.get(p.leader, set()) - set(CODE)
     found: list[tuple[GoalType, list[dict]]] = []

@@ -181,6 +181,11 @@ TERMS: tuple[Term, ...] = (
     _t("pick", "pick", "picks"),                                   # the stop Pick one and its screen: a task left two to six variants of one kind for the person to pick from (spec 51)
     _t("plan_change", "plan change", "plan changes"),              # the leader's re-plan of what is left, after a goal's spec changed: the tasks not started changed, dropped or added, answered Take the new plan or Keep the plan (spec 62; the code's `change`, plan_change.json)
     _t("goal_type", "goal type", "goal types"),                    # what kind of goal a party's team can take on: New logo, Fix a bug; realm/goal_types.py, specs 52 and 59
+    _t("pitch", "pitch", "pitches"),                               # a goal of an Ideation party: a small idea to judge, not to build (spec 65; realm/pitches.py)
+    _t("pitch_view", "view", "views"),                             # one side's read of a pitch: what speaks for it, what against, one question (spec 65 §3)
+    _t("pitch_case", "the case against"),                          # the skeptic's strongest case not to do a pitch (spec 65 §3)
+    _t("pitch_decision", "decision", "decisions"),                 # the Investor's answer: Invest, Reshape or Pass, with why (spec 65 §3); not a verdict, which is a party's old one against its metrics
+    _t("pitch_passed", "passed"),                                  # a pitch the person passed on, kept with its why, read by every later pitch (spec 65 §5)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)
