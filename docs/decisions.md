@@ -932,3 +932,71 @@ whoever was in it; and every party had the same seats (one leader, three builder
    joined for, by party; whether a party with four builders swaps less than one with three.
 Steps of a type's own (a skeleton the plan must keep) wait for the numbers: first see where a typed goal's plans differ.
 The owner's call on the library before the testers' numbers, as §62–§71. Spec 59.
+
+## 73. The phone's members wear their tool and level again, beside their names (23 October, the owner)
+
+Why: the owner: *on the phone, while the party works, you cannot see each member's tool and level: only the heads on top
+and the names below; the desktop has them.* Spec 53 took the marks off with the members' strip (§66.2). So:
+1. **Over each column**, the member's tool mark before its name and its level's chevrons after it; the name is cut,
+   the marks never.
+2. **A member's card** (its solo) says its tool in words after its head's words.
+3. Not on the stage switch's faces: they are its buttons, 24 px, with the state sign on them.
+Refines §66.2. The owner's call, before the testers' numbers. Spec 60.
+
+## 74. Your own goal, first (23 October, the owner)
+
+Why: the owner: *a party's fixed set of goal types limits the person; leave a free goal, its card filled in by the
+person.* The free goal is there (*A blank goal* on the desktop, *No type* on the phone) but last, and named as empty. So:
+1. It is called **Your own goal** and stands **first** on both faces; on the phone it is the one picked when the form
+   opens (reverses spec 53's first type picked).
+2. A type is a shortcut (its asks, its refs, its plan's hint), never a limit: a goal of one's own still gets the plan's
+   *missing* line and *Add and start* when it asks for work no one of the party does (§65.5).
+3. **Measured** as §65's types are: the share of one's own goals, by party and face; above about a third, the owner
+   reads their words for the types the catalog lacks.
+The owner's call, before the testers' numbers. Spec 61.
+
+## 75. The spec after the start: talked over with the party's leader, and a change re-plans what is left (23 October, the owner)
+
+Why: the owner: *I want to edit and discuss the spec with the leader, before the work starts and after it, ideally each
+point on its own, and it should change the work in progress.* The talk per section is there (spec 35), signed *the
+Taskmaster* whoever leads; once a plan is passed, a changed spec reaches no task. So:
+1. **The talk names the party's leader** (§72: the leader plans the party's goals).
+2. **A goal says which of its plan-making sections changed since its plan**, with *Re-plan* before the start and
+   **Re-plan what is left** after it: a press, so a model call is never spent on every edit.
+3. **The leader proposes a plan change**: the tasks not started changed, dropped or added; a task at work or merged is
+   never touched. **It comes to the hand as one stop** — what changes and what it costs — answered *Take the new plan*
+   or *Keep the plan*; nothing is applied before the person's *Take*. Taking it deals the added tasks as *Start the work*
+   does (§70: the same moment).
+4. **A party's description changes no goal by itself**: a party has no plan (§63); its goals read the new description
+   when they are drafted or planned again.
+5. **Measured**: the goals whose spec changed after the start; the plan changes asked, taken and kept; what they add.
+The owner's call, before the testers' numbers. Spec 62.
+
+## 76. The party gathered: what it can take as it is picked; its heads gather into the deck; three moments travel (23 October, the owner)
+
+Why: the owner: *put the accent on gathering the party, perhaps with a motion like folding into a deck, as a goal's start
+has; and one at a goal's end: then three big motions — the party picked, the work started, the work done; without
+making it complicated.* Today the party's form says what it costs, not what it opens, and its save is a dialog that
+closes. So:
+1. **New party and Edit the party say what the party can take** as its seats change: the goal types it would be offered
+   (§72.3), a type a seat has just opened lit once. This, more than the motion, is the accent: it says why a member is
+   worth its seat.
+2. **A new party saved gathers its heads into the party's deck** (about 0.3 s, in steps, six at most), the deck lit once:
+   it says where the party went.
+3. **Three moments travel, and only three** (replaces §70.2's *the one motion that travels … never a precedent*): the
+   party gathered (this), the work dealt (§70, and a plan change taken, §75.3), the flags raised (§77). Each says where
+   something went, in steps, under half a second, never under reduced motion or on a hidden page, never for what the
+   person did not press or see, never in the way of a press. Everything else stays as §62.8 and §65.8 say: nothing flies.
+The owner's call, before the testers' numbers. Spec 63.
+
+## 77. The flags raised travel from the gate to the flag line (23 October, the owner)
+
+Why: the owner asked whether a goal's end has a motion, and whether it should. A merged task fades with a one-frame ✓
+and lights its member's number (§62.8); a goal's end, its flag raised in main (§63.3), only makes the flag line stand. So:
+1. **When the flag line first stands** on a device (once, as today), its goals' elements travel from the gate to the
+   line (the deal's timing, six at most) and stay in it, small, before its words; then the line's flag is raised (one
+   short step up) and the line is lit once.
+2. **From the gate's merge** when the person merged a moment ago, else the gate's button; when no gate is on screen,
+   nothing travels and the flag is still raised.
+3. The third of §76.3's three moments; no sound, no confetti, no colour but the office's.
+The owner's call, before the testers' numbers. Spec 64.
