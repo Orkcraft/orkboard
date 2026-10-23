@@ -98,7 +98,7 @@ def test_a_goal_type_is_what_kind_of_goal_a_leader_deals_spec_52():
     assert lexicon.term("goal_type") == "goal type" and lexicon.term("goal_type", many=True) == "goal types"
     rows = {key: (word, was) for key, word, was in lexicon.glossary()}
     assert rows["goal_type"] == ("goal type", "")
-    assert lexicon.words("New goal: pick its type, or a blank one") == "New goal: pick its type, or a blank one"
+    assert lexicon.words("New goal: your own, or pick its type") == "New goal: your own, or pick its type"
 
 
 def test_the_lines_of_stage_and_goal_type_say_what_the_leader_and_the_team_decide_spec_59():

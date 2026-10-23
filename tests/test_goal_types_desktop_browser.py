@@ -84,7 +84,7 @@ def typed(gui):
 
 
 def _types(pg):
-    pg.get_by_role("button", name="New goal: pick its type, or a blank one").click()
+    pg.get_by_role("button", name="New goal: your own, or pick its type").click()
     deal = pg.get_by_role("dialog", name="New goal for Sign in with a passkey")
     deal.wait_for(timeout=WAIT_MS)
     _dealt(pg)
@@ -172,9 +172,9 @@ def test_no_deal_under_reduced_motion(gui):
     pg.locator(".arena-ptop__deck").click()
     pg.get_by_role("dialog", name="Parties").wait_for(timeout=WAIT_MS)
     assert pg.evaluate("document.getAnimations().filter((a) => a.effect?.target?.classList?.contains('arena-spread__card')).length") == 0
-    pg.get_by_role("button", name="New goal: pick its type, or a blank one").count()
+    pg.get_by_role("button", name="New goal: your own, or pick its type").count()
     pg.keyboard.press("Escape")
-    pg.get_by_role("button", name="New goal: pick its type, or a blank one").click()
+    pg.get_by_role("button", name="New goal: your own, or pick its type").click()
     pg.get_by_role("dialog", name="New goal for Sign in with a passkey").wait_for(timeout=WAIT_MS)
     assert pg.evaluate("document.getAnimations().filter((a) => a.effect?.target?.classList?.contains('arena-spread__card')).length") == 0
     pg.locator(".arena-type", has_text="New screen").click()
@@ -185,41 +185,69 @@ def test_no_deal_under_reduced_motion(gui):
 
 # -- the New goal pile deals the types (§4.1) ---------------------------------------------------------------------------------------
 
-def test_the_pile_deals_the_partys_types_the_most_used_first_with_what_they_need_and_the_blank_last(typed):
+def test_the_pile_deals_your_own_goal_first_then_the_partys_types_the_most_used_first_with_what_they_need(typed):
     pg, host = typed
     words = pg.locator(".arena-new__words")
     assert "New goal" in words.text_content() and "pick its type" in words.text_content()
     deal = _types(pg)
     assert "New goal for Sign in with a passkey" in deal.locator(".arena-spread__cap").inner_text()
     cards = deal.locator(".arena-type")
-    assert [c.get_attribute("data-type") for c in cards.all()] == ["icon", "screen", "logo", "feature", ""]            # the host's order, the blank last
-    icon = cards.nth(0)
+    assert [c.get_attribute("data-type") for c in cards.all()] == ["", "icon", "screen", "logo", "feature"]            # your own goal first, then the host's order
+    icon = cards.nth(1)
     assert icon.locator(".ork-sign.picture.big").count() == 1 and "New icon" in icon.inner_text() and "An icon in the pixel style" in icon.inner_text()
     needs = icon.locator(".arena-type__needs")
     assert "needs: Artist" in needs.inner_text() and needs.locator(".ork-race__head.small").count() == 1
     assert needs.evaluate("e => getComputedStyle(e).color") != _alert(pg)                                                # muted ink: not a stop
-    assert cards.nth(1).locator(".arena-type__needs").count() == 0                                                       # it misses no one
-    assert "A blank goal" in cards.nth(4).inner_text()
-    cards.nth(1).click()                                                                                                  # the card turns over, then New goal opens
-    assert "is-turning" in (cards.nth(1).get_attribute("class") or "")
+    assert cards.nth(2).locator(".arena-type__needs").count() == 0                                                       # it misses no one
+    assert cards.nth(0).locator(".arena-type__needs").count() == 0
+    cards.nth(2).click()                                                                                                  # the card turns over, then New goal opens
+    assert "is-turning" in (cards.nth(2).get_attribute("class") or "")
     dialog = pg.get_by_role("dialog", name="New goal", exact=True)
     dialog.wait_for(timeout=WAIT_MS)
     assert dialog.locator(".arena-typed__head").text_content().strip() == "New screen"
     assert pg.get_by_role("dialog", name="New goal for Sign in with a passkey").count() == 0
-    dialog.get_by_role("button", name="Close").click()
-    _types(pg).locator(".arena-type.is-blank").click()                                                                   # the blank card: the form of today
-    pg.get_by_role("dialog", name="New goal", exact=True).get_by_text("A blank goal").wait_for(timeout=WAIT_MS)
 
 
-def test_a_map_with_no_types_opens_the_blank_form(typed):
+def test_your_own_goal_is_the_first_card_dealt_and_a_press_opens_the_form_headed_your_own_goal(typed):
+    """Spec 61 §1, §3 B: *Your own goal* stands first on the spread (the pile's back with its +, dashed), the types after it in the map's order."""
+    pg, host = typed
+    pile = pg.get_by_role("button", name="New goal: your own, or pick its type")
+    assert pile.get_attribute("title") == "New goal: your own, or pick its type"
+    deal = _types(pg)
+    cards = deal.locator(".arena-spread__card")
+    first = cards.first
+    assert "is-blank" in (first.get_attribute("class") or "") and first.get_attribute("data-type") == ""                 # first in the deal
+    assert deal.locator(".arena-type.is-blank").count() == 1                                                             # and the only one
+    assert first.get_attribute("aria-label") == "Your own goal: in your words"
+    assert first.locator(".arena-type__name").inner_text() == "Your own goal" and first.locator(".arena-type__back .ork-icon").count() == 1
+    assert "A blank goal" not in deal.text_content()
+    assert first.evaluate("e => getComputedStyle(e.querySelector('.arena-type__front')).borderStyle") == "dashed"
+    assert [c.get_attribute("data-type") for c in cards.all()] == ["", "icon", "screen", "logo", "feature"]              # the types after it, the map's order
+    assert pg.evaluate("document.activeElement.dataset.type") == ""                                                      # the focus starts on the first card
+    pg.keyboard.press("ArrowRight")
+    assert pg.evaluate("document.activeElement.dataset.type") == "icon"
+    pg.keyboard.press("ArrowLeft")
+    first.click()                                                                                                        # the card turns over, then the form opens
+    assert "is-turning" in (first.get_attribute("class") or "")
+    dialog = pg.get_by_role("dialog", name="New goal", exact=True)
+    dialog.wait_for(timeout=WAIT_MS)
+    assert dialog.locator(".shell-blank b").text_content() == "Your own goal" and dialog.locator(".arena-typed").count() == 0
+    assert "A blank goal" not in dialog.text_content() and dialog.get_by_label("Party").count() == 1               # the form of today: the party is chosen
+    dialog.get_by_label("Your goal").fill("Let me sign in with my face")
+    dialog.get_by_role("button", name="Add the goal").click()
+    sent = _calls(pg, host, "ideas.add")[-1]
+    assert sent["text"] == "Let me sign in with my face" and sent["track"] == "passkey" and "type" not in sent and "asks" not in sent and "join" not in sent
+
+
+def test_a_map_with_no_types_opens_the_form_of_your_own_goal(typed):
     pg, host = typed
     host.types = []
     host.bump({})
     pg.wait_for_function("() => !document.querySelector('.arena-new__pile[aria-haspopup]')", timeout=WAIT_MS)
-    pg.get_by_role("button", name="New goal: pick its type, or a blank one").click()
+    pg.get_by_role("button", name="New goal: your own, or pick its type").click()
     dialog = pg.get_by_role("dialog", name="New goal", exact=True)
     dialog.wait_for(timeout=WAIT_MS)
-    assert "A blank goal" in dialog.text_content() and dialog.get_by_label("Party").count() == 1
+    assert dialog.locator(".shell-blank b").text_content() == "Your own goal" and dialog.get_by_label("Party").count() == 1
 
 
 # -- New goal by its type (§4.2, §4.3) ----------------------------------------------------------------------------------------------
@@ -232,7 +260,7 @@ def test_new_goal_by_a_type_has_its_head_the_party_fixed_its_asks_refs_and_sends
     assert head.locator(".ork-sign.logo.big").count() == 1 and head.text_content().strip() == "New logo"
     assert dialog.locator(".arena-typed__for").inner_text() == "for Sign in with a passkey · Product designer reads it next"
     assert dialog.get_by_label("Party").count() == 0                                                                      # fixed: said, not a select
-    assert dialog.get_by_text("A blank goal").count() == 0
+    assert dialog.get_by_text("Your own goal").count() == 0
     labels = dialog.locator(".shell-field > .ok-font-label").all_text_contents()
     assert labels[:3] == ["Its title", "What it is for", "What it should say"] and "Refs" in labels
     ask = dialog.get_by_label("What it should say")
