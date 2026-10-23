@@ -167,6 +167,20 @@
 .arena-flagline__flag { display: inline-flex; color: var(--ork-success); }
 .arena-flagline__words { overflow: hidden; text-overflow: ellipsis; }
 .arena-flagline__x .ork-icon { width: 12px; height: 12px; }
+.arena-flagline__row { display: inline-flex; align-items: center; flex: none; gap: var(--ork-2); }
+.arena-flagline__el { display: inline-flex; }
+/* the flags raised (spec 64): the line's goals' elements travel to their places in its row from the gate (--dx, --dy, --s set from the gate's box, --delay 35 ms apart) as copies over everything,
+   taking no press; a place stays empty until its copy lands; the flag stands 6 px lower until the last has landed (--delay on the line), then steps up, and the line is lit once */
+.arena-flagfly { position: fixed; z-index: 60; margin: 0; pointer-events: none; animation: arena-fly 0.3s steps(6) var(--delay, 0s) backwards; }
+@keyframes arena-fly { from { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); opacity: 0.2; } to { transform: none; opacity: 1; } }
+.arena-flagline__el.is-coming { animation: arena-coming 0s linear backwards; }
+@keyframes arena-coming { from { visibility: hidden; } to { visibility: visible; } }
+.arena-flagline.is-raising .arena-flagline__flag { animation: arena-raise 0.18s steps(3) var(--delay, 0s) backwards; }
+@keyframes arena-raise { from { transform: translateY(6px); } to { transform: none; } }
+.arena-flagline.is-raising { animation: arena-lit 0.6s steps(4) var(--delay, 0s); }
+.arena-flagline.is-raising .arena-flagline__main, .arena-flagline.is-raising .arena-flagline__main b, .arena-flagline.is-raising .arena-flagline__x { animation: arena-lit-ink 0.6s steps(4) var(--delay, 0s); }
+@keyframes arena-lit { from { background: var(--ork-ink); color: var(--ork-on-ink); } }
+@keyframes arena-lit-ink { from { color: var(--ork-on-ink); } }
 
 .arena-done { list-style: none; margin: 0; padding: 0 var(--ork-2); display: flex; flex-direction: column; gap: var(--ork-1); }
 
@@ -460,5 +474,7 @@
   .arena-task.is-drawn, .arena-result.is-drawn, .arena-task.is-leaving, .arena-result.is-leaving, .arena-task__flash { animation: none; }
   .arena-hc { transition: none; }
   .arena-stk .arena-task.is-dealt, .arena-hc.is-leaving { animation: none; }
+  .arena-flagfly, .arena-flagline__el.is-coming, .arena-flagline.is-raising, .arena-flagline.is-raising .arena-flagline__flag, .arena-flagline.is-raising .arena-flagline__main,
+  .arena-flagline.is-raising .arena-flagline__main b, .arena-flagline.is-raising .arena-flagline__x { animation: none; }
   .arena-new__card, .arena-type__front, .arena-type__face { transition: none; }
 }
