@@ -4,15 +4,30 @@
 // one after, the difference played back); nothing moves under the finger or the focus (a column's redraw waits, at most 10 s); a number that a merge changed shows its new value
 // with a one-time highlight. Three moments travel, the three decisions §76.3 allows: the deal (a plan started from the hand deals its tasks onto the field, spec 57), the gather (a new party's
 // heads gather into its deck, spec 63 §4) and the flags raised (their goals' elements travel from the gate to the flag line, spec 64); each over the page, in steps, 0.30 s and 35 ms apart, six at most.
+// A face struck or calling (decisions §80, `struck`): a member's sign turned ✗, its face is lit once and jolts 2 px (`is-struck`, ≈ 0.3 s); turned !, the sign drops into its corner and the face hops 2 px
+// (`is-calling`, ≈ 0.25 s); in steps, on the change only, none on a face the finger or the focus is on, three at most in a refresh. Nothing travels.
 const SLIDE_MS = 250;                                 // a settle or a move, ease-out, no bounce
 const PULSE_MS = 600;                                 // the reward's highlight
 export const HOLD_MS = 10000;                         // a column is held under a touch or the focus for at most this long
 const DEAL_WAIT_MS = 6000;                            // a deal waits this long for the tasks of the plan it started (spec 57 §1.2)
 const DEAL_STEP_MS = 35, DEAL_LEN_MS = 300, DEAL_MAX = 6;       // the deal: each card steps(6) for 0.30 s, 35 ms after the one before, six at most (spec 57 §2)
 const LIT_MS = 600;                                   // a one-time highlight (`pulse`), as the quiet reward's
+const STRUCK_MAX = 3;                                 // the faces that may play a struck or a calling in one refresh (decisions §80)
 
 /** Whether the page may move now: not under reduced motion, not while it is hidden. */
 export const motionOn = () => !document.hidden && !(typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+const signs = new Map();                              // `goal|member` → the sign its face wore when it was last drawn ("" none)
+let struckLeft = STRUCK_MAX;
+/** The class a member's face takes as it is drawn (` is-struck`, ` is-calling` or ""): its sign (`mark`: "cross", "alert" or "") changed since the last draw of the goal, to ✗ or !. The first draw of a
+ *  member records and does not play; `old` is the face as it stood (the one this replaces): none while it is touched or has the focus; at most three faces in one refresh; none when motion is off. */
+export function struck(key, mark, old) {
+  const was = signs.get(key);
+  signs.set(key, mark);
+  if (was === undefined || was === mark || (mark !== "cross" && mark !== "alert") || !motionOn() || old?.matches(":hover, :focus-within") || struckLeft <= 0) return "";
+  if (struckLeft-- === STRUCK_MAX) setTimeout(() => { struckLeft = STRUCK_MAX; }, 0);
+  return mark === "cross" ? " is-struck" : " is-calling";
+}
 
 /** Where each item of each column stands: `column|key` → its top below its column's head, where the member stands (the page above it left out). */
 export function measure(root) {
