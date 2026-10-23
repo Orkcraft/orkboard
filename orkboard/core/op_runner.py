@@ -24,8 +24,13 @@ call, checked by the person, and done by one more call allowed only the one tool
 - **A learn call held** by a spent window or the cap waits in `ops/templates/<name>/learn.json` and runs after a
   restart too.
 - At most MAX_PARALLEL calls at once; the rest wait in order. No face: what changed is published.
+- **A brief** (docs/specs/66-team-briefs.md): its prepare writes a page and it stops at the check (**Keep**) or, by
+  itself, is kept; it has no action. About people, its prompts carry `PEOPLE_RULE` and its bound reads are checked
+  against the prepare's calls; a follow brief starts from the last one kept of the same value; standing briefs are
+  added on the tick and keep the reserve (core/op_briefs.py).
 
-The person's commands (add, the check's action, Prepare again, Stop, Drop, …) are core/op_commands.py's.
+The person's commands (add, the check's action, Prepare again, Stop, Drop, …) are core/op_commands.py's; a brief's
+Keep, Forget and standing briefs core/op_briefs.py's.
 """
 from __future__ import annotations
 
@@ -39,6 +44,8 @@ from typing import Any, Callable
 
 from orkboard.core import treasury
 from orkboard.core.idea_keeper import first_json
+from orkboard.core.op_briefs import (BOUND_WORDS, LOOKUP_CHARS, PEOPLE_RULE, PEOPLE_WORDS, STANDING_WAITS,  # noqa: F401
+                                     BriefsMixin, about_people, breach, last_time)
 from orkboard.core.op_commands import CAP_WAITS, CommandsMixin, OpsError
 from orkboard.realm import call_log, event_log, harnesses, idea_spend, idea_target, jobs, op_runs, op_templates, status
 from orkboard.realm.op_templates import Template
@@ -59,6 +66,11 @@ LEARN_LINE = ("The person corrected an operation of the template below before it
               '{"rules": ["…"], "why": "…"}\n\n')
 SHAPE = ('{"args": {"…": "the action tool\'s arguments"}, "draft": {"<part>": "…"}, '
          '"found": [{"label": "…", "value": "…"}], "doubts": ["…"]}')
+BRIEF_LINE = ("You prepare one brief of the person's from the template below, in one go: a page for them to read "
+              "before a meeting. Use only the tools listed; change nothing; post, send or write nothing anywhere; put "
+              "into doubts whatever you are not sure of: a value you could not find, more than one match, a guess. "
+              "Answer with one JSON object and nothing else.\n\n")
+BRIEF_SHAPE = '{"draft": {"<part>": "… (Markdown)"}, "found": [{"label": "…", "value": "…"}], "doubts": ["…"]}'
 
 
 def _iso(at: float) -> str:
@@ -85,16 +97,19 @@ def claude_here() -> bool:
     return h is not None and shutil.which(h.bin) is not None
 
 
-class OpRunner(CommandsMixin):
+class OpRunner(CommandsMixin, BriefsMixin):
     def __init__(self, base: Path, settings: Callable[[], dict], limits: Callable[[], list] | None = None,
                  publish: Callable[..., None] = lambda op="", template="": None, demo: bool = False,
                  templates: Callable[[], dict[str, Template]] = op_templates.find,
                  claude: Callable[[], bool] = claude_here,
-                 cap: Callable[[], tuple[float, float]] | None = None) -> None:
+                 cap: Callable[[], tuple[float, float]] | None = None,
+                 reserve: Callable[[], dict | None] = lambda: None) -> None:
         """`cap`: (the day's spend, the person's cap) its calls are held by (the host's, across the open projects:
-        core/treasury.py `persons_cap`); without it, Operations' own spend against the default cap."""
+        core/treasury.py `persons_cap`); without it, Operations' own spend against the default cap. `reserve`: the
+        settings whose reserves a standing brief keeps (the machine's Board settings, `ideas`; spec 66 §3)."""
         self.base = Path(base)
         self.settings, self.limits, self.publish = settings, limits or (lambda: []), publish
+        self.reserve, self.clock = reserve, dt.datetime.now
         self.cap = cap or (lambda: treasury.persons_cap([], op_runs.ledger(self.base)))
         self.demo, self.templates, self.claude = demo, templates, claude
         self._lock = threading.Lock()
@@ -222,9 +237,12 @@ class OpRunner(CommandsMixin):
             return False
 
     def _held(self, run: dict, step: str) -> bool:
+        """Held by a spent window, or by the cap; a standing brief (not the person's press) by the reserve too."""
         until = self.window_until()
+        if until is None and run.get("standing"):
+            until = self.reserve_until()
         if until is not None:
-            run.update(state="held", held_until=_iso(until), held=step, why="")
+            run.update(state="held", held_until=_iso(until), held=step, why=STANDING_WAITS if run.get("standing") else "")
         elif self.capped():
             run.update(state="held", held_until=_midnight(), held=step, why=CAP_WAITS)
         else:
@@ -235,7 +253,7 @@ class OpRunner(CommandsMixin):
     # -- the calls ------------------------------------------------------------------------------------------------
 
     def _call(self, step: str, prompt: str, allow: list[str], cancel: threading.Event, op_id: str,
-              template: str) -> tuple[str, Any, list[dict], dict]:
+              template: str, result_chars: int = jobs.RESULT_CHARS) -> tuple[str, Any, list[dict], dict]:
         """One call on a step: (text, cost, events, its measure). Raises jobs.CallFailed, InterruptedError."""
         target = idea_target.target_of(self.ops())
         tier, effort = idea_target.pick(step, target) or ("warrior", "")
@@ -250,7 +268,8 @@ class OpRunner(CommandsMixin):
         try:
             with call_log.apart(self.base / "calls", "ops", op_runs.ledger(self.base)), telemetry.tagged("plan", "ops"):
                 text, cost, tokens, events = jobs.run_call(HARNESS, prompt, work, cancel, allow, model, env=env,
-                                                           effort=effort, budget=idea_target.budget(step, target))
+                                                           effort=effort, budget=idea_target.budget(step, target),
+                                                           result_chars=result_chars)
         finally:
             usage = jobs.last_usage()
             op_runs.spend(self.base, {**idea_spend.line(step, "ops", HARNESS, model or tier, tier, effort,
@@ -271,21 +290,32 @@ class OpRunner(CommandsMixin):
 
     # -- the prepare (§4) ------------------------------------------------------------------------------------------
 
-    def prepare_prompt(self, t: Template, run: dict, tools: list[str], act: str) -> str:
+    def prepare_prompt(self, t: Template, run: dict, tools: list[str], act: str, last: dict | None = None) -> str:
+        """The prepare's prompt; a brief's has no action and, after the rules, `PEOPLE_RULE` (a template about people)
+        and *Last time* (`last`: the last kept brief of the same value, spec 66 §2, §4)."""
         fields = "\n".join(f"- {f['label']} ({f['name']}): {run['fields'].get(f['name'], '') or '(not given)'}"
                            for f in t.fields)
         draft = "\n".join(f"- {p['name']} — {p['label']}" + (f" (written at args.{p['at']})" if p.get("at") else "")
                           for p in t.draft)
         ats = "\n".join(f"- {f['name']} → args.{f['at']}" for f in t.fields if f.get("at"))
         parts = [("The skill", op_templates.skill_body(t)[:SKILL_CHARS]),
-                 ("Its rules (the person's, from earlier corrections)", op_runs.rules(self.base, t.name)[:RULES_CHARS]),
-                 ("The fields the person gave", fields),
-                 ("The draft parts to write (the person checks them)", draft),
-                 ("Fields that code writes into the arguments as given", ats),
-                 ("The action's tool (never call it: write its arguments)", act),
-                 ("The tools you may read with", ", ".join(tools)),
-                 ("Today", dt.date.today().isoformat()),
-                 ("The answer's shape", SHAPE)]
+                 ("Its rules (the person's, from earlier corrections)", op_runs.rules(self.base, t.name)[:RULES_CHARS])]
+        if t.people:
+            parts.append(("About people (this holds over the skill and the rules)", PEOPLE_RULE))
+        if t.follow:
+            parts.append(("Last time (the last brief kept for the same "
+                          f"{t.field_of(t.follow)['label']}: start from what was said and promised)",
+                          last_time(t, last) or "(none kept yet)"))
+        parts += [("The fields the person gave", fields), ("The draft parts to write (the person checks them)", draft)]
+        if t.brief:
+            parts += [("The tools you may read with", ", ".join(tools)), ("Today", dt.date.today().isoformat()),
+                      ("The answer's shape", BRIEF_SHAPE)]
+            return BRIEF_LINE + idea_target.cut(parts, idea_target.CONTEXT["op_prepare"])
+        parts += [("Fields that code writes into the arguments as given", ats),
+                  ("The action's tool (never call it: write its arguments)", act),
+                  ("The tools you may read with", ", ".join(tools)),
+                  ("Today", dt.date.today().isoformat()),
+                  ("The answer's shape", SHAPE)]
         return PREPARE_LINE + idea_target.cut(parts, idea_target.CONTEXT["op_prepare"])
 
     def _prepare(self, op_id: str, cancel: threading.Event) -> None:
@@ -300,13 +330,18 @@ class OpRunner(CommandsMixin):
             return
         if self._held(run, "prepare"):
             return
+        bounds, last = op_templates.bound(t, self.ops()["servers"]), self.follows(t, run)
         try:
-            text, cost, events, measure = self._call("op_prepare", self.prepare_prompt(t, run, tools, act), tools,
-                                                     cancel, op_id, t.name)
+            text, cost, events, measure = self._call("op_prepare", self.prepare_prompt(t, run, tools, act, last), tools,
+                                                     cancel, op_id, t.name,
+                                                     LOOKUP_CHARS if bounds else jobs.RESULT_CHARS)
         except InterruptedError:
             self._fail(self._run(op_id), "prepare", "stopped", False)
             return
         except jobs.CallFailed as e:
+            if bounds and breach(bounds, e.events, run["fields"]):
+                self._unbound(self._run(op_id))
+                return
             self._fail(self._run(op_id), "prepare", str(e)[:300], False)
             return
         run = self._run(op_id)
@@ -314,11 +349,14 @@ class OpRunner(CommandsMixin):
             return
         op_runs.add_cost(run, cost)
         init = next((e["tools"] for e in events if e["type"] == "init"), [])
-        missing = next((x for x in [*tools, act] if x not in init), None)
+        missing = next((x for x in [*tools, *([act] if act else [])] if x not in init), None)
         if missing is not None:
             what = op_templates.what_of(t, missing, self.ops()["servers"])
             self._fail(run, "prepare", f"{what}'s server has no {op_templates.short(missing)}: check the server picked "
                        "in Operations' gear", False)
+            return
+        if bounds and breach(bounds, events, run["fields"]):        # before its answer is read (spec 66 §2)
+            self._unbound(run)
             return
         answer = first_json(text)
         if answer is None:
@@ -331,14 +369,18 @@ class OpRunner(CommandsMixin):
             if isinstance(answer.get("found"), list) else []
         doubts = [d for d in (_line(x) for x in answer.get("doubts") or []) if d][:MAX_DOUBTS] \
             if isinstance(answer.get("doubts"), list) else []
-        args = answer.get("args") if isinstance(answer.get("args"), dict) else {}
-        run.update(draft=draft, found=found, doubts=doubts, args=op_templates.with_values(t, args, run["fields"], draft))
+        args = answer.get("args") if isinstance(answer.get("args"), dict) and not t.brief else {}
+        run.update(draft=draft, found=found, doubts=doubts, args=op_templates.with_values(t, args, run["fields"], draft),
+                   follows=last["id"] if last else "")
         run.pop("keep", None)
         self._ev(event_log.OP_PREPARED, op=op_id, doubts=len(doubts), **measure)
         ops = self.ops()
         tr = self.trust(t)
         stop = "checks" if run.get("again") else op_runs.stops(tr, t.risk, doubts, ops["daily_alone"],
                                                                  dt.date.today().isoformat())
+        if not stop and t.brief:
+            self._kept_alone(t, run)
+            return
         if not stop:
             run.update(state="acting", alone=True, why="", edited=[])
             self._save(run)
@@ -347,6 +389,13 @@ class OpRunner(CommandsMixin):
         run.update(state="check", alone=False,
                    why=op_runs.stop_words(stop, ops["daily_alone"]) if tr.get("alone") or stop == "high" else "")
         self._save(run)
+
+    def _unbound(self, run: dict) -> None:
+        """A bound read went past what the person named: the brief fails with nothing of it kept, its calls' prompts
+        and outputs removed (spec 66 §2)."""
+        op_runs.cut_calls(self.base, {run["id"]})
+        run.update(draft={}, found=[], doubts=[], args={})
+        self._fail(run, "prepare", BOUND_WORDS, False)
 
     # -- the action (§4) --------------------------------------------------------------------------------------------
 
@@ -434,6 +483,7 @@ class OpRunner(CommandsMixin):
         turned = "\n".join(f"- {line}" for row in op_runs.declined(self.base, t.name)
                            for line in row.get("lines") or [] if isinstance(line, str))
         parts = [("The template", t.title), ("Its rules", op_runs.rules(self.base, t.name)[:RULES_CHARS]),
+                 *([("About people (a rule never asks for any of this)", PEOPLE_RULE)] if t.people else []),
                  ("The correction (before → after)", what), ("The fields of the operation", fields),
                  ("Rules the person turned down (never propose these again)", turned)]
         return LEARN_LINE + idea_target.cut(parts, idea_target.CONTEXT["op_learn"])
@@ -458,7 +508,7 @@ class OpRunner(CommandsMixin):
             return
         answer = first_json(text) or {}
         lines = op_runs.new_rules(answer.get("rules"), op_runs.rules(self.base, t.name),
-                                  op_runs.declined(self.base, t.name, 10 ** 6))
+                                  op_runs.declined(self.base, t.name, 10 ** 6), about_people if t.people else None)
         self._ev(event_log.OP_LEARNED, template=t.name, lines=len(lines), step="op_learn",
                  tokens=measure.get("tokens"), cost=measure.get("cost"))
         if lines:
@@ -490,7 +540,9 @@ class OpRunner(CommandsMixin):
         today = dt.date.today().isoformat()
         if self._forgot != today:
             self._forgot = today
-            if op_runs.forget_old(self.base, self.ops()["keep_days"]):
+            ops = self.ops()
+            follow = {t.name: t.follow for t in self.templates().values() if t.follow}
+            if op_runs.forget_old(self.base, ops["keep_days"], follow=follow, follow_days=ops["follow_days"]):
                 self.publish()
 
     def tick(self, now: float | None = None) -> None:
@@ -499,11 +551,14 @@ class OpRunner(CommandsMixin):
             return
         self._tick_at = now
         self.forget()
+        self.standing()                                     # added even in a spent window: then they are held
         if self.window_until() is not None:
             return
         held = [run for run in op_runs.runs(self.base) if run.get("state") == "held"]
         if (held or self._learn) and self.capped():        # the ledgers are read only when something waits
             return
+        if any(run.get("standing") for run in held) and self.reserve_until() is not None:
+            held = [run for run in held if not run.get("standing")]      # a standing brief keeps the reserve
         for run in held:
             step = "act" if run.get("held") == "act" else "prepare"
             run.update(state="acting" if step == "act" else "preparing", held="", held_until="", why="")

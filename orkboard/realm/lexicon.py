@@ -198,6 +198,11 @@ TERMS: tuple[Term, ...] = (
     _t("op_check", "check", "checks"),                             # the person's look before its action
     _t("op_alone", "by itself"),                                   # a template whose operations need no check
     _t("op_rules", "rules"),                                       # what a template learned from the corrections
+    # Team briefs (docs/specs/66-team-briefs.md §0): the daily, the retro, the refinement and a 1:1, as teams say them
+    _t("op_brief", "brief", "briefs"),                             # an operation that prepares a page to read and does nothing outside
+    _t("op_standing", "standing brief", "standing briefs"),        # one prepared on its own time, before a meeting
+    _t("op_keep", "Keep"),                                         # the brief's check's button: saved as corrected, the person's alone
+    _t("op_forget", "Forget"),                                     # removes everything kept of one person
     _t("card_context", "context"),                                 # a card's wiki pages, 📜 (realm/cardlore.py)
     _t("todo_plan", "plan", "plans"),                              # a to-do's steps from a light model, 🧭
     _t("personal_card", "personal"),                               # a card that never reaches a model, 🔒

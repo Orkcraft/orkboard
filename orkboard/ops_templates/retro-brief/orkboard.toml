@@ -1,0 +1,65 @@
+# Orkboard's manifest for this skill (docs/specs/66-team-briefs.md §1, §2, §4, §5). The skill (SKILL.md) stays the
+# person's and works in Claude Code as before; this file says what Orkboard asks, what it may read with, and that it
+# only briefs. The tools are named as the Atlassian Rovo MCP server, GitHub's MCP server (github/github-mcp-server) and
+# the Slack MCP server (@modelcontextprotocol/server-slack) document them: this file is the one place they are written.
+title = "Before the retro"
+risk = "medium"
+people = true
+follow = "team"                         # it starts from the last retro of the same team: its actions, and what came of them
+reads = "Jira: the project and the sprint you name · GitHub: the repos you name · Slack: the channels you name, never direct messages"
+servers = { jira = "Jira", github = "GitHub", slack = "Slack" }
+
+[[fields]]
+name = "team"
+label = "Team"
+type = "text"
+remember = true
+hint = "The Jira project's key or its board"
+
+[[fields]]
+name = "sprint"
+label = "Sprint"
+type = "text"
+required = true
+hint = "Its name or its dates"
+
+[[fields]]
+name = "repos"
+label = "Repositories"
+type = "text"
+remember = true
+hint = "owner/repo, a comma between them"
+
+[[fields]]
+name = "channels"
+label = "Slack channels"
+type = "text"
+remember = true
+hint = "#team, #team-dev: only these are read, never direct messages"
+
+[[draft]]
+name = "brief"
+label = "Brief"
+type = "long"
+
+[prepare]
+tools = ["mcp__{jira}__getAccessibleAtlassianResources", "mcp__{jira}__getVisibleJiraProjects",
+         "mcp__{jira}__searchJiraIssuesUsingJql", "mcp__{jira}__getJiraIssue",
+         "mcp__{github}__list_pull_requests", "mcp__{github}__search_pull_requests", "mcp__{github}__pull_request_read",
+         "mcp__{slack}__slack_list_channels", "mcp__{slack}__slack_get_channel_history",
+         "mcp__{slack}__slack_get_thread_replies"]
+
+[[prepare.bound]]                       # a channel's messages: only the channels named, by name or the id listed for it
+tool = "mcp__{slack}__slack_get_channel_history"
+arg = "channel_id"
+field = "channels"
+lookup = "mcp__{slack}__slack_list_channels"
+
+[[prepare.bound]]
+tool = "mcp__{slack}__slack_get_thread_replies"
+arg = "channel_id"
+field = "channels"
+lookup = "mcp__{slack}__slack_list_channels"
+
+[brief]
+label = "Keep for the retro"

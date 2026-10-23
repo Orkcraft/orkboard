@@ -1,6 +1,6 @@
 """The person's commands on Operations (docs/specs/38-operations.md §3, §4, §6, §7, §11), `OpRunner`'s
 (core/op_runner.py): add from a template, Prepare again and the action on the check, Stop, Drop, Try again, Add again,
-Not right, the rules' answer and Check again. Each refuses in words (`OpsError`); none calls a model itself: it
+Not right, the rules' answer and Check again. A brief's Keep, Forget and standing briefs are core/op_briefs.py's. Each refuses in words (`OpsError`); none calls a model itself: it
 queues the call on the runner. A press that would start a call is refused while the day's spend is over the person's
 cap (spec 38 §1), as the runner holds the calls already queued.
 """
@@ -40,15 +40,18 @@ class CommandsMixin:
         if why:
             raise OpsError(why)
 
-    def add(self, template: object, fields: object, device: str = "desktop") -> str:
+    def add(self, template: object, fields: object, device: str = "desktop", standing: str = "") -> str:
+        """`standing`: the standing brief that adds it on Operations' tick (spec 66 §3), not the person's press: it is
+        not refused at the cap but held, as the reserve holds it."""
         t = self.template(template)
         self._may_add(t)
-        self._may_spend()
+        if not standing:
+            self._may_spend()
         try:
             values = op_templates.clean_fields(t, fields, op_runs.last_values(self.base, t.name))
         except ValueError as e:
             raise OpsError(str(e)) from None
-        run = op_runs.blank(op_runs.new_id(), t.name, t.version, values, device)
+        run = op_runs.blank(op_runs.new_id(), t.name, t.version, values, device, brief=t.brief, standing=standing)
         self._save(run)
         op_runs.remember(self.base, t.name, {f["name"]: values[f["name"]] for f in t.fields if f.get("remember")
                                              and values.get(f["name"])})
@@ -96,6 +99,8 @@ class CommandsMixin:
     def act(self, op_id: object, fields: object = None, draft: object = None, device: str = "desktop") -> None:
         """The check passed, as corrected: a changed field without `at` needs Prepare again first."""
         run, t = self._at_check(op_id)
+        if t.brief:
+            raise OpsError(f"A brief does nothing outside: {t.act_label}")
         self._may_spend()
         values, parts = self._form(t, run, fields, draft)
         changes = self._changes(t, run, values, parts)
