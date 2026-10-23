@@ -110,3 +110,13 @@ def test_the_lines_of_stage_and_goal_type_say_what_the_leader_and_the_team_decid
     assert "its leader words them" in stage and "Concept, Build, Playtest" in stage and "Planning, Implementation, Checking" in stage
     assert "a party's team can take on" in goal_type and "specs 52 and 59" in goal_type and "leader deals" not in goal_type
     assert lexicon.term("stage") == "stage" and lexicon.term("goal_type") == "goal type"
+
+
+def test_a_plan_change_is_the_leaders_re_plan_of_what_is_left_spec_62():
+    """Spec 62 §0: one word for the leader's re-plan of what is left after a goal's spec changed; today's word, no old spelling."""
+    assert lexicon.term("plan_change") == "plan change" and lexicon.term("plan_change", many=True) == "plan changes"
+    assert {key: (word, was) for key, word, was in lexicon.glossary()}["plan_change"] == ("plan change", "")
+    from pathlib import Path
+    line = next(l for l in Path(lexicon.__file__).read_text(encoding="utf-8").splitlines() if l.lstrip().startswith('_t("plan_change"'))
+    assert "spec 62" in line and "Take the new plan" in line and "plan_change.json" in line
+    assert lexicon.words("Take the new plan") == "Take the new plan" and lexicon.words("The plan changes · +2") == "The plan changes · +2"

@@ -485,7 +485,8 @@ def drop(root: Path, slug: str, state_dir: Path | None = None) -> None:
 STATE_DEFAULT = {"state": "raw", "session": "", "session_at": "", "context": 0, "batch_at": "", "error": "",
                  "queue": "", "held_until": "", "measure": None, "night_by": "",
                  "element": "",                       # a goal's element (realm/idea_element.py, spec 50 §2.3): given once, never changes
-                 "type": ""}                          # its type's key "<leader>/<id>" (realm/goal_types.py, spec 52 §2.2): given once by ideas.add
+                 "type": "",                          # its type's key "<leader>/<id>" (realm/goal_types.py, spec 52 §2.2): given once by ideas.add
+                 "changed": []}                       # the plan-making sections written since its plan (realm/idea_change.py, spec 62 §1): never changed in place
 
 
 def night_by_of(st: dict) -> str:

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from orkboard.gui.board_host import BoardPhone, CommandError, Orkboard
-from orkboard.realm import board_map, event_log, goal_team, idea_spend, ideas, library
+from orkboard.realm import board_map, event_log, goal_team, idea_change, idea_spend, ideas, library
 
 
 @pytest.fixture
@@ -461,3 +461,49 @@ def test_a_plan_rows_missing_is_read_against_the_party_now_and_a_node_says_its_t
     nodes = {n["slug"]: n for n in board_map.build(root, state, goal=g)["nodes"]}
     assert nodes[slug]["type"] == {"id": "logo", "name": "New logo", "sign": "logo"}
     assert nodes[blank]["type"] is None and nodes[odd]["type"] is None
+
+
+def test_a_plan_change_waiting_is_one_stop_of_kind_change_beside_the_plans_spec_62(host):
+    """Spec 62 §4.1–§4.2: while `plan_change.json` is there and can be taken, a stop `{idea, goal, title, priority, blocks: false, at: made_at, kind:
+    "change", text, why, added, changed, dropped, usd_low, usd_high}`; the Map's node keeps its needs_you; the hand sorts it as a plan."""
+    root, state = _board(host)
+    g = _goal(root, "Speed")
+    slug = _idea(root, state, g, "Cache the table", "working", priority="normal")
+    planning = _idea(root, state, g, "Index the runs", "plan")
+    _plan(state, slug, [_t("k1", "merged"), _t("k2", "ready", ["k1"]), _t("k3", "waiting", ["k2"])], passed_at="2026-10-23T09:30:00")
+    _plan(state, planning, [_t("k1", "ready")], passed_at=None)
+    stops = lambda: [n for n in host.command("ideas.board")["needs_you"] if n["kind"] == "change"]      # noqa: E731
+    assert stops() == []
+    change = {"made_at": "2026-10-23T11:00:00", "why": "csv only now", "changed": ["Out"], "estimate": {"usd_low": 0.1, "usd_high": 0.4},
+              "change": [{"id": "k2", "title": "Write csv"}], "drop": ["k3"], "add": [{"key": "n1", "title": "Stream", "brief": "b"}] * 2}
+    idea_change.write(state, slug, change)
+    before = (state / "ideas" / slug / "plan_change.json").stat().st_mtime_ns
+    (stop,) = stops()
+    assert stop == {"idea": slug, "goal": g, "title": "Cache the table", "priority": "normal", "blocks": False, "at": "2026-10-23T11:00:00",
+                    "kind": "change", "text": "The plan changes · +2 · 1 changed · −1", "why": "csv only now", "added": 2, "changed": 1,
+                    "dropped": 1, "usd_low": 0.1, "usd_high": 0.4}
+    kinds = [(n["idea"], n["kind"]) for n in host.command("ideas.board")["needs_you"]]
+    assert kinds == [(planning, "plan"), (slug, "change")]                                         # as a plan: by priority, then the oldest
+    nodes = {n["slug"]: n for n in host.command("ideas.map", {})["nodes"]}
+    assert nodes[slug]["needs_you"] == "" and nodes[planning]["needs_you"] == "plan"              # the Map's node is as it was
+    assert (state / "ideas" / slug / "plan_change.json").stat().st_mtime_ns == before            # a read writes nothing
+    # what cannot be taken any more is shown nowhere; a change of nothing says so
+    ideas.edit_plan(state, slug, lambda p: [p["tasks"][1].update(state="running", started="x"), p["tasks"][2].update(state="running", started="x")])
+    (stop,) = stops()
+    assert (stop["added"], stop["changed"], stop["dropped"], stop["text"]) == (2, 0, 0, "The plan changes · +2")
+    idea_change.write(state, slug, {**change, "add": []})
+    assert stops() == []
+    idea_change.write(state, slug, {**change, "change": [], "drop": [], "add": []})
+    (stop,) = stops()
+    assert stop["text"] == "The plan stays as it is" and (stop["added"], stop["changed"], stop["dropped"]) == (0, 0, 0)
+    ideas.save_state(state, slug, state="done")
+    assert stops() == []
+
+
+def test_the_hand_sorts_a_plan_change_as_a_plan_not_last_and_not_blocking_spec_62():
+    from orkboard.gui.ideas_board import sort_needs
+    row = lambda kind, priority="normal", at="2026-10-23T10:00:00", blocks=False: {"kind": kind, "priority": priority, "at": at, "blocks": blocks}      # noqa: E731
+    got = sort_needs([row("proposal", "high"), row("plan", "low"), row("change", "high", "2026-10-23T12:00:00"), row("change", "high", "2026-10-23T11:00:00"),
+                      row("failed", blocks=True), row("plan", "high", "2026-10-23T09:00:00")])
+    assert [(n["kind"], n["priority"], n["at"][11:13]) for n in got] == [
+        ("failed", "normal", "10"), ("plan", "high", "09"), ("change", "high", "11"), ("change", "high", "12"), ("plan", "low", "10"), ("proposal", "high", "10")]

@@ -98,6 +98,27 @@ def test_a_goal_of_a_type_who_joins_and_a_plans_missing_are_in_the_events_spec_5
     assert "offered (how many types" in source and "near (how many of them" in source and "preset (the library's party" in source and '"<builders>/<checkers>"' in source
 
 
+def test_the_spec_after_the_start_has_three_events_spec_62(tmp_path):
+    """Spec 62 §4.4: a section written by hand, the plan change the leader proposed (with the call's measure), and the person's answer."""
+    for name, value in (("IDEA_EDITED", "idea_edited"), ("PLAN_REVISED", "plan_revised"), ("PLAN_CHANGE_ANSWERED", "plan_change_answered")):
+        assert getattr(event_log, name) == value and value in event_log.EVENTS
+    assert len(set(event_log.EVENTS)) == len(event_log.EVENTS)
+    assert event_log.record(tmp_path, event_log.PLAN_REVISED, idea="a", changed=["Gist", "Out"], added=1, changed_n=0, dropped=2,
+                            usd_low=-0.1, usd_high=-0.3, step="plan", prompt_chars=900, tokens={"in": 1, "out": 2, "cache_read": 0}, cost=0.02)
+    assert event_log.record(tmp_path, event_log.PLAN_CHANGE_ANSWERED, idea="a", take=True, added=1, changed_n=0, dropped=2, left=1, via="hand", device="phone")
+    assert event_log.record(tmp_path, event_log.IDEA_EDITED, idea="a", section="Out", chars=12, passed=True, device="desktop")
+    revised, answered, edited = event_log.read(tmp_path)
+    assert (revised["changed"], revised["added"], revised["changed_n"], revised["dropped"]) == (["Gist", "Out"], 1, 0, 2)
+    assert (revised["usd_low"], revised["usd_high"], revised["step"], revised["prompt_chars"], revised["cost"]) == (-0.1, -0.3, "plan", 900, 0.02)
+    assert revised["tokens"] == {"in": 1, "out": 2, "cache_read": 0}
+    assert (answered["take"], answered["added"], answered["changed_n"], answered["dropped"], answered["left"], answered["via"]) == (True, 1, 0, 2, 1, "hand")
+    assert (edited["section"], edited["chars"], edited["passed"], edited["device"]) == ("Out", 12, True, "desktop")
+    assert event_log.counts(tmp_path)["plan_revised"] == 1 and event_log.counts(tmp_path)["plan_change_answered"] == 1
+    from pathlib import Path
+    source = Path(event_log.__file__).read_text(encoding="utf-8")
+    assert "changed (the sections it was made for)" in source and "left (how many of its tasks had started meanwhile)" in source
+
+
 def test_a_done_to_do_says_whether_it_was_gone_without_or_described(tmp_path):
     event_log.record(tmp_path, event_log.TODO_DONE, idea="x", todo="t1", kind="file", skipped=False, words=True)
     [row] = event_log.read(tmp_path)
