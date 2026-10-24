@@ -149,3 +149,23 @@ nothing) and `project_level` (*The project*: the project's level, its parties as
 - **Words**: `TERMS` has `orkmaster` (*Orkmaster*) and `project_level` (*The project*).
 - **Tests**: `tests/test_orkmaster.py` (11), `test_lexicon.py` (+1), `test_releases.py` (+1), `test_gui_ideas.py` (the command list has
   `ideas.party_for`).
+
+## As built (C)
+
+**C (phone), 24 October.** New `pwa/shell-project.js` (the project's sheet `makeProject`, **Its party** `makeItsParty`, the words `whyWords`, `fitWords`, `dealOf`, `PROJECT = "@project"`); `shell-where.js` (*The project* row at the top of the parties' sheet,
+only when `ideas.map` has `project`; `ideas.shown`), `shell-goal-new.js` (New party's tiles in the deal's order, a tile's why under its line), `shell-ideas.js` (`openNew("", "@project")` opens New goal without a party: its type is the
+union of the parties' types, **Its party** asked of `ideas.party_for`), `app.css`, `sw.js` (`CACHE` v77, `shell-project.js` in `SHELL`); `board.js` is unchanged (`core.newIdea` and `core.newParty` already carry what is needed). Tests: new
+`tests/test_pwa_project_browser.py` (13); the cache pin moved to v77 in every phone test that pins it.
+
+**Deviations and additions** (none changes a contract answer).
+- **The project's sheet** is a `full` sheet (titled *The project*, the pixel face of every sheet's title): the Orkmaster's head, *Orkmaster* and *The parties, their goals*, **New party**, a section for each party (but General) in the parties' sheet's
+  order (`chipsOf`), **New goal** pinned at the foot. A section's rows are the Goals sheet's: *Planning* and *At work* as headings with their rows, *Waits for main* and *Flags (n)* as 44 px folds (shut each time the sheet is built; a count beside
+  *Waits for main*, none beside *Flags (n)*, which says it). Ideation's section lists its pitches under *Planning* (as its Goals sheet does) and its count is the number of pitches, not *k/n*. A flag's row says its date and tally and the flag sign.
+  A row opens the goal's screen as the Goals sheet's › does (`core.open`: a pitch opens its sheet). A party with no goal says *Nothing in <party> yet*.
+- **New party** at the sheet's top toggles the strip (`aria-expanded`); it is shut each time the sheet opens. A tile (188 px wide: its heads, name, line and why) closes the sheet and opens New party with that preset picked (`core.newParty(id)`); a
+  `have` tile is dashed and its why muted. The strip scrolls along itself; the page never does.
+- **`ideas.shown`**: opening the sheet sends `{party: "@project", from: <party shown>}` (not `from` Operations), once, fire and forget. **Open <party>** sends `{party: <slug>, from: "@project"}` (always, even for the party already shown) and switches the board.
+- **New goal from the project**: *Its party* is *Any party* and every party's chip while no type is picked (Ideation last: *a pitch there*); with a type, `ideas.party_for {type}` is asked again, the line says *Orkmaster suggests <party> · takes it whole*
+  (or *needs <agent>*, *no one there does it*) and the chips say each party's fit. A chip picked changes the party the goal is added to (its own entry of the type then gives the join line, its lens and *What goes in*); Ideation picked makes the
+  form a pitch's, as in a party. The form's own party button is hidden, and a party's own New goal is unchanged. A host without `project` has no row, no project sheet and today's tiles.
+- **Tests run with** `--with cryptography --with segno --with websockets`: all 388 phone tests of `tests/test_pwa*.py` passed (13 of them the new file), and `test_architecture.py`, `test_board_alone.py`, `test_updates.py`, `test_gui_wording.py`, `test_design_system.py` (99 with `test_pwa.py` and the new file).
