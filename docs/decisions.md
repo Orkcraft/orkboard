@@ -1133,3 +1133,42 @@ So (reverses §65.3 on the desktop; the phone keeps its deck and sheet):
 4. **The leader's big card goes**: its price and its details are behind its row's press and *About this party*, as a
    member's are. A new party's heads gather onto its heading's head (§76.3's moment, landing elsewhere).
 The owner's call. Spec 69.
+
+## 85. The project has a level of its own, and an ork for it: the Orkmaster deals the parties and a goal's party (24 October, the owner)
+
+Why: the owner: *one Orkmaster on the project, who keeps the parties and their goals in step; pressing it, the field
+shows one level more: the goals in the parties' columns; and creating or picking a party goes through it.* The Board has
+three levels (a party, its goals, their tasks) and a goal's route (§83) goes across parties, seen only from inside one
+goal. A member does tasks, a party's leader deals the goal types and plans; nobody is above the parties. So:
+1. **The Orkmaster** is the project's ork (an ork: engineering's head, its elder tier), drawn in the project's line at
+   the left column's top. It plans nothing and moves nothing (§78.4, §83.6 hold): in this step it deals and suggests by
+   rules, with no model.
+2. **The project's level** (*The project*): a press on the Orkmaster shows the parties as the field's columns, each
+   party's goals in it as decks (a goal's element and type sign, never a task's card), by where they are (*Planning*,
+   *At work*, *Waits for main*, *Flags*), and a goal's route between them as links on hover. A press on a party's column
+   opens that party. The phone has it as a sheet, a party a section.
+3. **The Orkmaster deals the parties**: New party is its deck; the library's parties come first that the project lacks
+   (Release when flags wait and no party releases, Ideation when none judges pitches), the ones it has last.
+4. **A goal written on the project's level gets its party from the Orkmaster**: by its type and the parties' teams, the
+   parties that can take it whole first, then those that miss one agent, each said; the person picks.
+5. **Switching party stays one press** on its heading (§84): the Orkmaster is for the whole, for a new party and for a
+   goal's party, never a step on the way.
+The owner's call. Spec 70.
+
+## 86. The Orkmaster keeps the parties from colliding: what two goals both touch, a spec changed under another party, a goal that waits for another party's (24 October, the owner)
+
+Why: the owner: *the Orkmaster coordinates the parties' work and the changes in their specs, so they do not collide.*
+Each leader sees its own party; two parties' goals that change the same thing meet only at the gate, when the work is
+done twice or undone. So (after §85, on its level):
+1. **Before the work**: when a party's plan is made, the code compares what the goal touches (its page's `touches`,
+   its tasks' files) with the open goals of the other parties; an overlap is a stop of the Orkmaster's in the hand:
+   *<party> «<goal>» and <party> «<goal>» change the same thing*, with **<one> first** (the other waits), **One goal**,
+   **Leave it**.
+2. **A spec changed after the start** (§75): the goals of other parties that touch what it changed get a stop:
+   *<party> changed «<goal>»: «<goal>» in <party> rests on what it was*, with **Re-plan it** (that party's leader
+   re-plans what is left, as §75 does) and **Leave it**.
+3. **A goal may wait for another party's goal**: its start held until that goal's flag; set only by the person's yes.
+4. **Code finds, a model judges, the person decides**: the overlap is found by code (no cost); a model of the cheaper
+   tier is asked only to tell a collision from a coincidence; the Orkmaster never edits another party's spec or plan, and
+   nothing moves without the person's answer. Measured: its stops answered, taken or left.
+The owner's call, after spec 70 is seen at work. Spec 71.
