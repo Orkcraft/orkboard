@@ -9,7 +9,7 @@ import { h, sheet } from "./util.js";
 import { elem, sign } from "./shell-marks.js";
 import { whoHead } from "./shell-who.js";
 import { motionOn, pulse } from "./shell-motion.js";
-import { answeredOf, pitchLine, pitchStage, whereWords } from "./shell-goals-words.js";
+import { answeredOf, goalStateWords, partyNameOf, pitchLine, pitchStage, whereWords } from "./shell-goals-words.js";
 
 const PITCH_CHARS = 2000;                            // pitches.PITCH_CHARS: a pitch's one box
 const WHY_CHARS = 300;                               // pitches.WHY_CHARS: the person's line when they pass
@@ -47,7 +47,7 @@ export function makePitchField(core) {
   function row(n) {
     const d = n.pitch?.decision, judging = n.state === "judging";
     // a judged one's answer stands at its end: its line says where it would go, else its first kill reason
-    const line = n.state === "judged" && d ? whereWords(d) || d.kills?.[0]?.words || "waits for you" : pitchLine(n, errorOf(st, n.slug));
+    const line = n.state === "judged" && d ? whereWords(d) || d.kills?.[0]?.words || "waits for you" : pitchLine(n, errorOf(st, n.slug), (s) => partyNameOf(st, s));
     const end = n.state === "judged" && d ? h("b", { class: "pitchrow__answer", "data-answer": d.answer }, d.word)
       : n.state === "failed" ? h("span", { class: "pitchrow__mark" }, sign("cross", "failed")) : n.state === "sent" ? h("span", { class: "pitchrow__mark" }, sign("after", "sent")) : null;
     return h("button", { class: `pitchrow is-${n.state}`, type: "button", "data-idea": n.slug, "data-state": n.state, "aria-label": `${n.title}: ${n.state === "judged" && d ? `${d.word}, ` : ""}${line}`,
@@ -141,6 +141,16 @@ export function makePitch(core, ctx) {
     ].filter(Boolean);
   }
 
+  /** A sent pitch's goal as it is now, under the decision (spec 68 §2.4, §7.2): *At work in Mobile app · 3 of 7*, *In main*, *In Release 1.4*, *Out in 1.4*, *Dropped*; a press opens the goal. */
+  function goalLine(p, node) {
+    const gs = p.goal_state || node?.goal_state;
+    if (!gs) return null;
+    const words = goalStateWords(gs, (s) => partyNameOf(st, s)), gone = gs.state === "dropped";
+    return h("button", { class: "pitch__goal", type: "button", "data-act": "goal-line", "data-goal": gs.goal, disabled: gone, "aria-label": `Its goal: ${words}`,
+      onclick: () => { sh.close(); core.open({ kind: "idea", slug: gs.goal }, "pitch"); } },
+    h("b", {}, "Its goal"), h("span", { class: "pitch__goalwords" }, words), gone ? null : h("i", { class: "ork-chev right", "aria-hidden": "true" }));
+  }
+
   // -- what the person does ---------------------------------------------------------------------------------------------------------------------------------
   const btn = (label, run, { primary = false, danger = false, act = "", tip = "" } = {}) => h("button", { class: `ork-btn${primary ? " primary" : ""}${danger ? " danger" : ""}`, type: "button",
     "data-act": act || null, title: tip || null, onclick: run }, label);
@@ -215,16 +225,16 @@ export function makePitch(core, ctx) {
   }
 
   function stateWords(state, p) {
-    const n = now().node || { state, pitch: p, queue: page?.queue, held_until: page?.held_until };
-    return { judging: "Being judged", judged: "Judged: waits for you", sent: "Sent", passed: "Passed", failed: "Failed", raw: "Not judged yet" }[state] + ` · ${pitchLine(n, page?.state_error || errorOf(st, slug))}`;
+    const n = now().node || { state, pitch: p, queue: page?.queue, held_until: page?.held_until, goal_state: p?.goal_state };
+    return { judging: "Being judged", judged: "Judged: waits for you", sent: "Sent", passed: "Passed", failed: "Failed", raw: "Not judged yet" }[state] + ` · ${pitchLine(n, page?.state_error || errorOf(st, slug), (s) => partyNameOf(st, s))}`;
   }
 
   let drawn = "";
   /** Drawn again when what it shows changed, or at once (`force`) for the person's own press: a box being typed in stays as it is while the Board is read again. */
   function draw(force = true) {
     if (!sh.el.open) return;
-    const { state, pitch: p, title } = now();
-    const sig = JSON.stringify([slug, state, p, page, mode, note, err, (st.map?.goals || []).map((g) => g.slug)]);
+    const { state, pitch: p, title, node } = now();
+    const sig = JSON.stringify([slug, state, p, page, node?.goal_state, mode, note, err, (st.map?.goals || []).map((g) => g.slug)]);
     if (!force && sig === drawn) return;
     drawn = sig;
     sh.title(title);
@@ -240,7 +250,7 @@ export function makePitch(core, ctx) {
         h("p", { class: "pitch__words" }, p.case.case || "—"),
         (p.case.kills || []).length ? h("div", { class: "pitch__kills" }, h("p", { class: "pitchview__label" }, "Kill reasons"), list(p.case.kills.map((k) => k.words))) : null].filter(Boolean)
         : [h("p", { class: "cap" }, judging ? `${p.skeptic?.name || "The Skeptic"} argues once the four views are in.` : "Not made yet.")])),
-      sec("Decision", ...decisionBlock(p, state)),
+      sec("Decision", ...decisionBlock(p, state), goalLine(p, node)),
       p.sent ? sec("Sent", h("p", { class: "pitch__said" }, `To ${p.sent.name || p.sent.party}${p.sent.type ? `, as ${p.sent.type}` : ""}: ${p.sent.title || p.sent.goal}`)) : null,
       p.passed ? sec("Passed", h("p", { class: "pitch__said" }, p.passed.why || "No reason given."), p.passed.as_decided ? h("p", { class: "cap" }, "As the Investor said.") : null) : null,
       rest.length ? h("div", { class: "pitch__more", role: "group", "aria-label": "More" }, ...rest) : null,

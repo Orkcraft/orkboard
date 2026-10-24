@@ -67,7 +67,7 @@ export function makeBoard(ctx) {
     /** An agent's dialog (model, at once, instruction, Takes), from a member's card (spec 54 §6.2). */
     editAgent(slug) { agentSheet.open(slug); },
     /** New goal, the party shown first (spec 53 §2); the form picks its goal type. */
-    newIdea() { boardTab.openNew(st.track); },
+    newIdea(type = "", slug = st.track) { boardTab.openNew(slug, type); },
     /** New party with a party of the library picked (`preset`: its id); `after(slug)` once it is made (a pitch sent to a party the project lacks, spec 65 §5). */
     newParty(preset, after) { boardTab.newParty(preset, after); },
     /** A pitch's sheet (spec 65 §8). */

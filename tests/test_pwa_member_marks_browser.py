@@ -204,4 +204,4 @@ async def test_the_stage_switch_wears_no_mark_and_its_faces_are_as_they_were(fak
 
 def test_the_service_worker_is_at_v68():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v75";' in sw                                                                              # specs 60 C and 61 C: one up from v67
+    assert 'const CACHE = "orkcraft-app-v76";' in sw                                                                              # specs 60 C and 61 C: one up from v67
