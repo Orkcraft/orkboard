@@ -24,7 +24,8 @@ BOARD_COMMANDS = {"ideas.board", "ideas.page", "ideas.add", "ideas.say", "ideas.
                   "ideas.goal", "ideas.read_now", "ideas.roles", "ideas.role_save", "ideas.role_add", "ideas.role_drop",
                   "ideas.kind_set", "ideas.gate", "ideas.gate_merge", "ideas.today", "ideas.pick",
                   "ideas.revise", "ideas.revise_answer",
-                  "ideas.judge", "ideas.pitch_send", "ideas.pitch_again", "ideas.pitch_pass"}   # … and spec 49's three, spec 51's one, spec 62's two, spec 65's four
+                  "ideas.judge", "ideas.pitch_send", "ideas.pitch_again", "ideas.pitch_pass",
+                  "ideas.release_out", "ideas.release_candidates", "ideas.shown"}   # … and spec 49's three, spec 51's one, spec 62's two, spec 65's four, spec 67's three
 
 
 @pytest.fixture
@@ -791,7 +792,7 @@ def test_ideas_flags_gains_the_goals_flags_every_partys_newest_first_and_keeps_t
     json.dumps(got)
     assert got["flags"] == [] and [g["slug"] for g in got["goals"]] == [b, d, a]                      # newest first, every party's
     assert got["goals"][0] == {"slug": b, "title": "Larger text", "short": "Larger text", "goal": "first-goal", "element": "ice",
-                               "at": "2026-10-21T09:00:00", "tasks": 0, "first_time": 0, "usd": None, "days": got["goals"][0]["days"]}
+                               "release": None, "at": "2026-10-21T09:00:00", "tasks": 0, "first_time": 0, "usd": None, "days": got["goals"][0]["days"]}
     assert got["goals"][1]["goal"] == "second-party" and c not in {g["slug"] for g in got["goals"]}
 
 

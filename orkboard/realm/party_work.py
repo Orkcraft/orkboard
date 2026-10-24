@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from orkboard.realm import board_recap, goal_team, idea_checks, idea_spend, ideas, library, pitches, roles
+from orkboard.realm import board_recap, goal_team, idea_checks, idea_spend, ideas, library, pitches, releases, roles
 
 QUIET_RUN = 8                            # check tasks of a goal that all ended clean in round 1: the night proposes to take the checker out
 ENDED = ("merged", "failed")             # a task that has an end: the work counts from here
@@ -127,6 +127,8 @@ def work(root: Path, state_dir: Path, goal: str, target: str = "balance") -> dic
     out = {"ideas": len(plans), "leader": leader, "members": members, "checks": checks}
     if goal_team.leader_of(root, goal) == library.INVESTOR:       # Ideation: its pitches judged, sent, passed (spec 65 §6)
         out["pitches"] = pitches.tally(root, state_dir, goal)
+    if goal_team.leader_of(root, goal) == library.RELEASE_MANAGER:      # Release: releases made and out, goals a release, days from a flag to out (spec 67 §4)
+        out["releases"] = releases.tally(root, state_dir, goal)
     return out
 
 

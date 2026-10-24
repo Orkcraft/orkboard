@@ -14,7 +14,7 @@ import datetime as dt
 import threading
 from pathlib import Path
 
-from orkboard.realm import board_recap, event_log, goal_verdict, idea_element, idea_flag, idea_spend, ideas
+from orkboard.realm import board_recap, event_log, goal_verdict, idea_element, idea_flag, idea_spend, ideas, releases
 
 _STARTS: dict[str, tuple[tuple[int, int], dict[str, dt.datetime]]] = {}      # event log → ((mtime, size), goal → its first `goal_saved`)
 _LOCK = threading.Lock()
@@ -79,11 +79,12 @@ def goals(root: Path, state_dir: Path) -> list[dict]:
     """The flags of the goals (spec 50 §2.2, §2.4), every party's, newest first: a goal's slug, title, short name, its party's
     slug (`goal`, the code's name), its element, and its flag's `at` and tally (`tasks`, `first_time`, `usd`, `days`). The faces
     filter by `goal`; a party's old flags (what `flags` lists) are history and stay where they are."""
-    out = []
+    out, held = [], releases.holding(root, state_dir)
     for i in ideas.ideas(root):
         flag = idea_flag.flag_of(state_dir, i["slug"])
         if flag is not None:
             out.append({"slug": i["slug"], "title": i["title"], "short": i["short"], "goal": i["track"],
                         "element": idea_element.of(state_dir, i["slug"]), "at": flag["at"],
+                        "release": releases.step_of(held[i["slug"]][-1]) if held.get(i["slug"]) else None,        # spec 67 §6
                         **{k: flag.get(k) for k in ("tasks", "first_time", "usd", "days")}})
     return sorted(out, key=lambda f: (board_recap.when(f["at"]) or dt.datetime.fromtimestamp(0).astimezone()).timestamp(), reverse=True)
