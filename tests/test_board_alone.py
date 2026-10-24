@@ -77,7 +77,8 @@ def test_orkboards_wiki_is_the_setting_else_the_general_one(fake_repo):
 def test_the_snapshot_holds_only_what_the_shell_reads(host):
     snap = host.snapshot()
     assert set(snap) == {"focus", "onboarding", "ideas_rev", "ops_rev", "needs_you", "idea_states", "review_count",
-                         "review_results", "limits", "reserve", "hud", "repo", "projects", "update"}
+                         "review_results", "limits", "reserve", "hud", "repo", "projects", "update",
+                         "update_policy", "version", "usage_ask"}          # Settings → Updates, the first screen's ask
     assert set(snap["reserve"]) == {"share", "night"}                                  # spec 49 §2.3
     assert snap["projects"] == host.command("projects.list")                         # the switcher (spec 37 §8)
     assert snap["focus"] == "board" and set(snap["hud"]) == {"show_gold", "gold", "lumber"}

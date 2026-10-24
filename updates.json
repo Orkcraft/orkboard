@@ -1,0 +1,11 @@
+{
+  "about": "The releases of Orkboard, newest first: what an installed copy reads to update itself (docs/updates.md). A release marked critical installs by itself when Orkboard opens; one marked major (or starting a later line, 0.1 → 0.2) is offered louder in the window.",
+  "releases": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-18",
+      "critical": false,
+      "notes": "Orkboard on its own: the Board with its parties and goals, the preview, Agents and Review, on the desktop and on a paired phone."
+    }
+  ]
+}

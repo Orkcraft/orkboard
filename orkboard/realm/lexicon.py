@@ -106,6 +106,7 @@ TERMS: tuple[Term, ...] = (
     _t("place", "place", "places"),                                # an area a phone says it came to or left (docs/design/phone-places.md)
     _t("update", "update", "updates"),                             # a newer Orkline (core/updates.py, docs/updates.md)
     _t("critical_update", "critical update", "critical updates"),  # …that installs by itself when the town opens
+    _t("major_update", "major update", "major updates"),           # …that starts a later line (0.1 → 0.2), offered louder
     _t("standing_orders", "Instructions", "", "Standing orders"),   # what an ork is told to do
     _t("awaiting_orders", "Awaiting an answer", "", "Awaiting Orders"),
     _t("garrison", "Orks", "", "Garrison"),

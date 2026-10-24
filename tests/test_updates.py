@@ -1,5 +1,6 @@
-"""Updates (core/updates.py, gui/updates.py, docs/updates.md in Orkline): the list of releases, what is offered,
-what installs by itself at a launch, and how each kind of install upgrades Orkboard."""
+"""Updates (core/updates.py, gui/updates.py, docs/updates.md): the list of releases, what is offered, what installs by
+itself at a launch, and how each kind of install upgrades Orkboard. The updater is orkGet's copy (orkboard/orkget/),
+whose own tests run it for each product; these keep what is Orkboard's: its profile, its list, its window."""
 from __future__ import annotations
 
 import json
@@ -11,6 +12,8 @@ import pytest
 
 from orkboard import __version__, settings
 from orkboard.core import updates
+from orkboard.orkget import updates as copy      # what the updater reads its helpers from: a test replaces them there
+from orkboard.product import PRODUCT
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -86,7 +89,9 @@ def test_what_installs_by_itself_follows_the_policy():
 
 
 def test_orkboard_reads_its_own_list_never_orklines():
-    assert updates.MANIFEST_URL == "https://raw.githubusercontent.com/orkWorks/orkBoard/main/updates.json"
+    """The list's address is written in every installed copy: it never changes (spec 41 §6)."""
+    assert PRODUCT.manifest == "https://raw.githubusercontent.com/orkWorks/orkBoard/main/updates.json"
+    assert updates.url() == updates.MANIFEST_URL == PRODUCT.manifest
     assert updates.SOURCE == "git+https://github.com/orkWorks/orkBoard"
     assert updates.state_path().name == "orkboard-updates.json"            # Orkline's cache is updates.json
 
@@ -173,33 +178,20 @@ def test_pipx_and_uv_upgrade_with_their_own_tool(tmp_path):
     assert not missing.can and "uv tool install --force" in missing.why
 
 
-def test_homebrew_upgrades_with_brew_and_restarts_under_opt(tmp_path, monkeypatch):
-    pkg = tmp_path / "site" / "orkboard"
+def test_homebrew_has_no_formula_of_orkboard(tmp_path, monkeypatch):
+    """Orkboard is not in Homebrew (spec 41 §2: its profile names no formula): a copy under a Cellar says what to run."""
     monkeypatch.delenv("HOMEBREW_PREFIX", raising=False)
     has = lambda name: "/opt/homebrew/bin/" + name   # noqa: E731
-    brew = updates.method(pkg, prefix="/opt/homebrew/Cellar/orkboard/0.2.1/libexec", which=has)
-    assert brew.kind == "brew" and brew.steps == (("/opt/homebrew/bin/brew", "update", "--quiet"),
-                                                  ("/opt/homebrew/bin/brew", "upgrade", "orkcraft/orkcraft/orkboard"))
-    assert brew.python == "/opt/homebrew/opt/orkboard/libexec/bin/python"
-    monkeypatch.setenv("HOMEBREW_PREFIX", "/home/linuxbrew/.linuxbrew")
-    opt = updates.method(pkg, prefix="/home/linuxbrew/.linuxbrew/opt/orkboard/libexec", which=has)
-    assert opt.kind == "brew" and opt.python == "/home/linuxbrew/.linuxbrew/opt/orkboard/libexec/bin/python"
-    nowhere = tmp_path / "brew"                         # a Homebrew with no brew in it, whatever this machine has
-    missing = updates.method(pkg, prefix=str(nowhere / "Cellar/orkboard/0.2.1/libexec"), which=lambda n: None)
-    assert not missing.can and "brew upgrade orkcraft/orkcraft/orkboard" in missing.why
-    runs = Runs(version="9.0.0")
-    assert updates.install(brew, runs).ok and runs.calls[-1][0] == brew.python   # the new version, read under opt/
-    seen = []
-    monkeypatch.delenv(updates.UPDATED_ENV, raising=False)
-    updates.restart(["--browser"], "9.0.0", execv=lambda exe, args: seen.append(exe), python=brew.python)
-    assert seen == [brew.python]
+    brew = updates.method(tmp_path / "site" / "orkboard", prefix="/opt/homebrew/Cellar/orkboard/0.2.1/libexec",
+                          which=has)
+    assert not brew.can and "Homebrew has no formula of Orkboard" in brew.why and PRODUCT.manual in brew.why
 
 
 def test_a_copy_from_elsewhere_says_what_to_run(tmp_path, monkeypatch):
-    monkeypatch.setattr(updates, "_direct_url", lambda: "")
+    monkeypatch.setattr(copy, "_direct_url", lambda: "")
     way = updates.method(tmp_path / "site" / "orkboard", prefix="/usr", which=lambda n: None)
     assert not way.can and updates.SOURCE in way.why
-    monkeypatch.setattr(updates, "_direct_url", lambda: "https://github.com/orkWorks/orkBoard")
+    monkeypatch.setattr(copy, "_direct_url", lambda: "https://github.com/orkWorks/orkBoard")
     pip = updates.method(tmp_path / "site" / "orkboard", prefix="/usr", which=lambda n: None)
     assert pip.kind == "pip" and pip.steps[0][-1] == "orkboard @ git+https://github.com/orkWorks/orkBoard"
 
@@ -234,7 +226,7 @@ def test_a_checkout_with_changes_or_off_main_is_left_alone(tmp_path):
 def launch(tmp_path, policy, rels, runs=None, monkeypatch=None, can=True):
     said, execs = [], []
     way = updates.Method("pipx", (("pipx", "upgrade", "orkboard"),)) if can else updates.Method("none", why="no way")
-    monkeypatch.setattr(updates, "method", lambda: way)
+    monkeypatch.setattr(copy, "method", lambda: way)
     found = updates.at_launch(["--browser"], policy, say=said.append, now=10.0, file=tmp_path / "s.json",
                               read=lambda: manifest(*rels), run=runs or Runs(), execv=lambda *a: execs.append(a))
     return found, said, execs
@@ -351,3 +343,35 @@ def test_the_restart_runs_the_same_command(monkeypatch):
     monkeypatch.delenv(updates.UPDATED_ENV, raising=False)
     updates.restart(["--repo", "/p", "--browser"], "9.0.0", execv=lambda exe, args: seen.append((exe, args)))
     assert seen == [(sys.executable, [sys.executable, "-m", "orkboard.gui.board_host", "--repo", "/p", "--browser"])]
+
+
+# -- a major update -----------------------------------------------------------------------------
+
+def test_the_window_says_a_major_update(fake_repo):
+    from orkboard.gui.board_host import Orkboard
+    host = Orkboard(fake_repo)
+    host.updates._read(updates.State(manifest=manifest(("9.0.0", False))))
+    snap = host.snapshot()
+    assert snap["update"]["major"] and not snap["update"]["critical"] and snap["update"]["current"] == __version__
+    assert snap["version"] == __version__ and snap["update_policy"] == "critical"
+    patch = ".".join([*__version__.split(".")[:2], "999"])
+    host.updates._read(updates.State(manifest=manifest((patch, False))))
+    assert host.snapshot()["update"]["major"] is False
+    host.close()
+
+
+def test_orkboard_update_check_says_a_major_update(on, monkeypatch, tmp_path, capsys):
+    from orkboard.gui.board_host import main
+    where = tmp_path / "updates.json"
+    where.write_text(json.dumps(manifest(("9.0.0", False))), encoding="utf-8")
+    monkeypatch.setenv("ORKCRAFT_UPDATE_URL", where.as_uri())
+    monkeypatch.setattr(updates, "method", lambda: updates.Method("none", why="run: uv tool install …"))
+    assert main(["update", "check"]) == 0
+    out = capsys.readouterr().out
+    assert f"Orkboard 9.0.0 is out — a major update (you have {__version__})" in out and "run: uv tool install" in out
+
+
+def test_orkboard_update_sets_the_policy(capsys):
+    from orkboard.gui.board_host import main
+    assert main(["update", "ask"]) == 0 and settings.load().updates == "ask"
+    assert "nothing installs by itself" in capsys.readouterr().out

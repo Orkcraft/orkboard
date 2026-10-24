@@ -46,3 +46,23 @@ jobs:
         run: python -m playwright install --with-deps chromium
       - name: The page and the phone in Chromium
         run: python -m pytest -q -m browser
+
+  installer:                       # orkGet's installer (the copy) puts this commit on a clean machine (spec 41 §7)
+    name: installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: ORKCRAFT_INSTALL_FROM=. sh orkboard/orkget/install.sh --product orkboard --no-report --no-open
+      - name: It runs
+        run: |
+          ~/.local/bin/orkboard --version
+          ~/.local/bin/orkboard usage status
+      - name: The log
+        if: always()
+        run: cat ~/.orkcraft/install.log
