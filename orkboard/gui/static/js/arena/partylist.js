@@ -7,7 +7,7 @@
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Head, Icon, Sign } from "../orkui.js";
-import { track, OPS } from "../board/store.js";
+import { track, OPS, PROJECT } from "../board/store.js";
 import { keepGoal } from "../board/tracks.js";
 import { mapData } from "../shell/store.js";
 import { command } from "../link.js";
@@ -17,11 +17,12 @@ import { dropGather, gather, leaveParty } from "./arenastate.js";
 import { reducedMotion } from "./motion.js";
 import { countTip, countWords, plural } from "./arenawords.js";
 import { gatherInto, partiesOf, shownOf } from "./goaltabs.js";
+import { THE_PROJECT } from "./projectwords.js";
 
 let scrolled = 0;                                       // the column's scroll, kept across the redraw a switch makes (the party is keyed, the list is drawn again)
 
-/** Shows another party (or Operations): what was hovered or opened on the last one goes, the picks stay with their party. */
-function show(slug, want) {
+/** Shows another party (or Operations, or the project's level): what was hovered or opened on the last one goes, the picks stay with their party. */
+export function show(slug, want) {
   if (slug === want) return;
   leaveParty();
   track.value = slug;
@@ -57,6 +58,12 @@ function OpsHeading({ ps, open, want }) {
   </button>`;
 }
 
+/** The Orkmaster in the project's line (spec 70 §2.1): its head, a button *The project*, pressed while the project's level is shown. Only a host that has the level draws it. */
+function Orkmaster({ ork, open, want }) {
+  return html`<button type="button" class=${cls("arena-ork", { "is-open": open })} data-goal=${PROJECT} data-state=${open ? "open" : "closed"} aria-pressed=${open} title=${THE_PROJECT}
+      aria-label=${THE_PROJECT} onClick=${() => show(PROJECT, want)}><${Head} race=${ork.race || "peon"} tier=${ork.tier || "elder"} /></button>`;
+}
+
 /** The left column: the project's line, the parties, Operations, *+ New party*; `body` is the open party's, drawn under its heading. */
 export function PartyList({ body = null }) {
   const m = mapData.value, root = useRef(), list = useRef();
@@ -81,8 +88,10 @@ export function PartyList({ body = null }) {
     all[Math.min(all.length - 1, Math.max(0, at + k))]?.focus();
   };
   const open = (slug) => slug === want;
+  const ork = m?.project?.orkmaster, level = want === PROJECT;          // the project's level: every heading closed, the project's line marked as an open heading is
   return html`<aside class="arena-left" aria-label="Parties" ref=${root} onKeyDown=${move}>
-    <div class="arena-left__proj"><${ProjectSwitcher} /></div>
+    <div class=${cls("arena-left__proj", { "has-ork": !!ork, "is-open": level && !!ork })}>
+      ${ork && html`<${Orkmaster} ork=${ork} open=${level} want=${want} />`}<${ProjectSwitcher} /></div>
     <div class="arena-plist" ref=${list} onScroll=${(e) => { scrolled = e.currentTarget.scrollTop; }}>
       ${ps.goals.map((x) => html`<section key=${x.g.slug} class=${cls("arena-party", { "is-open": open(x.g.slug) })}>
         <${Heading} x=${x} open=${open(x.g.slug)} want=${want} />

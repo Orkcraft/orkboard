@@ -4,16 +4,20 @@
 // its heading's head (`gatherInto`, spec 63 §3). The list that draws them is partylist.js; the deck and the parties' spread are gone from the desktop (the phone keeps its own).
 import { ORKUI } from "../orkui.js";
 import { town } from "../link.js";
-import { board, OPS, goalList } from "../board/store.js";
+import { board, OPS, PROJECT, goalList } from "../board/store.js";
 import { keptGoal } from "../board/tracks.js";
 import { mapData } from "../shell/store.js";
 import { APART_MS, LIT_MS } from "./motion.js";
 import { goalsOf, nodesOf, opStopsOf, stopsOf } from "./arenawords.js";
 
-/** The party shown: the picked one if the Map has it (or Operations, or the Board has it and the Map comes a moment later: a party just saved), else the
- *  one kept for this project, else the first. */
+/** Whether the host has the project's level (spec 70 §1: `ideas.map` carries `project`); an older host has none and the face is today's. */
+export const projectOn = () => !!mapData.value?.project;
+
+/** The party shown: the picked one if the Map has it (or Operations, or the project's level when the host has one, or the Board has it and the Map comes a moment later: a party just saved), else the
+ *  one kept for this project (the project's level too), else the first. */
 export function shownOf(goals, picked) {
-  if (picked === OPS || goals.some((g) => g.slug === picked) || goalList().some((g) => g.slug === picked)) return picked;
+  if (picked === OPS || (picked === PROJECT && projectOn()) || goals.some((g) => g.slug === picked) || goalList().some((g) => g.slug === picked)) return picked;
+  if (keptGoal() === PROJECT && projectOn()) return PROJECT;
   return (goals.find((g) => g.slug === keptGoal()) || goals[0])?.slug || "";
 }
 

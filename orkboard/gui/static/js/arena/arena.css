@@ -534,3 +534,49 @@
 .arena-goesin__row, .arena-releasesfrom__row { display: flex; align-items: center; gap: var(--ork-4); min-height: 32px; cursor: pointer; }
 .arena-goesin__row.is-held { opacity: 0.5; cursor: default; }
 .arena-goesin__text { display: flex; flex-direction: column; min-width: 0; }
+
+/* -- the Orkmaster and the project's level (spec 70, decisions §85) ------------------------------------------------------------------------------------------ */
+.arena-left__proj.has-ork { display: flex; align-items: center; gap: var(--ork-3); }
+.arena-left__proj.has-ork .shell-proj { flex: 1; min-width: 0; }
+.arena-left__proj.is-open { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); }                      /* marked as an open heading is */
+.arena-ork { appearance: none; flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 36px; height: 36px; padding: 0; border: var(--ork-line) solid var(--ork-frame);
+  background: none; clip-path: var(--ork-notch); cursor: pointer; }
+.arena-ork:hover { background: var(--ork-raised); border-color: var(--ork-edge); }
+.arena-ork:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.arena-ork[aria-pressed="true"] { border-color: var(--ork-ink); background: var(--ork-canvas); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.arena-pjtop { flex: none; display: flex; align-items: center; gap: var(--ork-4); height: 36px; box-sizing: border-box; padding: 0 var(--ork-6); border-bottom: var(--ork-line) solid var(--ork-frame); }
+.arena-pjtop__title { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.arena-pjnew { border-top: 0; border-bottom: var(--ork-line) solid var(--ork-frame); }
+.arena-project__body { flex: 1; min-height: 0; overflow: auto; }
+.arena-project__cols { position: relative; display: flex; align-items: stretch; min-width: max-content; min-height: 100%; }
+.arena-pcol { flex: 1 0 172px; max-width: 260px; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ork-3); padding: 0 var(--ork-3) var(--ork-5); border-right: var(--ork-line) solid var(--ork-frame); }
+.arena-pcol__head { appearance: none; position: sticky; top: 0; z-index: 3; display: flex; align-items: flex-start; gap: var(--ork-3); box-sizing: border-box; min-height: 48px; margin: 0 calc(-1 * var(--ork-3)); padding: var(--ork-4) var(--ork-4);
+  border: 0; border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas); color: var(--ork-ink); text-align: left; cursor: pointer; font: var(--ork-type-body); }
+.arena-pcol__head:hover { background: var(--ork-raised); }
+.arena-pcol__head:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.arena-pcol__name { flex: 1; min-width: 0; line-height: 16px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.arena-pcol__empty { margin: var(--ork-4) var(--ork-2); }
+.arena-pgroup { display: flex; flex-direction: column; gap: var(--ork-3); }
+.arena-pgroup > .arena-sec { margin: var(--ork-3) var(--ork-1) 0; }
+.arena-pgroup > .arena-fold { margin-top: var(--ork-3); }
+.arena-deck { appearance: none; box-sizing: border-box; flex: none; display: flex; flex-direction: column; width: 100%; max-width: 132px; height: 72px; padding: var(--ork-1) var(--ork-3); overflow: hidden; border: var(--ork-line) solid var(--ork-frame);
+  background: var(--ork-panel); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left; cursor: pointer; font: var(--ork-type-body); }
+.arena-deck:hover, .arena-deck.is-lit { background: var(--ork-raised); border-color: var(--ork-edge); }
+.arena-deck:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.arena-deck__top { flex: none; display: flex; align-items: center; gap: var(--ork-2); height: 16px; }
+.arena-deck__mark { display: inline-flex; color: var(--ork-ink-muted); }
+.arena-deck__mark.is-alert { color: var(--ork-alert); }
+.arena-deck__mark.is-danger { color: var(--ork-danger); }
+.arena-deck__title { flex: none; line-height: 16px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.arena-deck__line { flex: none; margin-top: auto; font: var(--ork-type-caption); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arena-type__heads { display: flex; flex-wrap: wrap; gap: var(--ork-1); }
+.arena-type--party .arena-type__line { -webkit-line-clamp: 2; line-clamp: 2; }
+.arena-type__why { margin-top: auto; font: var(--ork-type-caption); color: var(--ork-ink); }
+.arena-type--party.is-have .arena-type__why, .arena-type--party.is-have .arena-type__name { color: var(--ork-ink-muted); }
+.arena-itsparty__says { margin: 0; }
+.arena-itsparty__says b { font-weight: 600; }
+.arena-itsparty__chips { display: flex; flex-wrap: wrap; gap: var(--ork-2); }
+.arena-itsparty__chip { flex-direction: column; align-items: flex-start; gap: 0; height: auto; min-height: var(--ork-control); padding-top: var(--ork-2); padding-bottom: var(--ork-2); }
+.arena-itsparty__chip b { font-weight: inherit; }
+.arena-itsparty__chip small { font: var(--ork-type-caption); text-transform: none; letter-spacing: normal; }
+.arena-itsparty__chip[aria-checked="true"] { --_bg: var(--ork-ink); --_fg: var(--ork-on-ink); --_bd: var(--ork-ink); }

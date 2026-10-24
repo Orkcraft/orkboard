@@ -2,11 +2,12 @@
 // column of the parties (partylist.js: the project's line, a heading for each party, the open party's leader and goals under its heading with the filter and the New goal pile), and the party's field — the party line, the party row with the gate, the members' tasks in
 // rows by phase as stacks of cards running down from them with the results beside them, what waits for you and the limits along the bottom. The drawer
 // (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`, `ideas.today`, `ideas.flags` and the snapshot; its
-// commands are the Board's own. Ideation's field is its pitches by state across the party's columns (pitches.js, docs/specs/65-ideation.md §8).
+// commands are the Board's own. The project's level (`PROJECT`, docs/specs/70-orkmaster-and-the-project.md: a press on the Orkmaster in the project's line) replaces the field as Operations does: project.js. Ideation's field is its pitches by state across the party's columns (pitches.js, docs/specs/65-ideation.md §8).
 import { useEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
-import { track, board, OPS } from "../board/store.js";
+import { track, board, OPS, PROJECT } from "../board/store.js";
 import { Operations } from "../board/ops.js";
+import { Project } from "./project.js";
 import { flagsData, lookTick, mapData } from "../shell/store.js";
 import { openDialog } from "../shell/modals.js";
 import { town } from "../link.js";
@@ -67,6 +68,11 @@ function OpsField({ m }) {
   </div>`;
 }
 
+/** The project's level (spec 70 §2): the parties as columns, their goals as decks, with the stops of the project along the bottom as Operations' field has them. */
+function ProjectField({ m }) {
+  return html`<${Project} m=${m} stops=${html`<div class="arena-stops"><${Stops} stops=${handFor(m, PROJECT, false)} /><${Limits} /></div>`} />`;
+}
+
 /** The party shown, in full. Keyed by the party so that what was picked or drawn on the last one does not carry over. */
 function Party({ m, g }) {
   const nodes = nodesOf(m, g.slug), { lead, members } = partyOf(g, nodes), body = useRef();
@@ -108,6 +114,7 @@ export function Arena() {
   if (!m) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;
   const parties = goalsOf(m, goalList().map((x) => x.slug)), want = shownOf(parties, track.value);
   if (want === OPS) return html`<${OpsField} m=${m} />`;
+  if (want === PROJECT) return html`<${ProjectField} m=${m} />`;
   const g = parties.find((x) => x.slug === want);
   if (!g && want) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;           // a party just saved: the Map has it in a moment
   if (!g) {
