@@ -126,3 +126,26 @@ nothing) and `project_level` (*The project*: the project's level, its parties as
 
 ## 7. Outside the parts' files
 `docs/decisions.md` §85 and this file are the contract.
+
+## 8. As built (A)
+- **`realm/orkmaster.py`**: `ORKMASTER = {"id": "orkmaster", "name": "Orkmaster", "race": "peon", "tier": "elder"}`;
+  `deal(root, state_dir, *, tracks=None, flags=None)` (the last two are what `ideas.map` has read already); `party_for(state_dir, root,
+  type_id=None)` (ValueError *No goal type 'x'*); `suggested(parties)`; `flags_by_party`. No face, no model, no write.
+- **`ideas.map`** gains `"project": {"orkmaster": {id, name, race, tier}, "deal": [{"id", "why", "n"}]}` (`gui/ideas_map.py`
+  `project_of`), on every call, also `{goal}`: the deal is the project's whatever party the Map is of. `id`: a `library.presets()` id, each
+  once; `why`: `"flags_wait"` · `"no_pitches"` · `"have"` · `""`; `n`: the flags for `flags_wait`, else 0. Order: Release (`flags_wait`),
+  Ideation (`no_pitches`), the rest in the library's order, then Release, Ideation (`have`; a preset the project has). Release is not
+  first when no flag waits (it stays where the library puts it). The flags counted are the goals with a flag in the parties but General
+  and Ideation (the ones a Release party would release from).
+  Counted from the Map's nodes already read, so the Map costs no more files.
+- **`ideas.party_for {type?}`** → `{"parties": [{"party": slug, "name": title, "fits": "whole"|"missing"|"none"|""|"pitch", "missing":
+  [{"agent": id, "name": name}]}], "suggested": slug}` (`suggested` is "" only for a project with no party but General). Parties are the
+  Board's order, General left out; with a type they are stable-sorted `whole`, `missing`, `none`, Ideation's party `none`; without, Ideation's
+  is last with `pitch`, the others `""`. `type: ""` is no type. Unknown type: refused, *No goal type 'x'*. A type with one need can never be
+  `missing` (spec 59 §4.3: a party misses someone only when the leader takes another need), so *New logo* is `whole` or `none`; *New screen*
+  is `missing` `ui-kit` (name *Design system designer*) in a party led by the Product designer without one.
+- **`ideas.shown`**: `PROJECT = "@project"` (`gui/ideas_release.py`) is a known party for `party` and for `from`; logged as `party_shown`
+  (`from`, `to`, `face`) like any switch.
+- **Words**: `TERMS` has `orkmaster` (*Orkmaster*) and `project_level` (*The project*).
+- **Tests**: `tests/test_orkmaster.py` (11), `test_lexicon.py` (+1), `test_releases.py` (+1), `test_gui_ideas.py` (the command list has
+  `ideas.party_for`).

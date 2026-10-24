@@ -11,7 +11,7 @@ from collections import Counter
 from pathlib import Path
 
 from orkboard.gui.ideas_args import IdeasError, _opt
-from orkboard.realm import board_map, goal_team, goal_types, idea_element, ideas, library
+from orkboard.realm import board_map, goal_team, goal_types, idea_element, ideas, library, orkmaster
 
 
 class MapMixin:
@@ -43,7 +43,18 @@ class MapMixin:
         for g in got["goals"]:
             g["types"] = self.types_of(root, g["slug"], [n["slug"] for n in got["nodes"] if n["goal"] == g["slug"]])
             g["stages"] = self.stages_of(root, g["slug"])
+        got["project"] = self.project_of(root, got, goal)
         return got
+
+    def project_of(self, root: Path, got: dict, goal: str | None) -> dict:
+        """The project's level (spec 70 §1.1): the Orkmaster and its deal of the parties. The flags are counted from the nodes already read
+        when the Map is the whole project's, else read for the project."""
+        tracks = ideas.tracks(root, make=False)
+        flags = None
+        if not goal:
+            shut = {t["slug"] for t in tracks if t["slug"] == ideas.GENERAL or (t.get("leader") or "") == library.INVESTOR}
+            flags = Counter(n["goal"] for n in got["nodes"] if n["flag"] and n["goal"] not in shut)
+        return {"orkmaster": dict(orkmaster.ORKMASTER), "deal": orkmaster.deal(root, self.state_dir, tracks=tracks, flags=flags)}
 
     @staticmethod
     def stages_of(root: Path, party: str) -> dict:
