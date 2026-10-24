@@ -1,5 +1,5 @@
-// The left column (docs/specs/49-one-window.md §4.4, docs/specs/50-parties-and-goals.md §3.3, docs/specs/52-goal-types.md §3.2, §4): its top line (the party
-// shown and Parties ⌄: goaltabs.js), the party's leader with Process now standing on the deck (an edge behind it for each other party, two at most), then its
+// The open party's body in the left column, under its heading (docs/specs/49-one-window.md §4.4, docs/specs/50-parties-and-goals.md §3.3, docs/specs/52-goal-types.md §3.2, §4,
+// docs/specs/69-parties-in-the-column.md §3; the headings are partylist.js): the party's leader as a member's row with Process now, then its
 // Goals — *At work*, *Planning*, *New (n)* and *Flags (n) · k wait for main* — and at the foot the New goal pile. A goal's row: its pile (a back with the
 // goal's element and an edge behind it for each of its open tasks, up to three), its title, its line, its mark and › (its screen, in the drawer). A press on
 // the row picks the goal into the filter (a second press takes it out); hovering it peeks (the board shows only that goal's cards while the pointer is on
@@ -18,7 +18,6 @@ import { powerOf } from "./arenawords.js";
 import { typeSign } from "./stacks.js";
 import { edgesOf, elementOf, flagRow, goalMark, goalsCount, listsOf, pickTip, waitsMain, workLine } from "./goalwords.js";
 import { Member } from "./members.js";
-import { PartyTop, deckEdges } from "./goaltabs.js";
 import { TypesSpread } from "./types.js";
 import { PitchGoals } from "./pitches.js";
 import { judgePower, pitchLists } from "./pitchwords.js";
@@ -35,9 +34,9 @@ function GoalRow({ g, n, plan = null, raw = false, party }) {
   const words = raw || plan ? plan.words : workLine(n);
   const open = () => (plan?.kind === "plan" ? showPlan(n.slug, "", { via: "map" }) : showIdea(n.slug, { via: "map" }));
   const edges = raw || plan ? 0 : edgesOf(n);
-  const enter = () => { peek.value = n.slug; }, leave = () => { if (peek.value === n.slug) peek.value = ""; };
+  const enter = (e) => { if (e.movementX || e.movementY) peek.value = n.slug; }, leave = () => { if (peek.value === n.slug) peek.value = ""; };   // a peek follows a move, not a layout under a pointer at rest (a switch draws the new body under the heading just pressed)
   return html`<div class=${cls("arena-goal", { "is-on": on, "is-off": some && !on && !raw, "is-stop": stop })} data-slug=${n.slug} data-state=${stop ? "stop" : mark.sign === "work" ? "work" : "idle"}
-      onMouseEnter=${raw ? undefined : enter} onMouseLeave=${raw ? undefined : leave}>
+      onMouseMove=${raw ? undefined : enter} onMouseLeave=${raw ? undefined : leave}>
     <button type="button" class="arena-goal__main" aria-pressed=${raw ? undefined : on} title=${raw ? `${n.title} · ${words}` : `${n.title} · ${words}. ${pickTip(on)}`}
       onClick=${raw ? open : () => togglePick(party, n.slug)}>
       <span class="arena-goal__pile">${Array.from({ length: edges }, (_, i) => html`<i key=${i} class="arena-goal__edge" style=${`left:${(i + 1) * 2}px;top:${-(i + 1) * 2}px`}></i>`)}
@@ -108,18 +107,15 @@ function NewGoal({ g }) {
   </div>`;
 }
 
-/** The leader with Process now, and under it the party's goals. */
+/** The open party's body, under its heading: its leader's row with Process now, then the party's goals and, at the foot, the New goal pile. */
 export function Left({ g, nodes, planning, lead }) {
   const party = g.slug, lists = listsOf(g, nodes, lead?.name || "Taskmaster"), pitch = !!g.ideation;
   const pl = pitch ? pitchLists(nodes) : null;          // Ideation: its pitches by state, *Judge now* in place of *Process now* (spec 65 §8)
   const power = pitch ? judgePower(pl.raw, lead?.name || "Investor") : powerOf(planning.raw, lead?.name || "Taskmaster");
   const n = pitch ? pl.judging.length + pl.judged.length : goalsCount(lists), picked = !pitch && (picks.value[party] || []).length > 0;
-  const edges = deckEdges(party);
-  return html`<div class="arena-left">
-    <${PartyTop} g=${g} nodes=${nodes} />
-    <section class="arena-hero" aria-label="Leader" data-edges=${edges}>
-      ${lead && html`<div class="arena-hero__deck">${Array.from({ length: edges }, (_, i) => html`<i key=${i} class="arena-hero__edge"
-          style=${`inset:${-(i + 1) * 3}px ${-(i + 1) * 3}px ${(i + 1) * 3}px ${(i + 1) * 3}px`}></i>`).reverse()}<${Member} m=${lead} nodes=${nodes} planning=${planning} lead=${true} /></div>`}
+  return html`<div class="arena-pbody">
+    <section class="arena-lead" aria-label="Leader">
+      ${lead && html`<${Member} m=${lead} nodes=${nodes} planning=${planning} lead=${true} />`}
       ${pitch ? html`<button type="button" class="ork-btn arena-power" disabled=${power.off} title=${power.tip}
           onClick=${() => act("ideas.judge", { slug: power.slug, via: "party" })}>Judge now · ${power.words}</button>`
         : html`<button type="button" class="ork-btn arena-power" disabled=${power.off} title=${power.tip}

@@ -275,7 +275,7 @@ def test_under_reduced_motion_nothing_is_lit(gui):
     pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url)
-    pg.wait_for_selector(".arena-ptop", timeout=WAIT_MS)
+    pg.wait_for_selector(".arena-phead", timeout=WAIT_MS)
     _show_goal(pg)
     pg.evaluate(RECORD)
     _new_party(pg)

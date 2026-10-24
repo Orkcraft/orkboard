@@ -113,7 +113,7 @@ def _labels(pg):
 
 
 def test_the_board_says_the_stage_words_of_the_party_and_todays_without_stages(gui):
-    pg, host, errors = _open(gui, host=StagesHost(), ready=".arena-ptop")
+    pg, host, errors = _open(gui, host=StagesHost(), ready=".arena-phead")
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         assert _labels(pg) == ["Build", "Playtest"]                                               # over the first builder, the first checker
@@ -124,7 +124,7 @@ def test_the_board_says_the_stage_words_of_the_party_and_todays_without_stages(g
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
-    pg, host, errors = _open(gui, host=ArenaHost(), ready=".arena-ptop")                          # an older host: no `stages`
+    pg, host, errors = _open(gui, host=ArenaHost(), ready=".arena-phead")                          # an older host: no `stages`
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         assert _labels(pg) == ["Implementation", "Checking"]

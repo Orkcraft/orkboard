@@ -164,7 +164,7 @@ class IdeationHost(StubHost):
 
 @pytest.fixture
 def lab(gui):
-    pg, host, errors = _open(gui, host=IdeationHost(), ready=".arena-ptop")
+    pg, host, errors = _open(gui, host=IdeationHost(), ready=".arena-phead")
     _show_goal(pg, PARTY)
     yield pg, host
     pg.close()
@@ -252,7 +252,7 @@ def _new_and_judge(pg, text):
 def test_a_pitch_judging_lights_the_views_one_by_one_then_says_its_answer(lab):
     pg, host = lab
     assert [h.text_content() for h in pg.locator(".arena-pitches .arena-cols__head .arena-lbl:not(.is-blank)").all()] == ["Views", "Decision"]
-    assert pg.locator(".arena-ptop__count").count() == 1 and "Judge now" in pg.locator(".arena-power").inner_text()
+    assert pg.locator('.arena-phead[aria-current=true] .arena-phead__count').count() == 1 and "Judge now" in pg.locator(".arena-power").inner_text()
     _new_and_judge(pg, "Share a note by link")
     line = pg.locator('.arena-pitch[data-slug="share-a-note"]')
     line.wait_for(timeout=WAIT_MS)

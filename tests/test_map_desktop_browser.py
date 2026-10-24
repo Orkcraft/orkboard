@@ -139,7 +139,7 @@ class MapHost(StubHost):
         return super().handle(name, a)
 
 
-def _open(gui, host=None, viewport=None, init="", ready=".arena-ptop", goal="ship-sync"):
+def _open(gui, host=None, viewport=None, init="", ready=".arena-phead", goal="ship-sync"):
     server, browser = gui
     host = host or MapHost()
     pg = browser.new_page(viewport=viewport or {"width": 1440, "height": 900})
@@ -222,14 +222,14 @@ def test_nothing_is_open_at_start_no_pinned_tab_and_esc_puts_the_drawer_away_and
 
 def test_the_partys_deck_changes_the_party_and_the_device_keeps_it(mapped):
     pg, host = mapped
-    cards = _parties(pg).locator(".arena-deck__card[data-goal]:not([data-goal=''])")
-    assert cards.count() == 2 and pg.locator(".arena-deck__card.is-shown").get_attribute("data-goal") == "ship-sync"
-    pg.locator(".arena-deck__card[data-goal=grow]").click()
+    cards = _parties(pg).locator(".arena-phead")
+    assert cards.count() == 2 and pg.locator('.arena-phead[aria-current=true]').get_attribute("data-goal") == "ship-sync"
+    pg.locator(".arena-phead[data-goal=grow]").click()
     pg.locator(".arena[data-goal=grow]").wait_for(timeout=WAIT_MS)
     assert row(pg, "Tag the notes").count() == 1 and row(pg, "Dark mode").count() == 0                       # a proposal waits: its row
     pg.reload()
     pg.locator(".arena[data-goal=grow]").wait_for(timeout=WAIT_MS)
-    assert pg.locator(".arena-ptop__name").inner_text() == "Grow installs"
+    assert pg.locator('.arena-phead[aria-current=true] .arena-phead__name').inner_text() == "Grow installs"
 
 
 def test_a_goal_at_work_has_its_row_its_tasks_in_the_party_s_columns_and_its_results_beside_them(mapped):
@@ -472,7 +472,7 @@ def test_a_row_and_a_task_show_their_short_names_with_the_title_in_their_label(g
     assert task.get_attribute("title").startswith("Add the queue") and task.locator(".arena-task__name").inner_text() == "Tk2"
     assert "Add the queue" in task.get_attribute("aria-label") and task.locator(".arena-task__goal").inner_text() == "Sync"
     assert task.locator(".arena-task__name").evaluate("e => getComputedStyle(e).webkitLineClamp") == "2"
-    assert _parties(pg).locator(".arena-deck__card").first.get_attribute("title").startswith("Grow installs")      # a party's card keeps the title
+    assert _parties(pg).locator(".arena-phead__name").first.get_attribute("title").startswith("Grow installs")      # a party's heading keeps the title
     pg.close()
     assert not errors, "\n".join(errors)
 

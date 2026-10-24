@@ -104,7 +104,7 @@ def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
         dlg.wait_for(state="detached", timeout=WAIT_MS)
         pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
         pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-hc[data-kind=goal]").count() == 0 and pg.locator(".arena-goal, .arena-left").count() == 0       # shop's goal and party are not seen in blog
+        assert pg.locator(".arena-hc[data-kind=goal]").count() == 0 and pg.locator(".arena-goal, .arena-phead:not([data-goal=\"@operations\"])").count() == 0       # shop's goal and party are not seen in blog (its column has the project's line and + New party)
         pg.locator(".shell-proj__btn").click()
         rows = pg.locator(".shell-proj__one")
         assert rows.count() == 2

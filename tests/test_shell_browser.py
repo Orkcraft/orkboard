@@ -485,7 +485,7 @@ def _open(gui, viewport=None, host=None, ready=".arena-result", query=""):
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url + query)
     if ready == ".arena-result":
-        pg.wait_for_selector(".arena-ptop", timeout=WAIT_MS)
+        pg.wait_for_selector(".arena-phead", timeout=WAIT_MS)
         _show_goal(pg)
         pg.wait_for_selector(ready, timeout=WAIT_MS)
     elif ready:
@@ -494,37 +494,33 @@ def _open(gui, viewport=None, host=None, ready=".arena-result", query=""):
 
 
 def _parties(pg):
-    """Parties ⌄ pressed: the parties dealt (docs/specs/52-goal-types.md §3.4); the spread, its cards in their places."""
-    pg.locator(".arena-ptop__deck").click()
-    deal = pg.get_by_role("dialog", name="Parties")
-    deal.wait_for(timeout=WAIT_MS)
-    pg.wait_for_function("() => document.getAnimations().every((a) => !a.effect?.target?.classList?.contains('arena-spread__card'))", timeout=WAIT_MS)
-    return deal
+    """The left column's list of the parties (docs/specs/69-parties-in-the-column.md): waited for; a heading for each party."""
+    col = pg.get_by_role("complementary", name="Parties")
+    col.wait_for(timeout=WAIT_MS)
+    return col
 
 
 def _party_card(pg, slug):
-    """A party's card in the spread (dealt when it is not)."""
-    if not pg.get_by_role("dialog", name="Parties").count():
-        _parties(pg)
-    return pg.locator(f'.arena-deck__card[data-goal="{slug}"]')
+    """A party's heading in the column."""
+    return _parties(pg).locator(f'.arena-phead[data-goal="{slug}"]')
 
 
 def _new_party(pg):
-    """New party, from the parties' spread's last card (docs/specs/52-goal-types.md §3.4)."""
-    _parties(pg).get_by_role("button", name="New party", exact=True).click()
+    """New party, from the column's last line (docs/specs/69-parties-in-the-column.md §1)."""
+    _parties(pg).locator(".arena-pnew").click()
     pg.get_by_role("dialog", name="New party").wait_for(timeout=WAIT_MS)
 
 
 def _show_goal(pg, slug="ship-sync"):
-    """The window shows one party: this one, picked from the parties' spread (and kept, as the person's last)."""
-    pg.locator(".arena-ptop__deck").wait_for(timeout=WAIT_MS)
+    """The window shows one party: this one, its heading pressed in the column (and kept, as the person's last)."""
+    _parties(pg).locator(".arena-phead").first.wait_for(timeout=WAIT_MS)
     if not pg.locator(f'.arena[data-goal="{slug}"]').count() or slug == "@operations":
         _party_card(pg, slug).click()
-    pg.get_by_role("dialog", name="Parties").wait_for(state="detached", timeout=WAIT_MS)
     if slug == "@operations":
         pg.locator(".arena-ops").wait_for(timeout=WAIT_MS)
     else:
         pg.locator(f'.arena[data-goal="{slug}"]').wait_for(timeout=WAIT_MS)
+        pg.wait_for_function("() => !document.querySelector('.is-leaving') && !document.querySelector('.is-drawn')", timeout=WAIT_MS)
 
 
 def _stop(pg, kind, nth=0):
@@ -588,12 +584,12 @@ def box(pg, selector):
     return pg.locator(selector).first.bounding_box()
 
 
-def test_one_window_the_partys_deck_over_the_leader_and_no_camp(shell):
+def test_one_window_the_parties_column_over_the_leader_and_no_camp(shell):
     pg, host = shell
-    top, line, arena = box(pg, ".shell-top"), box(pg, ".arena-left .arena-ptop"), box(pg, ".arena")
+    top, line, arena = box(pg, ".shell-top"), box(pg, ".arena-left .arena-phead[aria-current=true]"), box(pg, ".arena")
     assert top["height"] == 32 and arena["y"] == top["height"] and arena["width"] == 1440                     # the window right under the top bar
-    assert pg.locator(".shell-top .arena-ptop, .shell-top [role=tablist]").count() == 0                       # no parties in the top bar (spec 52 §3.1)
-    assert line["height"] == 32 and line["y"] == arena["y"] and line["y"] + line["height"] <= box(pg, ".arena-hero")["y"]      # the party's deck over the leader
+    assert pg.locator(".shell-top .arena-phead, .shell-top .shell-proj, .shell-top [role=tablist]").count() == 0   # no parties, no project switcher in the top bar (spec 52 §3.1, spec 69 §1)
+    assert line["height"] >= 40 and line["y"] >= arena["y"] and line["y"] + line["height"] <= box(pg, ".arena-lead")["y"]      # the open party's heading over its leader
     assert pg.locator(".arena-tabs").count() == 0
     assert box(pg, ".arena-left")["width"] == 248 and box(pg, ".arena-field")["x"] > box(pg, ".arena-left")["x"]
     for gone in (".shell-board", ".shell-split", ".shell-agents", ".shell-tabs", ".shell-review"):             # no Board column, no split, no tab bar
@@ -765,7 +761,7 @@ def test_a_new_goal_comes_from_the_pile_and_lists_with_its_state_in_words(shell)
 
 
 def test_below_1024_no_strip_the_drawer_takes_the_window_and_the_results_join_the_bottom_row(gui):
-    pg, host, errors = _open(gui, {"width": 900, "height": 800}, ready=".arena-ptop")
+    pg, host, errors = _open(gui, {"width": 900, "height": 800}, ready=".arena-phead")
     try:
         _show_goal(pg)
         assert pg.locator(".arena-today").count() == 0 and box(pg, ".arena-left")["width"] == 200                 # no strip, the left column 200 px
@@ -842,9 +838,7 @@ def test_new_party_is_a_name_what_it_is_for_its_party_and_a_priority_then_readin
                                                       "every": ["accessibility-reviewer"], "priority": "high"}
     pg.locator(".shell-goal").wait_for(timeout=WAIT_MS)                                             # the party opens in the drawer: About this party
     assert "reading" in pg.locator(".shell-goal").inner_text()
-    assert _party_card(pg, "more-people").count() == 1                                              # its card among the parties
-    pg.get_by_role("dialog", name="Parties").get_by_role("button", name="Put them back").click()
-    pg.get_by_role("dialog", name="Parties").wait_for(state="detached", timeout=WAIT_MS)
+    assert _party_card(pg, "more-people").count() == 1                                              # its heading among the parties
     g = host.goals["more-people"]
     g.update(title="Grow installs", state="asks", summary="Installs are the first step.", questions=["Which channel first?"], title_by="keeper",
              metrics=[{"name": "weekly installs", "target": "50", "how": "npm downloads, per week"}])
@@ -852,9 +846,7 @@ def test_new_party_is_a_name_what_it_is_for_its_party_and_a_priority_then_readin
     pg.locator(".shell-goal").get_by_text("Installs are the first step.").wait_for(timeout=WAIT_MS)
     text = pg.locator(".shell-goal").inner_text()
     assert "Which channel first?" in text and "weekly installs" not in text and "Metrics" not in text      # a party has no metrics
-    assert _party_card(pg, "more-people").get_attribute("title").startswith("Grow installs")
-    pg.get_by_role("dialog", name="Parties").get_by_role("button", name="Put them back").click()
-    pg.get_by_role("dialog", name="Parties").wait_for(state="detached", timeout=WAIT_MS)
+    assert _party_card(pg, "more-people").locator(".arena-phead__name").get_attribute("title").startswith("Grow installs")
     pg.get_by_label("Answer 1: Which channel first?").fill("npm first")                              # §0: one round, one Send
     pg.locator(".shell-goal").get_by_role("button", name="Send").click()
     assert _sent(pg, host, ("ideas.answer", {"slug": "more-people", "answers": ["npm first"], "goal": True}))
@@ -947,12 +939,12 @@ def test_one_goal_is_shown_the_first_by_priority_with_its_leader_and_the_goal_is
     host.goals["ship-sync"].update(craft="engineering", leader=host.leader("architect"), team=["tester", "reviewer"])
     pg, host, errors = _open(gui, host=host, ready=".arena")
     try:
-        cards = _parties(pg).locator(".arena-deck__card")
-        assert [c.get_attribute("data-goal") for c in cards.all()] == ["grow", "ship-sync", ""]               # the parties, no Operations, New party
-        assert pg.locator(".arena-deck__card.is-shown").get_attribute("data-goal") == "grow"               # none kept yet: the first by priority
+        cards = _parties(pg).locator(".arena-phead")
+        assert [c.get_attribute("data-goal") for c in cards.all()] == ["grow", "ship-sync"] and pg.locator(".arena-pnew").count() == 1      # the parties, no Operations, then + New party
+        assert pg.locator('.arena-phead[aria-current=true]').get_attribute("data-goal") == "grow"                                    # none kept yet: the first by priority
         assert pg.locator(".arena").get_attribute("data-goal") == "grow"
         _show_goal(pg, "ship-sync")
-        assert pg.locator(".arena-hero").get_by_role("button", name=re.compile("Architect")).count() == 1      # its leader at the top of the left column
+        assert pg.locator(".arena-lead").get_by_role("button", name=re.compile("Architect")).count() == 1      # its leader under its heading in the left column
         assert _goal_row(pg, "Dark mode").count() == 1                                                        # its goals in Planning, not another party's
         assert _goal_row(pg, "Tag the notes").count() == 0
         pg.get_by_role("button", name="About this party").click()
@@ -960,7 +952,7 @@ def test_one_goal_is_shown_the_first_by_priority_with_its_leader_and_the_goal_is
         assert _sent(pg, host, ("ideas.goal", {"slug": "ship-sync"}))
         pg.reload()                                                                                         # the goal shown is kept
         pg.locator('.arena[data-goal="ship-sync"]').wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-ptop__name").inner_text() == "Ship sync"
+        assert pg.locator('.arena-phead[aria-current=true] .arena-phead__name').inner_text() == "Ship sync"
         pg.get_by_role("button", name="Close the drawer").click()                                           # the drawer came back with the page: its tabs were kept
         pg.get_by_role("button", name="Edit the party").click()
         assert pg.get_by_role("dialog", name="Edit the party").is_visible()
@@ -974,7 +966,7 @@ def test_edit_the_party_changes_its_members_and_sends_them_only_when_changed(she
     pg, host = shell
     host.goals["ship-sync"].update(about="Sync between devices.", craft="engineering", leader=host.leader("architect"), team=["grunt", "reviewer"], every=[])
     host.bump({})
-    pg.locator(".arena-hero", has_text="Architect").wait_for(timeout=WAIT_MS)                        # the window has read it
+    pg.locator(".arena-lead", has_text="Architect").wait_for(timeout=WAIT_MS)                        # the window has read it
     pg.get_by_role("button", name="Edit the party").click()
     dlg = pg.get_by_role("dialog", name="Edit the party")
     party = dlg.get_by_role("group", name="The party")
@@ -1378,22 +1370,19 @@ def test_pair_a_phone_from_the_gear_shows_the_qr_the_time_left_how_it_reaches_an
     assert pg.get_by_role("button", name="Settings").evaluate("e => e === document.activeElement")    # the focus is back on the gear
 
 
-def test_the_stops_are_not_counted_a_party_with_one_wears_a_dot_in_the_parties_spread(shell):
+def test_the_stops_are_not_counted_a_closed_party_with_one_wears_a_sign_on_its_heading(shell):
     pg, host = shell
-    deck = pg.locator(".arena-ptop__deck")
-    assert deck.get_attribute("aria-label").startswith("Parties: Ship sync shown, 2 stops wait in the other parties")        # for a screen reader only
-    assert deck.locator(".ork-count").count() == 0                                                                           # no count on Parties ⌄ (spec 54 §2.4)
-    assert pg.locator(".arena-hero .ork-count.warning, .arena-goals .ork-count.warning, .arena-field .ork-count.warning").count() == 0      # nor of the party shown's stops
+    assert pg.locator(".arena-phead .ork-count").count() == 0                                                                 # no count in the column (spec 54 §2.4)
+    assert pg.locator(".arena-lead .ork-count.warning, .arena-goals .ork-count.warning, .arena-field .ork-count.warning").count() == 0      # nor of the party shown's stops
     ship = _party_card(pg, "ship-sync")
-    assert ship.get_attribute("aria-label") == "Ship sync, 0 of 5 goals done, at work, shown" and ship.locator(".ork-count, .arena-deck__dot").count() == 0
-    grow = pg.locator('.arena-deck__card[data-goal="grow"]')
-    assert grow.locator(".ork-count").count() == 0 and grow.locator(".arena-deck__dot").count() == 1                         # a dot where its count was
+    assert ship.get_attribute("aria-current") == "true" and ship.locator(".ork-count, .arena-phead__stop").count() == 0     # the party shown: its stops lie in the hand
+    grow = _party_card(pg, "grow")
+    assert grow.locator(".ork-count").count() == 0 and grow.locator(".arena-phead__stop").count() == 1                      # a sign where its count was
     grow.click()
     pg.locator('.arena[data-goal="grow"]').wait_for(timeout=WAIT_MS)
-    assert pg.locator(".arena-ptop__deck").get_attribute("aria-label").endswith("shown, 3 stops wait in the other parties")
-    dot = _party_card(pg, "ship-sync").locator(".arena-deck__dot")                                                           # Ship sync's stops wait: the alert colour
-    assert dot.count() == 1 and "is-danger" not in dot.get_attribute("class")
-    colour = dot.evaluate("e => getComputedStyle(e).backgroundColor")
+    dot = _party_card(pg, "ship-sync").locator(".arena-phead__stop")                                                         # Ship sync's stops wait: the alert colour
+    assert dot.count() == 1 and "is-danger" not in dot.get_attribute("class") and dot.get_attribute("title") == "3 wait in Ship sync"
+    colour = dot.evaluate("e => getComputedStyle(e).color")
     assert colour == pg.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-alert)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
 
 

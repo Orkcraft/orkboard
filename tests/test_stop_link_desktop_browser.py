@@ -98,7 +98,7 @@ def test_a_plans_and_a_questions_stop_ring_their_goals_planning_card_and_a_goal_
     pg.wait_for_timeout(200)
     assert _linked(pg) == []                                                                             # Planning is not drawn on the field now: nothing to ring
     pg.evaluate("document.activeElement.blur()")
-    pg.locator(".arena-hero .arena-member").click()                                                      # the leader's solo: its Planning goals
+    pg.locator(".arena-lead .arena-member").click()                                                      # the leader's solo: its Planning goals
     pg.locator(".arena-solo[data-agent] .arena-task[data-slug=recovery]").wait_for(timeout=WAIT_MS)
     _stop(pg, "plan")
     _wait_ring(pg, ["recovery"])

@@ -1,5 +1,5 @@
-// The top bar (docs/specs/33-v1-shell.md §6, spec 49 §3.1, spec 52 §3.1): the project switcher · Orkline · the Target · Agents and Files (the drawer's
-// panes) · today's Spend · Stop all · the gear. The parties are the left column's deck (arena/goaltabs.js), not the top bar's. What is left of each AI tool is at the bottom right of the window (arena/limits.js).
+// The top bar (docs/specs/33-v1-shell.md §6, spec 49 §3.1, spec 52 §3.1, docs/specs/69-parties-in-the-column.md §1): Orkline · the Target · Agents and Files (the drawer's
+// panes) · today's Spend · Stop all · the gear. The project switcher and the parties are the left column's (arena/partylist.js), not the top bar's. What is left of each AI tool is at the bottom right of the window (arena/limits.js).
 // Roles only: warning at 20 % or less left, danger at 5 % or less (docs/design-system.md).
 import { html } from "../html.js";
 import { Icon } from "../orkui.js";
@@ -8,7 +8,7 @@ import { TargetChip } from "../board/target.js";
 import { track, OPS } from "../board/store.js";
 import { showAgents, showFiles } from "./store.js";
 import { openDialog } from "./modals.js";
-import { ProjectSwitcher, currentProject, projectsOn } from "./projects.js";
+import { currentProject, projectsOn } from "./projects.js";
 
 export const WARN = 0.2, DANGER = 0.05;
 
@@ -32,7 +32,6 @@ export function TopBar() {
   // Operations has its templates, not a Target: the chip goes while it is shown.
   const shown = !projectsOn.value || !!currentProject.value?.path;      // the window is behind the project: the start screen has no drawer
   return html`<header class="shell-top">
-    <${ProjectSwitcher} />
     <span class="shell-top__brand">Orkline</span>
     ${shown && track.value !== OPS && html`<${TargetChip} />`}
     <span class="shell-top__spacer"></span>

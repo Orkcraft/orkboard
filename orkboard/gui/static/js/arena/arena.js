@@ -1,5 +1,5 @@
-// The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, docs/specs/52-goal-types.md, decisions §62, §63, §65): the day's strip, the
-// party's deck over its leader over the party's goals (with the filter and the New goal pile), and the party's field — the party line, the party row with the gate, the members' tasks in
+// The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, docs/specs/52-goal-types.md, docs/specs/69-parties-in-the-column.md, decisions §62, §63, §65, §84): the day's strip, the
+// column of the parties (partylist.js: the project's line, a heading for each party, the open party's leader and goals under its heading with the filter and the New goal pile), and the party's field — the party line, the party row with the gate, the members' tasks in
 // rows by phase as stacks of cards running down from them with the results beside them, what waits for you and the limits along the bottom. The drawer
 // (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`, `ideas.today`, `ideas.flags` and the snapshot; its
 // commands are the Board's own. Ideation's field is its pitches by state across the party's columns (pitches.js, docs/specs/65-ideation.md §8).
@@ -13,7 +13,8 @@ import { town } from "../link.js";
 import { solo, narrow, picks, shownGoals } from "./arenastate.js";
 import { goalsOf, handOf, nodesOf, partyOf, planningOf, resultsOf } from "./arenawords.js";
 import { inFilter } from "./goalwords.js";
-import { PartyTop, shownOf } from "./goaltabs.js";
+import { shownOf } from "./goaltabs.js";
+import { PartyList } from "./partylist.js";
 import { goalList } from "../board/store.js";
 import { TodayStrip } from "./todaystrip.js";
 import { Left } from "./goals.js";
@@ -55,12 +56,14 @@ const keepOf = (shownSlug) => (party, s) => stopIn(party === shownSlug ? shownGo
 const handFor = (m, shown, withResults) => handOf({ map: m, needs: board.value?.needs_you || [], order: goalList().map((x) => x.slug), shown, keep: keepOf(shown), withResults,
   ops: town.value?.ops_rev !== undefined });
 
-/** Operations' own field: the deck's line (the way back to the parties), its list, with the stops of the project along the bottom. */
+/** Operations' own field: the column's list (Operations open), its list, with the stops of the project along the bottom. */
 function OpsField({ m }) {
   return html`<div class="arena arena-ops">
-    <div class="arena-ops__top"><${PartyTop} /></div>
-    <section class="arena-ops__body" aria-label="The party at work"><${Operations} withNew=${true} /></section>
-    <div class="arena-stops"><${Stops} stops=${handFor(m, OPS, false)} /><${Limits} /></div>
+    <${PartyList} />
+    <div class="arena-ops__main">
+      <section class="arena-ops__body" aria-label="The party at work"><${Operations} withNew=${true} /></section>
+      <div class="arena-stops"><${Stops} stops=${handFor(m, OPS, false)} /><${Limits} /></div>
+    </div>
   </div>`;
 }
 
@@ -76,7 +79,7 @@ function Party({ m, g }) {
   const all = handFor(m, g.slug, !wide);                 // below 1 024 px the party shown's results join the bottom row (§3)
   return html`<div class=${cls("arena", { "is-narrow": narrow.value, "is-ideation": pitch })} data-goal=${g.slug}>
     ${wide && html`<${TodayStrip} goal=${g.slug} />`}
-    <${Left} g=${g} nodes=${nodes} planning=${planning} lead=${lead} />
+    <${PartyList} body=${html`<${Left} g=${g} nodes=${nodes} planning=${planning} lead=${lead} />`} />
     <div class="arena-field">
       <div class="arena-top"><${PartyLine} g=${g} nodes=${nodes} lead=${lead?.name || "Taskmaster"} reading=${reading} doing=${pitch ? "judging" : "reading"} /><${FlagLine} /></div>
       <div class="arena-play">
@@ -109,10 +112,10 @@ export function Arena() {
   if (!g && want) return html`<p class="ok-tone-muted arena-note">Reading the board…</p>`;           // a party just saved: the Map has it in a moment
   if (!g) {
     const ops = town.value?.ops_rev !== undefined;                                    // no party, but Operations' stops still wait in the one hand
-    return html`<div class="arena arena-ops">${ops && html`<div class="arena-ops__top"><${PartyTop} /></div>`}<div class="shell-empty arena-note"><p>No parties yet</p>
+    return html`<div class="arena arena-ops"><${PartyList} /><div class="arena-ops__main"><div class="shell-empty arena-note"><p>No parties yet</p>
       <p><button class="ork-btn primary" onClick=${() => openDialog("goal")}>New party</button>
         <button class="ork-btn" title="A goal needs a party: this makes one first" onClick=${() => openDialog("goal", { then: "idea" })}>New goal</button></p></div>
-      ${ops && html`<div class="arena-stops"><${Stops} stops=${handFor(m, "", false)} /><${Limits} /></div>`}</div>`;
+      ${ops && html`<div class="arena-stops"><${Stops} stops=${handFor(m, "", false)} /><${Limits} /></div>`}</div></div>`;
   }
   return html`<${Party} key=${g.slug} m=${m} g=${g} />`;
 }
