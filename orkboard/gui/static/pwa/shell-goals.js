@@ -4,7 +4,7 @@
 // its type's sign (in its goal's colour) before its title, its title, its line, its mark (no alert edge, no alert words: the mark is the stop's one sign) and ✓ when picked, and › (44 px) that opens it. A tap picks or unpicks: only the picked goals' cards stay on the field, only their results and stops stay along the bottom (the filter, kept per party for the session in `st.picks`).
 import { h, icon, sheet } from "./util.js";
 import { elem, sign, typeTone } from "./shell-marks.js";
-import { barName, barWords, filterWords, flagTally, goalsOf } from "./shell-goals-words.js";
+import { barName, barWords, filterWords, flagRelease, flagTally, goalsOf, hasReleaseParty, partyNameOf, releaseLine, waitWords } from "./shell-goals-words.js";
 
 const LIT_MS = 700;                                  // a flag lit once in the sheet
 
@@ -40,6 +40,35 @@ export function makeGoals(core, about) {
       h("button", { class: "dk__open", type: "button", "aria-label": `Open ${r.title}`, onclick: () => { sh.close(); core.open(r.open, "map"); } }, h("i", { class: "ork-chev right", "aria-hidden": "true" })));
   }
 
+  // -- the Flags group: a flag's release, and a release's *Mark it out* (spec 68 §7.4, §7.5) --------------------------------------------------------------
+  let asking = "", outError = "";                    // the release being asked about (*Is 1.4 out in the stores?*), and a refusal said under it
+  const nameOf = (slug) => partyNameOf(st, slug);
+  async function markOut(slug) {
+    outError = "";
+    const r = await core.call("ideas.release_out", { slug }, (e) => { outError = e || "Not done"; if (sh.el.open) drawSheet(); });
+    if (!r) return;
+    asking = "";
+    await core.refresh();
+  }
+  /** A flag's line; a release's own row says its version and goals, then **Mark it out** (asking first) or, once said, *Out in 1.4*. */
+  function flagRow(f, lit) {
+    const cls = `cap goals__line goals__flag${lit.has(f.slug) ? " is-reward" : ""}`;
+    if (!f.own) {
+      const rel = flagRelease(f, hasReleaseParty(st), nameOf);
+      return h("p", { class: cls, "data-idea": f.slug }, sign("flag"), " ", h("span", { class: "goals__ink" }, f.short), ` · ${flagTally(f)}`,
+        rel ? h("span", { class: "goals__rel", "data-release": f.release ? (f.release.out ? "out" : "in") : "waits" }, ` · ${rel}`) : null);
+    }
+    const v = f.own.version, ask = asking === f.slug;
+    return h("div", { class: "goals__release", "data-idea": f.slug, "data-out": f.own.out ? "yes" : "no" },
+      h("p", { class: cls }, sign("flag"), " ", h("span", { class: "goals__ink" }, f.short), ` · ${releaseLine(f.own)}`),
+      f.own.out ? null : ask
+        ? h("div", { class: "goals__ask", role: "alert" }, h("p", {}, `Is ${v || "it"} out in the stores? Orkboard submits nothing: say so once you have.`),
+          outError ? h("p", { class: "warn" }, outError) : null,
+          h("div", { class: "row" }, h("button", { class: "ork-btn primary", type: "button", "data-act": "out", onclick: () => markOut(f.slug) }, "Out"),
+            h("button", { class: "ork-btn", type: "button", "data-act": "not-yet", onclick: () => { asking = ""; outError = ""; drawSheet(); } }, "Not yet")))
+        : h("button", { class: "ork-btn goals__out", type: "button", "data-act": "mark-out", onclick: () => { asking = f.slug; outError = ""; drawSheet(); } }, "Mark it out"));
+  }
+
   function drawSheet() {
     const { m, list } = shown;
     const on = new Set(picked(m));
@@ -50,12 +79,13 @@ export function makeGoals(core, about) {
     body.replaceChildren(...[
       h("button", { class: "goals__about", type: "button", "data-act": "about", "aria-haspopup": "dialog", title: "About this party: what it is for, its checks, its price and its flags",
         onclick: () => { sh.close(); about(m.goal.slug); } }, h("span", {}, `About ${m.goal.short || m.goal.title}`), h("i", { class: "ork-chev right", "aria-hidden": "true" })),
+      m.goal.wait_release > 0 ? h("button", { class: "goals__wait", type: "button", "data-act": "wait-release", "aria-haspopup": "dialog", title: "New goal of A release, with these flags ticked",
+        onclick: () => { sh.close(); core.newIdea("release", m.goal.slug); } }, sign("flag"), h("span", {}, waitWords(m.goal.wait_release)), h("i", { class: "ork-chev right", "aria-hidden": "true" })) : null,
       h("p", { class: "cap goals__how" }, "A tap shows only that goal’s tasks; tap more to add them. ", h("i", { class: "ork-chev right", "aria-hidden": "true" }), " opens one."),
       h("h3", {}, "At work"), ...(list.atWork.length ? list.atWork.map((r) => row(r, on.has(r.slug))) : [h("p", { class: "cap" }, "Nothing at work.")]),
       h("h3", {}, "Planning"), ...(list.planning.length ? list.planning.map((r) => row(r, on.has(r.slug))) : [h("p", { class: "cap" }, "Nothing in Planning.")]),
       list.waits.length ? h("h3", {}, `Waits for main · ${list.waits.length}`) : null, ...lines(list.waits, "check"),
-      h("h3", {}, `Flags · ${list.flags.length}`), ...(list.flags.length ? list.flags.map((f) => h("p", { class: `cap goals__line goals__flag${lit.has(f.slug) ? " is-reward" : ""}`, "data-idea": f.slug },
-        sign("flag"), " ", h("span", { class: "goals__ink" }, f.short), ` · ${flagTally(f)}`)) : [h("p", { class: "cap" }, "None yet.")])].filter(Boolean));
+      h("h3", {}, `Flags · ${list.flags.length}`), ...(list.flags.length ? list.flags.map((f) => flagRow(f, lit)) : [h("p", { class: "cap" }, "None yet.")])].filter(Boolean));
     if (lit.size && sh.el.open) { st.lit = new Set(); setTimeout(() => body.querySelectorAll(".is-reward").forEach((e) => e.classList.remove("is-reward")), LIT_MS + 50); }
   }
 

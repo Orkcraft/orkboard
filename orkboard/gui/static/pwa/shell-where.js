@@ -42,10 +42,17 @@ export function makeWhere(core, ctx) {
   const btn = h("button", { class: "board-name projbtn", type: "button", "aria-haspopup": "dialog", "data-act": "project", onclick: () => { mine.open(); projects.load(); } },
     name, h("i", { class: "ork-chev", "aria-hidden": "true" }));
 
+  /** A switch to another party is said to the host (`ideas.shown {party, from}`, spec 68 §4, §7.9), fire and forget: never waited for, never a toast; not said for the party already shown, nor on a redraw. */
+  function shown(to) {
+    const now = core.parties().shown;
+    if (!to || to === now) return;
+    try { Promise.resolve(ctx.send("ideas.shown", { party: to, ...(now && now !== OPS_VIEW ? { from: now } : {}) })).catch(() => {}); } catch { /* it is only counted */ }
+  }
+
   /** A stop's dot, where a count was: 8 × 8, danger when one of the stops failed, else alert. */
   const dot = (stops, failed) => (stops ? h("span", { class: `where-dot ${failed ? "danger" : "alert"}`, "aria-hidden": "true", "data-dot": failed ? "danger" : "alert" }) : null);
   const rowOf = (c, on) => h("button", { class: `where-row${on ? " is-on" : ""}`, type: "button", "aria-current": on ? "true" : null, "data-goal": c.slug,
-    "aria-label": `${c.title}, ${c.done}${c.stops ? `${c.failed ? ", a stop failed" : ""}, something waits for you` : ""}${c.working ? ", at work" : ""}`, onclick: () => { sh.close(); core.pick(c.slug); } },
+    "aria-label": `${c.title}, ${c.done}${c.stops ? `${c.failed ? ", a stop failed" : ""}, something waits for you` : ""}${c.working ? ", at work" : ""}`, onclick: () => { sh.close(); shown(c.slug); core.pick(c.slug); } },
   c.head ? whoHead(c.head, false) : h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, c.title), h("small", { class: "muted" }, c.done)),
   dot(c.stops, c.failed), c.working ? sign("work", "at work") : null);
 

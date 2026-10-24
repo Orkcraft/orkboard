@@ -12,7 +12,7 @@ import { IDEATION_WHOLE } from "./shell-goal-new.js";
 import { gatePress } from "./shell-gate.js";
 import { inView, motionOn, raise, raiseTo } from "./shell-motion.js";
 import { flagWords as oldFlagWords } from "./shell-map.js";
-import { FLAGS_SHOWN, FLAG_ROW, flagLine, flagTally, flagsOf, freshFlags, priceRange } from "./shell-goals-words.js";
+import { FLAGS_SHOWN, FLAG_ROW, flagLine, flagRelease, flagTally, flagsOf, freshFlags, hasReleaseParty, partyNameOf, priceRange, releaseLine } from "./shell-goals-words.js";
 
 const SEEN = "orkcraft.flags.goals";                  // {project: the newest flag's time this phone has seen, in ms}: the flag line is said once
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -95,7 +95,7 @@ export function makeParty(core, ctx) {
       sec("The party", ...members),
       sec("Checks on every goal", ...(checkers.length ? checkers : [line("No checker in the party.")])),
       sec("What it costs", ...(spent.length ? [line(spent.join(" · "))] : []), range ? line(`about ${range} a ${pitches ? "pitch" : "goal"} with this party`) : null),
-      pitches ? null : sec("Its flags", ...(listed.length ? listed.map((f) => h("p", { class: "cap party-about__flag", "data-idea": f.slug }, sign("flag"), ` ${f.short} · ${flagTally(f)}`))
+      pitches ? null : sec("Its flags", ...(listed.length ? listed.map((f) => h("p", { class: "cap party-about__flag", "data-idea": f.slug }, sign("flag"), ` ${[f.short, f.own ? releaseLine(f.own) : flagTally(f), flagRelease(f, hasReleaseParty(st), (s) => partyNameOf(st, s))].filter(Boolean).join(" · ")}`))
         : [line("None yet: a goal raises its flag when the gate takes it into main.")]),
       flags.length > FLAGS_SHOWN && !allFlags ? h("button", { class: "ork-btn quiet", type: "button", "data-act": "all-flags", onclick: () => { allFlags = true; draw(); } }, `All ${flags.length}`) : null),
       before,

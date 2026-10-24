@@ -24,11 +24,61 @@ export function flagTally(f) {
 
 const when = (at) => { const t = Date.parse(at); return Number.isNaN(t) ? 0 : t; };
 
-/** The flags of the goals among `nodes`, newest first: [{slug, title, short, element, at, tasks, first_time, usd, days}]. */
+/** The flags of the goals among `nodes`, newest first: [{slug, title, short, element, at, tasks, first_time, usd, days, release, own}]. `release`: the last release that holds the goal (spec 68: `{goal, party, version, out}`)
+ *  or none; `own`: the goal is itself a release (`{version, goals, out}`), else null. */
 export function flagsOf(nodes) {
-  return (nodes || []).filter((n) => n.flag).map((n) => ({ slug: n.slug, title: n.title, short: n.short || n.title, element: n.element || "", ...n.flag }))
+  return (nodes || []).filter((n) => n.flag).map((n) => ({ slug: n.slug, title: n.title, short: n.short || n.title, element: n.element || "", ...n.flag, own: n.release || null }))
     .sort((a, b) => when(b.at) - when(a.at));
 }
+
+// -- a goal's route and its release (docs/specs/68-release-and-route.md §0, §7) ---------------------------------------------------------------------------
+
+/** A party's short name by its slug, from the Map (the slug itself when the Map does not have it). */
+export const partyNameOf = (st, slug) => { const g = (st.map?.goals || []).find((x) => x.slug === slug); return g ? g.short || g.title || slug : slug || ""; };
+
+/** Whether the project has a Release party (its leader is the Release manager): a flag then waits for a release or is in one. */
+export const hasReleaseParty = (st) => (st.map?.goals || []).some((g) => g.leader?.slug === "release-manager");
+
+const join = (...parts) => parts.filter(Boolean).join(" ");
+const kOfN = (done, total) => (total ? ` · ${done || 0} of ${total}` : "");
+
+/** What a pitch's goal is now as the pitch's node says it (`goal_state`): *At work in Mobile app · 3 of 7* · *In main* · *In Release 1.4* · *Out in 1.4* · *Dropped*; `name`: a party's name by its slug. */
+export function goalStateWords(gs, name = (s) => s) {
+  if (!gs) return "";
+  if (gs.state === "dropped") return "Dropped";
+  const r = gs.release;
+  if (r) return r.out ? join("Out in", r.version) : join("In", name(r.party), r.version);
+  if (gs.flag) return "In main";
+  return inPartyWords(gs, name);
+}
+
+/** Where a goal is in its party: *At work in Mobile app · 3 of 7* while it works, else *In Mobile app* (its work not started, or done and not in main yet). */
+const inPartyWords = (g, name) => (g.state === "working" ? `At work in ${name(g.party)}${kOfN(g.done, g.total)}` : `In ${name(g.party)}`);
+
+/** What a step of a goal's route says (`node.route`, spec 68 §2.1): *From Ideation: Invest, 22 Oct* · *Moved from Mobile app* · *At work in Mobile app · 3 of 7* · *In main* · *In Release 1.4* · *Out in 1.4*. */
+export function routeWords(step, name = (s) => s) {
+  switch (step.step) {
+    case "pitch": return `From ${name(step.party)}: ${[step.word || step.answer, flagDate(step.at)].filter(Boolean).join(", ")}`;
+    case "moved": return `Moved from ${name(step.from || step.party)}`;
+    case "party": return inPartyWords(step, name);
+    case "main": return "In main";
+    case "release": return step.out ? join("Out in", step.version) : join("In", name(step.party), step.version);
+    default: return "";
+  }
+}
+
+/** A flag's release in a party's Flags group: *In Release 1.4* · *Out in 1.4* · *Waits for a release* (only in a project with a Release party); "" otherwise. A release's own row says its version and goals (`releaseLine`). */
+export function flagRelease(f, withRelease, name = (s) => s) {
+  if (f.own) return "";
+  if (f.release) return f.release.out ? join("Out in", f.release.version) : join("In", name(f.release.party), f.release.version);
+  return withRelease ? "Waits for a release" : "";
+}
+
+/** *1.4 · 3 goals* (a release's row in the Release party's Flags), *Out in 1.4* once it is out. */
+export const releaseLine = (own) => (own.out ? join("Out in", own.version) : [own.version, plural((own.goals || []).length, "goal")].filter(Boolean).join(" · "));
+
+/** *3 flags wait for a release* (*1 flag waits for a release*). */
+export const waitWords = (n) => `${plural(n, "flag")} ${n === 1 ? "waits" : "wait"} for a release`;
 
 /** Whether a goal is in main: the gate says so (it lists the goals still in dev), or there is no gate. */
 export const inMain = (gate, slug) => Boolean(gate && (gate.same || !(gate.ideas || []).some((i) => i.slug === slug)));
@@ -36,7 +86,7 @@ export const inMain = (gate, slug) => Boolean(gate && (gate.same || !(gate.ideas
 /** What the goals bar and the Goals sheet list for one party: its goals at work, in Planning (the ones the leader has read and the new ones), the done ones that wait for main and its flags. A row:
  *  {slug, title, short, element, raw, type, line, care, mark, markTip, edges, open} (`type`: the goal's type, {id, name, sign}, or null); `model`: shell-arena-words.js `modelOf`. */
 export function goalsOf(st, model) {
-  if (model.goal?.ideation) return pitchesOf(model);
+  if (model.goal?.ideation) return pitchesOf(model, (slug) => partyNameOf(st, slug));
   const nodes = model.nodes;
   const done = (n) => n.state === "done";
   const edges = (n) => Math.min(3, (n.tasks || []).filter((t) => t.state !== "merged" && t.state !== "dropped").length);
@@ -119,7 +169,7 @@ export function whereWords(d) {
 }
 
 /** A pitch's line in words: *held: Judge now to have it read*, *2 of 4 views*, *Invest: Ship, as Fix a bug*, *sent to Ship: Dark mode*, *passed: …*. `error`: a failed one's `state_error`. */
-export function pitchLine(n, error = "") {
+export function pitchLine(n, error = "", name = null) {
   const p = n.pitch || {}, d = p.decision, views = (p.views || []).length || 4;
   if (n.state === "raw") {
     if (n.held_until) return `waits for limits · after ${hhmm(n.held_until)}`;
@@ -132,6 +182,7 @@ export function pitchLine(n, error = "") {
     return p.case ? `${p.investor?.name || "Investor"} decides` : `${p.skeptic?.name || "Skeptic"} makes the case against`;
   }
   if (n.state === "judged") return d ? [d.word, whereWords(d)].filter(Boolean).join(": ") : "judged";
+  if (n.state === "sent" && n.goal_state && name) return goalStateWords(n.goal_state, name);                 // spec 68 §2.4: its goal, as it is now
   if (n.state === "sent") return p.sent ? `sent to ${p.sent.name || p.sent.party}${p.sent.title ? `: ${p.sent.title}` : ""}` : "sent";
   if (n.state === "passed") return p.passed?.why ? `passed: ${p.passed.why}` : "passed";
   return n.state;
@@ -140,10 +191,10 @@ export function pitchLine(n, error = "") {
 const PITCH_RANK = { judged: 0, judging: 1, failed: 2, raw: 3, sent: 4 };
 
 /** What the goals bar's sheet lists for Ideation: its pitches but the passed ones, the judged first, all under Planning (a pitch has no task: nothing of it is at work, waits for main or raises a flag). */
-function pitchesOf(model) {
+function pitchesOf(model, name) {
   const rows = model.nodes.filter((n) => n.state !== "passed").sort((a, b) => (PITCH_RANK[a.state] ?? 5) - (PITCH_RANK[b.state] ?? 5)).map((n) => ({
     slug: n.slug, title: n.title, short: n.short || n.title, element: n.element || "", raw: n.state === "raw", edges: 0, open: { kind: "idea", slug: n.slug }, type: null,
-    line: pitchLine(n), care: n.state === "judged", mark: n.state === "failed" ? "cross" : n.state === "judged" ? "alert" : n.state === "judging" ? "work" : "",
+    line: pitchLine(n, "", name), care: n.state === "judged", mark: n.state === "failed" ? "cross" : n.state === "judged" ? "alert" : n.state === "judging" ? "work" : "",
     markTip: n.state === "failed" ? "failed" : n.state === "judged" ? "waits for you" : n.state === "judging" ? "being judged" : "" }));
   return { atWork: [], planning: rows, waits: [], flags: [], all: rows, asking: rows.filter((r) => r.care).length, n: rows.length };
 }

@@ -76,7 +76,7 @@ def test_every_crafts_head_is_in_the_copy_and_the_pages_words_are_the_glossarys(
             for big in (False, True):
                 assert (orkui.ROOT / orkui.race_png(race, tier, big)).is_file(), (race, tier, big)
     words = {"TIER_WORDS": {t: lexicon.term(f"tier.{t}") for t in roles.TIERS},
-             "RACE_WORDS": {r: lexicon.term(f"race.{r}") for r in roles.RACES.values()},
+             "RACE_WORDS": {r: lexicon.term(f"race.{r}") for r in (*roles.RACES.values(), "skeleton")},      # the library's own race (spec 68 §1.3)
              "CRAFT_WORDS": {c: lexicon.term(f"craft.{c}") for c in roles.CRAFTS}}
     for path in (STATIC / "js" / "orkui.js", STATIC / "pwa" / "shell-who.js"):
         js = path.read_text(encoding="utf-8")

@@ -8,7 +8,7 @@ import { pctOf, rated, SHARE_TIP } from "./shell-spend.js";
 import { steady } from "./shell-util.js";
 import { makeAgentSheet } from "./shell-agent.js";
 import { heldWords } from "./shell-words.js";
-import { whoHead, CRAFT_WORDS, TIER_WORDS, RACE_WORDS } from "./shell-who.js";
+import { whoHead, CRAFT_WORDS, TIER_WORDS, RACE_WORDS, raceOf } from "./shell-who.js";
 
 const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: ["at Review", ""], ready: ["queued", ""], held: ["held", "⏳"],
   failed: ["needs you", "⚠"] };
@@ -16,7 +16,6 @@ const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: [
 const ORDER = ["failed", "running", "testing", "ready", "held", "review"];
 const rank = (c) => { const i = ORDER.indexOf(c.state); return i < 0 ? ORDER.length : i; };
 const hint = () => (rated() ? SHARE_TIP : "At API prices, not your bill");
-const RACE_OF = { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" };
 const money = (n) => `≈${pctOf(n) || `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`}`;
 const FEW = 3;                                   // merged results (a Grunt's) or finished tasks (the Taskmaster's) before a week is said
 
@@ -98,7 +97,7 @@ export function makeAgents(core) {
       "aria-label": `Add ${a.name}`, onclick: async () => {
         const got = await core.call("ideas.role_add", { id: a.id });
         if (got?.slug) { choose.close(); core.flash(`${a.name} is added.`); core.refresh(); }
-      } }, raceHead(RACE_OF[a.craft] || "peon", a.tier || "warrior"), h("b", {}, a.name),
+      } }, raceHead(raceOf(a), a.tier || "warrior"), h("b", {}, a.name),
       h("small", { class: "muted" }, `${CRAFT_WORDS[a.craft] || a.craft} · ${TIER_WORDS[a.tier] || ""} · ${a.line || ""}`.replace(/ · +$/, "")),
       h("span", { class: "team-mark", "aria-hidden": "true" }, "+")))
       : [h("p", { class: "muted" }, "Every agent that comes with Orkline is already in this project.")]));

@@ -1126,3 +1126,42 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 .pitch__acts > .pitch__ask { font: 400 14px/20px var(--ork-font-text); }
 .newgoal.is-pitch .sheet-foot .ork-btn, .newgoal.is-pitch .sheet-foot .ork-btn.primary { flex: 1 1 0; }
 .party-whole { margin: 0; }
+
+/* -- a goal's route and a release (docs/specs/68-release-and-route.md §7): the route's line under a goal's title, a sent pitch's goal, What goes in, Releases from, the Release party's flags --------------------- */
+.route { display: flex; flex-direction: column; gap: var(--ork-1); margin: 0 0 var(--ork-3); min-width: 0; }
+.route__label { margin: 0; }
+.route__steps { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-1) var(--ork-2); min-width: 0; }                      /* a long route wraps: never a sideways scroll */
+.route__step { appearance: none; display: inline-flex; align-items: center; gap: var(--ork-2); min-height: var(--ork-tap); max-width: 100%; box-sizing: border-box; padding: 0 var(--ork-3);
+  border: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); color: var(--ork-ink); font: 400 13px/18px var(--ork-font-text); text-align: left; cursor: pointer; }
+.route__step[aria-current="step"] { border-color: var(--ork-ink); background: var(--ork-raised); }
+.route__step:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.route__step .ork-race__head { flex: none; }
+.route__words { min-width: 0; overflow-wrap: anywhere; }
+.route__sep { flex: none; color: var(--ork-ink-faint); }
+.pitch__goal { appearance: none; display: flex; align-items: center; gap: var(--ork-3); width: 100%; min-height: var(--ork-tap); box-sizing: border-box; margin-top: var(--ork-2); padding: 0 var(--ork-4);
+  border: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); color: var(--ork-ink); font: 400 14px/20px var(--ork-font-text); text-align: left; cursor: pointer; }
+.pitch__goal:disabled { cursor: default; color: var(--ork-ink-muted); border-style: dashed; }
+.pitch__goal b { font-weight: 600; flex: none; }
+.pitch__goalwords { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--ork-ink-muted); }
+.pitch__goal:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.goesin { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.goesin[hidden], .releasesfrom[hidden] { display: none; }
+.goesin__list, .releasesfrom__list { display: flex; flex-direction: column; gap: var(--ork-1); }
+.goesin__row, .releasesfrom__row { display: flex; align-items: center; gap: var(--ork-3); min-height: var(--ork-tap); box-sizing: border-box; padding: 0 var(--ork-3); border: var(--ork-line) solid var(--ork-frame);
+  background: var(--ork-panel); cursor: pointer; min-width: 0; }
+.goesin__row.is-held { border-style: dashed; color: var(--ork-ink-muted); cursor: default; }
+.goesin__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding: var(--ork-1) 0; }
+.goesin__title { font: 400 14px/18px var(--ork-font-text); overflow-wrap: anywhere; }
+.goesin__meta { overflow-wrap: anywhere; }
+.goesin__empty, .releasesfrom__words { margin: 0; }
+.goals__wait { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--ork-3); min-height: var(--ork-tap); width: 100%; padding: 0 var(--ork-4);
+  border: var(--ork-line) solid var(--ork-edge); background: var(--ork-panel); color: var(--ork-ink); font: 400 14px/20px var(--ork-font-text); }
+.goals__wait span:not(.ork-sign) { flex: 1 1 auto; min-width: 0; }
+.goals__wait .ork-sign { color: var(--ork-success); }
+.goals__wait:focus-visible { box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.goals__release { display: flex; flex-direction: column; gap: var(--ork-2); }
+.goals__rel { color: var(--ork-ink); }
+.goals__out { align-self: flex-start; margin-left: 22px; }                                                                         /* under the flag's title */
+.goals__ask { display: flex; flex-direction: column; gap: var(--ork-2); padding: var(--ork-3); border: var(--ork-line) solid var(--ork-alert); }
+.goals__ask p { margin: 0; font: 400 14px/20px var(--ork-font-text); }
+.goals__ask .row { display: flex; gap: var(--ork-3); }
