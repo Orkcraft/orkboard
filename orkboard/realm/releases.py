@@ -24,7 +24,7 @@ import datetime as dt
 import json
 from pathlib import Path
 
-from orkboard.realm import goal_types, idea_element, idea_flag, ideas, library
+from orkboard.realm import goal_team, goal_types, idea_element, idea_flag, ideas, library
 
 FILE = "release.json"
 KEY = "releases_from"                    # a party's page, front matter: a JSON list of party slugs
@@ -58,10 +58,11 @@ def read(state_dir: Path, slug: str) -> dict | None:
             "out": str(got.get("out") or ""), "at": str(got.get("at") or "")}
 
 
-def index(root: Path, state_dir: Path) -> list[dict]:
-    """Every release of the project (a release goal dropped is gone with its page), oldest first: `{goal, party, version, goals, out, at}`."""
+def index(root: Path, state_dir: Path, found: list[dict] | None = None) -> list[dict]:
+    """Every release of the project (a release goal dropped is gone with its page), oldest first: `{goal, party, version, goals, out, at}`.
+    `found`: `ideas.ideas(root)` when the caller has it read."""
     out = []
-    for i in ideas.ideas(root):
+    for i in ideas.ideas(root) if found is None else found:
         if (got := read(state_dir, i["slug"])) is not None:
             out.append({"goal": i["slug"], "party": i["track"], **got})
     return sorted(out, key=lambda r: (r["at"], r["goal"]))
@@ -150,16 +151,22 @@ def candidates(root: Path, state_dir: Path, party: str, rows: list[dict] | None 
     return sorted(out, key=lambda c: (c["at"], c["goal"]), reverse=True)
 
 
-def offers(state_dir: Path, root: Path, party: str) -> bool:
-    """Whether the party is offered *A release* (realm/goal_types.py `offered`: its Release party alone when the project has one)."""
+def offers(state_dir: Path, root: Path, party: str, rel: str | None = None) -> bool:
+    """Whether the party is offered *A release* (realm/goal_types.py `offered`: its Release party alone when the project has one). `rel`:
+    `goal_types.release_party(root)` when the caller has it read. The types are asked only of a party with someone who writes store pages."""
     if (ideas.track_page(root, party) or ideas.Page()).get("leader") == library.INVESTOR:
         return False
+    rel = goal_types.release_party(root) if rel is None else rel
+    if rel:
+        return party == rel
+    if not any("aso" in goal_types._takes(state_dir, m) for m in goal_team.team_of(root, party)):
+        return False                             # *A release* needs `aso`: no one takes it, the type is not offered (and the types not read)
     return any(t.id == "release" for t, _rows in goal_types.offered(state_dir, root, party))
 
 
-def wait(root: Path, state_dir: Path, party: str, rows: list[dict] | None = None) -> int:
+def wait(root: Path, state_dir: Path, party: str, rows: list[dict] | None = None, rel: str | None = None) -> int:
     """How many flags wait for a release in `party` (a party that offers *A release*): its candidates not held; 0 for any other."""
-    if not offers(state_dir, root, party):
+    if not offers(state_dir, root, party, rel):
         return 0
     return sum(1 for c in candidates(root, state_dir, party, rows) if not c["held"])
 

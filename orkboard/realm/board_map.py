@@ -282,8 +282,8 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
     target, read = idea_target.target_of(settings), roles.known(state_dir)         # a task's head: who does it, at what tier
     today = dt.date.fromtimestamp(now).isoformat() if now else dt.date.today().isoformat()
     offered = pitches.offers(root, state_dir) if any((t.get("leader") or "") == library.INVESTOR for t in shown) else {}
-    made = releases.index(root, state_dir)                                  # the releases, read once: a goal's route, a flag's release (spec 67)
-    held = releases.holding(root, state_dir, made)
+    made = releases.index(root, state_dir, found)                           # the releases, read once: a goal's route, a flag's release (spec 67)
+    held, rel = releases.holding(root, state_dir, made), goal_types.release_party(root)
     releasing = {r["goal"]: r for r in made}
     for g in shown:
         mine = [i for i in found if i["track"] == g["slug"]]
@@ -310,7 +310,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2), "ideation": ideation,
                       "passed": sum(1 for s in order if states[s]["state"] == "passed") if ideation else 0,
-                      "releases_from": releases.releases_from(root, g["slug"]), "wait_release": releases.wait(root, state_dir, g["slug"], made)})
+                      "releases_from": releases.releases_from(root, g["slug"]), "wait_release": releases.wait(root, state_dir, g["slug"], made, rel)})
         mine_nodes, today_tasks = [], []
         for i in sorted(mine, key=lambda i: (tier[i["slug"]], place[i["slug"]])):
             slug, st, page = i["slug"], states[i["slug"]], pages[i["slug"]]
@@ -324,8 +324,8 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             waves = map_stage.waves_of(tasks)
             pitch = pitches.face(root, state_dir, slug, r["state"], target, offered) if ideation else None
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
-                    "element": st.get("element") or "", "flag": flag_of(state_dir, slug, held), "type": type_of(st),
-                    "route": idea_route.route(root, state_dir, slug, page=page, st=st, plan=plan, held=held),
+                    "element": st.get("element") or "", "flag": (flag := flag_of(state_dir, slug, held)), "type": type_of(st),
+                    "route": idea_route.route(root, state_dir, slug, page=page, st=st, plan=plan, held=held, flag=flag),
                     "goal_state": idea_route.goal_state(root, state_dir, slug, held) if ideation and r["state"] == "sent" else None,
                     "release": release_of(releasing.get(slug)),
                     "held_until": r["held_until"], "start_at": r["start_at"], "night_by": r["night_by"], "by_pace": bool((plan or {}).get("by_pace")),

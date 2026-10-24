@@ -70,9 +70,9 @@ def _tasks(plan: dict | None) -> tuple[int, int]:
 
 
 def steps(root: Path, state_dir: Path, slug: str, page: ideas.Page | None = None, st: dict | None = None, plan: dict | None = None,
-          held: dict | None = None) -> list[dict]:
-    """Every step of the route, its `party` step among them (`route` leaves a route of that alone out). `page`, `st`, `plan` and `held`
-    (`releases.holding`) when the caller has them read."""
+          held: dict | None = None, flag: dict | None | bool = False) -> list[dict]:
+    """Every step of the route, its `party` step among them (`route` leaves a route of that alone out). `page`, `st`, `plan`, `held`
+    (`releases.holding`) and `flag` (None for none) when the caller has them read."""
     page = page or ideas.idea_page(root, slug)
     st = st or ideas.state(state_dir, slug)
     plan = plan if plan is not None else ideas.plan(state_dir, slug)
@@ -85,11 +85,12 @@ def steps(root: Path, state_dir: Path, slug: str, page: ideas.Page | None = None
         answer = str((j["decision"] or {}).get("answer") or "")
         out.append({"step": "pitch", "party": pitch.get("track") or ideas.GENERAL, "goal": src, "at": j["judged_at"], "answer": answer,
                     "word": pitches.ANSWER_WORDS.get(answer, ""), "title": pitch.title or src})
-    out += [{"step": "moved", "party": m["from"], "goal": slug, "at": m["at"], "from": m["from"], "to": m["to"]} for m in moves(state_dir, slug)]
+    moved = moves(state_dir, slug)
+    out += [{"step": "moved", "party": m["from"], "goal": slug, "at": m["at"], "from": m["from"], "to": m["to"]} for m in moved]
     done, total = _tasks(plan)
-    out.append({"step": "party", "party": party, "goal": slug, "at": (moves(state_dir, slug) or [{"at": ""}])[-1]["at"],
+    out.append({"step": "party", "party": party, "goal": slug, "at": (moved or [{"at": ""}])[-1]["at"],
                 "state": st["state"], "done": done, "total": total})
-    if (flag := idea_flag.flag_of(state_dir, slug)) is not None:
+    if (flag := idea_flag.flag_of(state_dir, slug) if flag is False else flag) is not None:
         out.append({"step": "main", "party": party, "goal": slug, "at": flag["at"], "by": flag.get("by") or ""})
     out += [{"step": "release", "at": r["out"] or r["at"], **releases.step_of(r)} for r in held.get(slug, [])]
     return out
