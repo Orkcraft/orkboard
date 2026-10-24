@@ -88,7 +88,7 @@ export function PartyList({ body = null }) {
       </section>`)}
       ${ps.ops && html`<section class=${cls("arena-party", { "is-open": want === OPS })}><${OpsHeading} ps=${ps} open=${want === OPS} want=${want} /></section>`}
       <button type="button" class="arena-pnew" title="One of yours, or its leader, builders and checkers from the library" onClick=${() => openDialog("goal")}>
-        <span class="arena-plist__head arena-plist__icon"><${Icon} name="plus" /></span><span class="arena-phead__name">+ New party</span></button>
+        <span class="arena-plist__head arena-plist__icon"><${Icon} name="plus" /></span><span class="arena-phead__name">New party</span></button>
     </div>
   </aside>`;
 }

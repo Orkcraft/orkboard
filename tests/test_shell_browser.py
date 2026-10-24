@@ -810,7 +810,7 @@ def test_new_party_is_a_name_what_it_is_for_its_party_and_a_priority_then_readin
     pg, host = shell
     _new_party(pg)
     dlg = pg.get_by_role("dialog", name="New party")
-    assert dlg.locator(".shell-craft-tile").count() == 10                                           # from the library: the four mixed, the five crafts, the Taskmaster alone
+    assert dlg.locator(".shell-craft-tile").count() == 11                                           # from the library: the five mixed, the five crafts, the Taskmaster alone
     dlg.locator('.shell-craft-tile[data-craft="design"]').click()                                   # the library's design party, in three bands
     leads, builds = dlg.get_by_role("region", name="Leads"), dlg.get_by_role("region", name="Builds")
     assert leads.locator('.shell-team-row[aria-pressed="true"]').get_attribute("data-agent") == "product-designer"

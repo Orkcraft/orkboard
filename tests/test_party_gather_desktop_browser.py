@@ -114,7 +114,8 @@ def _quiet(pg):
 def test_save_party_gathers_the_heads_from_their_seats_into_the_deck_and_lights_it(shell):
     pg, host = shell
     dlg = _fill(pg)
-    seats = _seats(pg, dlg, 500)                                                                       # the leader's seat and the four builders' in view, the checker's below
+    top = _seats(pg, dlg)[0]["y"] - dlg.locator(".shell-modal__body").bounding_box()["y"]
+    seats = _seats(pg, dlg, top - 40)                                                                  # the leader's seat and the four builders' in view, the checker's below
     assert [s["on"] for s in seats] == [True] * 5 + [False]
     pg.evaluate(RECORD)
     dlg.get_by_role("button", name="Save party").click()

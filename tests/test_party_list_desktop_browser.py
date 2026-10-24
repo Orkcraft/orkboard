@@ -66,7 +66,7 @@ def test_the_parties_are_listed_in_the_boards_order_then_operations_then_new_par
     heads = _heads(pg)
     assert [h.get_attribute("data-goal") for h in heads.all()] == ["passkey", "pricing", "weekly", "@operations"]
     plus = pg.locator(".arena-pnew")
-    assert plus.count() == 1 and plus.inner_text().strip() == "+ New party" and plus.get_attribute("title").startswith("One of yours")
+    assert plus.count() == 1 and plus.inner_text().strip() == "New party" and plus.get_attribute("title").startswith("One of yours")
     ys = [h.bounding_box()["y"] for h in heads.all()] + [plus.bounding_box()["y"]]
     assert ys == sorted(ys) and len(set(ys)) == 5                                                       # one under the other, + New party last
     assert pg.get_by_role("complementary", name="Parties").count() == 1 and box(pg, ".arena-left")["width"] == 248
