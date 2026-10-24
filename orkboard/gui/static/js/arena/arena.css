@@ -1,4 +1,4 @@
-/* The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, docs/specs/52-goal-types.md, decisions §62, §63, §65): the party's deck, the day's strip, the leader over the party's
+/* The one window (docs/specs/49-one-window.md, docs/specs/50-parties-and-goals.md, docs/specs/52-goal-types.md, decisions §62, §63, §65, docs/specs/69-parties-in-the-column.md, decisions §84): the column of the parties (a heading each, the open one's leader and
    goals, the field with its party on top and its tasks as stacks of cards in rows by phase running down, the results on the right, what waits for you and the
    limits along the bottom. In orkUI's office look (design-system/orkui): its tokens and components only (.ork-gem, .ork-stat, .ork-crystals, .ork-frame, .ork-mark,
    .ork-elem, .ork-sign, .ork-race__head.mid), no raw colour, nothing round. The variables set here are the fan's (--rot, --dy, --z) and the columns' (--cols).
@@ -13,43 +13,14 @@
 .arena-lbl.is-blank::before { display: none; }
 .arena-note { padding: var(--ork-6); }
 
-/* -- the party's deck (spec 52 §3): the left column's top line over the leader (32 px), Parties ⌄ (28 px high, a small deck 14 × 18), the parties dealt -- */
-.arena-ptop { flex: none; display: flex; align-items: center; gap: var(--ork-3); height: 32px; padding: 0 var(--ork-2) 0 var(--ork-5); box-sizing: border-box; min-width: 0; }
-.arena-ptop__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 13px/16px var(--ork-font-pixel); color: var(--ork-ink); }
-.arena-ptop__count { flex: none; font: var(--ork-type-caption); color: var(--ork-ink-muted); font-variant-numeric: tabular-nums; }
-.arena-ptop__work { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
-.arena-ptop__deck { flex: none; display: inline-flex; align-items: center; gap: var(--ork-2); height: 28px; padding: 0 var(--ork-3); }
-.arena-ptop__deck .ork-chev { margin: 0; }
-.arena-ptop__cards { position: relative; flex: none; width: 18px; height: 22px; }
-.arena-ptop__cards i, .arena-ptop__cards b { position: absolute; width: 14px; height: 18px; box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); clip-path: var(--ork-notch); }
-.arena-ptop__cards i:nth-child(1) { left: 4px; top: 0; }
-.arena-ptop__cards i:nth-child(2) { left: 2px; top: 2px; }
-.arena-ptop__cards b { left: 0; top: 4px; border-color: var(--ork-ink-muted); background: repeating-linear-gradient(45deg, var(--ork-raised) 0 2px, var(--ork-panel) 2px 4px); }
-.arena-ops__top { flex: none; width: 248px; box-sizing: border-box; border-bottom: var(--ork-line) solid var(--ork-frame); border-right: var(--ork-line) solid var(--ork-frame); }
-.arena-hero__deck { position: relative; display: flex; flex-direction: column; isolation: isolate; }      /* the leader's row stands on the deck: an edge behind it per other party, two at most */
-.arena-hero__edge { position: absolute; z-index: -1; box-sizing: border-box; border: var(--ork-line) solid var(--ork-edge); background: var(--ork-canvas); clip-path: var(--ork-notch); }
 
-/* a deal over the window (the parties', the goal types'): the scrim, the line, 120 × 168 cards, Put them back */
+/* a deal over the window (the goal types'): the scrim, the line, 120 × 168 cards, Put them back */
 .arena-spread.arena-deal { position: fixed; z-index: 90; }
-.arena-deck__card, .arena-type { appearance: none; position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-2); box-sizing: border-box; padding: var(--ork-4);
+.arena-type { appearance: none; position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-2); box-sizing: border-box; padding: var(--ork-4);
   border: var(--ork-line) solid var(--ork-edge); background: var(--ork-panel); clip-path: var(--ork-notch); color: var(--ork-ink); text-align: left; cursor: pointer; font: var(--ork-type-body); }
-.arena-deck__card:hover, .arena-type:hover { background: var(--ork-raised); }
-.arena-deck__card:focus-visible, .arena-type:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
-.arena-deck__card.is-shown { background: var(--ork-raised); border: var(--ork-double) double var(--ork-ink); transform: translateY(-8px); }
-.arena-deck__top { display: flex; align-items: flex-start; justify-content: space-between; align-self: stretch; }
-.arena-deck__marks { display: inline-flex; align-items: center; gap: var(--ork-2); color: var(--ork-ink-muted); }
-.arena-deck__dot { flex: none; width: 8px; height: 8px; background: var(--ork-alert); }      /* a party with a stop (spec 54 §2.4): a dot where the count was */
-.arena-deck__dot.is-danger { background: var(--ork-danger); }
-.arena-deck__icon { display: inline-flex; color: var(--ork-ink-muted); }
-.arena-deck__icon .ork-icon { width: 24px; height: 24px; }
-.arena-deck__name { font: 500 13px/16px var(--ork-font-pixel); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
-.arena-deck__heads { display: flex; flex-wrap: wrap; gap: var(--ork-1); margin-top: auto; }
-.arena-deck__shown { font: var(--ork-type-caption); color: var(--ork-ink); text-transform: uppercase; letter-spacing: 0.04em; }
-.arena-deck__card.is-blank, .arena-type.is-blank { justify-content: center; align-items: center; text-align: center; border-style: dashed; background: var(--ork-canvas); }
-.arena-deck__plus { display: inline-flex; color: var(--ork-action); }
-.arena-deck__plus .ork-icon { width: 20px; height: 20px; }
 
 /* a goal type's card (spec 52 §4.1): its sign big, its name, its line, what it needs (muted ink: not a stop); a press turns it over (≈ 0.42 s, in steps) */
+.arena-type:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .arena-type { padding: 0; border: 0; background: none; perspective: 600px; overflow: visible; clip-path: none; }
 .arena-type__front, .arena-type__face { position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-2); padding: var(--ork-4);
   border: var(--ork-line) solid var(--ork-edge); background: var(--ork-panel); clip-path: var(--ork-notch); backface-visibility: hidden; transition: transform 0.42s steps(7); }
@@ -94,11 +65,35 @@
 .arena-hitem.is-no { color: var(--ork-danger); }
 .arena-hitem.is-muted { color: var(--ork-ink-muted); }
 
+/* -- the left column (spec 69): the project's line at its top, then the parties — a heading each, the open one's body under it — and + New party; the list scrolls under the line -- */
 .arena-left { flex: none; width: 248px; box-sizing: border-box; border-right: var(--ork-line) solid var(--ork-frame); display: flex; flex-direction: column; min-height: 0; background: var(--ork-canvas); }
-.arena-left__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); height: 36px; padding: 0 var(--ork-5); box-sizing: border-box; border-bottom: var(--ork-line) solid var(--ork-frame); }
-.arena-goals { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.arena-deck { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: var(--ork-3) var(--ork-2) var(--ork-4); display: flex; flex-direction: column; gap: var(--ork-1); }
-.arena-deck::-webkit-scrollbar { display: none; }
+.arena-left__proj { flex: none; position: relative; z-index: 8; padding: var(--ork-3) var(--ork-3); border-bottom: var(--ork-line) solid var(--ork-frame); background: var(--ork-canvas); }
+.arena-plist { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-bottom: var(--ork-4); }
+.arena-plist::-webkit-scrollbar { display: none; }
+.arena-party { display: flex; flex-direction: column; border-bottom: var(--ork-line) solid var(--ork-frame); }
+.arena-phead, .arena-pnew { appearance: none; display: flex; align-items: flex-start; gap: var(--ork-4); width: 100%; min-height: 40px; box-sizing: border-box; padding: var(--ork-4) var(--ork-4) var(--ork-4) var(--ork-5);
+  border: 0; background: none; color: var(--ork-ink); text-align: left; cursor: pointer; font: var(--ork-type-body); }
+.arena-phead:hover, .arena-pnew:hover { background: var(--ork-raised); }
+.arena-phead:focus-visible, .arena-pnew:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.arena-phead.is-open { background: var(--ork-raised); box-shadow: inset 2px 0 0 var(--ork-ink); cursor: default; }
+.arena-phead.is-open:focus-visible { box-shadow: inset 2px 0 0 var(--ork-ink), inset 0 0 0 2px var(--ork-ink); }
+.arena-plist__head { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; }
+.arena-plist__icon { color: var(--ork-ink-muted); }
+.arena-plist__icon .ork-icon { width: 20px; height: 20px; }
+.arena-pnew .arena-plist__icon { color: var(--ork-action); }
+.arena-phead__name { flex: 1; min-width: 0; line-height: 16px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.arena-pnew .arena-phead__name { color: var(--ork-action); }
+.arena-phead__count { flex: none; font: var(--ork-type-caption); line-height: 16px; color: var(--ork-ink-muted); font-variant-numeric: tabular-nums; }
+.arena-phead__work { flex: none; display: inline-flex; color: var(--ork-ink-muted); line-height: 16px; }
+.arena-phead__stop { flex: none; display: inline-flex; line-height: 16px; }
+.arena-phead__stop.is-alert { color: var(--ork-alert); }
+.arena-phead__stop.is-danger { color: var(--ork-danger); }
+.arena-pbody { display: flex; flex-direction: column; padding-left: calc(var(--ork-5) + 24px + var(--ork-4) - var(--ork-3)); }
+.arena-lead { display: flex; flex-direction: column; align-items: stretch; gap: var(--ork-2); padding: var(--ork-2) var(--ork-3) var(--ork-4) var(--ork-3); }
+.arena-lead .arena-member { max-width: none; }
+.arena-goals { display: flex; flex-direction: column; }
+.arena-left__head { flex: none; display: flex; align-items: center; gap: var(--ork-4); height: 36px; padding: 0 var(--ork-3); box-sizing: border-box; border-top: var(--ork-line) solid var(--ork-frame); }
+.arena-deck { display: flex; flex-direction: column; padding: var(--ork-3) var(--ork-2) var(--ork-4); gap: var(--ork-1); }
 .arena-deck > p { padding: var(--ork-3) var(--ork-4); }
 .arena-sec { margin: var(--ork-4) var(--ork-2) var(--ork-1); color: var(--ork-ink-muted); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); }
 .arena-fold { align-self: flex-start; }
@@ -143,7 +138,6 @@
 .arena-new__pile.is-drawing .arena-new__card { transform: translate(18px, -22px) rotateY(180deg); }
 .arena-new__words { display: flex; flex-direction: column; }
 .arena-new__words b { font: var(--ork-type-button); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ork-action); }
-.arena-hero { position: relative; flex: none; border-bottom: var(--ork-line) solid var(--ork-frame); padding: 10px var(--ork-5); display: flex; flex-direction: column; align-items: stretch; gap: var(--ork-2); }
 .arena-power { align-self: center; }
 
 .arena-field { position: relative; flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 312px; grid-template-rows: auto 64px minmax(0, 1fr) 64px; }
@@ -301,7 +295,6 @@
 .arena-member:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
 .arena-member.is-on { background: var(--ork-raised); border-color: var(--ork-ink); box-shadow: inset 0 2px 0 var(--ork-ink); }
 .arena-member.is-dim { opacity: 0.45; }
-.arena-hero .arena-member { max-width: none; }
 .arena-tport { position: relative; flex: none; width: 36px; height: 33px; }
 .arena-tport .ork-race__head { display: block; }
 .arena-mark--r { position: absolute; left: -7px; top: -7px; }
@@ -493,9 +486,9 @@
 .arena-pitch__decision[data-answer="pass"] .arena-pitch__answer { color: var(--ork-ink-muted); }
 
 /* -- Operations as the field --------------------------------------------------------------------------------------------------------- */
-.arena.arena-ops { flex-direction: column; }
+.arena-ops__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .arena-ops__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--ork-5) var(--ork-6); }
-.arena-ops > .arena-stops { flex: none; grid-column: auto; }
+.arena-ops__main > .arena-stops { flex: none; grid-column: auto; }
 
 /* -- below 1 024 px: no strip, the left column 200 px, the results in the bottom row, the columns scroll sideways ------------------------ */
 @media (max-width: 1023px) {

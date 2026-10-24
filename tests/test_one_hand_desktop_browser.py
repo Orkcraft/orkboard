@@ -75,7 +75,7 @@ def test_the_bottom_row_holds_every_stop_of_the_project_the_most_urgent_in_the_m
         assert pg.locator('.arena-hc[data-kind="plan"] .arena-banner').inner_text() == "Recovery codes"           # the party shown: its goal alone
         assert pg.get_by_text("Nothing waits for you").count() == 0
         # Operations shown: the same hand, now its own and the parties' for others
-        _parties(pg).locator('[data-goal="@operations"]').click()
+        _parties(pg).locator('.arena-phead[data-goal="@operations"]').click()
         pg.locator(".arena-ops").wait_for(timeout=WAIT_MS)
         assert _hand(pg).count() == 8 and pg.locator(".arena-hc.is-other").count() == 6
         assert pg.locator('.arena-hc[data-kind="op"]').get_attribute("class").count("is-other") == 0
@@ -95,7 +95,7 @@ def test_open_on_a_stop_of_another_party_shows_that_party_first_and_a_quick_answ
         assert dialog.get_by_role("button", name="Go without it: Reference picture").count() == 1
         dialog.get_by_role("button", name="Later").click()
         # a quick answer acts where it stands: the party does not change
-        _parties(pg).locator('[data-goal="passkey"]').click()
+        _parties(pg).locator('.arena-phead[data-goal="passkey"]').click()
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         item = _stop(pg, "goal")
         item.get_by_role("button", name="Monday").click()
@@ -106,23 +106,20 @@ def test_open_on_a_stop_of_another_party_shows_that_party_first_and_a_quick_answ
     assert not errors, "\n".join(errors)
 
 
-def test_no_count_on_parties_and_a_dot_in_the_spread_red_when_one_failed(gui):
+def test_no_count_on_the_parties_and_a_sign_on_a_closed_heading_red_when_one_failed(gui):
     pg, host, errors = _open(gui, host=OneHostOne(), ready=".arena[data-goal=passkey]")
     try:
-        deck = pg.locator(".arena-ptop__deck")
-        assert deck.locator(".ork-count").count() == 0 and pg.locator(".arena-ptop .ork-count").count() == 0
-        assert deck.get_attribute("aria-label") == "Parties: Sign in with a passkey shown, 4 stops wait in the other parties"      # for a screen reader only
-        spread = _parties(pg)
-        assert spread.locator(".ork-count").count() == 0
-        dot = lambda goal: spread.locator(f'[data-goal="{goal}"] .arena-deck__dot')                                # noqa: E731
-        assert dot("passkey").count() == 0                                                                         # the party shown: its stops lie in the hand
-        assert dot("pricing").count() == 1 and dot("weekly").count() == 1 and dot("@operations").count() == 1
-        assert spread.locator('[data-goal="pricing"]').locator(".arena-deck__dot").evaluate("e => e.getBoundingClientRect().width") == 8
-        assert "is-danger" not in dot("pricing").get_attribute("class") and "is-danger" in dot("@operations").get_attribute("class")      # a failed operation: red
-        assert "color" not in (dot("pricing").get_attribute("style") or "")
-        colours = {g: dot(g).evaluate("e => getComputedStyle(e).backgroundColor") for g in ("pricing", "@operations")}
+        col = _parties(pg)
+        assert col.locator(".arena-phead .ork-count").count() == 0
+        sign = lambda goal: col.locator(f'.arena-phead[data-goal="{goal}"] .arena-phead__stop')                  # noqa: E731
+        assert sign("passkey").count() == 0                                                                        # the party shown: its stops lie in the hand
+        assert sign("pricing").count() == 1 and sign("weekly").count() == 1 and sign("@operations").count() == 1
+        assert "is-danger" not in sign("pricing").get_attribute("class") and "is-danger" in sign("@operations").get_attribute("class")      # a failed operation: red
+        assert sign("pricing").locator(".ork-sign.alert").count() == 1 and sign("@operations").locator(".ork-sign.cross").count() == 1
+        colours = {g: sign(g).evaluate("e => getComputedStyle(e).color") for g in ("pricing", "@operations")}
         assert colours["pricing"] != colours["@operations"]
-        assert spread.locator('[data-goal="pricing"]').get_attribute("aria-label") == "Pricing page, 1 of 1 goals done, 1 stop waits for you"
+        assert sign("pricing").get_attribute("title") == "1 waits in Pricing page"
+        assert col.locator('.arena-phead[data-goal="pricing"]').get_attribute("title") == "Open Pricing page"
     finally:
         pg.close()
     assert not errors, "\n".join(errors)

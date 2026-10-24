@@ -91,3 +91,20 @@ most six, none under reduced motion, on a hidden page, after *Edit the party*'s 
 ## 6. Outside the part's files
 - `docs/decisions.md` §84 and this file are the contract. `js/arena/spread.js` keeps dealing a stack and the types; the
   parties' spread's code goes from `goaltabs.js` only.
+
+## As built
+Part B, on the desktop only; the files are §0's table's, no host, command or storage change.
+- **`js/arena/partylist.js`** (new) draws the column: `.arena-left` is an `aside` named *Parties*; its top line `.arena-left__proj` holds `ProjectSwitcher`, under it `.arena-plist` (the part that
+  scrolls, its scroll kept across the redraw a switch makes) with a `.arena-party` per party: the heading `.arena-phead` (`data-goal`, `aria-expanded`, `aria-current` on the open one; its head
+  `.arena-plist__head` 24 × 22, `.arena-phead__name` two lines then cut with the whole name in its title, `.arena-phead__work`, `.arena-phead__count`, and on a closed party `.arena-phead__stop`: orkUI's
+  `cross` sign in the danger colour when one failed, else `alert`; title *n wait in <party>*), the open party's body under it, then Operations and `.arena-pnew` (*+ New party*). A press on a closed heading
+  does what the deck's card did (`leaveParty()`, `track`), on the open one nothing; ↑ and ↓ move between the headings and *+ New party*. The `track` and `keepGoal` effects and the gather moved here from `PartyTop`.
+- **`goaltabs.js`** keeps `shownOf`, `partiesOf` (now exported), `othersStops` (kept as the spec says; nothing in the list calls it, a heading takes its own count) and `gatherInto` (exported, aimed at the
+  heading's head, which is lit once). The deck, `PartiesSpread`, `PartyCard`, `deckEdges` and `partiesLabel` are gone. **`goals.js`** `Left` is the body (`.arena-pbody`: the leader's `Member` in `.arena-lead`,
+  *Process now* / *Judge now*, the goals, the pile); `.arena-hero` and its edges are gone. **`arena.js`** wraps `Left` in `PartyList`; Operations and the no-party note are drawn beside the same list
+  (`.arena-ops__main`). **`topbar.js`** no longer draws the switcher; `shell.css` makes it as wide as the column, its name on two lines at most.
+- The column's own scroll is `.arena-plist`, under the project's line (the line is not `position: sticky`: it sits outside the scrolling part, so its menu, wider than the column, is not clipped).
+- Tests: `tests/test_party_list_desktop_browser.py` (12); the helpers `_parties`, `_party_card`, `_new_party`, `_show_goal` in `tests/test_shell_browser.py` and the desktop tests that read the deck, `.arena-ptop*`,
+  `.arena-hero*` or the top bar's switcher now read the list. Under reduced motion nothing gathers: `test_party_gather_desktop_browser.py` keeps that test.
+- A goal row's peek (`goals.js` `GoalRow`) now follows a pointer *move* (`mousemove` with movement) instead of `mouseenter`: a switch draws the new body under the heading just pressed, and a pointer at rest
+  under it peeked a row and left the board's column stuck mid-fade. A project with no party still draws the column (the project's line and *+ New party*), since the switcher lives there now.

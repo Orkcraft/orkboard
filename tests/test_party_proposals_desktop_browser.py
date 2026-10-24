@@ -73,7 +73,7 @@ def test_the_row_is_one_of_the_party_s_stops_along_the_bottom(shell):
     host.bump({})
     pg.locator(".arena-hc[data-kind=party]").wait_for(timeout=WAIT_MS)
     assert pg.locator(".arena-hand .arena-hc[data-kind=party]").count() == 1                             # the stops along the bottom (their count), the row among them
-    assert "Ship sync" in pg.locator(".arena-ptop__deck").get_attribute("aria-label")                  # the shown party's stops are not counted on Parties (spec 52 §4.5)
+    assert pg.locator('.arena-phead[aria-current=true]').get_attribute("data-goal") == "ship-sync" and pg.locator('.arena-phead[aria-current=true] .arena-phead__stop').count() == 0      # the shown party's stops are not counted on its heading (spec 52 §4.5)
 
 
 def test_a_checker_s_muted_line_ends_with_its_check_and_its_dialog_says_it_over_30_days(shell):

@@ -53,7 +53,7 @@ def test_a_task_card_has_its_goals_type_top_right_in_its_elements_colour_no_stat
 def test_a_planning_card_says_its_type_or_planning_a_dim_goals_type_is_faint_and_a_goal_with_no_type_has_none(typed):
     pg, host = typed
     _give(host)
-    pg.locator(".arena-hero .arena-member").click()                                                                                       # the leader's solo: its Planning goals
+    pg.locator(".arena-lead .arena-member").click()                                                                                       # the leader's solo: its Planning goals
     lead = pg.locator(".arena-solo[data-agent=product-designer]")
     plan = lead.locator(".arena-task[data-slug=recovery]")
     plan.locator(".arena-task__top .arena-task__type .ork-sign.bug").wait_for(timeout=WAIT_MS)

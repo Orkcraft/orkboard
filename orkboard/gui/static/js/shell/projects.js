@@ -1,4 +1,4 @@
-// The projects (docs/specs/37-board-and-line.md §8): the switcher that heads the top bar (the open projects with their counts,
+// The projects (docs/specs/37-board-and-line.md §8, docs/specs/69-parties-in-the-column.md §1): the switcher that heads the left column, as wide as it (it was the top bar's; the open projects with their counts,
 // Recent, Open folder…, Close project), the Open folder dialog, the start screen when no project is open, and the dialog
 // that asks before a project with running tasks is closed. The host sends `projects` with every snapshot (projects.list),
 // so the counts are live; showing another project stops nothing in the others.

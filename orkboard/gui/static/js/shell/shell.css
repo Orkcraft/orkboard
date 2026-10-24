@@ -243,8 +243,10 @@
 .shell-takes__row small { margin-left: auto; }
 
 /* spec 37 §8: the project switcher, the start screen, the Files pane, the Git section, the file in the preview */
-.shell-proj { position: relative; }
-.shell-proj__btn b { max-width: 220px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.shell-proj { position: relative; display: block; }      /* at the left column's top (spec 69 §1): the button as wide as the column, the name never cut under two lines, the menu over the board */
+.shell-proj__btn { display: flex; align-items: center; justify-content: space-between; gap: var(--ork-3); width: 100%; height: auto; min-height: var(--ork-control); padding: var(--ork-3) var(--ork-4); text-align: left; white-space: normal; }
+.shell-proj__btn .ork-chev { flex: none; margin: 0; }
+.shell-proj__btn b { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-weight: inherit; }
 .shell-proj__menu { position: absolute; top: 100%; left: 0; z-index: 40; min-width: 300px; display: flex; flex-direction: column; padding: var(--ork-2);
   background: var(--ork-panel); border: var(--ork-double) double var(--ork-edge); }
 .shell-proj__head { padding: var(--ork-2) var(--ork-4); color: var(--ork-ink-muted); }

@@ -37,7 +37,7 @@ export function dropDeal(mine) {
 
 const GATHER_KEEP_MS = 6000;
 let gatherTimer = 0;
-/** A new party is saved: its seats' heads (`from`, the leader's first) gather into its deck (goaltabs.js `PartyTop`), in the first render that shows it once the dialog has closed. Dropped after 6 s. */
+/** A new party is saved: its seats' heads (`from`, the leader's first) gather onto its heading's head (partylist.js `PartyList`), in the first render that shows it once the dialog has closed. Dropped after 6 s. */
 export function gatherWaits(party, from) {
   clearTimeout(gatherTimer);
   const mine = { party, from, at: Date.now() };

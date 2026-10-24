@@ -34,7 +34,7 @@ def test_the_library_lists_the_mixed_parties_first_then_one_craft_then_the_taskm
     pg, host, dlg = party
     assert [h.text_content() for h in dlg.locator(".shell-library-group h3").all()] == ["Mixed", "One craft"]
     assert [t.get_attribute("data-craft") for t in dlg.locator(".shell-craft-tile").all()] == [
-        "game", "mobile-app", "website", "ideation", "engineering", "design", "data", "marketing", "product", "mixed"]
+        "game", "mobile-app", "website", "ideation", "release", "engineering", "design", "data", "marketing", "product", "mixed"]
     game = dlg.locator('.shell-craft-tile[data-craft="game"]')
     assert "Game" in game.text_content() and "Rules, levels, art and sound, played through" in game.inner_text()
     assert game.locator(".ork-race__head").count() == 1 + 5                                       # the leader's head and its five members'
@@ -113,7 +113,7 @@ def _labels(pg):
 
 
 def test_the_board_says_the_stage_words_of_the_party_and_todays_without_stages(gui):
-    pg, host, errors = _open(gui, host=StagesHost(), ready=".arena-ptop")
+    pg, host, errors = _open(gui, host=StagesHost(), ready=".arena-phead")
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         assert _labels(pg) == ["Build", "Playtest"]                                               # over the first builder, the first checker
@@ -124,7 +124,7 @@ def test_the_board_says_the_stage_words_of_the_party_and_todays_without_stages(g
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
-    pg, host, errors = _open(gui, host=ArenaHost(), ready=".arena-ptop")                          # an older host: no `stages`
+    pg, host, errors = _open(gui, host=ArenaHost(), ready=".arena-phead")                          # an older host: no `stages`
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         assert _labels(pg) == ["Implementation", "Checking"]

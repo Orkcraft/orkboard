@@ -1,6 +1,6 @@
 """Spec 63 B on the desktop (docs/specs/63-party-gathered.md §3, Tests → B; decisions §76): Chromium at 1 440 × 900 against the one window's stub host (tests/test_shell_browser.py).
-*Save party* in New party gathers the seats' heads into the party's deck once the dialog has closed and the new party is shown: a copy of each head (six at most, the leader's first)
-travels from its seat's box to the deck's centre, `steps(6)`, 0.30 s, 35 ms apart, over everything and taking no press, and is gone on landing; then the deck is lit once. None after
+*Save party* in New party gathers the seats' heads onto the party's heading's head (docs/specs/69-parties-in-the-column.md §4) once the dialog has closed and the new party is shown: a copy of each head (six at most, the leader's first)
+travels from its seat's box to the head's centre, `steps(6)`, 0.30 s, 35 ms apart, over everything and taking no press, and is gone on landing; then the head is lit once. None after
 *Edit the party*'s save, for a New goal made through its party first (`then: "idea"`), under reduced motion or after a refused save; a head whose seat is scrolled out of the dialog
 starts from *Save party*'s box."""
 from __future__ import annotations
@@ -29,7 +29,7 @@ RECORD = """() => {
     const all = [...document.querySelectorAll('.arena-gather')];
     if (all.length && !g.first) {                                    // the first frame in which a head is there: what else is on the page
       g.first = {dialogs: document.querySelectorAll('[role=dialog]').length, scrims: document.querySelectorAll('.arena-spread, [data-modal-backdrop]').length,
-                 shown: !!document.querySelector('.arena[data-goal="pixel-game"]'), deck: document.querySelector('.arena-ptop__deck').getBoundingClientRect().toJSON()};
+                 shown: !!document.querySelector('.arena[data-goal="pixel-game"]'), deck: document.querySelector('.arena-phead[aria-current=true] .arena-plist__head').getBoundingClientRect().toJSON()};
     }
     all.forEach((e) => {
       const r = e.getBoundingClientRect(), key = e.style.getPropertyValue('--delay'), cs = getComputedStyle(e);
@@ -99,8 +99,8 @@ def _centre(b):
 
 
 def _gathered(pg):
-    """Once the deck is lit (the gather is over): what the recorder saw."""
-    pg.wait_for_function("() => window.__g.lit.some((a) => a.cls.includes('arena-ptop__deck'))", timeout=WAIT_MS)
+    """Once the head is lit (the gather is over): what the recorder saw."""
+    pg.wait_for_function("() => window.__g.lit.some((a) => a.cls.includes('arena-plist__head'))", timeout=WAIT_MS)
     return pg.evaluate("window.__g")
 
 
@@ -114,7 +114,8 @@ def _quiet(pg):
 def test_save_party_gathers_the_heads_from_their_seats_into_the_deck_and_lights_it(shell):
     pg, host = shell
     dlg = _fill(pg)
-    seats = _seats(pg, dlg, 500)                                                                       # the leader's seat and the four builders' in view, the checker's below
+    top = _seats(pg, dlg)[0]["y"] - dlg.locator(".shell-modal__body").bounding_box()["y"]
+    seats = _seats(pg, dlg, top - 40)                                                                  # the leader's seat and the four builders' in view, the checker's below
     assert [s["on"] for s in seats] == [True] * 5 + [False]
     pg.evaluate(RECORD)
     dlg.get_by_role("button", name="Save party").click()
@@ -127,7 +128,7 @@ def test_save_party_gathers_the_heads_from_their_seats_into_the_deck_and_lights_
         assert c["src"] == seat["src"].replace(".png", "@2x.png") and re.search(r"/races/\w+-\w+@2x\.png$", c["src"])    # the head's own image
         assert all(abs(c["start"][k] - seat["from"][k]) <= 2 for k in ("x", "y", "width", "height"))       # it starts in its seat's box (the one out of view: at *Save party*)
         x, y = _centre(c["start"])
-        assert abs(x + float(c["dx"][:-2]) - deck[0]) <= 2 and abs(y + float(c["dy"][:-2]) - deck[1]) <= 2         # its travel ends at the deck's centre …
+        assert abs(x + float(c["dx"][:-2]) - deck[0]) <= 2 and abs(y + float(c["dy"][:-2]) - deck[1]) <= 2         # its travel ends at the heading's head's centre …
         assert c["s"] == "0.4"                                                                         # … at 0.4 of its size
         near = lambda b: ((_centre(b)[0] - deck[0]) ** 2 + (_centre(b)[1] - deck[1]) ** 2) ** 0.5       # noqa: E731
         assert c["n"] >= 3 and near(c["last"]) < near(c["start"]) * 0.8                               # it was seen moving toward the deck
@@ -136,8 +137,8 @@ def test_save_party_gathers_the_heads_from_their_seats_into_the_deck_and_lights_
         assert float(c["delay"][:-1]) == pytest.approx(i * 0.035) and int(c["z"]) > 120                # 35 ms apart; over the dialogs' layers
     assert "elf-elder" in copies[0]["src"]                                                             # the Game designer first
     assert got["first"]["dialogs"] == 0 and got["first"]["scrims"] == 0 and got["first"]["shown"]      # the dialog is closed, nothing dims, the party is shown
-    lit = [a for a in got["lit"] if "arena-ptop__deck" in a["cls"]]
-    assert len(lit) == 1 and "var(--ork-ink)" in lit[0]["kf"] and lit[0]["opts"] == {"duration": 600, "easing": "steps(4, end)"}      # the deck lit once, as the quiet reward
+    lit = [a for a in got["lit"] if "arena-plist__head" in a["cls"]]
+    assert len(lit) == 1 and "var(--ork-ink)" in lit[0]["kf"] and lit[0]["opts"] == {"duration": 600, "easing": "steps(4, end)"}      # the heading's head lit once, as the quiet reward
     assert lit[0]["left"] == 0 and pg.locator(".arena-gather").count() == 0                           # when the last had landed; the copies are gone
     assert pg.locator(".shell-goal").count() == 1                                                      # About this party opens in the drawer as today
 
@@ -160,7 +161,7 @@ def test_the_party_is_usable_while_the_heads_travel(shell):
     pg.evaluate(RECORD)
     dlg.get_by_role("button", name="Save party").click()
     pg.wait_for_function("() => Object.keys(window.__g.copies).length > 0", timeout=WAIT_MS)            # the heads have started (read from the record: they may be gone by now)
-    assert pg.locator(f'.arena[data-goal="{SLUG}"]').count() == 1 and pg.locator(".arena-ptop__deck").is_enabled()      # nothing waits for the heads
+    assert pg.locator(f'.arena[data-goal="{SLUG}"]').count() == 1 and pg.locator('.arena-phead[aria-current=true]').is_enabled()      # nothing waits for the heads
     got = _gathered(pg)
     assert {c["events"] for c in got["copies"].values()} == {"none"}                                    # they take no press
     assert got["lit"]                                                                                   # and they land
@@ -240,7 +241,7 @@ def test_under_reduced_motion_nothing_gathers(gui):
     pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
     pg.route_web_socket("**/ws*", host.on_socket)
     pg.goto(server.url)
-    pg.wait_for_selector(".arena-ptop", timeout=WAIT_MS)
+    pg.wait_for_selector(".arena-phead", timeout=WAIT_MS)
     _show_goal(pg)
     dlg = _fill(pg)
     pg.evaluate(RECORD)

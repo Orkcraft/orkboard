@@ -120,7 +120,7 @@ def test_new_party_has_its_fields_and_sends_goal_save_with_them(arena):
     assert sent["title"] == "Billing" and sent["about"] == "Money matters and receipts" and sent["priority"] == "high"
     assert sent["leader"] == start["lead"] and sent["team"] == [*start["build"], *start["check"]] and sent["every"] == []
     pg.locator(".arena[data-goal=money-matters]").wait_for(timeout=WAIT_MS)                                           # the new party is shown (its tab picked)
-    assert pg.locator(".arena-ptop__name").inner_text() == "Billing"                                                  # the left column's top line says it
+    assert pg.locator('.arena-phead[aria-current="true"] .arena-phead__name').inner_text() == "Billing"                                           # the party's heading in the column is the open one
 
 
 def test_new_party_takes_a_party_of_the_library_and_the_checks_on_every_goal(arena):
@@ -282,7 +282,7 @@ def test_the_filter_takes_the_results_the_stops_and_the_other_members_cards_with
     assert pg.get_by_text("Nothing of these goals").count() >= 3                                               # the results and the members with none say so
     words = pg.locator(".arena-stack[data-agent=words]")
     assert "Nothing of these goals" in words.inner_text() and "No task now" not in words.inner_text()
-    assert pg.locator(".arena-ptop .ork-count").count() == 0                                                  # no count of the party shown's stops: the bottom row is it
+    assert pg.locator(".arena-phead .ork-count").count() == 0                                                  # no count of the party shown's stops: the bottom row is it
     pg.get_by_role("button", name="Show all").click()
     pg.wait_for_function("() => document.querySelectorAll('.arena-result').length === 2 && document.querySelectorAll('.arena-hc').length === 4", timeout=WAIT_MS)
     pg.locator(".arena-goal[data-slug=register] .arena-goal__main").click()
@@ -312,7 +312,7 @@ def test_a_card_the_filter_takes_leaves_where_it_stands_without_a_check_and_come
 def test_a_stack_per_goal_in_a_row_the_goals_in_the_boards_order_two_to_a_row_with_5_to_7_cards_of_104_at_most(gui):
     host = ArenaHost()
     host.node_of("signin")["tasks"] = [*host.node_of("signin")["tasks"], pip("b1", "Hash the key", "ready", wave=2, by="backend")]       # a third goal for Backend's first row
-    pg, host, errors = _open(gui, host=host, ready=".arena-ptop", viewport={"width": 1500, "height": 900})
+    pg, host, errors = _open(gui, host=host, ready=".arena-phead", viewport={"width": 1500, "height": 900})
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         column = pg.locator(".arena-stack[data-agent=backend]")
@@ -667,7 +667,7 @@ def test_under_reduced_motion_the_flag_line_stands_and_nothing_flies(gui):
 # -- below 1 024 px and every word in today's (§0, §3) ---------------------------------------------------------------------------------
 
 def test_below_1024_the_goals_list_the_filter_and_the_stacks_still_work(gui):
-    pg, host, errors = _open(gui, host=ArenaHost(), viewport={"width": 900, "height": 800}, ready=".arena-ptop")
+    pg, host, errors = _open(gui, host=ArenaHost(), viewport={"width": 900, "height": 800}, ready=".arena-phead")
     try:
         pg.locator(".arena[data-goal=passkey]").wait_for(timeout=WAIT_MS)
         assert box(pg, ".arena-left")["width"] == 200 and pg.locator(".arena-today").count() == 0
