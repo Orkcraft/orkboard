@@ -297,6 +297,15 @@ def test_the_events_hold_no_goals_words_and_party_shown_comes_from_ideas_shown(b
     assert event_log.counts(h.ideas.host.repo_root)["party_shown"] == 1
 
 
+def test_shown_takes_the_projects_level_as_a_party_and_as_where_from_spec_70(board):
+    h = board
+    assert h.command("ideas.shown", {"party": "@project", "from": h.app}) == {"ok": True}
+    assert h.command("ideas.shown", {"party": h.web, "from": "@project"}) == {"ok": True}
+    h.command("ideas.shown", {"party": "@project", "from": "@project"})                  # the same: nothing
+    rows = [r for r in event_log.read(h.ideas.host.repo_root) if r["event"] == "party_shown"]
+    assert [(r["from"], r["to"]) for r in rows] == [(h.app, "@project"), ("@project", h.web)]
+
+
 # -- §6: the host's answers --------------------------------------------------------------------------------------------------
 
 def test_the_map_says_a_partys_releases_from_and_what_waits_for_a_release(board):
