@@ -3,7 +3,8 @@
 // night, and *Add the goal* says *Keep for tonight*), **the goal type** (*Your own goal* first and picked, then the party's types; its line under the row), **the goal** — one field, three lines, Photo and the
 // mic mark at its corner (shell-idea-field.js); its first line is its title —, the type's asks (one line each), **Refs** when the type has them (*Links*; the pictures are Photo's), the lens of the
 // party (shell-lens.js: a typed goal shows its type's lens and no switch), the join line (shell-types.js) and, pinned at the foot, *Put it back* · *Add the goal*. A goal is `ideas.add`'s `text`.
-// A goal's state in words (`rowState`) is said the same in the leader's column and on its screen.
+// A goal's state in words (`rowState`) is said the same in the leader's column and on its screen. In an Ideation party (spec 65 §8) the goal is a pitch: one box, *What is the pitch?*, its lens a tap
+// away and *Hold* · *Tonight* · *Judge now* at the foot; no priority, no type, no asks.
 import { h, sheet } from "./util.js";
 import { foot, prioritySwitch } from "./shell-forms.js";
 import { hhmm } from "./shell-words.js";
@@ -41,6 +42,7 @@ const ASK_CHARS = 300;                                // goal_types.ASK_CHARS: a
 const REFS = "refs";                                 // goal_types.REFS: Refs' links, sent among the asks
 const SLIDE_MS = 180;                                // the form slides up and down, ease-out (spec 53 §2.1)
 const BLANK_LINE = "In your words: the leader plans it like any other.";
+const PITCH_CHARS = 2000;                            // pitches.PITCH_CHARS: a pitch is one box of at most this (spec 65 §2)
 
 /** `core`: the board's frame; `ctx`: {deliver, flash}. Returns {sheets, openNew(partySlug)}. */
 export function makeIdeas(core, ctx, goalSheet) {
@@ -138,14 +140,21 @@ export function makeIdeas(core, ctx, goalSheet) {
         sign(t.sign), h("span", {}, t.name))));
   }
 
-  const box = h("div", { class: "field newgoal__goal" }, h("span", { class: "field-label newgoal__goallabel" }, "The goal", h("small", { class: "faint" }, "its first line is its title")),
+  const boxWord = h("span", {}, "The goal");
+  const box = h("div", { class: "field newgoal__goal" }, h("span", { class: "field-label newgoal__goallabel" }, boxWord, h("small", { class: "faint" }, "its first line is its title")),
     h("div", { class: "idea-box" }, text, more.mic));
   const hint = h("p", { class: "muted hint", hidden: more.speaks }, "Speak it with the keyboard’s microphone.");
+  const priorityField = h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el, lowLine);
+  // Ideation (spec 65 §8): a pitch is one box and its lens, then *Hold* · *Tonight* · *Judge now*: no priority, no type, no asks.
+  const hold = h("button", { class: "ork-btn quiet big", type: "button", "data-act": "hold", title: "Kept: nothing reads it till you press Judge now on it" }, "Hold");
+  const tonight = h("button", { class: "ork-btn big", type: "button", "data-act": "tonight", title: "The views read it tonight" }, "Tonight");
+  const judge = h("button", { class: "ork-btn primary big", type: "button", "data-act": "judge", title: "The four views read it now, then the Skeptic and the Investor" }, "Judge now");
   const addSheet = sheet("New goal", partyBtn, partyMenu,
-    h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el, lowLine), typeBlock, box, more.el, hint, asks, refs, lens.el, join.el, foot(putBack, add));
+    priorityField, typeBlock, box, more.el, hint, asks, refs, lens.el, join.el, foot(putBack, add, hold, tonight, judge));
+  let pitchy = false;                                // the party picked is Ideation: the goal is a pitch
   addSheet.el.classList.add("full", "newgoal");
   const words = () => text.value.trim();             // the goal's text: its title is the first line of it
-  const sync = () => { add.disabled = !words(); };
+  const sync = () => { for (const b of [add, hold, tonight, judge]) b.disabled = !words(); };
   text.addEventListener("input", sync);
 
   // -- The form slides up from the bottom and down again: 180 ms, ease-out, a transform; none under reduced motion. -------------------------------------------------------
@@ -177,10 +186,19 @@ export function makeIdeas(core, ctx, goalSheet) {
     partyLine.textContent = g ? `${leaderName(g)} leads · ${barWords(g)}` : "";
     partyBtn.setAttribute("aria-label", `Party: ${partyName.textContent}. ${partyLine.textContent}`.trim());
     if (!touched) { priority.set(t?.priority || "normal"); lowOrNot(); }
-    types = Array.isArray(g?.types) ? g.types : [];
+    pitchy = Boolean(g?.ideation);
+    types = Array.isArray(g?.types) && !pitchy ? g.types : [];
     more.track(slug);
     drawTypes();
     pickType(null);
+    addSheet.el.classList.toggle("is-pitch", pitchy);
+    boxWord.textContent = pitchy ? "What is the pitch?" : "The goal";
+    text.maxLength = pitchy ? PITCH_CHARS : 20000;
+    if (pitchy) text.placeholder = "A small idea, in a line or a few: the views judge it";
+    text.setAttribute("aria-label", pitchy ? "What is the pitch?" : "The goal");
+    priorityField.hidden = pitchy;
+    for (const b of [putBack, add]) b.hidden = pitchy;
+    for (const b of [hold, tonight, judge]) b.hidden = !pitchy;
   }
   newParty.addEventListener("click", () => {
     closeParties();
@@ -188,7 +206,8 @@ export function makeIdeas(core, ctx, goalSheet) {
   });
 
   let saved = false;                                 // a button saved it: closing the form after it saves nothing more
-  async function drop(night) {
+  /** `night`: kept for tonight; `held`: a pitch on Hold (nothing judges it till the person does). */
+  async function drop(night, held = false) {
     const body = words();
     if (!body || !partyNow) return null;
     saved = true;
@@ -199,10 +218,12 @@ export function makeIdeas(core, ctx, goalSheet) {
     const said = Object.fromEntries([...asks.querySelectorAll("input[data-ask]"), ...(typed?.refs ? [links] : [])]
       .map((i) => [i.dataset.ask, i.value.trim()]).filter(([, v]) => v));
     const { name: joiner, ...joined } = (!night && typed && join.value()) || {};            // a goal kept for tonight never changes the party
-    const args = { text: body, track: partyNow, priority: priority.get(), ...(night ? { night: true } : {}), ...(photos.length ? { photos } : {}),
-      ...(pointed.length ? { lens: pointed } : {}), ...(typed ? { type: typed.id } : {}), ...(Object.keys(said).length ? { asks: said } : {}),
-      ...(joined.add ? { join: joined } : {}) };
-    const r = await ctx.deliver("ideas.add", args, `the goal “${short}”`);
+    const args = pitchy ? { text: body.slice(0, PITCH_CHARS), track: partyNow, ...(held ? { hold: true } : night ? { night: true } : {}), ...(photos.length ? { photos } : {}),
+      ...(pointed.length ? { lens: pointed } : {}) }                                       // a pitch: no priority, no type, no asks (spec 65 §2)
+      : { text: body, track: partyNow, priority: priority.get(), ...(night ? { night: true } : {}), ...(photos.length ? { photos } : {}),
+        ...(pointed.length ? { lens: pointed } : {}), ...(typed ? { type: typed.id } : {}), ...(Object.keys(said).length ? { asks: said } : {}),
+        ...(joined.add ? { join: joined } : {}) };
+    const r = await ctx.deliver("ideas.add", args, `${pitchy ? "the pitch" : "the goal"} “${short}”`);
     sync();
     if (!r.ok || r.result?.error) { saved = false; ctx.flash(r.error || r.result?.error); return null; }
     text.value = "";
@@ -224,6 +245,18 @@ export function makeIdeas(core, ctx, goalSheet) {
     if (!r.kept) core.refresh();
   });
   putBack.addEventListener("click", leave);
+  /** A pitch added: judged now, tonight, or held (spec 65 §2); the toast says which. */
+  async function pitch(how) {
+    const r = await drop(how === "night", how === "hold");
+    if (!r) return;
+    leave();
+    ctx.flash(r.kept ? "No signal: the pitch is kept and goes when the town answers."
+      : how === "hold" ? "Held: press Judge now on its sheet to have it read." : how === "night" ? "Kept for tonight: the views read it then." : "Added: the four views read it now.");
+    if (!r.kept) core.refresh();
+  }
+  judge.addEventListener("click", () => pitch("now"));
+  tonight.addEventListener("click", () => pitch("night"));
+  hold.addEventListener("click", () => pitch("hold"));
   addSheet.el.addEventListener("close", async () => {      // Put it back · Close · Esc · the backdrop: words in it are kept for tonight, never lost
     closeParties();
     if (saved) { saved = false; return; }

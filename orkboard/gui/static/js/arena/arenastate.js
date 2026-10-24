@@ -9,7 +9,8 @@ export const peek = signal("");            // the goal under the pointer in the 
 export const taskHover = signal("");       // "<goal>/<task>" hovered or focused: what it waits for and what waits for it light and are drawn (§3.4)
 export const taskHoverBy = signal("");     // "pointer" or "focus": who hovered it (the arrows are drawn for a fine pointer, and for the keyboard's focus always)
 export const rawOpen = signal(false);      // the goals list's New (n) fold
-export const flagsOpen = signal(false);    // its Flags (n) fold
+export const flagsOpen = signal(false);    // its Flags (n) fold (Ideation's Passed (n), spec 65 §8)
+export const sentOpen = signal(false);     // Ideation's Sent (n) fold (spec 65 §8)
 export const flagsAll = signal(false);     // ... listed in full (All n), not the newest ten
 export const spread = signal(null);        // the stack spread over the field: {goal, member, row, keys, from} (§3.6), null with none
 export const narrow = signal(false);       // below 1 024 px (spec 49 §3)
@@ -64,5 +65,5 @@ export function clearPicks(party) {
 
 /** Another party is shown: what was hovered, spread or opened on the last one goes (the picks stay with their party). */
 export function leaveParty() {
-  solo.value = ""; peek.value = ""; taskHover.value = ""; stopLook.value = ""; stopAbout.value = null; dropDeal(); dropGather(); spread.value = null; rawOpen.value = false; flagsOpen.value = false; flagsAll.value = false;
+  solo.value = ""; peek.value = ""; taskHover.value = ""; stopLook.value = ""; stopAbout.value = null; dropDeal(); dropGather(); spread.value = null; rawOpen.value = false; flagsOpen.value = false; sentOpen.value = false; flagsAll.value = false;
 }

@@ -58,7 +58,7 @@ export const nodesOf = (st, slug) => (st.map?.nodes || []).filter((n) => n.goal 
 /** What of the goal's Needs you rows is a stop on the bottom row, in the host's order: a task that failed is the Map's (`failedOf`), its
  *  row here would be the same stop twice; a task that left variants to pick from is a stop of kind `pick` (spec 51 §2.4). */
 export const needsOf = (st, slug) => (st.board?.needs_you || []).filter((n) => n.goal === slug
-  && (["asks", "plan", "change", "proposal", "todo", "goal", "party", "pick"].includes(n.kind) || (n.kind === "failed" && !n.blocks)));
+  && (["asks", "plan", "change", "proposal", "todo", "goal", "party", "pick", "pitch"].includes(n.kind) || (n.kind === "failed" && !n.blocks)));       // `pitch`: a pitch judged (spec 65 §5)
 
 /** The goal's tasks that failed, with their idea. */
 export const failedOf = (st, slug) => nodesOf(st, slug).filter((n) => n.state !== "done")
@@ -76,7 +76,7 @@ export const stopCount = (st, slug) => needsOf(st, slug).length + failedOf(st, s
 export const stopFailed = (st, slug) => failedOf(st, slug).length > 0 || needsOf(st, slug).some((n) => n.kind === "failed");
 
 // -- the hand: every stop of the project, by urgency (spec 54 §2.3) ----------------------------------------------------------
-const URGENCY = { failed: 0, op_failed: 0, plan: 1, change: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, look: 3 };   // red, what holds work back, what does not, results
+const URGENCY = { failed: 0, op_failed: 0, plan: 1, change: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, pitch: 2, op_rules: 2, look: 3 };   // red, what holds work back, what does not (a pitch judged holds nothing), results
 
 /** The stops in the order of their urgency: a failure first, then what holds work back (a plan, a plan change, a question, a to-do, a Pick one, an operation at your check), then what does not
  *  (a proposal, a party's proposal, a template's rules), then the results to look at; in a group the oldest first (`at`, an ISO time; one without comes last). */

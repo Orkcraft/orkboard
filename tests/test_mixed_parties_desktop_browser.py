@@ -34,7 +34,7 @@ def test_the_library_lists_the_mixed_parties_first_then_one_craft_then_the_taskm
     pg, host, dlg = party
     assert [h.text_content() for h in dlg.locator(".shell-library-group h3").all()] == ["Mixed", "One craft"]
     assert [t.get_attribute("data-craft") for t in dlg.locator(".shell-craft-tile").all()] == [
-        "game", "mobile-app", "website", "engineering", "design", "data", "marketing", "product", "mixed"]
+        "game", "mobile-app", "website", "ideation", "engineering", "design", "data", "marketing", "product", "mixed"]
     game = dlg.locator('.shell-craft-tile[data-craft="game"]')
     assert "Game" in game.text_content() and "Rules, levels, art and sound, played through" in game.inner_text()
     assert game.locator(".ork-race__head").count() == 1 + 5                                       # the leader's head and its five members'

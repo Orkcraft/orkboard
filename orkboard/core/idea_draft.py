@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 from orkboard.realm import (event_log, goal_team, goal_types, idea_checks, idea_lens, idea_questions, idea_risk, idea_target,
-                            ideas, roles)
+                            ideas, pitches, roles)
 from orkboard.realm.idea_words import short_said
 
 OTHERS = 40                        # of the other goals' ideas not done, the most the draft is given
@@ -80,9 +80,12 @@ def depends_ok(root: Path, slug: str, wanted: list[str]) -> list[str]:
 class DraftMixin:
     def draft(self, slug: str, person: bool = False) -> bool:
         """Draft a `raw` idea at once, in the background. In a spent window the person's ask (Process now) is refused;
-        what drafts by itself (Add, the clock) waits with `held_until`. False when it was held."""
+        what drafts by itself (Add, the clock) waits with `held_until`. False when it was held. A pitch is judged instead
+        (core/idea_judge.py)."""
         if ideas.idea_page(self.wiki_root(), slug) is None:
             raise _kw().KeeperError("That goal is gone")
+        if self.is_pitch(slug):
+            return self.judge(slug, person)
         if ideas.state(self.state_dir, slug)["state"] != "raw":
             raise _kw().KeeperError("The keeper has read this goal already")
         if why := self._may_run():
@@ -149,7 +152,7 @@ class DraftMixin:
         return f"""You are the keeper of this project's Task board. A person wrote an idea under the goal
 {(g or {}).get('title', track)}: write its spec straight away. You may read the repository (read only).
 {self.reads("draft", links)}
-{idea_lens.attached(self.state_dir, slug)}{goal_types.prompt_line(self.state_dir, slug)}{idea_checks.draft_lines(checks)}
+{idea_lens.attached(self.state_dir, slug)}{goal_types.prompt_line(self.state_dir, slug)}{idea_checks.draft_lines(checks)}{pitches.sent_lines(root, self.state_dir, slug)}
 {context}Answer with one JSON object and nothing else:
 {{"title": "a short title",
  "short": "its name in two or three words, 24 characters at most",
@@ -168,11 +171,13 @@ class DraftMixin:
 """
 
     def draft_one(self, slug: str) -> None:
-        """One draft, one shot: the spec written; then `asks`, or `ready` and its plan at once."""
+        """One draft, one shot: the spec written; then `asks`, or `ready` and its plan at once (a pitch: judged instead)."""
         kw = _kw()
         root = self.wiki_root()
         if ideas.idea_page(root, slug) is None:
             return
+        if self.is_pitch(slug):
+            return self.judge_one(slug)
         began = time.monotonic()
         ideas.save_state(self.state_dir, slug, state="reading", error="", held_until="")
         self.publish(slug)
@@ -222,6 +227,8 @@ class DraftMixin:
         page = ideas.idea_page(self.wiki_root(), slug)
         if page is None:
             raise kw.KeeperError("That goal is gone")
+        if self.is_pitch(slug):
+            raise kw.KeeperError(kw.PITCH_NOT_BUILT)
         questions = ideas.items(page.section("Open questions"))
         if ideas.state(self.state_dir, slug)["state"] != "asks" or not questions:
             raise kw.KeeperError("This goal asks nothing now")

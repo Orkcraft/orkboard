@@ -300,4 +300,4 @@ async def test_a_team_changed_from_the_partys_own_screen_gathers_nothing(fake_re
 
 
 def test_the_service_worker_is_one_version_up():
-    assert 'const CACHE = "orkcraft-app-v72";' in (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
+    assert 'const CACHE = "orkcraft-app-v74";' in (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")

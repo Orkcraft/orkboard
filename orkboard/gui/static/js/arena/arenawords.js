@@ -200,7 +200,7 @@ export function nowOf(m, col, planning, isLead) {
   if (isLead) {
     const stops = planning.rows.filter((r) => r.stop), busy = planning.rows.find((r) => r.busy);
     const ready = [...planning.rows, ...planning.raw].find((r) => r.node.state === "ready" || r.node.state === "raw");
-    const now = busy ? line(`reading “${busy.title}”`, "work") : ready ? line(`next: plans “${ready.title}”`) : stops.length ? line(`${stops[0].words}: “${stops[0].title}”`) : line("");
+    const now = busy ? line(`${busy.doing || "reading"} “${busy.title}”`, "work") : ready ? line(`next: ${ready.next || "plans"} “${ready.title}”`) : stops.length ? line(`${stops[0].words}: “${stops[0].title}”`) : line("");
     const next = stops.length > 1 ? line(`${stops.length} wait for you`) : stops.length === 1 && busy ? line(`${stops[0].words}: “${stops[0].title}”`) : line("");
     return { now, next };
   }
@@ -295,14 +295,14 @@ export function resultsOf(nodes) {
 // -- the party line ---------------------------------------------------------------------------------------------------------------------
 
 /** What is at work now, for the party line: [{who, task, goal}] for every running task of the goals at work, and the leader reading ([{who, reading}]). */
-export function nowParts(nodes, lead, readingTitle) {
+export function nowParts(nodes, lead, readingTitle, doing = "reading") {
   const bits = [];
   for (const n of nodes.filter(atWork)) for (const t of n.tasks.filter((x) => RUN.includes(x.state))) bits.push({ who: t.by.name, task: t.short || t.title, goal: n.short || n.title });
-  if (readingTitle) bits.push({ who: lead, reading: readingTitle });
+  if (readingTitle) bits.push({ who: lead, reading: readingTitle, doing });           // `doing`: *judging* in Ideation (spec 65 §8)
   return bits;
 }
 /** The same in plain words (a tooltip): *Backend at work on Credential table (WebAuthn register) · …*, else *nothing at work right now*. */
-export const nowWords = (parts) => (parts.length ? parts.map((b) => (b.reading ? `${b.who} at work reading “${b.reading}”` : `${b.who} at work on ${b.task} (${b.goal})`)).join(" · ") : "nothing at work right now");
+export const nowWords = (parts) => (parts.length ? parts.map((b) => (b.reading ? `${b.who} at work ${b.doing || "reading"} “${b.reading}”` : `${b.who} at work on ${b.task} (${b.goal})`)).join(" · ") : "nothing at work right now");
 
 // -- the gate -------------------------------------------------------------------------------------------------------------------------
 
@@ -339,9 +339,9 @@ export function limitLine(l, reserve, resetOf) {
 // -- the stops: the bottom row (§6) -------------------------------------------------------------------------------------------------
 
 export const KIND_WORD = { plan: "Plan ready", change: "Plan change", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed",
-  pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Rules to take" };
+  pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Rules to take", pitch: "Pitch judged" };
 export const isOp = (n) => n.kind === "op" || n.kind === "op_failed" || n.kind === "op_rules";
-const GEM = { plan: "", change: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: { sign: "cross" }, pick: "", op: "·", op_failed: { sign: "cross" }, op_rules: "—" };
+const GEM = { plan: "", change: "", asks: "?", goal: "?", proposal: "—", party: "—", todo: "·", failed: { sign: "cross" }, pick: "", op: "·", op_failed: { sign: "cross" }, op_rules: "—", pitch: "" };
 
 /** What a plan change adds to the price, for the stop's gem (spec 62 §6.2): *+$0.40–1.20*, *−$0.13–0.38* when it saves (the real minus sign), said as a goal's price is (cents under $1,
  *  else whole dollars); "" for a change of nothing. One that may add or save says both ends: *−$0.10 to +$0.30*. */
@@ -422,7 +422,7 @@ export function opStopsOf(needs) {
 // -- one hand (spec 54 §2) ---------------------------------------------------------------------------------------------------------
 
 /** How urgent a kind of stop is (§2.3): 0 red (a failure), 1 what holds work back, 2 what does not, 3 the results to look at. */
-const URGENCY = { failed: 0, op_failed: 0, plan: 1, change: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, result: 3 };
+const URGENCY = { failed: 0, op_failed: 0, plan: 1, change: 1, asks: 1, goal: 1, todo: 1, pick: 1, op: 1, proposal: 2, party: 2, op_rules: 2, pitch: 2, result: 3 };
 export const urgencyOf = (s) => URGENCY[s.kind] ?? 1;
 const ageOf = (s) => String(s.row?.at || s.task?.finished || s.task?.started || s.result?.finished || "9999");
 

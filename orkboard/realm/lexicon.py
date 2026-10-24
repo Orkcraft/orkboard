@@ -181,6 +181,11 @@ TERMS: tuple[Term, ...] = (
     _t("pick", "pick", "picks"),                                   # the stop Pick one and its screen: a task left two to six variants of one kind for the person to pick from (spec 51)
     _t("plan_change", "plan change", "plan changes"),              # the leader's re-plan of what is left, after a goal's spec changed: the tasks not started changed, dropped or added, answered Take the new plan or Keep the plan (spec 62; the code's `change`, plan_change.json)
     _t("goal_type", "goal type", "goal types"),                    # what kind of goal a party's team can take on: New logo, Fix a bug; realm/goal_types.py, specs 52 and 59
+    _t("pitch", "pitch", "pitches"),                               # a goal of an Ideation party: a small idea to judge, not to build (spec 65; realm/pitches.py)
+    _t("pitch_view", "view", "views"),                             # one side's read of a pitch: what speaks for it, what against, one question (spec 65 §3)
+    _t("pitch_case", "the case against"),                          # the skeptic's strongest case not to do a pitch (spec 65 §3)
+    _t("pitch_decision", "decision", "decisions"),                 # the Investor's answer: Invest, Reshape or Pass, with why (spec 65 §3); not a verdict, which is a party's old one against its metrics
+    _t("pitch_passed", "passed"),                                  # a pitch the person passed on, kept with its why, read by every later pitch (spec 65 §5)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)
@@ -198,6 +203,11 @@ TERMS: tuple[Term, ...] = (
     _t("op_check", "check", "checks"),                             # the person's look before its action
     _t("op_alone", "by itself"),                                   # a template whose operations need no check
     _t("op_rules", "rules"),                                       # what a template learned from the corrections
+    # Team briefs (docs/specs/66-team-briefs.md §0): the daily, the retro, the refinement and a 1:1, as teams say them
+    _t("op_brief", "brief", "briefs"),                             # an operation that prepares a page to read and does nothing outside
+    _t("op_standing", "standing brief", "standing briefs"),        # one prepared on its own time, before a meeting
+    _t("op_keep", "Keep"),                                         # the brief's check's button: saved as corrected, the person's alone
+    _t("op_forget", "Forget"),                                     # removes everything kept of one person
     _t("card_context", "context"),                                 # a card's wiki pages, 📜 (realm/cardlore.py)
     _t("todo_plan", "plan", "plans"),                              # a to-do's steps from a light model, 🧭
     _t("personal_card", "personal"),                               # a card that never reaches a model, 🔒

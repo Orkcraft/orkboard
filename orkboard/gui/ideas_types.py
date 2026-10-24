@@ -33,6 +33,8 @@ class TypesMixin:
         type_id, t, rows = _opt(args, "type"), None, []
         p = goal_types.Party(self.state_dir, self.root(), track)
         got = goal_types.offered(self.state_dir, self.root(), track, read=p)
+        if type_id and p.leader == library.INVESTOR:
+            raise IdeasError("A pitch has no goal type: its decision names the one it will have")      # spec 65 §1
         if type_id:
             known = goal_types.BY_ID.get(type_id)
             if known is None:

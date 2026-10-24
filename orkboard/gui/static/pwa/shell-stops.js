@@ -23,7 +23,7 @@ import { makePanel, forget } from "./shell-pick-answer.js";
 
 const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const KIND = { plan: "Plan ready", change: "Plan change", asks: "Asks you", goal: "Asks you", proposal: "Proposed", party: "Proposed", todo: "A to-do", failed: "Failed", look: "To look at",
-  pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Proposed" };
+  pick: "Pick one", op: "At your check", op_failed: "Failed", op_rules: "Proposed", pitch: "Judged" };
 const gemOf = (g) => (g ? h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text) : null);       // a price, a mark or a sign (a failure's cross); none for a plan change of nothing
 const GHOSTS = 3, GHOST_MS = 300;                       // stops that leave with the fade in one refresh (the rest simply go), and how long it lasts (spec 58 §4; spec 49 §11.2)
 const CARD = 104, FRONT_OVERLAP = 12, WIDTH = 290;       // a fanned card's width, how far the front card lies over its neighbours, and the room the fan is drawn in (the row's width less 50 px at each side: the cards turn up to 4° a place outward); the zone's height is CSS (`:root.has-stops`)
@@ -182,6 +182,10 @@ export function makeStops(core, ctx, needs, ops) {
       return { ...base, sig: pickSig(n), gem: { text: String(n.n ?? n.variants.length), tip: `${countWords(n.n ?? n.variants.length, n.media)} to pick from` }, small: n.by?.head || null,
         whoTip: n.by?.name ? `made by ${n.by.name}` : "", text: `“${n.ask}”`, thumbs: () => thumbs(n), more: () => [mine().tiles, mine().note, mine().say], quickLabel: "Pick one",
         quick: () => [mine().take, mine().none], open: { kind: "pick", slug: n.slug, task: n.task } };
+    }
+    if (n.kind === "pitch") {                               // a pitch judged (spec 65 §5): it waits for the person and holds nothing; its sheet sends, passes or changes it
+      return { ...base, gem: { text: "·", tip: "It holds nothing: it waits for your decision" }, big: lead, text: n.text || "Judged", open: null, quickLabel: "Quick moves",
+        quick: () => [btn("Open the pitch", away((via) => core.openPitch(n.idea, via)), { primary: true, tip: "The views, the case against and the decision; Send, Pass or Change it there", attrs: { "data-act": "open-pitch" } })] };
     }
     if (n.kind === "todo") {
       return { ...base, gem: { text: "·", tip: "A to-do costs nothing" }, text: n.todo?.why || n.text || n.title, quickLabel: "Quick moves", open: { kind: "plan", slug: n.idea, todo: n.todo?.id },

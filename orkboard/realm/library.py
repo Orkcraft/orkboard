@@ -41,7 +41,12 @@ class Agent:
     instruction: str          # what it is told on every task (at most roles.INSTRUCTION_CHARS)
     check: Check | None = None  # a checker's: what it holds every goal of its party to
     band: str = "build"       # its band in a party: "lead" (plans: the party's steps run as it), "build", "check"
+    pitch: bool = False       # Ideation's (spec 65 §1): it judges pitches, takes a pitch kind only, and sits in no other party
 
+
+# What each of Ideation's views and its skeptic holds to (spec 65 §1): the project's facts, never invented ones.
+PITCH_RULE = ("Answer from the pitch and the project only; invent no number, no user, no competitor; say I cannot tell from here "
+              "rather than guess.")
 
 LIBRARY: tuple[Agent, ...] = (
     # -- leads of any party: the Taskmaster (an ork, the built-in one) and the Product manager (undead: a lich for now) -----
@@ -207,6 +212,33 @@ LIBRARY: tuple[Agent, ...] = (
           "You keep the conversation with people. Draft answers to what people ask, kind and short, with a link to "
           "where it is explained. Post nothing in the product's name without the person's yes. Gather what people "
           "ask for and what confuses them, with how often, and bring it back as ideas for the Board."),
+    # -- ideation: the Investor and each side's view; a party of their own (spec 65 §1) -----------------------------
+    Agent("investor", "Investor", "product", "elder", ("pitch",),
+          "Decides whether to invest in a pitch: where to take it, or why not",
+          "You decide whether to invest the team's time in an idea. Invest only when someone it is for is named, it moves a "
+          "metric the project has, and its cost is in proportion; else reshape it (say what would make it worth it) or pass "
+          "(say why, plainly). Weigh the case against as seriously as the views for it. Name the cheapest way to know before "
+          "building.", band="lead", pitch=True),
+    Agent("product-view", "Product view", "product", "warrior", ("pitch-product",),
+          "Who it is for, what it moves, what it leaves out",
+          "You read a pitch from the product's side: who it is for and the problem it solves for them, which of the project's "
+          "metrics it moves, and what it leaves out. " + PITCH_RULE, pitch=True),
+    Agent("market-view", "Market view", "marketing", "warrior", ("pitch-market",),
+          "Who would want it, how they would hear of it, what it is like",
+          "You read a pitch from the market's side: who would want it, how they would hear of it, and what it is like that "
+          "they use already. You judge against the project, not the market as it is: you have no search. " + PITCH_RULE, pitch=True),
+    Agent("tech-view", "Engineering view", "engineering", "warrior", ("pitch-tech",),
+          "What it touches, how big it is, what it risks",
+          "You read a pitch from the engineering side: what of the repository it touches, how big it is (S, M or L) and what it "
+          "risks. You may read the repository; change nothing. " + PITCH_RULE, pitch=True),
+    Agent("design-view", "Design view", "design", "warrior", ("pitch-design",),
+          "Where it lives on screen, the flow, what it costs people",
+          "You read a pitch from the design side: where it lives on screen, the flow a person goes through, and what it costs "
+          "them in steps, attention and clutter. " + PITCH_RULE, pitch=True),
+    Agent("skeptic", "Skeptic", "product", "warrior", ("pitch-against",),
+          "Makes the strongest case not to do it",
+          "You make the case against a pitch: argue against it as well as it can be argued, whatever you think of it; never the "
+          "same case twice in other words. Read the views and answer the strongest of them. " + PITCH_RULE, band="check", pitch=True),
 )
 
 BY_ID = {a.id: a for a in LIBRARY}
@@ -225,7 +257,11 @@ PRESETS = (("game", "Game", "Rules, levels, art and sound, played through", "des
            ("mobile-app", "Mobile app", "Screens, the store page and the pictures", "product", "product-manager",
             ("grunt", "artist", "aso"), ("reviewer", "accessibility-reviewer")),
            ("website", "Website", "Pages that say what it does, and are found", "marketing", "growth",
-            ("grunt", "copywriter", "seo"), ("reviewer", "editor")))
+            ("grunt", "copywriter", "seo"), ("reviewer", "editor")),
+           ("ideation", "Ideation", "Small pitches: invest, reshape or pass, and why", "product", "investor",
+            ("product-view", "market-view", "tech-view", "design-view"), ("skeptic",)))
+INVESTOR, SKEPTIC = "investor", "skeptic"
+VIEWS = ("product-view", "market-view", "tech-view", "design-view")   # Ideation's four views, in the order a pitch's screen shows them (spec 65 §1)
 CRAFT_LINES = {"engineering": "Code, tests and the build", "design": "Screens, flows and words on them",
                "data": "Numbers, queries and reports", "marketing": "Pages, posts and search",
                "product": "Who it is for, what it moves, what it leaves out", "mixed": "The Taskmaster plans and a Grunt builds"}
@@ -246,7 +282,8 @@ class Stages:
 
 
 DEFAULT_STAGES = Stages()
-STAGES: dict[str, Stages] = {"game-designer": Stages("Concept", "Build", "Playtest", 4, 1)}   # one leader and five more at most
+STAGES: dict[str, Stages] = {"game-designer": Stages("Concept", "Build", "Playtest", 4, 1),   # one leader and five more at most
+                             "investor": Stages("Pitch", "Views", "Decision", 4, 1)}
 
 
 def stages_of(leader: str) -> Stages:
@@ -289,9 +326,10 @@ def get(agent_id: str) -> Agent | None:
 
 
 def listed() -> list[dict]:
-    """The library as a face shows it: id, name, craft, race, tier, takes, line, and a checker's check."""
+    """The library as a face shows it: id, name, craft, race, tier, takes, line, a checker's check, and `pitch` (Ideation's: the faces
+    offer it to no other party, and no seat change in Ideation; spec 65 §1)."""
     return [{"id": a.id, "name": a.name, "craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier, "band": a.band,
-             "takes": list(a.takes), "line": a.line,
+             "takes": list(a.takes), "line": a.line, "pitch": a.pitch,
              "check": {"applies": a.check.applies, "done": a.check.done} if a.check else None} for a in LIBRARY]
 
 

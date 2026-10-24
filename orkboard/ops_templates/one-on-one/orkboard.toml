@@ -1,0 +1,50 @@
+# Orkboard's manifest for this skill (docs/specs/66-team-briefs.md §1, §2, §4, §5). The skill (SKILL.md) stays the
+# person's and works in Claude Code as before; this file says what Orkboard asks, what it may read with, and that it
+# only briefs. It reads no Slack: what someone writes in the channels is not an agenda item about them. The tools are
+# named as the Atlassian Rovo MCP server and GitHub's MCP server (github/github-mcp-server) document them: this file is
+# the one place they are written.
+title = "Before a 1:1"
+risk = "medium"
+people = true
+follow = "who"                          # it starts from the last 1:1 with them: what was said and promised
+reads = "Jira: the issues they own or were on · GitHub: their pull requests and reviews in the repos you name · Slack: none"
+servers = { jira = "Jira", github = "GitHub" }
+
+[[fields]]
+name = "who"
+label = "Who"
+type = "text"
+required = true
+hint = "Their name as Jira and GitHub know them"
+
+[[fields]]
+name = "notes"
+label = "Your notes"
+type = "long"
+hint = "Your own: kept as you wrote them, seen by you alone"
+
+[[fields]]
+name = "repos"
+label = "Repositories"
+type = "text"
+hint = "owner/repo, a comma between them"
+
+[[fields]]
+name = "team"
+label = "Team"
+type = "text"
+remember = true
+hint = "The Jira project's key or its board"
+
+[[draft]]
+name = "agenda"
+label = "Agenda"
+type = "long"
+
+[prepare]
+tools = ["mcp__{jira}__getAccessibleAtlassianResources", "mcp__{jira}__lookupJiraAccountId",
+         "mcp__{jira}__searchJiraIssuesUsingJql", "mcp__{jira}__getJiraIssue",
+         "mcp__{github}__search_users", "mcp__{github}__search_pull_requests", "mcp__{github}__pull_request_read"]
+
+[brief]
+label = "Keep for the 1:1"

@@ -376,6 +376,19 @@ input[type="radio"] { accent-color: var(--ork-ink); }
 .ops-proposal { display: flex; flex-direction: column; gap: var(--ork-4); }
 .ops-proposal .row .ork-field { min-width: 0; flex: 1 1 100%; order: -1; }
 .ops-proposal .row .ork-btn { flex: 1 1 0; }
+/* a brief (spec 66 §7): what a template about people reads, Prepare before…, the standing briefs under their template, a kept brief read in its sheet */
+.ops-reads { margin: 0; display: flex; flex-direction: column; gap: var(--ork-1); overflow-wrap: anywhere; }
+.ops-reads small { font: var(--ork-type-caption); }
+.ops-before-wrap, .ops-before { display: flex; flex-direction: column; gap: var(--ork-4); }
+.pills.days { gap: var(--ork-2); }
+.pills.days .pill { min-width: 0; }
+.ops-standing { display: flex; flex-direction: column; gap: var(--ork-2); padding-left: var(--ork-4); border-left: var(--ork-line) solid var(--ork-edge); }
+.ops-standing .row { margin-top: 0; flex-wrap: wrap; }
+.ops-template .need-text small, .ops-done .need-text b { overflow-wrap: anywhere; }
+.ops-kept h3 { margin: 0; font: var(--ork-type-heading); text-transform: var(--ork-type-heading-case); letter-spacing: var(--ork-type-heading-track); }
+.ops-page { margin: 0; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: var(--ork-type-body); user-select: text; }
+.ops-check textarea.ork-field { overflow-wrap: anywhere; }
+.ops-copy-box { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
 
 .plan .tasks .task-title { display: inline-flex; align-items: center; gap: var(--ork-3); }
 .facts .ork-race { vertical-align: middle; }
@@ -632,6 +645,14 @@ button.band__face .band__sign { right: 5px; top: 6px; }      /* the head sits 10
 .band__sign .ork-sign { width: 12px; height: 12px; vertical-align: top; }
 .band__sign.danger { color: var(--ork-danger); }
 .band__sign.alert { color: var(--ork-alert); }
+.band__face.is-struck { animation: jolt 0.3s steps(1, end); }                                     /* a failure: the face lit once, jolting 2 px three times (decisions §80) */
+.band__face.is-struck .ork-race__head { animation: struck 0.3s steps(1, end); }
+.band__face.is-calling { animation: hop 0.25s steps(1, end); }                                    /* a question: the sign drops into its corner, the face hops 2 px */
+.band__face.is-calling .band__sign { animation: call 0.25s steps(3, end); }
+@keyframes jolt { 0% { transform: translateX(2px); } 17% { transform: translateX(-2px); } 33% { transform: translateX(2px); } 50% { transform: translateX(-2px); } 67% { transform: translateX(2px); } 83% { transform: translateX(-2px); } 100% { transform: none; } }
+@keyframes struck { 0% { background: var(--ork-ink); } 34% { background: transparent; } }
+@keyframes hop { 0% { transform: translateY(-2px); } 50% { transform: none; } }
+@keyframes call { from { transform: translateY(-6px); } to { transform: none; } }
 /* the party's deck (spec 53 §1.1): at the goals bar's left, a 44 x 44 target round a back of 16 x 22 with two edges behind it; its count of the stops in the other parties at the top right */
 .partydeck { all: unset; box-sizing: border-box; cursor: pointer; position: relative; flex: none; width: var(--ork-tap); height: var(--ork-tap); }
 .partydeck:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
@@ -1027,6 +1048,7 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 
 @media (prefers-reduced-motion: reduce) {
   .deck.is-drawn, .raised.is-pop, .is-reward, .deck.is-leaving, .deck__flash { animation: none; }
+  .band__face.is-struck, .band__face.is-struck .ork-race__head, .band__face.is-calling, .band__face.is-calling .band__sign { animation: none; }
   .deck.is-dealt, .flagline__row .ork-elem.is-dealt { visibility: visible; animation: none; }
   .deal-fly, .flag-fly, .gather-fly, .hcg { display: none; }
   .flagline.is-raised, .flagline.is-raised .ork-sign.flag, .flagline.is-raised .flagline__words, .flagline.is-raised .flagline__words b { animation: none; }
@@ -1047,3 +1069,60 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 .band__faces.is-four { gap: 0; }       /* four heads: 24 px each, 14 px after the one before, 66 px in all (spec 59 §7.3) */
 .band__faces.is-four > span.band__face + span.band__face { margin-left: -10px; }
 .band__faces.is-four > button.band__face { margin: -11px -15px; }
+
+/* -- Ideation (spec 65 §8): its pitches by its three stages, a pitch's sheet, New goal's one box ------------------------------------------------------------- */
+.pitchfield { display: flex; flex-direction: column; gap: var(--ork-4); padding: var(--ork-3) var(--ork-4) var(--ork-6); }
+.pitchsec { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.pitchsec__head { display: flex; align-items: center; gap: var(--ork-3); min-height: 32px; border-bottom: var(--ork-line) solid var(--ork-frame); }
+.pitchsec__head h3 { margin: 0; flex: 1 1 auto; }
+.pitchsec__heads { flex: none; display: inline-flex; gap: var(--ork-1); }
+.pitchsec__empty { margin: 0; color: var(--ork-ink-faint); }
+.pitchrow { appearance: none; display: flex; align-items: center; gap: var(--ork-3); width: 100%; min-width: 0; min-height: 52px; padding: var(--ork-2) var(--ork-4); box-sizing: border-box;
+  border: var(--ork-line) solid var(--ork-frame); background: var(--ork-panel); color: var(--ork-ink); text-align: left; cursor: pointer; }
+.pitchrow:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.pitchrow.is-judged { border-color: var(--ork-alert); }
+.pitchrow.is-failed { border-color: var(--ork-danger); }
+.pitchrow__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--ork-1); }
+.pitchrow__title { font: 400 14px/18px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pitchrow__line { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); overflow-wrap: anywhere; }
+.pitchrow__views { display: inline-flex; gap: var(--ork-2); }
+.pitchrow__view { opacity: 0.3; }
+.pitchrow__view.is-lit { opacity: 1; }
+.pitchrow__answer { flex: none; font: var(--ork-type-button); text-transform: uppercase; }
+.pitchrow__answer[data-answer="invest"] { color: var(--ork-success); }
+.pitchrow__answer[data-answer="pass"] { color: var(--ork-ink-muted); }
+.pitchrow__mark { flex: none; display: inline-flex; color: var(--ork-ink-muted); }
+.pitchrow.is-failed .pitchrow__mark { color: var(--ork-danger); }
+.pitch-passed > summary { min-height: var(--ork-tap); display: flex; align-items: center; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); cursor: pointer; }
+.pitch-passed .pitchrow + .pitchrow { margin-top: var(--ork-2); }
+.pitch { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.pitch__state { margin: var(--ork-2) 0 0; }
+.pitch__sec { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; }
+.pitch__sec h3 { margin: var(--ork-4) 0 0; }
+.pitch__words { margin: 0; font: 400 14px/20px var(--ork-font-text); white-space: pre-wrap; }
+.pitch__list { margin: 0; padding-left: var(--ork-6); font: 400 14px/20px var(--ork-font-text); }
+.pitch__said { margin: 0; font: 400 14px/20px var(--ork-font-text); }
+.pitch__said b, .pitchview__ask b { font-weight: 600; }
+.pitch__who { margin: 0; display: flex; align-items: center; gap: var(--ork-2); }
+.pitch__answer { margin: var(--ork-2) 0 0; display: flex; align-items: center; gap: var(--ork-3); font: 500 28px/32px var(--ork-font-pixel); text-transform: uppercase; letter-spacing: 0.04em; }   /* the answer, large */
+.pitch-sheet .sheet-head h2 { font: var(--ork-type-body); font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: 0; }      /* a pitch's title is the person's words: never the pixel face */
+.pitch__answer[data-answer="invest"] { color: var(--ork-success); }
+.pitch__answer[data-answer="reshape"] { color: var(--ork-alert); }
+.pitch__kills { display: flex; flex-direction: column; gap: var(--ork-1); }
+.pitchview { display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame); min-width: 0; }
+.pitchview.is-waiting { border-style: dashed; }
+.pitchview.is-waiting .ork-race__head { opacity: 0.3; }
+.pitchview__head { display: flex; align-items: center; gap: var(--ork-3); }
+.pitchview__head .ork-count { margin-left: auto; }
+.pitchview__label { margin: var(--ork-2) 0 0; font: var(--ork-type-label); text-transform: var(--ork-type-label-case); color: var(--ork-ink-muted); }
+.pitchview__ask { margin: var(--ork-2) 0 0; font: 400 14px/20px var(--ork-font-text); }
+.pitch__more { display: flex; flex-wrap: wrap; gap: var(--ork-3); margin-top: var(--ork-5); }
+.pitch__more .ork-btn { flex: 1 1 auto; }
+.pitch__more .ork-btn[data-act="change"] { flex: 1 1 100%; }
+.pitch__note { margin: var(--ork-2) 0 0; }
+.pitch__acts { flex-wrap: wrap; }
+.pitch__acts > select, .pitch__acts > .pitch__edit, .pitch__acts > .pitch__ask, .pitch__acts > .pitch__err { flex: 1 1 100%; margin: 0; }
+.pitch__acts:not(.is-edit) > .ork-btn { flex: 1 1 100%; }
+.pitch__acts > .pitch__ask { font: 400 14px/20px var(--ork-font-text); }
+.newgoal.is-pitch .sheet-foot .ork-btn, .newgoal.is-pitch .sheet-foot .ork-btn.primary { flex: 1 1 0; }
+.party-whole { margin: 0; }

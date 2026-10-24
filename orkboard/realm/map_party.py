@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from orkboard.realm import goal_team
 
-_LEAD_NEEDS = ("asks", "plan", "change", "proposal")       # the Needs you kinds the leader's work stops on (its plan change too: spec 62)
+_LEAD_NEEDS = ("asks", "plan", "change", "proposal", "pitch")       # the Needs you kinds the leader's work stops on (its plan change too: spec 62; a pitch judged: spec 65)
 _PLANNING_WORK = ("reading", "planning")
 
 

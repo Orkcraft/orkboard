@@ -31,9 +31,11 @@ def _wait(host, slug="", goal=False):
 
 def test_the_library_is_leaders_builders_and_checkers_each_with_its_kinds_and_an_instruction_within_the_limit():
     by_band = {b: [a.name for a in library.LIBRARY if a.band == b] for b in ("lead", "build", "check")}
-    assert by_band["lead"] == ["Taskmaster", "Product manager", "Architect", "Product designer", "Game designer", "Analyst", "Growth"]
-    assert by_band["check"] == ["Security reviewer", "Reviewer", "Accessibility reviewer", "Playtester", "Data reviewer", "Editor"]
-    assert all((a.check is not None) == (a.band == "check") for a in library.LIBRARY)       # a check is a checker's
+    assert by_band["lead"] == ["Taskmaster", "Product manager", "Architect", "Product designer", "Game designer", "Analyst", "Growth",
+                               "Investor"]                                               # Ideation's (spec 65 §1)
+    assert by_band["check"] == ["Security reviewer", "Reviewer", "Accessibility reviewer", "Playtester", "Data reviewer", "Editor",
+                                "Skeptic"]
+    assert all((a.check is not None) == (a.band == "check" and not a.pitch) for a in library.LIBRARY)   # a check is a checker's; the Skeptic checks pitches only
     assert library.get("product-manager").craft == "product" and roles.RACES["product"] == "lich"   # undead, for now
     for craft, (lead, builds, checks) in library.PARTIES.items():                         # a craft's party fits its seats
         assert library.get(lead).band == "lead" and all(library.get(s).band == "build" for s in builds), craft
@@ -41,14 +43,14 @@ def test_the_library_is_leaders_builders_and_checkers_each_with_its_kinds_and_an
         assert not goal_team.seats([*builds, *checks], lead), craft
     assert len({a.id for a in library.LIBRARY}) == len(library.LIBRARY) and library.get("grunt").id in roles.BUILTIN
     for a in library.LIBRARY:
-        assert a.tier in roles.TIERS and a.takes and set(a.takes) <= set(roles.TASK_KINDS), a.id
+        assert a.tier in roles.TIERS and a.takes and (set(a.takes) <= set(roles.TASK_KINDS)) != a.pitch, a.id   # a pitch agent takes a pitch kind only
         assert len(a.instruction) <= roles.INSTRUCTION_CHARS and roles.for_prompt(a.instruction) == a.instruction, a.id
         assert a.id in roles.BUILTIN or a.instruction.endswith((".", "!", "?")), a.id      # the built-in two keep their own
         said = f"{a.name} {a.line} {a.instruction}"
         assert not re.search(r"\borcs?\b|orchestrat", said, re.I), a.id          # CLAUDE.md: ork, orkestration
         if a.check:
             assert a.check.applies.startswith("when ") and a.check.done[0].isupper() and a.check.task.endswith("."), a.id
-    every = {k for a in library.LIBRARY for k in a.takes}
+    every = {k for a in library.LIBRARY if not a.pitch for k in a.takes}
     assert every == set(roles.TASK_KINDS) - {"docs"}                                 # docs stay the project's (Grunt)
     assert set(roles.KIND_LABELS) == set(roles.KIND_LINES) == set(roles.TASK_KINDS)
 
@@ -91,7 +93,7 @@ def test_goal_save_with_a_team_makes_its_agents_keeps_the_team_and_never_overwri
     with pytest.raises(CommandError, match="A leader leads"):
         host.command("ideas.goal_save", {"about": "x", "team": ["architect"]})
     got = host.command("ideas.roles")
-    assert len(got["library"]) == len(library.LIBRARY) == 26 and got["suggested"] == 2
+    assert len(got["library"]) == len(library.LIBRARY) == 32 and got["suggested"] == 2              # 26, and Ideation's six (spec 65)
     artist = next(a for a in got["library"] if a["id"] == "artist")
     assert {"craft": "design", "race": "elf", "tier": "laborer", "takes": ["art"], "check": None}.items() <= artist.items()
     a11y = next(a for a in got["library"] if a["id"] == "accessibility-reviewer")

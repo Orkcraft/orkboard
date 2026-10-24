@@ -2,7 +2,7 @@
 changed and never decorates: a stack that appears rises into its column; one that leaves (a merge, a drop) fades where it stands with a one-frame orkUI sign and its column settles up toward
 the member; one that moves slides, with the stacks it passes; a merge lights the member's first number and its column's count once. None under reduced motion, on the first read of a goal or
 while the page is hidden; nothing moves under a finger or the focus; the bottom row does not shift while a stop is popped. The filter, the spread and New goal's card move in
-tests/test_pwa_decks_browser.py."""
+tests/test_pwa_decks_browser.py. A member's face whose sign turns ✗ is struck and one whose sign turns ! calls (decisions §80), once, on the change only."""
 from __future__ import annotations
 
 import copy
@@ -230,3 +230,133 @@ async def test_the_bottom_row_does_not_shift_while_a_stop_is_popped(fake_repo, m
         await page.keyboard.press("Escape")
         await raised.wait_for(state="hidden", timeout=WAIT_MS)
         await page.wait_for_function("(n) => document.querySelectorAll('.hand .hc').length === n", arg=len(before) - 1, timeout=WAIT_MS)    # and shows what changed once it is put back
+
+
+# -- a face struck, a face calling (decisions §80, spec 49 §11.7) -------------------------------------------------------------------
+
+# The faces drawn with `is-struck` or `is-calling` (the draw makes a face anew: the class is on it as it is added), in the order drawn: [member, class].
+FACES = """
+(() => {
+  window.__moments = [];
+  const note = (e) => { if (e.classList && e.classList.contains("band__face")) for (const c of ["is-struck", "is-calling"]) if (e.classList.contains(c)) window.__moments.push([e.dataset.member, c]); };
+  document.addEventListener("DOMContentLoaded", () => new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { note(n); n.querySelectorAll && n.querySelectorAll(".band__face").forEach(note); } })
+    .observe(document.body, { childList: true, subtree: true }));
+})();
+"""
+MOMENTS = "() => window.__moments.map((x) => x.join(' ')).sort()"
+
+
+def screens_task():
+    return tasks_of(register())["k3"]                                       # Screens' Register screen, running
+
+
+def words_task():
+    return tasks_of(SCENE["map"]["nodes"][7])["c2"]                         # Words' check, in review
+
+
+def reviewer_task():
+    return tasks_of(SCENE["map"]["nodes"][7])["c1"]                         # Reviewer's check, running (it asks a question too: its face wears ! already)
+
+
+def backend_task():
+    return tasks_of(SCENE["map"]["nodes"][8])["q1"]                         # Backend's failed task: its face wears ✗ already
+
+
+async def _sign(page, slug):
+    return await page.evaluate("(m) => document.querySelector(`.band__face[data-member=\"${m}\"] .band__sign`)?.dataset.sign ?? null", slug)
+
+
+@pytest.mark.asyncio
+async def test_a_face_whose_sign_turns_a_cross_is_struck_and_one_whose_sign_turns_an_alert_calls_once(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch, init=FACES) as (stub, page):
+        await _ready(page)
+        assert await page.evaluate(MOMENTS) == [] and await page.locator(".band__face.is-struck, .band__face.is-calling").count() == 0       # the first read: the signs stand
+        assert await _sign(page, "backend") == "cross" and await _sign(page, "reviewer") == "alert" and await _sign(page, "screens") is None
+        screens_task()["state"] = "failed"                                                              # work → ✗
+        stub.bump({})
+        await page.wait_for_function("() => window.__moments.length > 0", timeout=WAIT_MS * 2)
+        assert await page.evaluate(MOMENTS) == ["screens is-struck"] and await _sign(page, "screens") == "cross"
+        words_task()["state"] = "picking"                                                               # nothing → !
+        stub.bump({})
+        await page.wait_for_function("() => window.__moments.some((x) => x[0] === 'words')", timeout=WAIT_MS * 2)
+        assert await page.evaluate(MOMENTS) == ["screens is-struck", "words is-calling"] and await _sign(page, "words") == "alert"
+        node_ = register()
+        node_["tasks"].append(task("n1", "A new task", "waiting", BACKEND, 3))                           # the face is drawn again by another change: it does not play again
+        stub.bump({})
+        await page.locator(f'{BACKEND_COLUMN} .deck[data-key="register|later"]').wait_for(timeout=WAIT_MS * 2)
+        await page.wait_for_timeout(500)
+        assert await page.evaluate(MOMENTS) == ["screens is-struck", "words is-calling"]
+        screens_task()["state"] = "running"                                                             # a sign that goes away does not play
+        stub.bump({})
+        await page.wait_for_function("() => !document.querySelector('.band__face[data-member=\"screens\"] .band__sign')", timeout=WAIT_MS * 2)
+        assert await page.evaluate(MOMENTS) == ["screens is-struck", "words is-calling"]
+
+
+@pytest.mark.asyncio
+async def test_a_struck_face_is_lit_and_jolts_two_pixels_and_a_calling_one_drops_its_sign_and_hops_in_steps(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch, init=FACES) as (stub, page):
+        await _ready(page)
+        given = await page.evaluate("""() => { const face = document.querySelector('.band__face[data-member="screens"]'), out = {}, of = (e) => { const c = getComputedStyle(e);
+            return [c.animationName, c.animationDuration, c.animationTimingFunction]; };
+          face.classList.add('is-struck'); out.struck = [of(face), of(face.querySelector('.ork-race__head'))];
+          face.classList.replace('is-struck', 'is-calling'); out.calling = [of(face), of(face.querySelector('.band__sign') || face)];
+          face.classList.remove('is-calling'); return out; }""")
+        assert given["struck"] == [["jolt", "0.3s", "steps(1)"], ["struck", "0.3s", "steps(1)"]]        # lit once, jolting in steps, ≈ 0.3 s
+        assert given["calling"][0] == ["hop", "0.25s", "steps(1)"]                                      # the face hops in steps, ≈ 0.25 s (its sign drops: the next face has one)
+        css = await page.evaluate("[...document.styleSheets].flatMap((s) => [...s.cssRules]).filter((r) => ['jolt', 'hop', 'call'].includes(r.name)).map((r) => r.cssText).join(' ')")
+        assert css.count("translateX(2px)") == 3 and css.count("translateX(-2px)") == 3 and "translateY(-2px)" in css and "translateX(3px)" not in css       # 2 px, three times; once
+
+
+@pytest.mark.asyncio
+async def test_at_most_three_faces_play_in_one_refresh_the_rest_wear_the_sign(fake_repo, monkeypatch):
+    backend_task()["state"] = "held"                                                                    # Backend wears no sign at first: four faces change at once below
+    async with _phone(fake_repo, monkeypatch, init=FACES) as (stub, page):
+        await _ready(page)
+        assert await _sign(page, "backend") is None
+        backend_task()["state"] = "failed"
+        screens_task()["state"] = "failed"
+        reviewer_task()["state"] = "failed"                                                             # ! → ✗ is a change too
+        words_task()["state"] = "picking"
+        stub.bump({})
+        await page.wait_for_function("() => window.__moments.length >= 3", timeout=WAIT_MS * 2)
+        await page.wait_for_timeout(500)
+        assert len(await page.evaluate(MOMENTS)) == 3
+        assert [await _sign(page, m) for m in ("backend", "screens", "reviewer", "words")] == ["cross", "cross", "cross", "alert"]       # all four wear theirs
+
+
+@pytest.mark.asyncio
+async def test_a_face_under_the_pointer_is_not_struck_and_neither_is_a_change_while_the_page_is_hidden(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch, init=FACES) as (stub, page):
+        await _ready(page)
+        await page.locator('.band__face[data-member="screens"]').hover()
+        screens_task()["state"] = "failed"
+        words_task()["state"] = "picking"
+        stub.bump({})
+        await page.wait_for_function("() => window.__moments.some((x) => x[0] === 'words')", timeout=WAIT_MS * 2)
+        await page.wait_for_timeout(500)
+        assert await page.evaluate(MOMENTS) == ["words is-calling"] and await _sign(page, "screens") == "cross"        # the sign stands, nothing plays on that face
+        await page.mouse.move(5, 300)
+        await page.evaluate("() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); }")
+        reviewer_task()["state"] = "failed"
+        stub.bump({})
+        await page.wait_for_function("() => document.querySelector('.band__face[data-member=\"reviewer\"] .band__sign')?.dataset.sign === 'cross'", timeout=WAIT_MS * 2)
+        await page.evaluate("() => { delete document.hidden; }")
+        node_ = register()
+        node_["tasks"].append(task("n1", "A new task", "waiting", BACKEND, 3))
+        stub.bump({})
+        await page.locator(f'{BACKEND_COLUMN} .deck[data-key="register|later"]').wait_for(timeout=WAIT_MS * 2)
+        await page.wait_for_timeout(500)
+        assert await page.evaluate(MOMENTS) == ["words is-calling"]                                     # what changed while hidden just stands
+
+
+@pytest.mark.asyncio
+async def test_under_reduced_motion_no_face_is_struck_and_none_calls(fake_repo, monkeypatch):
+    async with _phone(fake_repo, monkeypatch, init=FACES) as (stub, page):
+        await page.emulate_media(reduced_motion="reduce")
+        await _ready(page)
+        screens_task()["state"] = "failed"
+        words_task()["state"] = "picking"
+        stub.bump({})
+        await page.wait_for_function("() => document.querySelector('.band__face[data-member=\"words\"] .band__sign')", timeout=WAIT_MS * 2)
+        await page.wait_for_timeout(500)
+        assert await page.evaluate(MOMENTS) == [] and await _sign(page, "screens") == "cross" and await _sign(page, "words") == "alert"        # the signs are there, nothing plays

@@ -260,7 +260,7 @@ async def test_tasks_that_come_after_six_seconds_rise_and_so_do_those_of_a_start
 
 @pytest.mark.asyncio
 async def test_another_partys_plan_started_from_the_raised_card_deals_nothing_and_the_cache_is_v64(fake_repo, monkeypatch):
-    assert 'const CACHE = "orkcraft-app-v72";' in (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
+    assert 'const CACHE = "orkcraft-app-v74";' in (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
     tech(failed=False, ops=False, todos=False)
     SCENE["needs"].append({"kind": "plan", "idea": "art", "goal": "tech", "title": "Reference art", "text": "Plan ready", "priority": "normal", "blocks": False, "at": "2026-10-20T08:00:00"})
     async with _phone(fake_repo, monkeypatch, init=RECORD) as (stub, page):

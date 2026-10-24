@@ -6,7 +6,9 @@ local time), and again inside it when the reserve held it. A mixin of `IdeaKeepe
 
 In this order, each step stopping at the reserve (realm/idea_target.py `reserve_held`):
   1. the `night` queue: draft → plan → autostart, by priority, then the person's order; when the Claude week is behind its
-     pace (spec 44), the Board's own Low ideas stay queued (`paced` in `night_run`) and the person's are drafted;
+     pace (spec 44), the Board's own Low ideas stay queued (`paced` in `night_run`) and the person's are drafted; a pitch
+     put off to the night is judged first, held only by the spent window (it is the person's own: spec 65 §7), and counted
+     in `drafted`;
   2. the plans that start at night (`start_night(slug)`: the face hands them to the runner);
   3. refresh (balance, quality): a goal whose linked paths, or the paths its Summary names, changed since its `read_at`
      is read again on the `refresh` step; an unchanged goal costs nothing;
@@ -157,14 +159,15 @@ class NightMixin:
         waiting = [i for i in ideas.ideas(root) if (st := ideas.state(self.state_dir, i["slug"]))["state"] == "raw"
                    and ideas.queue_of(st) == "night" and not self.busy(i["slug"])]
         if self.week_is_behind():                          # the Board's Low ideas wait for the week to come back; the person's go on
-            left = [i for i in waiting if board_low_idea(i, ideas.state(self.state_dir, i["slug"]))]
+            left = [i for i in waiting if board_low_idea(i, ideas.state(self.state_dir, i["slug"])) and not self.is_pitch(i["slug"])]
             counts["paced"] = len(left)
             waiting = [i for i in waiting if i not in left]
-        for n, i in enumerate(sorted(waiting, key=_rank)):
-            if self._reserved() or self.hold(i["slug"]):
+        pitched = [i for i in waiting if self.is_pitch(i["slug"])]          # a pitch first, held by the window alone, never the reserve (spec 65 §7)
+        for n, i in enumerate([*sorted(pitched, key=_rank), *sorted((i for i in waiting if i not in pitched), key=_rank)]):
+            if (i not in pitched and self._reserved()) or self.hold(i["slug"]):
                 counts["held"] += len(waiting) - n
                 return
-            if self._sync(i["slug"], "drafting", lambda s=i["slug"]: self.draft_one(s)):
+            if self._sync(i["slug"], "judging" if i in pitched else "drafting", lambda s=i["slug"]: self.draft_one(s)):
                 counts["drafted"] += 1
 
     def _night_starts(self, root: Path, counts: dict) -> None:

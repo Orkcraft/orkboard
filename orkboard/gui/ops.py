@@ -2,6 +2,7 @@
 
     ops = Ops(host)                       # gui/board_host.py `Orkboard` builds it once, beside the projects
     host.commands.update(ops.commands())  # ops.list, ops.add, ops.act, … (the phone may send them all)
+                                          # and a brief's: ops.keep, ops.forget, ops.standing_* (spec 66 §10)
     ops.needs()                           # its rows of Needs you, merged into whichever project is shown
     ops.count()                           # … how many count (op, op_failed: not op_rules, as proposals)
     ops.rev                               # the snapshot's `ops_rev`: moves on every `ops.changed`
@@ -21,13 +22,14 @@ from typing import Any, Callable
 from orkboard import settings
 from orkboard.core import op_runner
 from orkboard.core.op_commands import OpsError
-from orkboard.realm import halt, harnesses, op_runs, op_templates
+from orkboard.realm import halt, harnesses, op_runs, op_standing, op_templates
 
 CHANGED = "ops.changed"            # the bus's topic: id or template
 RUNS_SHOWN = 200                   # the newest operations `ops.list` gives (dropped ones are not shown)
 SERVERS_S = 60.0                   # `claude mcp list` is read again after this
 SERVERS_TIMEOUT_S = 45
 STATE_WORDS = {"checks": "checks with you", "alone": "goes by itself", "always": "always checks with you"}
+BRIEF_DOES = "prepares a page, does nothing outside"      # a brief's row in Templates (spec 66 §7)
 
 
 def mcp_names(text: str) -> list[str]:
@@ -59,7 +61,8 @@ class Ops:
         self._servers: tuple[float, list[str]] = (float("-inf"), [])
         self.runner = op_runner.OpRunner(self.base, settings=lambda: self.host.machine.ops,
                                          limits=lambda: self.host.limits(), publish=self._published,
-                                         demo=bool(getattr(host, "demo", False)), cap=self._cap(host))
+                                         demo=bool(getattr(host, "demo", False)), cap=self._cap(host),
+                                         reserve=lambda: getattr(self.host.machine, "ideas", None))
         if not self.runner.demo:
             self.runner.start()
 
@@ -96,6 +99,10 @@ class Ops:
         got = op_runs.proposal(self.base, t.name)
         if got is not None:
             row["proposal"] = got
+        if t.brief:
+            row["does"] = BRIEF_DOES
+        if t.follow:                                       # Forget… (spec 66 §2): the value of this field
+            row["forget"] = {"field": t.follow, "label": t.field_of(t.follow)["label"]}
         return row
 
     @staticmethod
@@ -106,7 +113,13 @@ class Ops:
                 "doubts": run.get("doubts") or [], "alone": bool(run.get("alone")), "link": run.get("link") or "",
                 "why": run.get("why") or "", "acted": run.get("acted", False), "held_until": run.get("held_until") or "",
                 "cost": run.get("cost"), "at": run.get("at") or "", "done_at": run.get("done_at") or "",
-                "step": run.get("step") or ""}
+                "step": run.get("step") or "", "brief": bool(run.get("brief")), "standing": run.get("standing") or "",
+                "follows": run.get("follows") or ""}
+
+    @staticmethod
+    def _standing_row(item: dict, titles: dict) -> dict:
+        title = titles.get(item["template"], item["template"])
+        return {**{k: item.get(k) for k in op_standing.KEYS}, "title": title, "words": op_standing.words(item, title)}
 
     def list(self, args: dict | None = None) -> dict:
         found = self.runner.templates()
@@ -118,7 +131,8 @@ class Ops:
         for t in found.values():
             needed.update({k: v for k, v in t.servers.items() if k not in needed})
         return {"templates": templates, "runs": runs[-RUNS_SHOWN:], "settings": self.runner.ops(),
-                "servers_needed": needed}
+                "servers_needed": needed,
+                "standing": [self._standing_row(i, titles) for i in op_standing.load(self.base)]}
 
     def needs(self) -> list[dict]:
         """Operations' rows of Needs you (§8): at the check, failed, and a rules proposal (last: it blocks nothing)."""
@@ -155,7 +169,31 @@ class Ops:
                 "ops.drop": self._drop, "ops.stop": self._stop, "ops.retry": self._retry, "ops.again": self._again,
                 "ops.not_right": self._not_right, "ops.rules": self._rules, "ops.rules_save": self._rules_save,
                 "ops.rules_answer": self._rules_answer, "ops.trust_reset": self._trust_reset,
-                "ops.servers": self._servers_cmd, "ops.set": self._set}
+                "ops.servers": self._servers_cmd, "ops.set": self._set,
+                "ops.keep": self._keep, "ops.forget": self._forget, "ops.standing_add": self._standing_add,
+                "ops.standing_change": self._standing_change, "ops.standing_stop": self._standing_stop}
+
+    # -- a brief's (spec 66) ------------------------------------------------------------------------------------------
+
+    def _keep(self, args: dict) -> dict:
+        self.runner.keep(_text(args, "id", 80), args.get("fields"), args.get("draft"), _device(args))
+        return {"ok": True}
+
+    def _forget(self, args: dict) -> dict:
+        return {"removed": self.runner.forget_value(_text(args, "template", 80), _text(args, "value", 200))}
+
+    def _standing_add(self, args: dict) -> dict:
+        return {"id": self.runner.standing_add(_text(args, "template", 80), args.get("fields") or {}, args.get("days"),
+                                               args.get("at"), args.get("before"), _device(args))}
+
+    def _standing_change(self, args: dict) -> dict:
+        changes = {k: args[k] for k in ("fields", "days", "at", "before") if k in args}
+        self.runner.standing_change(_text(args, "id", 80), changes, _device(args))
+        return {"ok": True}
+
+    def _standing_stop(self, args: dict) -> dict:
+        self.runner.standing_stop(_text(args, "id", 80), _device(args))
+        return {"ok": True}
 
     def _add(self, args: dict) -> dict:
         return {"id": self.runner.add(_text(args, "template", 80), args.get("fields") or {}, _device(args))}
@@ -235,7 +273,7 @@ class Ops:
 
     def _set(self, args: dict) -> dict:
         mine = dict(self.host.machine.ops)
-        for key in ("target", "trust_after", "daily_alone", "servers"):
+        for key in ("target", "trust_after", "daily_alone", "servers", "follow_days"):
             if key not in args:
                 continue
             want = args[key]
@@ -246,6 +284,7 @@ class Ops:
                 raise OpsError({"target": "The Target is thrift, balance or quality",
                                 "trust_after": "Goes by itself after 1 to 5 clean checks",
                                 "daily_alone": "By itself at most 1 to 100 a day",
+                                "follow_days": "Keep the last 1:1 brief for 14 to 365 days",
                                 "servers": "A server is a template's key and a server's name"}[key])
             mine[key] = got
         self.host.machine.ops = settings.clean_ops(mine)

@@ -2,7 +2,7 @@
 // party's deck over its leader over the party's goals (with the filter and the New goal pile), and the party's field — the party line, the party row with the gate, the members' tasks in
 // rows by phase as stacks of cards running down from them with the results beside them, what waits for you and the limits along the bottom. The drawer
 // (shell.js) slides over it. All of it reads `ideas.map`, `ideas.board`, `ideas.agents`, `ideas.gate`, `ideas.today`, `ideas.flags` and the snapshot; its
-// commands are the Board's own.
+// commands are the Board's own. Ideation's field is its pitches by state across the party's columns (pitches.js, docs/specs/65-ideation.md §8).
 import { useEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { track, board, OPS } from "../board/store.js";
@@ -28,6 +28,8 @@ import { Stops } from "./stops.js";
 import { Limits } from "./limits.js";
 import { Cards } from "../board/cards.js";
 import { closeFlagLine, seeFlags } from "./flags.js";
+import { PitchField } from "./pitches.js";
+import { pitchPlanning } from "./pitchwords.js";
 
 const NARROW = "(max-width: 1023px)";
 
@@ -65,25 +67,27 @@ function OpsField({ m }) {
 /** The party shown, in full. Keyed by the party so that what was picked or drawn on the last one does not carry over. */
 function Party({ m, g }) {
   const nodes = nodesOf(m, g.slug), { lead, members } = partyOf(g, nodes), body = useRef();
-  const planning = planningOf(g, nodes, lead?.name || g.leader?.name);
+  const pitch = !!g.ideation;                            // Ideation: pitches by state, no tasks (spec 65 §8)
+  const planning = pitch ? pitchPlanning(nodes) : planningOf(g, nodes, lead?.name || g.leader?.name);
   const shown = shownGoals(g.slug), results = resultsOf(nodes);
   const wide = !narrow.value;
   const cols = members.map(() => (wide ? "minmax(0,1fr)" : "minmax(150px,1fr)")).join(" ") || "minmax(0,1fr)";
   const reading = planning.rows.find((r) => r.busy)?.full || "";
   const all = handFor(m, g.slug, !wide);                 // below 1 024 px the party shown's results join the bottom row (§3)
-  return html`<div class=${cls("arena", { "is-narrow": narrow.value })} data-goal=${g.slug}>
+  return html`<div class=${cls("arena", { "is-narrow": narrow.value, "is-ideation": pitch })} data-goal=${g.slug}>
     ${wide && html`<${TodayStrip} goal=${g.slug} />`}
     <${Left} g=${g} nodes=${nodes} planning=${planning} lead=${lead} />
     <div class="arena-field">
-      <div class="arena-top"><${PartyLine} g=${g} nodes=${nodes} lead=${lead?.name || "Taskmaster"} reading=${reading} /><${FlagLine} /></div>
+      <div class="arena-top"><${PartyLine} g=${g} nodes=${nodes} lead=${lead?.name || "Taskmaster"} reading=${reading} doing=${pitch ? "judging" : "reading"} /><${FlagLine} /></div>
       <div class="arena-play">
         <${PartyRow} g=${g} members=${members} nodes=${nodes} planning=${planning} cols=${cols} />
         <section class="arena-body" aria-label="The party at work" ref=${body}>
           ${!wide && html`<div class="arena-cards"><${Cards} /></div>`}
-          ${solo.value ? html`<${Solo} g=${g} members=${members} lead=${lead} nodes=${nodes} planning=${planning} shown=${shown} />`
+          ${pitch ? html`<${PitchField} g=${g} members=${members} nodes=${nodes} cols=${cols} />`
+            : solo.value ? html`<${Solo} g=${g} members=${members} lead=${lead} nodes=${nodes} planning=${planning} shown=${shown} />`
             : html`<${Columns} g=${g} members=${members} nodes=${nodes} cols=${cols} shown=${shown} />`}
-          <${Spread} members=${members} nodes=${nodes} />
-          <${Arrows} host=${body} nodes=${nodes} />
+          ${!pitch && html`<${Spread} members=${members} nodes=${nodes} />`}
+          ${!pitch && html`<${Arrows} host=${body} nodes=${nodes} />`}
         </section>
       </div>
       ${wide && html`<${Looks} g=${g} results=${results} nodes=${nodes} shown=${shown} />`}

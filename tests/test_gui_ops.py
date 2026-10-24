@@ -62,8 +62,8 @@ def test_operations_is_the_hosts_and_works_with_no_project_open(stub):
     with pytest.raises(CommandError, match="Open a folder first"):
         host.command("ideas.board")
     listed = host.command("ops.list")
-    assert set(listed) == {"templates", "runs", "settings", "servers_needed"}
-    assert listed["servers_needed"] == {"jira": "Jira", "gmail": "Gmail"}
+    assert set(listed) == {"templates", "runs", "settings", "servers_needed", "standing"}           # spec 66: standing briefs
+    assert listed["servers_needed"] == {"jira": "Jira", "gmail": "Gmail", "github": "GitHub", "slack": "Slack"}
     jira = next(t for t in listed["templates"] if t["name"] == "jira-task")
     assert {"name", "title", "risk", "fields", "draft", "act_label", "state", "clean"} <= set(jira)
     assert jira["state"] == "checks" and "unusable" not in jira and jira["act_label"] == "Create in Jira"
@@ -141,7 +141,7 @@ def test_needs_you_has_op_op_failed_and_op_rules_last_and_out_of_the_count(host,
 
 def test_the_phone_may_send_every_ops_command(host):
     names = [n for n in host.commands if n.startswith("ops.")]
-    assert len(names) == 15 and all(BoardPhone.allowed(host, n, {}) for n in names)
+    assert len(names) == 20 and all(BoardPhone.allowed(host, n, {}) for n in names)
     assert not BoardPhone.allowed(host, "ops.nothing", {})
     assert BoardPhone.guard("ops.add", {"template": "jira-task"})["device"] == "phone"
 

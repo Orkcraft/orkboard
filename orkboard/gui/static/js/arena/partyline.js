@@ -17,11 +17,11 @@ import { closeFlagLine, dropRaise, flagLine, gateButton, raise } from "./flags.j
 /** *Backend <work> Credential table (WebAuthn register)* for every member at work, the leader reading, else *nothing at work right now*. */
 function Now({ parts }) {
   if (!parts.length) return html`nothing at work right now`;
-  return parts.map((b, i) => html`${i > 0 ? " · " : ""}${b.reading ? html`${b.who} <${Sign} name="work" /> reading “${b.reading}”` : html`${b.who} <${Sign} name="work" /> ${b.task} (${b.goal})`}`);
+  return parts.map((b, i) => html`${i > 0 ? " · " : ""}${b.reading ? html`${b.who} <${Sign} name="work" /> ${b.doing || "reading"} “${b.reading}”` : html`${b.who} <${Sign} name="work" /> ${b.task} (${b.goal})`}`);
 }
 
-export function PartyLine({ g, nodes, lead, reading }) {
-  const parts = nowParts(nodes, lead, reading), words = nowWords(parts);
+export function PartyLine({ g, nodes, lead, reading, doing = "reading" }) {
+  const parts = nowParts(nodes, lead, reading, doing), words = nowWords(parts);
   const seats = g.team || [], price = usePartyPrice(true, g.leader?.slug || "taskmaster", seats.map((m) => m.slug), seats.filter((m) => m.every).map((m) => m.slug), g.craft || "");
   return html`<div class="arena-ibar__bar">
     <span class="arena-ibar__now" title=${words} aria-label=${`Now: ${words}`}><span class="arena-muted">Now:</span> <${Now} parts=${parts} /></span>

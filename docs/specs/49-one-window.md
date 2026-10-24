@@ -354,6 +354,11 @@ hidden (`document.hidden`: *While you were away* tells it). Ticking words (*work
 5. **The quiet reward**: when a task merges, its member's first number (*5/1 → 6/1*) and its column's *✓ k in dev* show
    their new value with a one-time highlight (≈ 0.6 s); nothing flies to them.
 6. **A stop rises** (the desktop's hover, the phone's pop, §10.6).
+7. **A member struck, a member calling** (decisions §80): when a member's head's sign turns ✗ (a failure), the head is
+   lit once (one inverted frame) and jolts sideways 2 px three times, in steps, ≈ 0.3 s; when it turns ! (a question or
+   another stop), the sign pops up over the head and steps down into its corner, the head hops 2 px once, ≈ 0.25 s. Only
+   on the change the person sees (not on the first read of a party, not for what changed while the page was hidden, not
+   under the pointer or the focus), at most three heads in one refresh; nothing travels.
 
 ## 12. Files a part may need beyond its row
 B: `js/board/map.js`, `mapidea.js`, `mapcard.js`, `mapfoot.js`, `today.js` (their pieces are reused: `ResultActions`,

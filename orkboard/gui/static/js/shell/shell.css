@@ -179,6 +179,23 @@
 .shell-seg__one { padding: var(--ork-2) var(--ork-5); cursor: pointer; color: var(--ork-ink-muted); font: var(--ork-type-button); }
 .shell-seg__one.is-on { background: var(--ork-raised); color: var(--ork-ink); box-shadow: inset 0 -2px 0 var(--ork-ink); }
 .shell-seg__one:focus-within { box-shadow: inset 0 0 0 2px var(--ork-ink); }
+
+/* a brief (docs/specs/66-team-briefs.md §7): what a template about people reads, Prepare before…, the page, Last time, standing briefs */
+.shell-reads { display: flex; flex-direction: column; gap: var(--ork-1); padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-frame);
+  clip-path: var(--ork-notch); overflow-wrap: anywhere; }
+.shell-days { flex-wrap: wrap; }
+.shell-days .shell-seg__one { padding: var(--ork-2) var(--ork-4); }
+.shell-when { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-5); }
+.shell-when__one { display: inline-flex; align-items: center; gap: var(--ork-3); white-space: nowrap; }
+.shell-when__one input[type="time"] { width: auto; }
+.shell-brief { white-space: pre-wrap; overflow-wrap: anywhere; padding: var(--ork-4); background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame);
+  font: var(--ork-type-body); }
+.shell-lasttime { border: var(--ork-line) solid var(--ork-frame); padding: var(--ork-3) var(--ork-4); }
+.shell-lasttime > summary { cursor: pointer; font: var(--ork-type-label); }
+.shell-lasttime[open] > summary { margin-bottom: var(--ork-3); }
+.board-op__standings { list-style: none; margin: 0; padding: 0 0 0 var(--ork-5); display: flex; flex-direction: column; gap: var(--ork-2);
+  border-left: var(--ork-line) solid var(--ork-frame); }
+.board-op__standing { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ork-3); }
 .shell-menu__list { display: flex; flex-direction: column; }
 .shell-pair { display: flex; flex-direction: column; gap: var(--ork-6); }
 .shell-pair__code { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-4); }
@@ -414,3 +431,27 @@
 .shell-pickone__ask { margin: 0; font: 400 14px/20px var(--ork-font-text); overflow-wrap: anywhere; }
 .shell-pickone__refused { margin: 0; }
 .shell-pickone__foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-4); }
+
+/* -- a pitch's screen (docs/specs/65-ideation.md §8): the four views side by side, the case against, the decision with its answer large; the views' and the
+   Investor's words in the text face, the pixel face for the headings and the buttons only -- */
+.shell-pitch__views { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--ork-4); }
+.shell-pitch__view { display: flex; flex-direction: column; gap: var(--ork-2); min-width: 0; padding: var(--ork-4); background: var(--ork-panel); }
+.shell-pitch__view.is-off { opacity: 0.5; }
+.shell-pitch__who { display: flex; align-items: center; gap: var(--ork-3); margin: 0 0 var(--ork-2); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); }
+.shell-pitch__who .board-size { margin-left: auto; }
+.shell-pitch__list { margin: 0; padding-left: var(--ork-6); display: flex; flex-direction: column; gap: var(--ork-1); font: var(--ork-type-body); overflow-wrap: anywhere; }
+.shell-pitch__q { margin: var(--ork-2) 0 0; font: var(--ork-type-body); overflow-wrap: anywhere; }
+.shell-pitch__words { margin: 0; font: var(--ork-type-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.shell-pitch__kills { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-1); font: var(--ork-type-body); }
+.shell-pitch__kills .ork-sign { color: var(--ork-danger); }
+.shell-pitch__case, .shell-pitch__decision { display: flex; flex-direction: column; gap: var(--ork-2); }
+.shell-pitch__answer { margin: 0; font: var(--ork-type-title); text-transform: var(--ork-type-title-case); letter-spacing: var(--ork-type-title-track); color: var(--ork-ink); }
+.shell-pitch__answer[data-answer="pass"] { color: var(--ork-ink-muted); }
+.shell-pitch__facts { margin-top: var(--ork-2); }
+.shell-pitch__after { margin: 0; }
+.shell-pitch__after .ork-sign { color: var(--ork-success); }
+.shell-pitch__acts, .shell-pitch__send { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-3); }
+.shell-pitch__send select { width: auto; min-width: 160px; }
+.shell-pitch__edit { display: flex; flex-direction: column; gap: var(--ork-3); }
+.shell-pitch__pass input { flex: 1; min-width: 200px; }
+.shell-band-fixed { margin: var(--ork-2) 0 0; }

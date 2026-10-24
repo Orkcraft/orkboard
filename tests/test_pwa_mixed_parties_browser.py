@@ -49,7 +49,7 @@ async def test_the_library_gives_the_mixed_parties_first_in_one_column(fake_repo
         sheet = await _sheet(page)
         tiles = sheet.locator(".preset-tile")
         await tiles.first.wait_for(timeout=WAIT_MS)
-        assert [await t.get_attribute("data-preset") for t in await tiles.all()] == ["game", "mobile-app", "website", "engineering", "design", "data", "marketing", "product", "mixed"]
+        assert [await t.get_attribute("data-preset") for t in await tiles.all()] == ["game", "mobile-app", "website", "ideation", "engineering", "design", "data", "marketing", "product", "mixed"]
         assert [await g.get_attribute("aria-label") for g in await sheet.locator(".preset-group").all()] == ["Mixed", "One craft", "Taskmaster alone"]
         xs = {round((await t.bounding_box())["x"]) for t in await tiles.all()}
         assert len(xs) == 1                                                                     # one column
@@ -149,4 +149,4 @@ async def test_an_older_host_says_today_s_words_and_keeps_the_row_of_crafts(fake
 
 def test_the_service_worker_is_one_version_up():
     sw = (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v72";' in sw
+    assert 'const CACHE = "orkcraft-app-v74";' in sw

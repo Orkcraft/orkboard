@@ -1,11 +1,18 @@
 """Operations' templates (docs/specs/38-operations.md §2): a Claude skill with Orkboard's manifest beside it.
 
-    found = op_templates.find()                    # {name: Template}: the built-in two, the person's winning by name
+    found = op_templates.find()                    # {name: Template}: the built-in ones, the person's winning by name
     t = found["jira-task"]
     op_templates.unusable(t, servers, claude=True) # "" or why it cannot be added from, in words
     op_templates.tools(t, servers)                 # (the prepare's tools, the action's tool) as the CLI spells them
     op_templates.clean_fields(t, given, last)      # the form checked (ValueError in words), defaults and remembered
     op_templates.put(args, "additional_fields.priority.name", "High")   # a value written at its `at`
+    op_templates.bound(t, servers)                 # a brief's bound reads, their tools as the CLI spells them
+
+A template **acts** (`[act]`: one tool, spec 38) or **briefs** (`[brief]`: it reads, writes a page for the person and
+does nothing outside; docs/specs/66-team-briefs.md §1), never both. A template about people (`people = true`, spec 66
+§2) says what it reads (`reads`), and each Slack tool it names is bound to the channels the person named
+(`[[prepare.bound]]`) or is a bound's lookup, else it is refused at load. `follow` names the field whose last kept
+brief the next one starts from (§4).
 
 A template is a skill folder holding `orkboard.toml` beside its `SKILL.md`: the person's in `<claude home>/skills/`
 (`$CLAUDE_HOME`, else `~/.claude`, as `sources/sessions.py` reads it), the built-in ones in `orkboard/ops_templates/`.
@@ -36,6 +43,9 @@ FOLDER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$")
 AT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*){0,5}$")
 TOOL = re.compile(r"^mcp__(\{[a-z][a-z0-9_]{0,39}\}|[A-Za-z0-9_-]+)__[A-Za-z0-9_.-]{1,100}$")
 KEY = re.compile(r"\{([a-z][a-z0-9_]{0,39})\}")
+ARG = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,59}$")
+READS_MAX, MAX_BOUND = 200, 6
+SLACK_ONLY = "a brief about people reads only the channels named"
 
 
 @dataclass
@@ -48,8 +58,13 @@ class Template:
     fields: list[dict] = field(default_factory=list)
     draft: list[dict] = field(default_factory=list)
     prepare: list[str] = field(default_factory=list)          # tool names with {key}
-    act: str = ""
-    act_label: str = ""
+    act: str = ""                                             # "" for a brief
+    act_label: str = ""                                       # the check's button: the action's, or a brief's Keep
+    brief: bool = False                                       # it prepares a page to read, does nothing outside (spec 66)
+    people: bool = False                                      # about people: spec 66 §2's line, held by code
+    reads: str = ""                                           # what it reads, said on its form
+    follow: str = ""                                          # the field whose last kept brief the next one starts from
+    bound: list[dict] = field(default_factory=list)           # [{tool, arg, field, lookup}]: a read held to named values
     version: str = ""
     skill: str = ""                                           # SKILL.md as read
     problem: str = ""                                         # "" a template that works; else why not, in words
@@ -133,17 +148,68 @@ def _fill(t: Template, data: dict) -> None:
     tools = prepare.get("tools", []) if isinstance(prepare, dict) else None
     if not isinstance(tools, list) or not all(isinstance(x, str) and TOOL.match(x) for x in tools):
         raise ValueError("its [prepare] tools are MCP tool names: mcp__{key}__tool")
-    act = data.get("act", {})
-    if not isinstance(act, dict) or not isinstance(act.get("tool"), str) or not TOOL.match(act["tool"]):
-        raise ValueError("its [act] names exactly one MCP tool: mcp__{key}__tool")
-    t.prepare, t.act = list(dict.fromkeys(tools)), act["tool"]
-    t.act_label = _text(act.get("label"), "its [act] label", 60)
-    for tool in [*t.prepare, t.act]:
+    t.prepare = list(dict.fromkeys(tools))
+    if "act" in data and "brief" in data:
+        raise ValueError("a template briefs or acts, not both: it has [act] and [brief]")
+    if "brief" in data:
+        brief = data["brief"]
+        if not isinstance(brief, dict):
+            raise ValueError("its [brief] is a table with its label")
+        t.brief, t.act_label = True, _text(brief.get("label"), "its [brief] label", 60)
+        if any(x.get("at") for x in [*t.fields, *t.draft]):
+            raise ValueError("a brief has no action: its fields and draft parts have no at")
+    else:
+        act = data.get("act", {})
+        if not isinstance(act, dict) or not isinstance(act.get("tool"), str) or not TOOL.match(act["tool"]):
+            raise ValueError("its [act] names exactly one MCP tool: mcp__{key}__tool")
+        t.act = act["tool"]
+        t.act_label = _text(act.get("label"), "its [act] label", 60)
+    for tool in [*t.prepare, *([t.act] if t.act else [])]:
         for key in KEY.findall(tool):
             if key not in t.servers:
                 raise ValueError(f"{tool} names {{{key}}}, which its servers do not")
-    if t.act in t.prepare:
+    if t.act and t.act in t.prepare:
         raise ValueError("its action's tool is not one it may read with")
+    _people(t, data, prepare)
+
+
+def _people(t: Template, data: dict, prepare: dict) -> None:
+    """`people`, `reads`, `follow` and `[[prepare.bound]]` (spec 66 §2, §4). A template about people says what it
+    reads, is at least `medium`, and each Slack tool it names is bound or a bound's lookup."""
+    if not isinstance(data.get("people", False), bool):
+        raise ValueError("its people is true or false")
+    t.people = data.get("people", False)
+    t.reads = _text(data.get("reads"), "its reads (what it reads, said on its form)", READS_MAX, need=t.people)
+    if t.people and t.risk == "low":
+        t.risk = "medium"
+    follow = data.get("follow")
+    if follow is not None:
+        if not t.brief or not isinstance(follow, str) or t.field_of(follow) is None:
+            raise ValueError("its follow names one of its fields, and only a brief follows")
+        t.follow = follow
+    raw = prepare.get("bound", [])
+    if not isinstance(raw, list) or len(raw) > MAX_BOUND:
+        raise ValueError(f"its [[prepare.bound]] are at most {MAX_BOUND} tables")
+    for b in raw:
+        lookup = b.get("lookup", "") if isinstance(b, dict) else None
+        if not isinstance(b, dict) or b.get("tool") not in t.prepare or not isinstance(b.get("arg"), str) \
+                or not ARG.match(b["arg"]) or not isinstance(b.get("field"), str) or t.field_of(b["field"]) is None \
+                or (lookup and lookup not in t.prepare) or not isinstance(lookup, str):
+            raise ValueError("a [[prepare.bound]] names one of its [prepare] tools, its argument and one of its "
+                             "fields (and its lookup, one of its tools)")
+        t.bound.append({"tool": b["tool"], "arg": b["arg"], "field": b["field"], "lookup": lookup})
+    if t.people:
+        held = {b["tool"] for b in t.bound} | {b["lookup"] for b in t.bound if b["lookup"]}
+        if any(slack(t, tool) and tool not in held for tool in t.prepare):
+            raise ValueError(SLACK_ONLY)
+
+
+def slack(t: Template, tool: str) -> bool:
+    """A Slack tool: its server's key, what that server is for, or its server's name says Slack."""
+    keys = KEY.findall(tool)
+    if keys:
+        return any(key == "slack" or "slack" in t.servers.get(key, "").casefold() for key in keys)
+    return "slack" in tool.split("__")[1].casefold()
 
 
 def _field(raw: object, names: set[str]) -> dict:
@@ -215,10 +281,21 @@ def resolve(tool: str, servers: dict[str, str]) -> str | None:
 def tools(t: Template, servers: dict[str, str]) -> tuple[list[str], str]:
     """(the prepare's tools, the action's tool) as the CLI spells them; raises ValueError when a key has no server."""
     got = [resolve(x, servers) for x in t.prepare]
-    act = resolve(t.act, servers)
+    act = resolve(t.act, servers) if t.act else ""          # a brief has no action
     if act is None or any(x is None for x in got):
         raise ValueError(unusable(t, servers))
     return [x for x in got if x], act
+
+
+def bound(t: Template, servers: dict[str, str]) -> list[dict]:
+    """A brief's bound reads, each tool and lookup as the CLI spells them (one whose key has no server is left out:
+    the template is then unusable)."""
+    out = []
+    for b in t.bound:
+        tool, lookup = resolve(b["tool"], servers), (resolve(b["lookup"], servers) if b["lookup"] else "")
+        if tool is not None and lookup is not None:
+            out.append({**b, "tool": tool, "lookup": lookup})
+    return out
 
 
 def short(tool: str) -> str:
@@ -230,7 +307,7 @@ def what_of(t: Template, tool: str, servers: dict[str, str] | None = None) -> st
     """What a tool's server is for ("Jira"), the tool named with its `{key}` or as resolved from `servers`; else
     the template's title."""
     if not KEY.findall(tool) and servers:
-        tool = next((raw for raw in [*t.prepare, t.act] if resolve(raw, servers) == tool), tool)
+        tool = next((raw for raw in [*t.prepare, t.act] if raw and resolve(raw, servers) == tool), tool)
     keys = KEY.findall(tool)
     return t.servers.get(keys[0], t.title) if keys else t.title
 
@@ -241,7 +318,7 @@ def unusable(t: Template, servers: dict[str, str], claude: bool = True) -> str:
         return f"{t.title} cannot be used: {t.problem}"
     if not claude:
         return "Operations run on Claude Code, which is not installed here"
-    for key in dict.fromkeys(k for tool in [*t.prepare, t.act] for k in KEY.findall(tool)):
+    for key in dict.fromkeys(k for tool in [*t.prepare, t.act] if tool for k in KEY.findall(tool)):
         if not servers.get(key):
             what = t.servers.get(key, key)
             return f"{what} is not connected: add its MCP server to Claude Code, then pick it here"
@@ -323,4 +400,12 @@ def with_values(t: Template, args: dict, fields: dict, draft: dict) -> dict:
 def public(t: Template) -> dict:
     """What `ops.list` shows of a template's form: its fields and draft parts as the manifest says them."""
     return {"name": t.name, "title": t.title, "risk": t.risk, "fields": [dict(f) for f in t.fields],
-            "draft": [dict(p) for p in t.draft], "act_label": t.act_label}
+            "draft": [dict(p) for p in t.draft], "act_label": t.act_label, "brief": t.brief, "people": t.people,
+            "reads": t.reads, "follow": t.follow}
+
+
+def same_value(a: object, b: object) -> bool:
+    """Two values of a follow field as the same person or team: compared as written, trimmed, ignoring case (spec 66
+    §4); an empty one is no one."""
+    a, b = str(a or "").strip().casefold(), str(b or "").strip().casefold()
+    return bool(a) and a == b

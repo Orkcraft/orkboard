@@ -6,6 +6,7 @@
 // work (Grunt fills in); a checker's check adds its line to the spec's Done when and its task to the plan (realm/idea_checks.py). A Mixed
 // goal starts with the Taskmaster alone, its craft its party's most. `makeParty` is the team and the checks alone: a goal's own screen
 // changes its team with the same two (§7). Under the price, *It can take:* the goal types the seats would be offered (spec 63 §2); a party saved here gathers its heads into the party's deck (§4).
+// Ideation (spec 65 §1) is the library's like any: its six agents are offered to no other party, and its seats are not changed (no Change; its price is a pitch's, it takes no goal type).
 import { h, sheet, head, icon } from "./util.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "./shell-who.js";
@@ -33,6 +34,8 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const lcfirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
 const TAKES_LINES = 3;                                         // *It can take* runs to three lines at most, then *and k more* (spec 63 §2.1)
 const GATHER_HEADS = 6;                                        // the heads that gather into the deck, the leader's first (spec 63 §4.1)
+/** Ideation is always its four views and the skeptic (spec 65 §1, realm/goal_team.py `IDEATION_WHOLE`): its seats are not changed, and its agents sit in no other party. */
+export const IDEATION_WHOLE = "Ideation reads every pitch from all four sides: its views and the skeptic stay.";
 /** A head of the sheet that stands for an agent: the gather finds where the sheet shows it by this. */
 const tag = (img, id) => { img.dataset.agent = id; return img; };
 
@@ -56,6 +59,8 @@ export function makeParty(core, opts = {}) {
   const inBand = (band) => (band === "lead" ? [leader] : team.filter((id) => bandOf(id) === band));
   const names = (band) => inBand(band).map(nameOf).join(", ") || "none";
   const draw = () => { drawTeam(); drawChecks(); opts.onChange?.(); };
+  /** The party is Ideation: its leader judges pitches (the library's `pitch`). */
+  const ideation = () => agent(leader)?.pitch === true;
   const seats = (band) => seatsOf(core, leader)[band];
   /** The refusal for a stage that has fewer seats with this leader than the party has members (spec 59 §6.2): "" when the party fits. */
   const overWords = () => {
@@ -116,9 +121,10 @@ export function makeParty(core, opts = {}) {
     if (!price) return null;
     const { low, high } = price, a = Math.round(low), b = Math.round(high);
     const range = low < 1 ? `$${low.toFixed(2)}–${high.toFixed(2)}` : a === b ? `$${a}` : `$${a}–${b}`;
+    const [one, many] = price.pitch ? ["pitch", "pitches"] : ["goal", "goals"];            // Ideation's price is a pitch's (spec 65 §3)
     return h("div", { class: "party-price-box" },
-      h("p", { class: "party-price", role: "status" }, `This party: about ${range} a goal`,
-        h("small", { class: "muted" }, ` ${price.learned ? `from this project's last ${price.ideas} goals` : "a first guess: it learns from this project's goals"}`)),
+      h("p", { class: "party-price", role: "status" }, `This party: about ${range} a ${one}`,
+        h("small", { class: "muted" }, ` ${price.learned ? `from this project's last ${price.ideas} ${many}` : `a first guess: it learns from this project's ${many}`}`)),
       ...(price.hints || []).map((t) => h("p", { class: "muted party-hint" }, t)));    // spec 43 §5: quiet lines, never a block, no button
   }
   /** *It can take:* the goal types a party of these seats would be offered (spec 63 §2): `ideas.party_price`'s `types`, each its sign and name, joined by ·; then *with one more:* the types that
@@ -126,7 +132,7 @@ export function makeParty(core, opts = {}) {
    *  lit once. Null for an older host (no `types`). */
   function takesLine() {
     takes = null;
-    if (!Array.isArray(price?.types)) return null;
+    if (!Array.isArray(price?.types) || price.pitch) return null;                        // a pitch has no goal type: its decision names the one it will have
     const lit = motionOn() ? opened : new Set();
     opened = new Set();
     const have = price.types.filter((t) => !t.missing), all = [...have, ...price.types.filter((t) => t.missing)];
@@ -188,7 +194,7 @@ export function makeParty(core, opts = {}) {
   function band([id, words, what]) {
     const n = Math.max(seats(id), inBand(id).length), taken = inBand(id), on = fold === id, word = stagesOf(core, leader)[id];
     const own = (core.st.roles?.roles || []).filter((r) => team.includes(r.slug) && bandOf(r.slug) === id && !library(core).some((a) => a.id === r.slug));
-    const list = [...library(core).filter((a) => a.band === id), ...own.map((r) => ({ ...r, id: r.slug, band: id }))]
+    const list = [...library(core).filter((a) => a.band === id && !a.pitch), ...own.map((r) => ({ ...r, id: r.slug, band: id }))]       // the pitch agents are Ideation's only
       .sort((x, y) => (x.craft === craftNow() ? 0 : 1) - (y.craft === craftNow() ? 0 : 1));        // the goal's craft's first
     const over = taken.length > seats(id);
     return h("section", { class: `party-fold band-${id}${on ? " is-open" : ""}`, "aria-label": words, "data-stage": word },
@@ -208,9 +214,11 @@ export function makeParty(core, opts = {}) {
 
   function drawTeam() {
     const line = h("p", { class: "party-line" }, h("b", {}, "Leads: "), names("lead"), " · ", h("b", {}, "Builds: "), names("build"), " · ", h("b", {}, "Checks: "), names("check"));
+    if (ideation()) editing = false;                              // Ideation's seats stay: no Change
     if (!editing) {
       teamEl.replaceChildren(...[h("h3", {}, "The party"), ownRow(), line, overWords() ? h("p", { class: "party-over", role: "alert" }, overWords()) : null, priceLine(), takesLine(),
-        h("button", { class: "ork-btn", type: "button", "data-change": "team", onclick: () => { editing = true; fold = "lead"; draw(); } }, "Change")].filter(Boolean));
+        ideation() ? h("p", { class: "muted party-whole", "data-sec": "ideation" }, IDEATION_WHOLE)
+          : h("button", { class: "ork-btn", type: "button", "data-change": "team", onclick: () => { editing = true; fold = "lead"; draw(); } }, "Change")].filter(Boolean));
       fitTakes();
       return;
     }
@@ -227,6 +235,10 @@ export function makeParty(core, opts = {}) {
     const checkers = team.map(agent).filter((a) => a?.check);
     const mine = every.filter((id) => team.includes(id));
     const said = !checkers.length ? "No check" : `${checkers.length} ${checkers.length === 1 ? "check" : "checks"}, ${mine.length ? `${mine.length} on every goal` : "where each applies"}`;
+    if (ideation()) {                                               // the Skeptic makes the case against every pitch: no check to set
+      checksEl.replaceChildren(h("h3", {}, "Checks on every goal"), h("p", { class: "party-line" }, `${names("check")} makes the case against every pitch; ${nameOf(leader)} decides.`));
+      return;
+    }
     if (!checking || !checkers.length) {
       checksEl.replaceChildren(...[h("h3", {}, "Checks on every goal"), h("p", { class: "party-line" }, checkers.length ? said : "No checker in the party: a goal is done when its own Done when lines are."),
         checkers.length ? h("button", { class: "ork-btn", type: "button", "data-change": "checks", onclick: () => { checking = true; drawChecks(); } }, "Change") : null].filter(Boolean));
@@ -392,7 +404,8 @@ export function makeNewGoal(core) {
 
   return {
     el: sh.el,
-    open(after = null) {
+    /** `presetId`: a party of the library picked at once (a pitch sent to a party the project lacks, spec 65 §5). */
+    open(after = null, presetId = "") {
       then = after;
       craft = "engineering";
       preset = "";
@@ -401,6 +414,8 @@ export function makeNewGoal(core) {
       priority.set("normal");
       party.set({ leader: TASKMASTER, team: [], every: [] }, () => craftOf());
       party.preset(craft, false);
+      const picked = presetId && presetsOf(core).find((p) => p.id === presetId);
+      if (picked) pickPreset(picked);
       drawCraft();
       left.replaceChildren(limitsNote(core.st.snap) || "");
       body.replaceChildren(

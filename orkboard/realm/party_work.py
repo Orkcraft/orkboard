@@ -1,7 +1,7 @@
 """What a goal's party did (docs/specs/43-party-measured.md §2): each member's tasks, merged the first time and $, each checker's
 ideas checked, clean, caught, left and $, from the goal's ideas' plans. A pure read: no face, no model, it writes nothing.
 
-    party_work.work(root, state_dir, "billing")        # §2.1's object
+    party_work.work(root, state_dir, "billing")        # §2.1's object (an Ideation party's with `pitches`: realm/pitches.py `tally`)
 
 `root` is the Board's tree (where the goal's and the ideas' pages are), `state_dir` the project's state. A goal's party is its
 leader, its builders and its checkers (realm/goal_team.py). A *check task* is one whose `kind` is a checker's tag
@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from orkboard.realm import board_recap, goal_team, idea_checks, idea_spend, ideas, library, roles
+from orkboard.realm import board_recap, goal_team, idea_checks, idea_spend, ideas, library, pitches, roles
 
 QUIET_RUN = 8                            # check tasks of a goal that all ended clean in round 1: the night proposes to take the checker out
 ENDED = ("merged", "failed")             # a task that has an end: the work counts from here
@@ -124,7 +124,10 @@ def work(root: Path, state_dir: Path, goal: str, target: str = "balance") -> dic
         checks.append({"by": by, **{k: v for k, v in who(state_dir, by, target).items() if k != "slug"},
                        "applied": applied, "skipped": skipped, "clean": clean, "caught": caught, "left": left, "before": before,
                        "usd": usd_of(rows)})
-    return {"ideas": len(plans), "leader": leader, "members": members, "checks": checks}
+    out = {"ideas": len(plans), "leader": leader, "members": members, "checks": checks}
+    if goal_team.leader_of(root, goal) == library.INVESTOR:       # Ideation: its pitches judged, sent, passed (spec 65 §6)
+        out["pitches"] = pitches.tally(root, state_dir, goal)
+    return out
 
 
 # -- what a check is worth (spec 43 §4) ------------------------------------------------------------------------

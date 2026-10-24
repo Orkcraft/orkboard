@@ -1,5 +1,5 @@
 // The pieces the phone's forms share (docs/specs/34-v1-round-2.md §5): a labelled field, a list of rows to add to and remove from
-// (a goal's metrics and links), the priority choice, and the foot a sheet's buttons are pinned in.
+// (a goal's metrics and links), the priority choice, the days of the week, and the foot a sheet's buttons are pinned in.
 import { h } from "./util.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
@@ -56,4 +56,18 @@ export function prioritySwitch(name = "priority") {
   el.addEventListener("change", () => set(inputs.find((i) => i.checked)?.value));
   set("normal");
   return { el, get: () => inputs.find((i) => i.checked)?.value || "normal", set };
+}
+
+export const DAYS = [["Mon", "Monday"], ["Tue", "Tuesday"], ["Wed", "Wednesday"], ["Thu", "Thursday"], ["Fri", "Friday"], ["Sat", "Saturday"], ["Sun", "Sunday"]];
+
+/** The days of the week as seven toggles (spec 66 §7, a standing brief's *Prepare before…*): Monday 0 … Sunday 6, as the host counts
+ *  them. Returns {el, get() → [0–6], set(days)}. */
+export function daysSwitch(label = "Days") {
+  const inputs = DAYS.map(([, day], i) => h("input", { type: "checkbox", value: String(i), "aria-label": day }));
+  const pills = DAYS.map(([short], i) => h("label", { class: "pill" }, inputs[i], h("span", { "aria-hidden": "true" }, short)));
+  const el = h("div", { class: "pills days", role: "group", "aria-label": label }, ...pills);
+  const paint = () => inputs.forEach((i) => i.parentElement.classList.toggle("is-on", i.checked));
+  el.addEventListener("change", paint);
+  const set = (days) => { const on = new Set((days || []).map(Number)); inputs.forEach((i, n) => { i.checked = on.has(n); }); paint(); };
+  return { el, get: () => inputs.filter((i) => i.checked).map((i) => Number(i.value)), set };
 }

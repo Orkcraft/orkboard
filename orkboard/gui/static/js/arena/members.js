@@ -6,7 +6,7 @@ import { html, cls } from "../html.js";
 import { Head, Sign, TIER_WORDS, ORKUI } from "../orkui.js";
 import { agents, roles } from "../shell/store.js";
 import { solo } from "./arenastate.js";
-import { useLit } from "./motion.js";
+import { useLit, useStruck } from "./motion.js";
 import { BAND_WORDS, BAND_KEYWORD, stageOf, columnOf, nowOf, statsOf, roleOf, memberView, raceOf, signOf } from "./arenawords.js";
 
 const MARKS = `${ORKUI}/marks`;
@@ -57,10 +57,12 @@ export function Member({ m, nodes, planning, lead = false, stage = "" }) {
   const pick = () => { solo.value = on ? "" : m.slug; };
   const runs = useRef();
   useLit(runs, st.runs);                                   // a merge lights the first number once (§11)
+  const port = useRef();
+  useStruck(port, sign?.mark);                             // a failure strikes the head, a question calls (§11.7)
   return html`<div class="arena-mcol" data-agent=${m.slug}>
     <button type="button" class=${cls("arena-member", { "is-on": on, "is-dim": dim, "is-lead": lead })} data-state=${m.state} data-agent=${m.slug}
       aria-pressed=${on} aria-label=${view.label} onClick=${pick}>
-      <span class="arena-tport">${m.head && html`<${Head} race=${m.head.race} tier=${m.head.tier} size="mid" />`}
+      <span class="arena-tport" ref=${port}>${m.head && html`<${Head} race=${m.head.race} tier=${m.head.tier} size="mid" />`}
         <${Mark} name=${`rank-${st.rank}`} tip=${st.rankTip} where="r" /><${Mark} name=${`harness-${st.harness.id}`} tip=${st.harnessTip} where="h" />
         ${sign && html`<span class=${cls("arena-sign", sign.tone)} title=${view.words} data-sign=${sign.mark}><${Sign} name=${sign.mark} /></span>`}</span>
       <span class="arena-tbody"><span class="arena-member__nm">${m.name}</span>

@@ -8,6 +8,7 @@ idea straight into its spec, talks a spec through with the person, turns a spec 
     keeper.say(slug, "Why not a toggle?", "Risks")    # an edit of one section, in the background
     keeper.plan(slug)                 # Re-plan: the page → plan.json, with its estimate
     keeper.revise(slug)               # Re-plan what is left, after the start: a plan change for the tasks not started (core/idea_revise.py)
+    keeper.judge(slug)                # a pitch (a goal of Ideation): its four views, the case against, the Investor's decision (core/idea_judge.py)
     keeper.read_stop(slug)            # this idea's run stops (its own cancel); its queue is `hold`
     keeper.tick()                     # the host's clock: what the limits held runs again, and the night (core/idea_night.py)
 
@@ -41,6 +42,7 @@ from typing import Any, Callable
 
 from orkboard.core.idea_draft import DraftMixin
 from orkboard.core.idea_goals import GoalMixin
+from orkboard.core.idea_judge import JudgeMixin
 from orkboard.core.idea_night import NightMixin
 from orkboard.core.idea_lead import LeadMixin
 from orkboard.core.idea_revise import ReviseMixin
@@ -59,6 +61,7 @@ TICK_S = 20.0                      # how often the clock looks for what the limi
 
 Call = Callable[[str, str, str, Any], tuple[str, Any, Any, str]]   # (tier, prompt, effort, budget) → (text, cost, tokens, session)
 BUDGET_LINE = "the keeper ran out of its budget for this step"
+PITCH_NOT_BUILT = "A pitch is judged, not built: send it to a party first"      # spec 65 §2
 
 
 class KeeperError(Exception):
@@ -96,7 +99,7 @@ def _iso(at: float) -> str:
     return dt.datetime.fromtimestamp(at).isoformat(timespec="seconds")
 
 
-class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin, ReviseMixin):
+class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin, ReviseMixin, JudgeMixin):
     def __init__(self, repo_root: Path, state_dir: Path, wiki_root: Callable[[], Path],
                  settings: Callable[[], dict], publish: Callable[[str], None] = lambda slug: None,
                  demo: bool = False, budget_ok: Callable[[], bool] = lambda: True,
@@ -150,17 +153,20 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin, ReviseMixin):
         lead = self.leader()
         return idea_target.keeper_pick(step, self.target(), (lead.get("model") or idea_target.TIER_ROLE) if lead else self.taskmaster())
 
-    def ask(self, step: str, prompt: str, tools: bool = True) -> tuple[str, Any, Any, str]:
+    def ask(self, step: str, prompt: str, tools: bool = True, as_role: str = "") -> tuple[str, Any, Any, str]:
         """One model call on a step, measured; a run stopped meanwhile (its own cancel or Stop all) raises
-        InterruptedError; one that ran out of its budget with nothing to use raises KeeperError with BUDGET_LINE."""
-        got = self.pick(step)
+        InterruptedError; one that ran out of its budget with nothing to use raises KeeperError with BUDGET_LINE.
+        `as_role`: a role's slug the call speaks as, not the goal's leader (a pitch's views: core/idea_judge.py)."""
+        got = self.pick_as(step, as_role) if as_role else self.pick(step)
         if got is None:
             raise KeeperError(f"The Target {self.target()} makes no {step} call")
-        if lead := self.leader():                    # the goal's leader: its voice and instruction first
+        if as_role:
+            prompt = self.speak_as(as_role) + prompt
+        elif lead := self.leader():                  # the goal's leader: its voice and instruction first
             prompt = self.voice(lead) + prompt
         elif told := str((roles.role(self.state_dir, roles.TASKMASTER) or {}).get("instruction") or "").strip():
             prompt = f"{told}\n\n{prompt}"            # the person's words for the Taskmaster (spec 41 §8)
-        self._tls.picked, self._tls.tools, self._tls.usage, self._tls.capped = got, tools, None, False
+        self._tls.picked, self._tls.tools, self._tls.usage, self._tls.capped, self._tls.as_role = got, tools, None, False, as_role
         self._tls.measure = {"step": step, "prompt_chars": len(prompt), "tokens": None, "cost": None}
         try:
             text, cost, tokens, session = self.call(got[0], prompt, got[1], idea_target.budget(step, self.target()))
@@ -185,7 +191,7 @@ class IdeaKeeper(DraftMixin, GoalMixin, NightMixin, LeadMixin, ReviseMixin):
         h, tier = harnesses.get(HARNESS), idea_target.tier_of(got[0])
         key = getattr(self._tls, "key", "") or getattr(self._tls, "slug", "") or ""
         where = {} if step == "propose" else ({"goal": key[5:]} if key.startswith("goal:") else {"idea": key})
-        idea_spend.append(self.state_dir, idea_spend.line(step, roles.TASKMASTER, HARNESS, (h.pick(got[0]) if h else "") or got[0],
+        idea_spend.append(self.state_dir, idea_spend.line(step, getattr(self._tls, "as_role", "") or roles.TASKMASTER, HARNESS, (h.pick(got[0]) if h else "") or got[0],
                                                           tier, got[1], idea_spend.tokens_of(usage, tokens), cost), **where)
 
     def parse(self, text: str) -> dict:
@@ -434,6 +440,8 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         root = self.wiki_root()
         if ideas.idea_page(root, slug) is None:
             raise KeeperError("That goal is gone")
+        if self.is_pitch(slug):
+            raise KeeperError(PITCH_NOT_BUILT)
         old = ideas.plan(self.state_dir, slug)
         if old and old.get("passed_at"):
             raise KeeperError("Its plan is passed already: the tasks are in work")
