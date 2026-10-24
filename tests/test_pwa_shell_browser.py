@@ -369,7 +369,7 @@ async def _phone(repo: Path, monkeypatch, init: str = "", extra: str = ""):
     def snap(host):
         s = real(host)
         return {**s, "rev": f"{s['rev']}-{stub.rev}", "focus": "board", "ideas_rev": stub.rev, "needs_you": 2, "look": "camp",
-                "review_count": len(stub.results()), "reserve": stub.reserve,
+                "review_count": len(stub.results()), "reserve": stub.reserve, "rate": getattr(stub, "rate", None),
                 "limits": [{"provider": "claude", "name": "Claude", "left": 0.62,
                             "rows": [{"window": "5h", "left": 0.62, "reset": f"{_TODAY}T18:00"}, {"window": "week", "left": 0.8, "reset": f"{_IN_TWO_DAYS}T09:00"}]},
                            {"provider": "agy", "name": "Antigravity", "left": 0.15, "rows": [{"window": "daily", "left": 0.15, "reset": ""}]},

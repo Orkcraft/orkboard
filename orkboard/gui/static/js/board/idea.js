@@ -12,6 +12,7 @@ import { act as run, showTask, showIdea, closePreview, roles, mapData } from "..
 import { missingWords } from "../arena/types.js";
 import { changeGem, changeToast } from "../arena/arenawords.js";
 import { ErrorLine } from "../shell/errors.js";
+import { pctOf, pctRange } from "../spend.js";
 import { PointedAt } from "../shell/lens.js";
 
 // Section → [colour role, line icon, kit icon]. The role is a design-system token in board.css (`[data-sec]`); the line
@@ -33,7 +34,7 @@ const KIT_ICONS = "/ds/sprites/v4/ui/icons/";
 const camp = () => document.documentElement.dataset.look === "camp";    // the kit's icon only there: Office asks for no sprite
 
 const usd = (n) => (n < 10 ? n.toFixed(2).replace(/0$/, "") : String(Math.round(n)));
-export const price = (e) => (e ? `~$${usd(e.usd_low)}–${usd(e.usd_high)}` : "");
+export const price = (e) => (e ? `~${pctRange(e.usd_low, e.usd_high) || `$${usd(e.usd_low)}–${usd(e.usd_high)}`}` : "");
 
 /** The leader of the party a goal belongs to (`track`: its slug in the Map), by name; "" when the Taskmaster leads or the Map does not know it (yet). `say()` does not swap a name. */
 const leaderOf = (track) => {
@@ -105,7 +106,7 @@ function Tasks({ plan, working }) {
     ${plan.passed_by === "auto" && !["waiting", "ready"].includes(k.state) && html`<span class="ok-tone-muted">by itself</span>`}
     ${k.state === "held" && k.note && html`<span class="ok-tone-wait">${holdWords(k.note, k.waits_title || board.value?.ideas.find((i) => k.note.endsWith(` · ${i.slug}`))?.title)}</span>`}
     ${k.error && html`<span class="ok-tone-error">${k.error}</span>`}
-    ${working && k.cost != null && html`<span class="ok-tone-muted">$${usd(k.cost)}</span>`}
+    ${working && k.cost != null && html`<span class="ok-tone-muted">${pctOf(k.cost) || `$${usd(k.cost)}`}</span>`}
   </li>`)}</ul>`;
 }
 
@@ -115,7 +116,7 @@ const CHECK_STATE = { waiting: "waiting", ready: "queued", running: "working", t
 /** A check the person may still skip: it applies, it has not run (no task yet, or its task waits). */
 export const skippable = (c) => c.applies && !c.skipped && (!c.state || ["waiting", "ready", "held"].includes(c.state));
 /** What skipping a check spares, in words ("" when its tier has no price yet). */
-export const spares = (c) => { const usd = Number(roles.value?.tier_costs?.[c.tier]); return usd > 0 ? ` · spares ≈ $${usd.toFixed(2)}` : ""; };
+export const spares = (c) => { const usd = Number(roles.value?.tier_costs?.[c.tier]); return usd > 0 ? ` · spares ≈ ${pctOf(usd) || `$${usd.toFixed(2)}`}` : ""; };
 
 /** The checks the goal's team holds this idea to (realm/idea_checks.py): passed, its task's state, why it does not apply, or
  *  skipped by the person; Skip spares a check that has not run (its task taken out of the plan), Take again before a plan. */

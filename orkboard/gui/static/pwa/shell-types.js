@@ -2,6 +2,7 @@
 // (shell-ideas.js), not a strip over a deck (spec 53 drops spec 52 §5.5's strip). Here: the agents' heads and prices the join line speaks with, and the join line of the form, one entry per kind
 // the type misses (two at most): a free seat (*<agent> joins the party*), a swap (*Swap: <member> leaves, <agent> joins*, *Who leaves*) or a full band (a muted line), each saying what happens without it.
 import { h } from "./util.js";
+import { pctOf } from "./shell-spend.js";
 import { whoHead } from "./shell-who.js";
 
 const JOINS = 2;                                     // the join line's entries at most
@@ -18,7 +19,7 @@ export function agentHead(st, slug) {
 export function runPrice(st, slug) {
   const a = (st.roles?.library || []).find((x) => x.id === slug);
   const usd = Number(st.roles?.tier_costs?.[a?.tier]);
-  return usd > 0 ? `≈$${usd.toFixed(2)} a run` : "";
+  return usd > 0 ? `≈${pctOf(usd) || `$${usd.toFixed(2)}`} a run` : "";
 }
 
 /** What the join line says for one entry of a type's `missing` (spec 52 §4.3): {shape: "free"|"swap"|"full", line, without, out}. */

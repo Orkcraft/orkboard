@@ -10,6 +10,7 @@ import { agents, showIdea, showGoal, showTask } from "./store.js";
 import { openDialog } from "./modals.js";
 import { holdWords } from "../board/store.js";
 import { WhoHead, CRAFT_WORDS, TIER_WORDS, RACE_WORDS } from "../orkui.js";
+import { pctOf, rated, SHARE_TIP } from "../spend.js";
 
 const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: ["at Review", ""], ready: ["queued", ""],
   held: ["held", "⏳"], failed: ["needs you", "⚠"] };
@@ -24,10 +25,10 @@ export function gruntWords(c) {
   return mark ? `${word} ${mark}` : word;
 }
 
-const API_PRICES = "At API prices, not your bill";
+const apiPrices = () => (rated() ? SHARE_TIP : "At API prices, not your bill");
 const AN = (race) => (/^[aeiou]/.test(RACE_WORDS[race]) ? "an" : "a");
 
-const money = (n) => `≈$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
+const money = (n) => `≈${pctOf(n) || `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`}`;
 
 /** A role's day and week, muted under its line (spec 36 §2; the owner, 20 October): what it spent today; once it has three
  * merged, what a result cost and how often it was merged the first time; the Taskmaster's, how often its plans' tasks went the
@@ -47,7 +48,7 @@ export function checkWords(role) {
 
 /** A role's words for a screen reader: "Docs scribe: an elf, Design, Seasoned; up to 2 at once; about $0.40 a task". */
 export function roleWords(role) {
-  const hd = role.head, usd = role.usd_task == null ? "" : `about $${Number(role.usd_task).toFixed(2)} a task`;
+  const hd = role.head, usd = role.usd_task == null ? "" : `about ${pctOf(role.usd_task) || `$${Number(role.usd_task).toFixed(2)}`} a task`;
   const who = [hd ? `${AN(hd.race)} ${RACE_WORDS[hd.race]}` : "", CRAFT_WORDS[hd?.craft], TIER_WORDS[hd?.tier]].filter(Boolean).join(", ");
   return [`${role.name}${who ? `: ${who}` : ""}`, role.role === "taskmaster" ? "" : `up to ${role.max_parallel} at once`, usd].filter(Boolean).join("; ");   // the week: its own line
 }
@@ -58,9 +59,9 @@ function Head({ role }) {
     <${WhoHead} head=${role.head} />
     <h3 class="shell-role__name">${say(role.name)}</h3>
     ${!tm && html`<span class="shell-role__many" title=${`Up to ${role.max_parallel} at once`}>×${role.max_parallel}</span>`}
-    ${role.usd_task != null && html`<span class="shell-role__usd" title=${API_PRICES}>≈ $${Number(role.usd_task).toFixed(2)} a task</span>`}
+    ${role.usd_task != null && html`<span class="shell-role__usd" title=${apiPrices()}>≈ ${pctOf(role.usd_task) || `$${Number(role.usd_task).toFixed(2)}`} a task</span>`}
     <button class="board-link" aria-label=${`Edit ${say(role.name)}`} onClick=${() => openDialog("agent", { slug: role.role })}>Edit</button>
-    ${week && html`<span class="ok-font-status ok-tone-muted shell-role__facts"><span class="shell-role__week" title=${week.includes("$") ? API_PRICES : ""}>${week}</span></span>`}
+    ${week && html`<span class="ok-font-status ok-tone-muted shell-role__facts"><span class="shell-role__week" title=${week.includes("$") || week.includes("% of 5h") ? apiPrices() : ""}>${week}</span></span>`}
   </div>`;
 }
 

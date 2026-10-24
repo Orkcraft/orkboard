@@ -3,6 +3,7 @@
 // the Open questions with a box to answer, what the party did). A party has no end: no Metrics, no verdict (a verdict of before is history, *Before: …*). Saving sends the party to the
 // Taskmaster at once; it writes the rest. New party is shell-goal-new.js's.
 import { h, sheet } from "./util.js";
+import { pctOf } from "./shell-spend.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
 import { CRAFT_WORDS, RACE_WORDS, goalHead, whoHead } from "./shell-who.js";
@@ -146,7 +147,7 @@ export function goalBody(g, core, act, asked, setAsked) {
 }
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-const usdWords = (usd) => `≈$${usd.toFixed(2)}`;
+const usdWords = (usd) => `≈${pctOf(usd) || `$${usd.toFixed(2)}`}`;
 
 /** What a party did (spec 43 §2.3), a line each, in the text face: the leader's steps, each member's tasks, each checker's checks. */
 export function partyLines(w) {

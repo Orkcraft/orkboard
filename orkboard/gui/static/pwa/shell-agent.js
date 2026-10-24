@@ -6,6 +6,7 @@
 // Taskmaster and the Grunt, whose instruction is Orkboard's own, the field says *Added to what it is told* and *What it is told already* is
 // above it, folded and read only (spec 41 §8, `told` of `ideas.roles`).
 import { h, sheet } from "./util.js";
+import { pctOf } from "./shell-spend.js";
 import { field, foot } from "./shell-forms.js";
 import { who, CRAFT_WORDS, RACE_WORDS } from "./shell-who.js";
 
@@ -21,7 +22,7 @@ export function recordWords(r) {
   }
   if (!rec?.finished) return "No tasks in the last 30 days";
   if (rec.finished < TOO_FEW) return `The last 30 days: ${n(rec.finished, "task", "tasks")}: too few to say more`;
-  return `The last 30 days: ${n(rec.finished, "task", "tasks")}, ${rec.first_time} merged the first time${rec.usd_per_merged != null ? ` · ≈$${rec.usd_per_merged.toFixed(2)} a merged result` : ""}`;
+  return `The last 30 days: ${n(rec.finished, "task", "tasks")}, ${rec.first_time} merged the first time${rec.usd_per_merged != null ? ` · ≈${pctOf(rec.usd_per_merged) || `$${rec.usd_per_merged.toFixed(2)}`} a merged result` : ""}`;
 }
 
 /** A checker's check in the last 30 days (spec 43 §4.1); "" for an agent that checks nothing, or has not yet. */
@@ -29,7 +30,7 @@ export function checkRecordWords(r) {
   const c = r?.record?.check, n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
   if (!c || !c.checks) return "";
   if (c.checks < TOO_FEW) return `Its check, the last 30 days: ${n(c.checks, "goal", "goals")}: too few to say more`;
-  return `Its check, the last 30 days: ${n(c.checks, "goal", "goals")}: ${c.clean} clean, caught ${c.caught}${c.usd_per_check != null ? ` · ≈$${c.usd_per_check.toFixed(2)} a check` : ""}`;
+  return `Its check, the last 30 days: ${n(c.checks, "goal", "goals")}: ${c.clean} clean, caught ${c.caught}${c.usd_per_check != null ? ` · ≈${pctOf(c.usd_per_check) || `$${c.usd_per_check.toFixed(2)}`} a check` : ""}`;
 }
 
 export function makeAgentSheet(core) {
