@@ -413,7 +413,7 @@ def test_a_node_has_its_element_and_its_flag_and_a_party_its_flags_waits_and_bri
     flag = idea_flag.raise_flag(root, state, flagged, "gate", "c" * 40)
     got = host.command("ideas.map", {})
     nodes = {n["slug"]: n for n in got["nodes"]}
-    assert nodes[flagged]["flag"] == flag and set(flag) == {"at", "by", "commit", "tasks", "first_time", "usd", "days"} and flag["tasks"] == 2
+    assert nodes[flagged]["flag"] == {**flag, "release": None} and set(flag) == {"at", "by", "commit", "tasks", "first_time", "usd", "days"} and flag["tasks"] == 2
     assert nodes[waiting]["flag"] is None and nodes[open_one]["flag"] is None
     assert all(n["element"] in ("meadow", "ice", "dust", "void", "lava") for n in nodes.values()) and nodes[open_one]["element"] == "lava"
     parties = {p["slug"]: p for p in got["goals"]}

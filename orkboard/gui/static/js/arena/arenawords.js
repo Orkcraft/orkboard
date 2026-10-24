@@ -6,6 +6,7 @@ import { memberWords, soFarWords, todayWords } from "../board/mapstage.js";
 import { holdWords, hhmm, OPS } from "../board/store.js";
 import { TIER_WORDS, RACE_WORDS } from "../orkui.js";
 import { kindCount } from "./pickwords.js";
+import { pctOf, pctRange, pctDelta, rated, SHARE_TIP } from "../spend.js";
 
 export const RUN = ["running", "testing"];
 export const RANK = { running: 0, testing: 0, failed: 1, picking: 1.5, review: 2, ready: 3, waiting: 4, held: 5 };      // a column, from the member up (§5.4); a pick waits for the person, after a failure (spec 51)
@@ -31,10 +32,10 @@ export function waitsWords(w) {
 
 /** *tonight*, or the Board's own night work: *tonight, or sooner if the week has room* (spec 44 §2); `starts` for a plan that starts tonight. */
 export const tonightWords = (n, starts = false) => `${starts ? "starts " : ""}tonight${n.night_by === "board" ? ", or sooner if the week has room" : ""}`;
-export const money = (n) => `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
+export const money = (n) => pctOf(n) || `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
 const round2 = (n) => Math.round(n * 100) / 100;
 /** *$1–2*: a plan's price, from `plan_estimate`; "" with none. */
-export const rangeWords = (e) => (e ? `$${round2(e.usd_low)}–${round2(e.usd_high)}` : "");
+export const rangeWords = (e) => (e ? pctRange(e.usd_low, e.usd_high) || `$${round2(e.usd_low)}–${round2(e.usd_high)}` : "");
 
 /** Minutes since a local ISO time, as *4 min*; "" when it is not read or is in the future. */
 export function sinceWords(iso, now = Date.now()) {
@@ -173,7 +174,7 @@ export function statsOf(m, role, lead = false) {
   const w = role?.week || null, cw = role?.check_week || null;
   const finished = w?.finished || 0, again = Math.max(0, finished - (w?.first_time || 0));
   let n, redo, word, tip, avg, price, priceTip;
-  const API = "at API prices, not your bill";
+  const API = rated() ? SHARE_TIP.replace(/^An/, "an") : "at API prices, not your bill";
   if (lead) {
     n = w?.plans ?? finished; redo = again; word = "plans/made again";
     tip = `${plural(n, "plan", "plans")} this week, ${redo} made again`;
@@ -238,14 +239,18 @@ export const raceOf = (head) => (head ? RACE_WORDS[head.race] || "" : "");
 // -- the columns -------------------------------------------------------------------------------------------------------------------
 
 /** A check that waits for the whole build says so: *after the build* (every build task of its goal is among those it follows). */
-function followsBuild(t, n) {
+export function followsBuild(t, n) {
   const builds = (n?.tasks || []).filter((x) => x.band !== "check");
   return t.band === "check" && builds.length > 0 && builds.every((b) => (t.after || []).includes(b.id));
 }
-/** What a task follows, in a few words: *after k1, k2*, or *after the build* for a check that waits for all of it. */
-export const afterWords = (t, n) => (followsBuild(t, n) ? "after the build" : `after ${t.after.join(", ")}`);
+/** What a task follows, by name (spec 67 §3): *after Challenge store, Credential table*, or *after the build* for a check that waits for all of it; an id with no task found is left out ("" when none is left). */
+export function afterWords(t, n) {
+  if (followsBuild(t, n)) return "after the build";
+  const names = (t.after || []).map((id) => (n?.tasks || []).find((x) => x.id === id)).filter(Boolean).map((x) => x.short || x.title);
+  return names.length ? `after ${names.join(", ")}` : "";
+}
 
-/** A task's foot: its state in words (*working 4 min*, *in Review*, *after k1*, *tonight · after 01:00*, *failed*). */
+/** A task's foot: its state in words (*working 4 min*, *in Review*, *after Challenge store*, *tonight · after 01:00*, *failed*). */
 export function taskFoot(t, n) {
   if (t.state === "running") return `working${sinceWords(t.started) ? ` ${sinceWords(t.started)}` : ""}`;
   if (t.state === "testing") return "testing";
@@ -257,7 +262,7 @@ export function taskFoot(t, n) {
     if (n?.waits?.kind === "week") return waitsWords(n.waits);
     return holdWords(t.note, n?.waits?.title) || "held";
   }
-  if (t.state === "waiting") return t.after?.length ? afterWords(t, n) : "waiting";
+  if (t.state === "waiting") return afterWords(t, n) || "waiting";
   if (t.state === "ready") return t.note || "next";
   return TASK_STATE[t.state] || t.state;
 }
@@ -344,6 +349,7 @@ const GEM = { plan: "", change: "", asks: "?", goal: "?", proposal: "—", party
 export function changeGem(c) {
   const low = Number(c?.usd_low), high = Number(c?.usd_high);
   if (!Number.isFinite(low) || !Number.isFinite(high) || (!low && !high)) return "";
+  if (pctDelta(low, high)) return pctDelta(low, high);
   const num = (n, cents) => (cents ? n.toFixed(2) : String(Math.round(n)));
   if (low < 0 && high > 0) return `−$${num(-low, -low < 1)} to +$${num(high, high < 1)}`;
   const [a, b] = [Math.abs(low), Math.abs(high)].sort((x, y) => x - y), cents = a < 1, from = num(a, cents), to = num(b, cents);

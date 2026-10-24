@@ -13,7 +13,7 @@ from orkboard.gui.ideas_args import VIA, IdeasError, _device, _text
 from orkboard.realm import idea_pick, ideas, roles
 from orkboard.realm.board_map import task_short
 
-PICK_VIA = ("hand", "drawer", "screen")           # where a pick was answered: the stops along the bottom, the drawer, the phone's own screen
+PICK_VIA = ("hand", "front", "drawer", "screen")           # where a pick was answered: the stops along the bottom, the drawer, the phone's own screen
 TEXT_INLINE = idea_pick.KINDS["text"].limit       # a text variant's words, inline in the row, at most this many bytes
 
 

@@ -106,6 +106,7 @@ TERMS: tuple[Term, ...] = (
     _t("place", "place", "places"),                                # an area a phone says it came to or left (docs/design/phone-places.md)
     _t("update", "update", "updates"),                             # a newer Orkline (core/updates.py, docs/updates.md)
     _t("critical_update", "critical update", "critical updates"),  # …that installs by itself when the town opens
+    _t("major_update", "major update", "major updates"),           # …that starts a later line (0.1 → 0.2), offered louder
     _t("standing_orders", "Instructions", "", "Standing orders"),   # what an ork is told to do
     _t("awaiting_orders", "Awaiting an answer", "", "Awaiting Orders"),
     _t("garrison", "Orks", "", "Garrison"),
@@ -166,6 +167,7 @@ TERMS: tuple[Term, ...] = (
     _t("race.goblin", "goblin", "goblins"),
     _t("race.gnome", "gnome", "gnomes"),
     _t("race.lich", "lich", "liches"),
+    _t("race.skeleton", "skeleton", "skeletons"),                  # the Release manager's and checker's race (spec 68 §1; orkUI 0.5.0 draws it, a lich until then)
     _t("leader", "leader", "leaders"),                             # a party's: its steps run as it (core/idea_lead.py)
     _t("party", "party", "parties"),                               # a party's leader, builders and checkers (realm/goal_team.py)
     _t("verdict", "verdict", "verdicts"),                          # a party's old verdict against its metrics, kept as history (realm/goal_verdict.py)
@@ -186,6 +188,9 @@ TERMS: tuple[Term, ...] = (
     _t("pitch_case", "the case against"),                          # the skeptic's strongest case not to do a pitch (spec 65 §3)
     _t("pitch_decision", "decision", "decisions"),                 # the Investor's answer: Invest, Reshape or Pass, with why (spec 65 §3); not a verdict, which is a party's old one against its metrics
     _t("pitch_passed", "passed"),                                  # a pitch the person passed on, kept with its why, read by every later pitch (spec 65 §5)
+    _t("idea_route", "route", "routes"),                           # a goal's way across parties: where it came from, where it is, where it went (spec 68 §2; realm/idea_route.py)
+    _t("release", "release", "releases"),                          # a goal of A release: a version, the goals that go in, its notes and the stores' list (spec 68 §3; realm/releases.py)
+    _t("release_out", "out"),                                      # a release the person said is out in the stores: Mark it out, Out in 1.4 (spec 68 §3.5)
     _t("notification", "notification", "notifications"),          # a push to a paired phone: an answer that waits, the morning (spec 42 §3)
     _t("record", "record"),                                        # what an agent did in the last 30 days, in its dialog (spec 42 §4)
     _t("this_week", "This week"),                                  # the work of the last seven days, at API prices, beside today's spend (spec 42 §6)

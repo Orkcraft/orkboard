@@ -120,3 +120,16 @@ def test_a_plan_change_is_the_leaders_re_plan_of_what_is_left_spec_62():
     line = next(l for l in Path(lexicon.__file__).read_text(encoding="utf-8").splitlines() if l.lstrip().startswith('_t("plan_change"'))
     assert "spec 62" in line and "Take the new plan" in line and "plan_change.json" in line
     assert lexicon.words("Take the new plan") == "Take the new plan" and lexicon.words("The plan changes · +2") == "The plan changes · +2"
+
+
+def test_a_route_a_release_and_out_are_the_words_of_spec_67_and_the_skeleton_is_a_race():
+    """Spec 68 §0: a goal's route across parties, a release (a goal of A release) and out (the person said it is in the stores); the skeleton."""
+    assert (lexicon.term("idea_route"), lexicon.term("idea_route", many=True)) == ("route", "routes")
+    assert (lexicon.term("release"), lexicon.term("release", many=True)) == ("release", "releases") and lexicon.term("release_out") == "out"
+    assert (lexicon.term("race.skeleton"), lexicon.term("race.skeleton", many=True)) == ("skeleton", "skeletons")
+    rows = {key: (word, was) for key, word, was in lexicon.glossary()}
+    assert all(rows[k][1] == "" for k in ("idea_route", "release", "release_out", "race.skeleton"))
+    from pathlib import Path
+    lines = {k: next(l for l in Path(lexicon.__file__).read_text(encoding="utf-8").splitlines() if l.lstrip().startswith(f'_t("{k}"'))
+             for k in ("idea_route", "release", "release_out", "race.skeleton")}
+    assert all("spec 68" in line for line in lines.values()) and "orkUI 0.5.0" in lines["race.skeleton"]

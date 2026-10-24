@@ -87,6 +87,7 @@ async def test_close_removes_the_card_and_it_is_not_shown_again(fake_repo, monke
         card = page.get_by_label("While you were away")
         await card.wait_for(timeout=WAIT_MS)
         await card.get_by_role("button", name="Close").click()
+        await card.wait_for(state="detached", timeout=WAIT_MS)                                  # the draw runs once the pointer is up (spec 50 §6.9)
         assert await card.count() == 0
         key = json.dumps("orkboard.look." + fake_repo.name)
         assert await page.evaluate(f"Date.now() - Number(localStorage.getItem({key})) < 60000")        # the last look moved with the question

@@ -23,7 +23,8 @@ A role's **craft** is what its work is (decisions §53): engineering, design, da
 head of its race in orkUI (an ork, an elf, a goblin, a gnome: `RACES`), wearing its tier's gear (`head_tier`). Taskmaster
 and Grunt are orks: engineering, always. A file without a craft is engineering.
 
-    head(r, "balance")                     # {"craft": "design", "race": "elf", "tier": "elder"}: the head a role wears
+    head(r, "balance")                     # {"craft": "design", "race": "elf", "tier": "elder"}: the head a role wears (a role's own `race`,
+                                           # front matter, when orkUI's copy has its head at that tier: spec 68 §1.3)
     task_head(state_dir, task, "thrift")   # the head of the role a task runs (or will run) as, at the tier it runs at
     known(state_dir)                       # (roles by slug, kinds): read once, handed to many task_head calls
 
@@ -75,6 +76,8 @@ CRAFTS = ("engineering", "design", "data", "marketing", "product")
 CRAFT_LABELS = {"engineering": "Engineering", "design": "Design", "data": "Data", "marketing": "Marketing", "product": "Product"}
 # orkUI's race ids: ork, elf, goblin, gnome; product is the undead's (a mummy in Orkline 0.2: a lich until orkUI draws one)
 RACES = {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome", "product": "lich"}
+# orkUI's copy of the races' heads (design/orkui.py): a role's own race (spec 68 §1.3) is worn only once its file is here.
+RACE_FILES = Path(__file__).resolve().parents[1] / "design" / "system" / "orkui" / "races"
 # What the built-in two are told already, beside the field that adds to it (spec 41 §8): their prompts are Orkboard's own.
 TOLD = {
     TASKMASTER: "Each of its steps (reading a party, drafting a goal's spec, taking your answers, planning, the night's "
@@ -168,7 +171,7 @@ def _read(state_dir: Path, slug: str) -> dict | None:
     return {"slug": slug, "name": page.get("name") or base["name"], "model": page.get("model", base["model"]),
             "max_parallel": min(max(mp, MAX_PARALLEL[0]), MAX_PARALLEL[1]), "instruction": for_prompt(body),
             "instruction_long": body if len(body) > INSTRUCTION_CHARS else "", "builtin": slug in BUILTIN,
-            "craft": _craft(page.get("craft"), slug),
+            "craft": _craft(page.get("craft"), slug), "race": _race(page.get("race"), slug),
             "takes": [k for k in (page.get("takes") or "").split(",") if k.strip() in TASK_KINDS]}
 
 
@@ -195,9 +198,25 @@ def _craft(value: object, slug: str | None) -> str:
     return value if value in CRAFTS and slug not in BUILTIN else DEFAULT_CRAFT
 
 
+def _race(value: object, slug: str | None) -> str:
+    """A role's own race as read: a word of lower-case letters ("" for none; the built-in two have none)."""
+    value = str(value or "").strip().lower()
+    return value if re.fullmatch(r"[a-z]{1,20}", value) and slug not in BUILTIN else ""
+
+
+def own_race(race: str, craft: str, tier: str = "elder") -> str:
+    """The race drawn for an agent: its own `race` when orkUI's copy has its head at that tier (`races/<race>-<tier>.png`), else its
+    craft's (a lich for a skeleton until orkUI 0.5.0 is copied)."""
+    craft = craft if craft in CRAFTS else DEFAULT_CRAFT
+    if _race(race, None) and tier in TIERS and (RACE_FILES / f"{race}-{tier}.png").is_file():
+        return race
+    return RACES[craft]
+
+
 def _write(state_dir: Path, r: dict) -> None:
     page = ideas.Page([("name", r["name"]), ("model", r["model"]), ("max_parallel", str(r["max_parallel"])),
-                       ("craft", r.get("craft") or DEFAULT_CRAFT), *([("takes", ",".join(r["takes"]))] if r.get("takes") else [])])
+                       ("craft", r.get("craft") or DEFAULT_CRAFT), *([("race", r["race"])] if r.get("race") else []),
+                       *([("takes", ",".join(r["takes"]))] if r.get("takes") else [])])
     text = page.text() + (f"\n{r['instruction'].strip()}\n" if r["instruction"].strip() else "")
     ideas._write(_path(state_dir, r["slug"]), text)
 
@@ -239,7 +258,8 @@ def save(state_dir: Path, name: str, model: object, max_parallel: object, instru
             raise ValueError(f"There is an agent called {name} already")
         _write(state_dir, {"slug": slug, "name": name, "model": _model(model, slug, old),
                            "max_parallel": _clean_parallel(max_parallel), "instruction": text,
-                           "craft": craft or (old or {}).get("craft") or DEFAULT_CRAFT, "takes": (old or {}).get("takes") or []})
+                           "craft": craft or (old or {}).get("craft") or DEFAULT_CRAFT, "race": (old or {}).get("race") or "",
+                           "takes": (old or {}).get("takes") or []})
         if takes is not None and slug not in BUILTIN:
             _save_kinds(state_dir, {k: slug if k in takes else (GRUNT if r == slug else r)
                                     for k, r in kinds(state_dir).items()})
@@ -286,13 +306,14 @@ def set_kind(state_dir: Path, kind: str, slug: str) -> None:
         _save_kinds(state_dir, {**kinds(state_dir), kind: slug})
 
 
-def install(state_dir: Path, slug: str, name: str, model: str, craft: str, instruction: str, takes: tuple[str, ...]) -> None:
-    """A role from the library (realm/library.py), its slug given: written once, never over one that is there."""
+def install(state_dir: Path, slug: str, name: str, model: str, craft: str, instruction: str, takes: tuple[str, ...], race: str = "") -> None:
+    """A role from the library (realm/library.py), its slug given: written once, never over one that is there. `race`: the agent's own
+    (spec 68 §1.3), kept in the file so `head` draws it."""
     with LOCK:
         if role(state_dir, slug) is not None or slug in BUILTIN:
             return
         _write(state_dir, {"slug": slug, "name": name, "model": model, "max_parallel": 2, "instruction": instruction,
-                           "craft": craft, "takes": [k for k in takes if k in TASK_KINDS]})
+                           "craft": craft, "race": _race(race, slug), "takes": [k for k in takes if k in TASK_KINDS]})
 
 
 def install_own(state_dir: Path, own: dict) -> bool:
@@ -349,7 +370,8 @@ def head_tier(model: str, target: str, task_tier: str = "warrior") -> str:
 def head(r: dict, target: str, task_tier: str = "warrior") -> dict:
     """The head the page draws for a role: {"craft", "race", "tier"} (orkUI races/<race>-<tier>.png)."""
     craft = r.get("craft") if r.get("craft") in CRAFTS else DEFAULT_CRAFT
-    return {"craft": craft, "race": RACES[craft], "tier": head_tier(str(r.get("model") or ""), target, task_tier)}
+    tier = head_tier(str(r.get("model") or ""), target, task_tier)
+    return {"craft": craft, "race": own_race(str(r.get("race") or ""), craft, tier), "tier": tier}
 
 
 def known(state_dir: Path) -> tuple[dict[str, dict], dict[str, str]]:

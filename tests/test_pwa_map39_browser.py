@@ -209,9 +209,9 @@ async def test_implementation_has_its_members_tasks_running_down_in_rows_by_phas
         assert await page.locator('.deck[data-task="k0"]').count() == 0                              # a merged task is not on the field
         last = await grunts.locator(".stack__done").bounding_box()
         assert last["y"] > first["y"]
-        # a waiting task is dashed with its words, in the next row; a result in Review is muted ink, never yellow (decisions §54.1)
+        # a waiting task is dashed, its label names what it waits for (spec 67 §3), in the next row; a result in Review is muted ink, never yellow (decisions §54.1)
         wait = designer.locator('.deck[data-task="k3"]')
-        assert "is-wait" in await wait.locator(".tcard").get_attribute("class") and "after k1" in await wait.inner_text() and await wait.locator("xpath=ancestor::*[contains(@class, 'phase')][1]").get_attribute("data-phase") == "next"
+        assert "is-wait" in await wait.locator(".tcard").get_attribute("class") and "after Task k1" in await wait.get_attribute("aria-label") and "after k1" not in await wait.get_attribute("aria-label") and await wait.locator("xpath=ancestor::*[contains(@class, 'phase')][1]").get_attribute("data-phase") == "next"
         assert await page.locator(".tcard.is-stop").count() == 0 and await page.locator(".tcard.is-fail").count() == 0
         await stacks.first.click()                                                                   # a stack of more lays its cards out in a row: k2 at work, k1 in Review
         await page.locator(".spread").wait_for(timeout=WAIT_MS)
@@ -305,7 +305,7 @@ async def test_yellow_is_only_on_the_agent_the_work_stopped_on(fake_repo, monkey
         await _open_map(page)
         await _band(page, "lead")
         card = _item(page, "Which store first")
-        assert "is-stop" in await card.get_attribute("class") and "asks you" in await card.inner_text()
+        assert "is-stop" in await card.get_attribute("class") and "asks you" in await card.get_attribute("aria-label")      # its words are in its label (spec 67 §2.6)
         assert await page.locator("button.band__face:has(.band__sign)").count() == 0                       # the question is Product designer's: its face wears it in Implementation (a failure's ✗ over it)
         await _band(page, "build")
         fail = page.locator('.stack[data-column="product-designer"] .deck[data-task="f1"]')
@@ -313,8 +313,8 @@ async def test_yellow_is_only_on_the_agent_the_work_stopped_on(fake_repo, monkey
         stops = [await e.get_attribute("data-member") for e in await page.locator("button.band__face:has(.band__sign.danger)").all()]
         assert stops == ["product-designer"]                                                         # the agent of the failed task, not the one whose result waits
         review = page.locator('.stack[data-column="grunt"] .deck[data-task="f2"]')
-        assert "is-review" in await review.locator(".tcard").get_attribute("class") and "in Review" in await review.inner_text()
-        assert await review.locator(".tcard__foot").evaluate("e => getComputedStyle(e).color") != await fail.locator(".tcard__foot").evaluate("e => getComputedStyle(e).color")
+        assert "is-review" in await review.locator(".tcard").get_attribute("class") and "in Review" in await review.get_attribute("aria-label")      # no value at its foot (spec 67 §2.4): its label says it
+        assert await review.locator(".tcard").evaluate("e => getComputedStyle(e).borderTopColor") != await fail.locator(".tcard").evaluate("e => getComputedStyle(e).borderTopColor")      # its edge is not the failure's
         alert = await page.evaluate("(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-alert)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")
         assert await page.locator('.hc[data-kind="asks"]').evaluate("e => getComputedStyle(e).borderTopColor") == alert                        # a stop wears the alert colour …
         assert await page.locator('.hc[data-kind="failed"]').evaluate("e => getComputedStyle(e).borderTopColor") != alert                        # … a failure wears the danger one
@@ -372,7 +372,7 @@ async def test_a_planning_card_shows_the_short_name_with_the_title_in_its_label(
         item = page.locator('.deck[data-idea="night"]')
         await item.wait_for(timeout=WAIT_MS)
         assert await item.locator(".tcard__name").inner_text() == "Changelog"
-        assert await item.locator(".tcard__name").evaluate("e => getComputedStyle(e).webkitLineClamp") == "4"        # at most four lines
+        assert await item.locator(".tcard__name").evaluate("e => getComputedStyle(e).webkitLineClamp") == "3"        # at most three lines (spec 67 §2.3)
         assert "Write the changelog" in await item.get_attribute("aria-label") or "Write the changelog" in await item.get_attribute("title")      # the full title is in its label
         assert await page.evaluate(NO_SCROLL)
 

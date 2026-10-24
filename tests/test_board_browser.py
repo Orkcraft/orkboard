@@ -135,7 +135,7 @@ async def test_orkboard_on_a_phone_the_shell_the_same_no_camp_file_no_horizontal
                 ask = page.locator('.hc[data-kind="goal"]')                                                # Needs you: the signal (spec 41 §1) lies along the bottom
                 await ask.wait_for(timeout=WAIT_MS)
                 await ask.click(position={"x": 14, "y": 12})
-                await page.get_by_text("Which channel first?").first.wait_for(timeout=WAIT_MS)             # the goal's question, as on the desktop
+                await page.locator(".raised").get_by_text("Which channel first?").first.wait_for(timeout=WAIT_MS)             # the goal's question, as on the desktop (on the raised card: the front card says it too)
                 await page.keyboard.press("Escape")
                 bar = page.locator(".board-bar")                                                           # the menu, the project's button
                 assert await bar.locator(".projbtn").is_visible() and await bar.get_by_role("button", name="Menu").is_visible() and await page.locator(".gchips").count() == 0

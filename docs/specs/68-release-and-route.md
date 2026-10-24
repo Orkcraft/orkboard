@@ -1,6 +1,6 @@
-# Spec 67 — A goal's route across parties, and a Release party that gathers the flags
+# Spec 68 — A goal's route across parties, and a Release party that gathers the flags
 
-The owner, 23 October (decisions §81): *what if parties changed often: ideation → a new mobile feature → ideation → a new
+The owner, 23 October (decisions §83): *what if parties changed often: ideation → a new mobile feature → ideation → a new
 feature → testing → release?* Read as parties, that chain is one thing's way, not a change of team: the features are the
 Mobile app party's goals, testing is its checkers and the gate. So parties stay teams and stay few (§63.11), and a goal
 gets **a route**: where it came from, where it is, and where it went. And the one step that is truly another team's, a
@@ -43,7 +43,7 @@ new goal there.*, *Release*, *Release manager*, *Release engineer*, *Release not
 
 ## 1. The agents and the party (A, A0)
 1. **`realm/library.py` `LIBRARY`** gains four, after Ideation's, under *-- release: the Release manager (a skeleton)
-   and its cheaper hands; a party of their own (spec 67 §1) --*:
+   and its cheaper hands; a party of their own (spec 68 §1) --*:
 
 | id | name | craft | tier | band | takes | race | line |
 |---|---|---|---|---|---|---|---|
@@ -65,7 +65,7 @@ new goal there.*, *Release*, *Release manager*, *Release engineer*, *Release not
    stores' list", "product", "release-manager", ("release-engineer", "release-notes", "aso"), ("release-checker",))`.
    `STAGES["release-manager"] = Stages("Gather", "Prepare", "Check", 3, 1)`. The tiers are the library's defaults: the
    person may set any of them on Agents as today.
-3. **An agent's own race** (decisions §81.5): `Agent` gains `race: str = ""` (its craft's, `roles.RACES`, when empty);
+3. **An agent's own race** (decisions §83.5): `Agent` gains `race: str = ""` (its craft's, `roles.RACES`, when empty);
    `listed()` says it; `install` writes it to the role's file; `roles.head` reads a role's `race` when it is one of
    orkUI's and its file is in the copy (`design-system/orkui/races/<race>-<tier>.png`), else its craft's. So before A0's
    copy the Release manager and the Release checker wear the lich's head, after it the skeleton's. **A0** draws the
@@ -119,7 +119,7 @@ Events (`EVENTS`, no goal's words): `idea_moved` (goal, from, to) · `release_ma
 `release_out` (goal, goals: n, days: from its first goal's flag to out) · `party_shown` (from, to, face), from
 `ideas.shown {party, from}`, which the faces send on a party switch (not on a project's first read, not on a redraw).
 The party's work (spec 43 §2) for a Release party says releases out, goals a release, the days from a flag to out.
-`party_shown`'s count a day and its pairs are read by the owner, not shown (decisions §81.7).
+`party_shown`'s count a day and its pairs are read by the owner, not shown (decisions §83.7).
 
 ## 5. Refusals and old hosts (A)
 - `ideas.move` of a goal whose work started: refused (§2.2); the faces show the refusal's words.
@@ -181,5 +181,63 @@ The party's work (spec 43 §2) for a Release party says releases out, goals a re
   `tests/test_design_system.py`; C also `tests/test_pwa.py`.
 
 ## 9. Outside the parts' files
-- `docs/decisions.md` §81 and this file are the contract.
+- `docs/decisions.md` §83 and this file are the contract.
 - `realm/ideas.py` (past the size to split at) is not changed: the route and the releases keep their own files.
+
+## 10. As built (A, notes, no change of the contract)
+
+**A (host), 24 October.** Built in `realm/library.py` (`Agent.race`; the four agents after Ideation's; `RELEASE_MANAGER`; the `release` preset
+after `ideation`; `STAGES["release-manager"]`; `race_of`; `listed()` and `presets()` say the agent's own race only when orkUI's copy has its
+head), `realm/roles.py` (`RACE_FILES`, `own_race`, a role's `race` read, written and kept by `save`, `install(..., race)`, `head`), new
+`realm/idea_route.py` (`route`, `steps`, `move`, `moves`, `started`, `goal_state`), new `realm/releases.py` (`read`, `index`, `holding`,
+`releases_from`, `set_releases_from`, `sources`, `since`, `candidates`, `offers`, `wait`, `check`, `make`, `out`, `tally`, `prompt_lines`),
+`realm/goal_types.py` (*Version*; `release_party`; `offered` drops *A release* beside a Release party), `realm/board_map.py` (node `route`,
+`goal_state`, `release`; flag `release`; party `releases_from`, `wait_release`), `realm/goal_flags.py` (a flag row's `release`),
+`realm/party_work.py` (`releases` for a Release party), `realm/event_log.py` (four events), `realm/lexicon.py` (four words),
+`realm/idea_checks.py` (`TAGS` once each: the Release checker takes `review` like the Reviewer), new `gui/ideas_release.py` (`ReleaseMixin`:
+`move`, `release_args`, `release_made`, `release_out`, `release_candidates`, `shown`), `gui/ideas.py` (the mixin, `add`'s release and
+element, `page`'s `route`; `move` is now in the mixin), `gui/ideas_pitch.py` (`element_for`; `pitch_of` carries `goal_state`),
+`gui/ideas_party.py` (`save_releases_from`), `gui/ideas_goals.py` (`goal_save` calls it when `releases_from` is sent), the three prompts
+(`core/idea_draft.py`, `core/idea_keeper.py`, `core/idea_revise.py`). `realm/ideas.py` is untouched. Tests: new `tests/test_idea_route.py`
+(9) and `tests/test_releases.py` (20); the counts and orders brought up to date in `test_library.py`, `test_goal_types.py`,
+`test_board_map.py`, `test_lexicon.py`, `test_event_log.py`, `test_ideation.py`, `test_goal_team.py`, `test_gui_ideas.py`,
+`test_gui_roles.py`, `test_goal_flags.py`, `test_party_hints.py`.
+
+**Deviations and additions** (none changes a contract answer).
+- `ideas.move` lives in `gui/ideas_release.py`, not `gui/ideas.py` (which is at its size); `ideas.add` does the same as the spec says.
+- `release.json` also keeps `at` (when the release was made): `{version, goals, out, at}`; its route step needs it.
+- Added beyond the spec, for the faces: `ideas.release_candidates {party}` (the dialog's *What goes in*: `since`, `releases_from`,
+  `candidates`), a release goal's node `release` (`{version, goals, out}`), `ideas.page`'s `route` and `pitch.goal_state`, `ideas.flags`'
+  `goals[].release` (a flag row), and a Release party's `ideas.party` key `releases` (`{made, out, goals, days}`, spec §4).
+- `race` of a role's file is read for library roles only (`Taskmaster` and `Grunt` have none). The skeleton's files are looked up in
+  `orkboard/design/system/orkui/races/` (orkUI's copy), so `head` and `listed()` say `lich` until A0 is copied.
+- The Release preset's own `race` is its leader's (`lich` now, `skeleton` after A0).
+
+**The shapes** (for B and C).
+- **A route step** (`node.route`, `ideas.page.route`; oldest first; `[]` when only its party step): every step has `step`, `party`,
+  `goal` (the slug a press opens), `at`.
+  `pitch`: `{party: Ideation's slug, goal: the pitch's slug, at: the decision's date, answer: invest|reshape|pass, word: Invest…, title}`;
+  `moved`: `{party: the party it was moved from, from, to, goal: the goal itself, at}`;
+  `party`: `{party: where it is, goal: itself, at: the last move's date or "", state, done, total}` (done = merged tasks);
+  `main`: `{party, goal: itself, at: the flag's date, by: gate|done}`;
+  `release`: `{goal: the release goal's slug, party: its party, version, out: the date or "", at: out, else when it was made}`.
+- **A sent pitch's goal** (`node.goal_state` on the pitch's node, `ideas.page(pitch).pitch.goal_state`; None for a pitch not sent):
+  `{goal, party, state, done, total, flag: the flag's date or "", release: {goal, party, version, out} | None}`; a goal dropped since:
+  `{goal, party: "", state: "dropped", done: 0, total: 0, flag: "", release: None}`.
+- **A flag** (`node.flag.release`, `ideas.flags.goals[].release`): `{goal, party, version, out}` of the last release that holds it, else None.
+  A flag waits when `release` is None (and the project has a party whose `leader.slug` is `release-manager`).
+- **A party** (`ideas.map` goals): `releases_from` (the slugs as saved; `[]` = every party but Ideation), `wait_release` (the candidates
+  not held, for a party that offers *A release*, else 0).
+- **A release goal** (`node.release`): `{version, goals: [slugs], out}`; None for any other goal.
+- **`library.listed()[].race`** and `ideas.roles` presets' `race`: the agent's own when orkUI has it, else its craft's.
+- **`ideas.move {slug, track?, before?}`**: refused with *Its work has started in <party>: a goal moves only before its work starts. Add a
+  new goal there.* (the party it is in); a move within the party is its order only.
+- **`ideas.add {…, type: "release", asks: {version}, goes_in: [slugs]}`**: refused with *That goal has not raised its flag in a party
+  this release takes from*, *“<title>” is in <version> already*, *goes_in is a list of goals*; `goes_in` on another type: *Only a release
+  takes goals to go in*. `ideas.goal_save {…, releases_from: [slugs]}` (a list of the project's parties but itself, Ideation and General;
+  *No party 'x' to release from*, *Releases from is a list of parties*).
+- **`ideas.release_candidates {party}`** → `{since: {version, out} | None, releases_from, candidates: [{goal, title, party, party_name,
+  element, at, commit, held}]}`, newest flag first; `held` is the open release's version ("a release" when it has none), "" when free.
+- **`ideas.release_out {slug}`** → `{ok, out}`; refused with *That goal is not a release*, *Its flag is not raised yet: a release goes out
+  once it is in main*, *<version> is out already*. **`ideas.shown {party, from?}`** → `{ok}` (counted only with a `from` that is another
+  party of the project; *That party is gone* for an unknown `party`); the event's `face` is the caller's device.

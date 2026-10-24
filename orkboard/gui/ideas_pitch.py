@@ -17,7 +17,7 @@ from pathlib import Path
 
 from orkboard.core import idea_keeper
 from orkboard.gui.ideas_args import IdeasError, _opt, _text
-from orkboard.realm import event_log, ideas, pitches
+from orkboard.realm import event_log, idea_element, idea_route, ideas, pitches
 
 # The commands of a plan, of its tasks and of the talk: a pitch has none of them (spec 65 §2).
 PLAN_COMMANDS = ("ideas.plan", "ideas.start", "ideas.start_now", "ideas.stop", "ideas.revise", "ideas.revise_answer", "ideas.answer",
@@ -34,8 +34,22 @@ class PitchMixin:
             raise IdeasError(idea_keeper.PITCH_NOT_BUILT)
 
     def pitch_of(self, root: Path, slug: str, state: str) -> dict | None:
-        """A pitch's views, case against, decision and what became of it (realm/pitches.py `face`); None for any other goal."""
-        return pitches.face(root, self.state_dir, slug, state, self._target()) if pitches.is_pitch(root, slug) else None
+        """A pitch's views, case against, decision and what became of it (realm/pitches.py `face`), and `goal_state`, what became of the
+        goal it was sent (realm/idea_route.py, spec 68 §2.4); None for any other goal."""
+        if not pitches.is_pitch(root, slug):
+            return None
+        return {**pitches.face(root, self.state_dir, slug, state, self._target()), "goal_state": idea_route.goal_state(root, self.state_dir, slug)}
+
+    def element_for(self, slug: str, pitch: str = "") -> str:
+        """A new goal's element (spec 50 §2.3): the one it has, else, for a goal sent from a pitch, the pitch's own when no open goal of the
+        target party wears it (spec 68 §2.3), else the one used least."""
+        root = self.root()
+        mine = idea_element.of(self.state_dir, pitch) if pitch else ""
+        if mine and not idea_element.of(self.state_dir, slug):
+            page = ideas.idea_page(root, slug)
+            if mine not in idea_element.open_elements(root, self.state_dir, (page.get("track") if page else "") or ideas.GENERAL, besides=slug):
+                return idea_element.give(root, self.state_dir, slug, [e for e in idea_element.ELEMENTS if e != mine])    # `mine` the least used
+        return idea_element.give(root, self.state_dir, slug)
 
     def _pitch(self, args: dict, *states: str) -> tuple[Path, str, ideas.Page]:
         """The pitch an answer is about, in one of `states` (its state as the host reads it)."""

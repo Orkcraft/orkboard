@@ -20,7 +20,7 @@
   figure { margin: 0; display: grid; justify-items: center; gap: var(--ork-2); width: 96px; font: var(--ork-type-caption); color: var(--ork-ink-muted); }
   .orks figure { width: auto; }
   .orks { display: flex; flex-wrap: wrap; gap: var(--ork-6); }
-  .races { display: grid; grid-template-columns: repeat(6, 96px); gap: var(--ork-4); }
+  .races { display: grid; grid-template-columns: repeat(7, 96px); gap: var(--ork-4); }
   .races img { image-rendering: pixelated; }
   .row { display: flex; gap: var(--ork-4); flex-wrap: wrap; align-items: center; }
   .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--ork-4); }
@@ -265,11 +265,11 @@
     fetch("ascii/" + n + ".txt").then(r => r.text()).then(t => { const f = document.createElement("figure"); const p = document.createElement("pre"); p.className = "ork-ork";
       p.textContent = t; p.setAttribute("aria-hidden", "true"); const c = document.createElement("figcaption"); c.textContent = n + ".txt"; f.append(p, c); document.getElementById("orks").append(f); }).catch(() => {});
   }
-  for (const tier of ["laborer","warrior","elder"]) for (const race of ["peon","knight","goblin","gnome","elf","lich"]) {
+  for (const tier of ["laborer","warrior","elder"]) for (const race of ["peon","knight","goblin","gnome","elf","lich","skeleton"]) {
     const f = document.createElement("figure"); const i = document.createElement("img"); i.src = "races/" + race + "-" + tier + "@2x.png";
     i.width = 48; i.height = 44; i.alt = ""; const c = document.createElement("figcaption"); c.textContent = race + " " + tier; f.append(i, c);
     document.getElementById("races").append(f); }
-  for (const [race, tier] of [["peon", "laborer"], ["knight", "warrior"], ["goblin", "elder"], ["gnome", "laborer"], ["elf", "warrior"], ["lich", "elder"]]) {
+  for (const [race, tier] of [["peon", "laborer"], ["knight", "warrior"], ["goblin", "elder"], ["gnome", "laborer"], ["elf", "warrior"], ["lich", "elder"], ["skeleton", "warrior"]]) {
     const s = document.createElement("span"); s.className = "ork-race"; const i = document.createElement("img"); i.className = "ork-race__head";
     i.src = "races/" + race + "-" + tier + ".png"; i.srcset = "races/" + race + "-" + tier + "@2x.png 2x"; i.alt = "";
     const w = document.createElement("span"); w.className = "ork-race__word"; w.textContent = race + " ";

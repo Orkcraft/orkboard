@@ -123,3 +123,15 @@ def test_a_done_to_do_says_whether_it_was_gone_without_or_described(tmp_path):
     event_log.record(tmp_path, event_log.TODO_DONE, idea="x", todo="t1", kind="file", skipped=False, words=True)
     [row] = event_log.read(tmp_path)
     assert row["skipped"] is False and row["words"] is True
+
+
+def test_spec_67_events_are_the_goals_move_a_release_made_and_out_and_a_party_switch(tmp_path):
+    assert {"idea_moved", "release_made", "release_out", "party_shown"} <= set(event_log.EVENTS)
+    event_log.record(tmp_path, event_log.IDEA_MOVED, goal="dark-mode", device="desktop", **{"from": "app", "to": "web"})
+    event_log.record(tmp_path, event_log.RELEASE_MADE, goal="release-1-4", party="release", goals=3, parties=2, device="phone")
+    event_log.record(tmp_path, event_log.RELEASE_OUT, goal="release-1-4", goals=3, days=4, device="desktop")
+    event_log.record(tmp_path, event_log.PARTY_SHOWN, face="phone", **{"from": "app", "to": "web"})
+    moved, made, out, shown = event_log.read(tmp_path)
+    assert (moved["from"], moved["to"], moved["goal"]) == ("app", "web", "dark-mode") and (made["goals"], made["parties"]) == (3, 2)
+    assert (out["days"], out["goals"]) == (4, 3) and (shown["from"], shown["to"], shown["face"]) == ("app", "web", "phone")
+    assert event_log.counts(tmp_path)["party_shown"] == 1 and event_log.counts(tmp_path)["release_out"] == 1

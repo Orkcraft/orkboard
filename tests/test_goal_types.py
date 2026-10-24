@@ -357,3 +357,41 @@ def test_the_prompts_line_says_the_type_and_its_plan(board):
     ideas.save_state(state, slug, type="nobody/bug")
     assert goal_types.prompt_line(state, slug) == ""
     assert json.loads((ideas.state_folder(state, slug) / "state.json").read_text())["type"] == "nobody/bug"   # kept as it was written
+
+
+# -- spec 68 §3.1: A release asks its version and is offered by the Release party alone ----------------------------------------
+
+def _preset(board, preset, title):
+    root, state = board
+    lead, build, check = next((p[4], p[5], p[6]) for p in library.PRESETS if p[0] == preset)
+    return _party(root, state, [*build, *check], leader=lead, title=title)
+
+
+def test_a_release_asks_its_version_first_and_then_what_is_new():
+    t = goal_types.get("release")
+    assert [(a.id, a.label, a.hint) for a in t.asks] == [("version", "Version", "1.4"), ("new", "What is new", "in the person's words")]
+    assert t.needs == ("aso", "code") and len(t.asks) <= 3
+
+
+def test_the_release_party_offers_a_release_and_mobile_app_beside_it_does_not(board):
+    root, state = board
+    names = lambda slug: [t.name for t, rows in goal_types.offered(state, root, slug) if not rows]
+    app = _preset(board, "mobile-app", "Mobile app")
+    assert "A release" in names(app)                                                       # no Release party: as spec 59 §4.3 has it
+    release = _preset(board, "release", "Release")
+    assert "A release" in names(release) and goal_types.release_party(root) == release
+    assert "A release" not in names(app) and "Store listing" in names(app)                # one place to release
+    assert [t.name for t, rows in goal_types.offered(state, root, app) if t.id == "release"] == []
+    unsaved = goal_types.Party.of(state, root, "product-manager", ["grunt", "artist", "aso"])
+    assert "release" not in [t.id for t, _r in goal_types.offered(state, root, "", read=unsaved)]       # a party not yet kept, too
+    again = goal_types.Party.of(state, root, "release-manager", ["release-engineer", "release-notes", "aso", "release-checker"])
+    assert "release" in [t.id for t, rows in goal_types.offered(state, root, "", read=again) if not rows]
+
+
+def test_dropping_the_release_party_gives_mobile_app_its_release_back(board):
+    root, state = board
+    app = _preset(board, "mobile-app", "Mobile app")
+    release = _preset(board, "release", "Release")
+    assert goal_types.release_party(root) == release and "release" not in {t.id for t, _r in goal_types.offered(state, root, app)}
+    (root / ideas.TRACKS / f"{release}.md").unlink()
+    assert goal_types.release_party(root) == "" and "release" in {t.id for t, _r in goal_types.offered(state, root, app)}

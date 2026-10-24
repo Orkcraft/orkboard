@@ -52,7 +52,9 @@ include = ["orkboard*"]
 [tool.setuptools.package-data]
 # design/system links to design-system/: a wheel carries the files themselves.
 orkboard = ["schemas/*.json", "design/*.json", "design/buildings/*.json", "design/agents/*.md", "design/system/**/*",
-            "gui/static/**/*", "ops_templates/**/*"]
+            "gui/static/**/*", "ops_templates/**/*",
+            # orkGet's copy (orkboard/orkget/, docs/specs/41-orkget.md §2): its stamp, its schemas, its installer
+            "orkget/ORKGET.json", "orkget/schemas/*.json", "orkget/install.sh"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

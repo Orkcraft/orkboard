@@ -137,6 +137,6 @@ def test_the_goals_flags_are_each_goals_with_its_element_and_tally_newest_first_
     got = goal_flags.goals(root, state)
     assert [g["slug"] for g in got] == [newer, older] and plain not in {g["slug"] for g in got}
     assert got[0] == {"slug": newer, "title": "Queue the writes", "short": "Queue the writes", "goal": party, "element": "lava",
-                      "at": "2026-10-20T09:00:00", "tasks": 3, "first_time": 2, "usd": 1.5, "days": 4}
+                      "release": None, "at": "2026-10-20T09:00:00", "tasks": 3, "first_time": 2, "usd": 1.5, "days": 4}
     assert got[1]["element"] == ""                                                         # none given yet: the faces draw it dim
     assert [f["goal"] for f in goal_flags.flags(root, state)] == [party]                  # the old flag is the party's, as before

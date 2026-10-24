@@ -74,9 +74,9 @@ STOP_ALL = "stop_all"             # count, device
 INTO_CHANGED = "into_changed"     # branch, push, device
 GATE_MERGED = "gate_merged"       # commits, ideas, files (what dev held that main lacked), how ("fast-forward" · "merge"), pushed, into, main, device (spec 49 §2.1: dev merged into main)
 PICK_ASKED = "pick_asked"         # idea, task, n, media (image · audio · video · text), round (spec 51 §2.4: a task left variants for the person to pick from)
-PICK_ANSWERED = "pick_answered"   # idea, task, key (the variant's letter; null: none of them, new ones asked), note_chars, via (hand · drawer · screen; else idea), seconds from pick_asked, device, round (the round that was answered)
+PICK_ANSWERED = "pick_answered"   # idea, task, key (the variant's letter; null: none of them, new ones asked), note_chars, via (hand · front · drawer · screen; else idea), seconds from pick_asked, device, round (the round that was answered)
 IDEA_FLAGGED = "idea_flagged"   # idea, goal (its party), by ("gate" · "done"), tasks, first_time, usd, days (spec 50 §2.2: a goal raised its flag in main)
-OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map · recap · flag · week · push · party · gate · today · pick), ref, via (map · board · needs · agents · review · recap · week · flags · push · hand · party · today · gate; old lines ""), device
+OPENED = "opened"                 # what (idea · plan · todo · task · result · tab · map · recap · flag · week · push · party · gate · today · pick), ref, via (map · board · needs · agents · review · recap · week · flags · push · hand · front · party · today · gate; old lines ""), device
 LIMITS_READ = "limits_read"       # provider, left, window
 # Round 2 (docs/specs/34-v1-round-2.md §4): goals by dialog, agents by task type.
 GOAL_SAVED = "goal_saved"         # goal, new, metrics (their names), links, priority, device, party (the id of the saved party it was picked from, else ""),
@@ -147,6 +147,12 @@ PITCH_SENT = "pitch_sent"         # goal, to (the party), type (its goal type, e
 PITCH_PASSED = "pitch_passed"     # goal, as_decided (the Investor said pass), has_reason, device
 PITCH_AGAIN = "pitch_again"       # goal, changed (its words were changed), device
 
+# Spec 68 §4: a goal's route across parties, a release (A release) made and out, a party switch (never a goal's words).
+IDEA_MOVED = "idea_moved"         # goal, from, to (parties), device
+RELEASE_MADE = "release_made"     # goal, party, goals (n), parties (n), device
+RELEASE_OUT = "release_out"       # goal, goals (n), days (from its first goal's flag to out; None when no flag is dated), device
+PARTY_SHOWN = "party_shown"       # from, to (parties), face (desktop, phone), device
+
 # Spec 42 §3: notifications to a paired phone (counts and tags, never a word of the push).
 PUSH_SET = "push_set"             # on, device
 PUSH_SENT = "push_sent"           # tag, devices, gone
@@ -158,7 +164,7 @@ EVENTS = (ASKED, ASSUMED, ANSWERED, STOPPED, WAIT_SKIPPED, HELD_AT_WORK, CAMP_LE
           IDEA_ANSWERED, GOAL_ANSWERED, PLAN_STARTED_NOW, IDEA_QUEUED, BOARD_COMMITTED, BOARD_HELD, PROJECT_OPENED, PROJECT_CLOSED, FILE_SAVED, GIT_COMMITTED,
           GIT_PUSHED, OP_ADDED, OP_PREPARED, OP_CHECKED, OP_DONE, OP_FAILED, OP_DROPPED, OP_NOT_RIGHT, OP_LEARNED,
           OP_RULES_ANSWERED, OP_TRUST, OP_KEPT, OP_FORGOT, OP_STANDING, PUSH_SET, PUSH_SENT, PARTY_PROPOSED, PARTY_ANSWERED, PARTY_SAVED, PARTY_DROPPED, WEEK_RESET, IDEA_EDITED, PLAN_REVISED, PLAN_CHANGE_ANSWERED,
-          PITCH_JUDGED, PITCH_SENT, PITCH_PASSED, PITCH_AGAIN)
+          PITCH_JUDGED, PITCH_SENT, PITCH_PASSED, PITCH_AGAIN, IDEA_MOVED, RELEASE_MADE, RELEASE_OUT, PARTY_SHOWN)
 
 _LOCK = threading.Lock()
 

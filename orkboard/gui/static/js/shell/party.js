@@ -7,6 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html } from "../html.js";
 import { command, say, toast } from "../link.js";
 import { roles } from "./store.js";
+import { pctOf, pctRange } from "../spend.js";
 import { reducedMotion } from "../arena/motion.js";
 import { Head, Icon, Sign, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
 
@@ -207,6 +208,7 @@ export function usePartyPrice(active, leader, team, every, craft = "") {
 /** *about $2–6*, for a goal: below $1 (its low end) in cents, *about $0.40–1.20*. */
 export function rangeWords(price) {
   const { low, high } = price;
+  if (pctRange(low, high)) return `about ${pctRange(low, high)}`;
   if (low < 1) return `about $${low.toFixed(2)}–${high.toFixed(2)}`;
   const a = Math.round(low), b = Math.round(high);
   return a === b ? `about $${a}` : `about $${a}–${b}`;
@@ -254,7 +256,7 @@ export function CanTake({ price }) {
 /** *adds about $0.35 to a goal it checks · about half of them* (*· every goal* when it checks every goal). */
 export function addsWords(c) {
   const share = c.every ? "every goal" : Math.abs(c.share - 0.5) < 0.03 ? "about half of them" : `about ${Math.round(c.share * 100)} % of them`;
-  return `adds about $${c.usd.toFixed(2)} to a goal it checks · ${share}`;
+  return `adds about ${pctOf(c.usd) || `$${c.usd.toFixed(2)}`} to a goal it checks · ${share}`;
 }
 
 /** The party's checks: each checker's, where it applies or on every goal, and what a check adds to a goal (`price`: `ideas.party_price`). */

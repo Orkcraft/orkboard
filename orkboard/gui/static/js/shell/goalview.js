@@ -17,13 +17,14 @@ import { flagDate } from "../board/maplayout.js";
 import { soFarWords, todayWords } from "../board/mapstage.js";
 import { flagRow, waitsMain } from "../arena/goalwords.js";
 import { money } from "../arena/arenawords.js";
+import { pctOf } from "../spend.js";
 
 export const GOAL_STATE = { reading: "the Taskmaster is reading", asks: "asks you", ready: "ready", raw: "" };
 /** Who leads a party, as a sentence starts with it: its leader by name, else "The Taskmaster". */
 const leaderThe = (g) => (g.leader?.slug && g.leader.slug !== "taskmaster" ? g.leader.name : say("The Taskmaster"));
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-const usdWords = (usd) => `≈$${usd.toFixed(2)}`;
+const usdWords = (usd) => `≈${pctOf(usd) || `$${usd.toFixed(2)}`}`;
 const SHOWN = 10;
 
 /** What a party did (spec 43 §2.3), a line each, in the text face: the leader's steps, each member's tasks, each checker's checks. */
