@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 
 from orkboard.core.idea_plan import _why, estimate
-from orkboard.realm import event_log, goal_team, goal_types, idea_change, idea_checks, idea_lens, idea_spend, idea_target, ideas, roles
+from orkboard.realm import event_log, goal_team, goal_types, idea_change, idea_checks, idea_lens, idea_spend, idea_target, ideas, releases, roles
 from orkboard.realm.idea_words import short_of, short_said
 
 SPEC_SHARE = 0.5                   # of the `plan` context, the most the spec takes: the tasks' part gets the rest
@@ -169,7 +169,7 @@ class ReviseMixin:
         return f"""You are the keeper of this project's Task board. This goal's plan is passed and its work is under way, and its spec
 changed. Look at what is left and propose a plan change: which tasks not started change, which are dropped, which are added. You
 may read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
-{idea_lens.attached(self.state_dir, slug)}{goal_types.prompt_line(self.state_dir, slug)}{checks}
+{idea_lens.attached(self.state_dir, slug)}{goal_types.prompt_line(self.state_dir, slug)}{releases.prompt_lines(root, self.state_dir, slug)}{checks}
 The spec: {page.title}
 {spec}{work}
 Rules:

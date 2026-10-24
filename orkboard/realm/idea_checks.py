@@ -23,7 +23,7 @@ from pathlib import Path
 from orkboard.realm import library, roles
 
 DONE = ("merged",)                   # a check task in these states has passed
-TAGS = tuple(a.takes[0] for a in library.LIBRARY if a.check is not None)       # a check task's `kind`: the checkers' first tag
+TAGS = tuple(dict.fromkeys(a.takes[0] for a in library.LIBRARY if a.check is not None))       # a check task's `kind`: the checkers' first tag
 FINDINGS_FILE = ".orkcraft-findings.json"      # what a check task writes at its worktree's root; read and removed, never committed
 FINDINGS_MAX = 20
 FINDINGS_BYTES = 64 * 1024

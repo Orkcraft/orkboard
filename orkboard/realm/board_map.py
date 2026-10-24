@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from orkboard.realm import (goal_flags, goal_types, goal_verdict, idea_change, idea_checks, idea_flag, idea_pick, idea_questions, idea_risk, idea_spend,
-                            idea_target, ideas, library, map_party, map_stage, pitches, roles)
+                            idea_route, idea_target, ideas, library, map_party, map_stage, pitches, releases, roles)
 from orkboard.realm.idea_words import short_of
 
 NEEDS = ("asks", "plan", "change", "todo", "failed", "proposal", "pitch")        # the Needs you kinds that sit on an idea, as a node names them (a plan change: spec 62; a judged pitch: spec 65)
@@ -90,6 +90,17 @@ def type_of(st: dict) -> dict | None:
     """A goal's type as a node carries it (spec 52 §2.2): `{id, name, sign}`; None with none or an unknown key."""
     t = goal_types.get(st.get("type"))
     return {"id": t.id, "name": t.name, "sign": t.sign} if t is not None else None
+
+
+def flag_of(state_dir: Path, slug: str, held: dict[str, list[dict]]) -> dict | None:
+    """A goal's flag as a node carries it: the flag with `release`, the last release that holds the goal (`{goal, party, version, out}`) or None."""
+    flag = idea_flag.flag_of(state_dir, slug)
+    return None if flag is None else {**flag, "release": releases.step_of(held[slug][-1]) if held.get(slug) else None}
+
+
+def release_of(r: dict | None) -> dict | None:
+    """A release goal's node carries its file: `{version, goals: [slugs], out}`; None for any other goal (spec 68 §3.3)."""
+    return None if r is None else {"version": r["version"], "goals": list(r["goals"]), "out": r["out"]}
 
 
 def task_short(t: dict) -> str:
@@ -271,6 +282,9 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
     target, read = idea_target.target_of(settings), roles.known(state_dir)         # a task's head: who does it, at what tier
     today = dt.date.fromtimestamp(now).isoformat() if now else dt.date.today().isoformat()
     offered = pitches.offers(root, state_dir) if any((t.get("leader") or "") == library.INVESTOR for t in shown) else {}
+    made = releases.index(root, state_dir, found)                           # the releases, read once: a goal's route, a flag's release (spec 68)
+    held, rel = releases.holding(root, state_dir, made), goal_types.release_party(root)
+    releasing = {r["goal"]: r for r in made}
     for g in shown:
         mine = [i for i in found if i["track"] == g["slug"]]
         ideation = (g.get("leader") or "") == library.INVESTOR       # Ideation: its goals are pitches (spec 65)
@@ -295,7 +309,8 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
                       "brief": brief_of(g), "done_when": [m["name"] for m in g["metrics"]], "ideas": len(mine),
                       "done": sum(1 for s in order if states[s]["state"] == "done"),
                       "usd": None if spent is None else round(spent, 2), "ideation": ideation,
-                      "passed": sum(1 for s in order if states[s]["state"] == "passed") if ideation else 0})
+                      "passed": sum(1 for s in order if states[s]["state"] == "passed") if ideation else 0,
+                      "releases_from": releases.releases_from(root, g["slug"]), "wait_release": releases.wait(root, state_dir, g["slug"], made, rel)})
         mine_nodes, today_tasks = [], []
         for i in sorted(mine, key=lambda i: (tier[i["slug"]], place[i["slug"]])):
             slug, st, page = i["slug"], states[i["slug"]], pages[i["slug"]]
@@ -309,7 +324,10 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
             waves = map_stage.waves_of(tasks)
             pitch = pitches.face(root, state_dir, slug, r["state"], target, offered) if ideation else None
             node = {"slug": slug, "goal": g["slug"], "title": i["title"], "short": i["short"], "state": r["state"], "queue": r["queue"],
-                    "element": st.get("element") or "", "flag": idea_flag.flag_of(state_dir, slug), "type": type_of(st),
+                    "element": st.get("element") or "", "flag": (flag := flag_of(state_dir, slug, held)), "type": type_of(st),
+                    "route": idea_route.route(root, state_dir, slug, page=page, st=st, plan=plan, held=held, flag=flag),
+                    "goal_state": idea_route.goal_state(root, state_dir, slug, held) if ideation and r["state"] == "sent" else None,
+                    "release": release_of(releasing.get(slug)),
                     "held_until": r["held_until"], "start_at": r["start_at"], "night_by": r["night_by"], "by_pace": bool((plan or {}).get("by_pace")),
                     "priority": r["priority"], "size": r["size"],
                     "risk": r["risk"], "tier": tier[slug], "depends_on": r["depends_on"], "waits_on": r["waits_on"],

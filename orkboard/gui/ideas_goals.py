@@ -135,6 +135,8 @@ class GoalsMixin:
             own_parties.used(party, own_parties.project_key(self.host.repo_root), Path(self.host.repo_root).name, got)
         if leader:
             library.install(self.state_dir, [leader])
+        if "releases_from" in args:                          # a Release party's sources (spec 68 §3.2)
+            self.save_releases_from(got, args["releases_from"])
         g = next(t for t in ideas.tracks(self.root(), make=False) if t["slug"] == got)
         self._ev(event_log.GOAL_SAVED, args, goal=got, new=new, preset=self._preset_kept(args, g), metrics=[m["name"] for m in g["metrics"]], links=g["links"],
                  priority=g["priority"], craft=g["craft"], team=g["team"], every=g["every"], leader=g["leader"] or roles.TASKMASTER,

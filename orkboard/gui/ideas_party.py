@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
-from orkboard.realm import event_log, goal_team, goal_types, ideas, library, own_parties, party_hints, party_price, party_proposals, party_work, roles
+from orkboard.realm import event_log, goal_team, goal_types, ideas, library, own_parties, party_hints, party_price, party_proposals, party_work, releases, roles
 
 
 class PartyMixin:
@@ -39,6 +39,14 @@ class PartyMixin:
         ideation = leader == library.INVESTOR                # a pitch's price, no hint about code or checks (spec 65 §3)
         return {**party_price.price(self.root(False), self.state_dir, self.board_settings(), leader, team, every),
                 "hints": [] if ideation else party_hints.hints(self.root(False), self.state_dir, craft, leader, team, every), "types": types}
+
+    def save_releases_from(self, party: str, value: object) -> None:
+        """`releases_from` of `ideas.goal_save`: the parties a Release party takes its flags from, kept with the party ([] is every party but
+        Ideation; spec 68 §3.2). Refused when it is not a list of the project's parties."""
+        try:
+            releases.set_releases_from(self.root(), party, value)
+        except ValueError as e:
+            raise IdeasError(str(e)) from None
 
     def party_answer(self, args: dict) -> dict:
         """`{"goal", "take", "reason"?}`: take the checker the night proposed out of the goal's party (the goal is not read again), or keep it

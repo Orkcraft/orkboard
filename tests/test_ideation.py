@@ -112,7 +112,7 @@ def _judged(k, slug, model=None):
 
 def test_the_six_agents_of_ideation_follow_the_marketing_ones_with_their_craft_tier_band_and_a_pitch_kind_only():
     ids = [a.id for a in library.LIBRARY]
-    assert ids[ids.index("community") + 1:] == ["investor", "product-view", "market-view", "tech-view", "design-view", "skeptic"]
+    assert ids[ids.index("community") + 1:ids.index("skeptic") + 1] == ["investor", "product-view", "market-view", "tech-view", "design-view", "skeptic"]
     rows = {a.id: (a.name, a.craft, a.tier, a.band, a.takes, a.line) for a in library.LIBRARY if a.pitch}
     assert rows == {
         "investor": ("Investor", "product", "elder", "lead", ("pitch",), "Decides whether to invest in a pitch: where to take it, or why not"),
@@ -138,7 +138,7 @@ def test_the_six_agents_of_ideation_follow_the_marketing_ones_with_their_craft_t
 def test_the_ideation_preset_follows_website_and_the_investors_stages_are_pitch_views_decision():
     got = library.presets()
     i = [p["id"] for p in got].index("ideation")
-    assert got[i - 1]["id"] == "website" and got[i] == {
+    assert got[i - 1]["id"] == "website" and got[i + 1]["id"] == "release" and got[i] == {
         "id": "ideation", "name": "Ideation", "line": "Small pitches: invest, reshape or pass, and why", "craft": "product", "race": "lich",
         "mixed": True, "lead": "investor", "build": ["product-view", "market-view", "tech-view", "design-view"], "check": ["skeptic"]}
     assert library.stages()["investor"] == {"lead": "Pitch", "build": "Views", "check": "Decision", "seats": {"lead": 1, "build": 4, "check": 1}}
@@ -392,7 +392,8 @@ def test_what_the_faces_read_of_a_pitch_on_its_page_and_its_map_node_and_needs_y
     slug = _add_pitch(host)
     page = host.command("ideas.page", {"slug": slug})
     p = page["pitch"]
-    assert set(p) == {"state", "views", "skeptic", "investor", "case", "decision", "sent", "passed", "before"} and p["state"] == "judged"
+    assert set(p) == {"state", "views", "skeptic", "investor", "case", "decision", "sent", "passed", "before", "goal_state"} and p["state"] == "judged"
+    assert p["goal_state"] is None                                                         # not sent: spec 68 §2.4
     assert [v["slug"] for v in p["views"]] == list(library.VIEWS) and all(v["answered"] for v in p["views"])
     assert set(p["views"][0]) == {"slug", "name", "head", "answered", "for", "against", "question", "size"}
     assert p["views"][2]["name"] == "Engineering view" and p["views"][2]["head"]["race"] == "peon" and p["views"][2]["size"] == "M"

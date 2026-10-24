@@ -24,6 +24,9 @@ gui/ideas_recap.py) and the reserve in the snapshot.
 Spec 65: a goal of an Ideation party is a pitch, judged and never built (`ideas.judge`, `ideas.pitch_send`, `ideas.pitch_again`,
 `ideas.pitch_pass`: gui/ideas_pitch.py); the plan's commands refuse it.
 
+Spec 68: a goal's route (`ideas.move` only before its work starts), a release (`ideas.release_out`, `ideas.release_candidates`, `goes_in` of
+`ideas.add`) and the faces' party switch (`ideas.shown`): gui/ideas_release.py.
+
 Spec 37 §8: the Board's settings are the project's (`BoardHost.board_settings`: `<repo>/.orkcraft/board.json` over the
 machine's `ideas`), read through `settings_now()` and written with `save_settings()`.
 """
@@ -38,7 +41,7 @@ from typing import Any, Callable
 
 from orkboard import settings
 from orkboard.core import idea_keeper
-from orkboard.realm import event_log, idea_checks, idea_element, idea_lens, idea_photos, idea_secrets, idea_target, ideas, pitches, wiki
+from orkboard.realm import event_log, idea_checks, idea_lens, idea_photos, idea_route, idea_secrets, idea_target, ideas, pitches, wiki
 from orkboard.gui.ideas_args import VIA, IdeasError, _device, _opt, _text
 from orkboard.gui.ideas_board import BoardMixin
 from orkboard.gui.ideas_gate import GateMixin
@@ -48,6 +51,7 @@ from orkboard.gui.ideas_party import PartyMixin
 from orkboard.gui.ideas_pick import PickMixin
 from orkboard.gui.ideas_pitch import PitchMixin
 from orkboard.gui.ideas_recap import RecapMixin
+from orkboard.gui.ideas_release import ReleaseMixin
 from orkboard.gui.ideas_review import ReviewMixin
 from orkboard.gui.ideas_revise import ReviseMixin
 from orkboard.gui.ideas_lens import LensMixin
@@ -90,7 +94,7 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, PitchMixin, RecapMixin, RolesMixin, ReviewMixin, ReviseMixin,
+class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, PitchMixin, RecapMixin, ReleaseMixin, RolesMixin, ReviewMixin, ReviseMixin,
             TypesMixin, BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
@@ -317,7 +321,8 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                 "busy": bool(self.keeper.busy(slug)) or st["state"] in ("reading", "planning"),
                 "state_error": st.get("error", ""), "proposed_track": page.get("proposed_track"),
                 "lens": idea_lens.read(self.state_dir, slug), **self.after_start(slug, plan, st),      # spec 62 §1.5
-                "pitch": self.pitch_of(root, slug, st["state"])}                                        # a pitch's views, case and decision (spec 65)
+                "pitch": self.pitch_of(root, slug, st["state"]),                                        # a pitch's views, case and decision (spec 65)
+                "route": idea_route.route(root, self.state_dir, slug)}                                  # its way across parties (spec 68 §2); [] with only its party
 
     # -- writing -------------------------------------------------------------------------------------------
 
@@ -344,6 +349,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             raise IdeasError(str(e)) from None
         pointed = self._lens_args(args)
         typed = self.typed(args, track, goals[track]["title"])
+        rel = self.release_args(args, track, typed)          # a release's version and what goes in, checked before the goal exists (spec 68 §3)
         night, hold = args.get("night") is True, args.get("hold") is True
         queue = "hold" if hold else "now" if pitch else "night" if priority == "low" or night else "now"     # a goal sent from a pitch: Now (spec 65 §5)
         text = text[:pitches.PITCH_CHARS] if pitches.is_ideation(self.root(), track) else text
@@ -353,12 +359,14 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                                   night_by="person" if night else "board")      # a Low idea the Board puts off itself; the person's own night is theirs (spec 44 §2)
             if typed["key"] or pitch:
                 ideas.save_state(self.state_dir, slug, type=typed["key"], from_pitch=pitch)
+            if rel is not None:
+                self.release_made(args, slug, track, rel)
         if joined:
             self.changed(f"goal:{track}")
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
         idea_lens.save(self.state_dir, slug, pointed or (idea_lens.read(self.state_dir, pitch) if pitch else []))
-        element = idea_element.give(self.root(), self.state_dir, slug)    # the mark of every card of it (spec 50 §2.3)
+        element = self.element_for(slug, pitch)    # the mark of every card of it (spec 50 §2.3); a sent pitch's, where it is free (spec 68 §2.3)
         ideas.add_turn(self.state_dir, slug, "you", self.with_asks(text, typed), "Gist")     # the person's own words, kept
         self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
                  priority=priority, queue=queue, photos=len(photos), lens=[a["kind"] for a in pointed], type=typed["key"],
@@ -416,13 +424,6 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         self.runner(need=True).stop(slug)
         if ideas.plan(self.state_dir, slug) is not None:
             ideas.edit_plan(self.state_dir, slug, lambda p: p.update(stopped=True))
-        self.changed(slug)
-        return {"ok": True}
-
-    def move(self, args: dict) -> dict:
-        slug = _text(args, "slug", 100)
-        ideas.move(self.root(), slug, _opt(args, "track") or None, _opt(args, "before") or None, by="person")
-        self._what[slug] = "moved"
         self.changed(slug)
         return {"ok": True}
 
@@ -586,6 +587,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                  "ideas.lens_screen": self.lens_screen, "ideas.check_skip": self.check_skip,
                  "ideas.gate": self.gate, "ideas.gate_merge": self.gate_merge, "ideas.today": self.today, "ideas.pick": self.pick}
         table.update({"ideas.judge": self.judge, "ideas.pitch_send": self.pitch_send, "ideas.pitch_again": self.pitch_again,
-                      "ideas.pitch_pass": self.pitch_pass})
+                      "ideas.pitch_pass": self.pitch_pass,
+                      "ideas.release_out": self.release_out, "ideas.release_candidates": self.release_candidates, "ideas.shown": self.shown})
         return {name: guarded(name, fn) for name, fn in table.items()}
 

@@ -1086,3 +1086,50 @@ shows in percents. So, while Claude is on a subscription:
    before. A tool of its own price (pi, Hermes) beside Claude on a subscription is said in Claude's window too: rare,
    known.
 The owner's call, before the testers' numbers. Amends §48.3.
+
+## 83. A party is a team, a goal has a route: a goal keeps itself across parties; a Release party gathers the flags (23 October, the owner)
+
+Why: the owner asked what if parties changed often: *ideation → a new mobile feature → ideation → a new feature →
+testing → release*, not one party for the mobile app. Read as parties, that chain is one thing's way, not a change of
+team: the features are the Mobile app party's goals, testing is its checkers and the gate, and switching party for each
+step would scatter a feature's story over four parties, with no place that says where it is. What the chain does show
+is two gaps: a goal sent from Ideation becomes a new goal that forgets where it came from, and a flag in main is not a
+version out in the stores (a phone app has a build, a store's review, its notes and screenshots between them). So:
+1. **A party is a team, and stays few** (§63.11 stays): a step of a goal's way is not a party. Testing is a party's
+   checkers and the gate; a party of its own only for a team of its own.
+2. **A goal has a route**: where it came from (a pitch's decision), the party it was moved from, its flag in main, the
+   release it went into, and when that release was out. One line on the goal's screen; each step a press that opens
+   that party with the goal picked. A goal moved or sent keeps its element where it is free.
+3. **A goal moves to another party only before its work starts**: once a task of it has run, its party is where its
+   work is; a new goal there is the way.
+4. **A sent pitch follows its goal**: Ideation shows the goal's state (at work, in main, out), so the person sees
+   whether the Investor was worth it without switching.
+5. **Release is a party of the library**: its leader the **Release manager** (product's craft; a **skeleton**, the
+   undead's, its own head drawn in orkUI first, a lich until then), its builders on the cheaper models (a Release
+   engineer, Release notes, ASO: laborers), its Release checker a warrior. Its goal is *A release*: **what goes in** is
+   the flags raised since the last release in the parties it releases from (every party but Ideation, by default),
+   ticked by the person; its version, its notes and the stores' list are prepared and taken into main through the gate.
+6. **Out is the person's press**: Orkboard submits nothing to a store; *Mark it out* says the version is out, and each
+   goal that went in says *Out in 1.4*. In a project with a Release party, the other parties are not offered *A release*;
+   without one, a party releases its own flags as today.
+7. **Measured first**: the party switches a day, by face and pair, so §63.11's *seldom* is read, not assumed.
+Spec 68.
+
+## 84. On the desktop the left column is the parties: a party a heading, its goals under it; the project takes the top line (24 October, the owner)
+
+Why: the owner, on the window as built: the left column's top line (*Контент для … 0/5 · Parties ⌄*) cuts the party's
+name and hides the other parties behind a deck, while a project has a few (Ideation, a product's party, Release, §83)
+and a goal's route goes through them. The deck was right for the phone's one hand, not for a column that has the room.
+So (reverses §65.3 on the desktop; the phone keeps its deck and sheet):
+1. **The left column is a list of the parties**, in the Board's order, then Operations when the project has them,
+   then *+ New party*. A party is a heading: its leader's head, its whole name (two lines, never cut), *k/n*, and one
+   sign when something waits in it (a stop, a failure: §65.2 still counts only what cannot be seen).
+2. **One party is open, the one the board shows**: opening another shows it (it is the party switch); the open one's
+   heading cannot be closed. Under its heading: its leader (the member's row, as today), *Process now* (*Judge now* in
+   Ideation), its goals as today, and **the New goal pile at its foot** (a goal's types are its party's team, §72:
+   never one button for all the parties).
+3. **The project takes the top line**: the project switcher leaves the top bar for the column's top, as wide as the
+   column, with what waits in each project as the menu says today.
+4. **The leader's big card goes**: its price and its details are behind its row's press and *About this party*, as a
+   member's are. A new party's heads gather onto its heading's head (§76.3's moment, landing elsewhere).
+The owner's call. Spec 69.
