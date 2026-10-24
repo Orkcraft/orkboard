@@ -509,3 +509,28 @@
   .arena-tport.is-struck, .arena-tport.is-struck .ork-race__head, .arena-tport.is-calling, .arena-tport.is-calling .arena-sign { animation: none; }
   .arena-new__card, .arena-type__front, .arena-type__face { transition: none; }
 }
+
+/* A goal's route (spec 68 §7.1): the steps across the parties at the top of its screen, joined by orkUI's ›; each a button with the party's leader's head and its words. */
+.arena-route { display: flex; flex-direction: column; gap: var(--ork-2); margin-bottom: var(--ork-4); }
+.arena-route__label { margin: 0; color: var(--ork-ink-muted); font: var(--ork-type-label); text-transform: var(--ork-type-label-case); letter-spacing: var(--ork-type-label-track); }
+.arena-route__steps { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ork-2); }
+.arena-route__steps .ork-chev { flex: none; margin: 0; color: var(--ork-ink-muted); }
+.arena-route__step { appearance: none; display: inline-flex; align-items: center; gap: var(--ork-2); min-height: 28px; box-sizing: border-box; max-width: 100%; padding: 0 var(--ork-3); border: var(--ork-line) solid var(--ork-frame);
+  background: none; color: var(--ork-ink); font: var(--ork-type-caption); cursor: pointer; text-align: left; }
+.arena-route__step:hover { background: var(--ork-raised); }
+.arena-route__step:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ork-ink); }
+.arena-route__step.is-now { border-color: var(--ork-ink); }
+.arena-route__words { min-width: 0; overflow-wrap: anywhere; }
+
+/* A flag's release, a release's Mark it out and what waits for a release (spec 68 §7.4, §7.5). */
+.arena-flagrow__rel { flex-basis: 100%; }
+.arena-flagrow__out { margin: var(--ork-1) var(--ork-3) var(--ork-2); }
+.arena-out { display: flex; flex-direction: column; gap: var(--ork-2); margin: var(--ork-1) var(--ork-3) var(--ork-2); }
+.arena-out__row { display: flex; gap: var(--ork-3); }
+.arena-waitrel { align-self: stretch; justify-content: flex-start; gap: var(--ork-3); margin: var(--ork-3) var(--ork-2) 0; text-align: left; }
+
+/* New goal of A release: What goes in; New party and Edit the party: Releases from (spec 68 §7.3, §7.6). */
+.arena-goesin__list, .arena-releasesfrom__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ork-1); }
+.arena-goesin__row, .arena-releasesfrom__row { display: flex; align-items: center; gap: var(--ork-4); min-height: 32px; cursor: pointer; }
+.arena-goesin__row.is-held { opacity: 0.5; cursor: default; }
+.arena-goesin__text { display: flex; flex-direction: column; min-width: 0; }

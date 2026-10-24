@@ -267,3 +267,32 @@ v76; the two new modules in `SHELL`). Tests: new `tests/test_pwa_route_browser.p
   already says in the host's words. **Mark it out** says its refusal (*Its flag is not raised yet: …*) in the ask and keeps asking.
 - **`ideas.shown`** is sent from the parties' sheet only (`shell-where.js`), with `from` the party shown, not for the party already shown, not for Operations as `from`; never awaited, never a toast.
 - **Tests run with** `--with cryptography --with segno --with websockets` (the phone's listener needs `cryptography`): all 356 phone tests of `tests/test_pwa*.py` passed before the two new files, which pass too.
+
+## 12. As built (B, the desktop, notes, no change of the contract)
+
+**B (desktop), 24 October.** Built on spec 69's column (the left column is the list of the parties; the open party's body is `goals.js` `Left`). New `js/arena/releasewords.js` (the phone's words, ported: `routeWords`, `goalStateWords`, `flagRelease`,
+`releaseLine`, `waitWords`, `outAsk`, `partyName`, `partyOf`, `hasReleaseParty`; the desktop cannot import from `pwa/`), new `js/arena/route.js` (`RouteLine`, `openStep`), new `js/shell/release.js` (`GoesIn`: *What goes in*;
+`useReleasesFrom` and `ReleasesFrom`: *Releases from*; the spec names `ideadialog.js`, `goaldialog.js` and `goalwizard.js` only, which are near the size to split at), `board/idea.js` (the route at the top of the goal's screen),
+`shell/pitchview.js` (a sent pitch's goal under its decision), `arena/pitchwords.js` (`pitchWords` of a sent pitch says `goal_state`, else *sent to <party> · <goal>* as before: Ideation's row, the bar of a pitch's screen),
+`shell/ideadialog.js` (*A release*: `GoesIn` after the *Version* ask; `goes_in` sent), `shell/goaldialog.js` and `shell/goalwizard.js` (*Releases from*; sent as `releases_from` only when changed), `arena/goals.js` (*k flags wait for a
+release*, a flag's release, a release's row with **Mark it out**), `arena/partylist.js` (`ideas.shown`), `shell/party.js`, `shell/goalwizard.js` and `shell/agentdialog.js` (an agent's head from the host's `race`, the craft's for an older
+host: `raceOfAgent`), `arena/arena.css`. `shell/shell.css` is unchanged. Tests: new `tests/test_route_desktop_browser.py` (8) and `tests/test_release_desktop_browser.py` (11); no desktop test of before changed.
+
+**Deviations and additions** (none changes a contract answer).
+- **The route** stands at the top of `IdeaView` (the drawer's tab strip is the goal's title), `nav[aria-label=Route]` with a `Route` label, a `.arena-route__step` button for each step (the party's leader's small head from the Map's `leader.head`, then the words; the
+  last is `aria-current="step"`), orkUI's › between. A `pitch` or `release` step opens that goal's screen (`showIdea`, no `via`: the host refuses a `via` that is not in its list); a `party` or `main` step shows that party (`track`) with the goal
+  picked into its filter (`picks`); a `moved` step shows the party it came from, whole. The drawer stays open: the board changes behind it. A step is *At work in <party> · k of n* only while its goal is `working`, else *In <party>*, as the phone.
+- **A sent pitch's goal** is *Its goal · <words>* under the decision (`data-after="goal"`), the words a button that opens the goal, plain text for *Dropped*. Ideation's row and the bar of a pitch's screen say the words themselves (not a shorter form:
+  the line of a row is cut with an ellipsis in the narrow column).
+- **Flags**: a flag row says its release words in their own line (`data-rel`: `in`, `out`, `waits`; a release's own row `own`, *1.4 · 3 goals*). **Mark it out** is a button under the row; a press asks in place (*Is 1.4 out in the stores? Orkboard submits
+  nothing: say so once you have.* with **Out** and **Not yet**, as the phone), a refusal is the host's words as the toast the command already gives and the question stays; then the row and the goals that went in say *Out in 1.4*.
+  *k flags wait for a release* is `.arena-waitrel`, a quiet button at the top of the open party's Goals, shown when the Map's party has the `release` type and `wait_release > 0`; a press opens New goal of *A release* (`openDialog("idea", {goal, type})`).
+  The closed Release heading does not show the count (the spec says it may): the heading's *k/n* and stop sign stay as spec 69 has them.
+- **What goes in** is read when the dialog opens (`ideas.release_candidates {party}`) and ticks the free flags; a goal kept for tonight (*Put it back* with words) sends no `goes_in`, as it brings no one.
+- **Releases from**: New party shows it when the leader is the Release manager (the preset or a seat picked so), ticked: all (sent only when changed; all ticked is `[]`), one always stays. Edit the party shows it when the Map's party holds the `release` type, from its
+  `releases_from` (a Release party: all ticked when `[]`; another party: none).
+- **A refused move**: the desktop has no gesture that moves a goal to another party (nothing in `js/` sends `ideas.move`), so there is nothing to show a refusal for yet; a refusal of any command is the toast `command` already says in the host's words.
+- **`ideas.shown`** is sent from `partylist.js` `show()` (a press on a closed heading), `{party, from}`, not awaited, not for Operations on either side, not for the open heading; the first read sends none.
+- **Tests run with** `--with cryptography --with segno --with websockets`: 338 desktop browser tests (`tests/test_*desktop_browser.py`, `test_board_browser.py`, `test_shell_browser.py`, `test_races_browser.py`) ran: 335 passed, 3 failed under load, of which
+  `test_shell_browser.py::test_a_file_todo_shows_its_steps_and_uploads_the_file_and_a_secret_shows_its_steps_too` also fails on `main` and the other two (`test_type_top_right_desktop_browser.py`, `test_board_browser.py`'s phone test) pass when re-run alone.
+

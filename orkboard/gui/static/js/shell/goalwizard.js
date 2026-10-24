@@ -12,9 +12,10 @@ import { track } from "../board/store.js";
 import { act, roles, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { PRIORITIES } from "./goaldialog.js";
+import { ReleasesFrom, useReleasesFrom } from "./release.js";
 import { gatherWaits } from "../arena/arenastate.js";
 import { reducedMotion } from "../arena/motion.js";
-import { TASKMASTER, RACE, PartyBands, PriceLine, CanTake, ChecksBlock, OwnParties, LibraryTiles, agentOf, inBand, partyWords, overfull, pitchParty, presetsOf, usePartyPrice, useOwnParties } from "./party.js";
+import { TASKMASTER, raceOfAgent, PartyBands, PriceLine, CanTake, ChecksBlock, OwnParties, LibraryTiles, agentOf, inBand, partyWords, overfull, pitchParty, presetsOf, usePartyPrice, useOwnParties } from "./party.js";
 
 export const FOR_HINT = "goes first when the window is short";
 
@@ -27,7 +28,7 @@ function seatHeads(leader, team) {
   const view = document.querySelector(".shell-modal__body")?.getBoundingClientRect(), save = document.querySelector(".shell-modal__foot button[type=submit]")?.getBoundingClientRect();
   const seen = (r) => !view || (r.bottom > Math.max(view.top, 0) && r.top < Math.min(view.bottom, innerHeight) && r.right > view.left && r.left < view.right);
   const atSave = (r) => (save ? { left: save.left + (save.width - r.width) / 2, top: save.top + (save.height - r.height) / 2, width: r.width, height: r.height } : r);
-  return heads.map((a, i) => seats[i] && { race: RACE[a.craft], tier: a.tier, box: boxOf(seen(seats[i]) ? seats[i] : atSave(seats[i])) }).filter(Boolean);
+  return heads.map((a, i) => seats[i] && { race: raceOfAgent(a), tier: a.tier, box: boxOf(seen(seats[i]) ? seats[i] : atSave(seats[i])) }).filter(Boolean);
 }
 
 export function GoalWizard({ then = "", preset: first = "" }) {
@@ -56,6 +57,7 @@ export function GoalWizard({ then = "", preset: first = "" }) {
     setLit("");
   };
   const fromLibrary = (p) => { setCraft(p.craft === "mixed" ? "" : p.craft); setPreset(p.id); setLit(p.id); setPartyId(""); setLeader(p.lead || TASKMASTER); setTeam([...(p.build || []), ...(p.check || [])]); setEvery([]); };
+  const rf = useReleasesFrom({ leads: leader === "release-manager" });             // the Release party takes its goals from the others (spec 68 §7.6): every party but Ideation, ticked
   const price = usePartyPrice(true, leader, team, every, craft);
   const fits = overfull(leader, team).length === 0;      // a leader with fewer seats than the party fills: it is saved once it fits (spec 59 §6.2)
   const ready = (title.trim() || about.trim()) && !saving && fits;
@@ -65,7 +67,7 @@ export function GoalWizard({ then = "", preset: first = "" }) {
     const heads = then === "idea" || reducedMotion() || document.hidden ? [] : seatHeads(leader, team);       // the heads' boxes at the press: the dialog is gone when they travel
     setSaving(true);
     const got = await act("ideas.goal_save", { ...(title.trim() ? { title: title.trim() } : {}), about: about.trim(), leader, team, every: every.filter((id) => team.includes(id)), priority,
-      ...(partyId ? { party: partyId } : {}), ...(preset && !partyId ? { preset } : {}) });
+      ...(partyId ? { party: partyId } : {}), ...(preset && !partyId ? { preset } : {}), ...(rf.value() ? { releases_from: rf.value() } : {}) });
     setSaving(false);
     if (!got?.slug) return;
     for (const note of got.notes || []) toast(note);       // an agent of the project's own that the party carries stays as it was
@@ -91,6 +93,7 @@ export function GoalWizard({ then = "", preset: first = "" }) {
         <${PriceLine} price=${price} />
         <${CanTake} price=${price} />
         <p class="ok-tone-muted shell-party-line">${partyWords(leader, team)}</p></div>
+      <${ReleasesFrom} rf=${rf} />
       ${!pitchParty(leader) && html`<${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />`}
       <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span><small class="ok-tone-muted">${FOR_HINT}</small>
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>

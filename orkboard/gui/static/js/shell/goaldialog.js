@@ -5,9 +5,10 @@ import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, toast } from "../link.js";
 import { board, track } from "../board/store.js";
-import { act, showGoal } from "./store.js";
+import { act, mapData, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { GoalWizard, FOR_HINT } from "./goalwizard.js";
+import { ReleasesFrom, useReleasesFrom } from "./release.js";
 import { PartyBands, PriceLine, CanTake, ChecksBlock, OwnParties, TASKMASTER, IDEATION_STAYS, partyWords, pitchParty, usePartyPrice, useOwnParties } from "./party.js";
 
 export const PRIORITIES = [["high", "High"], ["normal", "Normal"], ["low", "Low"]];
@@ -32,6 +33,8 @@ function GoalEdit({ slug, then = "" }) {
   const seat = (set) => (v) => { set(v); setPartyId(""); };
   const pickOwn = (p) => { setLeader(p.leader || TASKMASTER); setTeam([...p.team]); setEvery([...p.every]); setPartyId(p.id); };
   const price = usePartyPrice(changing, leader, team, every, g?.craft || "");          // asked when the party is picked (Change the party)
+  const shown = (mapData.value?.goals || []).find((x) => x.slug === slug);            // the Map's party: what it offers and takes releases from (spec 68 §7.6)
+  const rf = useReleasesFrom({ self: slug, saved: shown?.releases_from || [], leads: shown?.leader?.slug === "release-manager", offers: (shown?.types || []).some((t) => t.id === "release") });
   const moved = leader !== was.leader || JSON.stringify(team) !== JSON.stringify(was.team) || JSON.stringify(every) !== JSON.stringify(was.every);
   const save = async (e) => {
     e?.preventDefault();
@@ -40,6 +43,8 @@ function GoalEdit({ slug, then = "" }) {
     const args = { slug, about: about.trim(), priority };
     if (title.trim() && title.trim() !== g?.title) args.title = title.trim();     // a name typed is the person's
     if (moved || partyId) Object.assign(args, { leader, team, every: every.filter((id) => team.includes(id)), ...(partyId ? { party: partyId } : {}) });   // the party, when changed
+    const from = rf.value();
+    if (from) args.releases_from = from;
     const got = await act("ideas.goal_save", args);
     setSaving(false);
     if (!got?.slug) return;
@@ -66,6 +71,7 @@ function GoalEdit({ slug, then = "" }) {
           <${ChecksBlock} team=${team} every=${every} setEvery=${seat(setEvery)} price=${price} />`
           : pitchParty(leader) ? html`<p class="ok-tone-muted">${IDEATION_STAYS}</p>`
           : html`<button type="button" class="ork-btn" onClick=${() => setChanging(true)}>Change the party</button>`}</div>`}
+      <${ReleasesFrom} rf=${rf} />
       <div class="shell-field" role="group" aria-label="Priority"><span class="ok-font-label">Priority</span><small class="ok-tone-muted">${FOR_HINT}</small>
         <div class="shell-seg">${PRIORITIES.map(([id, name]) => html`<label key=${id} class=${`shell-seg__one${priority === id ? " is-on" : ""}`}>
           <input type="radio" name="priority" class="gui-onb__hide" checked=${priority === id} onChange=${() => setPriority(id)} />${name}</label>`)}</div></div>

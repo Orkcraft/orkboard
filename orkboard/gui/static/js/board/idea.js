@@ -2,6 +2,7 @@
 // its own colour role and icon, the thesis bold, the text folded), the question box, the talk, and the actions by state —
 // Take it to work · Start · task states with Stop · Start again. `PlanView` is the same idea's plan, scrolled to a to-do. The talk names the party's leader, and a spec whose plan-making
 // sections changed since the plan says so (docs/specs/62-spec-after-start.md §5, §6): `ChangedLine` under the sections, **The change** over the plan while the leader's plan change waits.
+// The goal's route (spec 68 §7.1, arena/route.js) stands at the top of its screen.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Who, Icon } from "../orkui.js";
@@ -14,6 +15,7 @@ import { changeGem, changeToast } from "../arena/arenawords.js";
 import { ErrorLine } from "../shell/errors.js";
 import { pctOf, pctRange } from "../spend.js";
 import { PointedAt } from "../shell/lens.js";
+import { RouteLine } from "../arena/route.js";
 
 // Section → [colour role, line icon, kit icon]. The role is a design-system token in board.css (`[data-sec]`); the line
 // icon (16px) is Office's, the kit's pixel icon (tools/ui_kit.py) Camp's.
@@ -226,6 +228,7 @@ export function IdeaView({ p }) {
   const row = board.value?.ideas.find((i) => i.slug === p.slug), lead = leaderOf(p.track);
   const drop = async () => { await run("ideas.drop", { slug: p.slug }); closePreview(); };
   return html`<div class="board-ideaview">
+    <${RouteLine} steps=${p.route} goal=${p.slug} />
     <div class="board-bar">
       <span class="board-state" data-state=${p.state}>${stateWords({ state: p.state, progress: planProgress(p.plan) })}</span>
       ${p.size && html`<span class="board-size kit-well">${p.size}</span>`}

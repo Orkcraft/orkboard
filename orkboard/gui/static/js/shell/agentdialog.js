@@ -53,7 +53,7 @@ function Library({ own }) {
     <p class="ok-tone-muted">Pick one that comes with Orkline, or write your own.</p>
     <h3 class="ok-font-label">From the library</h3>
     ${free.length ? html`<ul class="shell-library">${free.map((a) => html`<li key=${a.id}><button type="button" class="shell-library__row" data-agent=${a.id} aria-label=${`Add ${a.name}`} onClick=${() => add(a)}>
-        <${WhoHead} head=${{ craft: a.craft, race: RACE_OF[a.craft] || "peon", tier: a.tier }} /><b>${a.name}</b><span aria-hidden="true">+</span>
+        <${WhoHead} head=${{ craft: a.craft, race: a.race || RACE_OF[a.craft] || "peon", tier: a.tier }} /><b>${a.name}</b><span aria-hidden="true">+</span>
         <small>${[CRAFT_WORDS[a.craft] || a.craft, TIER_WORDS[a.tier], a.line].filter(Boolean).join(" · ")}</small></button></li>`)}</ul>`
       : html`<p class="ok-tone-muted">Every agent that comes with Orkline is already in this project.</p>`}
   <//>`;
