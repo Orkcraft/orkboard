@@ -1172,3 +1172,12 @@ done twice or undone. So (after §85, on its level):
    tier is asked only to tell a collision from a coincidence; the Orkmaster never edits another party's spec or plan, and
    nothing moves without the person's answer. Measured: its stops answered, taken or left.
 The owner's call, after spec 70 is seen at work. Spec 71.
+
+## 87. A closed party says what it is at work on, in one line (24 October, the owner)
+
+Why: the owner: *the goals the parties are at work on, in the list?* Only the open party's goals are in the left column
+(§84); a closed party says *k/n* and one sign, so what the others are doing now needs a switch or the project's level.
+So: **under a closed party's heading, one quiet line: its goals at work**, each its element and short name (*↻ WebAuthn
+register · Session cookies*), *and k more* when they do not fit; none at work, no line. A press on a goal opens that
+party with the goal picked into the filter. On the phone the same line is under each party of the parties' sheet but
+the one shown. The owner's call. Spec 72.
