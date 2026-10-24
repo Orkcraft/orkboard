@@ -1,347 +1,392 @@
-"""The project on the desktop, in a real browser (docs/specs/37-board-and-line.md §8, Tests → D2; 1 440 × 900): Open folder on
-a fixture, the switcher with two projects and their counts, the start screen, the Files pane (a Markdown file rendered,
-edited and saved; a code file with line numbers; a `.env` greyed) and the Git section (a changed file's diff, a commit,
-*changed on disk: reload* after the file changes underneath)."""
+"""Spec 70 part B on the desktop (docs/specs/70-orkmaster-and-the-project.md §2–§4, §5 "B"; decisions §85): Chromium at 1 440 × 900 against the route test's stub host (the Passkey party, Ideation, Website and a
+Release party) with the host's `project` block (the Orkmaster and its deal), `ideas.party_for` and `ideas.shown` as spec §1 gives them. The Orkmaster's head in the project line and its press (the project's level: the
+parties as columns, their goals as decks in groups, Flags folded, sticky heads, a column's press opens the party, a deck's press opens the goal, a sent goal's links on hover); the Orkmaster's deal (New party) and New
+party's tiles in its order with the why; New goal on the level with its party suggested; `ideas.shown` to and from `@project`; a host without `project` keeps today's face. Screenshots to the directory
+ORKCRAFT_SHOTS_DIR names when it is set."""
 from __future__ import annotations
 
-import json
-import os
-import subprocess
-from pathlib import Path
+import copy
 
 import pytest
 
-playwright = pytest.importorskip("playwright.sync_api")
+pytest.importorskip("playwright.sync_api")
 
-from orkboard.gui import folder_dialog  # noqa: E402
-from orkboard.gui.board_host import Orkboard  # noqa: E402
-from orkboard.gui.server import Server  # noqa: E402
-from orkboard.realm import jobs  # noqa: E402
-from tests.browser_kit import WAIT_MS, launch  # noqa: E402
+from tests.browser_kit import WAIT_MS, gui  # noqa: E402,F401  (fixture)
+from tests.test_map_desktop_browser import node  # noqa: E402
+from tests.test_route_desktop_browser import RELEASE_TYPE, RouteHost, shot  # noqa: E402
+from tests.test_shell_browser import _calls, _new_party, _open, _parties, _show_goal  # noqa: E402
 
 pytestmark = pytest.mark.browser
 
-GOAL = {"summary": "Installs are the first step.", "questions": ["Which channel first?"],
-        "metrics": [{"name": "weekly installs", "how": "npm downloads, per week"}], "reply": "Noted."}
-GIT = ["git", "-c", "user.email=test@orkcraft.local", "-c", "user.name=Test Runner"]
+SHOP = "/work/shop"
+ORK = {"id": "orkmaster", "name": "Orkmaster", "race": "peon", "tier": "elder"}
+ARTIST = {"kind": "art", "words": "pixel art", "agent": "artist", "name": "Artist", "band": "build", "free": True, "out": []}
+FIX = {"id": "fix", "name": "Fix a bug", "sign": "bug", "line": "Something is broken: find it, fix it, prove it", "lens": "code", "refs": False, "used": 2, "missing": [], "asks": []}
+LOGO = {"id": "logo", "name": "New logo", "sign": "logo", "line": "A mark for the product, in sizes", "lens": "text", "refs": False, "used": 0, "missing": [], "asks": []}
+LIBRARY = ["game", "mobile-app", "website", "ideation", "release", "engineering", "design", "data", "marketing", "product", "mixed"]
+LACKING = [{"id": "release", "why": "flags_wait", "n": 3}, {"id": "ideation", "why": "no_pitches", "n": 0},
+           *[{"id": i, "why": "", "n": 0} for i in LIBRARY if i not in ("release", "ideation")]]
+HAVING = [*[{"id": i, "why": "", "n": 0} for i in LIBRARY if i not in ("release", "ideation")], {"id": "release", "why": "have", "n": 0}, {"id": "ideation", "why": "have", "n": 0}]
 
 
-def _repo(path: Path, files: dict[str, str]) -> Path:
-    for rel, text in files.items():
-        (path / rel).parent.mkdir(parents=True, exist_ok=True)
-        (path / rel).write_text(text, encoding="utf-8")
-    subprocess.run(["git", "init", "-q"], cwd=path, check=True)
-    for key, value in (("user.email", "test@orkcraft.local"), ("user.name", "Test Runner")):    # the commit button commits as the repository
-        subprocess.run(["git", "config", key, value], cwd=path, check=True)
-    subprocess.run([*GIT, "add", "-A"], cwd=path, check=True)
-    subprocess.run([*GIT, "commit", "-qm", "init"], cwd=path, check=True)
-    return path
+class ProjectHost(RouteHost):
+    """The route test's world with four parties (Passkey, Ideation, Website, Release) and `ideas.map`'s `project` (`project=False`: a host from before spec 70). Passkey offers *Fix a bug* and *New logo* (and misses
+    an Artist for it), Website offers *New logo* whole; `ideas.party_for` ranks them as realm/orkmaster.py does."""
+
+    def __init__(self, project=True):
+        super().__init__()
+        self.project, self.deal = project, copy.deepcopy(HAVING)
+        for slug in ("pricing", "weekly"):
+            self.goals.pop(slug)
+        self.nodes = [n for n in self.nodes if n["goal"] not in ("pricing", "weekly")]
+        self.ideas.pop("prices", None)
+        self.add(node("landing", "website", "Landing copy", "ready", 1), "dust")
+        self.add(node("hero", "website", "Hero picture", "done", 1, stage="done", progress={"done": 1, "total": 1}, folded=True), "lava")
+
+    def snapshot(self):
+        snap = super().snapshot()
+        snap["state"]["projects"] = {"current": SHOP, "recent": [], "open": [{"path": SHOP, "name": "shop", "working": 0, "needs_you": 0, "review": 0}]}      # the project line has its switcher
+        return snap
+
+    def map_doc(self):
+        doc = super().map_doc()
+        if not self.project:
+            return doc
+        types = {"passkey": [FIX, LOGO | {"missing": [ARTIST]}], "website": [LOGO], "release": [RELEASE_TYPE]}
+        for g in doc["goals"]:
+            g["types"] = copy.deepcopy(types.get(g["slug"], []))
+        doc["project"] = {"orkmaster": dict(ORK), "deal": copy.deepcopy(self.deal)}
+        return doc
+
+    def handle(self, name, a):
+        if name == "ideas.party_for":
+            self.log.append((name, a))
+            rows = [("passkey", "Passkey"), ("website", "Website"), ("release", "Release"), ("ideas", "Ideation")]
+            if "type" not in a:
+                parties = [{"party": s, "name": n, "fits": "pitch" if s == "ideas" else "", "missing": []} for s, n in rows]
+                return {"parties": parties, "suggested": "passkey"}
+            fit = {"passkey": ("missing", [{"agent": "artist", "name": "Artist"}]), "website": ("whole", [])}
+            parties = [{"party": s, "name": n, "fits": fit.get(s, ("none", []))[0], "missing": fit.get(s, ("none", []))[1]} for s, n in rows]
+            order = {"whole": 0, "missing": 1, "none": 2}
+            parties.sort(key=lambda p: order[p["fits"]])
+            return {"parties": parties, "suggested": parties[0]["party"]}
+        return super().handle(name, a)
 
 
 @pytest.fixture
-def world(tmp_path, monkeypatch):
-    """Two fixture repositories (`shop` open, `blog` not yet) and Orkboard on `shop`: (host, shop, blog)."""
-    for key, value in {"ORKCRAFT_SETTINGS_FILE": tmp_path / "settings.json", "ORKCRAFT_ONBOARDING": "0",
-                       "ORKCRAFT_LIMITS": "0", "ORKCRAFT_NO_UPDATE": "1", "XDG_CONFIG_HOME": tmp_path / "config"}.items():
-        monkeypatch.setenv(key, str(value))
-    monkeypatch.setattr(jobs, "run_read", lambda *a, **k: (json.dumps(GOAL), 0.01, 10, "s-1"))
-    monkeypatch.setattr(folder_dialog, "native", lambda begin="": None)          # Open folder's system dialog: cancelled
-    shop = _repo(tmp_path / "shop", {"README.md": "# Shop\n\nSells **things**.\n", "src/app.py": "import os\n\nprint('hello')\n",
-                                     ".env": "TOKEN=abc\n", ".gitignore": "build/\n", "build/out.js": "x\n"})
-    blog = _repo(tmp_path / "blog", {"README.md": "# Blog\n"})
-    return Orkboard(shop), shop, blog
+def level(gui):
+    pg, host, errors = _open(gui, host=ProjectHost(), ready=".arena[data-goal=passkey]")
+    yield pg, host
+    pg.close()
+    assert not errors, "\n".join(errors)
 
 
-def _serve(host):
-    server = Server(host)
-    return server, server.start_thread()
+def _project(pg):
+    """The Orkmaster pressed: the project's level is on the field."""
+    pg.get_by_role("button", name="The project").click()
+    pg.locator(".arena-project").wait_for(timeout=WAIT_MS)
+    pg.locator(".arena-pcol").first.wait_for(timeout=WAIT_MS)
 
 
-def _page(browser, server):
-    pg = browser.new_context(viewport={"width": 1440, "height": 900}).new_page()
-    errors: list[str] = []
-    pg.on("pageerror", lambda e: errors.append(str(e)))
-    pg.goto(server.url)
-    pg.locator(".shell").wait_for(timeout=WAIT_MS)
-    return pg, errors
+def _col(pg, slug):
+    return pg.locator(f'.arena-pcol[data-goal="{slug}"]')
 
 
-def _run(world, body):
-    host = world[0]
-    server, thread = _serve(host)
-    with playwright.sync_playwright() as p:
-        browser = launch(p)
-        try:
-            pg, errors = _page(browser, server)
-            body(pg, host)
-            assert not errors, errors
-        finally:
-            browser.close()
-            server.stop()
-            thread.join(10)
+def _groups(pg, slug):
+    return [h.text_content().strip() for h in _col(pg, slug).locator(".arena-pgroup > .arena-sec").all()]
 
 
-def _files_tab(pg):
-    pg.locator(".shell-top").get_by_role("button", name="Files").click()                          # Files: a tab of the drawer
-    pg.locator(".shell-tree__row").first.wait_for(timeout=WAIT_MS)
+# -- the Orkmaster in the project's line ---------------------------------------------------------------------------------------------------------------------
+
+def test_the_orkmasters_head_stands_at_the_left_of_the_project_line_and_its_press_shows_the_project_with_every_heading_closed(level):
+    pg, host = level
+    ork = pg.get_by_role("button", name="The project")
+    assert ork.count() == 1 and ork.get_attribute("aria-pressed") == "false" and ork.get_attribute("title") == "The project"
+    head = ork.locator(".ork-race__head")
+    assert "peon-elder" in head.get_attribute("src") and head.bounding_box()["width"] == 24 and head.bounding_box()["height"] == 22      # orkUI's Head, an ork, the elder tier, 24 × 22
+    line = pg.locator(".arena-left__proj")
+    assert ork.bounding_box()["x"] < line.locator(".shell-proj").bounding_box()["x"]                                # at the line's left, then the switcher
+    assert pg.locator(".arena-left__proj.is-open").count() == 0
+    ork.click()
+    pg.locator(".arena-project").wait_for(timeout=WAIT_MS)
+    assert ork.get_attribute("aria-pressed") == "true" and pg.locator(".arena-left__proj.is-open").count() == 1      # the line marked as an open heading is
+    assert pg.locator(".arena-phead[aria-expanded=true]").count() == 0 and pg.locator(".arena-phead[aria-current=true]").count() == 0
+    assert pg.locator(".arena-phead").count() == 4 and pg.locator(".arena-pbody").count() == 0                       # every heading closed, no party's body
+    assert pg.locator(".arena-pjtop h2").text_content() == "The project"
+    _parties(pg).locator('.arena-phead[data-goal="website"]').click()                                                 # a heading shows its party again
+    pg.locator('.arena[data-goal="website"]').wait_for(timeout=WAIT_MS)
+    assert ork.get_attribute("aria-pressed") == "false" and pg.locator(".arena-project").count() == 0
 
 
-def test_open_folder_the_switcher_with_two_projects_and_their_counts(world):
-    host, shop, blog = world
-    host.command("ideas.goal_save", {"about": "More people try the shop.", "priority": "high"})
-
-    def body(pg, host):
-        pg.locator(".shell-proj__btn").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".shell-proj__btn").inner_text().startswith("shop")
-        pg.locator(".arena-hc[data-kind=goal]").wait_for(timeout=WAIT_MS)                           # the goal's question waits along the bottom
-        pg.keyboard.press("Control+o")                                              # Open folder…, as an IDE
-        dlg = pg.get_by_role("dialog", name="Open folder")
-        dlg.get_by_label("Folder").fill(str(Path.home()))                           # refused, in words
-        dlg.get_by_role("button", name="Open folder").click()
-        assert "home folder" in dlg.locator("[role=alert]").inner_text()
-        dlg.get_by_label("Folder").fill(str(blog))
-        dlg.get_by_role("button", name="Open folder").click()
-        dlg.wait_for(state="detached", timeout=WAIT_MS)
-        pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
-        pg.get_by_text("No parties yet").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".arena-hc[data-kind=goal]").count() == 0 and pg.locator(".arena-goal, .arena-phead:not([data-goal=\"@operations\"])").count() == 0       # shop's goal and party are not seen in blog (its column has the project's line and + New party)
-        pg.locator(".shell-proj__btn").click()
-        rows = pg.locator(".shell-proj__one")
-        assert rows.count() == 2
-        shop_row = pg.locator(f".shell-proj__one[data-path='{shop.resolve()}']")
-        assert "needs you 1" in shop_row.inner_text()                               # the counts, live
-        shop_row.click()
-        pg.locator(".shell-proj__btn").filter(has_text="shop").wait_for(timeout=WAIT_MS)
-        pg.locator(".arena-hc[data-kind=goal]").wait_for(timeout=WAIT_MS)
-        assert host.command("projects.list")["current"] == str(shop.resolve())
-    _run(world, body)
+def test_the_project_is_kept_per_device_as_a_party_is(level):
+    pg, host = level
+    _project(pg)
+    pg.reload()
+    pg.locator(".arena-project").wait_for(timeout=WAIT_MS)
+    assert pg.get_by_role("button", name="The project").get_attribute("aria-pressed") == "true"
 
 
-def test_open_folder_opens_the_systems_dialog_and_the_folder_chosen_opens(world, monkeypatch):
-    # the owner's 19 October: a project's folder chosen in the system's picker, not typed
-    host, shop, blog = world
-    asked = []
-    monkeypatch.setattr(folder_dialog, "native", lambda begin="": asked.append(begin) or str(blog))
-
-    def body(pg, host):
-        pg.locator(".shell-proj__btn").wait_for(timeout=WAIT_MS)
-        pg.keyboard.press("Control+o")                                              # the dialog at once, as an IDE's
-        pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
-        assert pg.get_by_role("dialog", name="Open folder").count() == 0 and asked == [""]
-    _run(world, body)
+def test_a_host_without_project_keeps_todays_face_and_todays_tiles(gui):
+    pg, host, errors = _open(gui, host=ProjectHost(project=False), ready=".arena[data-goal=passkey]")
+    assert pg.get_by_role("button", name="The project").count() == 0 and pg.locator(".arena-ork").count() == 0
+    assert not pg.locator(".arena-left__proj").get_attribute("class").count("has-ork")
+    _new_party(pg)
+    dlg = pg.get_by_role("dialog", name="New party")
+    assert [t.get_attribute("data-craft") for t in dlg.locator(".shell-craft-tile").all()][:5] == ["game", "mobile-app", "website", "ideation", "release"]      # the library's order
+    assert dlg.locator(".shell-craft-tile__why").count() == 0
+    pg.close()
+    assert not errors, "\n".join(errors)
 
 
-def test_with_no_dialog_here_the_path_is_typed_and_choose_says_why(world, monkeypatch):
-    host, shop, blog = world
+# -- the project's level ----------------------------------------------------------------------------------------------------------------------------------------
 
-    def none(begin=""):
-        raise folder_dialog.Unavailable("No folder dialog on this computer: type the folder's path.")
-    monkeypatch.setattr(folder_dialog, "native", none)
-
-    def body(pg, host):
-        pg.keyboard.press("Control+o")
-        dlg = pg.get_by_role("dialog", name="Open folder")
-        choose = dlg.get_by_role("button", name="Choose…")
-        choose.wait_for(timeout=WAIT_MS)
-        pg.wait_for_function("() => !document.querySelector('[role=dialog] button[disabled]:not([type=submit])')", timeout=WAIT_MS)
-        assert dlg.locator("[role=alert]").count() == 0                            # at once: quiet
-        choose.click()
-        dlg.locator("[role=alert]").wait_for(timeout=WAIT_MS)
-        assert "type the folder's path" in dlg.locator("[role=alert]").inner_text()
-        dlg.get_by_label("Folder").fill(str(blog))
-        dlg.get_by_role("button", name="Open folder").click()
-        pg.locator(".shell-proj__btn", has_text="blog").wait_for(timeout=WAIT_MS)
-    _run(world, body)
-
-
-def test_a_folder_without_git_offers_start_git_here(world, tmp_path):
-    plain = tmp_path / "plain"
-    plain.mkdir()
-    (plain / "notes.txt").write_text("hello\n", encoding="utf-8")
-
-    def body(pg, host):
-        pg.keyboard.press("Control+o")
-        dlg = pg.get_by_role("dialog", name="Open folder")
-        dlg.get_by_label("Folder").fill(str(plain))
-        dlg.get_by_role("button", name="Open folder").click()
-        dlg = pg.get_by_role("dialog", name="Start git here?")
-        dlg.get_by_role("button", name="Start git here").click()
-        dlg.wait_for(state="detached", timeout=WAIT_MS)
-        assert (plain / ".git").is_dir()
-    _run(world, body)
+def test_the_level_is_a_column_for_each_party_with_its_goals_as_decks_in_groups_and_its_flags_folded(level):
+    pg, host = level
+    _project(pg)
+    cols = pg.locator(".arena-pcol")
+    assert [c.get_attribute("data-goal") for c in cols.all()] == ["passkey", "ideas", "website", "release"]            # the Board's order, no Operations
+    head = _col(pg, "passkey").locator(".arena-pcol__head")
+    assert head.locator(".ork-race__head").count() == 1 and head.locator(".arena-pcol__name").inner_text() == "Passkey" and "/" in head.locator(".arena-phead__count").inner_text()
+    assert head.get_attribute("title") == "Open Passkey"
+    assert _groups(pg, "passkey") == ["Planning", "At work"]
+    decks = _col(pg, "passkey").locator(".arena-deck")
+    assert decks.count() == 9                                                                                           # Flags (4) are folded
+    one = _col(pg, "passkey").locator('.arena-deck[data-slug="register"]')
+    box = one.bounding_box()
+    assert box["width"] <= 132.5 and box["height"] <= 72.5
+    assert one.locator(".ork-elem").count() == 1 and one.locator(".arena-deck__title").inner_text() == "WebAuthn register"
+    assert one.locator(".arena-deck__line").inner_text().strip() == "0/6 in dev · implementation"                        # as the party's goal row says it
+    assert _col(pg, "passkey").locator('.arena-pgroup[data-group="work"] .arena-deck').count() == 3
+    fold = _col(pg, "passkey").get_by_role("button", name="Flags (4)")
+    assert fold.get_attribute("aria-expanded") == "false"
+    fold.click()
+    assert fold.get_attribute("aria-expanded") == "true" and _col(pg, "passkey").locator('.arena-pgroup[data-group="flags"] .arena-deck').count() == 4
+    assert _groups(pg, "website") == ["Planning", "Waits for main"] and _col(pg, "website").locator(".arena-deck").count() == 2
+    assert _col(pg, "ideas").locator(".arena-deck").count() == 5 and _col(pg, "release").get_by_role("button", name="Flags (2)").count() == 1
+    fold.click()
+    assert _col(pg, "passkey").locator('.arena-pgroup[data-group="flags"] .arena-deck').count() == 0
+    assert not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
 
 
-def test_the_start_screen_with_no_project_open_and_recent(tmp_path, monkeypatch, world):
-    host, shop, blog = world
-    host.command("projects.close", {"path": str(shop)})          # shop stays in Recent
-    assert host.command("projects.list")["current"] is None
-
-    def body(pg, host):
-        pg.get_by_role("main", name="Start").wait_for(timeout=WAIT_MS)
-        assert pg.get_by_role("button", name="Open folder…").is_visible()
-        assert pg.locator(".shell-start__recent").get_by_role("button", name="shop").is_visible()
-        assert pg.locator(".arena, .arena-note").count() == 0                          # no window without a project
-        pg.locator(".shell-start__recent").get_by_role("button", name="shop").click()
-        pg.locator(".arena, .arena-note").first.wait_for(timeout=WAIT_MS)
-        pg.locator(".shell-proj__btn", has_text="shop").wait_for(timeout=WAIT_MS)
-    _run(world, body)
+def test_an_empty_party_says_nothing_in_it_yet(level):
+    pg, host = level
+    host.nodes = [n for n in host.nodes if n["goal"] != "website"]
+    host.bump({})
+    _project(pg)
+    assert _col(pg, "website").locator(".arena-pcol__empty").inner_text() == "Nothing in Website yet" and _col(pg, "website").locator(".arena-deck").count() == 0
 
 
-def test_files_markdown_rendered_edited_and_saved_code_with_line_numbers_env_greyed(world):
-    host, shop, blog = world
-
-    def body(pg, host):
-        _files_tab(pg)
-        names = pg.locator(".shell-tree__row").all_inner_texts()
-        assert ".git/" not in names and ".orkcraft/" not in names and "build/" not in names   # ignored: behind the toggle
-        pg.get_by_label("Show git-ignored files").check(force=True)
-        pg.locator(".shell-tree__row", has_text="build/").wait_for(timeout=WAIT_MS)
-        pg.get_by_label("Show git-ignored files").uncheck(force=True)
-        env = pg.locator(".shell-tree__row.is-secret", has_text=".env")
-        assert "may hold secrets: open it in your own editor" in env.get_attribute("title")
-        env.click()
-        assert "may hold secrets" in pg.locator("[data-kind=secret]").inner_text()
-        assert "TOKEN" not in pg.locator(".shell-preview").inner_text()            # never read
-        _files_tab(pg)                                                              # the file is a tab of its own: back to the tree
-        pg.locator(".shell-tree__row", has_text="README.md").click()               # Markdown, rendered
-        assert pg.locator(".shell-md h1").inner_text() == "Shop"
-        assert pg.locator(".shell-md strong").inner_text() == "things"
-        pg.get_by_role("region", name="Preview").get_by_role("button", name="Edit", exact=True).click()
-        box = pg.get_by_label("Editor")
-        box.fill("# Shop\n\nSells **many things**.\n")
-        pg.keyboard.press("Control+s")
-        pg.locator(".shell-md").wait_for(timeout=WAIT_MS)
-        assert "many things" in pg.locator(".shell-md strong").inner_text()
-        assert (shop / "README.md").read_text(encoding="utf-8") == "# Shop\n\nSells **many things**.\n"
-        _files_tab(pg)
-        pg.locator(".shell-tree__row", has_text="src/").click()                    # a folder opens one level
-        pg.locator(".shell-tree__row", has_text="app.py").click()
-        pg.locator(".shell-code").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".shell-code__nos").inner_text().split() == ["1", "2", "3"]
-        assert "print('hello')" in pg.locator(".shell-code__text").inner_text()
-        pg.get_by_role("region", name="Preview").get_by_role("button", name="Edit", exact=True).click()                              # leaving with changes asks
-        pg.get_by_label("Editor").fill("changed\n")
-        pg.get_by_role("button", name="Cancel").click()
-        dlg = pg.get_by_role("dialog", name="Unsaved changes")
-        dlg.get_by_role("button", name="Keep editing").click()
-        assert pg.get_by_label("Editor").input_value() == "changed\n"
-        pg.get_by_role("button", name="Cancel").click()
-        pg.get_by_role("dialog", name="Unsaved changes").get_by_role("button", name="Discard changes").click()
-        assert (shop / "src" / "app.py").read_text(encoding="utf-8").startswith("import os")
-    _run(world, body)
+def test_a_columns_press_opens_that_party_and_a_decks_press_opens_its_goal(level):
+    pg, host = level
+    _project(pg)
+    _col(pg, "website").locator(".arena-pcol__head").click()
+    pg.locator('.arena[data-goal="website"]').wait_for(timeout=WAIT_MS)
+    assert pg.locator('.arena-phead[data-goal="website"][aria-current=true]').count() == 1
+    _project(pg)
+    _col(pg, "passkey").locator('.arena-deck[data-slug="signin"]').click()
+    pg.locator(".board-ideaview").wait_for(timeout=WAIT_MS)
+    assert any(a.get("slug") == "signin" for a in _calls(pg, host, "ideas.page"))
+    assert pg.locator(".arena-project").count() == 1                                                                    # the level stays under the drawer
 
 
-def test_changed_on_disk_reload_after_the_file_changes_underneath(world):
-    host, shop, blog = world
-
-    def body(pg, host):
-        _files_tab(pg)
-        pg.locator(".shell-tree__row", has_text="README.md").click()
-        pg.get_by_role("region", name="Preview").get_by_role("button", name="Edit", exact=True).click()
-        pg.get_by_label("Editor").fill("# Mine\n")
-        (shop / "README.md").write_text("# Someone else's\n", encoding="utf-8")   # underneath
-        os.utime(shop / "README.md", (1_900_000_000, 1_900_000_000))
-        pg.get_by_role("button", name="Save").click()
-        alert = pg.locator(".shell-edit__why")
-        alert.wait_for(timeout=WAIT_MS)
-        assert "changed on disk: reload" in alert.inner_text()
-        assert (shop / "README.md").read_text(encoding="utf-8") == "# Someone else's\n"     # nothing overwritten
-        alert.get_by_role("button", name="Reload").click()
-        pg.locator(".shell-md h1").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".shell-md h1").inner_text() == "Someone else's"
-    _run(world, body)
+def test_the_heads_stay_while_the_columns_scroll_down_and_sideways(level):
+    pg, host = level
+    _project(pg)
+    pg.set_viewport_size({"width": 800, "height": 900})                                                                 # narrower than the four columns: they scroll sideways
+    body = pg.locator(".arena-project__body")
+    assert body.evaluate("e => e.scrollWidth > e.clientWidth && getComputedStyle(e).overflowX !== 'hidden'")
+    body.evaluate("e => { e.scrollLeft = 120; e.scrollTop = 300; }")
+    pg.wait_for_timeout(100)
+    top = body.bounding_box()["y"]
+    heads = [h.bounding_box()["y"] for h in pg.locator(".arena-pcol__head").all()]
+    assert all(abs(y - top) < 2 for y in heads)                                                                         # every head sticks to the top
+    assert body.evaluate("e => e.scrollLeft") > 0
 
 
-def test_git_section_a_changed_files_diff_and_a_commit(world):
-    host, shop, blog = world
-    (shop / "src" / "app.py").write_text("import os\n\nprint('hello, world')\n", encoding="utf-8")
-    (shop / "notes.txt").write_text("new\n", encoding="utf-8")
-    (shop / ".env").write_text("TOKEN=changed\n", encoding="utf-8")
-
-    def body(pg, host):
-        _files_tab(pg)
-        git = pg.get_by_role("region", name="Git")
-        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
-        git.locator(".shell-git__file").first.wait_for(timeout=WAIT_MS)
-        rows = git.locator(".shell-git__file")
-        assert rows.count() == 2                                                    # the .env is never offered
-        assert ".env" not in git.inner_text().replace(".envrc", "")
-        app = git.locator(".shell-git__file", has_text="src/app.py")
-        assert "modified" in app.inner_text().lower() and "+1" in app.inner_text() and "−1" in app.inner_text()
-        app.get_by_role("button", name="src/app.py").click()                        # its diff, in the preview
-        pg.locator(".shell-patch__line.is-add", has_text="hello, world").wait_for(timeout=WAIT_MS)
-        assert pg.locator(".shell-patch__line.is-del", has_text="print('hello')").count() == 1
-        _files_tab(pg)                                                              # the diff is a tab of its own: back to Files
-        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
-        assert git.get_by_role("button", name="Commit").is_disabled()               # nothing ticked
-        git.get_by_label("Commit src/app.py").check()
-        git.get_by_label("Commit message").fill("Greet the world")
-        git.get_by_role("button", name="Commit 1 file").click()
-        git.locator(".shell-git__file", has_text="src/app.py").wait_for(state="detached", timeout=WAIT_MS)
-        assert git.locator(".shell-git__file", has_text="notes.txt").count() == 1   # only the ticked file went
-        log = subprocess.run(["git", "log", "--format=%s", "-1"], cwd=shop, capture_output=True, text=True).stdout.strip()
-        assert log == "Greet the world"
-        assert "sends your code to origin" in git.get_by_role("button", name="Push").get_attribute("title").lower()
-    _run(world, body)
+def test_hovering_a_sent_goals_deck_draws_its_links_to_its_pitch_and_its_release_and_nothing_at_rest(level):
+    pg, host = level
+    _project(pg)
+    _col(pg, "release").get_by_role("button", name="Flags (2)").click()
+    assert pg.locator(".arena-arrow").count() == 0                                                                      # nothing at rest
+    pg.locator('.arena-deck[data-slug="register"]').hover()
+    pg.locator('.arena-arrow[data-edge="dark>register"]').wait_for(timeout=WAIT_MS)                                     # the pitch it came from, in Ideation's column
+    pg.locator('.arena-arrow[data-edge="register>r14"]').wait_for(timeout=WAIT_MS)                                      # the release it went into
+    assert pg.locator(".arena-arrow").count() == 2
+    shot(pg, "desk-project.png")
+    pg.locator(".arena-pjtop").hover()
+    pg.wait_for_function("() => !document.querySelector('.arena-arrow')", timeout=WAIT_MS)
+    pg.locator('.arena-deck[data-slug="dark"]').focus()                                                                 # the keyboard's focus draws them too
+    pg.locator('.arena-arrow[data-edge="dark>register"]').wait_for(timeout=WAIT_MS)
 
 
-def test_git_section_push_shows_pushing_then_the_outcome(world, tmp_path):
-    host, shop, blog = world
-    origin = tmp_path / "origin.git"
-    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True)
-    subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=shop, check=True)
-    subprocess.run(["git", "branch", "-M", "main"], cwd=shop, check=True)
+# -- the Orkmaster's deal: New party -------------------------------------------------------------------------------------------------------------------------
 
-    def body(pg, host):
-        _files_tab(pg)
-        git = pg.get_by_role("region", name="Git")
-        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
-        git.get_by_role("button", name="Push").click()
-        git.locator("[data-git=last]", has_text="to origin").wait_for(timeout=WAIT_MS)       # the outcome, in words
-        assert "Sent" in git.locator("[data-git=last]").inner_text()
-        assert subprocess.run(["git", "rev-parse", "main"], cwd=origin, capture_output=True, text=True).returncode == 0
-        assert git.get_by_role("button", name="Push").is_enabled()
-    _run(world, body)
+def _lacking(pg, host):
+    host.deal = copy.deepcopy(LACKING)
+    host.bump({})
+    pg.wait_for_function("() => document.querySelector('.shell-main, .arena')", timeout=WAIT_MS)
 
 
-def test_switch_branch_is_a_list_with_the_work_branch_and_main_first(world):
-    host, shop, blog = world
-    subprocess.run(["git", "branch", "-M", "main"], cwd=shop, check=True)
-    for name in ("zeta", "dev"):
-        subprocess.run(["git", "branch", name], cwd=shop, check=True)
+def test_the_orkmaster_deals_release_first_when_flags_wait_then_ideation_and_a_press_opens_new_party_with_it_picked(level):
+    pg, host = level
+    _lacking(pg, host)
+    _project(pg)
+    pile = pg.locator(".arena-pjnew .arena-new__pile")
+    assert pile.get_attribute("aria-label").startswith("New party") and pg.locator(".arena-pjnew").bounding_box()["y"] < pg.locator(".arena-project__body").bounding_box()["y"]      # under the field's head
+    pile.click()
+    deal = pg.get_by_role("dialog", name="New party")
+    deal.locator(".arena-type--party").first.wait_for(timeout=WAIT_MS)
+    cards = deal.locator(".arena-type--party")
+    assert [c.get_attribute("data-preset") for c in cards.all()] == [e["id"] for e in LACKING]                          # the host's order
+    first, second, plain = cards.nth(0), cards.nth(1), cards.nth(2)
+    assert first.locator(".arena-type__why").inner_text() == "3 flags wait and no party releases them"
+    assert second.locator(".arena-type__why").inner_text() == "No party judges small ideas yet" and plain.locator(".arena-type__why").count() == 0
+    assert first.locator(".arena-type__name").inner_text() == "Release" and first.locator(".arena-type__heads .ork-race__head").count() >= 1 and first.locator(".arena-type__line").inner_text().strip()
+    assert first.locator(".ork-race__head").first.get_attribute("src").count("skeleton") == 1                           # its leader's head
+    pg.wait_for_timeout(900)                                                                                            # the deal is played
+    shot(pg, "desk-deal.png")
+    first.click()
+    dlg = pg.get_by_role("dialog", name="New party")
+    dlg.locator(".shell-craft-tile").first.wait_for(timeout=WAIT_MS)
+    assert dlg.locator('.shell-craft-tile[data-craft="release"]').get_attribute("aria-pressed") == "true"
+    assert dlg.locator(".arena-releasesfrom").count() == 1                                                              # Release picked: its Releases from is there
 
-    def body(pg, host):
-        _files_tab(pg)
-        git = pg.get_by_role("region", name="Git")
-        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
-        git.get_by_role("button", name="Switch branch").click()
-        dlg = pg.get_by_role("dialog", name="Switch branch")
-        items = dlg.get_by_role("list", name="Branches").get_by_role("listitem")
-        items.first.wait_for(timeout=WAIT_MS)
-        names = [i.locator("code").inner_text() for i in items.all()]
-        assert names == ["dev", "main", "zeta"], names
-        here = dlg.locator("[aria-current=true]")
-        assert "you are here" in here.inner_text() and here.is_disabled()
-        items.filter(has_text="zeta").click()
-        dlg.wait_for(state="detached", timeout=WAIT_MS)
-        git.locator("[data-git=branch]", has_text="zeta").wait_for(timeout=WAIT_MS)
-    _run(world, body)
+
+def test_a_party_the_project_has_is_dealt_last_and_says_you_have_one(level):
+    pg, host = level
+    _project(pg)
+    pg.locator(".arena-pjnew .arena-new__pile").click()
+    cards = pg.get_by_role("dialog", name="New party").locator(".arena-type--party")
+    cards.first.wait_for(timeout=WAIT_MS)
+    assert [c.get_attribute("data-preset") for c in cards.all()][-2:] == ["release", "ideation"]
+    assert cards.last.locator(".arena-type__why").inner_text() == "You have one" and "is-have" in cards.last.get_attribute("class")
+    pg.keyboard.press("Escape")
+    pg.get_by_role("dialog", name="New party").wait_for(state="detached", timeout=WAIT_MS)
 
 
-def test_a_restored_project_without_git_offers_start_git_without_an_error(world, tmp_path):
-    host, shop, blog = world
-    plain = tmp_path / "plain"
-    plain.mkdir()
-    (plain / "notes.txt").write_text("hello\n", encoding="utf-8")
-    host.projects.open(plain, keep=False)                       # as a project restored at startup is: shown, no dialog
+def test_new_partys_tiles_follow_the_deal_inside_each_group_with_the_why_under_the_line(level):
+    pg, host = level
+    _lacking(pg, host)
+    _new_party(pg)
+    dlg = pg.get_by_role("dialog", name="New party")
+    mixed = dlg.locator('.shell-library-group[aria-label="Mixed"] .shell-craft-tile')
+    assert [t.get_attribute("data-craft") for t in mixed.all()] == ["release", "ideation", "game", "mobile-app", "website"]
+    crafts = dlg.locator('.shell-library-group[aria-label="One craft"] .shell-craft-tile')
+    assert [t.get_attribute("data-craft") for t in crafts.all()] == ["engineering", "design", "data", "marketing", "product"]      # the groups keep their headings
+    why = dlg.locator('.shell-craft-tile[data-craft="release"] .shell-craft-tile__why')
+    assert why.inner_text() == "3 flags wait and no party releases them"
+    assert dlg.locator('.shell-craft-tile[data-craft="ideation"] .shell-craft-tile__why').inner_text() == "No party judges small ideas yet"
+    assert dlg.locator('.shell-craft-tile[data-craft="game"] .shell-craft-tile__why').count() == 0
+    assert dlg.locator('.shell-craft-tile[data-craft="release"] .shell-craft-tile__text small').all_inner_texts()[-1] == "3 flags wait and no party releases them"      # under its line
+    pg.get_by_role("button", name="Cancel").click()
+    host.deal = copy.deepcopy(HAVING)
+    host.bump({})
+    _new_party(pg)
+    dlg = pg.get_by_role("dialog", name="New party")
+    assert [t.get_attribute("data-craft") for t in dlg.locator('.shell-library-group[aria-label="Mixed"] .shell-craft-tile').all()] == ["game", "mobile-app", "website", "release", "ideation"]     # those it has, last
+    assert dlg.locator('.shell-craft-tile[data-craft="ideation"] .shell-craft-tile__why').inner_text() == "You have one"
 
-    def body(pg, host):
-        _files_tab(pg)
-        git = pg.get_by_role("region", name="Git")
-        git.get_by_role("button", name="Start git here").wait_for(timeout=WAIT_MS)
-        assert "no git" in git.inner_text()
-        assert "not a git repository" not in pg.inner_text("body").lower()          # git.status was never asked
-        git.get_by_role("button", name="Start git here").click()
-        git.locator("[data-git=branch]").wait_for(timeout=WAIT_MS)
-        assert (plain / ".git").is_dir()
-    _run(world, body)
+
+def test_the_columns_new_party_line_stays_and_opens_new_party_as_today(level):
+    pg, host = level
+    _project(pg)
+    _new_party(pg)
+    assert pg.get_by_role("dialog", name="New party").locator('.shell-craft-tile[aria-pressed="true"]').get_attribute("data-craft") == "engineering"
+
+
+# -- New goal on the level: its party from the Orkmaster -------------------------------------------------------------------------------------------------
+
+def _new_goal(pg):
+    pg.locator(".arena-pjgoal .arena-new__pile").click()
+    deal = pg.get_by_role("dialog", name="New goal for the project")
+    deal.locator(".arena-type").first.wait_for(timeout=WAIT_MS)
+    return deal
+
+
+def test_new_goal_on_the_level_deals_every_type_of_the_parties_and_suggests_the_party_with_an_artist_for_a_logo(level):
+    pg, host = level
+    _project(pg)
+    deal = _new_goal(pg)
+    assert [c.get_attribute("data-type") for c in deal.locator(".arena-type").all()] == ["", "fix", "logo", "release"]  # Your own goal first, then the union
+    deal.locator('.arena-type[data-type="logo"]').click()
+    form = pg.get_by_role("dialog", name="New goal")
+    form.locator('.arena-typed[data-type="logo"]').wait_for(timeout=WAIT_MS)
+    its = form.get_by_role("group", name="Its party")
+    its.locator(".arena-itsparty__chip").first.wait_for(timeout=WAIT_MS)
+    assert _calls(pg, host, "ideas.party_for")[-1] == {"type": "logo"}
+    says = its.locator(".arena-itsparty__says")
+    assert says.inner_text().strip() == "Orkmaster suggests Website · takes it whole"
+    chips = its.locator(".arena-itsparty__chip")
+    assert [c.get_attribute("data-party") for c in chips.all()] == ["website", "passkey", "release", "ideas"]           # Website (whole) first
+    assert chips.nth(0).get_attribute("aria-checked") == "true" and chips.nth(1).locator("small").inner_text() == "needs Artist"
+    assert chips.nth(2).locator("small").inner_text() == "no one there does it"
+    form.get_by_label("Its title").fill("A new mark")
+    shot(pg, "desk-goal-party.png")
+    chips.nth(1).click()                                                                                                # another chip: Passkey, which misses an Artist
+    assert chips.nth(1).get_attribute("aria-checked") == "true" and chips.nth(0).get_attribute("aria-checked") == "false"
+    assert says.inner_text().strip() == "Orkmaster suggests Website · takes it whole"
+    join = form.locator('.arena-join[data-agent="artist"]')
+    join.wait_for(timeout=WAIT_MS)                                                                                       # the join line of the party picked
+    form.get_by_role("button", name="Add the goal").click()
+    sent = _calls(pg, host, "ideas.add")[-1]
+    assert sent["track"] == "passkey" and sent["type"] == "logo" and sent["join"] == {"add": "artist"}
+    form.wait_for(state="detached", timeout=WAIT_MS)
+
+
+def test_the_suggested_party_is_picked_and_added_to_and_no_party_is_asked_for_before_the_answer(level):
+    pg, host = level
+    _project(pg)
+    _new_goal(pg).locator('.arena-type[data-type="logo"]').click()
+    form = pg.get_by_role("dialog", name="New goal")
+    form.get_by_label("Its title").fill("A new mark")
+    form.locator(".arena-itsparty__chip").first.wait_for(timeout=WAIT_MS)
+    form.get_by_role("button", name="Add the goal").click()
+    assert _calls(pg, host, "ideas.add")[-1]["track"] == "website"
+
+
+def test_your_own_goal_on_the_level_says_any_party_with_ideation_last_and_a_pitch_goes_to_ideation(level):
+    pg, host = level
+    _project(pg)
+    _new_goal(pg).locator('.arena-type[data-type=""]').click()
+    form = pg.get_by_role("dialog", name="New goal")
+    its = form.get_by_role("group", name="Its party")
+    its.locator(".arena-itsparty__chip").first.wait_for(timeout=WAIT_MS)
+    assert "type" not in _calls(pg, host, "ideas.party_for")[-1]
+    assert its.locator(".arena-itsparty__says").inner_text().strip() == "Any party"
+    chips = its.locator(".arena-itsparty__chip")
+    assert [c.get_attribute("data-party") for c in chips.all()] == ["passkey", "website", "release", "ideas"] and chips.last.locator("small").inner_text() == "a pitch"
+    form.get_by_label("Your goal").fill("Offline mode")
+    form.get_by_role("button", name="Add the goal").click()
+    sent = _calls(pg, host, "ideas.add")[-1]
+    assert sent["track"] == "passkey" and sent["text"] == "Offline mode" and "type" not in sent
+    pg.locator(".arena-pjgoal .arena-new__pile").click()
+    pg.get_by_role("dialog", name="New goal for the project").locator('.arena-type[data-type=""]').click()
+    form = pg.get_by_role("dialog", name="New goal")
+    form.locator(".arena-itsparty__chip").first.wait_for(timeout=WAIT_MS)
+    form.locator('.arena-itsparty__chip[data-party="ideas"]').click()                                                    # Ideation: a pitch
+    form.get_by_label("What is the pitch?").fill("A pitch for dark mode")
+    form.get_by_role("button", name="Judge now").click()
+    sent = _calls(pg, host, "ideas.add", at_least=2)[-1]
+    assert sent["track"] == "ideas" and sent["text"] == "A pitch for dark mode"
+
+
+def test_a_partys_own_new_goal_is_unchanged(level):
+    pg, host = level
+    _show_goal(pg, "passkey")
+    pg.locator(".arena-new__pile").click()
+    dlg = pg.get_by_role("dialog", name="New goal")
+    dlg.wait_for(timeout=WAIT_MS)
+    assert dlg.get_by_role("group", name="Its party").count() == 0 and not [c for n, c in host.log if n == "ideas.party_for"]
+
+
+# -- ideas.shown ------------------------------------------------------------------------------------------------------------------------------------------------
+
+def test_the_project_is_counted_as_a_party_switch_to_and_from_it_fire_and_forget(level):
+    pg, host = level
+    assert not [1 for n, _ in host.log if n == "ideas.shown"]
+    _project(pg)
+    assert _calls(pg, host, "ideas.shown")[-1] == {"party": "@project", "from": "passkey"}
+    _col(pg, "website").locator(".arena-pcol__head").click()
+    pg.locator('.arena[data-goal="website"]').wait_for(timeout=WAIT_MS)
+    assert _calls(pg, host, "ideas.shown", at_least=2)[-1] == {"party": "website", "from": "@project"}
+    assert len([1 for n, _ in host.log if n == "ideas.shown"]) == 2

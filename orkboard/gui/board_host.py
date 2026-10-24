@@ -128,10 +128,12 @@ class BoardLogs:
 class BoardPhone:
     """What a paired phone may do in Orkboard and what it sees (gui/phones.py reads it as the host's `phone_face`;
     Orkline's is gui/mobile.py): the Board's commands and Stop all, the project switcher, a Markdown file read-only
-    (spec 37 §8: no edit and no git from the phone), and the snapshot's Board, small."""
+    (spec 37 §8: no edit and no git from the phone), a newer version checked and installed (the computer restarts on
+    it and the phone comes back by itself; which updates install by themselves stays the computer's to say), and the
+    snapshot's Board, small."""
 
     COMMANDS = ("mobile.hello", "mobile.snapshot", "halt", "projects.list", "projects.use", "mobile.push_key", "mobile.push_on",
-                "mobile.push_off", "mobile.push_quiet")
+                "mobile.push_off", "mobile.push_quiet", "update.check", "update.install")
     MARKDOWN = (".md", ".markdown")
 
     @classmethod
@@ -333,9 +335,20 @@ class Orkboard:
         out = {"v": 1, "project": root.name if root is not None else "", "focus": "board", "look": "office",
                **{k: s[k] for k in ("ideas_rev", "ops_rev", "needs_you", "idea_states", "review_count", "review_results",
                                     "limits", "reserve", "rate")},
-               "hud": dict(s["hud"])}
+               "hud": dict(s["hud"]), "version": __version__, "update": self._phone_update(s["update"])}
         out["rev"] = hashlib.sha256(json.dumps(out, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
         return out
+
+    @staticmethod
+    def _phone_update(u: dict[str, Any] | None) -> dict[str, Any] | None:
+        """A newer version as a phone shows it (pwa/shell-update.js): what it is, a few of its notes, whether it can
+        install itself and how it goes; the error's last lines only."""
+        if not u:
+            return None
+        notes = u["critical_notes"] if u.get("critical") else u.get("notes") or []
+        return {"version": u["version"], "current": u["current"], "critical": bool(u.get("critical")),
+                "major": bool(u.get("major")), "notes": list(notes)[:3], "can": bool(u.get("can")), "how": u.get("how", ""),
+                "state": u.get("state", "idle"), "error": "\n".join(str(u.get("error") or "").splitlines()[-6:])}
 
     def _hello(self, args: dict) -> dict[str, Any]:
         """The phone's handshake, as Orkline's (gui/mobile.py `hello`): what this host speaks, the mobile API's version

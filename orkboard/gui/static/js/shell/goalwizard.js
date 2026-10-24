@@ -9,7 +9,7 @@ import { useState } from "preact/hooks";
 import { html } from "../html.js";
 import { say, toast } from "../link.js";
 import { track } from "../board/store.js";
-import { act, roles, showGoal } from "./store.js";
+import { act, mapData, roles, showGoal } from "./store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { PRIORITIES } from "./goaldialog.js";
 import { ReleasesFrom, useReleasesFrom } from "./release.js";
@@ -87,7 +87,7 @@ export function GoalWizard({ then = "", preset: first = "" }) {
         <input class="ork-field" value=${about} aria-label="What it is for" placeholder="One line: what this party is for" onInput=${(e) => setAbout(e.target.value)} /></label>
       <div class="shell-field" role="group" aria-label="The party"><span class="ok-font-label">The party</span>
         <p class="ok-tone-muted">One of yours, or from the library: its leader plans, its builders work, its checkers check. A task goes to the one who does its kind of work; Grunt fills in.</p>
-        <${LibraryTiles} picked=${partyId ? "" : lit} onPick=${fromLibrary} />
+        <${LibraryTiles} picked=${partyId ? "" : lit} onPick=${fromLibrary} deal=${mapData.value?.project?.deal} />
         <${OwnParties} parties=${owns} onPick=${pickOwn} reload=${loadOwns} picked=${partyId} />
         <${PartyBands} craft=${craft} leader=${leader} setLeader=${seat(setLeader)} team=${team} setTeam=${seat(setTeam)} />
         <${PriceLine} price=${price} />

@@ -362,4 +362,4 @@ async def test_a_partys_own_new_goal_is_unchanged(fake_repo, monkeypatch):
 def test_the_service_worker_is_one_up_and_keeps_the_projects_module():
     sw = (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
     shell = sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
-    assert 'const CACHE = "orkcraft-app-v77";' in sw and '"shell-project.js"' in shell
+    assert 'const CACHE = "orkcraft-app-v78";' in sw and '"shell-project.js"' in shell

@@ -2,11 +2,13 @@
 // Office's calm look, with no camp file loaded or cached. The phone listener serves it as the app's page script when its
 // host is Orkboard (gui/pwa.py `serve`); Orkline's phone keeps app.js, which draws the same shell in focus. It speaks the
 // phone's protocol (gui/phones.py): the snapshot (`state`), a command and its `reply`, and `news` while it is open; it
-// may send what a phone may in Orkboard (gui/board_host.py `BoardPhone`): the Board's commands and Stop all.
+// may send what a phone may in Orkboard (gui/board_host.py `BoardPhone`): the Board's commands, Stop all, and a newer version
+// installed on the computer (shell-update.js), which restarts on it while this phone reconnects by itself.
 
 import { h, store, kept, outbox, clock, guessName } from "./util.js";
 import { makeBoard } from "./board.js";
 import { renewPush, dropPush } from "./shell-push.js";
+import { makeUpdate } from "./shell-update.js";
 
 const PROTOCOL = "orkcraft.v1";
 const API = 1;
@@ -212,9 +214,10 @@ function layout() {
     status: h("p", { class: "status", role: "status" }),
     news: h("div", { class: "news", "aria-live": "polite" }),
   };
-  parts.board = makeBoard({ send, deliver, flash, unpair: unpairHere });
+  parts.update = makeUpdate({ send, flash });
+  parts.board = makeBoard({ send, deliver, flash, unpair: unpairHere, checkUpdate: () => parts.update.check() });
   parts.content = () => parts.board.content();
-  show(parts.status, parts.news, parts.board.el, ...parts.board.sheets);
+  show(parts.status, parts.update.el, parts.news, parts.board.el, ...parts.board.sheets, ...parts.update.sheets);
   return parts;
 }
 
@@ -255,6 +258,7 @@ function render(s, keptAt = 0) {
     Promise.resolve(s.needs_you ? navigator.setAppBadge?.(s.needs_you) : navigator.clearAppBadge?.()).catch(() => {});
   } catch { /* a browser without badges */ }
   ui.board.render(s);
+  if (!keptAt) ui.update.render(s);              // what the computer says now: a kept board offers nothing to install
 }
 
 function news(items) {
