@@ -233,7 +233,7 @@ async def test_a_sent_pitch_says_its_goal_on_its_sheet_and_in_ideations_list(fak
         row = page.locator('.pitchrow[data-idea="dark"]')
         await row.wait_for(timeout=WAIT_MS)
         for state, release, flag, words in [
-            ("working", None, "", "At work in Passkey · 3 of 7"), ("done", None, "2026-10-24T09:00:00", "In main"), ("done", IN_14, "2026-10-24T09:00:00", "In Release 1.4"),
+            ("working", None, "", "At work in Passkey · 3 of 7"), ("planned", None, "", "In Passkey"), ("done", None, "2026-10-24T09:00:00", "In main"), ("done", IN_14, "2026-10-24T09:00:00", "In Release 1.4"),
             ("done", {**IN_14, "out": OUT}, "2026-10-24T09:00:00", "Out in 1.4"), ("dropped", None, "", "Dropped")]:
             gs = {"goal": "register", "party": "passkey" if state != "dropped" else "", "state": state, "done": 3 if state == "working" else 7, "total": 7 if state == "working" else 7,
                   "flag": flag, "release": release}

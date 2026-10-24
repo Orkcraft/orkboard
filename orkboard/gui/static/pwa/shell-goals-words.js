@@ -49,15 +49,18 @@ export function goalStateWords(gs, name = (s) => s) {
   const r = gs.release;
   if (r) return r.out ? join("Out in", r.version) : join("In", name(r.party), r.version);
   if (gs.flag) return "In main";
-  return `At work in ${name(gs.party)}${kOfN(gs.done, gs.total)}`;
+  return inPartyWords(gs, name);
 }
+
+/** Where a goal is in its party: *At work in Mobile app · 3 of 7* while it works, else *In Mobile app* (its work not started, or done and not in main yet). */
+const inPartyWords = (g, name) => (g.state === "working" ? `At work in ${name(g.party)}${kOfN(g.done, g.total)}` : `In ${name(g.party)}`);
 
 /** What a step of a goal's route says (`node.route`, spec 68 §2.1): *From Ideation: Invest, 22 Oct* · *Moved from Mobile app* · *At work in Mobile app · 3 of 7* · *In main* · *In Release 1.4* · *Out in 1.4*. */
 export function routeWords(step, name = (s) => s) {
   switch (step.step) {
     case "pitch": return `From ${name(step.party)}: ${[step.word || step.answer, flagDate(step.at)].filter(Boolean).join(", ")}`;
     case "moved": return `Moved from ${name(step.from || step.party)}`;
-    case "party": return `At work in ${name(step.party)}${kOfN(step.done, step.total)}`;
+    case "party": return inPartyWords(step, name);
     case "main": return "In main";
     case "release": return step.out ? join("Out in", step.version) : join("In", name(step.party), step.version);
     default: return "";

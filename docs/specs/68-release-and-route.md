@@ -34,7 +34,7 @@ is the builder's choice inside its files. **Change nothing outside a part's file
 - `race.skeleton`: *skeleton*, *skeletons*.
 
 New strings, in these words: *Route*, *From Ideation: <answer>, <date>* (*From Ideation: Invest, 22 Oct*), *Moved from
-<party>*, *At work in <party>*, *In main*, *In <party> <version>* (*In Release 1.4*), *Out in <version>*, *Waits for a
+<party>*, *At work in <party>* (while it works; else *In <party>*), *In main*, *In <party> <version>* (*In Release 1.4*), *Out in <version>*, *Waits for a
 release*, *k flags wait for a release* (*1 flag waits for a release*), *What goes in*, *Nothing has raised its flag since
 <version>.* (*… since the start.* before the first), *In <version> already* (a flag another open release holds),
 *Releases from*, *Every party but Ideation*, *Version*, *Mark it out*, *Is <version> out in the stores? Orkboard submits
