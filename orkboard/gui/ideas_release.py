@@ -4,7 +4,8 @@ under ~600 lines.
     ideas.move {slug, track?, before?}       # another party only before the goal's work starts (realm/idea_route.py); `idea_moved`
     ideas.release_out {slug}                 # Mark it out: the release is out in the stores, said once, after its own flag; `release_out`
     ideas.release_candidates {party}         # what goes in: {since: {version, out} | None, releases_from, candidates: [...]} (realm/releases.py)
-    ideas.shown {party, from?}               # the faces say a party switch, fire and forget; `party_shown` (never on a first read or a redraw)
+    ideas.shown {party, from?}               # the faces say a party switch, fire and forget; `party_shown` (never on a first read or a redraw);
+                                             # `@project` is the project's level (spec 70), as `party` and as `from`
 
 A new goal of *A release* takes `goes_in` (the slugs ticked) with `ideas.add`: `release_args` checks it before the goal exists, `release_made`
 writes its file after. Orkboard never submits, uploads or tags: out is the person's word.
@@ -13,6 +14,9 @@ from __future__ import annotations
 
 from orkboard.gui.ideas_args import IdeasError, _device, _opt, _text
 from orkboard.realm import event_log, idea_route, ideas, releases
+
+
+PROJECT = "@project"                    # the project's level (spec 70): a face's "party" for a switch, never a party's slug
 
 
 class ReleaseMixin:
@@ -76,7 +80,7 @@ class ReleaseMixin:
         """`{party, from?}`: the faces say the person switched party (not a first read, not a redraw): `party_shown` with where from, where to
         and the face. Nothing else changes; a switch to the same party, or from a party that is gone, is not counted."""
         to, was = _text(args, "party", 100), _opt(args, "from")
-        known = {t["slug"] for t in ideas.tracks(self.root(False), make=False)}
+        known = {t["slug"] for t in ideas.tracks(self.root(False), make=False)} | {PROJECT}
         if to not in known:
             raise IdeasError("That party is gone")
         if was and was != to and was in known:
