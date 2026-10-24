@@ -1165,3 +1165,57 @@ dialog.sheet.full { margin: 0; height: 100dvh; max-height: 100dvh; border-top: 0
 .goals__ask { display: flex; flex-direction: column; gap: var(--ork-2); padding: var(--ork-3); border: var(--ork-line) solid var(--ork-alert); }
 .goals__ask p { margin: 0; font: 400 14px/20px var(--ork-font-text); }
 .goals__ask .row { display: flex; gap: var(--ork-3); }
+
+/* -- the project's level (shell-project.js; docs/specs/70-orkmaster-and-the-project.md §2, §3, §4): the Orkmaster's row, the project's sheet, the deal's strip, Its party ----------------------------- */
+.where-project { margin-bottom: var(--ork-2); }
+.where-project .ork-race__head { flex: none; width: 24px; height: 22px; }
+.project { display: flex; flex-direction: column; gap: var(--ork-4); min-width: 0; }
+.pj-top { display: flex; align-items: center; gap: var(--ork-4); }
+.pj-top .ork-race__head { flex: none; width: 24px; height: 22px; }
+.pj-top__name { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.pj-top__name b { font-weight: 600; }
+.pj-top .ork-btn { flex: none; }
+.pj-deal { display: flex; gap: var(--ork-3); margin: 0 calc(-1 * var(--ork-6)); padding: 0 var(--ork-6) var(--ork-2); overflow-x: auto; scrollbar-width: none; }
+.pj-deal::-webkit-scrollbar { display: none; }
+.pj-tile { appearance: none; flex: none; box-sizing: border-box; width: 188px; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; gap: var(--ork-1); padding: var(--ork-3);
+  text-align: left; background: var(--ork-panel); color: var(--ork-ink); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: inherit; cursor: pointer; }
+.pj-tile:focus-visible, .pj-row:focus-visible, .pj-fold__head:focus-visible, .itsparty__chip:focus-visible { outline: 2px solid var(--ork-ink); outline-offset: -2px; }
+.pj-tile b { font: 600 13px/18px var(--ork-font-text); }
+.pj-tile small { font: 400 11px/15px var(--ork-font-text); overflow-wrap: anywhere; }
+.pj-tile__heads { display: inline-flex; gap: var(--ork-1); }
+.pj-tile__heads .ork-race__head { width: 12px; height: 11px; }
+.pj-tile__why { color: var(--ork-ink); }
+.pj-tile.is-have { border-style: dashed; }
+.pj-tile.is-have .pj-tile__why { color: var(--ork-ink-muted); }
+.pj-party { display: flex; flex-direction: column; gap: var(--ork-1); padding-top: var(--ork-3); border-top: var(--ork-line) solid var(--ork-frame); min-width: 0; }
+.pj-party__head { display: flex; align-items: center; gap: var(--ork-4); min-height: var(--ork-tap); }
+.pj-party__head .ork-race__head { flex: none; width: 24px; height: 22px; }
+.pj-party__name { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: var(--ork-3); }
+.pj-party__name b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pj-party__name small { flex: none; }
+.pj-party__open { flex: 0 1 auto; max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pj-empty { margin: 0; }
+.pj-group { margin: var(--ork-3) 0 0; font: var(--ork-type-label); color: var(--ork-ink-muted); }
+.pj-rows { display: flex; flex-direction: column; }
+.pj-row { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--ork-4); min-height: 52px; padding: var(--ork-2) var(--ork-3); color: var(--ork-ink); min-width: 0; }
+.pj-row > .ork-elem, .pj-row__none { flex: none; }
+.pj-row__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.pj-row__title { font: 400 14px/18px var(--ork-font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pj-row__line { font: 400 12px/16px var(--ork-font-text); color: var(--ork-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pj-row .ork-chev { margin: 0; flex: none; color: var(--ork-ink-muted); }
+.pj-row .ork-sign.flag { color: var(--ork-success); }
+.pj-fold__head { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--ork-3); min-height: var(--ork-tap); width: 100%; padding: 0 var(--ork-3); color: var(--ork-ink); }
+.pj-fold__head span { flex: 1 1 auto; font: 400 13px/18px var(--ork-font-text); }
+.pj-fold__head .ork-chev { margin: 0; flex: none; }
+.newgoal__party[hidden], .itsparty[hidden] { display: none; }
+.itsparty { display: flex; flex-direction: column; gap: var(--ork-3); }
+.itsparty__line { margin: 0; font: 400 13px/18px var(--ork-font-text); }
+.itsparty__chips { display: flex; flex-wrap: wrap; gap: var(--ork-3); }
+.itsparty__chip { appearance: none; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--ork-3); min-height: var(--ork-tap); max-width: 100%; padding: var(--ork-1) var(--ork-4);
+  background: none; color: var(--ork-ink-muted); border: var(--ork-line) solid var(--ork-edge); clip-path: var(--ork-notch); font: 500 13px/16px var(--ork-font-text); cursor: pointer; text-align: left; }
+.itsparty__chip b { font-weight: 600; }
+.itsparty__chip small { font: 400 11px/15px var(--ork-font-text); }
+.itsparty__chip[aria-checked="true"] { color: var(--ork-ink); background: var(--ork-raised); box-shadow: inset 0 -2px 0 var(--ork-ink); }
+.newgoal.is-pitch .newgoal__type, .newgoal.is-pitch .newgoal__asks, .newgoal.is-pitch .newgoal__refs { display: none; }
+.preset-why { color: var(--ork-ink); }
+.preset-why.muted { color: var(--ork-ink-muted); }
