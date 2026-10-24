@@ -133,3 +133,14 @@ def test_a_route_a_release_and_out_are_the_words_of_spec_67_and_the_skeleton_is_
     lines = {k: next(l for l in Path(lexicon.__file__).read_text(encoding="utf-8").splitlines() if l.lstrip().startswith(f'_t("{k}"'))
              for k in ("idea_route", "release", "release_out", "race.skeleton")}
     assert all("spec 68" in line for line in lines.values()) and "orkUI 0.5.0" in lines["race.skeleton"]
+
+
+def test_the_orkmaster_and_the_projects_level_are_the_words_of_spec_70():
+    """Spec 70 §0: the project's ork (it deals the parties and a goal's party; it plans nothing) and the project's level."""
+    from pathlib import Path
+    assert lexicon.term("orkmaster") == "Orkmaster" and lexicon.term("project_level") == "The project"
+    rows = {key: (word, was) for key, word, was in lexicon.glossary()}
+    assert rows["orkmaster"] == ("Orkmaster", "") and rows["project_level"] == ("The project", "")
+    lines = {k: next(l for l in Path(lexicon.__file__).read_text(encoding="utf-8").splitlines() if l.lstrip().startswith(f'_t("{k}"'))
+             for k in ("orkmaster", "project_level")}
+    assert all("spec 70" in line for line in lines.values()) and "plans nothing" in lines["orkmaster"]

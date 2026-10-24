@@ -27,6 +27,8 @@ Spec 65: a goal of an Ideation party is a pitch, judged and never built (`ideas.
 Spec 68: a goal's route (`ideas.move` only before its work starts), a release (`ideas.release_out`, `ideas.release_candidates`, `goes_in` of
 `ideas.add`) and the faces' party switch (`ideas.shown`): gui/ideas_release.py.
 
+Spec 70: the Orkmaster's suggestion of a goal's party (`ideas.party_for`): gui/ideas_project.py; its deal is in `ideas.map`'s `project`.
+
 Spec 37 §8: the Board's settings are the project's (`BoardHost.board_settings`: `<repo>/.orkcraft/board.json` over the
 machine's `ideas`), read through `settings_now()` and written with `save_settings()`.
 """
@@ -50,6 +52,7 @@ from orkboard.gui.ideas_map import MapMixin
 from orkboard.gui.ideas_party import PartyMixin
 from orkboard.gui.ideas_pick import PickMixin
 from orkboard.gui.ideas_pitch import PitchMixin
+from orkboard.gui.ideas_project import ProjectMixin
 from orkboard.gui.ideas_recap import RecapMixin
 from orkboard.gui.ideas_release import ReleaseMixin
 from orkboard.gui.ideas_review import ReviewMixin
@@ -94,7 +97,7 @@ class _Hop:
         self.host.call(lambda: self.host.publish(topic, **data))
 
 
-class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, PitchMixin, RecapMixin, ReleaseMixin, RolesMixin, ReviewMixin, ReviseMixin,
+class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin, PickMixin, PitchMixin, ProjectMixin, RecapMixin, ReleaseMixin, RolesMixin, ReviewMixin, ReviseMixin,
             TypesMixin, BoardMixin):
     def __init__(self, host) -> None:
         """`host`: what the Board needs of whoever runs it, a `gui/board_host.py` `BoardHost` (spec 37 §4): Orkline's
@@ -588,6 +591,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                  "ideas.gate": self.gate, "ideas.gate_merge": self.gate_merge, "ideas.today": self.today, "ideas.pick": self.pick}
         table.update({"ideas.judge": self.judge, "ideas.pitch_send": self.pitch_send, "ideas.pitch_again": self.pitch_again,
                       "ideas.pitch_pass": self.pitch_pass,
-                      "ideas.release_out": self.release_out, "ideas.release_candidates": self.release_candidates, "ideas.shown": self.shown})
+                      "ideas.release_out": self.release_out, "ideas.release_candidates": self.release_candidates, "ideas.shown": self.shown,
+                      "ideas.party_for": self.party_for})
         return {name: guarded(name, fn) for name, fn in table.items()}
 
