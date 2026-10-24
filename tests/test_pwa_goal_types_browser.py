@@ -382,4 +382,4 @@ async def test_signs_keep_their_place_without_an_alert_edge_a_failure_keeps_its_
 
 def test_the_service_worker_is_one_up_and_keeps_the_types_module():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v76";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
+    assert 'const CACHE = "orkcraft-app-v77";' in sw and '"shell-types.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]

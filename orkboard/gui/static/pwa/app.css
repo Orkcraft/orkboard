@@ -25,6 +25,12 @@ code, pre, kbd { font-family: var(--ork-font-code); }
 .app > div:empty, .status:empty { display: none; }
 .card { background: var(--ork-panel); border: var(--ork-line) solid var(--ork-frame); clip-path: var(--ork-notch); padding: var(--ork-5); }
 .status { margin: 0; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-alert); color: var(--ork-alert); font: var(--ork-type-caption); }
+/* A newer Orkline (shell-update.js): a bar under the status, its sheet's error */
+.update-bar { margin: 0; padding: var(--ork-3) var(--ork-4); border: var(--ork-line) solid var(--ork-edge); background: var(--ork-panel); color: var(--ork-ink);
+  clip-path: var(--ork-notch); font: var(--ork-type-caption); text-align: left; cursor: pointer; }
+.update-bar.is-critical { border-color: var(--ork-alert); color: var(--ork-alert); }
+.update-error { margin: 0; padding: var(--ork-3); max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--ork-canvas); border: var(--ork-line) solid var(--ork-frame); font: var(--ork-type-caption); }
 .row { display: flex; gap: var(--ork-4); align-items: center; flex-wrap: wrap; margin-top: var(--ork-4); }
 .row .ork-field { flex: 1 1 auto; width: auto; }
 .row.between { justify-content: space-between; }
