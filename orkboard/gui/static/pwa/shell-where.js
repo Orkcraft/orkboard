@@ -4,12 +4,13 @@
 // what waits lies in the hand, and the sheet says where by a dot). A tap on the deck opens the parties' sheet from the top: the parties as rows (52 px at least: the leader's head, the name,
 // *k/n done*, a dot where a stop waits (8 × 8, danger when one of them failed, else alert), the work sign; the one shown marked), Operations' row when the project has any, **+ New party**. A pick is kept per project (`orkcraft.goal`) and puts the sheet away.
 // A party just saved on New party gathers its heads into the deck, in the first draw that shows it (spec 63 §4: shell-motion.js `gather`).
-import { h, sheet } from "./util.js";
+import { h, head, sheet } from "./util.js";
 import { sign } from "./shell-marks.js";
 import { whoHead } from "./shell-who.js";
 import { makeProjects } from "./shell-projects.js";
 import { OPS_VIEW } from "./shell-ops.js";
 import { gather, gatherTo, motionOn } from "./shell-motion.js";
+import { PROJECT, makeProject, projectOf } from "./shell-project.js";
 
 const GOAL_KEPT = "orkcraft.goal";                    // {project: party slug}: the party this phone showed last
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -34,6 +35,8 @@ export function makeWhere(core, ctx) {
   const mine = sheet("Projects", projects.el);
   mine.el.classList.add("top");
   const list = h("div", { class: "where-parties" });
+  // The project's level (spec 70 §2.1, §2.4): the Orkmaster's row at the parties' sheet's top opens its sheet; *Open <party>* there switches the board and says `ideas.shown {party, from: "@project"}`.
+  const level = makeProject(core, { openParty(slug) { shown(slug, PROJECT); core.pick(slug); } });
   const sh = sheet("Parties", list, h("button", { class: "where-new", type: "button", "data-act": "new-party",
     onclick: () => { sh.close(); core.editGoal(""); } }, h("b", {}, "+ New party"), h("span", { class: "muted" }, "one of yours, or from the library")));
   sh.el.classList.add("top");
@@ -43,10 +46,11 @@ export function makeWhere(core, ctx) {
     name, h("i", { class: "ork-chev", "aria-hidden": "true" }));
 
   /** A switch to another party is said to the host (`ideas.shown {party, from}`, spec 68 §4, §7.9), fire and forget: never waited for, never a toast; not said for the party already shown, nor on a redraw. */
-  function shown(to) {
+  function shown(to, from = "") {
     const now = core.parties().shown;
-    if (!to || to === now) return;
-    try { Promise.resolve(ctx.send("ideas.shown", { party: to, ...(now && now !== OPS_VIEW ? { from: now } : {}) })).catch(() => {}); } catch { /* it is only counted */ }
+    if (!to || (!from && to === now)) return;
+    const was = from || (now && now !== OPS_VIEW ? now : "");
+    try { Promise.resolve(ctx.send("ideas.shown", { party: to, ...(was ? { from: was } : {}) })).catch(() => {}); } catch { /* it is only counted */ }
   }
 
   /** A stop's dot, where a count was: 8 × 8, danger when one of the stops failed, else alert. */
@@ -56,20 +60,28 @@ export function makeWhere(core, ctx) {
   c.head ? whoHead(c.head, false) : h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, c.title), h("small", { class: "muted" }, c.done)),
   dot(c.stops, c.failed), c.working ? sign("work", "at work") : null);
 
+  /** *The project* at the sheet's top: the Orkmaster's head, its name and what it shows; none for a host that sends no `project`. */
+  function projectRow() {
+    const o = projectOf(core)?.orkmaster;
+    if (!o) return null;
+    return h("button", { class: "where-row where-project", type: "button", "data-act": "the-project", "aria-haspopup": "dialog", onclick: () => { sh.close(); shown(PROJECT); level.open(); } },
+      head(o.race, o.tier, { title: "Orkmaster" }), h("span", { class: "where-row__body" }, h("b", {}, "The project"), h("small", { class: "muted" }, "The parties, their goals")), h("i", { class: "ork-chev right", "aria-hidden": "true" }));
+  }
+
   function drawList() {
     const p = core.parties();
     const opsOn = p.shown === OPS_VIEW;
-    list.replaceChildren(...[...p.list.map((c) => rowOf(c, c.slug === p.shown)),
+    list.replaceChildren(...[projectRow(), ...p.list.map((c) => rowOf(c, c.slug === p.shown)),
       p.ops ? h("button", { class: `where-row${opsOn ? " is-on" : ""}`, type: "button", "aria-current": opsOn ? "true" : null, "data-goal": OPS_VIEW,
         "aria-label": `Operations${p.ops.stops ? `${p.ops.failed ? ", a stop failed" : ""}, something waits for you` : ""}`, onclick: () => { sh.close(); core.pickOps(); } },
       h("span", { class: "where-row__head" }), h("span", { class: "where-row__body" }, h("b", {}, "Operations")), dot(p.ops.stops, p.ops.failed)) : null].filter(Boolean));
-    if (!p.list.length && !p.ops) list.replaceChildren(h("p", { class: "muted" }, "No parties yet."));
+    if (!p.list.length && !p.ops) list.replaceChildren(...[projectRow(), h("p", { class: "muted" }, "No parties yet.")].filter(Boolean));
   }
   function openParties() { drawList(); sh.open(); }
 
   return {
     el: btn,
-    sheets: [mine.el, sh.el],
+    sheets: [mine.el, sh.el, level.el],
     openParties,
     /** The party's deck at the goals bar's left: 44 × 44, with no count (the stops lie in the hand; the label tells a screen reader how many wait in the other parties). */
     deck() {
@@ -94,6 +106,7 @@ export function makeWhere(core, ctx) {
       btn.setAttribute("aria-label", `Project${project ? ` ${project}` : ""}. A tap shows your projects`);
       btn.title = project;
       if (sh.el.open) drawList();
+      level.draw();
     },
   };
 }

@@ -16,6 +16,7 @@ import { say } from "./shell-words.js";
 import { sign } from "./shell-marks.js";
 import { motionOn, pulse, gather } from "./shell-motion.js";
 import { makeReleasesFrom } from "./shell-release.js";
+import { dealOf } from "./shell-project.js";
 
 export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["design", "elf", "Screens, flows and words on them"],
   ["data", "goblin", "Numbers, queries and reports"], ["marketing", "gnome", "Pages, posts and search"],
@@ -346,6 +347,8 @@ export function makeNewGoal(core) {
   }
   /** The library's parties in one column (spec 59 §7.1): *Mixed* first, then *One craft*, then the Taskmaster alone. */
   function drawLibrary(presets) {
+    const deal = dealOf(core);                       // the Orkmaster's deal (spec 70 §3.2): inside a group its order, a tile's why under its line; an older host has none: today's order
+    const dealt = (list) => (deal.size ? [...list].sort((a, b) => (deal.get(a.id)?.i ?? 1e9) - (deal.get(b.id)?.i ?? 1e9)) : list);
     const tile = (p) => {
       const ids = [p.lead, ...p.build, ...p.check];
       const heads = ids.map((id) => library(core).find((a) => a.id === id)).filter((a) => a?.craft).map((a) => tag(head(raceOf(a), a.tier || "warrior", { small: true }), a.id));
@@ -353,9 +356,10 @@ export function makeNewGoal(core) {
       return h("button", { class: `craft-tile preset-tile${p.mixed ? " is-mixed" : ""}`, type: "button", "data-preset": p.id, ...(p.mixed ? {} : { "data-craft": p.craft }),
         "aria-label": p.name, "aria-pressed": String(preset ? preset === p.id : !p.mixed && p.craft === craft), onclick: () => (alone ? pick(MIXED) : pickPreset(p)) },
       alone ? h("span", { class: "craft-heads" }, ...CRAFTS.slice(0, 2).map(([, race]) => head(race, "laborer", { small: true }))) : h("span", { class: "preset-heads" }, ...heads),
-      h("span", { class: "preset-text" }, h("b", {}, p.name), h("small", { class: "muted" }, p.line)));
+      h("span", { class: "preset-text" }, h("b", {}, p.name), h("small", { class: "muted" }, p.line),
+        deal.get(p.id)?.words ? h("small", { class: `preset-why${deal.get(p.id).why === "have" ? " muted" : ""}`, "data-why": deal.get(p.id).why }, deal.get(p.id).words) : null));
     };
-    const group = (name, list) => (list.length ? h("div", { class: "preset-group", role: "group", "aria-label": name }, h("h4", {}, name), ...list.map(tile)) : null);
+    const group = (name, list) => (list.length ? h("div", { class: "preset-group", role: "group", "aria-label": name }, h("h4", {}, name), ...dealt(list).map(tile)) : null);
     row.replaceChildren(...[group("Mixed", presets.filter((p) => p.mixed)), group("One craft", presets.filter((p) => !p.mixed && p.craft !== MIXED)),
       group("Taskmaster alone", presets.filter((p) => p.craft === MIXED))].filter(Boolean));
     const one = presets.find((p) => (preset ? p.id === preset : !p.mixed && p.craft === craft));

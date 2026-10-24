@@ -17,6 +17,7 @@ import { whoHead } from "./shell-who.js";
 import { barWords } from "./shell-goals-words.js";
 import { motionOn } from "./shell-motion.js";
 import { makeGoesIn } from "./shell-release.js";
+import { PROJECT, makeItsParty } from "./shell-project.js";
 
 const RANK = { high: 0, normal: 1, low: 2 };
 const STATE_WORDS = { raw: "new", reading: "drafting", asks: "asks you", ready: "ready", planning: "planning",
@@ -71,6 +72,9 @@ export function makeIdeas(core, ctx, goalSheet) {
   const partyList = h("div", { class: "newgoal__parties", role: "listbox", "aria-label": "Parties" });
   const newParty = h("button", { class: "newgoal__newparty", type: "button", "data-act": "new-party" }, h("b", {}, "+ New party"), h("span", { class: "muted" }, "one of yours, or from the library"));
   const partyMenu = h("div", { class: "newgoal__menu", hidden: true }, partyList, newParty);
+  // From the project's sheet (spec 70 §4): no party yet; **Its party** is asked of the host for the type picked and the Orkmaster's suggestion is picked.
+  let byProject = false;
+  const itsParty = makeItsParty(core, (slug) => { if (byProject && slug !== partyNow) setParty(slug, true); });
   const pickParty = (slug) => {
     partyMenu.hidden = true;
     partyBtn.setAttribute("aria-expanded", "false");
@@ -137,6 +141,7 @@ export function makeIdeas(core, ctx, goalSheet) {
     refs.hidden = !t?.refs;
     if (t) join.set(t.missing); else join.reset();
     lens.track(partyNow, t?.lens || "", Boolean(t));
+    if (byProject) itsParty.ask(t ? t.id : "");        // the type changed: its party is asked again
   }
   function drawTypes() {
     typeBlock.hidden = !types.length;
@@ -155,7 +160,7 @@ export function makeIdeas(core, ctx, goalSheet) {
   const hold = h("button", { class: "ork-btn quiet big", type: "button", "data-act": "hold", title: "Kept: nothing reads it till you press Judge now on it" }, "Hold");
   const tonight = h("button", { class: "ork-btn big", type: "button", "data-act": "tonight", title: "The views read it tonight" }, "Tonight");
   const judge = h("button", { class: "ork-btn primary big", type: "button", "data-act": "judge", title: "The four views read it now, then the Skeptic and the Investor" }, "Judge now");
-  const addSheet = sheet("New goal", partyBtn, partyMenu,
+  const addSheet = sheet("New goal", partyBtn, partyMenu, itsParty.el,
     priorityField, typeBlock, box, more.el, hint, asks, refs, lens.el, join.el, foot(putBack, add, hold, tonight, judge));
   let pitchy = false;                                // the party picked is Ideation: the goal is a pitch
   addSheet.el.classList.add("full", "newgoal");
@@ -182,7 +187,7 @@ export function makeIdeas(core, ctx, goalSheet) {
   addSheet.el.addEventListener("cancel", (e) => { e.preventDefault(); leave(); });
 
   /** The party picked: its leader's head and count on the button, its types dealt (*Your own goal* picked), its words and lenses read. */
-  function setParty(slug) {
+  function setParty(slug, keep = false) {
     partyNow = slug;
     partyBtn.dataset.goal = slug;
     const t = parties().find((x) => x.slug === slug);
@@ -193,10 +198,17 @@ export function makeIdeas(core, ctx, goalSheet) {
     partyBtn.setAttribute("aria-label", `Party: ${partyName.textContent}. ${partyLine.textContent}`.trim());
     if (!touched) { priority.set(t?.priority || "normal"); lowOrNot(); }
     pitchy = Boolean(g?.ideation);
-    types = Array.isArray(g?.types) && !pitchy ? g.types : [];
     more.track(slug);
-    drawTypes();
-    pickType(null);
+    if (keep) {                                       // from the project: the type stays; the party's own entry of it says who it misses, its lens and its release
+      const own = typed && (g?.types || []).find((x) => x.id === typed.id);
+      if (own) { typed = own; join.set(own.missing); }
+      lens.track(slug, typed?.lens || "", Boolean(typed));
+      if (typed?.id === "release") goesIn.load(slug);
+    } else {
+      types = Array.isArray(g?.types) && !pitchy ? g.types : [];
+      drawTypes();
+      pickType(null);
+    }
     addSheet.el.classList.toggle("is-pitch", pitchy);
     boxWord.textContent = pitchy ? "What is the pitch?" : "The goal";
     text.maxLength = pitchy ? PITCH_CHARS : 20000;
@@ -270,9 +282,38 @@ export function makeIdeas(core, ctx, goalSheet) {
     saved = false;
     if (r) { ctx.flash("Kept for tonight."); if (!r.kept) core.refresh(); }
   });
+  const showProject = (on) => { byProject = on; partyBtn.hidden = on; itsParty.el.hidden = !on; };
+  /** The goal types of the project's parties (spec 70 §4.1): the union of the map's parties' `types`, a type once. */
+  function projectTypes() {
+    const seen = new Map();
+    for (const t of parties()) for (const ty of (goalOf(t.slug)?.ideation ? [] : goalOf(t.slug)?.types || [])) if (!seen.has(ty.id)) seen.set(ty.id, ty);
+    return [...seen.values()];
+  }
+  /** New goal on the project's sheet: no party yet; its type (the union of the parties'), its text, and **Its party** from the Orkmaster. */
+  function openProject() {
+    const list = parties();
+    if (!list.length) { goalSheet.open("", (made) => open(made)); return; }
+    saved = false;
+    touched = false;
+    text.value = "";
+    sync();
+    more.reset();
+    lens.reset();
+    closeParties();
+    showProject(false);
+    setParty(list[0].slug);
+    showProject(true);
+    types = projectTypes();
+    drawTypes();
+    pickType(null);                                   // asks `ideas.party_for` with no type: Any party
+    addSheet.open();
+    slideUp();
+    text.focus();
+  }
   function open(slug, type = "") {
     saved = false;
     touched = false;
+    showProject(false);
     const list = parties();
     const on = list.find((t) => t.slug === (slug || st.track)) || list[0];
     text.value = "";
@@ -289,6 +330,7 @@ export function makeIdeas(core, ctx, goalSheet) {
   }
   /** New goal needs a party: with none yet, New party opens first and then this. */
   function openNew(slug = "", type = "") {
+    if (slug === PROJECT) { openProject(); return; }
     if (parties().length) open(slug, type);
     else goalSheet.open("", (made) => open(made));
   }
