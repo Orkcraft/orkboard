@@ -645,7 +645,7 @@ def test_below_1024_the_columns_scroll_sideways_and_the_drawer_takes_the_window(
 
 
 def test_a_waiting_card_says_waits_for_n_with_the_before_sign_its_tooltip_names_the_tasks_and_no_card_or_tooltip_says_an_id(arena):
-    """Spec 65 §3: *waits for 2* (one: *waits for <name>*) at the foot, the names in the tooltip, never an id."""
+    """Spec 67 §3: *waits for 2* (one: *waits for <name>*) at the foot, the names in the tooltip, never an id."""
     pg, host = arena
     k5 = pg.locator(".arena-task[data-key='register/k5']")
     foot = k5.locator(".arena-task__foot")

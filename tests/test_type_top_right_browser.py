@@ -1,6 +1,6 @@
 """Spec 55, the phone (docs/specs/55-type-top-right.md §1–§4): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py with a few goals given a type. A card's top
 row holds its goal's element left and its goal's type's sign right (14 × 14, the element's colour, faint while the element is drawn dim); no card has a state sign in its top row, a
-failure keeps its danger edge and its danger foot; the goal line is gone and a Planning card says no type word (spec 65 §2.2); a goal with no type has no type node; no stop along the
+failure keeps its danger edge and its danger foot; the goal line is gone and a Planning card says no type word (spec 67 §2.2); a goal with no type has no type node; no stop along the
 bottom wears a type; the Goals sheet's type sign has its goal's colour; 44 px targets and no sideways scroll."""
 from __future__ import annotations
 
@@ -51,14 +51,14 @@ async def test_a_typed_goals_card_has_its_type_top_right_in_its_elements_colour_
         assert await card.locator(".tcard__type .ork-sign").evaluate(BG) == await page.evaluate(PROBE, "--ork-elem-meadow")
         assert await card.locator(".tcard__type").get_attribute("data-type") == "bug" and await card.locator(".tcard__type .ork-sign").get_attribute("aria-hidden") == "true"
         assert await card.locator(".tcard__type .ork-sign").get_attribute("title") == "Fix a bug"
-        assert await card.locator(".tcard__idea").count() == 0                                                                          # the goal's line is gone from the field's tokens (spec 65 §2.2)
+        assert await card.locator(".tcard__idea").count() == 0                                                                          # the goal's line is gone from the field's tokens (spec 67 §2.2)
         assert await page.locator(".tcard__mark, .tcard__top .ork-sign:not(.tcard__type .ork-sign)").count() == 0                       # no state sign on any card's top
         failed = page.locator('.deck[data-state="failed"]').first
         await failed.wait_for(timeout=WAIT_MS)
         danger = await page.evaluate("() => { const e = document.createElement('i'); e.style.color = 'var(--ork-danger)'; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; }")
         face = failed.locator(".tcard")
         assert await face.evaluate("e => getComputedStyle(e).borderTopColor") == danger and "is-fail" in await face.get_attribute("class")   # the danger edge
-        assert await face.locator(".tcard__foot").count() == 0 and "failed" in await failed.get_attribute("aria-label")                 # no value at its foot (spec 65 §2.4); its edge says it, its label says it
+        assert await face.locator(".tcard__foot").count() == 0 and "failed" in await failed.get_attribute("aria-label")                 # no value at its foot (spec 67 §2.4); its edge says it, its label says it
         assert await face.locator(".tcard__type .ork-sign").evaluate(BG) == await page.evaluate(PROBE, "--ork-elem-dust")               # a failed card's type is still its goal's colour
         assert await face.locator(".tcard__top .ork-sign").count() == 1                                                                 # the type's, nothing else
         assert await page.evaluate(NO_SCROLL)
@@ -71,7 +71,7 @@ async def test_a_planning_card_says_its_type_or_goal_a_dim_goals_type_is_faint_a
         await _band(page, "lead")
         plan = page.locator('.stack .deck[data-idea="recovery"]')
         await plan.locator(".tcard__type").wait_for(timeout=WAIT_MS)
-        assert await plan.locator(".tcard__idea").count() == 0 and "Fix a bug" in await plan.get_attribute("aria-label")                   # the type's sign says it (spec 65 §2.2); its name stays in the label
+        assert await plan.locator(".tcard__idea").count() == 0 and "Fix a bug" in await plan.get_attribute("aria-label")                   # the type's sign says it (spec 67 §2.2); its name stays in the label
         elem, sign = await _top(plan)
         assert sign["x"] > elem["x"] and (round(sign["width"]), round(sign["height"])) == (14, 14)
         assert await plan.locator(".tcard__type .ork-sign").evaluate(BG) == await plan.locator(".tcard__top .ork-elem").evaluate(BG) == await page.evaluate(PROBE, "--ork-elem-void")
@@ -82,7 +82,7 @@ async def test_a_planning_card_says_its_type_or_goal_a_dim_goals_type_is_faint_a
         assert await raw.locator(".tcard__type .ork-sign").evaluate(BG) == await raw.locator(".tcard__top .ork-elem").evaluate(BG)
         other = page.locator('.stack .deck[data-idea="pagewords"]')
         await other.wait_for(timeout=WAIT_MS)
-        assert await other.locator(".tcard__idea").count() == 0 and await other.locator(".tcard__type").count() == 0                     # no type: the element alone (and no "Goal" word: spec 65 §2.2)
+        assert await other.locator(".tcard__idea").count() == 0 and await other.locator(".tcard__type").count() == 0                     # no type: the element alone (and no "Goal" word: spec 67 §2.2)
         assert await page.locator(".tcard__mark").count() == 0
         assert await page.locator(".stops .tcard__type, .stops [class*='tcard__type']").count() == 0                                   # no stop along the bottom wears one
         assert await page.evaluate(NO_SCROLL)

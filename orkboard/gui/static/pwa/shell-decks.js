@@ -1,4 +1,4 @@
-// The cards of the field and the stacks they lie in (docs/specs/50-parties-and-goals.md §3.4, §6.5; spec 65 §2): a token of the field (74 px, 5:7) wears its goal's element top left and its goal's type's sign top right, in the element's colour (none for a goal with no type; spec 55), its name and one value at its foot (the time at work, the hour of a hold; `it.value`); a card of a spread keeps the goal's line and its state in words (*working 12 min*, *failed*, *in Review*, *tonight*, *after Challenge store*); a stack is one goal's tasks of a member at
+// The cards of the field and the stacks they lie in (docs/specs/50-parties-and-goals.md §3.4, §6.5; spec 67 §2): a token of the field (74 px, 5:7) wears its goal's element top left and its goal's type's sign top right, in the element's colour (none for a goal with no type; spec 55), its name and one value at its foot (the time at work, the hour of a hold; `it.value`); a card of a spread keeps the goal's line and its state in words (*working 12 min*, *failed*, *in Review*, *tonight*, *after Challenge store*); a stack is one goal's tasks of a member at
 // one phase: the front card, behind it one or two edges, and *×n* on its corner. A press on a stack of one opens it; a stack of more spreads (shell-spread.js). Only nodes are made here.
 import { h } from "./util.js";
 import { elem, sign, typeTone } from "./shell-marks.js";
@@ -16,7 +16,7 @@ export function cardFace(it, { planning = false, spread = false } = {}) {
   return h("span", { class: cls.filter(Boolean).join(" ") },
     h("span", { class: "tcard__top" }, elem(it.element, { dim: Boolean(it.raw) }), spread && !planning ? h("span", { class: "tcard__phase" }, it.phaseWord) : null,
       it.type ? h("span", { class: `tcard__type ${typeTone(it.element, it.raw)}`, "data-type": it.type.id }, sign(it.type.sign, it.type.name)) : null),
-    spread ? h("span", { class: "tcard__idea" }, planning ? (it.type ? it.type.name : "Goal") : it.ideaTitle) : null,        // the field's token has no goal's line (spec 65 §2.2)
+    spread ? h("span", { class: "tcard__idea" }, planning ? (it.type ? it.type.name : "Goal") : it.ideaTitle) : null,        // the field's token has no goal's line (spec 67 §2.2)
     h("span", { class: "tcard__name" }, it.title), ...dep, spread ? h("span", { class: "tcard__foot" }, it.words) : it.value ? h("span", { class: "tcard__foot" }, it.value) : null);
 }
 

@@ -316,7 +316,7 @@ async def test_a_plans_missing_line_on_its_card_and_raised_and_add_and_start(fak
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         card = page.locator('.hc[data-kind="plan"]')
         await card.wait_for(timeout=WAIT_MS)
-        assert await card.locator(".hc__miss").count() == 0                                                     # a fanned card shows gem, element and banner only (spec 65 §4.3)
+        assert await card.locator(".hc__miss").count() == 0                                                     # a fanned card shows gem, element and banner only (spec 67 §4.3)
         raised = await _pop(page, "Plan ready: Recovery codes")                                                   # it came to the front: the front card says it too
         assert norm(await raised.locator(".raised__miss").inner_text()) == "No one in the party does pixel art: Artist would, and 1 more."
         await page.keyboard.press("Escape")
@@ -360,7 +360,7 @@ async def test_signs_keep_their_place_without_an_alert_edge_a_failure_keeps_its_
         await page.locator(".deck").first.wait_for(timeout=WAIT_MS)
         alert = await page.evaluate("() => getComputedStyle(document.documentElement).getPropertyValue('--ork-alert').trim()")
         pick = page.locator('.deck[data-state="picking"]').first
-        assert await pick.locator(".tcard__mark").count() == 0 and await pick.locator(".tcard__foot").count() == 0      # no value at its foot, no sign (spec 55 §2, spec 65 §2.4); its words are in its label
+        assert await pick.locator(".tcard__mark").count() == 0 and await pick.locator(".tcard__foot").count() == 0      # no value at its foot, no sign (spec 55 §2, spec 67 §2.4); its words are in its label
         assert "asks you to pick" in await pick.get_attribute("aria-label")
         colors = await pick.evaluate("""d => [d.querySelector('.tcard'), ...d.querySelectorAll('.deck__edge')].map((e) => getComputedStyle(e).borderTopColor)
           .concat([getComputedStyle(d.querySelector('.tcard__name')).color])""")

@@ -133,7 +133,7 @@ async def test_the_order_is_the_urgencys_the_most_urgent_in_the_middle_the_next_
         assert min(range(6), key=lambda i: middle[i]) in (2, 3)
         for slot, edge in ((0, "marginLeft"), (5, "marginRight")):                                                                                          # the row's own ends keep no outer overlap
             assert await page.locator(f'.hc[data-place="{slot}"]').evaluate(f"e => getComputedStyle(e).{edge}") == "0px"
-        await page.locator(".hc.is-front .hc__body").focus()                                                                                              # the front card (spec 65 §4.6): its body, then its buttons, then the next stop
+        await page.locator(".hc.is-front .hc__body").focus()                                                                                              # the front card (spec 67 §4.6): its body, then its buttons, then the next stop
         seen = []
         for _ in range(9):
             at = await page.evaluate("(() => { const c = document.activeElement.closest('.hc'); return c ? [c.dataset.stop, c.dataset.kind] : null; })()")

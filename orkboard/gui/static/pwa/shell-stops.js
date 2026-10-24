@@ -1,4 +1,4 @@
-// The hand first (docs/specs/65-hand-first.md §4): while a stop waits the zone is 250 px; the most urgent stop (or the one a tap brought forward) stands upright in front, 150 × 236, with its banner, its text and its quick answers (two at most, else the recommended
+// The hand first (docs/specs/67-hand-first.md §4): while a stop waits the zone is 250 px; the most urgent stop (or the one a tap brought forward) stands upright in front, 150 × 236, with its banner, its text and its quick answers (two at most, else the recommended
 // one and *More…*) answered where it stands (`via: "front"`); the rest fan around it, 104 × 150, a card right of the front drawn mirrored; a tap on a fanned card brings it to the front, a tap on the front's body raises it. What follows is the hand as it was (spec 54):
 // What waits for you, along the bottom (docs/specs/49-one-window.md §6, §10.6, §11; spec 54 §2–§4, decisions §67): **every stop of the project** (every party's plan, question, proposal, to-do, Pick one and
 // failure, and Operations') and every party's results to look at, fanned across the whole width and centred, only their tops showing (56 px, no line over them; no count: the fan is
@@ -61,7 +61,7 @@ export function makeStops(core, ctx, needs, ops) {
   const frontOf = () => items.find((i) => i.key === frontKey) || items[0] || null;
   /** The fan's layout: the stops with the ghosts put back at the places they left, each with its place in the row (`places[i]` for `items[i]`). */
   function lay() {
-    const front = frontOf(), layout = front ? [front, ...items.filter((i) => i !== front)] : [];       // the front first (spec 65 §4.6), then the urgency's order
+    const front = frontOf(), layout = front ? [front, ...items.filter((i) => i !== front)] : [];       // the front first (spec 67 §4.6), then the urgency's order
     for (const g of [...ghosts.values()].sort((a, b) => a.index - b.index)) layout.splice(Math.min(g.index, layout.length), 0, g.item);
     const spots = fanPlaces(layout.length);
     count = layout.length;
@@ -77,7 +77,7 @@ export function makeStops(core, ctx, needs, ops) {
    *  adds tasks: answered ok, its tasks are dealt from the raised card's box onto the stage shown (spec 57, spec 62 §7.3); only the party shown's plan deals (another party's tasks are not on this field). */
   const go = (name, args, said, dealt = "") => async () => {
     const raised = dlg.open, front = hand.querySelector(".hc.is-front");
-    const box = dealt && !raisedParty ? (raised ? body.querySelector(".raised") : front)?.getBoundingClientRect() : null;       // read at the press, before it is lowered: the plan started from the front card deals from its place (spec 65 §4.5)
+    const box = dealt && !raisedParty ? (raised ? body.querySelector(".raised") : front)?.getBoundingClientRect() : null;       // read at the press, before it is lowered: the plan started from the front card deals from its place (spec 67 §4.5)
     const given = typeof args === "function" ? args() : args;
     const r = await core.call(name, !raised && given?.via === "hand" ? { ...given, via: "front" } : given);              // read when pressed: a line typed on the raised one counts
     if (!r) return;
@@ -90,7 +90,7 @@ export function makeStops(core, ctx, needs, ops) {
   /** A press that opens something else: the stop is laid back, the party it belongs to is shown first when it is not the one shown (a pick of it in the parties' list, Operations too), then it opens (spec 54 §2.2). */
   const away = (open, via = "hand") => () => {
     const party = raisedParty;
-    if (!dlg.open && via === "hand") via = "front";                  // pressed on the front card, not on the raised one (spec 65 §4.5)
+    if (!dlg.open && via === "hand") via = "front";                  // pressed on the front card, not on the raised one (spec 67 §4.5)
     lower();
     if (party) { if (party.ops) core.pickOps(); else core.pick(party.slug); }
     open(via);
@@ -220,7 +220,7 @@ export function makeStops(core, ctx, needs, ops) {
 
   // -- the fan ----------------------------------------------------------------------------------------------------------------------------------------
   /** Place `place` of `n` in the row, `d` places from the front (the middle): a fanned card is turned 4° a place outward and lowered `3·d² + 8` px; the front card stands upright, 4 px up, over its
-   *  neighbours (spec 65 §4.2, §4.3). */
+   *  neighbours (spec 67 §4.2, §4.3). */
   function fan(place, n, front = false) {
     const d = place - Math.floor((n - 1) / 2);
     if (front) return { d, rot: 0, dy: -4, z: 60, ov: n > 1 ? FRONT_OVERLAP : 0 };
@@ -232,7 +232,7 @@ export function makeStops(core, ctx, needs, ops) {
   /** The party's mark: its leader's small head, Operations' its sliders. */
   const partyMark = (p) => (p.ops ? icon("sliders") : p.head ? whoHead(p.head, true) : null);
 
-  /** The front card's quick answers (spec 65 §4.2): the same buttons its raised card has, two at most; a stop with more (a question's choices, a result's other ways) shows its recommended one and *More…*,
+  /** The front card's quick answers (spec 67 §4.2): the same buttons its raised card has, two at most; a stop with more (a question's choices, a result's other ways) shows its recommended one and *More…*,
    *  which raises it; a pick, whose tiles are on the raised card, only *More…*. */
   function quickOf(it) {
     const more = btn("More…", () => pop(it.key), { attrs: { "data-act": "front-more" } });
@@ -270,7 +270,7 @@ export function makeStops(core, ctx, needs, ops) {
     return b;
   }
 
-  /** A tap on a fanned card brings it to the front (spec 65 §4.4): only its new place moves, in steps (none under reduced motion). */
+  /** A tap on a fanned card brings it to the front (spec 67 §4.4): only its new place moves, in steps (none under reduced motion). */
   function pull(key) {
     if (dlg.open) return;
     const was = new Map([...hand.querySelectorAll("[data-stop]")].map((c) => [c.dataset.stop, c.getBoundingClientRect()]));
@@ -354,8 +354,8 @@ export function makeStops(core, ctx, needs, ops) {
       const keys = new Set(items.map((i) => i.key));
       for (const [key, g] of ghosts) if (keys.has(key) || Date.now() - g.at >= GHOST_MS) ghosts.delete(key);       // faded, or back
       const sigNow = () => JSON.stringify(items.map((i) => [i.key, i.kind, i.gem, i.title, i.plain ?? i.text, i.miss, i.element, i.sig, i.link, i.party, i.goalName])) + st.hand + ghosts.size + frontKey;
-      if (items.some((i) => !known.has(i.key)) || !items.some((i) => i.key === frontKey)) frontKey = "";       // a stop that is new, or the front one answered: the most urgent stands in front again (spec 65 §4.4); another one gone leaves the front as it is
-      known = new Set(items.map((i) => i.key));       // the hand changed: the most urgent stands in front again (spec 65 §4.4)
+      if (items.some((i) => !known.has(i.key)) || !items.some((i) => i.key === frontKey)) frontKey = "";       // a stop that is new, or the front one answered: the most urgent stands in front again (spec 67 §4.4); another one gone leaves the front as it is
+      known = new Set(items.map((i) => i.key));       // the hand changed: the most urgent stands in front again (spec 67 §4.4)
       let layout = lay();
       if (sigNow() !== sigs && !dlg.open) {
         if (motionOn()) {                                          // a stop that is gone leaves where it lay, in the render that rereads the Board (spec 58 §4); none under reduced motion or a hidden page
@@ -369,7 +369,7 @@ export function makeStops(core, ctx, needs, ops) {
         const front = frontOf(), fading = [...ghosts.values()].some((g) => g.front);       // while the answered front card fades where it stood, the next one waits fanned beside it: the row keeps its width
         hand.replaceChildren(...layout.layout.map((it, j) => { const g = ghosts.get(it.key)?.item === it ? ghosts.get(it.key) : null; return card(it, layout.spots[j], count, g, g ? g.front : it === front && !fading); }));
         empty.hidden = items.length > 0;
-        document.documentElement.classList.toggle("has-stops", count > 0);          // the zone is 250 px while a stop waits, 56 px with none (spec 65 §4.1)
+        document.documentElement.classList.toggle("has-stops", count > 0);          // the zone is 250 px while a stop waits, 56 px with none (spec 67 §4.1)
       }
       if (st.hand) {
         const at = items.findIndex((i) => i.key === st.hand);

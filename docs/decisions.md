@@ -1001,7 +1001,7 @@ and lights its member's number (§62.8); a goal's end, its flag raised in main (
 3. The third of §76.3's three moments; no sound, no confetti, no colour but the office's.
 The owner's call, before the testers' numbers. Spec 64.
 
-## 78. The hand first on the phone: the field a board of tokens, every member on the screen, the most urgent stop answered where it stands (23 October, the owner)
+## 81. The hand first on the phone: the field a board of tokens, every member on the screen, the most urgent stop answered where it stands (23 October, the owner)
 
 Why: the owner, on the phone's screenshots (the Design canvas *Orkboard — after the cleanup*): *the person will not read
 the task cards much; what matters are the cards in the hand. The target device is an iPhone: use its screen as
@@ -1019,4 +1019,4 @@ every answer took a raise first. And a waiting task said *after k1, k2*, ids the
    text and its quick answers (two at most, else the recommended one and *More…*), the rest fanned around it, a card
    right of the front with its corner mirrored; a tap brings a fanned card to the front; an answer from the front is
    counted `via: "front"`.
-The desktop is unchanged but for item 3. The owner's call, before the testers' numbers. Spec 65.
+The desktop is unchanged but for item 3. The owner's call, before the testers' numbers. Spec 67.

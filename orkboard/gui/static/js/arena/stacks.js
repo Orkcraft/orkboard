@@ -48,7 +48,7 @@ export function footParts(n, t, rel) {
   if (rel.src && mine) return [{ sign: "after", text: `${mine} ${mine === 1 ? "waits" : "wait"} for it` }];
   if (rel.after) return [{ sign: "before", text: `waits for ${rel.hovered.short || rel.hovered.title}` }];
   if (rel.before && mine) return [{ sign: "after", text: `${mine} ${mine === 1 ? "waits" : "wait"} for it` }];
-  const on = t.state === "waiting" && !followsBuild(t, n) ? waitsForOf(n, t) : [];          // a waiting task's foot says what it waits for (spec 65 §3.2); the names are in its tooltip and its label
+  const on = t.state === "waiting" && !followsBuild(t, n) ? waitsForOf(n, t) : [];          // a waiting task's foot says what it waits for (spec 67 §3.2); the names are in its tooltip and its label
   if (on.length) return [{ sign: "before", text: `waits for ${on.length === 1 ? on[0].short || on[0].title : on.length}` }];
   return [rest];
 }

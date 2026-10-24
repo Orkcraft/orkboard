@@ -540,7 +540,7 @@ async def _said(page, title):
 
 
 async def _pop(page, name):
-    """A stop along the bottom popped out of the fan (spec 49 §10.6, spec 65 §4.4): `name` is in its label (*Plan ready: Dark mode*). A tap on a fanned card brings it to the front, a tap on the front card's body raises it;
+    """A stop along the bottom popped out of the fan (spec 49 §10.6, spec 67 §4.4): `name` is in its label (*Plan ready: Dark mode*). A tap on a fanned card brings it to the front, a tap on the front card's body raises it;
     when the hand changes under the tap (a read of the Board lays the most urgent in front again) it is tried again. Returns the raised one."""
     probe = """(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side): the one nearest the middle of those, not an edge
       const own = [];
@@ -608,7 +608,7 @@ async def _stop_all(page):
 
 
 NO_SCROLL = "document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390"
-# (the front card's buttons are drawn 36 px and hit 44 px: spec 65 §4.2, so `.hc__quick` is left out)
+# (the front card's buttons are drawn 36 px and hit 44 px: spec 67 §4.2, so `.hc__quick` is left out)
 SMALL = """() => [...document.querySelectorAll('.board button, .board input, .board textarea, .screen button, .screen input')]
     .filter((b) => (b.offsetParent || getComputedStyle(b).position === 'fixed') && !b.closest('[hidden]') && !b.matches('.sec-head *') && !b.closest('.hc__quick')).map((b) => [b.textContent || b.getAttribute('aria-label'), b.getBoundingClientRect().height])
     .filter(([, h]) => h < 43)"""

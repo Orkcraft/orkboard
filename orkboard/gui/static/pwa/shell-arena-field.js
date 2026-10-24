@@ -1,5 +1,5 @@
 // The field of the party's window (docs/specs/49-one-window.md §5, §10.5, §11; spec 50 §3.4, §3.5, §6.5, §6.6): under the stage switch (its faces are the members: spec 53 §1) the columns, each under its member's tool mark, name and level (spec 60): its open tasks in **rows by phase** — *now* (a task at its goal's current wave), *next*, *later* — and in each row one
-// **stack** per goal: the front card (a token of 74 px, 5:7, its goal's element top left; spec 65), one or two edges behind it and *×n*; at the far end *✓ k in dev*. A press on a stack of one opens it, on a stack of more
+// **stack** per goal: the front card (a token of 74 px, 5:7, its goal's element top left; spec 67), one or two edges behind it and *×n*; at the far end *✓ k in dev*. A press on a stack of one opens it, on a stack of more
 // spreads it (shell-spread.js). A tap on a face shows only that member's work over the columns, two cards to a row from the top. The filter (the goals picked in the Goals sheet) leaves only their stacks.
 // Motion says what changed (shell-motion.js): a stack that was not there rises into its column, one that left (merged ✓, dropped ✗, or put away by the filter, with no sign) fades where it stood and
 // its column settles, one that moved slides to its new place, a merge's numbers are lit once; none under reduced motion, on the first read of a goal, for what changed while the page was hidden, nor
@@ -17,7 +17,7 @@ const GHOST_MS = 300;                                // a leaving stack fades wh
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 const NO_ONE = { build: "No builder in this party: the Grunt does its tasks.", check: "No checker in this party: a goal is done when its own Done when lines are." };
 
-/** A column's head whose name does not fit beside its marks has them on a second line under it (spec 65 §1.3); then every head of the strip is as high, so the columns' tops stay level. */
+/** A column's head whose name does not fit beside its marks has them on a second line under it (spec 67 §1.3); then every head of the strip is as high, so the columns' tops stay level. */
 function fitNames(root) {
   const fit = () => {
     const heads = [...root.querySelectorAll(".colname")];
@@ -199,7 +199,7 @@ export function makeField(core, hooks) {
         if (was && sameUi && holds.held(was)) { held.add(m.slug); return was; }   // under a finger or the focus: it waits
         return m.band === "lead" ? planningColumn(model, ui) : memberColumn(model, m, ui, rows.get(m.slug));
       });
-      // The members and their columns share the width, one to four, equal, with no sideways scroll (spec 65 §1); a card is a token of 74 px.
+      // The members and their columns share the width, one to four, equal, with no sideways scroll (spec 67 §1); a card is a token of 74 px.
       const strip = h("div", { class: "strip" }, ...shown.map((m, i) => h("div", { class: "pair" }, colName(m), cols[i])));
       const wrap = h("div", { class: "arena-scroll" }, strip);
       const focus = shown.find((m) => m.slug === ui.focus);

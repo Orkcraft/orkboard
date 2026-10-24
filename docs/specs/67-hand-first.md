@@ -1,6 +1,6 @@
-# Spec 65 — The hand first: on the phone the field is a board of tokens, the room goes to the hand
+# Spec 67 — The hand first: on the phone the field is a board of tokens, the room goes to the hand
 
-The owner, 23 October (decisions §78): *the person will not read the task cards much; what matters on the phone are the
+The owner, 23 October (decisions §81): *the person will not read the task cards much; what matters on the phone are the
 cards in the hand. The target device is an iPhone: use its screen as productively as we can, and no sideways scroll.*
 On a 390 × 844 screen today the field takes almost all of it — a task card is 132 × 185 always (spec 50 §6.5, decisions
 §63.13), a member's column 148 px, three or more members a sideways strip (the third peeking, the fourth off the

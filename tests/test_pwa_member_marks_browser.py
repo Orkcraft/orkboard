@@ -78,7 +78,7 @@ async def test_each_column_wears_its_members_tool_before_its_name_and_its_level_
         assert await tool.get_attribute("srcset") == "marks/harness-claude@2x.png 2x" and await level.get_attribute("srcset") == "marks/rank-2@2x.png 2x"
         bar, t, n, lv = await backend.bounding_box(), await tool.bounding_box(), await name.bounding_box(), await level.bounding_box()
         assert round(bar["height"]) == 42 and (round(t["width"]), round(t["height"]), round(lv["width"]), round(lv["height"])) == (16, 16, 16, 16)
-        assert await page.locator(".colname.is-two").count() == 1 and await page.locator(".strip.has-two").count() == 1            # "Level designer" does not fit beside its marks in a third of the width: they go under it (spec 65 §1.3), and every head is 42 px
+        assert await page.locator(".colname.is-two").count() == 1 and await page.locator(".strip.has-two").count() == 1            # "Level designer" does not fit beside its marks in a third of the width: they go under it (spec 67 §1.3), and every head is 42 px
         assert round(n["x"] - (t["x"] + 16)) == 4 and round(lv["x"] - (n["x"] + n["width"])) == 4                                  # --ork-2 between the three
         left, right = t["x"] - bar["x"], bar["x"] + bar["width"] - (lv["x"] + 16)
         assert abs(left - right) <= 1                                                                                              # centred over the column
@@ -131,7 +131,7 @@ async def test_a_long_name_is_cut_and_the_marks_never_both_16_by_16_inside_the_c
         await names.nth(2).wait_for(timeout=WAIT_MS)
         await page.wait_for_timeout(300)
         pairs = page.locator(".strip .pair")
-        assert await pairs.count() == 3 and abs((await pairs.first.bounding_box())["width"] - (390 - 12 - 8) / 3) <= 1               # three columns share the width (spec 65 §1.1)
+        assert await pairs.count() == 3 and abs((await pairs.first.bounding_box())["width"] - (390 - 12 - 8) / 3) <= 1               # three columns share the width (spec 67 §1.1)
         cut = names.nth(2)
         shown = cut.locator("span")
         assert await shown.evaluate("e => e.scrollWidth > e.clientWidth && getComputedStyle(e).textOverflow === 'ellipsis' && getComputedStyle(e).overflow === 'hidden'")      # the name is cut …
@@ -140,7 +140,7 @@ async def test_a_long_name_is_cut_and_the_marks_never_both_16_by_16_inside_the_c
         for img in await cut.locator("img").all():                                                                                  # … the marks never
             box = await img.bounding_box()
             assert (round(box["width"]), round(box["height"])) == (16, 16) and box["x"] >= col["x"] and box["x"] + 16 <= col["x"] + col["width"]
-        assert await cut.evaluate("e => e.scrollWidth <= e.clientWidth") and await cut.evaluate("e => e.classList.contains('is-two')") and round((await cut.bounding_box())["height"]) == 42      # the name is cut on its own line, the marks under it (spec 65 §1.3)
+        assert await cut.evaluate("e => e.scrollWidth <= e.clientWidth") and await cut.evaluate("e => e.classList.contains('is-two')") and round((await cut.bounding_box())["height"]) == 42      # the name is cut on its own line, the marks under it (spec 67 §1.3)
         two = [await img.bounding_box() for img in await cut.locator("img").all()]
         nm = await shown.bounding_box()
         assert all(b["y"] >= nm["y"] + nm["height"] - 1 for b in two)                                                               # … both under the name, never cut

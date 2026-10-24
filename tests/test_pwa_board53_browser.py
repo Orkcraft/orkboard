@@ -131,7 +131,7 @@ async def test_a_tasks_card_wears_its_goals_type_top_right_a_planning_goal_says_
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".stack .deck").first.wait_for(timeout=WAIT_MS)
         typed = page.locator('.stack .deck[data-idea="register"]').first
-        assert await typed.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1 and await typed.locator(".tcard__idea").count() == 0      # spec 55: top right; spec 65 §2.2: the goal's line is gone
+        assert await typed.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1 and await typed.locator(".tcard__idea").count() == 0      # spec 55: top right; spec 67 §2.2: the goal's line is gone
         sign = await typed.locator(".tcard__type .ork-sign").bounding_box()
         assert (round(sign["width"]), round(sign["height"])) == (14, 14)
         assert await typed.get_attribute("aria-label") == "Challenge store (WebAuthn register, Fix a bug): in Review, now" or "WebAuthn register, Fix a bug" in await typed.get_attribute("aria-label")
@@ -140,7 +140,7 @@ async def test_a_tasks_card_wears_its_goals_type_top_right_a_planning_goal_says_
         await _band(page, "lead")
         goal = page.locator('.stack .deck[data-idea="recovery"]')
         await goal.wait_for(timeout=WAIT_MS)
-        assert await goal.locator(".tcard__idea").count() == 0 and await goal.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1        # the type's sign says it (spec 65 §2.2)
+        assert await goal.locator(".tcard__idea").count() == 0 and await goal.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1        # the type's sign says it (spec 67 §2.2)
         assert "Fix a bug" in await goal.get_attribute("aria-label")
         other = page.locator('.stack .deck[data-idea="pagewords"]')
         assert await other.locator(".tcard__idea").count() == 0 and await other.locator(".tcard__type").count() == 0

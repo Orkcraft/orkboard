@@ -186,7 +186,7 @@ export function marksOf(m) {
 /** A goal's type as its sign and name (spec 53 §3): {id, name, sign}, or null for a goal with no type. */
 export const typeOf = (n) => (n?.type?.sign ? n.type : null);
 
-/** What a task waits for, by name (spec 65 §3): *after Challenge store, Credential table*; *after the build* for a check that follows all of its goal's build; an id with no task found is left
+/** What a task waits for, by name (spec 67 §3): *after Challenge store, Credential table*; *after the build* for a check that follows all of its goal's build; an id with no task found is left
  *  out; "" when none is left. */
 export function afterWords(t, n) {
   const tasks = n?.tasks || [], after = t.after || [];
@@ -211,7 +211,7 @@ export function taskWords(t, now = Date.now(), n = null) {
   return t.state;
 }
 
-/** The one value at a token's foot (spec 65 §2.4): the time a task at work or testing has run (*42 h*, *7 min*), the hour a held one may start (*18:00*); "" for the rest. */
+/** The one value at a token's foot (spec 67 §2.4): the time a task at work or testing has run (*42 h*, *7 min*), the hour a held one may start (*18:00*); "" for the rest. */
 export function valueOf(t, words) {
   const m = live(t) ? words.match(/^(?:working|testing) (.+)$/) : t.state === "held" ? words.match(/after (\d{1,2}:\d\d)$/) : null;
   return m ? m[1] : "";

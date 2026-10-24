@@ -375,7 +375,7 @@ async def test_the_stage_switch_starts_on_the_first_stage_with_work_counts_the_s
             await _band(page, band)
             assert await page.locator(".arena-scroll").evaluate("e => e.scrollWidth <= e.clientWidth + 1")
         SCENE["map"]["goals"][0]["party"].append(member({"slug": "extra", "name": "Extra"}, "build", OWN))          # three builders still fit
-        SCENE["map"]["goals"][0]["party"].append(member({"slug": "more", "name": "More"}, "build", OWN))           # four fit too (spec 65 §1.1, the most of a stage): the columns share the width, nothing scrolls
+        SCENE["map"]["goals"][0]["party"].append(member({"slug": "more", "name": "More"}, "build", OWN))           # four fit too (spec 67 §1.1, the most of a stage): the columns share the width, nothing scrolls
         stub.bump({})
         await _band(page, "build")
         await page.locator(".colname").nth(3).wait_for(timeout=WAIT_MS * 2)
@@ -481,7 +481,7 @@ async def test_a_members_solo_keeps_its_columns_order_two_to_a_row_centred_from_
         await solo.wait_for(timeout=WAIT_MS)
         await solo.get_by_role("button", name="Everyone").click()
         await solo.wait_for(state="detached", timeout=WAIT_MS)
-        await _band(page, "lead")                                                                    # the leader's solo lays Planning's goals out the same way: four to a row, centred, 6 px apart (spec 65 §1.2)
+        await _band(page, "lead")                                                                    # the leader's solo lays Planning's goals out the same way: four to a row, centred, 6 px apart (spec 67 §1.2)
         await page.locator('button.band__face[data-member="taskmaster"]').click()
         lead = page.locator(".solo")
         await lead.wait_for(timeout=WAIT_MS)

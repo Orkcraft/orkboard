@@ -1,4 +1,4 @@
-"""Spec 65, the phone (docs/specs/65-hand-first.md §1–§5): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py. The members share the width (four builders, no sideways scroll), a card is a
+"""Spec 67, the phone (docs/specs/67-hand-first.md §1–§5): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py. The members share the width (four builders, no sideways scroll), a card is a
 token of 74 px, 5:7, its stacks wrapping in its column; a token has no goal's line, its type's sign at the top right, one value at its foot, the state in its edge and fill, what it waits for by name in its label;
 the hand's zone is 250 px while a stop waits, the most urgent stands upright in front with its quick answers (`via: "front"`), the rest fan around it, a card right of the front mirrored; a tap on a fanned
 card brings it to the front, a tap on the front's body raises it. Screenshots go to the folder named by ARENA_SHOTS."""
@@ -31,7 +31,7 @@ def _task(tid, title, state, by, head, wave=1, after=(), **more):
 
 
 def four():
-    """The scene's Backend and Screens with an Artist and a Sound designer added, two tasks each (spec 65 §5)."""
+    """The scene's Backend and Screens with an Artist and a Sound designer added, two tasks each (spec 67 §5)."""
     reg = next(n for n in SCENE["map"]["nodes"] if n["slug"] == "register")
     reg["tasks"] += [_task("a1", "Passkey icon", "running", ARTIST, A.ELF, started="2026-10-21T09:55:00"), _task("a2", "Empty state picture", "waiting", ARTIST, A.ELF, 2, after=["a1"]),
                      _task("d1", "Sign-in chime", "running", SOUND, ELF2, started="2026-10-21T09:58:00"), _task("d2", "Error sound", "waiting", SOUND, ELF2, 2, after=["d1"])]
@@ -235,7 +235,7 @@ async def test_start_again_from_the_front_card_says_via_front(fake_repo, monkeyp
 
 @pytest.mark.asyncio
 async def test_a_plan_started_from_the_front_card_deals_its_tasks_from_the_front_cards_place(fake_repo, monkeypatch):
-    """Spec 65 §4.5 with spec 57: the deal starts from the front card, and the command says `via: "front"`."""
+    """Spec 67 §4.5 with spec 57: the deal starts from the front card, and the command says `via: "front"`."""
     async with _phone(fake_repo, monkeypatch, init=RECORD_DEAL) as (stub, page):
         await _ready_deal(page)
         fanned = page.locator(".hc:not(.is-front)[data-kind='plan']")

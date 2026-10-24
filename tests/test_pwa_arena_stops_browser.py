@@ -1,5 +1,5 @@
 """Spec 49 part C, the phone's bottom (docs/specs/49-one-window.md §10.6, §13 "C"; spec 50 §6.7): Chromium at 390 × 844 against the scene of tests/test_pwa_arena_browser.py. What waits for
-you lies along the bottom, fanned across the whole width and centred (3, 6, 8 and 10 of them, 250 px high, the most urgent upright in front: spec 65), no count beside it; a tap pops one out, its quick answers send their commands
+you lies along the bottom, fanned across the whole width and centred (3, 6, 8 and 10 of them, 250 px high, the most urgent upright in front: spec 67), no count beside it; a tap pops one out, its quick answers send their commands
 with `via: "hand"`, *Open it on its own screen*; the create button, a small face-down deck, floats over the field's bottom right and covers no task, and does one thing (New goal); New party is
 the where sheet's and Add to the party is About this party's; a push's `#needs` arrival; the 44 px targets. The deck's turn and the goals bar's filter are tests/test_pwa_decks_browser.py's."""
 from __future__ import annotations
@@ -41,12 +41,12 @@ async def test_the_fan_lies_across_the_width_centred_inside_the_screen_and_the_c
         got = await page.evaluate(EXTENT)
         assert got["n"] == n and await page.locator(".handcount").count() == 0                       # as many as wait, and no number beside them
         assert got["left"] >= 0 and got["right"] <= 390                                              # inside the screen …
-        assert abs((got["left"] + got["right"]) / 2 - 195) <= 6                                      # … centred on it (the cards right of the front turn further out than the left ones when the count is even: spec 65 §4.3)
+        assert abs((got["left"] + got["right"]) / 2 - 195) <= 6                                      # … centred on it (the cards right of the front turn further out than the left ones when the count is even: spec 67 §4.3)
         if n >= 6:
             assert got["right"] - got["left"] > 270                                                  # across the whole width, not a part of it
         margins = {int(await b.get_attribute("data-place")): await b.evaluate("e => getComputedStyle(e).marginLeft + ' ' + getComputedStyle(e).marginRight") for b in await page.locator(".hand .hc").all()}
         assert margins[0].startswith("0px ") and margins[n - 1].endswith(" 0px")                      # the row's first and last keep no outer negative margin (by their place in the row: the page keeps the urgency's order, spec 54 §2.3)
-        side = min(50, max(8, -(-((n - 1) * 104 + 126 - 290) // (2 * (n - 2))))) if n > 2 else 8            # spec 65 §4.3: the front card (150, lying 12 px over each side) in the row of 104-px cards
+        side = min(50, max(8, -(-((n - 1) * 104 + 126 - 290) // (2 * (n - 2))))) if n > 2 else 8            # spec 67 §4.3: the front card (150, lying 12 px over each side) in the row of 104-px cards
         mid = (n - 1) // 2
         fanned = [p for p in range(1, n - 1) if p != mid]
         assert all(margins[p] == f"-{side}px -{side}px" for p in fanned) and margins[mid] == "-12px -12px" or n == 2      # overlapping each side so that they fit (a reset of buttons' margins does not undo it)
@@ -55,7 +55,7 @@ async def test_the_fan_lies_across_the_width_centred_inside_the_screen_and_the_c
         assert round(box["x"]) == 326 and round(box["y"] + box["height"]) == 844 - 250 - 10 and box["width"] == 48 and box["height"] == 64     # over the field's bottom right, 10 px above the row
         assert await fab.evaluate(UNDER) == ["fab"]                                                  # nothing lies over it: no fan item reaches its box
         row = await page.locator(".handzone").bounding_box()
-        assert box["y"] + box["height"] + 10 <= row["y"] + 1 and abs(row["height"] - 251) < 1            # the zone is 250 px (spec 65 §4.1; its line over it 1 px), the button over it
+        assert box["y"] + box["height"] + 10 <= row["y"] + 1 and abs(row["height"] - 251) < 1            # the zone is 250 px (spec 67 §4.1; its line over it 1 px), the button over it
 
 
 @pytest.mark.asyncio
@@ -89,7 +89,7 @@ async def test_the_stops_lie_along_the_bottom_with_no_line_over_them_and_a_tap_p
         await page.locator(".hc").first.wait_for(timeout=WAIT_MS)
         row = page.locator(".handzone")
         box = await row.bounding_box()
-        assert await row.evaluate("e => getComputedStyle(e).height") == "250px" and round(box["y"] + box["height"]) == 844 and await row.evaluate("e => getComputedStyle(e).borderTopWidth") == "1px"      # 250 px while stops wait (spec 65 §4.1), a line over it (the approved mockup)
+        assert await row.evaluate("e => getComputedStyle(e).height") == "250px" and round(box["y"] + box["height"]) == 844 and await row.evaluate("e => getComputedStyle(e).borderTopWidth") == "1px"      # 250 px while stops wait (spec 67 §4.1), a line over it (the approved mockup)
         assert [await b.get_attribute("data-kind") for b in await page.locator(".hc").all()] == ["failed", "plan", "asks", "proposal", "look", "look"]      # by urgency (spec 54 §2.3): the failure, what holds work back, what does not, the results
         assert "is-look" in await page.locator('.hc[data-kind="look"]').first.get_attribute("class")
         card = page.locator('.hc[data-kind="plan"]')

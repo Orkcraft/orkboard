@@ -83,7 +83,7 @@ async def test_a_stack_that_appears_rises_into_its_place_from_below_once(fake_re
 
 @pytest.mark.asyncio
 async def test_a_stack_that_leaves_fades_where_it_stands_with_its_sign_then_what_lies_behind_it_steps_up_toward_the_member(fake_repo, monkeypatch):
-    SCENE["map"]["nodes"].append(node("x1", "An extra goal", "working", "implementation", tasks=[task("x1t", "An extra task", "ready", BACKEND, 1)]))      # a third stack of the first row: with two tokens to a row (spec 65 §1.2) it lies in a row of its own, behind
+    SCENE["map"]["nodes"].append(node("x1", "An extra goal", "working", "implementation", tasks=[task("x1t", "An extra task", "ready", BACKEND, 1)]))      # a third stack of the first row: with two tokens to a row (spec 67 §1.2) it lies in a row of its own, behind
     async with _phone(fake_repo, monkeypatch, init=RECORD) as (stub, page):
         await _ready(page)
         assert await _keys(page) == ["register|now", "cookie|now", "x1|now", "register|next"]
@@ -221,7 +221,7 @@ async def test_a_column_under_a_finger_or_the_focus_waits_and_settles_when_it_is
 async def test_the_bottom_row_does_not_shift_while_a_stop_is_popped(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".hc").first.wait_for(timeout=WAIT_MS)
-        raised = await _pop(page, "Plan ready: Recovery codes")                                         # it came to the front first (spec 65 §4.4)
+        raised = await _pop(page, "Plan ready: Recovery codes")                                         # it came to the front first (spec 67 §4.4)
         before = await page.evaluate("() => [...document.querySelectorAll('.hand .hc')].map((b) => b.dataset.stop)")
         SCENE["needs"] = [n for n in SCENE["needs"] if n["kind"] != "proposal"]                        # a stop is answered elsewhere meanwhile
         stub.bump({})

@@ -242,7 +242,7 @@ export function followsBuild(t, n) {
   const builds = (n?.tasks || []).filter((x) => x.band !== "check");
   return t.band === "check" && builds.length > 0 && builds.every((b) => (t.after || []).includes(b.id));
 }
-/** What a task follows, by name (spec 65 §3): *after Challenge store, Credential table*, or *after the build* for a check that waits for all of it; an id with no task found is left out ("" when none is left). */
+/** What a task follows, by name (spec 67 §3): *after Challenge store, Credential table*, or *after the build* for a check that waits for all of it; an id with no task found is left out ("" when none is left). */
 export function afterWords(t, n) {
   if (followsBuild(t, n)) return "after the build";
   const names = (t.after || []).map((id) => (n?.tasks || []).find((x) => x.id === id)).filter(Boolean).map((x) => x.short || x.title);

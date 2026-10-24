@@ -145,7 +145,7 @@ async def test_an_answered_stops_ghost_fades_in_place_in_the_fan_in_the_frame_it
         await _band(page, "lead")                                                                                               # Planning is shown: the goal's card is on the field
         await page.locator('.hc[data-kind="asks"]').wait_for(timeout=WAIT_MS)
         before = await page.evaluate("() => [...document.querySelectorAll('.hand .hc')].map((b) => [b.dataset.stop, b.dataset.place])")
-        raised = await _pop(page, "Asks you: Passkey on a second device")                                                          # it comes to the front first (spec 65 §4.4): the ghost lies where it stood then
+        raised = await _pop(page, "Asks you: Passkey on a second device")                                                          # it comes to the front first (spec 67 §4.4): the ghost lies where it stood then
         spot = await page.locator('.hc[data-kind="asks"]').evaluate("e => { const r = e.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, place: e.dataset.place }; }")
         await raised.locator('[data-choice="1"]').click()
         assert await _called(stub, "ideas.answer", {"slug": "second", "answers": ["Only the lost phone’s passkey"]})
