@@ -1,12 +1,12 @@
 {
  "from": "https://github.com/orkWorks/orkUI",
  "look": "office",
- "version": "0.4.1",
- "commit": "7ff01baa826fb173ff1361ed08bd23182d8db390",
+ "version": "0.5.0",
+ "commit": "493955c8a92d65b0b0bab48544169c06bf965421",
  "files": {
   "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
   "NOTICE": "0d52dfcb0926e74acb9f69229d0464f0014a8e243e8cbc72044fd8e38dc2e70a",
-  "README.md": "3eb8b8ff8d8e3458659db5551d59030cf6cd7a72793c083c6d320682a44a2df2",
+  "README.md": "6e0d5bce41074f846667e21f4d92197a9d816b35bd3d00b9beb5f3a8ec0d1880",
   "ascii/ork-asks.txt": "7bb70f760f88ab79087d570aadbfaa16c7b598711e29b62dbfead3b0a8c25011",
   "ascii/ork-asleep.txt": "f89568e0616c880b25ce5a67e73b815e9217eac6eabedabd5c9a0a962b6aabed",
   "ascii/ork-failed.txt": "fdf0fc3553aa01d405a80fa402454f754f413425ef7a00cab652b7f722102e60",
@@ -114,7 +114,7 @@
   "marks/rank-2@2x.png": "13ce8e7bdcb19fd2c133a3686470b8b1cc7d0bbb366525bf4dda875085279b6d",
   "marks/rank-3.png": "82f655fcb5b7ae96f947d334c9c6f6c60f12675f3bec82c545ca2cded3644cc5",
   "marks/rank-3@2x.png": "37153e7faf239d6afb741816bc22a948f0ce48f34b51ff3d8684be723810ef60",
-  "preview.html": "763c01abfe6de4be4c7b3f8fcca2e2fc681e014fd1519303b97cbd7fae9dd7f8",
+  "preview.html": "bfec748f676e6dc417be867f142dfa1ebbe0c6eb9aa39460e0db8e887845a80c",
   "races/elf-elder.png": "98b6cf7da51e31a6e781427daae1c22b5ccc6d77c96e7546f518f4e96c7d5a1b",
   "races/elf-elder@2x.png": "cfd1cce4c3b22499d97030389bda549c32e58f09ef689749b26644b88b4bec34",
   "races/elf-laborer.png": "6fb0c2930268bbf5a41d34ecff10643013e83ee6f5c4f36aacaf4c8cb08ce303",
@@ -151,6 +151,12 @@
   "races/peon-laborer@2x.png": "6f09dec74382b84c81f3ffc25cbc4e1c7f4bea713b1f5755b9be42a6abacf69a",
   "races/peon-warrior.png": "1d0dbfbaf7fec783fba8267688633ac1497f2edf9dc4aecefa14fbbb2e2dc4c7",
   "races/peon-warrior@2x.png": "4df7fd4fc1858000acad40d493674976c9ac03c26e49825bfe3017c4eb572617",
+  "races/skeleton-elder.png": "94d3adc1f68cbd6d1c8dea202159e6d8d19bc96c890dbee8aae2fe1d666b7b33",
+  "races/skeleton-elder@2x.png": "ed01c23c7fbb080127cf7be1c3b154b0c17f6a90e18f2206f8f70f9730255f09",
+  "races/skeleton-laborer.png": "ed9643f1b34e76b4b0892736a235c537d07fcf72eccd504604d2328a791317f5",
+  "races/skeleton-laborer@2x.png": "38133ea7345aa7414e667eadb4c986a13d177391fadace659b30cc2e86ae5c4b",
+  "races/skeleton-warrior.png": "29e53e2a349633f395924c2f50ac7ebc5a8e5a297b717b4321dcde750e74a673",
+  "races/skeleton-warrior@2x.png": "6b331fd161fc63511178533db5ff56a750acba3829933554580fa37697143628",
   "signs/README.md": "537dc20d6f6026a8113b7e31eb98290d048e2a39a199fa8c9d3fbd6f71c644b7",
   "signs/abtest.svg": "5cb5ecc6bc8d6e0622c63f7e46666d090f709e933e1b9c15be3edd9a207fdb89",
   "signs/after.svg": "9bdf2ca989f3f6640fbc44b8f62b97b45f63ace0fad910f3f0dffc0ecf4190f4",
@@ -188,7 +194,7 @@
   "signs/tidy.svg": "c4d3ddb46f93d1c604591303a6ac0f5331a3ed11c4ab950682ec88dbf480a9e5",
   "signs/tune.svg": "d5495ca0ded02d133abe41bdf39dc13a6040ed2d8bee9da77810120d944e3653",
   "signs/work.svg": "01a9c27d04c2643eca81f55f190c155f333ed3c7f8e8f31f22d3f054ed0907e3",
-  "tokens.css": "6704644622038fc7d2c7a2c4f53ae13ff548c16ccb5b76ff2a69db0dfcd46cb0",
-  "tokens.json": "9d82b10752409123601d7e9846310673d3938128cb9391d4f6b1d724f0f4af2e"
+  "tokens.css": "d5ab06d43491a38f95b1994370cb08133017e30a8de58e6a8aa13c3e4254ffe3",
+  "tokens.json": "6b4dacb0f0249a32bba2c805f65ad2a4133178b6033e7ee6c9b3771dd167abbb"
  }
 }

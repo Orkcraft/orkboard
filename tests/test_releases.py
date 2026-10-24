@@ -346,8 +346,8 @@ def test_the_release_party_is_priced_and_listed_as_any_preset(board):
     assert {t["id"] for t in h.command("ideas.party_price", {"leader": "product-manager", "team": ["grunt", "artist", "aso"], "craft": "product"})["types"]}.isdisjoint({"release"})                                                          # beside a Release party: not offered elsewhere
     roles = h.command("ideas.roles")
     release_preset = next(p for p in roles["presets"] if p["id"] == "release")
-    assert release_preset["lead"] == "release-manager" and release_preset["race"] == "lich" and roles["stages"]["release-manager"]["lead"] == "Gather"
-    assert {a["id"]: a["race"] for a in roles["library"]}["release-checker"] == "lich"
+    assert release_preset["lead"] == "release-manager" and release_preset["race"] == "skeleton" and roles["stages"]["release-manager"]["lead"] == "Gather"
+    assert {a["id"]: a["race"] for a in roles["library"]}["release-checker"] == "skeleton"
     assert idea_flag.flag_of(h.state, h.a1)["at"] == A1
 
 
