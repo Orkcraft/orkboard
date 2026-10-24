@@ -343,7 +343,7 @@ async def test_the_create_button_floats_over_the_field_s_bottom_right_and_limits
         fab = page.locator(FAB)
         box = await fab.bounding_box()
         assert box["width"] == 48 and box["height"] == 64 and round(box["x"]) == 390 - 16 - 48                  # a small face-down deck, under the thumb, 16 px from the right …
-        assert round(box["y"] + box["height"]) == 844 - 56 - 10                                                  # … over the field, 10 px above the bottom row
+        assert round(box["y"] + box["height"]) == 844 - 250 - 10                                                 # … over the field, 10 px above the hand's zone (250 px while a stop waits: spec 67 §4.1)
         assert await page.locator(".section-head").get_by_role("button", name="New goal").count() == 0
         assert await page.get_by_role("button", name="Speak a new goal").count() == 0                   # one button; Speak is in the sheet (spec 41 §5)
         assert await page.locator("[role=menu], dialog.dial-dlg").count() == 0                          # no dial: one tap, New goal

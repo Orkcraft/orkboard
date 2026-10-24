@@ -1046,3 +1046,23 @@ says so. A question is not a blow (*a question costs nothing*), so the two are t
    focus; at most three heads in one refresh, the rest wear the sign without it. Nothing travels: §76.3's three moments
    stay three. No sound, no colour but the office's.
 The owner's call, before the testers' numbers. Spec 49 §11.7.
+
+## 81. The hand first on the phone: the field a board of tokens, every member on the screen, the most urgent stop answered where it stands (23 October, the owner)
+
+Why: the owner, on the phone's screenshots (the Design canvas *Orkboard — after the cleanup*): *the person will not read
+the task cards much; what matters are the cards in the hand. The target device is an iPhone: use its screen as
+productively as we can, and no sideways scroll; four members is the most.* At 390 × 844 the field took almost the whole
+screen with cards of 132 × 185 and a sideways strip from the third member on, while the hand was 56 px of cut words and
+every answer took a raise first. And a waiting task said *after k1, k2*, ids the person never sees elsewhere. So:
+1. **Every member on the screen**: the phone's columns share its width, one to four, with no sideways scroll (replaces
+   §63.13's *the members scroll instead* and spec 50 §6.5's 148-px columns).
+2. **A task's card is a token on the phone**, 74 px wide and 5:7, its stacks wrapping in its member's column: the top row
+   as §68 has it (the element, the type's sign in its colour), the task's short name, one value (its time at work, or
+   the hour it may start); the goal's line goes (reverses spec 55 §3 on the phone); the edge and the fill say the state,
+   at work raised. The words stay in its label.
+3. **What a task waits for is said by name** on both faces (*after Challenge store*), the desktop's card *waits for 2*.
+4. **The hand takes the room**: 250 px while a stop waits; the most urgent stands upright in front with its banner, its
+   text and its quick answers (two at most, else the recommended one and *More…*), the rest fanned around it, a card
+   right of the front with its corner mirrored; a tap brings a fanned card to the front; an answer from the front is
+   counted `via: "front"`.
+The desktop is unchanged but for item 3. The owner's call, before the testers' numbers. Spec 67.

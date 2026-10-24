@@ -540,24 +540,44 @@ async def _said(page, title):
 
 
 async def _pop(page, name):
-    """A stop along the bottom popped out of the fan by a tap on its top (spec 49 §10.6): `name` is in its label (*Plan ready: Dark mode*). Returns the raised one."""
-    await page.wait_for_function("() => !document.querySelector('dialog.raised-dlg[open]')", timeout=WAIT_MS)       # what was raised before is laid back: nothing lies over the fan
-    card = page.locator(f'.hc[aria-label*="{name}"]')
-    await card.wait_for(timeout=WAIT_MS)
-    probe = """(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side)
-      for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) return { x, y }; }
-      return null; }"""
-    at = await card.evaluate(probe)
-    for _ in range(60):                                                                                 # (what lay over it a moment ago, a closing sheet or a toast, is gone)
-        if at:
-            break
-        await page.wait_for_timeout(50)
-        at = await card.evaluate(probe)
-    assert at, f"no point of {name} can be tapped"
-    await page.mouse.click(at["x"], at["y"])
+    """A stop along the bottom popped out of the fan (spec 49 §10.6, spec 67 §4.4): `name` is in its label (*Plan ready: Dark mode*). A tap on a fanned card brings it to the front, a tap on the front card's body raises it;
+    when the hand changes under the tap (a read of the Board lays the most urgent in front again) it is tried again. Returns the raised one."""
+    probe = """(b) => { const r = b.getBoundingClientRect();          // a point of its top that is its own (a turned card's corner is empty, its neighbours lie over its side): the one nearest the middle of those, not an edge
+      const own = [];
+      for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) own.push({ x, y }); }
+      if (!own.length) return null;
+      const cx = own.reduce((k, p) => k + p.x, 0) / own.length, cy = own.reduce((k, p) => k + p.y, 0) / own.length;
+      return own.reduce((a, p) => (Math.hypot(p.x - cx, p.y - cy) < Math.hypot(a.x - cx, a.y - cy) ? p : a)); }"""
     raised = page.locator(".raised")
+    for attempt in range(5):
+        await page.wait_for_function("() => !document.querySelector('dialog.raised-dlg[open]')", timeout=WAIT_MS)       # what was raised before is laid back: nothing lies over the fan
+        card = page.locator(f'.hc[aria-label*="{name}"]')
+        await card.wait_for(timeout=WAIT_MS)
+        at = await card.evaluate(probe)
+        for _ in range(160):                                                                                # (what lay over it a moment ago, a closing sheet or a toast, is gone)
+            if at:
+                break
+            await page.wait_for_timeout(50)
+            at = await card.evaluate(probe)
+        assert at, f"no point of {name} can be tapped: " + str(await page.evaluate("() => [...document.querySelectorAll('.hand > *')].map((c) => { const r = c.getBoundingClientRect(); return [c.dataset.stop, c.className, Math.round(r.left), Math.round(r.right), Math.round(r.top), c.style.getPropertyValue('--ov')]; })"))
+        fanned = await card.evaluate("(b) => !b.classList.contains('is-front')")
+        await page.mouse.click(at["x"], at["y"])
+        if fanned:
+            front = page.locator(f'.hc.is-front[aria-label*="{name}"]')
+            try:
+                await front.wait_for(timeout=3000)
+                await page.wait_for_function("() => document.getAnimations().filter((a) => a.effect?.target?.closest?.('.hand')).length === 0", timeout=WAIT_MS)
+                at = await front.evaluate("(b) => { const r = b.querySelector('.hc__body').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 60 }; }")
+            except Exception:                                                                              # noqa: BLE001 — the hand changed under the tap
+                continue
+            await page.mouse.click(at["x"], at["y"])
+        try:
+            await raised.wait_for(timeout=3000)
+        except Exception:                                                                                  # noqa: BLE001
+            continue
+        await raised.evaluate("(e) => Promise.all(e.getAnimations().map((a) => a.finished))")              # it leaps in steps: a press is made when it stands
+        return raised
     await raised.wait_for(timeout=WAIT_MS)
-    await raised.evaluate("(e) => Promise.all(e.getAnimations().map((a) => a.finished))")              # it leaps in steps: a press is made when it stands
     return raised
 
 
@@ -588,8 +608,9 @@ async def _stop_all(page):
 
 
 NO_SCROLL = "document.documentElement.scrollWidth <= 390 && document.body.scrollWidth <= 390"
+# (the front card's buttons are drawn 36 px and hit 44 px: spec 67 §4.2, so `.hc__quick` is left out)
 SMALL = """() => [...document.querySelectorAll('.board button, .board input, .board textarea, .screen button, .screen input')]
-    .filter((b) => (b.offsetParent || getComputedStyle(b).position === 'fixed') && !b.closest('[hidden]') && !b.matches('.sec-head *')).map((b) => [b.textContent || b.getAttribute('aria-label'), b.getBoundingClientRect().height])
+    .filter((b) => (b.offsetParent || getComputedStyle(b).position === 'fixed') && !b.closest('[hidden]') && !b.matches('.sec-head *') && !b.closest('.hc__quick')).map((b) => [b.textContent || b.getAttribute('aria-label'), b.getBoundingClientRect().height])
     .filter(([, h]) => h < 43)"""
 
 

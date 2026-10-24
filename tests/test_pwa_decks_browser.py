@@ -17,9 +17,12 @@ from tests.test_pwa_shell_browser import FAB, NO_SCROLL, WAIT_MS, Stub, _band, _
 pytest.importorskip("playwright.async_api")
 pytestmark = pytest.mark.browser
 
-TOP_POINT = """(b) => { const r = b.getBoundingClientRect();         // a point of the card's top that is its own (its neighbours in the fan lie over its sides)
-  for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) return { x, y }; }
-  return null; }"""
+TOP_POINT = """(b) => { const r = b.getBoundingClientRect();         // a point of the card's top that is its own (its neighbours in the fan lie over its sides): the one nearest the middle of those
+  const own = [];
+  for (let y = r.top + 6; y < r.top + 40; y += 3) for (let x = r.left + 3; x < r.right - 2; x += 3) { const e = document.elementFromPoint(x, y); if (e && e.closest(".hc") === b) own.push({ x, y }); }
+  if (!own.length) return null;
+  const cx = own.reduce((k, p) => k + p.x, 0) / own.length, cy = own.reduce((k, p) => k + p.y, 0) / own.length;
+  return own.reduce((a, p) => (Math.hypot(p.x - cx, p.y - cy) < Math.hypot(a.x - cx, a.y - cy) ? p : a)); }"""
 
 
 async def _reopen(page):
@@ -64,12 +67,26 @@ async def test_a_tap_on_a_stop_or_the_raised_one_is_not_lost_either(fake_repo, m
         await _redrawn(stub, page)
         assert await page.evaluate("() => window.__pressed.isConnected")
         await page.mouse.up()
+        front = page.locator('.hc.is-front[data-kind="plan"]')
+        await front.wait_for(timeout=WAIT_MS)                                          # the tap brought the stop it was on to the front (spec 67 §4.4)
+        await page.wait_for_function("() => !window.__pressed.isConnected", timeout=WAIT_MS)       # and the postponed draw ran after it
+        assert await page.locator(".hc").count() == 5                                  # … laying the fan again
+        await page.wait_for_timeout(300)                                               # the front card's body: the same, a tap raises the stop
+        await page.wait_for_function("() => !document.querySelector('.hand .hcg')", timeout=WAIT_MS)                # the answered stop has faded: the hand is laid again
+        box = await front.locator(".hc__body").bounding_box()
+        await page.mouse.move(box["x"] + box["width"] / 2, box["y"] + 40)
+        await page.mouse.down()
+        await front.locator(".hc__body").evaluate("e => { window.__pressed = e; }")
+        SCENE["needs"] = [n for n in SCENE["needs"] if n["kind"] != "asks"]
+        await _redrawn(stub, page)
+        assert await page.evaluate("() => window.__pressed.isConnected")
+        await page.mouse.up()
         raised = page.locator(".raised")
         await raised.wait_for(timeout=WAIT_MS)
-        assert await raised.get_attribute("data-kind") == "plan"                       # the tap popped the stop it was on
+        assert await raised.get_attribute("data-kind") == "plan"                       # the tap raised the stop it was on
         await page.keyboard.press("Escape")
         await page.wait_for_function("() => !window.__pressed.isConnected", timeout=WAIT_MS)
-        assert await page.locator(".hc").count() == 5                                  # the postponed draw laid the fan again
+        assert await page.locator(".hc").count() == 4                                  # the postponed draw laid the fan again
 
 
 @pytest.mark.asyncio
@@ -274,17 +291,17 @@ async def test_a_tap_picks_a_goal_more_add_and_the_filter_leaves_only_their_card
 # -- rows by phase and the stacks (spec 50 §3.4, §6.5) ----------------------------------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_a_card_is_132_by_185_wears_its_goals_element_and_a_raw_goal_is_dashed_with_its_element_dim(fake_repo, monkeypatch):
+async def test_a_card_is_a_token_74_by_104_wears_its_goals_element_and_a_raw_goal_is_dashed_with_its_element_dim(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         failed = page.locator('.stack[data-column="backend"] .deck[data-key="cookie|now"]')
         await failed.wait_for(timeout=WAIT_MS)
         box = await failed.locator(".tcard").bounding_box()
-        assert abs(box["width"] - 132) <= 1 and abs(box["height"] - 185) <= 1 and abs(box["height"] / box["width"] - 7 / 5) < 0.02          # 132 × 185, 5:7, two columns at 390
+        assert abs(box["width"] - 74) <= 1 and abs(box["height"] - 104) <= 1.5 and abs(box["height"] / box["width"] - 7 / 5) < 0.02          # spec 67 §1.2: a token 74 × 104, 5:7 (was 132 × 185), two columns at 390
         cols = [await c.bounding_box() for c in await page.locator(".stack[data-column]").all()]
         assert len(cols) == 2 and abs(cols[0]["width"] - cols[1]["width"]) <= 1 and cols[1]["x"] > cols[0]["x"] + cols[0]["width"] - 1
         assert await failed.locator(".tcard__top .ork-elem.dust").count() == 1 and await failed.locator(".tcard__mark").count() == 0    # the element top left; no state sign (the foot and the edge say it, spec 55 §2)
-        assert await failed.locator(".tcard__idea").inner_text() == "Session cookie flags" and await failed.locator(".tcard__name").inner_text() == "Secure cookie flags"
-        assert await failed.locator(".tcard__foot").inner_text() == "failed" and "is-fail" in await failed.get_attribute("class")
+        assert await failed.locator(".tcard__idea").count() == 0 and await failed.locator(".tcard__name").inner_text() == "Secure cookie flags"             # spec 67 §2.2: no goal's line
+        assert await failed.locator(".tcard__foot").count() == 0 and "is-fail" in await failed.get_attribute("class")                                 # §2.4: a failure has no value at its foot, its edge says it
         assert await failed.locator(".tcard").evaluate("e => getComputedStyle(e).borderColor") == await page.evaluate(
             "(() => { const d = document.createElement('span'); d.style.color = 'var(--ork-danger)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; })()")   # a failure has the danger edge
         every = await page.locator(".deck:not(.is-leaving)").count()
@@ -294,15 +311,15 @@ async def test_a_card_is_132_by_185_wears_its_goals_element_and_a_raw_goal_is_da
         edge = await stack.locator(".deck__edge").bounding_box()
         front = await stack.locator(".tcard").bounding_box()
         assert round(edge["x"] - front["x"]) == 4 and round(front["y"] - edge["y"]) == 4                                               # offset 4 px up and to the right
-        await _band(page, "lead")                                                                                                     # Planning: a goal a card, two to a row, centred, 16 px apart
+        await _band(page, "lead")                                                                                                     # Planning: a goal a card, four to a row, centred, 6 px apart (spec 67 §1.2)
         cards = [await c.bounding_box() for c in await page.locator('.stack[data-column="taskmaster"] .deck').all()]
-        assert len(cards) == 6 and len({round(b["y"]) for b in cards[:2]}) == 1 and round(cards[1]["x"] - (cards[0]["x"] + cards[0]["width"])) == 16
-        assert abs((cards[0]["x"] + cards[1]["x"] + cards[1]["width"]) / 2 - 195) <= 1 and all(abs(b["width"] - 132) <= 1 and abs(b["height"] - 185) <= 1 for b in cards)
+        assert len(cards) == 6 and len({round(b["y"]) for b in cards[:4]}) == 1 and cards[4]["y"] > cards[0]["y"] and round(cards[1]["x"] - (cards[0]["x"] + cards[0]["width"])) == 6
+        assert abs((cards[0]["x"] + cards[3]["x"] + cards[3]["width"]) / 2 - 195) <= 1 and all(abs(b["width"] - 74) <= 1 and abs(b["height"] - 104) <= 1.5 for b in cards)
         raw = page.locator('.deck[data-idea="magic"] .tcard')
         assert "is-raw" in await raw.get_attribute("class") and await raw.evaluate("e => getComputedStyle(e).borderStyle") == "dashed" and await raw.locator(".ork-elem.lava.dim").count() == 1
         stop = page.locator('.deck[data-idea="recovery"] .tcard')
-        assert await stop.locator(".ork-elem.void:not(.dim)").count() == 1 and await stop.locator(".tcard__mark").count() == 0 and await stop.locator(".tcard__idea").inner_text() == "Goal"
-        assert await stop.locator(".tcard__foot").inner_text() == "plan ready · $1–2"                                                  # its words at the foot
+        assert await stop.locator(".ork-elem.void:not(.dim)").count() == 1 and await stop.locator(".tcard__mark").count() == 0 and await stop.locator(".tcard__idea").count() == 0
+        assert await stop.locator(".tcard__foot").count() == 0 and "plan ready · $1–2" in await page.locator('.deck[data-idea="recovery"]').get_attribute("aria-label")     # no value at its foot; its words stay in its label (spec 67 §2.6)
         assert await page.evaluate(NO_SCROLL)
 
 
@@ -382,7 +399,7 @@ async def test_a_press_on_a_stack_of_more_spreads_its_cards_in_a_strip_with_thei
         last = cards.nth(2)
         deps = [norm(await d.inner_text()) for d in await last.locator(".spread__dep").all()]
         assert deps == ["waits for Challenge store and Credential table and migration", "1 waits for it"]
-        assert await last.locator(".spread__dep .ork-sign.before").count() == 1 and await last.locator(".tcard__foot").inner_text() == "after k1, k2"
+        assert await last.locator(".spread__dep .ork-sign.before").count() == 1 and await last.locator(".tcard__foot").inner_text() == "after Challenge store, Credential table and migration"
         deal = [d for d in await page.evaluate("() => window.__deal") if d["el"] == "spread__card"]
         assert len(deal) == 3 and {d["ms"] for d in deal} == {300} and [d["delay"] for d in deal] == [0, 35, 70] and {d["easing"] for d in deal} == {"steps(6)"}    # dealt: ≈ 0.3 s, 35 ms apart, in steps
         await cards.nth(2).click()                                                                                                    # a press on one opens it
@@ -473,7 +490,7 @@ async def _swipe(page, x, y, dx):
 
 
 @pytest.mark.asyncio
-async def test_three_members_are_one_sideways_strip_of_148_px_columns_snapped_with_the_third_peeking_and_the_cards_keep_their_size(fake_repo, monkeypatch):
+async def test_three_members_share_the_width_in_equal_columns_with_no_sideways_scroll_and_the_tokens_keep_their_size(fake_repo, monkeypatch):
     three_builders()
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _band(page, "build")
@@ -481,71 +498,65 @@ async def test_three_members_are_one_sideways_strip_of_148_px_columns_snapped_wi
         await page.locator(".pair").nth(2).wait_for(timeout=WAIT_MS)
         await page.wait_for_timeout(500)
         pairs = [await p.bounding_box() for p in await page.locator(".pair").all()]
-        assert [round(b["width"]) for b in pairs] == [148, 148, 148]                                                                  # a fixed width: 148 px
-        assert round(pairs[0]["x"]) == 12 and round(pairs[1]["x"]) == 166 and round(pairs[2]["x"]) == 320                              # two whole, the third peeking …
-        assert round(390 - pairs[2]["x"]) == 70                                                                                       # … about 70 px of it
-        css = await scroller.evaluate("e => ({ snap: getComputedStyle(e).scrollSnapType, bar: getComputedStyle(e).scrollbarWidth, x: getComputedStyle(e).overflowX, w: e.scrollWidth, c: e.clientWidth })")
-        assert css["snap"] == "x mandatory" and css["bar"] == "none" and css["x"] == "auto" and css["w"] > css["c"]                    # snapping, no scrollbar drawn, scrolling
-        assert await page.locator(".pair").first.evaluate("e => getComputedStyle(e).scrollSnapAlign") == "start"                      # to a column's start
+        assert len(pairs) == 3 and max(b["width"] for b in pairs) - min(b["width"] for b in pairs) <= 1                                 # equal columns (spec 67 §1.1; were 148 px, the third peeking)
+        assert round(pairs[0]["x"]) == 6 and round(pairs[2]["x"] + pairs[2]["width"]) == 384 and round(pairs[1]["x"] - pairs[0]["x"] - pairs[0]["width"]) == 4      # 6 px short of the screen at each side, 4 px apart
+        css = await scroller.evaluate("e => ({ x: getComputedStyle(e).overflowX, w: e.scrollWidth, c: e.clientWidth })")
+        assert css["x"] == "hidden" and css["w"] == css["c"]                                                                          # nothing to scroll sideways
         for pair in await page.locator(".pair").all():                                                                                # the member's name never separates from its tasks
             token, column = await pair.locator(".colname").bounding_box(), await pair.locator(".stack").bounding_box()
             box = await pair.bounding_box()
             assert abs(token["x"] + token["width"] / 2 - (column["x"] + column["width"] / 2)) <= 1 and token["y"] < column["y"] and abs(box["x"] - column["x"]) <= 1
-        sizes = {(round(b["width"]), round(b["height"])) for b in [await c.locator(".tcard").bounding_box() for c in await page.locator(".pair .deck:not(.is-leaving)").all()]}
-        assert sizes == {(132, 185)}                                                                                                  # the cards stay 132 × 185
-        assert await page.evaluate(NO_SCROLL) and await page.evaluate("() => document.scrollingElement.scrollLeft") == 0              # the strip scrolls, the page does not
-        await _swipe(page, 250, 500, -120)                                                                                            # a swipe scrolls it and snaps
-        left = await scroller.evaluate("e => e.scrollLeft")
-        assert round(left) in (90, 154), left                                                                                         # the last column cannot reach the edge: it rests at the end, whole
-        last = await page.locator(".pair").nth(2).bounding_box()
-        assert 390 - 12 - 1 <= last["x"] + last["width"] <= 390 - 12 + 1                                                              # the third whole, with the gutter after it
-        await _swipe(page, 250, 500, 200)
-        assert round(await scroller.evaluate("e => e.scrollLeft")) == 0                                                               # and back to the first
+        sizes = {(round(b["width"]), round(b["height"] / 1.4)) for b in [await c.locator(".tcard").bounding_box() for c in await page.locator(".pair .deck:not(.is-leaving)").all()]}
+        assert sizes == {(74, 74)}                                                                                                    # the tokens are 74 wide, 5:7 (height / 1.4 = 74)
+        assert await page.evaluate(NO_SCROLL) and await page.evaluate("() => document.scrollingElement.scrollLeft") == 0
+        await _swipe(page, 250, 500, -120)                                                                                            # a swipe does not scroll it sideways
+        assert round(await scroller.evaluate("e => e.scrollLeft")) == 0
         assert await page.evaluate(NO_SCROLL)
 
 
 @pytest.mark.asyncio
-async def test_two_members_or_fewer_share_the_width_with_no_scroll_and_the_cards_stay_132_by_185_centred(fake_repo, monkeypatch):
+async def test_two_members_or_fewer_share_the_width_with_no_scroll_and_the_tokens_wrap_two_to_a_row_centred(fake_repo, monkeypatch):
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await _band(page, "build")
         await page.locator(".pair").nth(1).wait_for(timeout=WAIT_MS)
         scroller = page.locator(".arena-scroll")
         css = await scroller.evaluate("e => ({ w: e.scrollWidth, c: e.clientWidth })")
-        assert css["w"] <= css["c"] and await page.locator(".strip.is-few").count() == 1                                              # nothing to scroll
+        assert css["w"] <= css["c"]                                                                                                   # nothing to scroll
         pairs = [await p.bounding_box() for p in await page.locator(".pair").all()]
-        assert len(pairs) == 2 and abs(pairs[0]["width"] - pairs[1]["width"]) <= 1 and pairs[0]["width"] > 148 and round(pairs[0]["x"]) == 12     # the columns share the width
-        assert round(pairs[1]["x"] + pairs[1]["width"]) == 378
+        assert len(pairs) == 2 and abs(pairs[0]["width"] - pairs[1]["width"]) <= 1 and pairs[0]["width"] > 148 and round(pairs[0]["x"]) == 6     # the columns share the width
+        assert round(pairs[1]["x"] + pairs[1]["width"]) == 384
         for pair in await page.locator(".pair").all():
             box = await pair.bounding_box()
             for deck in await pair.locator(".deck:not(.is-leaving) .tcard").all():
                 d = await deck.bounding_box()
-                assert (round(d["width"]), round(d["height"])) == (132, 185) and abs(d["x"] + d["width"] / 2 - (box["x"] + box["width"] / 2)) <= 8           # 132 × 185, centred in its column
+                assert round(d["width"]) == 74 and abs(d["height"] - 104) <= 1.5                                                      # 74 × 104 (spec 67 §1.2)
+            decks = [await d.bounding_box() for d in await pair.locator(".phase.is-now .deck").all()]
+            if len(decks) == 2:                                                                                                       # two to a row, the pair centred in its column
+                assert abs((decks[0]["x"] + decks[1]["x"] + decks[1]["width"] - 8) / 2 - (box["x"] + box["width"] / 2)) <= 6
         await _band(page, "lead")                                                                                                     # one member (the leader): one column across the width
         await page.locator(".pair").first.wait_for(timeout=WAIT_MS)
-        assert await page.locator(".pair").count() == 1 and await page.locator(".strip.is-few").count() == 1
+        assert await page.locator(".pair").count() == 1
         css = await scroller.evaluate("e => ({ w: e.scrollWidth, c: e.clientWidth })")
         assert css["w"] <= css["c"]
 
 
 @pytest.mark.asyncio
-async def test_a_swipe_on_the_strip_is_a_scroll_not_a_tap_and_it_never_holds_a_redraw_back(fake_repo, monkeypatch):
+async def test_a_swipe_on_the_strip_is_not_a_tap_does_not_scroll_it_sideways_and_never_holds_a_redraw_back(fake_repo, monkeypatch):
     three_builders()
     async with _phone(fake_repo, monkeypatch, init=POINTERS) as (stub, page):
         await _band(page, "build")
         await page.locator(".pair").nth(2).wait_for(timeout=WAIT_MS)
         await page.wait_for_timeout(400)
         await page.evaluate("() => { window.__pointers = []; }")
-        await _swipe(page, 250, 500, -150)                                                                                            # a pointer goes down on a card and turns into a scroll
-        got = await page.evaluate("() => window.__pointers")
-        assert got[0] == "pointerdown" and "pointercancel" in got and await page.locator(".screen").count() == 0 or not await page.locator(".screen").is_visible()    # (the browser cancels the pointer; no tap opened a task)
+        await _swipe(page, 250, 500, -150)                                                                                            # a pointer goes down on a card and is let go
+        assert await page.locator(".screen").count() == 0 or not await page.locator(".screen").is_visible()                          # no tap opened a task
         for n in SCENE["map"]["nodes"]:                                                                                               # the Board changes: it is drawn at once, nothing waits for a pointer that is gone
             if n["slug"] == "register":
                 n["tasks"].append(task("d2", "A later task of Data", "waiting", {"slug": "screens", "name": "Screens"}, 3))
                 n["tasks"][-1]["by"], n["tasks"][-1]["head"] = DATA, GOBLIN
         stub.bump({})
         await page.locator('.stack[data-column="data"] .deck[data-key="register|next"], .stack[data-column="data"] .deck[data-key="register|later"]').first.wait_for(timeout=WAIT_MS * 2)
-        assert await page.evaluate("() => document.getAnimations().filter((a) => a.playState === 'running').length") >= 0
-        assert await page.locator(".arena-scroll").evaluate("e => e.scrollLeft") > 0                                                  # the strip stayed where it was scrolled
+        assert await page.locator(".arena-scroll").evaluate("e => e.scrollLeft") == 0                                                 # the strip does not scroll sideways (spec 67 §1.1)
 
 
 # -- the create button, a face-down deck, and New goal's card (spec 50 §6.7, §4.2) ------------------------------------------------------------------------------------------

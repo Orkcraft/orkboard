@@ -186,8 +186,18 @@ export function marksOf(m) {
 /** A goal's type as its sign and name (spec 53 §3): {id, name, sign}, or null for a goal with no type. */
 export const typeOf = (n) => (n?.type?.sign ? n.type : null);
 
-/** A task's state in words (spec 48 §4): *working 4 min*, *in Review*, *asks you to pick*, *after k1*, the hold's own words, *failed*. */
-export function taskWords(t, now = Date.now()) {
+/** What a task waits for, by name (spec 67 §3): *after Challenge store, Credential table*; *after the build* for a check that follows all of its goal's build; an id with no task found is left
+ *  out; "" when none is left. */
+export function afterWords(t, n) {
+  const tasks = n?.tasks || [], after = t.after || [];
+  const builds = tasks.filter((x) => x.band !== "check");
+  if (t.band === "check" && builds.length > 0 && builds.every((b) => after.includes(b.id))) return "after the build";
+  const names = after.map((id) => tasks.find((x) => x.id === id)).filter(Boolean).map(short);
+  return names.length ? `after ${names.join(", ")}` : "";
+}
+
+/** A task's state in words (spec 48 §4): *working 4 min*, *in Review*, *asks you to pick*, *after Challenge store*, the hold's own words, *failed*. `n`: its goal's node (the names of what it waits for). */
+export function taskWords(t, now = Date.now(), n = null) {
   if (live(t)) {
     const s = t.started ? (now - Date.parse(t.started)) / 1000 : NaN;
     return Number.isFinite(s) && s >= 0 ? `${t.state === "testing" ? "testing" : "working"} ${minutes(s)}` : t.state === "testing" ? "testing" : "working";
@@ -195,20 +205,26 @@ export function taskWords(t, now = Date.now()) {
   if (t.state === "review") return "in Review";
   if (t.state === "picking") return "asks you to pick";
   if (t.state === "ready") return /stop/i.test(t.note || "") ? "stopped by you" : "next";
-  if (t.state === "waiting") return (t.after || []).length ? `after ${t.after.join(", ")}` : t.band === "check" ? "after the build" : "waiting";
+  if (t.state === "waiting") return afterWords(t, n) || (t.band === "check" && !(t.after || []).length ? "after the build" : "waiting");
   if (t.state === "held") return heldWords(t.note, t.waits_title);
   if (t.state === "failed") return "failed";
   return t.state;
 }
 
+/** The one value at a token's foot (spec 67 §2.4): the time a task at work or testing has run (*42 h*, *7 min*), the hour a held one may start (*18:00*); "" for the rest. */
+export function valueOf(t, words) {
+  const m = live(t) ? words.match(/^(?:working|testing) (.+)$/) : t.state === "held" ? words.match(/after (\d{1,2}:\d\d)$/) : null;
+  return m ? m[1] : "";
+}
+
 /** A task as the field draws it: its phase (0 now, 1 next, 2 later: how many waves after its goal's current one), and what it waits for. */
 export function taskItem(n, t, now = Date.now(), low = lowWave(n)) {
-  const words = taskWords(t, now);
+  const words = taskWords(t, now, n);
   const phase = phaseOf(t, low), when = PHASES[phase];
-  const after = (t.after || []).length ? ` · after ${t.after.join(", ")}` : "";
+  const after = afterWords(t, n) ? ` · ${afterWords(t, n)}` : "";
   return {
     key: `${n.slug}/${t.id}`, idea: n.slug, id: t.id, ideaTitle: short(n), type: typeOf(n), title: short(t), wave: t.wave || 1, phase, phaseWord: when, element: n.element || "", state: t.state,
-    words, dep: depWords(n, t),
+    words, value: valueOf(t, words), dep: depWords(n, t),
     tip: t.state === "failed" ? `${t.title} · ${t.error || "failed"}` : t.state === "held" ? `${t.title} · ${words}` : `${t.title} · ${when}${after}`,
     label: `${t.title} (${n.title}${typeOf(n) ? `, ${typeOf(n).name}` : ""}): ${words}${phase ? `, ${when}` : ""}`,
     open: { kind: t.state === "review" ? "result" : t.state === "picking" ? "pick" : "task", slug: n.slug, task: t.id },

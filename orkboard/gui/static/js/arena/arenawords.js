@@ -238,14 +238,18 @@ export const raceOf = (head) => (head ? RACE_WORDS[head.race] || "" : "");
 // -- the columns -------------------------------------------------------------------------------------------------------------------
 
 /** A check that waits for the whole build says so: *after the build* (every build task of its goal is among those it follows). */
-function followsBuild(t, n) {
+export function followsBuild(t, n) {
   const builds = (n?.tasks || []).filter((x) => x.band !== "check");
   return t.band === "check" && builds.length > 0 && builds.every((b) => (t.after || []).includes(b.id));
 }
-/** What a task follows, in a few words: *after k1, k2*, or *after the build* for a check that waits for all of it. */
-export const afterWords = (t, n) => (followsBuild(t, n) ? "after the build" : `after ${t.after.join(", ")}`);
+/** What a task follows, by name (spec 67 §3): *after Challenge store, Credential table*, or *after the build* for a check that waits for all of it; an id with no task found is left out ("" when none is left). */
+export function afterWords(t, n) {
+  if (followsBuild(t, n)) return "after the build";
+  const names = (t.after || []).map((id) => (n?.tasks || []).find((x) => x.id === id)).filter(Boolean).map((x) => x.short || x.title);
+  return names.length ? `after ${names.join(", ")}` : "";
+}
 
-/** A task's foot: its state in words (*working 4 min*, *in Review*, *after k1*, *tonight · after 01:00*, *failed*). */
+/** A task's foot: its state in words (*working 4 min*, *in Review*, *after Challenge store*, *tonight · after 01:00*, *failed*). */
 export function taskFoot(t, n) {
   if (t.state === "running") return `working${sinceWords(t.started) ? ` ${sinceWords(t.started)}` : ""}`;
   if (t.state === "testing") return "testing";
@@ -257,7 +261,7 @@ export function taskFoot(t, n) {
     if (n?.waits?.kind === "week") return waitsWords(n.waits);
     return holdWords(t.note, n?.waits?.title) || "held";
   }
-  if (t.state === "waiting") return t.after?.length ? afterWords(t, n) : "waiting";
+  if (t.state === "waiting") return afterWords(t, n) || "waiting";
   if (t.state === "ready") return t.note || "next";
   return TASK_STATE[t.state] || t.state;
 }

@@ -470,4 +470,4 @@ async def test_needs_you_s_pitch_row_opens_the_pitch_s_sheet(fake_repo, monkeypa
 
 def test_the_service_worker_is_one_version_up_and_caches_the_pitch_s_module():
     sw = (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v73";' in sw and '"shell-pitch.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]
+    assert 'const CACHE = "orkcraft-app-v74";' in sw and '"shell-pitch.js"' in sw[sw.index("const SHELL"):sw.index("];", sw.index("const SHELL"))]

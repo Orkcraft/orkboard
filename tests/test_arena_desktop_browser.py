@@ -642,3 +642,18 @@ def test_below_1024_the_columns_scroll_sideways_and_the_drawer_takes_the_window(
     finally:
         pg.close()
     assert not errors, "\n".join(errors)
+
+
+def test_a_waiting_card_says_waits_for_n_with_the_before_sign_its_tooltip_names_the_tasks_and_no_card_or_tooltip_says_an_id(arena):
+    """Spec 67 §3: *waits for 2* (one: *waits for <name>*) at the foot, the names in the tooltip, never an id."""
+    pg, host = arena
+    k5 = pg.locator(".arena-task[data-key='register/k5']")
+    foot = k5.locator(".arena-task__foot")
+    assert foot.inner_text().strip() == "waits for 2" and foot.locator(".ork-sign.before").count() == 1
+    assert re.search(r"after [A-Z][^·]*, [A-Z]", k5.get_attribute("title")) and not re.search(r"\bk\d\b", k5.get_attribute("title"))        # its tooltip names the tasks
+    assert not re.search(r"\bk\d\b", k5.get_attribute("aria-label"))
+    for t in pg.locator(".arena-stack .arena-task").all():                                                    # no card, tooltip or label says an id
+        said = " ".join([t.inner_text(), t.get_attribute("title") or "", t.get_attribute("aria-label") or ""])
+        assert not re.search(r"\b(?:after|waits for) [a-z]\d\b", said), said
+    assert pg.locator(".arena-task[data-key='register/k4'] .arena-task__foot").inner_text().strip() == "waits for 2"                          # k3 and k5
+    assert pg.locator(".arena-task[data-key='register/c1'] .arena-task__foot").inner_text().strip() == "waits for Wire the screen"              # one: its name
