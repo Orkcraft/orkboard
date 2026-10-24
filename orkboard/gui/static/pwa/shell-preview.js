@@ -19,6 +19,7 @@ import { sign } from "./shell-marks.js";
 import { pointerGuard } from "./shell-motion.js";
 import { pickRow, pickSig, stopAll } from "./shell-picks.js";
 import { screenBody } from "./shell-pick-answer.js";
+import { routeLine } from "./shell-route.js";
 
 const TALK_SHOWN = 6;
 const LOG_MS = 5000;
@@ -212,6 +213,7 @@ export function makePreview(core, ctx, screens = {}) {
     title.replaceChildren(h("span", { class: "muted" }, "Spec "), p.title);
     const talk = (p.talk || []).slice(-TALK_SHOWN), lead = leadOf(p);
     body.replaceChildren(...[
+      routeLine(core, p.route, p.slug),                  // its way across the parties, under its title (spec 68 §7.1)
       h("p", { class: "muted" }, [p.size ? `Size ${p.size} · ` : "", stateWords({ state: p.state, progress: { done: (p.plan?.tasks || []).filter((t) => t.state === "merged").length, total: (p.plan?.tasks || []).length } })].join("")),
       stateError(p) ? h("p", { class: "warn", role: "alert" }, stateError(p)) : null,
       pointedAt(p.lens),

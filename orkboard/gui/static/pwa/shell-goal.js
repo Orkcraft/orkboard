@@ -6,10 +6,11 @@ import { h, sheet } from "./util.js";
 import { pctOf } from "./shell-spend.js";
 import { field, foot, prioritySwitch } from "./shell-forms.js";
 import { PRIORITY_WORDS } from "./shell-words.js";
-import { CRAFT_WORDS, RACE_WORDS, goalHead, whoHead } from "./shell-who.js";
+import { CRAFT_WORDS, RACE_WORDS, goalHead, raceOf, whoHead } from "./shell-who.js";
 import { limitsNote } from "./shell-limits.js";
 import { flagWords } from "./shell-map.js";
 import { makeNewGoal, makeParty, IDEATION_WHOLE } from "./shell-goal-new.js";
+import { makeReleasesFrom } from "./shell-release.js";
 
 const CRAFTS = [["engineering", "peon"], ["design", "elf"], ["data", "goblin"], ["marketing", "gnome"], ["product", "lich"]];   // realm/roles.py RACES
 
@@ -35,12 +36,13 @@ export function makeGoalSheet(core) {
   craft.addEventListener("change", drawCraft);
   const priority = prioritySwitch();
   const hint = h("p", { class: "muted hint" }, "The Taskmaster reads it and writes the name and the summary.");
+  const releasesFrom = makeReleasesFrom(core);        // a party that offers A release: the parties its flags come from (spec 68 §7.6)
   const left = h("div", {});                         // what is left of the AI tools: reading the party spends them
   const save = h("button", { class: "ork-btn primary big", type: "submit", disabled: true }, "Save party");
   const cancel = h("button", { class: "ork-btn big", type: "button" }, "Cancel");
   const form = h("form", { class: "sheet-form" }, titleField, field("What it is for", about),
     field("Craft", h("div", { class: "row craft-pick" }, craftNow, craft), "Its head marks the party in the top bar"),
-    h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), hint, left, foot(cancel, save));
+    h("div", { class: "field" }, h("span", { class: "field-label" }, "Priority"), priority.el), releasesFrom.el, hint, left, foot(cancel, save));
   const sh = sheet("Edit the party", form);
   let slug = "";
   let then = null;                                   // what to do with the party's slug instead of opening its screen (New goal with no party yet)
@@ -52,6 +54,8 @@ export function makeGoalSheet(core) {
     save.disabled = true;
     const args = { ...(slug ? { slug } : {}), about: about.value.trim(), craft: craft.value, priority: priority.get() };
     if (slug && title.value.trim()) args.title = title.value.trim();
+    const from = releasesFrom.get();
+    if (slug && from) args.releases_from = from;
     const got = await core.call("ideas.goal_save", args);
     save.disabled = !about.value.trim();
     if (!got?.slug) return;
@@ -101,6 +105,8 @@ export function makeGoalSheet(core) {
       about.value = g?.about || "";
       priority.set(g?.priority || "normal");
       craft.value = g?.craft || "engineering";
+      const mapped = (core.st.map?.goals || []).find((x) => x.slug === which);
+      releasesFrom.set({ self: which, saved: mapped?.releases_from || [], leads: mapped?.leader?.slug === "release-manager", offers: (mapped?.types || []).some((t) => t.id === "release") });
       left.replaceChildren(limitsNote(core.st.snap) || "");
       drawCraft();
       save.disabled = !about.value.trim();
@@ -225,7 +231,7 @@ function teamSec(g, core, sec) {
   const mine = [g.leader?.slug || "taskmaster", ...(g.team || [])];
   const pick = (id) => {
     const r = roles.find((x) => x.slug === id), a = lib.find((x) => x.id === id);
-    return { name: r?.name || a?.name || id, head: r?.head || (a ? { craft: a.craft, race: { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" }[a.craft] || "peon", tier: a.tier } : null) };
+    return { name: r?.name || a?.name || id, head: r?.head || (a ? { craft: a.craft, race: raceOf(a), tier: a.tier } : null) };
   };
   const ideation = lib.find((a) => a.id === mine[0])?.pitch === true;        // Ideation keeps its four views and its skeptic: no seat changes (spec 65 §1)
   return sec("The party", h("p", { class: "team-line" }, ...mine.map(pick).flatMap((m, i) => [i ? " · " : "", whoHead(m.head, true), " ", m.name])),

@@ -5,7 +5,11 @@ import { h, head as raceHead } from "./util.js";
 
 // The words of a head, as realm/lexicon.py says them (tier.*, race.*, craft.*; tests/test_design_system.py keeps them so).
 export const TIER_WORDS = { elder: "Veteran", warrior: "Seasoned", laborer: "Novice" };
-export const RACE_WORDS = { peon: "ork", elf: "elf", goblin: "goblin", gnome: "gnome", lich: "lich" };
+export const RACE_WORDS = { peon: "ork", elf: "elf", goblin: "goblin", gnome: "gnome", lich: "lich", skeleton: "skeleton" };
+/** The race a craft wears (realm/roles.py RACES): the fallback for a host older than spec 68, which does not send an agent's own `race`. */
+export const RACE_OF = { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" };
+/** The race of an agent of the library (or of a craft): the host's `race` first (the Release manager is a skeleton, spec 68 §1.3), else its craft's. */
+export const raceOf = (a) => a?.race || RACE_OF[a?.craft] || "peon";
 export const CRAFT_WORDS = { engineering: "Engineering", design: "Design", data: "Data", marketing: "Marketing", product: "Product" };
 
 /** "Seasoned elf · Design": what a head says, in words. */

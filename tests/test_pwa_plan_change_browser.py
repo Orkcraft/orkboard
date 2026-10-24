@@ -417,7 +417,7 @@ async def test_take_the_new_plan_from_the_plan_screen_says_what_changed_and_the_
 
 @pytest.mark.asyncio
 async def test_a_plan_screen_with_no_change_waiting_shows_none_and_the_cache_is_v69(fake_repo, monkeypatch):
-    assert 'const CACHE = "orkcraft-app-v75";' in (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
+    assert 'const CACHE = "orkcraft-app-v76";' in (Path(pwa.__file__).parent / "static" / "pwa" / "sw.js").read_text(encoding="utf-8")
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         raised = await _pop(page, "Plan ready: Recovery codes")
         await raised.get_by_role("button", name="Open the plan").click()

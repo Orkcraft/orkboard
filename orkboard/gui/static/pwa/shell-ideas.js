@@ -16,6 +16,7 @@ import { makeJoin } from "./shell-types.js";
 import { whoHead } from "./shell-who.js";
 import { barWords } from "./shell-goals-words.js";
 import { motionOn } from "./shell-motion.js";
+import { makeGoesIn } from "./shell-release.js";
 
 const RANK = { high: 0, normal: 1, low: 2 };
 const STATE_WORDS = { raw: "new", reading: "drafting", asks: "asks you", ready: "ready", planning: "planning",
@@ -119,14 +120,19 @@ export function makeIdeas(core, ctx, goalSheet) {
     h("label", { class: "field" }, h("span", { class: "field-label" }, "Links"), links),
     h("p", { class: "muted newgoal__likes" }, "Pictures you like: add them with Photo, under The goal."));
   const join = makeJoin(core);
+  const goesIn = makeGoesIn(core);                  // *A release*: What goes in, after Version (spec 68 §7.3)
   function pickType(t) {
     typed = t;
     for (const b of typesRow.children) b.setAttribute("aria-checked", String(b.dataset.type === (t ? t.id : "")));
     typeLine.textContent = t ? t.line : BLANK_LINE;
     text.placeholder = t ? "In a line or a few" : "What should become possible";
-    asks.replaceChildren(...(t?.asks || []).map((a) => h("label", { class: "field" }, h("span", { class: "field-label" }, a.label),
-      h("input", { class: "ork-field", type: "text", maxlength: String(ASK_CHARS), "data-ask": a.id, "aria-label": a.label, placeholder: a.hint || "" }))));
-    asks.hidden = !(t?.asks || []).length;
+    goesIn.reset();
+    const release = t?.id === "release";                // *A release* asks what goes in, right after its Version
+    const label = (a) => h("label", { class: "field" }, h("span", { class: "field-label" }, a.label),
+      h("input", { class: "ork-field", type: "text", maxlength: String(ASK_CHARS), "data-ask": a.id, "aria-label": a.label, placeholder: a.hint || "" }));
+    asks.replaceChildren(...(t?.asks || []).flatMap((a) => (release && a.id === "version" ? [label(a), goesIn.el] : [label(a)])), ...(release && !(t.asks || []).some((a) => a.id === "version") ? [goesIn.el] : []));
+    if (release) goesIn.load(partyNow);
+    asks.hidden = !(t?.asks || []).length && !release;
     links.value = "";
     refs.hidden = !t?.refs;
     if (t) join.set(t.missing); else join.reset();
@@ -222,7 +228,7 @@ export function makeIdeas(core, ctx, goalSheet) {
       ...(pointed.length ? { lens: pointed } : {}) }                                       // a pitch: no priority, no type, no asks (spec 65 §2)
       : { text: body, track: partyNow, priority: priority.get(), ...(night ? { night: true } : {}), ...(photos.length ? { photos } : {}),
         ...(pointed.length ? { lens: pointed } : {}), ...(typed ? { type: typed.id } : {}), ...(Object.keys(said).length ? { asks: said } : {}),
-        ...(joined.add ? { join: joined } : {}) };
+        ...(joined.add ? { join: joined } : {}), ...(typed?.id === "release" ? { goes_in: goesIn.value() } : {}) };
     const r = await ctx.deliver("ideas.add", args, `${pitchy ? "the pitch" : "the goal"} “${short}”`);
     sync();
     if (!r.ok || r.result?.error) { saved = false; ctx.flash(r.error || r.result?.error); return null; }
@@ -264,7 +270,7 @@ export function makeIdeas(core, ctx, goalSheet) {
     saved = false;
     if (r) { ctx.flash("Kept for tonight."); if (!r.kept) core.refresh(); }
   });
-  function open(slug) {
+  function open(slug, type = "") {
     saved = false;
     touched = false;
     const list = parties();
@@ -275,13 +281,15 @@ export function makeIdeas(core, ctx, goalSheet) {
     lens.reset();
     closeParties();
     setParty(on.slug);
+    const wanted = type && types.find((t) => t.id === type);          // *k flags wait for a release* opens it on A release (spec 68 §7.4)
+    if (wanted) pickType(wanted);
     addSheet.open();
     slideUp();
     text.focus();
   }
   /** New goal needs a party: with none yet, New party opens first and then this. */
-  function openNew(slug = "") {
-    if (parties().length) open(slug);
+  function openNew(slug = "", type = "") {
+    if (parties().length) open(slug, type);
     else goalSheet.open("", (made) => open(made));
   }
 

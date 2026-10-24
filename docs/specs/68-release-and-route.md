@@ -241,3 +241,29 @@ element, `page`'s `route`; `move` is now in the mixin), `gui/ideas_pitch.py` (`e
 - **`ideas.release_out {slug}`** → `{ok, out}`; refused with *That goal is not a release*, *Its flag is not raised yet: a release goes out
   once it is in main*, *<version> is out already*. **`ideas.shown {party, from?}`** → `{ok}` (counted only with a `from` that is another
   party of the project; *That party is gone* for an unknown `party`); the event's `face` is the caller's device.
+
+## 11. As built (C, the phone, notes, no change of the contract)
+
+**C (phone), 24 October.** Built in new `pwa/shell-route.js` (`routeLine`, `openStep`: the route's line under a goal's title, the goal's screen is `shell-preview.js` `ideaScreen`, opened from the Goals sheet's ›) and new
+`pwa/shell-release.js` (`makeGoesIn`: *What goes in*; `makeReleasesFrom`: *Releases from*), `shell-goals-words.js` (`routeWords`, `goalStateWords`, `flagRelease`, `releaseLine`, `waitWords`, `partyNameOf`, `hasReleaseParty`;
+`flagsOf` carries `own`, a release goal's own file; `pitchLine` says a sent pitch's goal), `shell-goals.js` (*k flags wait for a release*, a flag's release, a release's row with **Mark it out**), `shell-party.js` (*Its flags*
+say the same), `shell-pitch.js` (a sent pitch's goal under its decision and in Ideation's list), `shell-ideas.js` (*A release*: *What goes in* after *Version*; `goes_in` sent; `open(slug, type)`), `board.js`
+(`core.newIdea(type, slug)`), `shell-goal-new.js` (New party: *Releases from* for the Release party; `raceOf`), `shell-goal.js` (Edit the party: *Releases from*; `raceOf`), `shell-where.js` (`ideas.shown`),
+`shell-who.js` (`skeleton` in `RACE_WORDS`, `RACE_OF`, `raceOf`: the host's `race` first, the craft's for an older host; used in `shell-goal-new.js`, `shell-goal.js` and `shell-agents.js`), `app.css`, `sw.js` (`CACHE`
+v76; the two new modules in `SHELL`). Tests: new `tests/test_pwa_route_browser.py` (6) and `tests/test_pwa_release_browser.py` (13); `sw.js`' version pin moved to v76 in every phone test that pins it, and
+`test_pwa_mixed_parties_browser.py`' tiles say *Release* fifth.
+
+**Deviations and additions** (none changes a contract answer).
+- `shell-release.js` is a second new file (the spec names only `shell-route.js`): `shell-ideas.js` and `shell-goal-new.js` are near the size to split at. *Releases from* sits in `shell-goal.js` (Edit the party's form is there,
+  not in `shell-party.js`, which is the About sheet) and, for New party, in `shell-goal-new.js`.
+- **Route steps**: a step's words are `routeWords` (*At work in <party>* for every `party` step, with *k of n* when the goal has tasks); a `pitch` or `release` step opens the pitch's sheet or the release goal's screen
+  (`core.open`); a `party` or `main` step closes the screen and shows that party with the goal picked into the filter (`st.picks`); a `moved` step shows the party the goal came from, whole (it no longer holds the goal).
+  The current (last) step is `aria-current="step"`.
+- **A sent pitch's goal** is a 44 px button *Its goal · <words>* at the end of the sheet's Decision, disabled for *Dropped*; Ideation's row line and the Goals sheet's row say the same words from `goal_state` (the
+  *sent to Passkey: …* of before for an older host).
+- **Releases from**: shown in Edit the party when the party's Map `types` hold *A release*, and in New party for the Release preset (every party but Ideation, General and the party itself, all ticked). A Release party
+  keeps at least one ticked (none would mean every party: all ticked is sent as `[]`); another party that offers *A release* starts with none ticked (its own flags). It is sent as `releases_from` only when changed.
+- **A refused move**: the phone has no gesture that moves a goal to another party (nothing in `pwa/` sends `ideas.move`), so there is nothing to show a refusal for yet; a refusal of any command is the toast `core.call`
+  already says in the host's words. **Mark it out** says its refusal (*Its flag is not raised yet: …*) in the ask and keeps asking.
+- **`ideas.shown`** is sent from the parties' sheet only (`shell-where.js`), with `from` the party shown, not for the party already shown, not for Operations as `from`; never awaited, never a toast.
+- **Tests run with** `--with cryptography --with segno --with websockets` (the phone's listener needs `cryptography`): all 356 phone tests of `tests/test_pwa*.py` passed before the two new files, which pass too.
