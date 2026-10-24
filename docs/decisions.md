@@ -1074,3 +1074,22 @@ version out in the stores (a phone app has a build, a store's review, its notes 
    without one, a party releases its own flags as today.
 7. **Measured first**: the party switches a day, by face and pair, so §63.11's *seldom* is read, not assumed.
 Spec 67.
+
+## 82. On the desktop the left column is the parties: a party a heading, its goals under it; the project takes the top line (24 October, the owner)
+
+Why: the owner, on the window as built: the left column's top line (*Контент для … 0/5 · Parties ⌄*) cuts the party's
+name and hides the other parties behind a deck, while a project has a few (Ideation, a product's party, Release, §81)
+and a goal's route goes through them. The deck was right for the phone's one hand, not for a column that has the room.
+So (reverses §65.3 on the desktop; the phone keeps its deck and sheet):
+1. **The left column is a list of the parties**, in the Board's order, then Operations when the project has them,
+   then *+ New party*. A party is a heading: its leader's head, its whole name (two lines, never cut), *k/n*, and one
+   sign when something waits in it (a stop, a failure: §65.2 still counts only what cannot be seen).
+2. **One party is open, the one the board shows**: opening another shows it (it is the party switch); the open one's
+   heading cannot be closed. Under its heading: its leader (the member's row, as today), *Process now* (*Judge now* in
+   Ideation), its goals as today, and **the New goal pile at its foot** (a goal's types are its party's team, §72:
+   never one button for all the parties).
+3. **The project takes the top line**: the project switcher leaves the top bar for the column's top, as wide as the
+   column, with what waits in each project as the menu says today.
+4. **The leader's big card goes**: its price and its details are behind its row's press and *About this party*, as a
+   member's are. A new party's heads gather onto its heading's head (§76.3's moment, landing elsewhere).
+The owner's call. Spec 68.
