@@ -2,9 +2,9 @@
 the window restarts on it.
 
 The list is read on a thread when the window opens and again every `CHECK_EVERY_S`; the snapshot's
-`update` says what is newer (js/update.js asks once per version: loudly for a critical one). A click
-installs it on a thread with the tool that installed this copy, and on success the window closes and
-the same command opens it again on the new code (`RESTART`, cli.py). What runs stops, as on any close.
+`update` says what is newer (js/shell/update.js asks once per version: loudly for a critical one, plainly for a
+major one). A click installs it on a thread with the tool that installed this copy, and on success the window closes
+and the same command opens it again on the new code (`RESTART`, gui/board_host.py). What runs stops, as on any close.
 
     up = Updates(host)
     up.tick(now)                       # from the host's clock
@@ -37,8 +37,8 @@ class Updates:
         if self.offer is None and self.state == "idle":
             return None
         way = self._method()
-        out = self.offer.to_dict() if self.offer else {"version": self.installed, "critical": False, "notes": [],
-                                                       "critical_notes": []}
+        out = self.offer.to_dict() if self.offer else {"version": self.installed, "critical": False, "major": False,
+                                                       "notes": [], "critical_notes": []}
         out.update({"current": __version__, "state": self.state, "error": self.error, "installed": self.installed,
                     "can": way.can, "how": way.describe(), "policy": self.host.town.machine.updates})
         return out
