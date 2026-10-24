@@ -12,6 +12,7 @@
 // (spec 50 §6.8) and draws its marks with orkUI's signs. A plan that gives work to no one of the party says so on its card and its raised one (spec 52 §5.7): *No one in the party does pixel art:
 // Artist would.*, with *Add and start* (the agent joins, then the work starts) when its seat is free, else *Edit the party*; *Start without* keeps today's way.
 import { h, icon } from "./util.js";
+import { pctOf, rated, SHARE_TIP } from "./shell-spend.js";
 import { elem, sign } from "./shell-marks.js";
 import { midHead, whoHead } from "./shell-who.js";
 import { needsOf, failedOf, looksOf, nodesOf, pickedOf, planPrice, changePrice, changeWords, byUrgency, fanPlaces } from "./shell-arena-words.js";
@@ -27,7 +28,7 @@ const KIND = { plan: "Plan ready", change: "Plan change", asks: "Asks you", goal
 const gemOf = (g) => (g ? h("span", { class: `ork-gem ${g.cls || ""}`.trim(), title: g.tip }, g.sign ? sign(g.sign) : g.text) : null);       // a price, a mark or a sign (a failure's cross); none for a plan change of nothing
 const GHOSTS = 3, GHOST_MS = 300;                       // stops that leave with the fade in one refresh (the rest simply go), and how long it lasts (spec 58 §4; spec 49 §11.2)
 const CARD = 104, FRONT_OVERLAP = 12, WIDTH = 290;       // a fanned card's width, how far the front card lies over its neighbours, and the room the fan is drawn in (the row's width less 50 px at each side: the cards turn up to 4° a place outward); the zone's height is CSS (`:root.has-stops`)
-const usd = (n) => `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
+const usd = (n) => pctOf(n) || `$${n < 10 ? n.toFixed(2) : Math.round(n)}`;
 const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
 
 /** A plan's missing line (spec 52 §4.4): *No one in the party does pixel art: Artist would.*, *… would, and 1 more.* when it misses more than one kind; "" when it misses no one. */
@@ -207,7 +208,7 @@ export function makeStops(core, ctx, needs, ops) {
   function lookItem(r, node) {
     const t = (node?.tasks || []).find((x) => x.id === r.task), tw = testsWords(r);
     return { key: `look:${r.idea}/${r.task}`, kind: "look", cls: "is-look", tone: "look", title: r.title, sig: r, small: t?.head || null, whoTip: t?.by?.name ? `${t.by.name}${r.check ? " · its check" : ""}` : "",
-      gem: { text: r.cost != null ? usd(r.cost) : "—", cls: "dim", tip: "What it cost, at API prices" },
+      gem: { text: r.cost != null ? usd(r.cost) : "—", cls: "dim", tip: rated() ? `What it cost. ${SHARE_TIP}` : "What it cost, at API prices" },
       text: [r.idea_title, h("span", {}, tw.mark ? sign(tw.mark) : null, tw.mark ? " " : "", tw.text), changesWords(r.diff), foundWords(r.findings)].filter(Boolean)
         .flatMap((x, i) => (i ? [" · ", x] : [x])),
       plain: [r.idea_title, `${tw.mark} ${tw.text}`.trim(), changesWords(r.diff), foundWords(r.findings)].filter(Boolean).join(" · "),

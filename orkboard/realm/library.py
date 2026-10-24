@@ -42,6 +42,7 @@ class Agent:
     check: Check | None = None  # a checker's: what it holds every goal of its party to
     band: str = "build"       # its band in a party: "lead" (plans: the party's steps run as it), "build", "check"
     pitch: bool = False       # Ideation's (spec 65 §1): it judges pitches, takes a pitch kind only, and sits in no other party
+    race: str = ""            # its own race (orkUI's), when it is not its craft's (spec 68 §1.3); "" = the craft's (roles.RACES)
 
 
 # What each of Ideation's views and its skeptic holds to (spec 65 §1): the project's facts, never invented ones.
@@ -239,6 +240,30 @@ LIBRARY: tuple[Agent, ...] = (
           "Makes the strongest case not to do it",
           "You make the case against a pitch: argue against it as well as it can be argued, whatever you think of it; never the "
           "same case twice in other words. Read the views and answer the strongest of them. " + PITCH_RULE, band="check", pitch=True),
+    # -- release: the Release manager (a skeleton) and its cheaper hands; a party of their own (spec 68 §1) -------------
+    Agent("release-manager", "Release manager", "product", "warrior", ("research",),
+          "Gathers what goes into a version and gets it out, step by step",
+          "You lead a release. Plan only from the goals that go in: their titles, Done when lines and flags; never new work. "
+          "Name each step a person must do (submit, answer the store's review) as a step for the person, not a task. "
+          "Orkboard submits nothing: the person does, then says the version is out.", band="lead", race="skeleton"),
+    Agent("release-engineer", "Release engineer", "engineering", "laborer", ("code",),
+          "Bumps the version, the changelog and the build's config",
+          "You change the version, the changelog and the build's config, and nothing else: never a feature. Read how the "
+          "project sets its version before changing it, and change it everywhere it is kept. Keep the changelog's form. "
+          "Run the build's own checks and leave them green."),
+    Agent("release-notes", "Release notes", "marketing", "laborer", ("text",),
+          "Writes what is new, for the stores and the changelog",
+          "You write what is new for the person who uses it: one line a goal, in the product's own words, plainly. Write "
+          "nothing that did not go in. Keep to the stores' limits and the changelog's form. Say what you left out and why."),
+    Agent("release-checker", "Release checker", "product", "warrior", ("review",),
+          "Checks that the version, its notes and the list agree",
+          "You check a release. Compare the version, what is new and the stores' list with the goals that go in: each names "
+          "exactly those goals, no more and no fewer. Check that the build's config carries the version and that nothing "
+          "was submitted. Write each finding with where and the fix; fix only what is small and certain.",
+          Check("when the goal is a release", "Its version, what is new and the stores' list name exactly the goals that go in, "
+                "and nothing was submitted", "Check that the version, what is new and the stores' list name exactly the goals "
+                "that go in, that the build's config carries the version, and that nothing was submitted.",
+                fits=("product", "engineering", "marketing")), band="check", race="skeleton"),
 )
 
 BY_ID = {a.id: a for a in LIBRARY}
@@ -259,8 +284,10 @@ PRESETS = (("game", "Game", "Rules, levels, art and sound, played through", "des
            ("website", "Website", "Pages that say what it does, and are found", "marketing", "growth",
             ("grunt", "copywriter", "seo"), ("reviewer", "editor")),
            ("ideation", "Ideation", "Small pitches: invest, reshape or pass, and why", "product", "investor",
-            ("product-view", "market-view", "tech-view", "design-view"), ("skeptic",)))
-INVESTOR, SKEPTIC = "investor", "skeptic"
+            ("product-view", "market-view", "tech-view", "design-view"), ("skeptic",)),
+           ("release", "Release", "A version out: what goes in, its notes, the stores' list", "product", "release-manager",
+            ("release-engineer", "release-notes", "aso"), ("release-checker",)))
+INVESTOR, SKEPTIC, RELEASE_MANAGER = "investor", "skeptic", "release-manager"
 VIEWS = ("product-view", "market-view", "tech-view", "design-view")   # Ideation's four views, in the order a pitch's screen shows them (spec 65 §1)
 CRAFT_LINES = {"engineering": "Code, tests and the build", "design": "Screens, flows and words on them",
                "data": "Numbers, queries and reports", "marketing": "Pages, posts and search",
@@ -283,7 +310,8 @@ class Stages:
 
 DEFAULT_STAGES = Stages()
 STAGES: dict[str, Stages] = {"game-designer": Stages("Concept", "Build", "Playtest", 4, 1),   # one leader and five more at most
-                             "investor": Stages("Pitch", "Views", "Decision", 4, 1)}
+                             "investor": Stages("Pitch", "Views", "Decision", 4, 1),
+                             "release-manager": Stages("Gather", "Prepare", "Check", 3, 1)}
 
 
 def stages_of(leader: str) -> Stages:
@@ -303,10 +331,15 @@ def parties() -> dict:
     return out
 
 
+def race_of(a: Agent) -> str:
+    """The race an agent is drawn as: its own when orkUI has it drawn at its tier (roles.own_race), else its craft's."""
+    return roles.own_race(a.race, a.craft, a.tier)
+
+
 def presets() -> list[dict]:
     """The parties New party offers: the mixed first, then one of each craft in today's order, then the Taskmaster alone."""
     def row(i, name, line, craft, lead, build, check, mixed):
-        return {"id": i, "name": name, "line": line, "craft": craft, "race": roles.RACES.get(craft, roles.RACES["engineering"]),
+        return {"id": i, "name": name, "line": line, "craft": craft, "race": race_of(get(lead)) if get(lead) else roles.RACES.get(craft, roles.RACES["engineering"]),
                 "mixed": mixed, "lead": lead, "build": list(build), "check": list(check)}
     out = [row(*p, True) for p in PRESETS]
     for craft, (lead, build, check) in PARTIES.items():
@@ -328,7 +361,7 @@ def get(agent_id: str) -> Agent | None:
 def listed() -> list[dict]:
     """The library as a face shows it: id, name, craft, race, tier, takes, line, a checker's check, and `pitch` (Ideation's: the faces
     offer it to no other party, and no seat change in Ideation; spec 65 §1)."""
-    return [{"id": a.id, "name": a.name, "craft": a.craft, "race": roles.RACES[a.craft], "tier": a.tier, "band": a.band,
+    return [{"id": a.id, "name": a.name, "craft": a.craft, "race": race_of(a), "tier": a.tier, "band": a.band,
              "takes": list(a.takes), "line": a.line, "pitch": a.pitch,
              "check": {"applies": a.check.applies, "done": a.check.done} if a.check else None} for a in LIBRARY]
 
@@ -342,6 +375,6 @@ def install(state_dir, ids: list[str]) -> list[str]:
         if a is None:
             raise ValueError(f"No agent {agent_id!r} in the library")
         if a.id not in roles.BUILTIN and roles.role(state_dir, a.id) is None:
-            roles.install(state_dir, a.id, a.name, a.tier, a.craft, a.instruction, a.takes)
+            roles.install(state_dir, a.id, a.name, a.tier, a.craft, a.instruction, a.takes, a.race)
         out.append(a.id)
     return out

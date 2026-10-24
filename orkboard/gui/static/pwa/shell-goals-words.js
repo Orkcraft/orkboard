@@ -3,6 +3,7 @@
 // line in words (`pitchLine`), the stage it is drawn under (`pitchStage`) and the bar's *4 pitches · 1 passed*. Pure: no node is made here.
 import { STAGE_WORDS, stageOf } from "./shell-map-idea.js";
 import { hhmm } from "./shell-words.js";
+import { pctOf, pctRange } from "./shell-spend.js";
 
 const STOPS = ["asks", "plan", "change", "proposal", "todo"];        // what a goal that asks you waits for (a failure is its own mark; `change`: a plan change, spec 62)
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -18,7 +19,7 @@ export function flagDate(at) {
 
 /** A flag's tally, *14 Oct · ≈$2.10 · 4 of 4 first time*: a part that is not known is left out. */
 export function flagTally(f) {
-  return [flagDate(f.at), f.usd != null && `≈$${Number(f.usd).toFixed(2)}`, f.tasks ? `${f.first_time ?? 0} of ${f.tasks} first time` : ""].filter(Boolean).join(" · ");
+  return [flagDate(f.at), f.usd != null && `≈${pctOf(f.usd) || `$${Number(f.usd).toFixed(2)}`}`, f.tasks ? `${f.first_time ?? 0} of ${f.tasks} first time` : ""].filter(Boolean).join(" · ");
 }
 
 const when = (at) => { const t = Date.parse(at); return Number.isNaN(t) ? 0 : t; };
@@ -76,6 +77,7 @@ export const doneWords = (g) => (g.ideation ? pitchCount(g) : `${g.done ?? 0}/${
 export function priceRange(price) {
   if (!price || price.low == null || price.high == null) return "";
   const { low, high } = price, a = Math.round(low), b = Math.round(high);
+  if (pctRange(low, high)) return pctRange(low, high);
   return low < 1 ? `$${low.toFixed(2)}–${high.toFixed(2)}` : a === b ? `$${a}` : `$${a}–${b}`;
 }
 

@@ -2,6 +2,7 @@
 // Review, the gate) the party's members and the tasks in their columns, Planning's items, the stage switch's counts, the ideas at work, the
 // stops and the numbers on a member. Pure: no node is made here, so what the window says can be checked without a page.
 import { memberWords, stageOf, stageWords, STAGE_WORDS } from "./shell-map-idea.js";
+import { pctOf, pctRange, pctDelta, rated, SHARE_TIP } from "./shell-spend.js";
 import { rowState } from "./shell-ideas.js";
 import { waitsWords } from "./shell-map.js";
 import { heldWords, say } from "./shell-words.js";
@@ -32,13 +33,14 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 export function planPrice(e) {
   if (!e || e.usd_low == null || e.usd_high == null) return "";
   const f = (x) => (Number(x) < 10 ? String(Math.round(Number(x) * 10) / 10) : String(Math.round(Number(x))));
-  return `$${f(e.usd_low)}–${f(e.usd_high)}`;
+  return pctRange(e.usd_low, e.usd_high) || `$${f(e.usd_low)}–${f(e.usd_high)}`;
 }
 
 /** What a plan change adds or saves (spec 62 §6.2): *+$0.40–1.20*, *−$0.13–0.38* (a real minus sign; the host sends a saving negative); "" for a change that costs and saves nothing. */
 export function changePrice(c) {
   const lo = Number(c?.usd_low), hi = Number(c?.usd_high);
   if (c?.usd_low == null || c?.usd_high == null || !Number.isFinite(lo) || !Number.isFinite(hi) || (lo === 0 && hi === 0)) return "";
+  if (pctDelta(lo, hi)) return pctDelta(lo, hi);
   const sign = (x) => (x < 0 ? "−" : "+"), f = (x) => (Math.abs(x) < 10 ? Math.abs(x).toFixed(2) : String(Math.round(Math.abs(x))));
   return sign(lo) === sign(hi) || lo === 0 || hi === 0 ? `${sign(lo || hi)}$${f(lo)}–${f(hi)}` : `${sign(lo)}$${f(lo)}–${sign(hi)}$${f(hi)}`;
 }
@@ -132,8 +134,8 @@ const roleOf = (st, slug) => (st.agents?.roles || []).find((r) => r.role === slu
 export function numbersOf(st, m) {
   const role = m.role;
   const price = (n, avg, of, unit) => ({
-    price: n == null ? "—" : `${avg ? "" : "≈"}$${n.toFixed(2)}`,
-    priceTip: n == null ? `No ${unit} yet this week` : `${avg ? `The average of its ${plural(of, unit)} this week` : "About: too few runs yet, the price of its level"}, ${HINT}`,
+    price: n == null ? "—" : `${avg ? "" : "≈"}${pctOf(n) || `$${n.toFixed(2)}`}`,
+    priceTip: n == null ? `No ${unit} yet this week` : `${avg ? `The average of its ${plural(of, unit)} this week` : "About: too few runs yet, the price of its level"}, ${rated() ? SHARE_TIP.replace(/^An/, "an") : HINT}`,
   });
   if (m.band === "lead") {
     const tm = roleOf(st, "taskmaster");

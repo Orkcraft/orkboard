@@ -29,7 +29,7 @@ from orkboard.core import crashes, treasury, updates as core_updates, usage
 from orkboard.core.board_limits import BoardLimits
 from orkboard.gui import board_cli
 from orkboard.realm import analytics, call_log, day_log, event_log, halt, idea_target
-from orkboard.sources import telemetry
+from orkboard.sources import telemetry, window_rate
 
 TELEMETRY_REFRESH_S = 5.0       # as Orkline's host: this run's spend read again
 SIZE = (1440, 900)
@@ -320,7 +320,7 @@ class Orkboard:
             ops_needs = 0
         board = {**board, "needs_you": int(board.get("needs_you") or 0) + ops_needs, "ops_rev": self.ops.rev}
         return {**board, "focus": "board", "onboarding": self.onboarding.snapshot(),
-                "hud": {"show_gold": show_gold, "gold": gold, "lumber": lumber},
+                "hud": {"show_gold": show_gold, "gold": gold, "lumber": lumber}, "rate": window_rate.shown(self.machine),
                 "repo": str(root) if root is not None else "", "projects": self.projects.list(),
                 "update": self.updates.snapshot(), "update_policy": self.machine.updates, "version": __version__,
                 "usage_ask": self.usage.should_ask()}
@@ -332,7 +332,7 @@ class Orkboard:
         root = self.repo_root
         out = {"v": 1, "project": root.name if root is not None else "", "focus": "board", "look": "office",
                **{k: s[k] for k in ("ideas_rev", "ops_rev", "needs_you", "idea_states", "review_count", "review_results",
-                                    "limits", "reserve")},
+                                    "limits", "reserve", "rate")},
                "hud": dict(s["hud"])}
         out["rev"] = hashlib.sha256(json.dumps(out, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
         return out

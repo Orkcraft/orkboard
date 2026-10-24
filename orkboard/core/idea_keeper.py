@@ -47,7 +47,7 @@ from orkboard.core.idea_night import NightMixin
 from orkboard.core.idea_lead import LeadMixin
 from orkboard.core.idea_revise import ReviseMixin
 from orkboard.core.idea_plan import _task, _why, estimate, readiness  # noqa: F401  (the plan's small helpers: the callers and tests use them from here)
-from orkboard.realm import event_log, goal_team, goal_types, idea_change, idea_checks, idea_lens, idea_pick, idea_spend, idea_target, ideas, roles, status
+from orkboard.realm import event_log, goal_team, goal_types, idea_change, idea_checks, idea_lens, idea_pick, idea_spend, idea_target, ideas, releases, roles, status
 from orkboard.realm.idea_words import short_said
 
 CHANGED = "ideas.changed"          # the bus's topic: slug
@@ -478,7 +478,7 @@ three lines. {self.reads("talk", [])} You may read the repository (read only).
         checks = idea_checks.plan_lines(self.idea_checks(root, slug), self.team_checks(root, slug))
         return f"""You are the keeper of this project's Task board. This spec goes to work: turn it into a plan. You may
 read the repository (read only) to see what the work touches. {self.reads("plan", touches)}
-{idea_lens.attached(self.state_dir, slug)}{goal_types.prompt_line(self.state_dir, slug)}{checks}
+{idea_lens.attached(self.state_dir, slug)}{goal_types.prompt_line(self.state_dir, slug)}{releases.prompt_lines(root, self.state_dir, slug)}{checks}
 The spec: {page.title}
 {context}
 Rules:

@@ -130,7 +130,7 @@ CATALOG: tuple[GoalType, ...] = (
              plan="Keywords first (what people search for in the store), then the title, subtitle and description, then the "
              "screenshots' words; nothing is submitted without the person's yes."),
     GoalType("release", "A release", "release", "A version out: what is new, the build, the stores' list", ("aso", "code"),
-             asks=(Ask("new", "What is new", "in the person's words"),),
+             asks=(Ask("version", "Version", "1.4"), Ask("new", "What is new", "in the person's words")),
              plan="Bump the version, write what is new for the stores in the product's words, make the build, and write the "
              "stores' list the person goes through; nothing is submitted without the person's yes."),
 )
@@ -275,7 +275,8 @@ def offered(state_dir: Path, root: Path, party_slug: str, *, read: Party | None 
     takes another of its needs (work beside the leader's is another party's). One name once: a type with nothing missing hides
     the type it stands in for (`over`), and one with someone missing is not offered when that one is offered with nothing missing.
     Ideation (a party the Investor leads) is offered none: a pitch has no type, its decision names the type of the goal it becomes
-    in the party it is sent to (spec 65 §1)."""
+    in the party it is sent to (spec 65 §1). In a project with a Release party (the Release manager leads it), *A release* is offered
+    by that party alone (spec 68 §3.1)."""
     p = read or Party(state_dir, root, party_slug)
     if p.leader == library.INVESTOR:
         return []
@@ -293,7 +294,14 @@ def offered(state_dir: Path, root: Path, party_slug: str, *, read: Party | None 
                 found.append((t, rows))
     whole = {t.id for t, rows in found if not rows}
     hidden = {t.over for t in (t for t, _ in found) if t.over and t.id in whole}
+    if p.leader != library.RELEASE_MANAGER and release_party(root):          # one place to release (spec 68 §3.1)
+        found = [(t, rows) for t, rows in found if t.id != "release"]
     return [(t, rows) for t, rows in found if t.id not in hidden and not (rows and t.over in whole)]
+
+
+def release_party(root: Path) -> str:
+    """The slug of the project's Release party (the one the Release manager leads), "" with none (spec 68 §3.1)."""
+    return next((t["slug"] for t in ideas.tracks(root, make=False) if t.get("leader") == library.RELEASE_MANAGER), "")
 
 
 def lacking(state_dir: Path, p: Party, t: GoalType) -> str:

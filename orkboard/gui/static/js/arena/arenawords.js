@@ -6,6 +6,7 @@ import { memberWords, soFarWords, todayWords } from "../board/mapstage.js";
 import { holdWords, hhmm, OPS } from "../board/store.js";
 import { TIER_WORDS, RACE_WORDS } from "../orkui.js";
 import { kindCount } from "./pickwords.js";
+import { pctOf, pctRange, pctDelta, rated, SHARE_TIP } from "../spend.js";
 
 export const RUN = ["running", "testing"];
 export const RANK = { running: 0, testing: 0, failed: 1, picking: 1.5, review: 2, ready: 3, waiting: 4, held: 5 };      // a column, from the member up (§5.4); a pick waits for the person, after a failure (spec 51)
@@ -31,10 +32,10 @@ export function waitsWords(w) {
 
 /** *tonight*, or the Board's own night work: *tonight, or sooner if the week has room* (spec 44 §2); `starts` for a plan that starts tonight. */
 export const tonightWords = (n, starts = false) => `${starts ? "starts " : ""}tonight${n.night_by === "board" ? ", or sooner if the week has room" : ""}`;
-export const money = (n) => `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
+export const money = (n) => pctOf(n) || `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
 const round2 = (n) => Math.round(n * 100) / 100;
 /** *$1–2*: a plan's price, from `plan_estimate`; "" with none. */
-export const rangeWords = (e) => (e ? `$${round2(e.usd_low)}–${round2(e.usd_high)}` : "");
+export const rangeWords = (e) => (e ? pctRange(e.usd_low, e.usd_high) || `$${round2(e.usd_low)}–${round2(e.usd_high)}` : "");
 
 /** Minutes since a local ISO time, as *4 min*; "" when it is not read or is in the future. */
 export function sinceWords(iso, now = Date.now()) {
@@ -173,7 +174,7 @@ export function statsOf(m, role, lead = false) {
   const w = role?.week || null, cw = role?.check_week || null;
   const finished = w?.finished || 0, again = Math.max(0, finished - (w?.first_time || 0));
   let n, redo, word, tip, avg, price, priceTip;
-  const API = "at API prices, not your bill";
+  const API = rated() ? SHARE_TIP.replace(/^An/, "an") : "at API prices, not your bill";
   if (lead) {
     n = w?.plans ?? finished; redo = again; word = "plans/made again";
     tip = `${plural(n, "plan", "plans")} this week, ${redo} made again`;
@@ -348,6 +349,7 @@ const GEM = { plan: "", change: "", asks: "?", goal: "?", proposal: "—", party
 export function changeGem(c) {
   const low = Number(c?.usd_low), high = Number(c?.usd_high);
   if (!Number.isFinite(low) || !Number.isFinite(high) || (!low && !high)) return "";
+  if (pctDelta(low, high)) return pctDelta(low, high);
   const num = (n, cents) => (cents ? n.toFixed(2) : String(Math.round(n)));
   if (low < 0 && high > 0) return `−$${num(-low, -low < 1)} to +$${num(high, high < 1)}`;
   const [a, b] = [Math.abs(low), Math.abs(high)].sort((x, y) => x - y), cents = a < 1, from = num(a, cents), to = num(b, cents);

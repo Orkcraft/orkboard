@@ -4,6 +4,7 @@
 // at once (×2) and what a task of it costs (≈ $0.40 a task), and under it, muted, its day and week (spent today; what a result costs and
 // how often it is right the first time, once it has three merged; the Taskmaster's, its plans' tasks). A card opens its task on its own screen.
 import { h, sheet, head as raceHead } from "./util.js";
+import { pctOf, rated, SHARE_TIP } from "./shell-spend.js";
 import { steady } from "./shell-util.js";
 import { makeAgentSheet } from "./shell-agent.js";
 import { heldWords } from "./shell-words.js";
@@ -14,9 +15,9 @@ const GRUNT = { running: ["working", "↻"], testing: ["testing", ""], review: [
 // The chips of a role in the order a person looks at them: what needs them, then what is moving, then what waits.
 const ORDER = ["failed", "running", "testing", "ready", "held", "review"];
 const rank = (c) => { const i = ORDER.indexOf(c.state); return i < 0 ? ORDER.length : i; };
-const HINT = "At API prices, not your bill";
+const hint = () => (rated() ? SHARE_TIP : "At API prices, not your bill");
 const RACE_OF = { engineering: "peon", design: "elf", data: "goblin", marketing: "gnome", product: "lich" };
-const money = (n) => `≈$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`;
+const money = (n) => `≈${pctOf(n) || `$${n < 10 ? Number(n).toFixed(2) : Math.round(n)}`}`;
 const FEW = 3;                                   // merged results (a Grunt's) or finished tasks (the Taskmaster's) before a week is said
 
 export function gruntWords(c) {
@@ -43,17 +44,17 @@ export function makeAgents(core) {
   /** A role in one line (spec 41 §8): its head · its name · ×2 · ≈ $0.40 a task; its words for a screen reader are on the line. */
   function head(role) {
     const hd = role.head, tm = role.role === "taskmaster";
-    const usd = role.usd_task == null ? "" : `≈ $${Number(role.usd_task).toFixed(2)} a task`;
+    const usd = role.usd_task == null ? "" : `≈ ${pctOf(role.usd_task) || `$${Number(role.usd_task).toFixed(2)}`} a task`;
     const said = [hd ? `${/^[aeiou]/.test(RACE_WORDS[hd.race]) ? "an" : "a"} ${RACE_WORDS[hd.race]}` : "", CRAFT_WORDS[hd?.craft], TIER_WORDS[hd?.tier]].filter(Boolean).join(", ");
     // its day and week are read from the muted line under it, not said twice
-    const label = [`${role.name}${said ? `: ${said}` : ""}`, tm ? "" : `up to ${role.max_parallel} at once`, usd ? `about $${Number(role.usd_task).toFixed(2)} a task` : ""]
+    const label = [`${role.name}${said ? `: ${said}` : ""}`, tm ? "" : `up to ${role.max_parallel} at once`, usd ? `about ${pctOf(role.usd_task) || `$${Number(role.usd_task).toFixed(2)}`} a task` : ""]
       .filter(Boolean).join("; ");
     return h("div", { class: "role-head", role: "group", "aria-label": label },
       whoHead(hd), h("h3", {}, role.name),
       tm ? null : h("span", { class: "role-many", title: `Up to ${role.max_parallel} at once` }, `×${role.max_parallel}`),
-      usd ? h("span", { class: "priced role-usd", title: HINT }, usd) : null,
+      usd ? h("span", { class: "priced role-usd", title: hint() }, usd) : null,
       h("button", { class: "linkish", type: "button", "aria-label": `Edit ${role.name}`, onclick: () => sheetOf.open(role.role) }, "Edit"),
-      week(role) ? h("small", { class: "muted role-facts", ...(week(role).includes("$") ? { title: HINT } : {}) }, week(role)) : null);
+      week(role) ? h("small", { class: "muted role-facts", ...(week(role).includes("$") || week(role).includes("% of 5h") ? { title: hint() } : {}) }, week(role)) : null);
   }
 
   function taskmaster(role) {

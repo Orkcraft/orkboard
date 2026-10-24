@@ -15,7 +15,7 @@ def host(fake_repo) -> Orkboard:
 
 def test_ideas_roles_answers_the_presets_the_mixed_first_and_the_old_parties_as_before(host):
     got = host.command("ideas.roles")
-    assert [p["id"] for p in got["presets"]] == ["game", "mobile-app", "website", "ideation", "engineering", "design", "data", "marketing",
+    assert [p["id"] for p in got["presets"]] == ["game", "mobile-app", "website", "ideation", "release", "engineering", "design", "data", "marketing",
                                                  "product", "mixed"]          # Ideation after Website (spec 65 §1)
     game = got["presets"][0]
     assert (game["name"], game["craft"], game["race"], game["mixed"], game["lead"]) == ("Game", "design", "elf", True, "game-designer")

@@ -5,8 +5,9 @@ import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { review, preview, act, closePreview } from "./store.js";
 import { Modal, openDialog, closeDialog } from "./modals.js";
+import { pctOf } from "../spend.js";
 
-export const usd = (n) => (n == null ? "" : `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
+export const usd = (n) => (n == null ? "" : pctOf(n) || `$${n < 10 ? n.toFixed(2) : Math.round(n)}`);
 
 export function isRed(r) { return r.tests.failed > 0 || r.tests.green === false; }
 export function noTests(r) { return !isRed(r) && r.tests.passed === 0; }
