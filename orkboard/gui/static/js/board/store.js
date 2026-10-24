@@ -13,6 +13,8 @@ export const adding = signal(false);        // the Drop it field is up
 export const ops = signal(null);            // ops.list: Operations of the person (docs/specs/38-operations.md §11)
 export const OPS = "@operations";           // the goal select's last choice: Operations in place of Needs you and the ideas
 
+export const PROJECT = "@project";         // the project's level (spec 70): the parties as columns, their goals as decks; shown like Operations, in place of a party
+
 export const BUSY = ["reading", "planning", "working"];
 
 /** A command of the contract; a plain-words error comes back as a toast and a null. */

@@ -19,6 +19,19 @@ function edgeOf(a, b) {
   return { x: cx + dx * k, y: cy + dy * k };
 }
 
+/** The arrow from the box `a` to the box `b` (both {x, y, w, h} in the host's coordinates): its line, which stops short of the head, and the head's points. */
+export function segment(key, a, b) {
+  const p = edgeOf(a, b), q = edgeOf(b, a), ang = Math.atan2(q.y - p.y, q.x - p.x);
+  const w = (d) => `${(q.x - HEAD * Math.cos(ang + d)).toFixed(1)},${(q.y - HEAD * Math.sin(ang + d)).toFixed(1)}`;
+  return { key, x1: p.x, y1: p.y, x2: q.x - (HEAD - 1) * Math.cos(ang), y2: q.y - (HEAD - 1) * Math.sin(ang), head: `${q.x.toFixed(1)},${q.y.toFixed(1)} ${w(0.45)} ${w(-0.45)}` };
+}
+
+/** The svg layer that draws `lines` (from `segment`) over its positioned host. */
+export function ArrowLines({ lines }) {
+  return html`<svg class="arena-arrows" aria-hidden="true">${lines.map((l) => html`<g key=${l.key} class="arena-arrow" data-edge=${l.key}>
+    <line x1=${l.x1} y1=${l.y1} x2=${l.x2} y2=${l.y2} /><polygon points=${l.head} /></g>`)}</svg>`;
+}
+
 /** The lines between the cards shown: [{x1, y1, x2, y2, head: "points"}]. `host`: the element the lines are drawn in. */
 export function linesFor(host, nodes, hover, inSpread) {
   const slash = hover.lastIndexOf("/"), goal = hover.slice(0, slash), id = hover.slice(slash + 1);
@@ -43,9 +56,7 @@ export function linesFor(host, nodes, hover, inSpread) {
   for (const [from, to] of pairs) {
     const a = from === t ? me : rect(from), b = to === t ? me : rect(to);
     if (!a || !b) continue;
-    const p = edgeOf(a, b), q = edgeOf(b, a), ang = Math.atan2(q.y - p.y, q.x - p.x);
-    const w = (d) => `${(q.x - HEAD * Math.cos(ang + d)).toFixed(1)},${(q.y - HEAD * Math.sin(ang + d)).toFixed(1)}`;
-    out.push({ key: `${from.id}>${to.id}`, x1: p.x, y1: p.y, x2: q.x - (HEAD - 1) * Math.cos(ang), y2: q.y - (HEAD - 1) * Math.sin(ang), head: `${q.x.toFixed(1)},${q.y.toFixed(1)} ${w(0.45)} ${w(-0.45)}` });
+    out.push(segment(`${from.id}>${to.id}`, a, b));
   }
   return out;
 }
@@ -60,6 +71,5 @@ export function Arrows({ host, nodes }) {
     const next = on ? linesFor(el, nodes, hover, inSpread) : [];
     setLines((was) => (was.length === 0 && next.length === 0 ? was : next));
   }, [hover, by, inSpread, nodes]);
-  return html`<svg class="arena-arrows" aria-hidden="true">${lines.map((l) => html`<g key=${l.key} class="arena-arrow" data-edge=${l.key}>
-    <line x1=${l.x1} y1=${l.y1} x2=${l.x2} y2=${l.y2} /><polygon points=${l.head} /></g>`)}</svg>`;
+  return html`<${ArrowLines} lines=${lines} />`;
 }

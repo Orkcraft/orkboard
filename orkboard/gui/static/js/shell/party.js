@@ -10,6 +10,7 @@ import { roles } from "./store.js";
 import { pctOf, pctRange } from "../spend.js";
 import { reducedMotion } from "../arena/motion.js";
 import { Head, Icon, Sign, CRAFT_WORDS, RACE_WORDS, TIER_WORDS } from "../orkui.js";
+import { dealEntry, inDealOrder, whyWords } from "../arena/projectwords.js";
 
 export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["design", "elf", "Screens, flows and words on them"],
   ["data", "goblin", "Numbers, queries and reports"], ["marketing", "gnome", "Pages, posts and search"],
@@ -73,17 +74,22 @@ export function presetsOf() {
 }
 
 /** The library's parties as tiles: *Mixed* (each its leader's head, its name, its line and its members' small heads), *One craft* (a head and a name),
- *  then the Taskmaster alone. A tile's `data-craft` is the library's id; `picked` is the one pressed (""): none). */
-export function LibraryTiles({ picked, onPick }) {
-  const all = presetsOf(), mixed = all.filter((p) => p.mixed), crafts = all.filter((p) => !p.mixed && p.craft !== "mixed"), alone = all.filter((p) => !p.mixed && p.craft === "mixed");
+ *  then the Taskmaster alone. A tile's `data-craft` is the library's id; `picked` is the one pressed (""): none). `deal`: the Orkmaster's (`ideas.map` `project.deal`, spec 70 §3.2): inside each group the tiles
+ *  follow it, and a tile with a why says it under its line; none (an older host): today's order. */
+export function LibraryTiles({ picked, onPick, deal = null }) {
+  const all = inDealOrder(presetsOf(), deal), mixed = all.filter((p) => p.mixed), crafts = all.filter((p) => !p.mixed && p.craft !== "mixed"), alone = all.filter((p) => !p.mixed && p.craft === "mixed");
   const headOf = (id, fallback) => { const a = agentOf(id); return a ? { race: raceOfAgent(a), tier: a.tier } : fallback; };
+  const why = (p) => {
+    const e = dealEntry(deal, p.id), w = whyWords(e);
+    return w && html`<small class="shell-craft-tile__why ok-tone-muted" data-why=${e.why}>${w}</small>`;
+  };
   const tile = (p, rich) => {
     const lead = headOf(p.lead, { race: p.race, tier: "elder" });
     return html`<button type="button" key=${p.id} class=${`shell-craft-tile${rich ? " is-mixed" : ""}`} data-craft=${p.id} aria-pressed=${String(p.id === picked)} title=${p.line}
       onClick=${() => onPick(p)}><${Head} race=${lead.race} tier=${lead.tier} small=${true} />
       ${rich ? html`<span class="shell-craft-tile__text"><b>${p.name}</b><small class="ok-tone-muted">${p.line}</small>
-        <span class="shell-craft-heads">${[...p.build, ...p.check].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${raceOfAgent(agentOf(id))} tier=${agentOf(id).tier} small=${true} />`)}</span></span>`
-        : html`<b>${p.name}</b>`}</button>`;
+        <span class="shell-craft-heads">${[...p.build, ...p.check].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${raceOfAgent(agentOf(id))} tier=${agentOf(id).tier} small=${true} />`)}</span>${why(p)}</span>`
+        : html`<span class="shell-craft-tile__text"><b>${p.name}</b>${why(p)}</span>`}</button>`;
   };
   return html`${mixed.length > 0 && html`<section class="shell-library-group" aria-label="Mixed"><h3 class="ok-font-label">Mixed</h3>
       <div class="shell-craft-tiles is-mixed" role="group" aria-label="Mixed">${mixed.map((p) => tile(p, true))}</div></section>`}
