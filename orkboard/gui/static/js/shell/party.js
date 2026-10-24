@@ -15,6 +15,8 @@ export const CRAFTS = [["engineering", "peon", "Code, tests and the build"], ["d
   ["data", "goblin", "Numbers, queries and reports"], ["marketing", "gnome", "Pages, posts and search"],
   ["product", "lich", "Who it is for, what it moves, what it leaves out"]];
 export const RACE = Object.fromEntries(CRAFTS);
+/** An agent's race: the host's (`library.listed()`: an agent's own, the Release manager is a skeleton), the craft's for an older host that sends none (spec 68 §7.8). */
+export const raceOfAgent = (a) => a.race || RACE[a.craft];
 const BANDS = [["lead", "Leads", "plans the party's goals"], ["build", "Builds", "do the work"],
   ["check", "Checks", "hold each goal to their check"]];
 const PITCH_BANDS = { lead: "decides on each pitch", build: "each reads every pitch, alone", check: "makes the case against" };     // what Ideation's bands do (spec 65 §1)
@@ -74,13 +76,13 @@ export function presetsOf() {
  *  then the Taskmaster alone. A tile's `data-craft` is the library's id; `picked` is the one pressed (""): none). */
 export function LibraryTiles({ picked, onPick }) {
   const all = presetsOf(), mixed = all.filter((p) => p.mixed), crafts = all.filter((p) => !p.mixed && p.craft !== "mixed"), alone = all.filter((p) => !p.mixed && p.craft === "mixed");
-  const headOf = (id, fallback) => { const a = agentOf(id); return a ? { race: RACE[a.craft], tier: a.tier } : fallback; };
+  const headOf = (id, fallback) => { const a = agentOf(id); return a ? { race: raceOfAgent(a), tier: a.tier } : fallback; };
   const tile = (p, rich) => {
     const lead = headOf(p.lead, { race: p.race, tier: "elder" });
     return html`<button type="button" key=${p.id} class=${`shell-craft-tile${rich ? " is-mixed" : ""}`} data-craft=${p.id} aria-pressed=${String(p.id === picked)} title=${p.line}
       onClick=${() => onPick(p)}><${Head} race=${lead.race} tier=${lead.tier} small=${true} />
       ${rich ? html`<span class="shell-craft-tile__text"><b>${p.name}</b><small class="ok-tone-muted">${p.line}</small>
-        <span class="shell-craft-heads">${[...p.build, ...p.check].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${RACE[agentOf(id).craft]} tier=${agentOf(id).tier} small=${true} />`)}</span></span>`
+        <span class="shell-craft-heads">${[...p.build, ...p.check].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${raceOfAgent(agentOf(id))} tier=${agentOf(id).tier} small=${true} />`)}</span></span>`
         : html`<b>${p.name}</b>`}</button>`;
   };
   return html`${mixed.length > 0 && html`<section class="shell-library-group" aria-label="Mixed"><h3 class="ok-font-label">Mixed</h3>
@@ -112,7 +114,7 @@ export function OwnParties({ parties, onPick, reload, picked = "" }) {
   return html`<section class="shell-own-parties" aria-label="Your parties"><h3 class="ok-font-label">Your parties</h3>
     <div class="shell-own-chips">${parties.map((p) => html`<div key=${p.id} class=${`shell-own-chip${picked === p.id ? " is-on" : ""}`} data-party=${p.id}>
       <button type="button" class="shell-own-chip__pick" aria-pressed=${String(picked === p.id)} aria-label=${`Pick your party “${p.name}”`} onClick=${() => onPick(p)}>
-        <span class="shell-own-heads">${[p.leader, ...p.team].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${RACE[agentOf(id).craft]} tier=${agentOf(id).tier} small=${true} />`)}</span>
+        <span class="shell-own-heads">${[p.leader, ...p.team].map((id, n) => agentOf(id) && html`<${Head} key=${n} race=${raceOfAgent(agentOf(id))} tier=${agentOf(id).tier} small=${true} />`)}</span>
         <b>${p.name}</b>${usedWords(p) && html`<small class="ok-tone-muted">${usedWords(p)}</small>`}</button>
       <button type="button" class="shell-own-chip__close" aria-label=${`Remove your party “${p.name}”`} onClick=${() => setAsking(p.id)}><${Icon} name="close" /></button>
       ${asking === p.id && html`<p class="shell-own-ask" role="alert">Remove your party “${p.name}”? Parties that use it keep their agents.
@@ -166,8 +168,8 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
   };
   const row = (a) => html`<button type="button" key=${a.id} class="shell-team-row" aria-pressed=${String(on(a))} data-agent=${a.id}
       aria-label=${`${on(a) ? "Take out" : "Take in"}: ${a.name}`} onClick=${() => toggle(a)}>
-    <${Head} race=${RACE[a.craft]} tier=${a.tier} /><b>${a.name}${a.check && html`<span class="shell-check-badge">checks</span>`}</b>
-    <small class="ok-tone-muted">${TIER_WORDS[a.tier]} ${RACE_WORDS[RACE[a.craft]]} · ${a.line}</small>
+    <${Head} race=${raceOfAgent(a)} tier=${a.tier} /><b>${a.name}${a.check && html`<span class="shell-check-badge">checks</span>`}</b>
+    <small class="ok-tone-muted">${TIER_WORDS[a.tier]} ${RACE_WORDS[raceOfAgent(a)]} · ${a.line}</small>
     <span class="shell-team-mark" aria-hidden="true"><${Icon} name=${on(a) ? "check" : "plus"} /></span></button>`;
   const bands = BANDS.map(([id, words, what]) => {
     const taken = inBand(id, leader, team);
@@ -177,7 +179,7 @@ export function PartyBands({ craft = "", leader, setLeader, team, setTeam }) {
       <div class="shell-band-head"><h3>${stageWord(leader, id)}</h3><small class="ok-tone-muted">${words} · ${taken.length} of ${seats[id]} seats · ${fixed ? PITCH_BANDS[id] : what}</small></div>
       <div class="shell-team-seats">${Array.from({ length: Math.max(seats[id], taken.length) }, (_, i) => {
         const a = agentOf(taken[i]), past = i >= seats[id];
-        return html`<span key=${i} class=${`shell-team-seat${a ? "" : " is-empty"}${id === "lead" ? " is-lead" : ""}${past ? " is-over" : ""}`} title=${a?.name || "A free seat"}>${a && html`<${Head} race=${RACE[a.craft]} tier=${a.tier} />`}</span>`;
+        return html`<span key=${i} class=${`shell-team-seat${a ? "" : " is-empty"}${id === "lead" ? " is-lead" : ""}${past ? " is-over" : ""}`} title=${a?.name || "A free seat"}>${a && html`<${Head} race=${raceOfAgent(a)} tier=${a.tier} />`}</span>`;
       })}</div>
       ${full && html`<p class="shell-band-over" role="alert">${full.text}</p>`}
       ${list.length > 0 && html`<div class="shell-team-list">${list.map(row)}</div>`}</section>`;
@@ -266,7 +268,7 @@ export function ChecksBlock({ team, every, setEvery, price = null }) {
   const adds = (a) => { const c = (price?.checks || []).find((x) => x.by === a.id); return c ? ` · ${addsWords(c)}` : ""; };
   return html`<div class="shell-checks" role="group" aria-label="Checks"><span class="ok-font-label">Checks on every goal</span>
     <p class="ok-tone-muted">How deep each goal is worked: every check adds a line to its Done when and a task to its plan.</p>
-    ${checkers.map((a) => html`<div key=${a.id} class="shell-check-row"><${Head} race=${RACE[a.craft]} tier=${a.tier} small=${true} />
+    ${checkers.map((a) => html`<div key=${a.id} class="shell-check-row"><${Head} race=${raceOfAgent(a)} tier=${a.tier} small=${true} />
       <span><b>${a.name}</b> <small class="ok-tone-muted">${libraryWords(`${a.check.done} · applies ${a.check.applies}`)}${adds(a)}</small></span>
       <label class="shell-check-every"><input type="checkbox" aria-label=${`Every goal: ${a.name}`} checked=${every.includes(a.id)}
         onChange=${(e) => setEvery(e.target.checked ? [...every, a.id] : every.filter((x) => x !== a.id))} /> Every goal</label></div>`)}</div>`;

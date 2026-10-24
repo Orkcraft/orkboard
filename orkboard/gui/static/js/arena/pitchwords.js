@@ -4,6 +4,7 @@
 // (a pitch's screen) draw what these say.
 import { board, goalList } from "../board/store.js";
 import { plural, waitsWords } from "./arenawords.js";
+import { goalStateWords } from "./releasewords.js";
 
 export const INVESTOR = "investor";                       // realm/library.py INVESTOR: the leader whose party is Ideation
 export const VIEWS = 4;                                    // the views every pitch is read by (realm/library.py VIEWS)
@@ -48,7 +49,7 @@ export function pitchWords(n) {
   const p = n?.pitch, st = p?.state || n?.state;
   if (st === "judging") return judgingWords(p);
   if (st === "judged") return `judged: ${p?.decision?.word || "—"}`;
-  if (st === "sent") return sentWords(p?.sent);
+  if (st === "sent") return goalStateWords(n?.goal_state || p?.goal_state) || sentWords(p?.sent);       // the sent goal's state as spec 68 §2.4 has it (an older host sends none: where it went)
   if (st === "passed") return "passed";
   if (st === "failed") {                                   // its error: the page's, else the Board's (a Map node carries none)
     const why = n?.state_error || (board.value?.ideas || []).find((i) => i.slug === n?.slug)?.state_error || "";

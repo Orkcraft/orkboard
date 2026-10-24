@@ -3,13 +3,14 @@
 // the title whole), *k/n*, the work sign while it is at work and, on a closed party, one sign for the stops that wait in it where they cannot be seen (! , ✗ when one failed:
 // §65.2) —, Operations when the project has them, then *+ New party*. One party is open, the one the board shows, with its body under its heading (`body`: goals.js `Left`);
 // a press on a closed heading shows that party (the party switch: the board redraws in place, the party kept per device), a press on the open one does nothing. ↑ and ↓ move between
-// the headings. A new party saved gathers its seats' heads onto its heading's head (spec 63 §3, goaltabs.js `gatherInto`). The column scrolls under the project's line.
+// the headings. A switch says `ideas.shown` (spec 68 §7.9). A new party saved gathers its seats' heads onto its heading's head (spec 63 §3, goaltabs.js `gatherInto`). The column scrolls under the project's line.
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Head, Icon, Sign } from "../orkui.js";
 import { track, OPS } from "../board/store.js";
 import { keepGoal } from "../board/tracks.js";
 import { mapData } from "../shell/store.js";
+import { command } from "../link.js";
 import { dialog, openDialog } from "../shell/modals.js";
 import { ProjectSwitcher } from "../shell/projects.js";
 import { dropGather, gather, leaveParty } from "./arenastate.js";
@@ -24,6 +25,7 @@ function show(slug, want) {
   if (slug === want) return;
   leaveParty();
   track.value = slug;
+  if (slug !== OPS && want && want !== OPS) command("ideas.shown", { party: slug, from: want }).catch(() => {});      // counted by the host (spec 68 §4, §7.9): fire and forget, never waited for, never a toast of its own
 }
 
 /** What waits in a closed party, as one sign: ✗ in the danger colour when one failed, else !; its title says how many. */

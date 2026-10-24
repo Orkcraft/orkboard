@@ -4,7 +4,7 @@
 // cheapest test, the goal it repeats —; what became of it (sent, naming the goal; passed, with the person's line) and the decisions before. At its foot what the
 // person does, saying what happens: **Send to <party>** with the party's select beside it (the decision's party first; a party of the library the project lacks
 // opens New party with it), **Change and judge again** (the words, changed, judged anew), **Pass** (a line why, optional), **Drop**; **Try again** after a
-// failure, **Judge again** for a passed one, **Judge now** for one on hold or tonight. The pixel face is the headings' and the buttons'; the views' and the
+// failure, **Judge again** for a passed one, **Judge now** for one on hold or tonight. A sent pitch says its goal's state under its decision (spec 68 §7.2: *Its goal · At work in Passkey · 3 of 7*, *In main*, *In Release 1.4*, *Out in 1.4*, *Dropped*), a press opening the goal. The pixel face is the headings' and the buttons'; the views' and the
 // Investor's words are in the text face.
 import { useState } from "preact/hooks";
 import { html, cls } from "../html.js";
@@ -15,6 +15,7 @@ import { openDialog } from "./modals.js";
 import { ErrorLine } from "./errors.js";
 import { PointedAt } from "./lens.js";
 import { PITCH_STATE, pitchWords, sendDefault, sendTargets, sentWords, whereWords } from "../arena/pitchwords.js";
+import { goalStateWords } from "../arena/releasewords.js";
 
 const List = ({ items, label }) => (items?.length ? html`<ul class="shell-pitch__list" aria-label=${label}>${items.map((x, i) => html`<li key=${i}>${x}</li>`)}</ul>`
   : html`<p class="ok-tone-muted">—</p>`);
@@ -68,7 +69,9 @@ function Decision({ p }) {
 
 /** Sent, passed, and the decisions there were before it was judged again. */
 function After({ p }) {
+  const gs = p.sent && p.goal_state, gone = gs?.state === "dropped";
   return html`${p.sent && html`<p class="shell-pitch__after" data-after="sent"><${Sign} name="check" /> ${sentWords(p.sent)}${p.sent.goal && html` · <button type="button" class="board-link" onClick=${() => showIdea(p.sent.goal)}>Open the goal</button>`}</p>`}
+    ${gs && html`<p class="shell-pitch__after shell-pitch__goal" data-after="goal" data-goal-state=${gs.state}><span class="ok-tone-muted">Its goal</span> · ${gone ? html`<span>${goalStateWords(gs)}</span>` : html`<button type="button" class="board-link" title="Open the goal" onClick=${() => showIdea(gs.goal || p.sent.goal)}>${goalStateWords(gs)}</button>`}</p>`}
     ${p.passed && html`<p class="shell-pitch__after" data-after="passed">Passed${p.passed.why ? html`: <span class="shell-pitch__words">${p.passed.why}</span>` : ""}</p>`}
     ${p.before?.length > 0 && html`<details class="shell-pitch__before"><summary>Before (${p.before.length})</summary>
       <ul class="shell-pitch__list">${p.before.map((d, i) => html`<li key=${i}><b>${d.word}</b>${d.why?.length ? ` · ${d.why.join(" ")}` : ""}</li>`)}</ul></details>`}`;

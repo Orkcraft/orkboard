@@ -19,6 +19,7 @@ import { Elem, Sign } from "../orkui.js";
 import { nextElement } from "../arena/goalwords.js";
 import { JoinLine, joinSet, joinStart, joinValue } from "../arena/types.js";
 import { isIdeation } from "../arena/pitchwords.js";
+import { GoesIn } from "./release.js";
 
 const MAX_PICTURES = 4;                     // realm/idea_photos.py MAX_PHOTOS
 const MAX_PX = 1600;                        // as the phone's (pwa/shell-idea-field.js): a JPEG of at most this, for the leader to read
@@ -166,6 +167,7 @@ function TypedGoal({ goal: party, type: t }) {
   const [busy, setBusy] = useState(false);
   const [lens, setLens] = useState(() => lensFirst(t));
   const [join, setJoin] = useState(() => joinStart(t.missing));
+  const [goes, setGoes] = useState([]);                      // *A release*: the goals that go in (spec 68 §7.3)
   const info = useLenses(party);
   const priority = mine || g.priority || "normal";
   const element = nextElement((mapData.value?.nodes || []).filter((n) => n.goal === party));
@@ -196,7 +198,7 @@ function TypedGoal({ goal: party, type: t }) {
     const pointed = lensValue(info, lens), joined = night ? null : joinValue(t.missing, join);
     const photos = t.refs ? list.map((url) => ({ data: url.slice(url.indexOf(",") + 1) })) : [];
     return { text, track: party, priority, type: t.id, ...(Object.keys(said).length ? { asks: said } : {}), ...(photos.length ? { photos } : {}),
-      ...(pointed.length ? { lens: pointed } : {}), ...(joined ? { join: joined } : {}), ...(night ? { night: true } : {}) };
+      ...(pointed.length ? { lens: pointed } : {}), ...(joined ? { join: joined } : {}), ...(t.id === "release" && !night ? { goes_in: goes } : {}), ...(night ? { night: true } : {}) };
   };
   const send = async () => {
     if (!text || busy) return;
@@ -230,7 +232,8 @@ function TypedGoal({ goal: party, type: t }) {
           onKeyDown=${(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } }}></textarea></label>
       ${(t.asks || []).map((a) => html`<label key=${a.id} class="shell-field" data-ask=${a.id}><span class="ok-font-label">${a.label}</span>
         <input class="ork-field" maxlength="300" value=${asks[a.id] || ""} aria-label=${a.label} placeholder=${a.hint || ""}
-          onInput=${(e) => setAsks((now) => ({ ...now, [a.id]: e.target.value }))} /></label>`)}
+          onInput=${(e) => setAsks((now) => ({ ...now, [a.id]: e.target.value }))} /></label>
+        ${t.id === "release" && a.id === "version" && html`<${GoesIn} party=${party} goes=${goes} setGoes=${setGoes} />`}`)}
       ${t.refs && html`<${Refs} links=${links} setLinks=${setLinks} pictures=${pictures} pick=${pick} />`}
       <${Lens} info=${info} s=${lens} set=${setLens} />
       <${JoinLine} missing=${t.missing} state=${join} set=${(i, patch) => setJoin((now) => joinSet(now, i, patch))} />

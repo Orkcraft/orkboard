@@ -6,6 +6,8 @@
 // the row). A goal of a type shows its sign before its title; a stop is marked once, by its sign (no alert edge, no alert words). A press on the pile deals the
 // party's goal types (types.js); with none (an older host) it turns its top card over and opens New goal (≈ 0.42 s, in steps; at once under reduced motion).
 // Ideation (docs/specs/65-ideation.md §8) lists its pitches by state instead (pitches.js), with *Judge now* in place of *Process now*.
+// A project with a Release party (docs/specs/68-release-and-route.md §7.4, §7.5): that party's Goals begin with *k flags wait for a release* (a press opens New goal of *A release*), its Flags say a release's
+// version and *k goals* with **Mark it out** (asking first) and then *Out in 1.4*; another party's flags say *In Release 1.4*, *Out in 1.4* or *Waits for a release*.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html, cls } from "../html.js";
 import { Chev, Elem, Icon, Sign } from "../orkui.js";
@@ -21,6 +23,7 @@ import { Member } from "./members.js";
 import { TypesSpread } from "./types.js";
 import { PitchGoals } from "./pitches.js";
 import { judgePower, pitchLists } from "./pitchwords.js";
+import { flagRelease, outAsk, releaseLine, waitWords } from "./releasewords.js";
 
 const TURN_MS = 420;
 const SHOWN_FLAGS = 10;
@@ -67,7 +70,8 @@ function FlagsFold({ lists, g, nodes }) {
 }
 
 function FlagRow({ n }) {
-  const ref = useRef(), f = flagRow(n);
+  const ref = useRef(), f = flagRow(n), own = n.release, rel = flagRelease(n);
+  const [asking, setAsking] = useState(false), [busy, setBusy] = useState(false);
   useEffect(() => {                                   // a flag raised a moment ago is lit once, when it is on screen
     if (!litFlags.has(n.slug) || !ref.current) return;
     litFlags.delete(n.slug);
@@ -75,8 +79,21 @@ function FlagRow({ n }) {
       ref.current.animate([{ background: "var(--ork-ink)", color: "var(--ork-on-ink)" }, { background: "transparent" }], { duration: 600, easing: "steps(4, end)" });
     }
   }, []);
-  return html`<li><button ref=${ref} type="button" class="arena-flagrow" data-slug=${f.slug} data-flag=${f.at} title=${f.title} onClick=${() => showIdea(f.slug, { via: "flags" })}>
-    <span class="arena-flagrow__flag"><${Sign} name="flag" /></span> <span class="arena-flagrow__t">${f.short}</span><span class="arena-cap">${f.words}</span></button></li>`;
+  const out = async () => {                           // a refusal is the host's words, as a toast; the question stays
+    setBusy(true);
+    const got = await act("ideas.release_out", { slug: n.slug });
+    setBusy(false);
+    if (got) setAsking(false);
+  };
+  return html`<li data-release=${own ? (own.out ? "out" : "own") : undefined}><button ref=${ref} type="button" class="arena-flagrow" data-slug=${f.slug} data-flag=${f.at} title=${f.title} onClick=${() => showIdea(f.slug, { via: "flags" })}>
+    <span class="arena-flagrow__flag"><${Sign} name="flag" /></span> <span class="arena-flagrow__t">${f.short}</span>
+    ${own && html`<span class="arena-cap arena-flagrow__rel" data-rel="own">${releaseLine(own)}</span>`}<span class="arena-cap">${f.words}</span>
+    ${rel && html`<span class="arena-cap arena-flagrow__rel" data-rel=${n.flag?.release ? (n.flag.release.out ? "out" : "in") : "waits"}>${rel}</span>`}</button>
+    ${own && !own.out && (asking ? html`<div class="arena-out" role="alert"><p class="arena-cap">${outAsk(own.version)}</p>
+        <div class="arena-out__row"><button type="button" class="ork-btn primary" data-act="out" disabled=${busy} onClick=${out}>Out</button>
+          <button type="button" class="ork-btn" data-act="not-yet" onClick=${() => setAsking(false)}>Not yet</button></div></div>`
+      : html`<button type="button" class="ork-btn arena-flagrow__out" data-act="mark-out" onClick=${() => setAsking(true)}>Mark it out</button>`)}
+  </li>`;
 }
 
 /** The pile at the foot: a press deals the party's goal types (types.js); with none, it turns its top card over, then New goal opens; the card is put back when
@@ -113,6 +130,7 @@ export function Left({ g, nodes, planning, lead }) {
   const pl = pitch ? pitchLists(nodes) : null;          // Ideation: its pitches by state, *Judge now* in place of *Process now* (spec 65 §8)
   const power = pitch ? judgePower(pl.raw, lead?.name || "Investor") : powerOf(planning.raw, lead?.name || "Taskmaster");
   const n = pitch ? pl.judging.length + pl.judged.length : goalsCount(lists), picked = !pitch && (picks.value[party] || []).length > 0;
+  const release = (g.types || []).find((t) => t.id === "release"), waiting = !pitch && release && g.wait_release > 0 ? g.wait_release : 0;          // flags that wait for a release (spec 68 §7.4)
   return html`<div class="arena-pbody">
     <section class="arena-lead" aria-label="Leader">
       ${lead && html`<${Member} m=${lead} nodes=${nodes} planning=${planning} lead=${true} />`}
@@ -124,6 +142,8 @@ export function Left({ g, nodes, planning, lead }) {
     <section class="arena-goals" aria-label=${pitch ? "Pitches" : "Goals"}>
       <div class="arena-left__head"><h2 class="arena-lbl">${pitch ? "Pitches" : "Goals"}</h2><span class="ork-count">${n}</span><span class="arena-spacer"></span>
         ${picked && html`<button type="button" class="ork-btn quiet" title="Every goal of the party again" onClick=${() => clearPicks(party)}>Show all</button>`}</div>
+      ${waiting > 0 && html`<button type="button" class="ork-btn quiet arena-waitrel" aria-haspopup="dialog" title="New goal of A release, with these flags ticked"
+        onClick=${() => openDialog("idea", { goal: party, type: release })}><${Sign} name="flag" /> <span>${waitWords(waiting)}</span><${Chev} dir="right" /></button>`}
       ${pitch ? html`<${PitchGoals} nodes=${nodes} />` : html`<div class="arena-deck">
         ${lists.work.length > 0 && html`<h3 class="arena-sec">At work</h3>`}
         ${lists.work.map((x) => html`<${GoalRow} key=${x.slug} g=${g} n=${x} party=${party} />`)}
