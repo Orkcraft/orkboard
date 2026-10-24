@@ -393,7 +393,7 @@ def test_what_the_faces_read_of_a_pitch_on_its_page_and_its_map_node_and_needs_y
     page = host.command("ideas.page", {"slug": slug})
     p = page["pitch"]
     assert set(p) == {"state", "views", "skeptic", "investor", "case", "decision", "sent", "passed", "before", "goal_state"} and p["state"] == "judged"
-    assert p["goal_state"] is None                                                         # not sent: spec 67 §2.4
+    assert p["goal_state"] is None                                                         # not sent: spec 68 §2.4
     assert [v["slug"] for v in p["views"]] == list(library.VIEWS) and all(v["answered"] for v in p["views"])
     assert set(p["views"][0]) == {"slug", "name", "head", "answered", "for", "against", "question", "size"}
     assert p["views"][2]["name"] == "Engineering view" and p["views"][2]["head"]["race"] == "peon" and p["views"][2]["size"] == "M"

@@ -24,7 +24,7 @@ head of its race in orkUI (an ork, an elf, a goblin, a gnome: `RACES`), wearing 
 and Grunt are orks: engineering, always. A file without a craft is engineering.
 
     head(r, "balance")                     # {"craft": "design", "race": "elf", "tier": "elder"}: the head a role wears (a role's own `race`,
-                                           # front matter, when orkUI's copy has its head at that tier: spec 67 §1.3)
+                                           # front matter, when orkUI's copy has its head at that tier: spec 68 §1.3)
     task_head(state_dir, task, "thrift")   # the head of the role a task runs (or will run) as, at the tier it runs at
     known(state_dir)                       # (roles by slug, kinds): read once, handed to many task_head calls
 
@@ -76,7 +76,7 @@ CRAFTS = ("engineering", "design", "data", "marketing", "product")
 CRAFT_LABELS = {"engineering": "Engineering", "design": "Design", "data": "Data", "marketing": "Marketing", "product": "Product"}
 # orkUI's race ids: ork, elf, goblin, gnome; product is the undead's (a mummy in Orkline 0.2: a lich until orkUI draws one)
 RACES = {"engineering": "peon", "design": "elf", "data": "goblin", "marketing": "gnome", "product": "lich"}
-# orkUI's copy of the races' heads (design/orkui.py): a role's own race (spec 67 §1.3) is worn only once its file is here.
+# orkUI's copy of the races' heads (design/orkui.py): a role's own race (spec 68 §1.3) is worn only once its file is here.
 RACE_FILES = Path(__file__).resolve().parents[1] / "design" / "system" / "orkui" / "races"
 # What the built-in two are told already, beside the field that adds to it (spec 41 §8): their prompts are Orkboard's own.
 TOLD = {
@@ -308,7 +308,7 @@ def set_kind(state_dir: Path, kind: str, slug: str) -> None:
 
 def install(state_dir: Path, slug: str, name: str, model: str, craft: str, instruction: str, takes: tuple[str, ...], race: str = "") -> None:
     """A role from the library (realm/library.py), its slug given: written once, never over one that is there. `race`: the agent's own
-    (spec 67 §1.3), kept in the file so `head` draws it."""
+    (spec 68 §1.3), kept in the file so `head` draws it."""
     with LOCK:
         if role(state_dir, slug) is not None or slug in BUILTIN:
             return

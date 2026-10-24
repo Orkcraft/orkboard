@@ -99,7 +99,7 @@ def flag_of(state_dir: Path, slug: str, held: dict[str, list[dict]]) -> dict | N
 
 
 def release_of(r: dict | None) -> dict | None:
-    """A release goal's node carries its file: `{version, goals: [slugs], out}`; None for any other goal (spec 67 §3.3)."""
+    """A release goal's node carries its file: `{version, goals: [slugs], out}`; None for any other goal (spec 68 §3.3)."""
     return None if r is None else {"version": r["version"], "goals": list(r["goals"]), "out": r["out"]}
 
 
@@ -282,7 +282,7 @@ def build(root: Path, state_dir: Path, settings: dict | None = None, limits: lis
     target, read = idea_target.target_of(settings), roles.known(state_dir)         # a task's head: who does it, at what tier
     today = dt.date.fromtimestamp(now).isoformat() if now else dt.date.today().isoformat()
     offered = pitches.offers(root, state_dir) if any((t.get("leader") or "") == library.INVESTOR for t in shown) else {}
-    made = releases.index(root, state_dir, found)                           # the releases, read once: a goal's route, a flag's release (spec 67)
+    made = releases.index(root, state_dir, found)                           # the releases, read once: a goal's route, a flag's release (spec 68)
     held, rel = releases.holding(root, state_dir, made), goal_types.release_party(root)
     releasing = {r["goal"]: r for r in made}
     for g in shown:

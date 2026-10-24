@@ -1,4 +1,4 @@
-"""A goal's route and a release (docs/specs/67-release-and-route.md §2–§5) as `gui/ideas.py`'s `Ideas` has them. Split from ideas.py to keep it
+"""A goal's route and a release (docs/specs/68-release-and-route.md §2–§5) as `gui/ideas.py`'s `Ideas` has them. Split from ideas.py to keep it
 under ~600 lines.
 
     ideas.move {slug, track?, before?}       # another party only before the goal's work starts (realm/idea_route.py); `idea_moved`
@@ -19,7 +19,7 @@ class ReleaseMixin:
     def move(self, args: dict) -> dict:
         """`{slug, track?, before?}`: the goal to another party and/or before another goal. To another party it is refused once its
         work has started (*Its work has started in <party>: a goal moves only before its work starts. Add a new goal there.*) and
-        recorded in its route otherwise; its element and its place are as before (spec 67 §2.2). `{ok}`."""
+        recorded in its route otherwise; its element and its place are as before (spec 68 §2.2). `{ok}`."""
         slug = _text(args, "slug", 100)
         got = idea_route.move(self.root(), self.state_dir, slug, _opt(args, "track") or None, _opt(args, "before") or None, by="person")
         self._what[slug] = "moved"

@@ -42,7 +42,7 @@ class PartyMixin:
 
     def save_releases_from(self, party: str, value: object) -> None:
         """`releases_from` of `ideas.goal_save`: the parties a Release party takes its flags from, kept with the party ([] is every party but
-        Ideation; spec 67 §3.2). Refused when it is not a list of the project's parties."""
+        Ideation; spec 68 §3.2). Refused when it is not a list of the project's parties."""
         try:
             releases.set_releases_from(self.root(), party, value)
         except ValueError as e:

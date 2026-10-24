@@ -1,4 +1,4 @@
-"""Spec 67 A (docs/specs/67-release-and-route.md §2, §5, Tests → A): a goal's route (a pitch, a move, its party, its flag, a release, out), a
+"""Spec 68 A (docs/specs/68-release-and-route.md §2, §5, Tests → A): a goal's route (a pitch, a move, its party, its flag, a release, out), a
 move only before the work starts and recorded, a sent pitch's element and its goal's state, the Map's `route` and `goal_state`. Code, no model."""
 from __future__ import annotations
 

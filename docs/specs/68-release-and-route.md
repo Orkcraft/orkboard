@@ -1,6 +1,6 @@
-# Spec 67 — A goal's route across parties, and a Release party that gathers the flags
+# Spec 68 — A goal's route across parties, and a Release party that gathers the flags
 
-The owner, 23 October (decisions §81): *what if parties changed often: ideation → a new mobile feature → ideation → a new
+The owner, 23 October (decisions §83): *what if parties changed often: ideation → a new mobile feature → ideation → a new
 feature → testing → release?* Read as parties, that chain is one thing's way, not a change of team: the features are the
 Mobile app party's goals, testing is its checkers and the gate. So parties stay teams and stay few (§63.11), and a goal
 gets **a route**: where it came from, where it is, and where it went. And the one step that is truly another team's, a
@@ -43,7 +43,7 @@ new goal there.*, *Release*, *Release manager*, *Release engineer*, *Release not
 
 ## 1. The agents and the party (A, A0)
 1. **`realm/library.py` `LIBRARY`** gains four, after Ideation's, under *-- release: the Release manager (a skeleton)
-   and its cheaper hands; a party of their own (spec 67 §1) --*:
+   and its cheaper hands; a party of their own (spec 68 §1) --*:
 
 | id | name | craft | tier | band | takes | race | line |
 |---|---|---|---|---|---|---|---|
@@ -65,7 +65,7 @@ new goal there.*, *Release*, *Release manager*, *Release engineer*, *Release not
    stores' list", "product", "release-manager", ("release-engineer", "release-notes", "aso"), ("release-checker",))`.
    `STAGES["release-manager"] = Stages("Gather", "Prepare", "Check", 3, 1)`. The tiers are the library's defaults: the
    person may set any of them on Agents as today.
-3. **An agent's own race** (decisions §81.5): `Agent` gains `race: str = ""` (its craft's, `roles.RACES`, when empty);
+3. **An agent's own race** (decisions §83.5): `Agent` gains `race: str = ""` (its craft's, `roles.RACES`, when empty);
    `listed()` says it; `install` writes it to the role's file; `roles.head` reads a role's `race` when it is one of
    orkUI's and its file is in the copy (`design-system/orkui/races/<race>-<tier>.png`), else its craft's. So before A0's
    copy the Release manager and the Release checker wear the lich's head, after it the skeleton's. **A0** draws the
@@ -119,7 +119,7 @@ Events (`EVENTS`, no goal's words): `idea_moved` (goal, from, to) · `release_ma
 `release_out` (goal, goals: n, days: from its first goal's flag to out) · `party_shown` (from, to, face), from
 `ideas.shown {party, from}`, which the faces send on a party switch (not on a project's first read, not on a redraw).
 The party's work (spec 43 §2) for a Release party says releases out, goals a release, the days from a flag to out.
-`party_shown`'s count a day and its pairs are read by the owner, not shown (decisions §81.7).
+`party_shown`'s count a day and its pairs are read by the owner, not shown (decisions §83.7).
 
 ## 5. Refusals and old hosts (A)
 - `ideas.move` of a goal whose work started: refused (§2.2); the faces show the refusal's words.
@@ -181,7 +181,7 @@ The party's work (spec 43 §2) for a Release party says releases out, goals a re
   `tests/test_design_system.py`; C also `tests/test_pwa.py`.
 
 ## 9. Outside the parts' files
-- `docs/decisions.md` §81 and this file are the contract.
+- `docs/decisions.md` §83 and this file are the contract.
 - `realm/ideas.py` (past the size to split at) is not changed: the route and the releases keep their own files.
 
 ## 10. As built (A, notes, no change of the contract)

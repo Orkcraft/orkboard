@@ -35,14 +35,14 @@ class PitchMixin:
 
     def pitch_of(self, root: Path, slug: str, state: str) -> dict | None:
         """A pitch's views, case against, decision and what became of it (realm/pitches.py `face`), and `goal_state`, what became of the
-        goal it was sent (realm/idea_route.py, spec 67 §2.4); None for any other goal."""
+        goal it was sent (realm/idea_route.py, spec 68 §2.4); None for any other goal."""
         if not pitches.is_pitch(root, slug):
             return None
         return {**pitches.face(root, self.state_dir, slug, state, self._target()), "goal_state": idea_route.goal_state(root, self.state_dir, slug)}
 
     def element_for(self, slug: str, pitch: str = "") -> str:
         """A new goal's element (spec 50 §2.3): the one it has, else, for a goal sent from a pitch, the pitch's own when no open goal of the
-        target party wears it (spec 67 §2.3), else the one used least."""
+        target party wears it (spec 68 §2.3), else the one used least."""
         root = self.root()
         mine = idea_element.of(self.state_dir, pitch) if pitch else ""
         if mine and not idea_element.of(self.state_dir, slug):

@@ -53,9 +53,9 @@ def test_the_product_manager_takes_screens_too_in_a_sentence_that_fits():
 
 def test_the_stages_of_a_leader_sum_to_five_more_and_the_default_is_for_any_other():
     for leader, s in {**library.STAGES, "default": library.DEFAULT_STAGES}.items():
-        assert s.build_seats + s.check_seats == (goal_team.SEATS - 1 if leader == "release-manager" else goal_team.SEATS), leader     # spec 67 §1.2: the Release manager's 3 and 1
+        assert s.build_seats + s.check_seats == (goal_team.SEATS - 1 if leader == "release-manager" else goal_team.SEATS), leader     # spec 68 §1.2: the Release manager's 3 and 1
         assert 2 <= s.build_seats <= 4 and 1 <= s.check_seats <= 3, leader
-    assert library.STAGES.keys() == {"game-designer", "investor", "release-manager"}      # the Investor's: spec 65 §1; the Release manager's: spec 67 §1
+    assert library.STAGES.keys() == {"game-designer", "investor", "release-manager"}      # the Investor's: spec 65 §1; the Release manager's: spec 68 §1
     game = library.stages_of("game-designer")
     assert (game.lead, game.build, game.check, game.build_seats, game.check_seats) == ("Concept", "Build", "Playtest", 4, 1)
     for other in ("architect", "taskmaster", "product-manager", "a-persons-own", ""):
@@ -66,7 +66,7 @@ def test_the_stages_of_a_leader_sum_to_five_more_and_the_default_is_for_any_othe
 
 
 def test_the_librarys_parties_have_known_members_that_fit_their_leaders_seats_and_bands():
-    assert [p[0] for p in library.PRESETS] == ["game", "mobile-app", "website", "ideation", "release"]    # Ideation after Website (spec 65 §1), Release after Ideation (spec 67 §1)
+    assert [p[0] for p in library.PRESETS] == ["game", "mobile-app", "website", "ideation", "release"]    # Ideation after Website (spec 65 §1), Release after Ideation (spec 68 §1)
     for pid, name, line, craft, lead, build, check in library.PRESETS:
         assert library.get(lead).band == "lead" and craft in roles.CRAFTS and name and line, pid
         assert all(library.get(s).band == "build" for s in build) and all(library.get(s).band == "check" for s in check), pid
@@ -108,7 +108,7 @@ def test_listed_and_stages_answer_the_new_agents_and_every_leader():
     assert set(stages) == {a.id for a in library.LIBRARY if a.band == "lead"} | {"default"}
 
 
-# -- spec 67 §1: the Release manager and its hands, the preset, an agent's own race ---------------------------------------
+# -- spec 68 §1: the Release manager and its hands, the preset, an agent's own race ---------------------------------------
 
 def _skeletons(tmp_path, monkeypatch, tiers=roles.TIERS):
     """orkUI's copy with the skeleton drawn at `tiers` (A0's files), else as it is."""

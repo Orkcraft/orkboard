@@ -24,7 +24,7 @@ gui/ideas_recap.py) and the reserve in the snapshot.
 Spec 65: a goal of an Ideation party is a pitch, judged and never built (`ideas.judge`, `ideas.pitch_send`, `ideas.pitch_again`,
 `ideas.pitch_pass`: gui/ideas_pitch.py); the plan's commands refuse it.
 
-Spec 67: a goal's route (`ideas.move` only before its work starts), a release (`ideas.release_out`, `ideas.release_candidates`, `goes_in` of
+Spec 68: a goal's route (`ideas.move` only before its work starts), a release (`ideas.release_out`, `ideas.release_candidates`, `goes_in` of
 `ideas.add`) and the faces' party switch (`ideas.shown`): gui/ideas_release.py.
 
 Spec 37 §8: the Board's settings are the project's (`BoardHost.board_settings`: `<repo>/.orkcraft/board.json` over the
@@ -322,7 +322,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
                 "state_error": st.get("error", ""), "proposed_track": page.get("proposed_track"),
                 "lens": idea_lens.read(self.state_dir, slug), **self.after_start(slug, plan, st),      # spec 62 §1.5
                 "pitch": self.pitch_of(root, slug, st["state"]),                                        # a pitch's views, case and decision (spec 65)
-                "route": idea_route.route(root, self.state_dir, slug)}                                  # its way across parties (spec 67 §2); [] with only its party
+                "route": idea_route.route(root, self.state_dir, slug)}                                  # its way across parties (spec 68 §2); [] with only its party
 
     # -- writing -------------------------------------------------------------------------------------------
 
@@ -349,7 +349,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
             raise IdeasError(str(e)) from None
         pointed = self._lens_args(args)
         typed = self.typed(args, track, goals[track]["title"])
-        rel = self.release_args(args, track, typed)          # a release's version and what goes in, checked before the goal exists (spec 67 §3)
+        rel = self.release_args(args, track, typed)          # a release's version and what goes in, checked before the goal exists (spec 68 §3)
         night, hold = args.get("night") is True, args.get("hold") is True
         queue = "hold" if hold else "now" if pitch else "night" if priority == "low" or night else "now"     # a goal sent from a pitch: Now (spec 65 §5)
         text = text[:pitches.PITCH_CHARS] if pitches.is_ideation(self.root(), track) else text
@@ -366,7 +366,7 @@ class Ideas(LensMixin, LimitsMixin, GateMixin, GoalsMixin, MapMixin, PartyMixin,
         for raw in photos:
             idea_photos.put(self.state_dir, slug, raw)
         idea_lens.save(self.state_dir, slug, pointed or (idea_lens.read(self.state_dir, pitch) if pitch else []))
-        element = self.element_for(slug, pitch)    # the mark of every card of it (spec 50 §2.3); a sent pitch's, where it is free (spec 67 §2.3)
+        element = self.element_for(slug, pitch)    # the mark of every card of it (spec 50 §2.3); a sent pitch's, where it is free (spec 68 §2.3)
         ideas.add_turn(self.state_dir, slug, "you", self.with_asks(text, typed), "Gist")     # the person's own words, kept
         self._ev(event_log.IDEA_ADDED, args, idea=slug, track=track, chars=len(text), now=queue == "now",
                  priority=priority, queue=queue, photos=len(photos), lens=[a["kind"] for a in pointed], type=typed["key"],

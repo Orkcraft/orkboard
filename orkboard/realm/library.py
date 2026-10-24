@@ -42,7 +42,7 @@ class Agent:
     check: Check | None = None  # a checker's: what it holds every goal of its party to
     band: str = "build"       # its band in a party: "lead" (plans: the party's steps run as it), "build", "check"
     pitch: bool = False       # Ideation's (spec 65 §1): it judges pitches, takes a pitch kind only, and sits in no other party
-    race: str = ""            # its own race (orkUI's), when it is not its craft's (spec 67 §1.3); "" = the craft's (roles.RACES)
+    race: str = ""            # its own race (orkUI's), when it is not its craft's (spec 68 §1.3); "" = the craft's (roles.RACES)
 
 
 # What each of Ideation's views and its skeptic holds to (spec 65 §1): the project's facts, never invented ones.
@@ -240,7 +240,7 @@ LIBRARY: tuple[Agent, ...] = (
           "Makes the strongest case not to do it",
           "You make the case against a pitch: argue against it as well as it can be argued, whatever you think of it; never the "
           "same case twice in other words. Read the views and answer the strongest of them. " + PITCH_RULE, band="check", pitch=True),
-    # -- release: the Release manager (a skeleton) and its cheaper hands; a party of their own (spec 67 §1) -------------
+    # -- release: the Release manager (a skeleton) and its cheaper hands; a party of their own (spec 68 §1) -------------
     Agent("release-manager", "Release manager", "product", "warrior", ("research",),
           "Gathers what goes into a version and gets it out, step by step",
           "You lead a release. Plan only from the goals that go in: their titles, Done when lines and flags; never new work. "

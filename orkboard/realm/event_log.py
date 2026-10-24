@@ -147,7 +147,7 @@ PITCH_SENT = "pitch_sent"         # goal, to (the party), type (its goal type, e
 PITCH_PASSED = "pitch_passed"     # goal, as_decided (the Investor said pass), has_reason, device
 PITCH_AGAIN = "pitch_again"       # goal, changed (its words were changed), device
 
-# Spec 67 §4: a goal's route across parties, a release (A release) made and out, a party switch (never a goal's words).
+# Spec 68 §4: a goal's route across parties, a release (A release) made and out, a party switch (never a goal's words).
 IDEA_MOVED = "idea_moved"         # goal, from, to (parties), device
 RELEASE_MADE = "release_made"     # goal, party, goals (n), parties (n), device
 RELEASE_OUT = "release_out"       # goal, goals (n), days (from its first goal's flag to out; None when no flag is dated), device

@@ -32,7 +32,7 @@ def _wait(host, slug="", goal=False):
 def test_the_library_is_leaders_builders_and_checkers_each_with_its_kinds_and_an_instruction_within_the_limit():
     by_band = {b: [a.name for a in library.LIBRARY if a.band == b] for b in ("lead", "build", "check")}
     assert by_band["lead"] == ["Taskmaster", "Product manager", "Architect", "Product designer", "Game designer", "Analyst", "Growth",
-                               "Investor", "Release manager"]                             # Ideation's (spec 65 §1), Release's (spec 67 §1)
+                               "Investor", "Release manager"]                             # Ideation's (spec 65 §1), Release's (spec 68 §1)
     assert by_band["check"] == ["Security reviewer", "Reviewer", "Accessibility reviewer", "Playtester", "Data reviewer", "Editor",
                                 "Skeptic", "Release checker"]
     assert all((a.check is not None) == (a.band == "check" and not a.pitch) for a in library.LIBRARY)   # a check is a checker's; the Skeptic checks pitches only
@@ -93,7 +93,7 @@ def test_goal_save_with_a_team_makes_its_agents_keeps_the_team_and_never_overwri
     with pytest.raises(CommandError, match="A leader leads"):
         host.command("ideas.goal_save", {"about": "x", "team": ["architect"]})
     got = host.command("ideas.roles")
-    assert len(got["library"]) == len(library.LIBRARY) == 36 and got["suggested"] == 2              # 26, Ideation's six (spec 65) and Release's four (spec 67)
+    assert len(got["library"]) == len(library.LIBRARY) == 36 and got["suggested"] == 2              # 26, Ideation's six (spec 65) and Release's four (spec 68)
     artist = next(a for a in got["library"] if a["id"] == "artist")
     assert {"craft": "design", "race": "elf", "tier": "laborer", "takes": ["art"], "check": None}.items() <= artist.items()
     a11y = next(a for a in got["library"] if a["id"] == "accessibility-reviewer")

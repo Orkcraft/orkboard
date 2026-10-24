@@ -1,4 +1,4 @@
-"""A goal's route across parties (docs/specs/67-release-and-route.md §2, decisions §81.2–§81.4): where it came from, where it is, where it
+"""A goal's route across parties (docs/specs/68-release-and-route.md §2, decisions §83.2–§83.4): where it came from, where it is, where it
 went. Read from what the Board keeps (the pitch a goal was sent from, its flag, the releases it went into) and one small file beside its
 state, `<state_dir>/ideas/<slug>/route.json` (`{"moved": [{from, to, at, by}]}`, the last 20). A goal moves to another party only before
 its work starts (`move`).

@@ -1,4 +1,4 @@
-"""A release (docs/specs/67-release-and-route.md §3, decisions §81.5–§81.6): a goal of the type *A release*, a version and the goals
+"""A release (docs/specs/68-release-and-route.md §3, decisions §83.5–§83.6): a goal of the type *A release*, a version and the goals
 that go in. **What goes in** is the flags raised since the last release that is out, in the parties the release's party
 *releases from*; the person ticks them. A release keeps its own file beside its state, `<state_dir>/ideas/<slug>/release.json`
 (`{version, goals, out, at}`), and the goals that go in are never written: their route reads the releases (realm/idea_route.py).
@@ -16,7 +16,7 @@ that go in. **What goes in** is the flags raised since the last release that is 
     out(root, state_dir, "release-1-4")            # the release is out now (only after its own flag, once); the date
     prompt_lines(root, state_dir, "release-1-4")   # for the draft and plan prompts: the version and the goals that go in ("" for any other goal)
 
-Orkboard never submits, uploads or tags: *out* is the person's word (spec 67 §3.5). No face, no model.
+Orkboard never submits, uploads or tags: *out* is the person's word (spec 68 §3.5). No face, no model.
 """
 from __future__ import annotations
 
@@ -235,7 +235,7 @@ def _days(state_dir: Path, r: dict) -> int | None:
 
 
 def tally(root: Path, state_dir: Path, party: str, rows: list[dict] | None = None) -> dict:
-    """A Release party's work (spec 43 §2, spec 67 §4): `{made, out, goals, days}`: the releases made, those out, goals a release (the
+    """A Release party's work (spec 43 §2, spec 68 §4): `{made, out, goals, days}`: the releases made, those out, goals a release (the
     average over those made; None before one) and the days from a flag to out (the average over those out with a flag; None before one)."""
     mine = [r for r in (index(root, state_dir) if rows is None else rows) if r["party"] == party]
     days = [d for r in mine if (d := _days(state_dir, r)) is not None]

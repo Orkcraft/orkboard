@@ -127,7 +127,7 @@ def work(root: Path, state_dir: Path, goal: str, target: str = "balance") -> dic
     out = {"ideas": len(plans), "leader": leader, "members": members, "checks": checks}
     if goal_team.leader_of(root, goal) == library.INVESTOR:       # Ideation: its pitches judged, sent, passed (spec 65 §6)
         out["pitches"] = pitches.tally(root, state_dir, goal)
-    if goal_team.leader_of(root, goal) == library.RELEASE_MANAGER:      # Release: releases made and out, goals a release, days from a flag to out (spec 67 §4)
+    if goal_team.leader_of(root, goal) == library.RELEASE_MANAGER:      # Release: releases made and out, goals a release, days from a flag to out (spec 68 §4)
         out["releases"] = releases.tally(root, state_dir, goal)
     return out
 

@@ -359,7 +359,7 @@ def test_the_prompts_line_says_the_type_and_its_plan(board):
     assert json.loads((ideas.state_folder(state, slug) / "state.json").read_text())["type"] == "nobody/bug"   # kept as it was written
 
 
-# -- spec 67 §3.1: A release asks its version and is offered by the Release party alone ----------------------------------------
+# -- spec 68 §3.1: A release asks its version and is offered by the Release party alone ----------------------------------------
 
 def _preset(board, preset, title):
     root, state = board

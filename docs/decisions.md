@@ -1047,7 +1047,7 @@ says so. A question is not a blow (*a question costs nothing*), so the two are t
    stay three. No sound, no colour but the office's.
 The owner's call, before the testers' numbers. Spec 49 §11.7.
 
-## 81. A party is a team, a goal has a route: a goal keeps itself across parties; a Release party gathers the flags (23 October, the owner)
+## 83. A party is a team, a goal has a route: a goal keeps itself across parties; a Release party gathers the flags (23 October, the owner)
 
 Why: the owner asked what if parties changed often: *ideation → a new mobile feature → ideation → a new feature →
 testing → release*, not one party for the mobile app. Read as parties, that chain is one thing's way, not a change of
@@ -1073,12 +1073,12 @@ version out in the stores (a phone app has a build, a store's review, its notes 
    goal that went in says *Out in 1.4*. In a project with a Release party, the other parties are not offered *A release*;
    without one, a party releases its own flags as today.
 7. **Measured first**: the party switches a day, by face and pair, so §63.11's *seldom* is read, not assumed.
-Spec 67.
+Spec 68.
 
-## 82. On the desktop the left column is the parties: a party a heading, its goals under it; the project takes the top line (24 October, the owner)
+## 84. On the desktop the left column is the parties: a party a heading, its goals under it; the project takes the top line (24 October, the owner)
 
 Why: the owner, on the window as built: the left column's top line (*Контент для … 0/5 · Parties ⌄*) cuts the party's
-name and hides the other parties behind a deck, while a project has a few (Ideation, a product's party, Release, §81)
+name and hides the other parties behind a deck, while a project has a few (Ideation, a product's party, Release, §83)
 and a goal's route goes through them. The deck was right for the phone's one hand, not for a column that has the room.
 So (reverses §65.3 on the desktop; the phone keeps its deck and sheet):
 1. **The left column is a list of the parties**, in the Board's order, then Operations when the project has them,
@@ -1092,4 +1092,4 @@ So (reverses §65.3 on the desktop; the phone keeps its deck and sheet):
    column, with what waits in each project as the menu says today.
 4. **The leader's big card goes**: its price and its details are behind its row's press and *About this party*, as a
    member's are. A new party's heads gather onto its heading's head (§76.3's moment, landing elsewhere).
-The owner's call. Spec 68.
+The owner's call. Spec 69.

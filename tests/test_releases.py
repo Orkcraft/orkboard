@@ -1,4 +1,4 @@
-"""Spec 67 A (docs/specs/67-release-and-route.md §3–§6, Tests → A): what goes in a release (since the last one out, Releases from, held
+"""Spec 68 A (docs/specs/68-release-and-route.md §3–§6, Tests → A): what goes in a release (since the last one out, Releases from, held
 flags), a release's file, `goes_in`, the prompt's lines cut at 3 000, Mark it out, the events, the party switch, the Map's answers. Code, no model."""
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 
 from orkboard.gui.board_host import CommandError
 from orkboard.realm import board_map, event_log, goal_types, idea_flag, ideas, library, releases
-from tests.test_idea_route import events, flag, goal, host, party, wait, wait_party  # noqa: F401  (`host`: the fixture of spec 67's route tests)
+from tests.test_idea_route import events, flag, goal, host, party, wait, wait_party  # noqa: F401  (`host`: the fixture of spec 68's route tests)
 
 A1, W1, A2 = "2026-10-20T09:00:00", "2026-10-21T09:00:00", "2026-10-22T09:00:00"
 

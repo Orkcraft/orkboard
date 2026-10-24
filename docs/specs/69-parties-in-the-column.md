@@ -1,16 +1,16 @@
-# Spec 68 — On the desktop the left column is the parties: each a heading, the open one's goals under it; the project takes the top line
+# Spec 69 — On the desktop the left column is the parties: each a heading, the open one's goals under it; the project takes the top line
 
-The owner, 24 October (decisions §82), on the window as built: the left column's top line (*Контент для … 0/5 ·
+The owner, 24 October (decisions §84), on the window as built: the left column's top line (*Контент для … 0/5 ·
 Parties ⌄*) cuts the party's name and keeps the other parties behind a deck, though a project has few and a goal's route
-(spec 67) goes through them. So **the desktop's left column becomes the list of the parties**: a heading for each, the
+(spec 68) goes through them. So **the desktop's left column becomes the list of the parties**: a heading for each, the
 one the board shows open with its leader, *Process now*, its goals and the New goal pile under it, and **the project
 switcher takes the column's top line**. **Builds:** Claude · **Review:** full · P1.
 
 **What it is, and is not:** the desktop's face only (no command, key, setting or storage changes; the host's answers as
-today). Not: the phone (its deck and sheet stay, decisions §82); more than one party open; a goal moved by dragging it to
+today). Not: the phone (its deck and sheet stay, decisions §84); more than one party open; a goal moved by dragging it to
 another party's heading; a new place for the Target, Agents, Files, Spend or Stop all.
 
-One part, **B. Desktop**. Spec 67's B (the route, *k flags wait for a release*) is built **after** this one, in this
+One part, **B. Desktop**. Spec 68's B (the route, *k flags wait for a release*) is built **after** this one, in this
 column. **This file is the contract**; the rest is the builder's choice inside its files. **Change nothing outside its
 files** but those §6 names.
 
@@ -24,7 +24,7 @@ open* (the open heading's), *k of n goals done* (a heading's *k/n* tooltip, as t
 heading's sign's title; *1 waits in <party>*). Every other word is today's: *+ New party*, *Operations*, *Process now*,
 *Judge now*, *New goal*, *Goals*, *Pitches*, *Show all*. *deck*, *spread*, *pile* stay out of what a person reads.
 
-## 1. The column (decisions §82.1, §82.3)
+## 1. The column (decisions §84.1, §84.3)
 1. From the top: **the project switcher** (today's `ProjectSwitcher`, its button as wide as the column, the project's
    name in the pixel face, never cut under two lines; its menu as today: the open projects with what waits in each, the
    recent ones), then **the parties**, in the Board's order (`partiesOf()` as the deck had them), then **Operations**
@@ -34,7 +34,7 @@ heading's sign's title; *1 waits in <party>*). Every other word is today's: *+ N
 3. The top bar loses the project switcher: *Orkline*, the Target, the spacer, Agents, Files, Spend, Stop all, the gear.
    With no project (the start screen) the column is not drawn, as today.
 
-## 2. A party's heading (decisions §82.1)
+## 2. A party's heading (decisions §84.1)
 1. One button per party, `aria-expanded` (true for the open one), `aria-current="true"` on the open one, 40 px high at
    least (two lines of name: as high as it needs): **its leader's head** (orkUI's `Head`, 24 × 22, the race and tier as
    the leader's member row has them), **its whole name** (the text face; two lines, then cut with its title holding the
@@ -50,7 +50,7 @@ heading's sign's title; *1 waits in <party>*). Every other word is today's: *+ N
 4. Keyboard: the headings are in the Tab order; ↑ and ↓ move between headings when one has the focus; Enter or Space
    presses.
 
-## 3. The open party's body (decisions §82.2, §82.4)
+## 3. The open party's body (decisions §84.2, §84.4)
 Under its heading, indented by the head's width:
 1. **Its leader**: the member's row as `members.js` draws a member (its head with its three signs, its name, its two
    numbers; the peek on hover, solo on a press), in place of today's big leader card (`.arena-hero` and its deck edges
@@ -89,5 +89,5 @@ most six, none under reduced motion, on a hidden page, after *Edit the party*'s 
 - The critical tests (CLAUDE.md "Alpha"), `tests/test_gui_wording.py`, `tests/test_design_system.py`.
 
 ## 6. Outside the part's files
-- `docs/decisions.md` §82 and this file are the contract. `js/arena/spread.js` keeps dealing a stack and the types; the
+- `docs/decisions.md` §84 and this file are the contract. `js/arena/spread.js` keeps dealing a stack and the types; the
   parties' spread's code goes from `goaltabs.js` only.
