@@ -375,11 +375,11 @@ async def test_the_stage_switch_starts_on_the_first_stage_with_work_counts_the_s
             await _band(page, band)
             assert await page.locator(".arena-scroll").evaluate("e => e.scrollWidth <= e.clientWidth + 1")
         SCENE["map"]["goals"][0]["party"].append(member({"slug": "extra", "name": "Extra"}, "build", OWN))          # three builders still fit
-        SCENE["map"]["goals"][0]["party"].append(member({"slug": "more", "name": "More"}, "build", OWN))           # four do not: the columns scroll sideways, the page does not
+        SCENE["map"]["goals"][0]["party"].append(member({"slug": "more", "name": "More"}, "build", OWN))           # four fit too (spec 67 §1.1, the most of a stage): the columns share the width, nothing scrolls
         stub.bump({})
         await _band(page, "build")
         await page.locator(".colname").nth(3).wait_for(timeout=WAIT_MS * 2)
-        assert await page.locator(".arena-scroll").evaluate("e => e.scrollWidth > e.clientWidth") and await page.evaluate(NO_SCROLL)
+        assert await page.locator(".arena-scroll").evaluate("e => e.scrollWidth <= e.clientWidth") and await page.evaluate(NO_SCROLL)
 
 
 @pytest.mark.asyncio
@@ -423,7 +423,7 @@ async def test_the_member_names_stand_under_the_stage_switch_and_their_tasks_run
         assert await page.locator('.stack[data-column="screens"] .phase').evaluate_all("els => els.map((e) => e.dataset.phase)") == ["now", "later"]
         decks = column.locator(".deck")
         ys = [(await d.bounding_box())["y"] for d in await decks.all()]
-        assert ys == sorted(ys) and len(ys) == 3 and ys[0] > tokens["y"] + tokens["height"]               # running down from the member's name
+        assert len(ys) == 3 and abs(ys[0] - ys[1]) <= 8 and ys[2] > max(ys[:2]) and min(ys) > tokens["y"] + tokens["height"]      # running down from the member's name: the two of *now* on a row (the stack of two 8 px lower for its edges), then *next* under them
         assert [await d.get_attribute("data-key") for d in await decks.all()] == ["register|now", "cookie|now", "register|next"]      # one stack a goal, in the Board's order; then the next row
         assert [await d.get_attribute("data-n") for d in await decks.all()] == ["2", "1", "1"]
         first = decks.first
@@ -464,8 +464,8 @@ async def test_a_members_solo_keeps_its_columns_order_two_to_a_row_centred_from_
         assert ["is-wrap" in await r.get_attribute("class") for r in await rows.all()] == [True, True]
         first_row = [await c.bounding_box() for c in await rows.first.locator(".deck").all()]
         assert len(first_row) == 2 and abs(first_row[0]["y"] - first_row[1]["y"]) <= 12 and first_row[0]["x"] < first_row[1]["x"]      # two to a row …
-        gap = round(first_row[1]["x"] - (first_row[0]["x"] + 132))
-        assert 8 <= gap <= 28                                                                          # … 16 px apart (the stack of two keeps room for its edges)
+        gap = round(first_row[1]["x"] - (first_row[0]["x"] + 74))
+        assert 6 <= gap <= 16                                                                          # … 6 px apart (the stack of two keeps room for its edges)
         mid = (first_row[0]["x"] + first_row[1]["x"] + first_row[1]["width"]) / 2
         assert abs(mid - 195) <= 14                                                                    # … centred
         single = await rows.nth(1).locator(".deck").first.bounding_box()
@@ -481,10 +481,10 @@ async def test_a_members_solo_keeps_its_columns_order_two_to_a_row_centred_from_
         await solo.wait_for(timeout=WAIT_MS)
         await solo.get_by_role("button", name="Everyone").click()
         await solo.wait_for(state="detached", timeout=WAIT_MS)
-        await _band(page, "lead")                                                                    # the leader's solo lays Planning's goals out the same way: two to a row, centred, 16 px apart
+        await _band(page, "lead")                                                                    # the leader's solo lays Planning's goals out the same way: four to a row, centred, 6 px apart (spec 67 §1.2)
         await page.locator('button.band__face[data-member="taskmaster"]').click()
         lead = page.locator(".solo")
         await lead.wait_for(timeout=WAIT_MS)
         cards = [await c.bounding_box() for c in await lead.locator(".deck").all()]
-        assert len(cards) == 6 and len({round(b["y"]) for b in cards[:2]}) == 1 and round(cards[1]["x"] - (cards[0]["x"] + cards[0]["width"])) == 16
-        assert abs((cards[0]["x"] + cards[1]["x"] + cards[1]["width"]) / 2 - 195) <= 1 and await page.evaluate(NO_SCROLL)
+        assert len(cards) == 6 and len({round(b["y"]) for b in cards[:4]}) == 1 and cards[4]["y"] > cards[0]["y"] and round(cards[1]["x"] - (cards[0]["x"] + cards[0]["width"])) == 6
+        assert abs((cards[0]["x"] + cards[3]["x"] + cards[3]["width"]) / 2 - 195) <= 1 and await page.evaluate(NO_SCROLL)

@@ -4,6 +4,7 @@
 // stands under the goals bar, once per device (`localStorage` `orkcraft.flags.goals`): *⚑ 3 flags raised · <a>, <b> and 1 more are in main*, its × 44 px; a press on it opens About this party at *Its flags*.
 // Between its flag and its words a row holds the elements of its first six goals; the first time it stands, they travel from the gate to the row, then the flag is raised and the line lit once (spec 64 §4).
 import { h, icon, sheet } from "./util.js";
+import { pctOf } from "./shell-spend.js";
 import { elem, sign } from "./shell-marks.js";
 import { modelOf } from "./shell-arena-words.js";
 import { savePartyEl } from "./shell-goal.js";
@@ -79,7 +80,7 @@ export function makeParty(core, ctx) {
       const c = x.role?.check_week;
       return line(`${x.name} checks ${x.rule}${c?.checks ? ` · caught ${c.caught || 0}/${c.checks} lately` : ""}`);
     });
-    const spent = [g.usd != null ? `≈$${Number(g.usd).toFixed(2)} so far` : "", g.today?.merged ? `today ${g.today.merged} merged · ≈$${Number(g.today.usd).toFixed(2)}` : ""].filter(Boolean);
+    const spent = [g.usd != null ? `≈${pctOf(g.usd) || `$${Number(g.usd).toFixed(2)}`} so far` : "", g.today?.merged ? `today ${g.today.merged} merged · ≈${pctOf(g.today.usd) || `$${Number(g.today.usd).toFixed(2)}`}` : ""].filter(Boolean);
     const range = priceRange(priceOf(g));
     const flags = flagsOf(m.nodes);
     const listed = allFlags ? flags : flags.slice(0, FLAGS_SHOWN);

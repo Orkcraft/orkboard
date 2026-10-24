@@ -131,25 +131,23 @@ async def test_a_tasks_card_wears_its_goals_type_top_right_a_planning_goal_says_
     async with _phone(fake_repo, monkeypatch) as (stub, page):
         await page.locator(".stack .deck").first.wait_for(timeout=WAIT_MS)
         typed = page.locator('.stack .deck[data-idea="register"]').first
-        line = typed.locator(".tcard__idea")
-        assert await typed.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1 and norm(await line.inner_text()) == "WebAuthn register"
-        assert await line.locator(".ork-sign").count() == 0                                                                             # spec 55: top right, not before the name
+        assert await typed.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1 and await typed.locator(".tcard__idea").count() == 0      # spec 55: top right; spec 67 §2.2: the goal's line is gone
         sign = await typed.locator(".tcard__type .ork-sign").bounding_box()
         assert (round(sign["width"]), round(sign["height"])) == (14, 14)
         assert await typed.get_attribute("aria-label") == "Challenge store (WebAuthn register, Fix a bug): in Review, now" or "WebAuthn register, Fix a bug" in await typed.get_attribute("aria-label")
         plain = page.locator('.stack .deck[data-idea="cookie"]').first                                                                  # a goal with no type: the name alone
-        assert await plain.locator(".tcard__type").count() == 0 and norm(await plain.locator(".tcard__idea").inner_text()) == "Session cookie flags"
+        assert await plain.locator(".tcard__type").count() == 0 and await plain.locator(".tcard__idea").count() == 0
         await _band(page, "lead")
         goal = page.locator('.stack .deck[data-idea="recovery"]')
         await goal.wait_for(timeout=WAIT_MS)
-        assert norm(await goal.locator(".tcard__idea").inner_text()) == "Fix a bug" and await goal.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1
+        assert await goal.locator(".tcard__idea").count() == 0 and await goal.locator(".tcard__top .tcard__type .ork-sign.bug").count() == 1        # the type's sign says it (spec 67 §2.2)
         assert "Fix a bug" in await goal.get_attribute("aria-label")
-        other = page.locator('.stack .deck[data-idea="pagewords"] .tcard__idea')
-        assert norm(await other.inner_text()) == "Goal" and await other.locator(".tcard__type").count() == 0
+        other = page.locator('.stack .deck[data-idea="pagewords"]')
+        assert await other.locator(".tcard__idea").count() == 0 and await other.locator(".tcard__type").count() == 0
         assert await page.locator(".stops .tcard__type, .stops [class*='tcard__type']").count() == 0                                   # no stop along the bottom wears it
         assert await page.evaluate(NO_SCROLL)
         await _band(page, "build")
-        await typed.locator(".tcard__idea").wait_for(timeout=WAIT_MS)
+        await typed.locator(".tcard__top").wait_for(timeout=WAIT_MS)
         await typed.click()                                                                                                              # a stack of more spreads: its cards wear the sign too
         spread = page.locator(".spread .tcard__top .tcard__type")
         if await page.locator(".spread").count():
@@ -158,4 +156,4 @@ async def test_a_tasks_card_wears_its_goals_type_top_right_a_planning_goal_says_
 
 def test_the_service_worker_is_at_v61_with_b_merged_over_a_v60():
     sw = (pwa.ROOT / "sw.js").read_text(encoding="utf-8")
-    assert 'const CACHE = "orkcraft-app-v73";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7); spec 54 B is v62
+    assert 'const CACHE = "orkcraft-app-v75";' in sw                                                           # A set v60, B v61: the second to merge keeps v61 (spec 53 §7); spec 54 B is v62

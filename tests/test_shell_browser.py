@@ -118,6 +118,7 @@ class StubHost:
         self.goal_notes: list[str] = []                                                              # what ideas.goal_save says besides its slug
         self.learned = True                                                                          # ideas.party_price: learned from the project's ideas, or a first guess
         self.reserve = {"share": 0.1, "night": False}                                                # the snapshot's reserve (spec 49 §2.3)
+        self.rate = None                                                                             # what 1 % of the five-hour window costs (decisions §82)
         self.week: dict[str, dict | None] = {}                                                       # ideas.agents: a role's week by slug (spec 49 §5.2)
         self.harness: dict[str, dict] = {}                                                           # ideas.agents: the tool a role runs on, by slug
         self.gate_doc = {"into": "dev", "main": "main", "same": False, "commits": 3, "files": 7,       # ideas.gate (spec 49 §2.1)
@@ -179,7 +180,7 @@ class StubHost:
         return {"t": "state", "state": {
             "focus": "board", "ideas_rev": self.rev, "look": self.look, "project": "orkline", "demo": False, "onboarding": self.onboarding or False,
             "words": [], "resources": {}, "orkspaces": [], "buildings": [], "roads": [], "alerts": [], "score": {},
-            "limits": self.limits, "reserve": self.reserve, "review_count": len(self.results()), "needs_you": 1,
+            "limits": self.limits, "reserve": self.reserve, "rate": self.rate, "review_count": len(self.results()), "needs_you": 1,
             "hud": {"gold": "$2.40", "show_gold": True, "lumber": "120k"}}}
 
     def page(self, slug):

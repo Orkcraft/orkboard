@@ -130,9 +130,10 @@ product whether a result failed on quality or cost too much. Prioritised hard: t
    its own: one dial moves the money, so the waybill can say what made a step dear, and the Target never says *Thrift*
    while an ork thinks at full effort. The raw model names leave the list (they repeat the tiers); a role file that
    names one still runs it.
-3. **One currency: ≈$ at API prices**, said plainly (*not your bill*; `sources/pricing.py`), never $0 for what is
-   unpriced. What is left of a window stays in the top bar. Harnesses are compared once a second one runs roles; the
-   tool and model of every run are recorded from now on, so the data is there by then.
+3. **One currency: ≈$ at API prices** (on a subscription, a share of the five-hour window: §82), said plainly (*not
+   your bill*; `sources/pricing.py`), never $0 for what is unpriced. What is left of a window stays in the top bar.
+   Harnesses are compared once a second one runs roles; the tool and model of every run are recorded from now on, so the
+   data is there by then.
 4. **What is measured, goal → idea → task → stage → ork.** The stages: the goal's read (and its night refresh), the
    spec (draft, answers, talk), the plan, the work (round 1), the rework (the rounds after a send back), and what was
    dropped. Two numbers decide: **$ a merged result** and **merged the first time** (round 1, never in Needs you). The
@@ -1046,6 +1047,45 @@ says so. A question is not a blow (*a question costs nothing*), so the two are t
    focus; at most three heads in one refresh, the rest wear the sign without it. Nothing travels: §76.3's three moments
    stay three. No sound, no colour but the office's.
 The owner's call, before the testers' numbers. Spec 49 §11.7.
+
+## 81. The hand first on the phone: the field a board of tokens, every member on the screen, the most urgent stop answered where it stands (23 October, the owner)
+
+Why: the owner, on the phone's screenshots (the Design canvas *Orkboard — after the cleanup*): *the person will not read
+the task cards much; what matters are the cards in the hand. The target device is an iPhone: use its screen as
+productively as we can, and no sideways scroll; four members is the most.* At 390 × 844 the field took almost the whole
+screen with cards of 132 × 185 and a sideways strip from the third member on, while the hand was 56 px of cut words and
+every answer took a raise first. And a waiting task said *after k1, k2*, ids the person never sees elsewhere. So:
+1. **Every member on the screen**: the phone's columns share its width, one to four, with no sideways scroll (replaces
+   §63.13's *the members scroll instead* and spec 50 §6.5's 148-px columns).
+2. **A task's card is a token on the phone**, 74 px wide and 5:7, its stacks wrapping in its member's column: the top row
+   as §68 has it (the element, the type's sign in its colour), the task's short name, one value (its time at work, or
+   the hour it may start); the goal's line goes (reverses spec 55 §3 on the phone); the edge and the fill say the state,
+   at work raised. The words stay in its label.
+3. **What a task waits for is said by name** on both faces (*after Challenge store*), the desktop's card *waits for 2*.
+4. **The hand takes the room**: 250 px while a stop waits; the most urgent stands upright in front with its banner, its
+   text and its quick answers (two at most, else the recommended one and *More…*), the rest fanned around it, a card
+   right of the front with its corner mirrored; a tap brings a fanned card to the front; an answer from the front is
+   counted `via: "front"`.
+The desktop is unchanged but for item 3. The owner's call, before the testers' numbers. Spec 67.
+
+## 82. On a subscription a spend is a share of Claude's five-hour window, not ≈$ (23 October, the owner)
+
+Why: the owner: *money says nothing to me now: I don't know what the API costs.* §48.3 made ≈$ at API prices the one
+currency, said *not your bill*; on a subscription nobody pays it, and what runs out is the window the top bar already
+shows in percents. So, while Claude is on a subscription:
+1. **A spend is said as a share of the five-hour window**: *≈18 % of 5h a task*, *plan ≈3–8 % of 5h*, *<1 % of 5h* under
+   a percent; the five hours, not the week, so a task costs whole percents. Its hint says it is an estimate.
+2. **An estimate, never a read**: Claude says its windows in whole percents and every session on the machine, the
+   person's own too, spends the same window, so a task's share can't be read off it. It is its ≈$ at API prices over a
+   rate: what 1 % of the window has cost on this machine, the API-equivalent $ of every Claude Code session since the
+   window began over the percent it shows used, one sample a window (at least 5 % used), the median of the last 12
+   (`sources/window_rate.py`, `~/.config/orkcraft/window-rate.json`). Use outside Claude Code (claude.ai) leaves no
+   transcript: the share then reads high, never low.
+3. **The $ stays underneath**: the ledgers, the estimates, Review's *Cost too much* and every event keep $ and tokens;
+   only the page converts, through the snapshot's `rate`. With no rate learnt yet, or on an API key, the page says ≈$ as
+   before. A tool of its own price (pi, Hermes) beside Claude on a subscription is said in Claude's window too: rare,
+   known.
+The owner's call, before the testers' numbers. Amends §48.3.
 
 ## 83. A party is a team, a goal has a route: a goal keeps itself across parties; a Release party gathers the flags (23 October, the owner)
 
