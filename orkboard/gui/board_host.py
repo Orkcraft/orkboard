@@ -25,8 +25,9 @@ from typing import Any, Callable
 
 from orkboard import __version__, settings
 from orkboard.core import bus as b
-from orkboard.core import treasury, updates as core_updates
+from orkboard.core import crashes, treasury, updates as core_updates, usage
 from orkboard.core.board_limits import BoardLimits
+from orkboard.gui import board_cli
 from orkboard.realm import analytics, call_log, day_log, event_log, halt, idea_target
 from orkboard.sources import telemetry, window_rate
 
@@ -44,6 +45,17 @@ def open_link(args: dict) -> bool:
     if not url.lower().startswith(("http://", "https://")):
         raise CommandError("Only web links open in the browser")
     return webbrowser.open(url)
+
+
+class _Answer:
+    """The machine's one answer about usage stats and crash reports as orkGet's copy reads it (`usage`, `install_id`):
+    always the host's settings of now, which a save may replace (gui/onboarding.py)."""
+
+    def __init__(self, host: Any) -> None:
+        self._host = host
+
+    usage = property(lambda self: self._host.machine.usage)
+    install_id = property(lambda self: self._host.machine.install_id)
 
 
 class BoardHost:
@@ -195,7 +207,8 @@ class Orkboard:
         self.commands: dict[str, Callable[[dict], Any]] = {
             "halt": self._halt,
             "link.open": open_link,
-            "crash.window": lambda a: None,           # the crash reporter is Orkline's (core/crashes.py)
+            "crash.window": self._crash_window,       # the page's own errors (js/crashes.js, core/crashes.py)
+            "usage.share": self._share_usage,         # the one answer, asked on the first screen (js/onboarding.js)
             "mobile.hello": self._hello,
             "mobile.snapshot": self._mobile_snapshot,
         }
@@ -203,6 +216,9 @@ class Orkboard:
         self.commands.update(self.pusher.commands())
         self.updates = updates.Updates(self)
         self.commands.update(self.updates.commands())
+        # Anonymous usage stats and crash reports, one answer per machine with Orkline (core/usage.py, core/crashes.py)
+        self.usage = usage.Usage(_Answer(self), face="gui", demo=demo)
+        self.crashes = crashes.install(_Answer(self), face="gui", demo=demo)
         self.onboarding = onboarding.Onboarding(self)
         self.commands.update(self.onboarding.commands())
         self.commands.update(self.projects.commands())
@@ -306,7 +322,8 @@ class Orkboard:
         return {**board, "focus": "board", "onboarding": self.onboarding.snapshot(),
                 "hud": {"show_gold": show_gold, "gold": gold, "lumber": lumber}, "rate": window_rate.shown(self.machine),
                 "repo": str(root) if root is not None else "", "projects": self.projects.list(),
-                "update": self.updates.snapshot()}
+                "update": self.updates.snapshot(), "update_policy": self.machine.updates, "version": __version__,
+                "usage_ask": self.usage.should_ask()}
 
     def phone_snapshot(self) -> dict[str, Any]:
         """The snapshot as a phone gets it; `rev` names its content (gui/phones.py sends it again only when it moved), the
@@ -348,6 +365,7 @@ class Orkboard:
                 pass
         self.limits.tick(now)
         self.updates.tick(now)
+        self.usage.tick(now)
         self.projects.tick(now)           # every open project's Board: showing another stops nothing
         self.ops.tick(now)
         self.pusher.tick()
@@ -360,6 +378,28 @@ class Orkboard:
         self.ops.close()
         self.projects.close_all()
         call_log.keep_days(None)
+        self.usage.close()                       # app_closed, and what waits goes, briefly
+        self.crashes.close()                     # this run's session ends; the hooks go
+
+    # -- anonymous usage stats and crash reports (core/usage.py, core/crashes.py) ----------------------------
+
+    def opened(self) -> None:
+        """`app_opened`: the window opened, with the AI tools on (Orkboard's schema: nothing else)."""
+        self.usage.track("app_opened", face="gui", tools=[t for t, c in self.machine.tools.items() if c.enabled])
+
+    def _share_usage(self, args: dict) -> bool:
+        """The operator's answer (`share`: true | false), one for this machine; a first yes says hello."""
+        was = self.usage.enabled()
+        usage.share(self.machine, args.get("share") is True)
+        settings.save(self.machine)
+        if self.usage.enabled() and not was:
+            self.opened()
+            self.crashes.start()                 # the same yes: this run's session begins now
+        self.on_change()
+        return self.machine.usage is True
+
+    def _crash_window(self, args: dict) -> None:
+        self.crashes.capture_window(str(args.get("message", ""))[:2000], str(args.get("stack", ""))[:8000])
 
     # -- the page's commands ---------------------------------------------------------------------------------
 
@@ -459,6 +499,7 @@ def run(repo_root: Path | None, browser: bool = False, port: int = 0, demo: bool
     from orkboard.gui import folder_dialog, mac_app
     from orkboard.gui.server import Server
     host = Orkboard(repo_root, demo=demo, restore=True)
+    host.opened()
     server = Server(host, port)
     thread = server.start_thread()
     show(host, server, thread, browser, attach=folder_dialog.attach, dress=mac_app.dress)
@@ -484,8 +525,13 @@ def start_folder(folder: Path | None, machine: settings.MachineSettings) -> Path
 def main(argv: list[str] | None = None) -> int:
     """`orkboard [board] [<folder>] [--repo DIR] [--browser] [--port N]`: Orkboard on that folder; without one the last
     shown project, else the one it was started in, else the start screen. `board` is the old habit of
-    `orkcraft board`, and changes nothing. `orkboard --make-app`: Orkboard.app in ~/Applications (gui/mac_app.py)."""
+    `orkcraft board`, and changes nothing. `orkboard --make-app`: Orkboard.app in ~/Applications (gui/mac_app.py).
+    `orkboard usage …` and `orkboard update …`: the usage stats' answer and the updates (gui/board_cli.py). A critical
+    update installs before anything else loads, as the policy says (core/updates.py `at_launch`)."""
     from orkboard.realm import project_folder
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv and argv[0] in board_cli.WORDS:              # a folder of that name: `orkboard ./usage`
+        return board_cli.run(argv)
     parser = argparse.ArgumentParser(prog="orkboard", description="The Board on its own: parties, goals, agents, review")
     parser.add_argument("words", nargs="*", metavar="folder", help="The project's folder to open")
     parser.add_argument("--version", action="version", version=f"Orkboard {__version__}")
@@ -504,6 +550,7 @@ def main(argv: list[str] | None = None) -> int:
     if len(words) > 1:
         parser.error("one folder at most")
     folder = Path(words[0]) if words else args.repo
+    core_updates.at_launch(argv, settings.load().updates)    # a critical fix lands before Orkboard loads
     root = start_folder(folder, settings.load())
     if root is not None:
         why = project_folder.refusal(root)

@@ -1,11 +1,12 @@
 // The gear's menu (docs/specs/33-v1-shell.md §4, §9; spec 34 §5–§6), in the shell's modal: Push after merging, Download
-// today's logs, Pair a phone. The theme follows the system.
+// today's logs, Pair a phone, the updates (js/shell/update.js). The theme follows the system.
 import { html } from "../html.js";
 import { review, act } from "./store.js";
 import { board } from "../board/store.js";
 import { Modal, closeDialog, openDialog } from "./modals.js";
 import { currentProject } from "./projects.js";
 import { saveLogs } from "./errors.js";
+import { UpdatesField } from "./update.js";
 
 
 /** "01:00-07:00" → ["01:00", "07:00"]. */
@@ -31,6 +32,7 @@ export function SettingsDialog() {
           <span aria-hidden="true">–</span>
           <input class="ork-field" type="time" value=${to} aria-label="Night to" onChange=${(e) => e.target.value && act("ideas.board_set", { night: `${from}-${e.target.value}` })} /></div>
         <span class="ok-font-status ok-tone-muted">The low work, the refresh and the proposals wait for the night (your machine's time).</span></div>`}
+      <${UpdatesField} />
       <div class="shell-field"><span class="ok-font-label">Your phone</span>
         <span><button type="button" class="ork-btn" onClick=${() => openDialog("pair")}>Pair a phone</button></span></div>
       <div class="shell-gear__logs"><span class="ok-font-label">Download today's logs</span>

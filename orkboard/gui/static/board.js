@@ -9,6 +9,7 @@ import { Onboarding } from "./js/onboarding.js";
 import { ContextMenu, onContextMenu, saveLogs } from "./js/shell/errors.js";
 import { watchErrors } from "./js/crashes.js";
 import { Shell } from "./js/shell/shell.js";
+import { UpdateAsk } from "./js/shell/update.js";
 
 const SEVERITY = { warning: "is-warn", error: "is-error", information: "is-ok" };
 const MARK = { information: "✓", warning: "⚠", error: "✗" };
@@ -34,7 +35,7 @@ function Toasts() {
 function Board() {
   const t = town.value;
   if (!t) return html`<div class="gui-loading ok-font-body">Opening the board…</div>`;
-  return html`<div class="gui gui-board">${t.onboarding ? html`<${Onboarding} />` : html`<${Shell} />`}<${Toasts} /><${ContextMenu} /></div>`;
+  return html`<div class="gui gui-board">${t.onboarding ? html`<${Onboarding} />` : html`<${Shell} /><${UpdateAsk} />`}<${Toasts} /><${ContextMenu} /></div>`;
 }
 
 // A link to another site opens in the browser, never in the app's own window.

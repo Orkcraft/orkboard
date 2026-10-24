@@ -1,0 +1,19 @@
+{
+  "from": "orkWorks/orkGet",
+  "version": "0.2.0",
+  "commit": "49049893bd25aad4c97cfef19b962c788c6959ca",
+  "files": {
+    "__init__.py": "fece613cd78c9c1cb25fc8029041497d0b63e120b4cbc8af5cdadde1dbcc4cf8",
+    "consent.py": "816f86224a16d21a71f9c9acd2340ff3c2ad5d902caf04b7374da7c71b427b6b",
+    "crashes.py": "a6e8e6e13468f34500d2edaf1811d8eea32dd9eb91adfced0af6ae4b68ee51fc",
+    "install.sh": "1282a2a4cc8851e1ccff8cba3f141de6a7ccfef57a9b04e30c17d6e639338b33",
+    "profile.py": "3bcf843404c5203aea20ce61e0b36a3057c6161001ce69a9bc147ecb37290dba",
+    "schemas/common.json": "b9ef55e7fff4f93a805e61c2f64b5db52c10dcf82bcf347b8c71388052f870b4",
+    "schemas/install.json": "66eeaa60b66b3b9e6281696397f784fc007817d97ca3643594d3f179eaf06471",
+    "schemas/orkboard.json": "70d73a67282555618199ca4a9348c60a66948347eceae1719cd355190c3d6334",
+    "schemas/orkline.json": "3833b8e51af30ae71311f39c6d75863634ee446cd60746a5c85fddaad34f2579",
+    "stamp.py": "f515010ae3c7ce3ec66f2c214104a9354e4ae44e0f6494be6ba0a31f1f3434d3",
+    "updates.py": "a9fe9b3267770b4cc89cffc7dd6a42df9323359b2bba19e3b5434b949b1a85c4",
+    "usage.py": "acd2d2f46658296e095e7c442f97191f11136601a4f420aef4fa55107176aff4"
+  }
+}

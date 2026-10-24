@@ -88,10 +88,15 @@ def isolated_layout_file(tmp_path: Path, tmp_path_factory: pytest.TempPathFactor
     monkeypatch.setenv("ORKCRAFT_STATE_DIR", str(tmp_path / "orkcraft-state"))
     monkeypatch.delenv("ORKCRAFT_FOCUS", raising=False)
     monkeypatch.setenv("ORKCRAFT_LOOK", "camp")         # never by the shift: a test runs at any hour
-    # No real model is asked anything: no limits read, no model list, no update list (test_updates.py opts in).
+    # No real model is asked anything: no limits read, no model list, no update list (test_updates.py opts in),
+    # no usage stats or crash report sent.
     monkeypatch.setenv("ORKCRAFT_LIMITS", "0")
     monkeypatch.setenv("ORKCRAFT_MODEL_LIST", "0")
     monkeypatch.setenv("ORKCRAFT_NO_UPDATE", "1")
+    monkeypatch.setenv("ORKCRAFT_NO_USAGE", "1")         # nothing is sent: test_crashes.py opts in, with no network
+    monkeypatch.setenv("ORKCRAFT_CRASH_DIR", str(tmp_path / "crashes"))
+    for name in ("ORKCRAFT_USAGE_URL", "ORKCRAFT_CRASH_URL", "ORKCRAFT_UPDATE_URL", "ORKCRAFT_USAGE_DEBUG", "DO_NOT_TRACK"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-home"))   # never this machine's Claude Code plugins
     # No real agent CLI and no real gh, even on a machine that has them: a run a test does not fake finds no tool,
     # as on CI (tests/test_no_real_tools.py).
