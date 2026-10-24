@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from orkboard.gui import phones
+from orkboard import __version__
 from orkboard.gui.board_host import BoardPhone, Orkboard
 from orkboard.gui.server import PROTOCOL, Server
 
@@ -35,8 +36,9 @@ def test_a_phone_may_send_the_boards_commands_and_halt_but_not_build_or_type(fak
     assert may("halt") and may("mobile.snapshot") and may("ideas.answer") and may("ideas.merge")
     assert not may("ideas.nothing") and not may("act", {"id": "pit", "act": "drop"})
     for name in ("town.build", "town.demolish", "term.input", "sessions.new", "hut.move", "roads.lay",
-                 "orders.answer", "phones.pair", "update.install", "link.open"):
+                 "orders.answer", "phones.pair", "update.policy", "update.restart", "link.open"):
         assert not may(name, {}), name
+    assert may("update.check") and may("update.install")         # a newer version, installed from the phone (shell-update.js)
 
 
 def test_the_compact_snapshot_is_small_and_names_its_content(fake_repo):
@@ -47,7 +49,7 @@ def test_the_compact_snapshot_is_small_and_names_its_content(fake_repo):
     assert snap["v"] == phones.API and snap["project"] == fake_repo.name
     assert len(json.dumps(snap)) < len(json.dumps(full))
     assert set(snap) == {"v", "project", "focus", "look", "ideas_rev", "ops_rev", "needs_you", "idea_states",
-                         "review_count", "review_results", "limits", "reserve", "rate", "hud", "rev"}
+                         "review_count", "review_results", "limits", "reserve", "rate", "hud", "version", "update", "rev"}
     assert snap["focus"] == "board" and snap["look"] == "office"
     assert "words" not in snap and "projects" not in snap
     assert host.command("mobile.snapshot", {"since": snap["rev"]}) == {"v": phones.API, "rev": snap["rev"],
@@ -85,3 +87,31 @@ async def test_the_version_handshake_takes_the_token(fake_repo):
     finally:
         server.stop()
         await asyncio.wait_for(task, 10)
+
+
+def test_the_phone_sees_a_newer_version_small_and_installs_it(fake_repo, monkeypatch):
+    """A newer Orkline on the phone (pwa/shell-update.js): what it is and a few notes, then `update.install` from the
+    phone installs it on the computer, which restarts on it (gui/updates.py)."""
+    from types import SimpleNamespace
+    from orkboard.core import updates
+    from orkboard.gui import updates as gui_updates
+    host = _host(fake_repo)
+    assert host.command("mobile.snapshot")["update"] is None
+    host.updates._method = lambda: updates.Method("uv", (("uv", "tool", "upgrade", "orkboard"),))
+    rels = [{"version": f"9.0.{n}", "notes": f"notes {n}"} for n in range(5, 0, -1)]
+    host.updates._read(updates.State(manifest={"releases": rels}))
+    u = host.command("mobile.snapshot")["update"]
+    assert (u["version"], u["major"], u["critical"], u["can"], u["state"]) == ("9.0.5", True, False, True, "idle")
+    assert u["notes"] == ["9.0.5: notes 5", "9.0.4: notes 4", "9.0.3: notes 3"] and u["current"] == __version__
+    before = host.command("mobile.snapshot")["rev"]
+    monkeypatch.setattr(gui_updates.threading, "Thread", lambda target, **kw: SimpleNamespace(start=target))
+    monkeypatch.setattr(updates, "install", lambda way: updates.Result(True, "ok", "9.0.5"))
+    monkeypatch.setattr(updates, "remember", lambda result, version: None)
+    quits = []
+    host.updates.quit = lambda: quits.append(1)
+    assert BoardPhone.allowed(host, "update.install", {})
+    host.command("update.install", BoardPhone.guard("update.install", {}, {"id": "d1"}))
+    assert quits == [1] and host.updates.restart_wanted                 # the window closes: `orkboard` opens again on 9.0.5
+    after = host.command("mobile.snapshot")
+    assert after["update"]["state"] == "installed" and after["rev"] != before
+    host.close()

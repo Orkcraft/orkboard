@@ -1,4 +1,4 @@
-// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1, spec 50 §6.1, spec 54 §5–§6): Stop all and Spend today at its head, then This project — the Target (one switch), Start plans by themselves, the night's hours, Merge into, *Agents of this project ›* (a screen of its own), Push after merging, What is left — and This phone — Pair a phone,
+// The drawer's settings on the phone (docs/specs/41-phone-round-3.md §2, spec 49 §10.1, spec 50 §6.1, spec 54 §5–§6): Stop all and Spend today at its head, then This project — the Target (one switch), Start plans by themselves, the night's hours, Merge into, *Agents of this project ›* (a screen of its own), Push after merging, What is left — and This phone — notifications, Check for updates (shell-update.js), Pair a phone,
 // Download the logs, Unpair this phone. Each setting writes with today's command (`ideas.board_set`, `ideas.into`) at once.
 import { h, sheet, icon } from "./util.js";
 import { foot } from "./shell-forms.js";
@@ -90,6 +90,8 @@ export function makeSettings(core, ctx, drawer, limits) {
   const phone = [
     h("h3", {}, "This phone"),
     push.el,
+    h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", "data-act": "update-check",           // the computer reads the list again (shell-update.js)
+      onclick: () => { drawer.close(); ctx.checkUpdate?.(); } }, "Check for updates")),
     h("div", { class: "row" }, h("button", { class: "ork-btn", type: "button", onclick: async () => {                 // Last week (spec 42 §7.3): its card on the Board tab
       const got = await core.call("ideas.week");
       if (!got) return;
