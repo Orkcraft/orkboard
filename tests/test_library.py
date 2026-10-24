@@ -149,7 +149,7 @@ def test_the_release_preset_follows_ideation_and_the_release_managers_stages_are
     got = library.presets()
     i = [p["id"] for p in got].index("release")
     assert got[i - 1]["id"] == "ideation" and got[i] == {
-        "id": "release", "name": "Release", "line": "A version out: what goes in, its notes, the stores' list", "craft": "product", "race": "lich",
+        "id": "release", "name": "Release", "line": "A version out: what goes in, its notes, the stores' list", "craft": "product", "race": "skeleton",
         "mixed": True, "lead": "release-manager", "build": ["release-engineer", "release-notes", "aso"], "check": ["release-checker"]}
     assert library.stages()["release-manager"] == {"lead": "Gather", "build": "Prepare", "check": "Check", "seats": {"lead": 1, "build": 3, "check": 1}}
     assert not goal_team.seats(["release-engineer", "release-notes", "aso", "release-checker"], "release-manager")
@@ -157,8 +157,10 @@ def test_the_release_preset_follows_ideation_and_the_release_managers_stages_are
 
 
 def test_listed_says_an_agents_own_race_only_once_orkui_has_its_head(tmp_path, monkeypatch):
+    assert {a["id"]: a["race"] for a in library.listed()}["release-manager"] == "skeleton"                       # orkUI 0.5.0's copy has it
+    monkeypatch.setattr(roles, "RACE_FILES", tmp_path / "nowhere")
     listed = {a["id"]: a for a in library.listed()}
-    assert listed["release-manager"]["race"] == "lich" and listed["release-checker"]["race"] == "lich"          # before A0's copy: the craft's
+    assert listed["release-manager"]["race"] == "lich" and listed["release-checker"]["race"] == "lich"          # a copy without it: the craft's
     assert listed["release-engineer"]["race"] == "peon" and listed["release-notes"]["race"] == "gnome" and listed["investor"]["race"] == "lich"
     _skeletons(tmp_path, monkeypatch)
     listed = {a["id"]: a for a in library.listed()}
@@ -174,6 +176,7 @@ def test_a_role_wears_its_own_race_when_its_file_is_in_orkuis_copy_else_its_craf
     library.install(state, ["release-manager", "release-engineer"])
     manager, engineer = roles.role(state, "release-manager"), roles.role(state, "release-engineer")
     assert manager["race"] == "skeleton" and engineer["race"] == "" and "race: skeleton" in (state / "roles" / "release-manager.md").read_text()
+    monkeypatch.setattr(roles, "RACE_FILES", tmp_path / "nowhere")
     assert roles.head(manager, "balance") == {"craft": "product", "race": "lich", "tier": "warrior"}              # the file is missing: the craft's
     assert roles.head(engineer, "balance")["race"] == "peon"
     _skeletons(tmp_path, monkeypatch)

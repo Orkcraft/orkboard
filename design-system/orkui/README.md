@@ -16,7 +16,7 @@ question · `ork-failed.txt` the only content is a failure · `ork-working.txt` 
 On an empty screen the ork and its sentence are one block, centred on both axes in the pane's free area.
 
 ## The races
-`races/` holds the six races in three tiers (generated; `../races/README.md`): 24 x 22 beside a word in a row, 48 x 44 @2x.
+`races/` holds the seven races in three tiers (generated; `../races/README.md`): 24 x 22 beside a word in a row, 48 x 44 @2x.
 They are the look's raster art with the marks below, in colour but muted: no head is more colourful than a signal, and a state
 goes beside the head in its signal colour, never onto it.
 `.ork-race` puts a head beside its word: `<span class="ork-race"><img class="ork-race__head" src="races/elf-elder.png"
