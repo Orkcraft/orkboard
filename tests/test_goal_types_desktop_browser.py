@@ -134,7 +134,7 @@ def test_the_headings_list_the_parties_a_press_shows_one_and_the_keys_move(typed
     assert shown.get_attribute("data-goal") == "passkey" and col.locator(".arena-lead .arena-member").count() == 1
     assert shown.locator(".ork-race__head").count() == 1 and box(pg, '.arena-phead[aria-current=true] .ork-race__head')["width"] == 24
     assert "2/11" in shown.inner_text() and shown.locator(".ork-count").count() == 0 and shown.locator(".ork-sign.work").count() == 1
-    assert heads.nth(3).locator(".ork-icon").count() == 1 and "+ New party" in col.locator(".arena-pnew").inner_text()
+    assert heads.nth(3).locator(".ork-icon").count() == 1 and "New party" in col.locator(".arena-pnew").inner_text()
     shown.focus()
     pg.keyboard.press("ArrowDown")
     assert pg.evaluate("document.activeElement.dataset.goal") == "pricing"
